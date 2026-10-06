@@ -110,6 +110,7 @@ export const ALERT_LABEL: Record<string, string> = {
   "alert.partner_bad_signature": "Partner event with a bad signature",
   "alert.commission_dispute": "Late duplicate claim (dispute)",
   "alert.notification_failed": "Student message failed",
+  "alert.programme_sheet_failed": "Partner Google Sheet could not be read",
   "routing.error": "Routing error",
 };
 

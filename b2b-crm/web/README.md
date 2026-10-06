@@ -35,6 +35,10 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   modes, levels, dates, commission) and matched to the catalogue. Review the rows that need it, preview what changes
   against the live offers (removals that leave a programme with no partner are flagged), publish, and roll back to any
   earlier version. Catalogue coverage by course across partners.
+  Or connect the partner's Google Sheet (shared as "anyone with the link can view"): Sync now downloads it as Excel,
+  reads the chosen tab, and creates a draft only when its content changed (same template, matching and review as a
+  file). The page marks a sheet as due after its check interval; reading it on a schedule without a click needs a
+  Vercel Cron secret and is not built yet.
 - Routing (`/routing`): the automatic-routing switch (off until turned on; it warns when no partner is live or consent
   is missing), today's numbers, partner readiness and the decision log; a simulator that runs the engine on any lead
   without writing anything and can then route it by hand with a note; rules (always send to, only consider, never send

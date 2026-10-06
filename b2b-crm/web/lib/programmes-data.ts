@@ -46,7 +46,10 @@ export type Offer = ProgrammeLabel & {
 
 export type PartnerRepo = {
   partner: { id: number; name: string; display_name: string | null; logo_url: string | null; brand_color: string | null; status: string };
-  source: { type: string; column_template: Template; last_changed_at: string | null } | null;
+  source: {
+    type: "upload" | "gsheet"; column_template: Template; last_changed_at: string | null; last_checked_at: string | null;
+    sheet_id: string | null; tab: string | null; sync_every_hours: number; last_error: string | null; content_hash: string | null;
+  } | null;
   versions: VersionSummary[];
   offers: Offer[];
 };

@@ -11,9 +11,9 @@ import { createDraft, stageFile, switchSheet, type Staged } from "../actions";
 const select = "h-9 w-full rounded-lg border border-border bg-surface px-2.5 text-[13px] text-fg focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30";
 
 /** Upload → choose sheet and map columns (pre-filled from the partner's saved template) → create a draft. */
-export function UploadWizard({ partnerId, hasTemplate }: { partnerId: number; hasTemplate: boolean }) {
-  const [staged, setStaged] = useState<Staged | null>(null);
-  const [template, setTemplate] = useState<Template>({});
+export function UploadWizard({ partnerId, hasTemplate, initial, onCancel }: { partnerId: number; hasTemplate: boolean; initial?: Staged; onCancel?: () => void }) {
+  const [staged, setStaged] = useState<Staged | null>(initial ?? null);
+  const [template, setTemplate] = useState<Template>(initial?.template ?? {});
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [drag, setDrag] = useState(false);
@@ -39,7 +39,8 @@ export function UploadWizard({ partnerId, hasTemplate }: { partnerId: number; ha
     start(async () => {
       const res = await switchSheet(partnerId, staged.path, staged.fileName, sheet);
       if (!res.ok) { setError(res.error); return; }
-      setStaged(res.staged);
+      // A different tab of a Google Sheet is no longer the content that was fingerprinted.
+      setStaged({ ...res.staged, source: staged.source, contentHash: undefined });
       setTemplate(res.staged.template);
     });
   };
@@ -48,7 +49,7 @@ export function UploadWizard({ partnerId, hasTemplate }: { partnerId: number; ha
     if (!staged) return;
     setError(null);
     start(async () => {
-      const res = await createDraft(partnerId, { path: staged.path, fileName: staged.fileName, sheet: staged.sheet, template });
+      const res = await createDraft(partnerId, { path: staged.path, fileName: staged.fileName, sheet: staged.sheet, template, source: staged.source, contentHash: staged.contentHash });
       if ("error" in res) setError(res.error);
       else router.push(`/programmes/${partnerId}/versions/${res.versionId}`);
     });
@@ -100,7 +101,9 @@ export function UploadWizard({ partnerId, hasTemplate }: { partnerId: number; ha
             </select>
           </label>
         )}
-        <Button variant="ghost" size="sm" onClick={() => { setStaged(null); setError(null); }} disabled={pending}>Use another file</Button>
+        <Button variant="ghost" size="sm" onClick={() => { if (onCancel) onCancel(); else { setStaged(null); setError(null); } }} disabled={pending}>
+          {onCancel ? "Cancel" : "Use another file"}
+        </Button>
       </div>
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface">
