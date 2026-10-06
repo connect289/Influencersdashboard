@@ -3,8 +3,10 @@ import { Badge, EmptyState } from "@/components/ui/Card";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { DESTINATION_LABEL, formatPhone, humanize, statusTone, whatsappLink } from "@/lib/leads";
 import type { LeadDetail } from "@/lib/leads-data";
+import type { LeadRouting } from "@/lib/routing-data";
 import { DrawerShell } from "./DrawerShell";
 import { LeadActions } from "./LeadMutations";
+import { RoutingTab } from "./RoutingTab";
 
 type Lead = LeadDetail["lead"];
 const str = (l: Lead, k: string): string | null => {
@@ -168,7 +170,7 @@ function Activity({ d }: { d: LeadDetail }) {
 }
 
 /** Lead drawer: who the student is, their Witty chat and what happened to the lead. Read-only except delete/restore. */
-export function LeadDrawer({ id, detail, closeHref }: { id: number; detail: LeadDetail | null; closeHref: string }) {
+export function LeadDrawer({ id, detail, routing, closeHref }: { id: number; detail: LeadDetail | null; routing: LeadRouting | null; closeHref: string }) {
   if (!detail) {
     return (
       <DrawerShell closeHref={closeHref} label="Lead not found" header={<h2 className="pb-4 text-[15px] font-semibold text-fg">Lead #{id}</h2>} tabs={[
@@ -216,6 +218,7 @@ export function LeadDrawer({ id, detail, closeHref }: { id: number; detail: Lead
       tabs={[
         { id: "overview", label: "Overview", content: <Overview l={l} /> },
         { id: "chat", label: "Witty chat", count: detail.messages.length, content: <Chat messages={detail.messages} /> },
+        { id: "routing", label: "Routing", count: routing?.decisions.length, content: <RoutingTab leadId={l.id} r={routing} /> },
         { id: "activity", label: "Activity", count: detail.touchpoints.length + detail.events.length + 1, content: <Activity d={detail} /> },
       ]}
     />

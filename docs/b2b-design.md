@@ -447,6 +447,37 @@ Steps marked ⚠ need an explicit yes because they touch shared objects.
 | **M6** | Money: `public.enrollments` gets `allocation_id` and `source_product` ⚠ (adds columns to a shared table); `receipts`; statements; invoice fields; the delete-blocking trigger on money lines; `b2b.earnings_for_b2c` view | Additive only |
 | **M7…** | Mapping layer (Phase 2), CAPI, imports, analytics rollups, AI and ML tables (Phases 3 and 4) | Separate plans |
 
+**As built (6 Oct 2026).** The migration files in `b2b-crm/supabase/migrations/` are numbered by build order, not by
+the steps above: `m3_*` leads, `m4*` partners, `m5*` Programme Repository, `m6a–c` routing (rates, rules,
+`engine_decisions`, `allocations`, `b2b.route_core`, the admin functions and the `b2b-route-ready-leads` pg_cron job).
+There is no trigger on `student_leads`: the cron job reads ready leads instead. Routing sets
+`student_leads.destination_type`, which makes `w2_crm_owned` true, so Witty stops chatting once a lead is routed.
+
+**Addenda 1 and 2 (6 Oct 2026, `docs/B2B_CRM_ADDENDUM_1.md`, `_2.md`; Addendum 2 wins).** Migrations `m7a–e`.
+Order of checks in `b2b.route_decide`: junk or programme mismatch → not passed (`b2b.not_passed`); once with B2C →
+stays with B2C (`b2c.lead_reenquired`); B2C-created → B2C sales; paid campaign → B2C sales; not qualified → B2C
+nurture; rules to B2C; no consent → B2C sales; partner routing with its fallbacks (B2C sales). Chat leads are decided
+at their hand-off point (escalation, paused bot, or 30 minutes idle), other sources at once. Every B2C hand-off logs
+`b2c.lead_handed_off` with the lane; B2B never messages the student.
+
+Conflicts with work already done, and what is still open:
+
+| Item | Status |
+| --- | --- |
+| Rules could not name B2C (main prompt) | Changed: action `to_b2c` with a lane |
+| Leads missing course or verified phone waited in the pool | Changed: at their decision point they go to B2C nurture |
+| Readiness waited for Witty to classify (HOT/WARM/COLD) | Changed: after 30 idle minutes an unclassified chat is unqualified → nurture |
+| Witty stops chatting once `destination_type` is set (`w2_crm_owned`) | **Open.** Addendum 1 §4b wants Witty to keep talking to nurture leads and stop only on partner acceptance or a B2C counsellor (`owner_user_id`). This is a Witty change; not made. Until then Witty also stops for B2C leads |
+| Witty's interest signal for B2C pool leads (§4b) | Open, Witty side |
+| Eduwit-branded fallback message to the student | Never built; `b2c_sends_own_notification = true` |
+| Delivery to the B2C CRM (`POST /v1/handoffs`, `GET /v1/handoffs?since=`), `POST /v1/leads/{id}/route-to-partners`, `POST /v1/events/b2ccrm` | Open: events are recorded in `b2b.events`; the endpoints come with the integration work |
+| `b2b.lead_routed_to_partner` when a partner accepts | Open: needs the push adapter (acceptance) |
+| Partner lost → B2C nurture | Built (`b2b.allocation_partner_lost`); called by hand from the drawer until partner sync exists |
+| Late partner activity on a lost lead → dispute alert | Open, with partner sync |
+| CAPI "disqualified" signal for junk | Setting stored (off); CAPI not built |
+| B2C stages `nurture`, `assigned`, `dormant`, `routed_to_partner` | Added to the stage list as `held_by_b2c` |
+| Money ledgers separate, `b2c_enrollment_money_v` | Unchanged so far; the B2C view does not exist yet |
+
 ### 7.1 Retiring the old CRM cleanly
 
 1. **After M3 and M5:** the old CRM's Partners, Engine and partner-events API are superseded by the B2B CRM. Keep `eduwit-crm.vercel.app` online for B2C features (leads, agenda, comms, marketing, payouts) until the B2C CRM exists.

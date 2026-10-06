@@ -7,6 +7,7 @@ import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
 import { hasFilters, leadsHref, leadsSearch, parseLeadId, parseLeadQuery } from "@/lib/leads";
 import { leadDetail, leadFacets, listLeads } from "@/lib/leads-data";
+import { leadRouting } from "@/lib/routing-data";
 import { FilterBar } from "./FilterBar";
 import { LeadDrawer } from "./LeadDrawer";
 import { LeadsTable } from "./LeadsTable";
@@ -21,10 +22,12 @@ export default async function LeadsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const query = parseLeadQuery(sp);
   const leadId = parseLeadId(sp);
-  const [page, facets, detail] = await Promise.all([
+  const [page, facets, detail, routing] = await Promise.all([
     listLeads(query),
     leadFacets(query),
     leadId ? leadDetail(leadId) : Promise.resolve(null),
+    // The drawer still opens if routing details fail to load; its Routing tab says so.
+    leadId ? leadRouting(leadId).catch(() => null) : Promise.resolve(null),
   ]);
   const search = leadsSearch(query);
   const filtered = hasFilters(query);
@@ -32,11 +35,13 @@ export default async function LeadsPage({ searchParams }: Props) {
   return (
     <>
       <PageHeader
-        title={query.bin ? "Recycle bin" : "Leads"}
+        title={query.bin ? "Recycle bin" : query.dest === "not_passed" ? "Not passed" : "Leads"}
         description={
           query.bin
             ? "Deleted leads stay here and can be restored. If a deleted student messages Witty again, a new lead is created."
-            : "Every lead from every source: Witty, the website, imports and the API."
+            : query.dest === "not_passed"
+              ? "Junk and programme-mismatch leads: kept in the master database, but no CRM works them. Select leads and pass them to a CRM when Witty got it wrong or Eduwit now offers the programme."
+              : "Every lead from every source: Witty, the website, imports and the API. Junk and programme-mismatch leads are in the Not passed view."
         }
         actions={
           <>
@@ -102,7 +107,7 @@ export default async function LeadsPage({ searchParams }: Props) {
         )}
       </Card>
 
-      {leadId && <LeadDrawer key={leadId} id={leadId} detail={detail} closeHref={leadsHref(query)} />}
+      {leadId && <LeadDrawer key={leadId} id={leadId} detail={detail} routing={routing} closeHref={leadsHref(query)} />}
     </>
   );
 }

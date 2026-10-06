@@ -4,7 +4,7 @@
  */
 
 export const SORTS = ["created_at", "last_activity", "name"] as const;
-export const DESTINATIONS = ["unrouted", "partner", "in_house"] as const;
+export const DESTINATIONS = ["unrouted", "partner", "in_house", "not_passed"] as const;
 export const DELETE_REASONS = ["junk", "test", "duplicate entry", "spam", "student request", "other"] as const;
 /** A lead with a partner can only be removed for these reasons (the partner already has it). */
 export const PARTNER_DELETE_REASONS: readonly DeleteReason[] = ["junk", "spam", "student request"];
@@ -55,6 +55,8 @@ export type LeadRow = {
   is_test: boolean;
   partner_consent: boolean;
   is_bot_paused: boolean | null;
+  /** Junk or programme mismatch: kept in the master database, not passed to any CRM (Addendum 2). */
+  not_passed?: { reason: string; decided_at: string } | null;
 };
 
 export type LeadPage = { rows: LeadRow[]; next: Cursor | null; total: number | null };
@@ -175,7 +177,7 @@ export function statusTone(status: string | null | undefined): "danger" | "warni
   }
 }
 
-export const DESTINATION_LABEL: Record<string, string> = { unrouted: "Not routed", partner: "Partner", in_house: "In-house" };
+export const DESTINATION_LABEL: Record<string, string> = { unrouted: "Not routed", partner: "Partner", in_house: "B2C CRM", not_passed: "Not passed" };
 
 /** Indian mobile numbers as +91 98000 00012; anything else is shown as stored. */
 export function formatPhone(raw: string | null | undefined): string {
