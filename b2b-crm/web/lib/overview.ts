@@ -115,6 +115,8 @@ export const ALERT_LABEL: Record<string, string> = {
   "alert.b2c_bad_signature": "B2C CRM event with a bad signature",
   "alert.partner_optout_notice": "Student opted out: tell the partner",
   "alert.erasure_requested": "Student asked for data erasure",
+  "alert.mapping_unmapped": "Partner sent something not mapped",
+  "alert.mapping_drift": "Partner's CRM schema changed",
   "routing.error": "Routing error",
 };
 

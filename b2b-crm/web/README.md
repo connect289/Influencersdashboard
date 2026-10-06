@@ -72,6 +72,13 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   keys (shown once, revocable). Machine endpoints for the B2C CRM: `GET /v1/handoffs` (reconciliation feed),
   `POST /v1/leads/{id}/route-to-partners` (both with an API key, `Authorization: Bearer`) and
   `POST /v1/events/b2ccrm` (HMAC-signed). pg_cron runs `b2b.outbox_tick` every 15 seconds to deliver webhooks.
+- Mapping studio (`/mapping`, `supabase/migrations/*_m15*.sql`): per partner, rules from its stages, sub-stages,
+  pipelines, fields (with direction and transform chains such as `trim | amount`), picklist values and activities to
+  Eduwit's model, edited on a draft and published as numbered versions (golden files must pass; any version can be
+  restored). Suggestions come from other partners on the same CRM, synonyms and similar names. Tabs: Stages, Fields,
+  Values, Activities, Test (a payload in, a lead out and back, golden files), Queue (everything unmapped, with counts
+  and leads), Schema (uploaded field lists, what the events show, drift, stage corrections) and Versions. The partner
+  page's go-live checklist links here.
 
 ## How access is enforced
 

@@ -93,6 +93,7 @@ function Overview({ d }: { d: PartnerDetail }) {
                       ? <Link href={`/programmes/${p.id}?tab=upload`} className="text-[12px] text-info hover:underline">Upload the programme file</Link>
                       : item.key === "credentials" ? <Link href="?tab=connection" className="text-[12px] text-info hover:underline">Set it up in Connection</Link>
                       : item.key === "test_leads" ? <Link href="/routing?tab=simulate" className="text-[12px] text-info hover:underline">Route a test lead to the sandbox</Link>
+                      : item.key === "mapping" ? <Link href={`/mapping/${p.id}`} className="text-[12px] text-info hover:underline">Open the Mapping studio</Link>
                       : <Link href="?tab=settings" className="text-[12px] text-info hover:underline">Set it in Settings</Link>)}
                   </div>
                 </li>
