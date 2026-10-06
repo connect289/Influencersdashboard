@@ -35,11 +35,13 @@ export default async function LeadsPage({ searchParams }: Props) {
   return (
     <>
       <PageHeader
-        title={query.bin ? "Recycle bin" : "Leads"}
+        title={query.bin ? "Recycle bin" : query.dest === "not_passed" ? "Not passed" : "Leads"}
         description={
           query.bin
             ? "Deleted leads stay here and can be restored. If a deleted student messages Witty again, a new lead is created."
-            : "Every lead from every source: Witty, the website, imports and the API."
+            : query.dest === "not_passed"
+              ? "Junk and programme-mismatch leads: kept in the master database, but no CRM works them. Select leads and pass them to a CRM when Witty got it wrong or Eduwit now offers the programme."
+              : "Every lead from every source: Witty, the website, imports and the API. Junk and programme-mismatch leads are in the Not passed view."
         }
         actions={
           <>

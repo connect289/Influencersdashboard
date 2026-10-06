@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FlaskConical, History, TriangleAlert } from "lucide-react";
+import { FlaskConical, History, ShieldOff, TriangleAlert } from "lucide-react";
 import { Badge, Card, CardHeader, EmptyState, PageHeader } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { inr } from "@/lib/programmes";
-import { ALLOCATION_LABEL, MODE_LABEL, REASON_LABEL, segmentLabel } from "@/lib/routing";
-import { routingOverview, type RoutingOverview } from "@/lib/routing-data";
+import { ALLOCATION_LABEL, LANE_LABEL, MODE_LABEL, NOT_PASSED_LABEL, REASON_LABEL, segmentLabel } from "@/lib/routing";
+import { notPassedSummary, routingOverview, type NotPassedSummary, type RoutingOverview } from "@/lib/routing-data";
 import { EngineForm } from "./EngineForm";
+import { HandoffForm } from "./HandoffForm";
 import { RatesPanel } from "./RatesPanel";
+import { ReviewQueue } from "./ReviewQueue";
 import { RoutingSwitch } from "./RoutingSwitch";
 import { RulesPanel } from "./RulesPanel";
 import { Simulator } from "./Simulator";
@@ -21,6 +23,7 @@ const TABS = [
   { id: "simulate", label: "Simulate" },
   { id: "rules", label: "Rules" },
   { id: "rates", label: "Commission rates" },
+  { id: "handoff", label: "Hand-off rules" },
   { id: "settings", label: "Engine settings" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
@@ -36,7 +39,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "su
   );
 }
 
-function Overview({ o }: { o: RoutingOverview }) {
+function Overview({ o, np }: { o: RoutingOverview; np: NotPassedSummary }) {
   const engine = o.engine.value;
   const consentRequired = engine.require_partner_consent ?? true;
   const reasons = Object.entries(o.today.b2c_reasons).sort((a, b) => b[1] - a[1]);
@@ -45,8 +48,9 @@ function Overview({ o }: { o: RoutingOverview }) {
   const warnings = [
     engine.enabled === false && "The engine is disabled in its settings, so nothing routes even with the switch on.",
     engine.kill_switch && "The engine's kill switch is on, so nothing routes.",
-    o.live_partners === 0 && "No partner is live yet: every lead routed now goes to B2C.",
-    consentRequired && "Partner-sharing consent is required and Witty does not ask for it yet, so Witty leads route to B2C (reason: no consent).",
+    o.live_partners === 0 && "No partner is live yet: every qualified lead routed now goes to B2C sales.",
+    consentRequired && "Partner-sharing consent is required and Witty does not ask for it yet, so qualified Witty leads go to B2C sales (reason: no consent).",
+    "Witty stops chatting with any routed lead, B2C nurture included. Addendum 1 asks Witty to keep talking to nurture leads; that needs a change on Witty's side (w2_crm_owned).",
   ].filter(Boolean) as string[];
 
   return (
@@ -54,7 +58,7 @@ function Overview({ o }: { o: RoutingOverview }) {
       <Card className="min-w-0">
         <CardHeader
           title="Automatic routing"
-          description="Every minute, leads that are ready (not test leads) are routed to a partner or to B2C."
+          description="Every minute, leads at their decision point (not test leads) go to a partner or B2C, or are marked not passed."
           action={<RoutingSwitch live={o.switch.live} livePartners={o.live_partners} consentRequired={consentRequired} />}
         />
         <div className="space-y-3 px-5 pb-5">
@@ -69,9 +73,11 @@ function Overview({ o }: { o: RoutingOverview }) {
               {warnings.map((w) => <li key={w} className="flex gap-2"><TriangleAlert className="mt-0.5 size-3.5 shrink-0" /> {w}</li>)}
             </ul>
           )}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <Stat label="To partners today" value={o.today.to_partners} tone="success" />
-            <Stat label="To B2C today" value={o.today.to_b2c} tone={o.today.to_b2c ? "warning" : undefined} />
+            <Stat label="B2C sales today" value={o.today.sales} tone={o.today.sales ? "warning" : undefined} />
+            <Stat label="B2C nurture today" value={o.today.nurture} />
+            <Stat label="Not passed today" value={o.today.not_passed} />
             <Stat label="Test leads" value={o.today.tests} />
             <Stat label="Errors" value={o.today.errors} tone={o.today.errors ? "danger" : undefined} />
           </div>
@@ -122,6 +128,35 @@ function Overview({ o }: { o: RoutingOverview }) {
         )}
       </Card>
 
+      <Card className="min-w-0">
+        <CardHeader title="Not passed" description="Junk and programme-mismatch leads stay in the master database; no CRM works them."
+          action={<Link href="/leads?dest=not_passed" className="shrink-0 text-[13px] text-info hover:underline">Open the list</Link>} />
+        {o.not_passed_open === 0 ? (
+          <EmptyState icon={ShieldOff} title="Nothing held back">Leads Witty classifies junk or programme mismatch, and invalid or blocked numbers, appear here.</EmptyState>
+        ) : (
+          <div className="grid gap-4 px-5 py-4 sm:grid-cols-2">
+            <ul className="space-y-1 text-[12.5px]">
+              {Object.entries(np.by_reason).map(([k, n]) => <li key={k} className="flex justify-between gap-3"><span className="text-muted">{NOT_PASSED_LABEL[k] ?? k}</span><span className="tabular text-fg">{n}</span></li>)}
+            </ul>
+            {np.mismatch_courses.length > 0 && (
+              <div>
+                <p className="mb-1 text-[11px] uppercase tracking-wider text-subtle">Asked for, not offered</p>
+                <ul className="space-y-1 text-[12.5px]">
+                  {np.mismatch_courses.slice(0, 6).map((c) => <li key={c.course} className="flex justify-between gap-3"><span className="truncate text-fg">{c.course}</span><span className="tabular text-muted">{c.n}</span></li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
+      <Card className="min-w-0">
+        <CardHeader title="Review queue" description="Passed leads that Witty later classified junk or mismatch. They are never pulled back automatically." />
+        {o.flags_open.length === 0
+          ? <EmptyState icon={TriangleAlert} title="Nothing to review">A passed lead that Witty later reclassifies appears here.</EmptyState>
+          : <ReviewQueue flags={o.flags_open} />}
+      </Card>
+
       <Card className="min-w-0 xl:col-span-2">
         <CardHeader title="Decision log" description="The latest 50 routing decisions, automatic and by hand. Open one to see why." />
         {o.decisions.length === 0 ? (
@@ -152,7 +187,7 @@ function Overview({ o }: { o: RoutingOverview }) {
                     <td className="px-3 py-2.5">
                       {d.destination_type === "partner"
                         ? <><span className="font-medium text-fg">{d.partner_name}</span> <span className="text-[12px] text-subtle">· {MODE_LABEL[d.mode] ?? d.mode}</span></>
-                        : <span className="text-warning">B2C · {REASON_LABEL[d.reason ?? ""] ?? d.reason}</span>}
+                        : <span className="text-warning">{LANE_LABEL[d.b2c_lane ?? d.allocation?.b2c_lane ?? "sales"]} · {REASON_LABEL[d.reason ?? ""] ?? d.reason}</span>}
                     </td>
                     <td className="tabular px-3 py-2.5 text-right text-muted">{d.allocation?.cpe_net_inr != null ? inr(d.allocation.cpe_net_inr) : "—"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-[12.5px]">
@@ -175,14 +210,14 @@ export default async function RoutingPage({ searchParams }: Props) {
   const sp = await searchParams;
   const tab: Tab = TABS.find((t) => t.id === sp.tab)?.id ?? (typeof sp.lead === "string" ? "simulate" : "overview");
   const leadParam = typeof sp.lead === "string" && /^\d{1,15}$/.test(sp.lead) ? Number(sp.lead) : null;
-  const o = await routingOverview();
+  const [o, np] = await Promise.all([routingOverview(), notPassedSummary()]);
   const partners = o.partners.map((p) => ({ id: p.id, name: p.name, status: p.status }));
 
   return (
     <>
       <PageHeader
         title="Routing"
-        description="Which partner gets each lead, and why. Commission first: the eligible partner with the highest commission, net of GST, wins; leads no partner can take go to Eduwit's B2C CRM with a reason."
+        description="Where each lead goes, and why. Junk and mismatch are not passed; paid-campaign and unqualified leads go to Eduwit's B2C CRM (sales or nurture); qualified leads go to the eligible partner with the highest commission, net of GST."
       />
 
       <nav aria-label="Routing sections" className="mb-6 flex gap-5 overflow-x-auto border-b border-border">
@@ -196,7 +231,7 @@ export default async function RoutingPage({ searchParams }: Props) {
         ))}
       </nav>
 
-      {tab === "overview" && <Overview o={o} />}
+      {tab === "overview" && <Overview o={o} np={np} />}
       {tab === "simulate" && (
         <Card className="min-w-0 p-5">
           <Simulator key={leadParam ?? "none"} initialLead={leadParam} />
@@ -204,6 +239,12 @@ export default async function RoutingPage({ searchParams }: Props) {
       )}
       {tab === "rules" && <Card className="min-w-0 overflow-hidden"><RulesPanel rules={o.rules} partners={partners.filter((p) => p.status !== "closed")} /></Card>}
       {tab === "rates" && <Card className="min-w-0 overflow-hidden"><RatesPanel rates={o.rates} partners={o.partners} /></Card>}
+      {tab === "handoff" && (
+        <Card className="min-w-0">
+          <CardHeader title="Hand-off rules" description="Addenda 1 and 2: every lead is passed to a CRM except junk and programme mismatch. These lists decide which leads are paid campaigns (B2C sales), which came from the B2C CRM, and which numbers are junk." />
+          <HandoffForm key={o.engine.version} v={o.engine.value} version={o.engine.version} />
+        </Card>
+      )}
       {tab === "settings" && (
         <Card className="min-w-0">
           <CardHeader title="Engine settings" description={`Version ${o.engine.version}, changed ${relativeTime(o.engine.updated_at)}. Every change is kept with its reason.`} />

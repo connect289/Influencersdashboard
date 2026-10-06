@@ -51,7 +51,9 @@ export function Simulator({ initialLead }: { initialLead: number | null }) {
               <p className="mr-auto text-[12.5px] text-muted">
                 {d.destination === "partner"
                   ? `Routing now records the allocation and queues the push to ${d.partner_name}${d.is_test ? "'s sandbox" : ""} (pushes start with the push adapter build).`
-                  : "Routing now hands the lead to the B2C CRM with this reason."}
+                  : d.destination === "not_passed"
+                    ? "Routing now records the lead as not passed; it then shows in the Leads list's Not passed view."
+                    : `Routing now hands the lead to ${d.b2c_lane === "nurture" ? "B2C nurture" : "B2C sales"} with this reason. B2B sends the student no message.`}
               </p>
               <Button size="sm" variant={d.destination === "partner" ? "primary" : "secondary"} onClick={() => setConfirm(true)}>
                 <Route className="size-3.5" /> Route this lead now
@@ -71,10 +73,11 @@ export function Simulator({ initialLead }: { initialLead: number | null }) {
           const res = await routeLeadNow(d.lead_id, note);
           if (!res.ok) return res.error;
           setD(res.decision);
-          toast.success(res.decision.destination === "partner" ? `Routed to ${res.decision.partner_name} (${res.decision.reference})` : "Handed to B2C");
+          toast.success(res.decision.destination === "partner" ? `Routed to ${res.decision.partner_name} (${res.decision.reference})`
+            : res.decision.destination === "not_passed" ? "Recorded as not passed" : `Handed to ${res.decision.b2c_lane === "nurture" ? "B2C nurture" : "B2C sales"}`);
         }}
       >
-        The engine runs again at this moment, so the result can differ from the simulation if something changed. Witty stops chatting with the lead once it is routed.
+        The engine runs again at this moment, so the result can differ from the simulation if something changed. Witty stops chatting with the lead once it is routed to a partner or B2C.
       </ConfirmDialog>
     </div>
   );

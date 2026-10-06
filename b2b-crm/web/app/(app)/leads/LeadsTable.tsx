@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ArrowUpDown, BellOff, FlaskConical, LoaderCircle, RotateCcw, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, BellOff, FlaskConical, LoaderCircle, RotateCcw, Send, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,8 @@ import { formatDateTime, relativeTime } from "@/lib/format";
 import { DESTINATION_LABEL, formatPhone, humanize, leadsHref, statusTone, type LeadPage, type LeadQuery, type LeadRow, type Sort } from "@/lib/leads";
 import { loadMoreLeads } from "./actions";
 import { DeleteDialog, useRestore } from "./LeadMutations";
+import { PassToCrmDialog } from "./PassToCrm";
+import { NOT_PASSED_LABEL } from "@/lib/routing";
 
 function SortHeader({ query, sort, children, className }: { query: LeadQuery; sort: Sort; children: React.ReactNode; className?: string }) {
   const active = query.sort === sort;
@@ -26,6 +28,7 @@ function SortHeader({ query, sort, children, className }: { query: LeadQuery; so
 }
 
 function Routing({ row }: { row: LeadRow }) {
+  if (row.not_passed) return <Badge tone="danger" className="whitespace-nowrap">Not passed · {NOT_PASSED_LABEL[row.not_passed.reason] ?? row.not_passed.reason}</Badge>;
   if (!row.destination_type) return <span className="text-subtle">Not routed</span>;
   if (row.destination_type === "partner") return <Badge tone="brand">Partner{row.partner_id ? ` #${row.partner_id}` : ""}</Badge>;
   return <Badge tone="info">{DESTINATION_LABEL[row.destination_type] ?? humanize(row.destination_type)}</Badge>;
@@ -39,6 +42,7 @@ export function LeadsTable({ search, query, initial, openId }: { search: string;
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [loading, startLoad] = useTransition();
   const [deleting, setDeleting] = useState(false);
+  const [passing, setPassing] = useState(false);
 
   const removeRows = (ids: number[]) => {
     if (!ids.length) return;
@@ -76,6 +80,7 @@ export function LeadsTable({ search, query, initial, openId }: { search: string;
 
   const ids = [...selected];
   const partnerCount = rows.filter((r) => selected.has(r.id) && r.destination_type === "partner").length;
+  const passable = !query.bin && ids.length > 0 && rows.filter((r) => selected.has(r.id)).every((r) => r.not_passed);
 
   return (
     <>
@@ -160,6 +165,9 @@ export function LeadsTable({ search, query, initial, openId }: { search: string;
       {selected.size > 0 && (
         <div role="region" aria-label="Bulk actions" className="fixed inset-x-0 bottom-5 z-30 mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 shadow-xl animate-fade-in">
           <span className="px-1 text-[13px] font-medium text-fg"><span className="tabular">{selected.size}</span> selected</span>
+          {passable && (
+            <Button size="sm" onClick={() => setPassing(true)}><Send className="size-3.5" /> Pass to CRM</Button>
+          )}
           {query.bin ? (
             <Button size="sm" onClick={() => restore(ids)} disabled={restoring}>
               {restoring ? <LoaderCircle className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />} Restore
@@ -176,6 +184,7 @@ export function LeadsTable({ search, query, initial, openId }: { search: string;
       )}
 
       <DeleteDialog ids={ids} partnerCount={partnerCount} open={deleting} onClose={() => setDeleting(false)} onDone={removeRows} />
+      <PassToCrmDialog ids={ids} open={passing} onClose={() => setPassing(false)} onDone={removeRows} />
     </>
   );
 }

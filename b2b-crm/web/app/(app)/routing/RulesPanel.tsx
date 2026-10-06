@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge, EmptyState } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { useFormAction } from "@/components/ui/useFormAction";
-import { ACTION_LABEL, describeConditions } from "@/lib/routing";
+import { ACTION_LABEL, describeConditions, LANE_LABEL } from "@/lib/routing";
 import type { Rule } from "@/lib/routing-data";
 import { saveRule, setRuleActive, type FormState } from "./actions";
 
@@ -19,6 +19,7 @@ function RuleDialog({ rule, partners, open, onClose }: { rule: Rule | null; part
   const [state, onSubmit, pending] = useFormAction<FormState>(saveRule, undefined);
   const e = state?.errors ?? {};
   const c = rule?.conditions ?? {};
+  const [action, setAction] = useState(rule?.action ?? "fix_partner");
 
   useEffect(() => {
     const d = ref.current;
@@ -75,10 +76,20 @@ function RuleDialog({ rule, partners, open, onClose }: { rule: Rule | null; part
           <div className="grid gap-3 sm:grid-cols-[200px_1fr]">
             <label className="space-y-1">
               <span className="text-[13px] font-medium">Then</span>
-              <select name="action" defaultValue={rule?.action ?? "fix_partner"} className={cn(field, "h-9")}>
+              <select name="action" value={action} onChange={(x) => setAction(x.target.value)} className={cn(field, "h-9")}>
                 {Object.entries(ACTION_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
+            {action === "to_b2c" ? (
+              <fieldset className="space-y-1">
+                <legend className="text-[13px] font-medium">B2C lane</legend>
+                <div className={cn("space-y-1.5 rounded-lg border p-2 text-[13px]", e.b2c_lane ? "border-danger" : "border-border")}>
+                  <label className="flex items-center gap-2"><input type="radio" name="b2c_lane" value="sales" defaultChecked={rule?.b2c_lane !== "nurture"} className="accent-[var(--primary)]" /> Sales: a counsellor calls the student</label>
+                  <label className="flex items-center gap-2"><input type="radio" name="b2c_lane" value="nurture" defaultChecked={rule?.b2c_lane === "nurture"} className="accent-[var(--primary)]" /> Nurture: the B2C CRM nurtures the student until they show interest</label>
+                </div>
+                {e.b2c_lane && <span className="text-xs text-danger">{e.b2c_lane}</span>}
+              </fieldset>
+            ) : (
             <fieldset className="space-y-1">
               <legend className="text-[13px] font-medium">Partners</legend>
               <div className={cn("max-h-36 space-y-1 overflow-y-auto rounded-lg border p-2", e.partner_ids ? "border-danger" : "border-border")}>
@@ -92,8 +103,12 @@ function RuleDialog({ rule, partners, open, onClose }: { rule: Rule | null; part
               </div>
               {e.partner_ids && <span className="text-xs text-danger">{e.partner_ids}</span>}
             </fieldset>
+            )}
           </div>
-          <p className="text-[12px] text-subtle">A rule can only narrow the choice between partners. B2C is never a rule target; it only gets leads through the fallback cases.</p>
+          <p className="text-[12px] text-subtle">
+            Rules that send to B2C run before partner routing (after junk, mismatch, paid-campaign and not-qualified checks); partner rules narrow
+            the choice between partners. A lead sent to B2C never reaches a partner automatically.
+          </p>
           {state?.error && <p role="alert" className="text-[13px] text-danger">{state.error}</p>}
         </div>
         <div className="flex justify-end gap-2 border-t border-border bg-surface-2/60 px-5 py-3">
@@ -115,7 +130,7 @@ export function RulesPanel({ rules, partners }: { rules: Rule[]; partners: Partn
   return (
     <>
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
-        <p className="text-[13px] text-muted">Rules run in priority order after exclusions and before capacity. A rule whose partners are not eligible is skipped.</p>
+        <p className="text-[13px] text-muted">Rules run in priority order. &quot;Send to B2C&quot; rules run before partner routing; partner rules after exclusions and before capacity. A rule whose partners are not eligible is skipped.</p>
         <Button size="sm" onClick={() => setEditing("new")}><Plus className="size-3.5" /> New rule</Button>
       </div>
       {rules.length === 0 ? (
@@ -127,7 +142,9 @@ export function RulesPanel({ rules, partners }: { rules: Rule[]; partners: Partn
               <span className="tabular w-10 text-[12px] text-subtle">#{r.priority}</span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13.5px] font-medium text-fg">{r.name}</p>
-                <p className="text-[12.5px] text-muted">{describeConditions(r.conditions)} → {ACTION_LABEL[r.action]?.toLowerCase()} {(r.partner_names ?? []).join(", ")}</p>
+                <p className="text-[12.5px] text-muted">
+                  {describeConditions(r.conditions)} → {r.action === "to_b2c" ? LANE_LABEL[r.b2c_lane ?? "sales"] : <>{ACTION_LABEL[r.action]?.toLowerCase()} {(r.partner_names ?? []).join(", ")}</>}
+                </p>
               </div>
               <Badge tone={r.active ? "success" : "neutral"}>{r.active ? "On" : "Off"}</Badge>
               <Button size="sm" variant="ghost" onClick={() => setEditing(r)}>Edit</Button>

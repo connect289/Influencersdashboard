@@ -10,7 +10,24 @@ export const REASON_LABEL: Record<string, string> = {
   partners_unreachable: "Partner attempt limit reached",
   import_choice: "Import chose B2C",
   manual: "Sent to B2C by the Admin",
+  paid_campaign: "Paid campaign",
+  b2c_created: "Created in the B2C CRM",
+  not_qualified: "Not qualified",
+  partner_lost: "Partner marked it lost",
+  manual_route_failed: "Sent to partners by hand, none could take it",
+  b2c_held: "Already with B2C",
+  rule: "Routing rule",
 };
+
+/** Why a lead is not passed to any CRM (Addendum 2). */
+export const NOT_PASSED_LABEL: Record<string, string> = {
+  junk: "Junk (Witty)",
+  program_mismatch: "Programme mismatch",
+  invalid_phone: "Invalid phone",
+  blocked_phone: "Blocked phone",
+};
+
+export const LANE_LABEL: Record<string, string> = { sales: "B2C sales", nurture: "B2C nurture" };
 
 export const MODE_LABEL: Record<string, string> = {
   commission_first: "Highest commission",
@@ -23,7 +40,7 @@ export const MODE_LABEL: Record<string, string> = {
   holdout: "Holdout",
 };
 
-export const ACTION_LABEL: Record<string, string> = { fix_partner: "Always send to", narrow: "Only consider", exclude: "Never send to" };
+export const ACTION_LABEL: Record<string, string> = { fix_partner: "Always send to", narrow: "Only consider", exclude: "Never send to", to_b2c: "Send to B2C" };
 
 export const ALLOCATION_LABEL: Record<string, string> = {
   queued: "Queued for push",
@@ -68,9 +85,14 @@ export type Candidate = {
 export type Decision = {
   lead_id: number;
   is_test: boolean;
-  readiness: { ready: boolean; missing: string[]; is_test: boolean };
+  readiness: { ready: boolean; missing: string[]; is_test: boolean; class?: string; class_reason?: string | null; not_qualified?: string[]; paid?: string | null };
   interest: Interest;
-  destination: "partner" | "in_house";
+  destination: "partner" | "in_house" | "not_passed";
+  b2c_lane?: "sales" | "nurture" | null;
+  /** Why a manual route to partners failed (the fallback it hit). */
+  cause?: string | null;
+  /** What made the lead a paid-campaign lead. */
+  paid?: string | null;
   reason: string | null;
   mode: string;
   partner_id: number | null;
@@ -90,7 +112,7 @@ export type Decision = {
 
 /** A decision as stored in b2b.engine_decisions (routing_decision / lead_routing). */
 export type StoredDecisionCore = {
-  lead_id: number; is_test: boolean; interest: Interest; destination_type: "partner" | "in_house"; reason: string | null; mode: string;
+  lead_id: number; is_test: boolean; interest: Interest; destination_type: "partner" | "in_house"; reason: string | null; mode: string; b2c_lane?: "sales" | "nurture" | null;
   winner_partner_id: number | null; partner_name: string | null; candidates: Candidate[] | null; excluded: Decision["excluded"] | null;
   rules: Decision["rules"] | null; selection_probability: number | null; allocation: { reference: string; cpe_net_inr: number | null } | null;
 };
@@ -101,7 +123,7 @@ export function fromStored(s: StoredDecisionCore): Decision {
   const won = candidates.find((c) => c.partner_id === s.winner_partner_id);
   return {
     lead_id: s.lead_id, is_test: s.is_test, readiness: { ready: true, missing: [], is_test: s.is_test }, interest: s.interest,
-    destination: s.destination_type, reason: s.reason, mode: s.mode, partner_id: s.winner_partner_id, partner_name: s.partner_name,
+    destination: s.destination_type, b2c_lane: s.b2c_lane ?? null, reason: s.reason, mode: s.mode, partner_id: s.winner_partner_id, partner_name: s.partner_name,
     cpe: s.allocation?.cpe_net_inr ?? won?.cpe ?? null, has_rate: won?.has_rate ?? null, candidates, excluded: s.excluded ?? [], rules: s.rules ?? [],
     draw: null, exploration_share: 0, selection_probability: Number(s.selection_probability ?? 1), already_routed: true, committed: true,
     reference: s.allocation?.reference,
@@ -118,14 +140,15 @@ export function segmentLabel(segment: string | null | undefined): string {
 
 // ---------- forms ----------
 
-const list = (max = 50) => z.string().max(2000).transform((v) => [...new Set(v.split(/[,\n]/).map((s) => s.trim()).filter(Boolean))].slice(0, max));
+const list = (max = 50, chars = 2000) => z.string().max(chars).transform((v) => [...new Set(v.split(/[,\n]/).map((s) => s.trim()).filter(Boolean))].slice(0, max));
 
 export const RuleSchema = z.object({
   id: z.string().regex(/^\d*$/).transform((v) => (v ? Number(v) : null)),
   name: z.string().trim().min(1, "Give the rule a name").max(120),
   priority: z.string().trim().regex(/^\d{1,4}$/, "A whole number").transform(Number),
-  action: z.enum(["fix_partner", "narrow", "exclude"]),
-  partner_ids: z.array(z.string().regex(/^\d+$/)).min(1, "Choose at least one partner").max(50).transform((a) => a.map(Number)),
+  action: z.enum(["fix_partner", "narrow", "exclude", "to_b2c"]),
+  partner_ids: z.array(z.string().regex(/^\d+$/)).max(50).transform((a) => a.map(Number)),
+  b2c_lane: z.enum(["sales", "nurture"]).nullable(),
   sources: list(),
   course_keys: list().transform((a) => a.map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, ""))),
   states: list(),
@@ -139,7 +162,7 @@ export function parseRuleForm(form: FormData) {
   const get = (k: string) => (typeof form.get(k) === "string" ? (form.get(k) as string) : "");
   const parsed = RuleSchema.safeParse({
     id: get("id"), name: get("name"), priority: get("priority") || "100", action: get("action"),
-    partner_ids: form.getAll("partner_ids").map(String), sources: get("sources"), course_keys: get("course_keys"), states: get("states"),
+    partner_ids: form.getAll("partner_ids").map(String), b2c_lane: get("b2c_lane") || null, sources: get("sources"), course_keys: get("course_keys"), states: get("states"),
     modes: form.getAll("modes").map(String), levels: form.getAll("levels").map(String), campaign_contains: get("campaign_contains"),
   });
   if (!parsed.success) {
@@ -148,6 +171,8 @@ export function parseRuleForm(form: FormData) {
     return { ok: false as const, errors };
   }
   const d = parsed.data;
+  if (d.action === "to_b2c" && !d.b2c_lane) return { ok: false as const, errors: { b2c_lane: "Choose sales or nurture" } };
+  if (d.action !== "to_b2c" && d.partner_ids.length === 0) return { ok: false as const, errors: { partner_ids: "Choose at least one partner" } };
   const conditions: Record<string, unknown> = {};
   if (d.sources.length) conditions.sources = d.sources;
   if (d.course_keys.length) conditions.course_keys = d.course_keys;
@@ -155,7 +180,9 @@ export function parseRuleForm(form: FormData) {
   if (d.modes.length) conditions.modes = d.modes;
   if (d.levels.length) conditions.levels = d.levels;
   if (d.campaign_contains) conditions.campaign_contains = d.campaign_contains;
-  return { ok: true as const, data: { id: d.id, name: d.name, priority: d.priority, action: d.action, partner_ids: d.partner_ids, conditions } };
+  const toB2c = d.action === "to_b2c";
+  return { ok: true as const, data: { id: d.id, name: d.name, priority: d.priority, action: d.action, partner_ids: toB2c ? [] : d.partner_ids,
+    b2c_lane: toB2c ? d.b2c_lane : null, conditions } };
 }
 
 /** Plain-language summary of a rule's conditions. */
@@ -192,3 +219,22 @@ export const RateSchema = z.object({
   valid_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A date").or(z.literal("")),
   note: z.string().trim().max(300),
 }).refine((r) => r.rate_type !== "percent" || r.value <= 100, { message: "At most 100%", path: ["value"] });
+
+/** Hand-off settings (Addenda 1 and 2): the paid-campaign rule, B2C-created sources and blocked phones. */
+export const HandoffSchema = z.object({
+  sources: list(100),
+  click_ids: list(100),
+  utm_mediums: list(100),
+  include_campaigns: list(100),
+  exclude_campaigns: list(100),
+  b2c_sources: list(30),
+  blocked_phones: list(500, 10000).refine((a) => a.every((p) => /^\d{10,15}$/.test(p.replace(/\D/g, ""))), "Each number needs 10 to 15 digits"),
+  junk_capi_signal: z.string().optional().transform((v) => v === "on"),
+  reason: z.string().trim().min(3, "Say why you are changing the hand-off rules").max(300),
+});
+
+/** The form's flat fields → b2b.handoff_settings_save's payload. */
+export function handoffPayload(d: z.infer<typeof HandoffSchema>) {
+  const { sources, click_ids, utm_mediums, include_campaigns, exclude_campaigns, b2c_sources, blocked_phones, junk_capi_signal } = d;
+  return { paid_rule: { sources, click_ids, utm_mediums, include_campaigns, exclude_campaigns }, b2c_sources, blocked_phones, junk_capi_signal };
+}

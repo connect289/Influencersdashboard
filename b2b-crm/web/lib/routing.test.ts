@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeConditions, EngineSchema, fromStored, parseRuleForm, RateSchema, segmentLabel } from "./routing";
+import { describeConditions, EngineSchema, fromStored, HandoffSchema, handoffPayload, parseRuleForm, RateSchema, segmentLabel } from "./routing";
 
 function form(entries: [string, string][]): FormData {
   const f = new FormData();
@@ -19,13 +19,13 @@ describe("parseRuleForm", () => {
   it("builds the payload and drops empty conditions", () => {
     const r = parseRuleForm(form([["id", ""], ["name", " Meta MBA to Acme "], ["priority", "10"], ["action", "fix_partner"], ["partner_ids", "3"],
       ["sources", "meta_lead_ad, meta_lead_ad"], ["course_keys", "M.B.A."], ["states", ""], ["modes", "Online"], ["campaign_contains", ""]]));
-    expect(r).toEqual({ ok: true, data: { id: null, name: "Meta MBA to Acme", priority: 10, action: "fix_partner", partner_ids: [3],
+    expect(r).toEqual({ ok: true, data: { id: null, name: "Meta MBA to Acme", priority: 10, action: "fix_partner", partner_ids: [3], b2c_lane: null,
       conditions: { sources: ["meta_lead_ad"], course_keys: ["mba"], modes: ["Online"] } } });
   });
   it("reports errors", () => {
     const r = parseRuleForm(form([["name", ""], ["action", "send_to_b2c"], ["priority", "x"]]));
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(["action", "name", "partner_ids", "priority"]);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(["action", "name", "priority"]);
   });
 });
 
@@ -67,5 +67,36 @@ describe("fromStored", () => {
     const b = fromStored({ lead_id: 9, is_test: false, interest, destination_type: "in_house", reason: "no_partner_consent", mode: "fallback",
       winner_partner_id: null, partner_name: null, candidates: null, excluded: null, rules: null, selection_probability: null, allocation: null });
     expect(b).toMatchObject({ destination: "in_house", cpe: null, candidates: [], selection_probability: 1, reference: undefined });
+  });
+});
+
+describe("rules that send to B2C", () => {
+  it("needs a lane and drops partners", () => {
+    const base: [string, string][] = [["id", ""], ["name", "Goa to nurture"], ["priority", "5"], ["action", "to_b2c"], ["states", "Goa"], ["partner_ids", "3"]];
+    expect(parseRuleForm(form(base))).toMatchObject({ ok: false, errors: { b2c_lane: "Choose sales or nurture" } });
+    const r = parseRuleForm(form([...base, ["b2c_lane", "nurture"]]));
+    expect(r).toMatchObject({ ok: true, data: { action: "to_b2c", b2c_lane: "nurture", partner_ids: [], conditions: { states: ["Goa"] } } });
+  });
+  it("still needs partners for partner rules", () => {
+    const r = parseRuleForm(form([["id", ""], ["name", "x"], ["priority", "5"], ["action", "narrow"], ["b2c_lane", "sales"]]));
+    expect(r).toMatchObject({ ok: false, errors: { partner_ids: "Choose at least one partner" } });
+  });
+});
+
+describe("hand-off settings", () => {
+  const ok = { sources: "meta_lead_ad, google_lead_form", click_ids: "gclid\nfbclid", utm_mediums: "cpc", include_campaigns: "", exclude_campaigns: "brand",
+    b2c_sources: "b2c_created", blocked_phones: "+91 98111 00009", reason: "paid rule for Google" };
+  it("builds the payload", () => {
+    const p = HandoffSchema.safeParse(ok);
+    expect(p.success).toBe(true);
+    if (!p.success) return;
+    expect(handoffPayload(p.data)).toEqual({
+      paid_rule: { sources: ["meta_lead_ad", "google_lead_form"], click_ids: ["gclid", "fbclid"], utm_mediums: ["cpc"], include_campaigns: [], exclude_campaigns: ["brand"] },
+      b2c_sources: ["b2c_created"], blocked_phones: ["+91 98111 00009"], junk_capi_signal: false,
+    });
+  });
+  it("rejects short phones and a missing reason", () => {
+    expect(HandoffSchema.safeParse({ ...ok, blocked_phones: "12345" }).success).toBe(false);
+    expect(HandoffSchema.safeParse({ ...ok, reason: "" }).success).toBe(false);
   });
 });

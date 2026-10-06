@@ -1,8 +1,8 @@
-import { ArrowRight, Ban, CircleCheck, CircleDashed, FlaskConical, Scale } from "lucide-react";
+import { ArrowRight, Ban, CircleCheck, CircleDashed, FlaskConical, Megaphone, Scale, ShieldOff } from "lucide-react";
 import { Badge } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { inr } from "@/lib/programmes";
-import { MODE_LABEL, REASON_LABEL, segmentLabel, type Decision } from "@/lib/routing";
+import { LANE_LABEL, MODE_LABEL, NOT_PASSED_LABEL, REASON_LABEL, segmentLabel, type Decision } from "@/lib/routing";
 
 function Chip({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -15,24 +15,32 @@ function Chip({ label, value }: { label: string; value: string | null | undefine
 /** "Why this partner": the outcome, the lead's interest, every candidate with its numbers, exclusions and rules. */
 export function DecisionView({ d }: { d: Decision }) {
   const toPartner = d.destination === "partner";
+  const notPassed = d.destination === "not_passed";
+  const missing = d.readiness.not_qualified ?? [];
   return (
     <div className="space-y-5">
       <div className={cn("flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border px-4 py-3",
-        toPartner ? "border-success/25 bg-success-bg" : "border-warning/25 bg-warning-bg")}>
-        {toPartner ? <CircleCheck className="size-5 text-success" /> : <Ban className="size-5 text-warning" />}
+        toPartner ? "border-success/25 bg-success-bg" : notPassed ? "border-danger/25 bg-danger-bg" : "border-warning/25 bg-warning-bg")}>
+        {toPartner ? <CircleCheck className="size-5 text-success" /> : notPassed ? <ShieldOff className="size-5 text-danger" /> : <Ban className="size-5 text-warning" />}
         <div className="min-w-0 flex-1">
-          <p className={cn("text-[14px] font-semibold", toPartner ? "text-success" : "text-warning")}>
-            {toPartner ? <>Goes to {d.partner_name}</> : <>Goes to Eduwit&apos;s B2C CRM</>}
+          <p className={cn("text-[14px] font-semibold", toPartner ? "text-success" : notPassed ? "text-danger" : "text-warning")}>
+            {toPartner ? <>Goes to {d.partner_name}</>
+              : notPassed ? <>Not passed to any CRM</>
+              : <>Goes to Eduwit&apos;s {LANE_LABEL[d.b2c_lane ?? "sales"] ?? "B2C CRM"}</>}
             {d.reference && <span className="ml-2 font-mono text-[12px] font-normal">{d.reference}</span>}
           </p>
           <p className="text-[12.5px] text-muted">
             {toPartner
               ? <>{MODE_LABEL[d.mode] ?? d.mode}{d.cpe !== null ? <> · commission {inr(d.cpe)} net of GST</> : " · no confirmed commission rate"}{d.selection_probability < 1 && ` · chosen with probability ${Math.round(d.selection_probability * 100)}%`}</>
-              : REASON_LABEL[d.reason ?? ""] ?? d.reason}
+              : notPassed
+                ? <>{NOT_PASSED_LABEL[d.reason ?? ""] ?? d.reason}. It stays in the master database; no CRM works it. Pass it from the lead if this is wrong.</>
+                : <>{REASON_LABEL[d.reason ?? ""] ?? d.reason}{d.cause && <> ({(REASON_LABEL[d.cause] ?? d.cause).toLowerCase()})</>}{d.paid && <> · {d.paid}</>}
+                    {d.reason === "not_qualified" && missing.length > 0 && <> · missing: {missing.join(", ")}</>}</>}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {d.is_test && <Badge tone="brand"><FlaskConical className="size-3" /> Test lead: partner sandboxes only</Badge>}
+          {d.paid && d.reason !== "paid_campaign" && <Badge tone="info"><Megaphone className="size-3" /> Paid: {d.paid}</Badge>}
           {d.committed ? <Badge tone="success">Routed</Badge> : <Badge>Simulation: nothing was sent</Badge>}
           {d.already_routed && !d.committed && <Badge tone="warning">Already routed</Badge>}
         </div>

@@ -8,7 +8,8 @@ import type { Candidate, Decision, Interest } from "@/lib/routing";
 export type DecisionRow = {
   id: number; lead_id: number; lead_name: string | null; segment: string | null; mode: string; destination_type: "partner" | "in_house";
   winner_partner_id: number | null; partner_name: string | null; reason: string | null; selection_probability: number | null; is_test: boolean;
-  actor_type: string; created_at: string; allocation: { id: number; reference: string; status: string; cpe_net_inr: number | null } | null;
+  actor_type: string; created_at: string; b2c_lane: "sales" | "nurture" | null;
+  allocation: { id: number; reference: string; status: string; cpe_net_inr: number | null; b2c_lane: "sales" | "nurture" | null; outcome: string | null } | null;
 };
 
 export type StoredDecision = DecisionRow & {
@@ -17,6 +18,7 @@ export type StoredDecision = DecisionRow & {
 
 export type Rule = {
   id: number; name: string; priority: number; conditions: Record<string, unknown>; action: string; partner_ids: number[]; partner_names: string[] | null;
+  b2c_lane: "sales" | "nurture" | null;
   active: boolean; version: number; updated_at: string;
 };
 
@@ -28,6 +30,19 @@ export type Rate = {
 export type EngineSettings = {
   exploration_share?: number; cpe_aggregate?: string; min_learning_leads?: number; attempt_limit?: number; partner_limit?: number;
   witty_idle_minutes?: number; require_partner_consent?: boolean; trusted_sources?: string[]; enabled?: boolean; kill_switch?: boolean;
+  paid_rule?: { sources?: string[]; click_ids?: string[]; utm_mediums?: string[]; include_campaigns?: string[]; exclude_campaigns?: string[] };
+  b2c_sources?: string[]; blocked_phones?: string[]; junk_capi_signal?: boolean;
+};
+
+/** A passed lead that Witty later classified junk or mismatch, waiting for the Admin (Addendum 2). */
+export type ReviewFlag = {
+  id: number; lead_id: number; lead_name: string | null; lead_status: string | null; destination_type: "partner" | "in_house";
+  reference: string | null; partner_name: string | null; created_at: string;
+};
+
+export type NotPassed = {
+  lead_id: number; reason: string; lead_status: string | null; requested_course: string | null; lead_source: string | null;
+  decided_at: string; passed_at: string | null; pass_note: string | null; times: number;
 };
 
 export type RoutingOverview = {
@@ -35,7 +50,9 @@ export type RoutingOverview = {
   engine: { value: EngineSettings; version: number; updated_at: string };
   live_partners: number;
   partners: { id: number; name: string; status: string; live: boolean; test_endpoint: boolean; offers: number; proposed: number }[];
-  today: { to_partners: number; to_b2c: number; tests: number; b2c_reasons: Record<string, number>; errors: number };
+  today: { to_partners: number; to_b2c: number; tests: number; b2c_reasons: Record<string, number>; errors: number; nurture: number; sales: number; not_passed: number };
+  not_passed_open: number;
+  flags_open: ReviewFlag[];
   decisions: DecisionRow[];
   rules: Rule[];
   rates: Rate[];
@@ -43,8 +60,13 @@ export type RoutingOverview = {
 
 export type LeadRouting = {
   readiness: Decision["readiness"]; interest: Interest; consent: boolean; routing_live: boolean;
+  not_passed: NotPassed | null;
+  flags: { id: number; allocation_id: number; lead_status: string | null; destination_type: string; created_at: string; resolved_at: string | null; resolution: string | null }[];
   decisions: StoredDecision[];
-  allocations: { id: number; reference: string | null; status: string; destination_type: string; partner_name: string | null; mode: string; reason: string | null; created_at: string }[];
+  allocations: {
+    id: number; reference: string | null; status: string; destination_type: string; partner_name: string | null; mode: string; reason: string | null;
+    b2c_lane: "sales" | "nurture" | null; outcome: string | null; created_at: string;
+  }[];
 };
 
 async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
@@ -57,3 +79,6 @@ async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
 export const routingOverview = () => rpc<RoutingOverview>("routing_overview");
 export const routingDecision = (id: number) => rpc<StoredDecision | null>("routing_decision", { p_id: id });
 export const leadRouting = (id: number) => rpc<LeadRouting | null>("lead_routing", { p_lead_id: id });
+
+export type NotPassedSummary = { by_reason: Record<string, number>; by_source: Record<string, number>; mismatch_courses: { course: string; n: number }[] };
+export const notPassedSummary = () => rpc<NotPassedSummary>("not_passed_summary");

@@ -28,6 +28,12 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   settings saved as a new version with a reason. Each decision has its own page explaining why, and the lead drawer
   has a Routing tab. The engine itself is `b2b.route_core` (`supabase/migrations/*_m6b_route_lead.sql`); pg_cron calls
   `b2b.route_ready_leads` every minute, which does nothing while the switch is off.
+- Hand-off rules (Addenda 1 and 2, `docs/B2B_CRM_ADDENDUM_*.md`): every lead is passed to a CRM except junk and
+  programme mismatch, which stay in the master table under Leads → Not passed (single or bulk "Pass to CRM", with a
+  reason). Paid-campaign, B2C-created and B2C-held leads go to the B2C CRM's sales lane; unqualified leads to its
+  nurture lane; rules may also send leads to B2C. From the lead drawer: send a B2C lead to partners by hand, or record
+  that a partner marked a lead lost (B2C nurture). Passed leads that Witty later reclassifies wait in the review queue.
+  The engine is `b2b.route_decide` (`supabase/migrations/*_m7b1_route_decide.sql`).
 
 ## How access is enforced
 

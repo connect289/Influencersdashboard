@@ -31,10 +31,11 @@ export function RoutingSwitch({ live, livePartners, consentRequired }: { live: b
           <p>Ready leads stop routing. Leads already routed are not affected. You can still route single leads by hand.</p>
         ) : (
           <div className="space-y-2">
-            <p>Every minute, ready leads (not test leads) are routed: to a live partner, or to Eduwit&apos;s B2C CRM with a reason.</p>
-            {livePartners === 0 && <p className="font-medium text-warning">No partner is live yet, so every ready lead will go to B2C.</p>}
-            {consentRequired && <p className="font-medium text-warning">Witty does not ask for partner-sharing consent yet, so leads without it go to B2C (reason: no consent).</p>}
-            <p>Once routed, Witty stops chatting with the lead (it is owned by a partner or by B2C).</p>
+            <p>Every minute, leads at their decision point (not test leads) are decided: junk and programme mismatch are not passed; paid-campaign
+              leads go to B2C sales; unqualified leads to B2C nurture; qualified leads to a live partner, or to B2C sales with a reason.</p>
+            {livePartners === 0 && <p className="font-medium text-warning">No partner is live yet, so every qualified lead will go to B2C sales.</p>}
+            {consentRequired && <p className="font-medium text-warning">Witty does not ask for partner-sharing consent yet, so qualified leads without it go to B2C sales (reason: no consent).</p>}
+            <p>Once routed, Witty stops chatting with the lead, B2C nurture leads included, until Witty&apos;s side is changed (Addendum 1 §4b).</p>
           </div>
         )}
       </ConfirmDialog>

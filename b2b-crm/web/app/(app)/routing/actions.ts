@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
-import { EngineSchema, parseRuleForm, RateSchema, type Decision } from "@/lib/routing";
+import { EngineSchema, HandoffSchema, handoffPayload, parseRuleForm, RateSchema, type Decision } from "@/lib/routing";
 import { createClient } from "@/lib/supabase/server";
 
 const Id = z.number().int().positive();
@@ -114,4 +114,67 @@ export async function saveEngineSettings(_prev: FormState, form: FormData): Prom
   if (error) return { error: dbMessage(error, "Could not save the settings. Try again.") };
   refresh();
   return { ok: Date.now() };
+}
+
+// ---------- Addenda 1 and 2: hand-off rules, rescue, manual routes and the review queue ----------
+
+export async function saveHandoffSettings(_prev: FormState, form: FormData): Promise<FormState> {
+  await assertAdmin();
+  const raw = Object.fromEntries(["sources", "click_ids", "utm_mediums", "include_campaigns", "exclude_campaigns", "b2c_sources", "blocked_phones",
+    "junk_capi_signal", "reason"].map((k) => [k, form.get(k) ?? undefined]));
+  const p = HandoffSchema.safeParse({ ...raw, ...Object.fromEntries(["sources", "click_ids", "utm_mediums", "include_campaigns", "exclude_campaigns",
+    "b2c_sources", "blocked_phones"].map((k) => [k, raw[k] ?? ""])) });
+  if (!p.success) {
+    const errors: Record<string, string> = {};
+    for (const i of p.error.issues) errors[String(i.path[0])] ??= i.message;
+    return { errors, error: "Check the highlighted fields." };
+  }
+  const { error } = await rpc("handoff_settings_save", { p: handoffPayload(p.data), p_reason: p.data.reason });
+  if (error) return { error: dbMessage(error, "Could not save the hand-off rules. Try again.") };
+  refresh();
+  return { ok: Date.now() };
+}
+
+const Reason = z.string().trim().min(3).max(300);
+
+/** Pass not-passed (junk / mismatch) leads to a CRM through the normal rules. */
+export async function passToCrm(leadIds: number[], reason: string): Promise<{ ok: true; passed: number; failed: number } | { ok: false; error: string }> {
+  await assertAdmin();
+  const p = z.object({ ids: z.array(Id).min(1).max(500), reason: Reason }).safeParse({ ids: leadIds, reason });
+  if (!p.success) return { ok: false, error: "Choose leads and give a reason (3 characters or more)." };
+  const { data, error } = await rpc("pass_to_crm", { p_lead_ids: p.data.ids, p_reason: p.data.reason });
+  if (error) return { ok: false, error: dbMessage(error, "Could not pass the leads. Try again.") };
+  refresh();
+  const r = data as { passed: number; results: { ok: boolean }[] };
+  return { ok: true, passed: r.passed, failed: r.results.filter((x) => !x.ok).length };
+}
+
+/** Send a lead held by B2C into partner routing (the only way a B2C lead reaches a partner). */
+export async function routeToPartners(leadId: number, reason: string): Promise<{ ok: true; decision: Decision } | { ok: false; error: string }> {
+  await assertAdmin();
+  const p = z.object({ id: Id, reason: Reason }).safeParse({ id: leadId, reason });
+  if (!p.success) return { ok: false, error: "A reason is required." };
+  const { data, error } = await rpc("route_to_partners", { p_lead_id: p.data.id, p_reason: p.data.reason });
+  if (error) return { ok: false, error: dbMessage(error, "Could not send the lead to partners. Try again.") };
+  refresh();
+  return { ok: true, decision: data as Decision };
+}
+
+/** The partner says the lead is lost: it goes to B2C nurture (until partner sync reports it automatically). */
+export async function markPartnerLost(allocationId: number, reason: string): Promise<string | void> {
+  await assertAdmin();
+  const p = z.object({ id: Id, reason: Reason }).safeParse({ id: allocationId, reason });
+  if (!p.success) return "Say what the partner reported.";
+  const { error } = await rpc("allocation_partner_lost", { p_allocation_id: p.data.id, p_detail: { lost_reason: p.data.reason, reported_by: "admin" } });
+  if (error) return dbMessage(error, "Could not record the loss. Try again.");
+  refresh();
+}
+
+export async function resolveFlag(id: number, resolution: "keep" | "close", note: string): Promise<string | void> {
+  await assertAdmin();
+  const p = z.object({ id: Id, resolution: z.enum(["keep", "close"]), note: z.string().trim().max(300) }).safeParse({ id, resolution, note });
+  if (!p.success) return "Invalid request.";
+  const { error } = await rpc("review_flag_resolve", { p_id: p.data.id, p_resolution: p.data.resolution, p_note: p.data.note });
+  if (error) return dbMessage(error, "Could not resolve the flag. Try again.");
+  refresh();
 }
