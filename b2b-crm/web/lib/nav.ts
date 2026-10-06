@@ -70,7 +70,7 @@ export const NAV: NavGroup[] = [
   {
     label: "System",
     items: [
-      { href: "/system", label: "System health", icon: Radio, phase: 2, summary: "Queues, sync lag, outbox and dead letters, API keys and webhooks.", keywords: "outbox queue api keys" },
+      { href: "/system", label: "System health", icon: Radio, summary: "Background jobs, webhook endpoints and deliveries, API keys, events from the B2C CRM and erasure requests.", keywords: "outbox queue api keys webhooks b2c jobs cron" },
       { href: "/settings/security", label: "Settings", icon: Settings, key: "s", summary: "Your sign-in security: two-step verification, active sessions and sign-in history.", keywords: "security sessions account" },
     ],
   },

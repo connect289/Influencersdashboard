@@ -66,6 +66,12 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   and a message due while its switch is off is cancelled, not sent late. The screen holds the switches with what is
   still missing, the templates with a preview per partner, the provider settings (keys go to Vault) and the masked
   send log with "Send again". The lead drawer's Routing tab lists the student's messages.
+- System health (`/system`, `supabase/migrations/*_m14*.sql`, contract in `docs/b2c-contract.md`): the background
+  jobs with their last run and failures, events received from the B2C CRM, open erasure requests, webhook endpoints
+  (signing secret shown once, test ping, switch on or pause with a reason), the delivery log with "Send now", and API
+  keys (shown once, revocable). Machine endpoints for the B2C CRM: `GET /v1/handoffs` (reconciliation feed),
+  `POST /v1/leads/{id}/route-to-partners` (both with an API key, `Authorization: Bearer`) and
+  `POST /v1/events/b2ccrm` (HMAC-signed). pg_cron runs `b2b.outbox_tick` every 15 seconds to deliver webhooks.
 
 ## How access is enforced
 

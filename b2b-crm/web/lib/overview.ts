@@ -111,6 +111,10 @@ export const ALERT_LABEL: Record<string, string> = {
   "alert.commission_dispute": "Late duplicate claim (dispute)",
   "alert.notification_failed": "Student message failed",
   "alert.programme_sheet_failed": "Partner Google Sheet could not be read",
+  "alert.webhook_dead": "Webhook delivery gave up",
+  "alert.b2c_bad_signature": "B2C CRM event with a bad signature",
+  "alert.partner_optout_notice": "Student opted out: tell the partner",
+  "alert.erasure_requested": "Student asked for data erasure",
   "routing.error": "Routing error",
 };
 
