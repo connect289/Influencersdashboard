@@ -27,7 +27,7 @@ export const NAV: NavGroup[] = [
   {
     label: "Leads",
     items: [
-      { href: "/leads", label: "Leads", icon: Users, key: "l", phase: 1, summary: "The Master Lead Table: every lead from every source with its partner, both status layers, sales effort and commission. Edit, soft delete with a recycle bin, and export.", keywords: "students master table" },
+      { href: "/leads", label: "Leads", icon: Users, key: "l", summary: "Every lead from every source: search, filter, the Witty chat, soft delete with a recycle bin, and export.", keywords: "students master table recycle bin export" },
       { href: "/pool", label: "Pre-routing pool", icon: Inbox, phase: 1, summary: "Leads that cannot route yet, grouped by what is missing (consent, course, verified phone) with their age.", keywords: "waiting not ready" },
       { href: "/intake", label: "Intake", icon: Plug, phase: 2, summary: "Sources (Witty, website agent, Meta, Google, imports) with volume and errors, the Excel/CSV import wizard and per-form field mapping.", keywords: "import csv meta google" },
     ],

@@ -9,6 +9,9 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
 - Five failed password or code attempts lock sign-in for 15 minutes. Sessions end after 12 hours idle.
 - The shell: sidebar, ⌘K command palette, `g` + letter shortcuts, light/dark/system theme, Command Center, Security page
   (sessions, sign out other devices, sign-in history). Planned screens describe what is coming.
+- Leads (`/leads`): search (name, phone, email, ID), status/stage/source/routing filters with counts, keyset paging,
+  a drawer with the lead's details, Witty chat and activity, bulk soft delete with a reason, the recycle bin with
+  restore, and CSV export (full or masked; every export is logged). State lives in the URL, so every view is a link.
 
 ## How access is enforced
 
