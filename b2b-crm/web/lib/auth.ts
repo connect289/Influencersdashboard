@@ -70,7 +70,7 @@ export async function recordSignIn(entry: SignInEntry): Promise<void> {
 
 export async function isLocked(email: string): Promise<boolean> {
   const { data, error } = await adminClient().rpc("sign_in_locked", { p_email: email });
-  if (error) throw new Error("lockout check failed"); // fail closed
+  if (error) throw new Error(`lockout check failed (${error.code ?? "unknown"})`); // fail closed
   return data === true;
 }
 

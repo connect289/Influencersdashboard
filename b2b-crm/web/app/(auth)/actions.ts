@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 export type FormState = { error?: string; notice?: string } | undefined;
 
 const LOCKED = "Too many failed attempts. Sign-in is locked for 15 minutes.";
+const SETUP = "Your sign-in worked, but the app cannot reach its data yet. In Supabase, add b2b under Project Settings → Data API → Exposed schemas, save, and sign in again.";
 const RESTRICTED = "This app is restricted. Your account is not allowed to use the Eduwit Partner CRM. The attempt was logged.";
 
 async function requestContext() {
@@ -33,7 +34,14 @@ export async function signInWithPassword(_: FormState, form: FormData): Promise<
   const next = safeNext(String(form.get("next") ?? ""));
   const ctx = await requestContext();
 
-  if (await isLocked(email)) {
+  let locked: boolean;
+  try {
+    locked = await isLocked(email);
+  } catch (e) {
+    // Fail closed, but say why: PGRST106 means the b2b schema is not exposed to the API yet.
+    return { error: String(e).includes("PGRST106") ? SETUP : "Sign-in is unavailable right now. Try again in a minute." };
+  }
+  if (locked) {
     await recordSignIn({ email, method: "password", outcome: "locked", ...ctx });
     return { error: LOCKED };
   }
@@ -46,7 +54,11 @@ export async function signInWithPassword(_: FormState, form: FormData): Promise<
   }
 
   const result = await fetchMe(supabase);
-  if ("setupError" in result || !result.me.allowlisted) {
+  if ("setupError" in result) {
+    await supabase.auth.signOut({ scope: "local" });
+    return { error: SETUP };
+  }
+  if (!result.me.allowlisted) {
     await supabase.auth.signOut({ scope: "local" });
     await recordSignIn({ email, user_id: data.user.id, method: "password", outcome: "refused_not_allowlisted", ...ctx });
     return { error: RESTRICTED };
