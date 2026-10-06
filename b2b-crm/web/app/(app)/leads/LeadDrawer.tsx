@@ -5,9 +5,11 @@ import { DESTINATION_LABEL, formatPhone, humanize, statusTone, whatsappLink } fr
 import type { EditHistory } from "@/lib/lead-edit";
 import type { LeadDetail } from "@/lib/leads-data";
 import type { LeadRouting } from "@/lib/routing-data";
+import type { LeadPartnerSync } from "@/lib/sync";
 import { DrawerShell } from "./DrawerShell";
 import { EditTab } from "./EditTab";
 import { LeadActions } from "./LeadMutations";
+import { PartnerSyncTab } from "./PartnerSyncTab";
 import { RoutingTab } from "./RoutingTab";
 
 type Lead = LeadDetail["lead"];
@@ -172,8 +174,9 @@ function Activity({ d }: { d: LeadDetail }) {
 }
 
 /** Lead drawer: who the student is, their Witty chat, what happened to the lead, and corrections with their history. */
-export function LeadDrawer({ id, detail, routing, history, closeHref }: {
-  id: number; detail: LeadDetail | null; routing: LeadRouting | null; history: EditHistory | null; closeHref: string;
+export function LeadDrawer({ id, detail, routing, history, sync, closeHref, initialTab }: {
+  id: number; detail: LeadDetail | null; routing: LeadRouting | null; history: EditHistory | null; sync: LeadPartnerSync | null;
+  closeHref: string; initialTab?: string;
 }) {
   if (!detail) {
     return (
@@ -219,10 +222,13 @@ export function LeadDrawer({ id, detail, routing, history, closeHref }: {
       closeHref={closeHref}
       label={`Lead ${name}`}
       header={header}
+      initialTab={initialTab}
       tabs={[
         { id: "overview", label: "Overview", content: <Overview l={l} /> },
         { id: "chat", label: "Witty chat", count: detail.messages.length, content: <Chat messages={detail.messages} /> },
         { id: "routing", label: "Routing", count: routing?.decisions.length, content: <RoutingTab leadId={l.id} r={routing} /> },
+        ...(sync && (sync.activities.length || sync.events.length || sync.slas.length)
+          ? [{ id: "partner", label: "Partner sync", count: sync.activities.length, content: <PartnerSyncTab s={sync} /> }] : []),
         { id: "activity", label: "Activity", count: detail.touchpoints.length + detail.events.length + 1, content: <Activity d={detail} /> },
         { id: "edit", label: "Edit", count: history?.length || undefined, content: <EditTab id={l.id} lead={l} history={history} deleted={Boolean(l.deleted_at)} /> },
       ]}

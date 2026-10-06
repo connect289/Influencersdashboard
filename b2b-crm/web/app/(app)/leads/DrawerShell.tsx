@@ -7,10 +7,12 @@ import { cn } from "@/components/ui/cn";
 export type DrawerTab = { id: string; label: string; count?: number; content: React.ReactNode };
 
 /** Right-hand panel for one lead. The URL (?lead=) opens it; closing navigates back to the list, keeping filters. */
-export function DrawerShell({ closeHref, label, header, tabs }: { closeHref: string; label: string; header: React.ReactNode; tabs: DrawerTab[] }) {
+export function DrawerShell({ closeHref, label, header, tabs, initialTab }: {
+  closeHref: string; label: string; header: React.ReactNode; tabs: DrawerTab[]; initialTab?: string;
+}) {
   const router = useRouter();
   const panel = useRef<HTMLDivElement>(null);
-  const [tab, setTab] = useState(tabs[0]?.id);
+  const [tab, setTab] = useState(tabs.some((t) => t.id === initialTab) ? initialTab : tabs[0]?.id);
   const close = () => router.push(closeHref, { scroll: false });
 
   useEffect(() => {

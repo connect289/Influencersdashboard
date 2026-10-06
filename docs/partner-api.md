@@ -82,16 +82,29 @@ by `reference` (preferred) or `record_id`.
 | --- | --- | --- |
 | `duplicate` | `existing_id`, `created_at` (or `existing_reference`) | In the hold window: the lead moves to another partner. After acceptance (within 24 hours): logged as a commission dispute for review; the lead stays with you. Later: rejected |
 | `rejected` | `reason` | In the hold window: the lead moves to another partner and a contract alert is raised |
-| `contacted` | `connected` (true/false) | Records the contact attempt on the lead |
+| `contacted` | `connected` (true/false); optional `outcome`, `duration_sec`, `direction` (`outbound`/`inbound`), `counsellor_name`, `counsellor_id` | Records the call on the lead and starts the SLA scorecard |
 | `stage` | `stage`, `sub_stage`, optional `pipeline` and `fields` | Your stage is stored as you send it, then mapped to Eduwit's stage through your mapping. A mapped "lost" stage hands the student to Eduwit's B2C nurture team |
 | `update` | `fields` | Your lead fields (counsellor, next follow-up, application, fee paid, enrollment…), mapped to Eduwit's fields |
-| `activity` | `type`, `outcome`, optional `fields`; `occurred_at` on the event | A call, message or meeting, mapped to Eduwit's activity kinds; calls count as contact attempts |
+| `activity` | `type`, `outcome`; optional `duration_sec`, `direction`, `counsellor_name`, `counsellor_id`, `fields` | A call, message or meeting, mapped to Eduwit's activity kinds; calls count as contact attempts |
 | `lost` | `reason` | The lead goes to Eduwit's B2C nurture team; the student is not messaged by you or Eduwit's B2B CRM |
 
 `fields` is an object of your own field names and values, exactly as your CRM has them, for example
 `{"OwnerIdName": "Priya Sharma", "mx_Next_Call": "07/10/2026 11:00", "mx_Fee_Paid": "2.5 L"}`. You do not need to
 rename anything: Eduwit maps your names, stages and picklist values in its Mapping studio. Send `pipeline` (or the field
 agreed with Eduwit) when the same stage name means different things in different pipelines.
+
+Put the time the thing happened in `occurred_at` (ISO 8601 with an offset) on every event: Eduwit measures your SLAs
+from it, so a call logged late still counts at the time it was made. Without it, the time Eduwit received the event is
+used.
+
+**SLAs.** Clocks run in your working hours and holidays as agreed with Eduwit (India time). Defaults: first contact
+attempt within 2 working hours of the push; first connected conversation within 1 working day; counselling outcome
+within 5 working days; a status update at least every 7 days while the lead is open; enrollment proof within 7 days of
+"enrolled". Any event about a lead counts as a status update for it.
+
+**Reconciliation.** Each night Eduwit checks for events it could not match, leads you accepted without returning your
+record ID, and leads with no recent update. Eduwit may also ask for an export of the leads you hold (your record ID or
+our reference, and the stage) to compare both lists.
 
 **Unmapped values.** If you send a stage, field, picklist value or activity Eduwit has not mapped yet, the event is still
 accepted (`200`) and stored; it is applied as soon as Eduwit maps it, in the order you sent it. Nothing you send is

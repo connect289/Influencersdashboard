@@ -117,6 +117,8 @@ export const ALERT_LABEL: Record<string, string> = {
   "alert.erasure_requested": "Student asked for data erasure",
   "alert.mapping_unmapped": "Partner sent something not mapped",
   "alert.mapping_drift": "Partner's CRM schema changed",
+  "alert.sla_breach": "Partner missed the first-contact SLA",
+  "alert.reconciliation_items": "Reconciliation found mismatches",
   "routing.error": "Routing error",
 };
 

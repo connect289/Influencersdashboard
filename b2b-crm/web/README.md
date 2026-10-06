@@ -79,6 +79,12 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   Values, Activities, Test (a payload in, a lead out and back, golden files), Queue (everything unmapped, with counts
   and leads), Schema (uploaded field lists, what the events show, drift, stage corrections) and Versions. The partner
   page's go-live checklist links here.
+- Sync & SLAs (partner page tab, `supabase/migrations/*_m16*.sql`): sync health (last event, lag, failures, dead
+  letters, pushes, a 7-day chart and one traffic light), the SLA scorecard in the partner's working hours with recent
+  breaches, dead letters with Retry and Discard (with a reason), and reconciliation items, which are re-checked every
+  night and on demand, or against the partner's own export (CSV or JSON). The lead drawer's Partner sync tab shows
+  the lead's SLA clocks, the partner's calls, messages and stage changes, and every raw event with its mapping.
+  pg_cron runs `b2b.sla_tick` every 5 minutes and `b2b.reconcile_all` nightly.
 
 ## How access is enforced
 

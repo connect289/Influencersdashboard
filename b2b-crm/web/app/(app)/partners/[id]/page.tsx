@@ -12,9 +12,11 @@ import {
 } from "@/lib/partners";
 import { partnerDetail } from "@/lib/partners-data";
 import { partnerConnection } from "@/lib/push-data";
+import { partnerSync } from "@/lib/sync-data";
 import { PartnerForm } from "../PartnerForm";
 import { PartnerLogo } from "../PartnerLogo";
 import { ConnectionTab } from "./ConnectionTab";
+import { SyncTab } from "./SyncTab";
 import { PartnerControls } from "./PartnerControls";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -22,6 +24,7 @@ const TABS = [
   { id: "overview", label: "Overview" },
   { id: "settings", label: "Settings" },
   { id: "connection", label: "Connection" },
+  { id: "sync", label: "Sync & SLAs" },
   { id: "activity", label: "Activity" },
 ] as const;
 
@@ -108,8 +111,9 @@ function Overview({ d }: { d: PartnerDetail }) {
         <Card>
           <CardHeader title="Coming to this page" />
           <p className="px-5 py-4 text-[13px] leading-6 text-muted">
-            Commission per programme, funnel and sales effort, live SLA timers, sync and mapping health, and the notification
-            preview arrive with the routing, push and commission builds. Programmes live in the{" "}
+            Commission per programme and the funnel arrive with the money build. Sync health, SLA scorecard and reconciliation
+            are on <Link href="?tab=sync" className="text-info hover:underline">Sync &amp; SLAs</Link>; mapping in the{" "}
+            <Link href={`/mapping/${p.id}`} className="text-info hover:underline">Mapping studio</Link>; programmes in the{" "}
             <Link href={`/programmes/${p.id}`} className="text-info hover:underline">Programme Repository</Link>.
           </p>
         </Card>
@@ -174,6 +178,7 @@ export default async function PartnerPage({ params, searchParams }: Props) {
   const title = partnerTitle(p);
   const missing = d.checklist.filter((c) => !c.done).length;
   const connection = tab === "connection" ? await partnerConnection(p.id) : null;
+  const sync = tab === "sync" ? await partnerSync(p.id) : null;
 
   return (
     <>
@@ -202,13 +207,13 @@ export default async function PartnerPage({ params, searchParams }: Props) {
         </p>
       )}
 
-      <nav aria-label="Partner sections" className="mb-6 flex gap-5 border-b border-border">
+      <nav aria-label="Partner sections" className="mb-6 flex gap-5 overflow-x-auto border-b border-border">
         {TABS.map((t) => (
           <Link
             key={t.id}
             href={t.id === "overview" ? `/partners/${p.id}` : `/partners/${p.id}?tab=${t.id}`}
             aria-current={tab === t.id ? "page" : undefined}
-            className={cn("-mb-px border-b-2 pb-2.5 text-[13px] font-medium transition-colors", tab === t.id ? "border-amber text-fg" : "border-transparent text-muted hover:text-fg")}
+            className={cn("-mb-px shrink-0 whitespace-nowrap border-b-2 pb-2.5 text-[13px] font-medium transition-colors", tab === t.id ? "border-amber text-fg" : "border-transparent text-muted hover:text-fg")}
           >
             {t.label}
             {t.id === "activity" && <span className="tabular ml-1.5 text-[11px] text-subtle">{d.events.length}</span>}
@@ -219,6 +224,7 @@ export default async function PartnerPage({ params, searchParams }: Props) {
       {tab === "overview" && <Overview d={d} />}
       {tab === "settings" && <PartnerForm partner={p} />}
       {tab === "connection" && connection && <ConnectionTab id={p.id} c={connection} />}
+      {tab === "sync" && sync && <SyncTab s={sync} />}
       {tab === "activity" && <Card><Activity events={d.events} /></Card>}
     </>
   );
