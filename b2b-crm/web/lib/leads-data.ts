@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import type { EditHistory } from "@/lib/lead-edit";
 import { toRpcParams, type Cursor, type Facets, type LeadPage, type LeadQuery } from "@/lib/leads";
 
 /**
@@ -35,4 +36,11 @@ export async function leadDetail(id: number): Promise<LeadDetail | null> {
   const { data, error } = await supabase.schema("b2b").rpc("lead_detail", { p_id: id });
   if (error) throw new Error(`lead_detail failed (${error.code ?? "unknown"})`);
   return (data as LeadDetail | null) ?? null;
+}
+
+export async function leadEditHistory(id: number): Promise<EditHistory> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.schema("b2b").rpc("lead_edit_history", { p_lead_id: id });
+  if (error) throw new Error(`lead_edit_history failed (${error.code ?? "unknown"})`);
+  return (data ?? []) as EditHistory;
 }

@@ -20,6 +20,12 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
 - Leads (`/leads`): search (name, phone, email, ID), status/stage/source/routing filters with counts, keyset paging,
   a drawer with the lead's details, Witty chat and activity, bulk soft delete with a reason, the recycle bin with
   restore, and CSV export (full or masked; every export is logged). State lives in the URL, so every view is a link.
+  The export streams page by page (up to 50,000 rows, with partner, reference and both status layers), so a large file
+  keeps downloading while the Admin works; its filters are fixed when it starts (`b2b.leads_export_start` / `_page`).
+- Lead corrections: the drawer's Edit tab corrects contact, interest, profile, classification and notes, with a reason.
+  Changes go through `lead_intake()` (as `crm`) via `b2b.lead_edit`, which checks every field and keeps the old and new
+  value in `b2b.lead_edits`; the tab lists that history and flags a correction Witty has since written over. Fields
+  cannot be emptied (lead_intake cannot clear), and routing, consent, source and money fields are not editable.
 - Partners (`/partners`): cards with status, live state, today's and this month's leads and go-live progress; add and
   edit (identity and student-facing brand, CRM type, duplicate handling and hold window, caps, working hours and
   holidays, SLAs, lead criteria, notification switch); mark active, pause, resume, close (with reasons); the live

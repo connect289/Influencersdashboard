@@ -201,21 +201,30 @@ export function whatsappLink(raw: string | null | undefined): string | null {
  * RFC 4180 CSV with a UTF-8 BOM (Excel opens Hindi names correctly). Cells that a spreadsheet would run as a formula
  * (= + - @ tab CR at the start) are prefixed with ' so an exported lead can never execute in someone's Excel.
  */
-export function toCsv(columns: string[], rows: Record<string, unknown>[]): string {
-  const cell = (v: unknown): string => {
-    if (v === null || v === undefined) return "";
-    let s = typeof v === "object" ? JSON.stringify(v) : String(v);
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const lines = [columns.map(cell).join(",")];
-  for (const r of rows) lines.push(columns.map((c) => cell(r[c])).join(","));
-  return `﻿${lines.join("\r\n")}\r\n`;
+export function csvCell(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  let s = typeof v === "object" ? JSON.stringify(v) : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+/** One CSV line per row, each ending in CRLF. */
+export function csvLines(columns: readonly string[], rows: Record<string, unknown>[]): string {
+  return rows.map((r) => `${columns.map((c) => csvCell(r[c])).join(",")}\r\n`).join("");
+}
+
+/** The whole file: BOM, header and rows. */
+export function toCsv(columns: readonly string[], rows: Record<string, unknown>[]): string {
+  return `\uFEFF${columns.map(csvCell).join(",")}\r\n${csvLines(columns, rows)}`;
+}
+
+/** Columns of the lead download (b2b.leads_export_page). */
 export const EXPORT_COLUMNS = [
   "id", "created_at", "student_name", "phone", "email", "city", "state", "interested_course", "interested_specialization",
-  "program_level", "study_mode_preference", "highest_qualification", "lead_status", "stage", "lead_source", "channel",
-  "campaign", "utm_source", "utm_medium", "utm_campaign", "destination_type", "partner_id", "consent_partner_share_at",
-  "last_activity_at", "is_test",
+  "university", "program_level", "study_mode_preference", "highest_qualification", "lead_status", "stage", "sub_stage",
+  "lead_source", "channel", "campaign", "utm_source", "utm_medium", "utm_campaign", "destination", "partner", "reference",
+  "allocation_status", "b2c_lane", "partner_stage_raw", "consent_partner_share_at", "last_activity_at", "deleted_at", "is_test",
 ] as const;
+
+/** Most rows one download may hold (the database stops there too). */
+export const EXPORT_CAP = 50000;
