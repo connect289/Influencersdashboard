@@ -36,7 +36,7 @@ export const NAV: NavGroup[] = [
     label: "Partners",
     items: [
       { href: "/partners", label: "Partners", icon: Building2, key: "p", summary: "Every partner edtech with its CRM, duplicate handling, caps, SLAs, working hours, go-live checklist and live switch.", keywords: "edtech add partner live switch" },
-      { href: "/programmes", label: "Programme Repository", icon: BookOpen, phase: 1, summary: "Each partner's programme file (Excel or Google Sheet): versions, catalogue matching, change and routing-impact preview, publish and roll back, plus the coverage matrix.", keywords: "catalogue courses sheet" },
+      { href: "/programmes", label: "Programme Repository", icon: BookOpen, summary: "Each partner's programme file (Excel or CSV): versions, catalogue matching, review, change preview, publish and roll back, plus catalogue coverage.", keywords: "catalogue courses sheet excel upload" },
       { href: "/mapping", label: "Mapping studio", icon: GitMerge, phase: 2, summary: "Map every partner stage, field and picklist to Eduwit's model and back, with coverage gates, tests and the unmapped queue.", keywords: "stages fields" },
     ],
   },

@@ -14,8 +14,9 @@ function make() {
 }
 
 /**
- * Service-role client, schema b2b. Server only, and used only for what a signed-out visitor needs: logging sign-in
- * attempts, the lockout check and the reset-link allowlist check. Everything else runs as the user under RLS.
+ * Service-role client, schema b2b. Server only, and used only for: what a signed-out visitor needs (logging sign-in
+ * attempts, the lockout check, the reset-link allowlist check) and the private partner-file bucket, after
+ * assertAdmin() (lib/programme-file.ts). Everything else runs as the user under RLS.
  */
 export function adminClient() {
   client ??= make();

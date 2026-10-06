@@ -16,6 +16,11 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   edit (identity and student-facing brand, CRM type, duplicate handling and hold window, caps, working hours and
   holidays, SLAs, lead criteria, notification switch); mark active, pause, resume, close (with reasons); the live
   switch, which stays locked until the go-live checklist is complete.
+- Programme Repository (`/programmes`): per partner, upload the partner's Excel or CSV file (kept as uploaded in a
+  private bucket), map its columns once (the template is saved), and every row is normalised (amounts like "1.5 L",
+  modes, levels, dates, commission) and matched to the catalogue. Review the rows that need it, preview what changes
+  against the live offers (removals that leave a programme with no partner are flagged), publish, and roll back to any
+  earlier version. Catalogue coverage by course across partners.
 
 ## How access is enforced
 
