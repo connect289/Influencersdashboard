@@ -7,8 +7,16 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
 - Sign-in for the single Admin (`connect@eduwit.in`): Google, or email + password; then a 6-digit authenticator code
   (TOTP). Password reset by email. Any other account is refused, signed out and logged.
 - Five failed password or code attempts lock sign-in for 15 minutes. Sessions end after 12 hours idle.
-- The shell: sidebar, ⌘K command palette, `g` + letter shortcuts, light/dark/system theme, Command Center, Security page
-  (sessions, sign out other devices, sign-in history). Planned screens describe what is coming.
+- The shell: sidebar, ⌘K command palette, `g` + letter shortcuts, light/dark/system theme, Security page (sessions,
+  sign out other devices, sign-in history). Planned screens describe what is coming.
+- Command Center (`/`): today's leads, leads to partners and accepted (each against the same hours yesterday), the
+  7-day duplicate rate, first-contact SLA compliance and this month's expected commission; partner health cards
+  (today against the daily cap, accepted and duplicates this week, pushes retrying or failed); where leads went in
+  the last 7 days by destination and source; the lead stream; alerts; the pool size; every live switch; and, until a
+  partner is live and routing is on, the road to the first routed lead. Test leads are left out. `b2b.command_center`.
+- Pre-routing pool (`/pool`): leads with no destination yet, grouped by why they wait (still chatting with Witty,
+  ready but routing is off, ready and due, opted out, older than 90 days, test leads) with counts by age, where each
+  would go once decided, and what keeps leads from a partner. `b2b.pool_overview`.
 - Leads (`/leads`): search (name, phone, email, ID), status/stage/source/routing filters with counts, keyset paging,
   a drawer with the lead's details, Witty chat and activity, bulk soft delete with a reason, the recycle bin with
   restore, and CSV export (full or masked; every export is logged). State lives in the URL, so every view is a link.
