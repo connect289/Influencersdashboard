@@ -26,11 +26,14 @@ export async function GET(request: NextRequest) {
   const ctx = { ip: clientIp(request.headers), user_agent: request.headers.get("user-agent")?.slice(0, 500) ?? null };
   const result = await fetchMe(supabase);
 
-  if ("setupError" in result || !result.me.allowlisted) {
-    const email = "me" in result ? result.me.email : null;
-    const userId = "me" in result ? result.me.user_id : null;
+  if ("setupError" in result) {
+    // The database is not reachable through the API yet: a configuration problem, not a refusal.
     await supabase.auth.signOut({ scope: "local" });
-    await recordSignIn({ email, user_id: userId, method, outcome: "refused_not_allowlisted", ...ctx });
+    redirect("/login?error=setup");
+  }
+  if (!result.me.allowlisted) {
+    await supabase.auth.signOut({ scope: "local" });
+    await recordSignIn({ email: result.me.email, user_id: result.me.user_id, method, outcome: "refused_not_allowlisted", ...ctx });
     redirect("/login?error=restricted");
   }
 

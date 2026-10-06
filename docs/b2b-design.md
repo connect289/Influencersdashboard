@@ -485,6 +485,7 @@ Steps marked ⚠ need an explicit yes because they touch shared objects.
   - 22 behaviour checks passed on staging before production.
 - **Change from the design:** there is no `revoke_session` SQL function. Deleting from `auth.sessions` from SQL is avoided; the app uses Supabase Auth's sign-out instead.
 - **M2f (audit fixes):** RLS policies evaluate `b2b.is_admin()` once per statement instead of once per row; `set_setting` accepts only known keys and object or array values; the influencer read function caps input lengths and its attempt log is purged nightly by `pg_cron`; `anon` lost SELECT on `student_leads`, `influencers` and `influencer_auth`; the auth trigger function has an explicit grant for the auth service role (trigger firing was verified not to need it).
+- **M2g (6 Oct, Vikas's decision):** no authenticator code for Google sign-in, which relies on the Google account's own 2-step verification (`app_users.require_totp = false`). Password and emailed-link sessions still need a TOTP-verified session; `b2b.is_admin()` checks the JWT's `amr` methods.
 - **Pending:** `b2b-crm/supabase/pending/drop_tmp_transfer.sql`. The temporary objects used to copy the schema to staging need a confirmed `DROP`. API access to them is already revoked.
 
 ## 8. Build order after approval
