@@ -28,7 +28,14 @@ Rules that keep Witty (the live WhatsApp bot) safe:
 - Never rename, retype or drop a `student_leads` column. Triggers added to `student_leads` only enqueue and never raise.
 - New tables go in schema `b2b`, with RLS on and writes only through `SECURITY DEFINER` functions that check `b2b.is_admin()`.
 - The Supabase connector holds statements containing `DROP` (and some large migrations) for manual confirmation; keep
-  migrations free of `DROP` (use `create or replace`, `if not exists` checks) or put the drop in `supabase/pending/`.
+  migrations free of `DROP` (use `create or replace`, `if not exists` checks, `alter policy`) or put the drop in `supabase/pending/`.
+- RLS policies call helpers as `(select b2b.is_admin())`, never bare `b2b.is_admin()`: the subselect runs once per
+  statement instead of once per row (35 ms → 0.5 ms on a 2,000-row scan).
+- Every function sets `search_path` (`''` for `b2b` functions, which qualify every name).
+- Settings change only through `b2b.set_setting(key, value, reason)`: known keys only, object or array values, a reason
+  every time, a version row and an event each change.
+- Checks run on staging inside a `begin … rollback` block before anything reaches production; the migration comment
+  says what was verified.
 
 ## Access
 
