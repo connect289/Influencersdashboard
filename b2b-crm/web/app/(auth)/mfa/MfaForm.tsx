@@ -22,7 +22,7 @@ export function MfaForm({ mode, next, email }: { mode: "verify" | "enroll"; next
       <p className="mt-1.5 text-sm text-muted">
         {mode === "verify"
           ? "Open your authenticator app and enter the 6-digit code for Eduwit Partner CRM."
-          : "The Partner CRM requires a code from an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…) at every sign-in."}
+          : "Signing in with email and password needs a code from an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…). Google sign-in does not."}
       </p>
       <p className="mt-1 truncate text-xs text-subtle">{email}</p>
 

@@ -63,7 +63,8 @@ export async function signInWithPassword(_: FormState, form: FormData): Promise<
     await recordSignIn({ email, user_id: data.user.id, method: "password", outcome: "refused_not_allowlisted", ...ctx });
     return { error: RESTRICTED };
   }
-  if (result.me.require_totp && result.me.aal !== "aal2") redirect(`/mfa?next=${encodeURIComponent(next)}`);
+  // Password sign-in always needs the authenticator code; only Google may skip it (b2b.is_admin()).
+  if (result.me.aal !== "aal2") redirect(`/mfa?next=${encodeURIComponent(next)}`);
   await recordSignIn({ email, user_id: data.user.id, method: "password", outcome: "success", ...ctx });
   redirect(next);
 }

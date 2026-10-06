@@ -39,7 +39,9 @@ const METHOD_LABEL: Record<string, string> = {
 
 export default async function SecurityPage() {
   const result = await requireAdmin();
-  const email = "me" in result ? result.me.email : "";
+  const me = "me" in result ? result.me : null;
+  const email = me?.email ?? "";
+  const usingCode = me?.aal === "aal2";
   const [sessions, history] = await Promise.all([mySessions(), signInHistory()]);
 
   return (
@@ -49,13 +51,21 @@ export default async function SecurityPage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <div className="space-y-6">
           <Card>
-            <CardHeader title="Account" />
+            <CardHeader title="Account" description="Google sign-in uses your Google account's own 2-step verification; keep it on." />
             <dl className="divide-y divide-border text-[13px]">
               <div className="flex items-center justify-between gap-4 px-5 py-3"><dt className="text-muted">Email</dt><dd className="truncate font-medium text-fg">{email}</dd></div>
               <div className="flex items-center justify-between gap-4 px-5 py-3"><dt className="text-muted">Role</dt><dd><Badge tone="brand">Admin</Badge></dd></div>
               <div className="flex items-center justify-between gap-4 px-5 py-3">
                 <dt className="text-muted">Two-step verification</dt>
-                <dd><Badge tone="success"><ShieldCheck className="size-3" /> On · authenticator app</Badge></dd>
+                <dd>
+                  <Badge tone="success">
+                    <ShieldCheck className="size-3" /> {usingCode ? "This session: authenticator code" : "This session: Google's 2-step"}
+                  </Badge>
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-4 px-5 py-3">
+                <dt className="text-muted">Code required for</dt>
+                <dd className="text-right text-fg">{me?.require_totp ? "Every sign-in" : "Email and password sign-in"}</dd>
               </div>
               <div className="flex items-center justify-between gap-4 px-5 py-3"><dt className="text-muted">Idle sign-out</dt><dd className="text-fg">After 12 hours</dd></div>
             </dl>
