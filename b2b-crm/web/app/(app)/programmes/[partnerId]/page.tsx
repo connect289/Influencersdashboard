@@ -12,10 +12,11 @@ import { VERSION_LABEL, VERSION_TONE } from "@/lib/programmes";
 import { partnerRepo, type VersionSummary } from "@/lib/programmes-data";
 import { PartnerLogo } from "../../partners/PartnerLogo";
 import { OffersTable } from "./OffersTable";
+import { SheetSource } from "./SheetSource";
 import { UploadWizard } from "./UploadWizard";
 
 type Props = { params: Promise<{ partnerId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
-const TABS = [{ id: "programmes", label: "Live programmes" }, { id: "versions", label: "Versions" }, { id: "upload", label: "Upload file" }] as const;
+const TABS = [{ id: "programmes", label: "Live programmes" }, { id: "versions", label: "Versions" }, { id: "upload", label: "File or sheet" }] as const;
 const parseId = (v: string) => (/^\d{1,15}$/.test(v) && Number(v) > 0 ? Number(v) : null);
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -75,6 +76,7 @@ export default async function PartnerProgrammesPage({ params, searchParams }: Pr
   const p = repo.partner;
   const draft = repo.versions.find((v) => v.status === "draft");
   const live = repo.versions.find((v) => v.status === "published");
+  const hasTemplate = Boolean(repo.source && Object.keys(repo.source.column_template ?? {}).length);
 
   return (
     <>
@@ -126,7 +128,12 @@ export default async function PartnerProgrammesPage({ params, searchParams }: Pr
       {tab === "upload" && (
         p.status === "closed"
           ? <Card><EmptyState icon={BookOpen} title="This partner is closed">Files can no longer be uploaded.</EmptyState></Card>
-          : <UploadWizard partnerId={p.id} hasTemplate={Boolean(repo.source && Object.keys(repo.source.column_template ?? {}).length)} />
+          : (
+            <div className="space-y-6">
+              <SheetSource partnerId={p.id} source={repo.source} hasTemplate={hasTemplate} />
+              {repo.source?.type !== "gsheet" && <UploadWizard partnerId={p.id} hasTemplate={hasTemplate} />}
+            </div>
+          )
       )}
     </>
   );

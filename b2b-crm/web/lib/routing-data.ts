@@ -67,6 +67,11 @@ export type LeadRouting = {
     id: number; reference: string | null; status: string; destination_type: string; partner_name: string | null; mode: string; reason: string | null;
     b2c_lane: "sales" | "nurture" | null; outcome: string | null; created_at: string;
   }[];
+  /** Messages to the student (m9c). */
+  notifications?: {
+    id: number; channel: "whatsapp" | "email"; kind: string; language: string; status: string; error: string | null;
+    scheduled_for: string | null; sent_at: string | null; created_at: string; partner_name: string | null;
+  }[];
 };
 
 async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {

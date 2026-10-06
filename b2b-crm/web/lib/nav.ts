@@ -28,7 +28,7 @@ export const NAV: NavGroup[] = [
     label: "Leads",
     items: [
       { href: "/leads", label: "Leads", icon: Users, key: "l", summary: "Every lead from every source: search, filter, the Witty chat, soft delete with a recycle bin, and export.", keywords: "students master table recycle bin export" },
-      { href: "/pool", label: "Pre-routing pool", icon: Inbox, phase: 1, summary: "Leads that cannot route yet, grouped by what is missing (consent, course, verified phone) with their age.", keywords: "waiting not ready" },
+      { href: "/pool", label: "Pre-routing pool", icon: Inbox, summary: "Leads with no destination yet, grouped by why they wait (still chatting, routing off, too old), with their age and where each will go.", keywords: "waiting not ready" },
       { href: "/intake", label: "Intake", icon: Plug, phase: 2, summary: "Sources (Witty, website agent, Meta, Google, imports) with volume and errors, the Excel/CSV import wizard and per-form field mapping.", keywords: "import csv meta google" },
     ],
   },
@@ -56,7 +56,7 @@ export const NAV: NavGroup[] = [
   {
     label: "Outreach",
     items: [
-      { href: "/notifications", label: "Notifications", icon: Bell, phase: 1, summary: "WhatsApp and email templates per language with a live preview per partner, and the send log with delivery status.", keywords: "whatsapp email templates" },
+      { href: "/notifications", label: "Notifications", icon: Bell, summary: "What students hear once a partner accepts their lead: WhatsApp and email switches, templates per language with a preview per partner, providers and the send log.", keywords: "whatsapp email templates" },
       { href: "/capi", label: "Conversions (CAPI)", icon: Target, phase: 2, summary: "Stage-to-event map for Meta and Google, the event log and match quality.", keywords: "meta google ads" },
     ],
   },

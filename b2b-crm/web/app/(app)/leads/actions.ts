@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
 import { DELETE_REASONS, parseLeadQuery, type LeadPage } from "@/lib/leads";
+import { EDIT_FIELDS, parseEdit } from "@/lib/lead-edit";
 import { listLeads } from "@/lib/leads-data";
 import { createClient } from "@/lib/supabase/server";
 
@@ -41,4 +42,31 @@ export async function restoreLeads(ids: number[]): Promise<{ ok: true; restored:
   revalidatePath("/leads");
   const r = data as { restored: number[]; blocked: Blocked };
   return { ok: true, restored: r.restored ?? [], blocked: r.blocked ?? [] };
+}
+
+export type EditState = { errors?: Record<string, string>; error?: string; ok?: number; changed?: number } | undefined;
+
+/**
+ * Corrects a lead through b2b.lead_edit (which writes via lead_intake and keeps the field history). The form carries
+ * the values it was opened with, so only fields the Admin changed are sent; the database compares again anyway.
+ */
+export async function editLead(id: number, _prev: EditState, form: FormData): Promise<EditState> {
+  await assertAdmin();
+  if (!z.number().int().positive().safeParse(id).success) return { error: "Invalid lead." };
+  let original: Record<string, string | null> = {};
+  try { original = z.record(z.string(), z.string().nullable()).parse(JSON.parse(String(form.get("_original") ?? "{}"))); } catch { return { error: "Reload the lead and try again." }; }
+  const values = Object.fromEntries(EDIT_FIELDS.filter((f) => form.has(f)).map((f) => [f, String(form.get(f) ?? "")]));
+  const parsed = parseEdit(values, original);
+  if (!parsed.ok) return { errors: parsed.errors, error: "Check the highlighted fields." };
+  if (Object.keys(parsed.changes).length === 0) return { error: "Nothing changed." };
+  const reason = z.string().trim().min(3).max(300).safeParse(form.get("reason") ?? "");
+  if (!reason.success) return { errors: { reason: "Say why, for the audit log" }, error: "Check the highlighted fields." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.schema("b2b").rpc("lead_edit", { p_lead_id: id, p_changes: parsed.changes, p_reason: reason.data });
+  if (error) {
+    const safe = error.code === "22023" || error.code === "P0002";
+    return { error: safe ? error.message.charAt(0).toUpperCase() + error.message.slice(1) + "." : "Could not save. Try again." };
+  }
+  revalidatePath("/leads");
+  return { ok: Date.now(), changed: ((data as { changed: unknown[] }).changed ?? []).length };
 }

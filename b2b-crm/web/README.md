@@ -7,11 +7,25 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
 - Sign-in for the single Admin (`connect@eduwit.in`): Google, or email + password; then a 6-digit authenticator code
   (TOTP). Password reset by email. Any other account is refused, signed out and logged.
 - Five failed password or code attempts lock sign-in for 15 minutes. Sessions end after 12 hours idle.
-- The shell: sidebar, ⌘K command palette, `g` + letter shortcuts, light/dark/system theme, Command Center, Security page
-  (sessions, sign out other devices, sign-in history). Planned screens describe what is coming.
+- The shell: sidebar, ⌘K command palette, `g` + letter shortcuts, light/dark/system theme, Security page (sessions,
+  sign out other devices, sign-in history). Planned screens describe what is coming.
+- Command Center (`/`): today's leads, leads to partners and accepted (each against the same hours yesterday), the
+  7-day duplicate rate, first-contact SLA compliance and this month's expected commission; partner health cards
+  (today against the daily cap, accepted and duplicates this week, pushes retrying or failed); where leads went in
+  the last 7 days by destination and source; the lead stream; alerts; the pool size; every live switch; and, until a
+  partner is live and routing is on, the road to the first routed lead. Test leads are left out. `b2b.command_center`.
+- Pre-routing pool (`/pool`): leads with no destination yet, grouped by why they wait (still chatting with Witty,
+  ready but routing is off, ready and due, opted out, older than 90 days, test leads) with counts by age, where each
+  would go once decided, and what keeps leads from a partner. `b2b.pool_overview`.
 - Leads (`/leads`): search (name, phone, email, ID), status/stage/source/routing filters with counts, keyset paging,
   a drawer with the lead's details, Witty chat and activity, bulk soft delete with a reason, the recycle bin with
   restore, and CSV export (full or masked; every export is logged). State lives in the URL, so every view is a link.
+  The export streams page by page (up to 50,000 rows, with partner, reference and both status layers), so a large file
+  keeps downloading while the Admin works; its filters are fixed when it starts (`b2b.leads_export_start` / `_page`).
+- Lead corrections: the drawer's Edit tab corrects contact, interest, profile, classification and notes, with a reason.
+  Changes go through `lead_intake()` (as `crm`) via `b2b.lead_edit`, which checks every field and keeps the old and new
+  value in `b2b.lead_edits`; the tab lists that history and flags a correction Witty has since written over. Fields
+  cannot be emptied (lead_intake cannot clear), and routing, consent, source and money fields are not editable.
 - Partners (`/partners`): cards with status, live state, today's and this month's leads and go-live progress; add and
   edit (identity and student-facing brand, CRM type, duplicate handling and hold window, caps, working hours and
   holidays, SLAs, lead criteria, notification switch); mark active, pause, resume, close (with reasons); the live
@@ -21,6 +35,10 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   modes, levels, dates, commission) and matched to the catalogue. Review the rows that need it, preview what changes
   against the live offers (removals that leave a programme with no partner are flagged), publish, and roll back to any
   earlier version. Catalogue coverage by course across partners.
+  Or connect the partner's Google Sheet (shared as "anyone with the link can view"): Sync now downloads it as Excel,
+  reads the chosen tab, and creates a draft only when its content changed (same template, matching and review as a
+  file). The page marks a sheet as due after its check interval; reading it on a schedule without a click needs a
+  Vercel Cron secret and is not built yet.
 - Routing (`/routing`): the automatic-routing switch (off until turned on; it warns when no partner is live or consent
   is missing), today's numbers, partner readiness and the decision log; a simulator that runs the engine on any lead
   without writing anything and can then route it by hand with a note; rules (always send to, only consider, never send
@@ -34,6 +52,20 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   nurture lane; rules may also send leads to B2C. From the lead drawer: send a B2C lead to partners by hand, or record
   that a partner marked a lead lost (B2C nurture). Passed leads that Witty later reclassifies wait in the review queue.
   The engine is `b2b.route_decide` (`supabase/migrations/*_m7b1_route_decide.sql`).
+- Pushes to partners (`supabase/migrations/*_m8*.sql`, contract in `docs/partner-api.md`): pg_cron runs
+  `b2b.push_tick` every 10 seconds, which sends queued leads with pg_net (signed, idempotent), reads the partner's
+  answer (created, duplicate, rejected, error), retries after 10 s, 1 min, 5 min, 15 min and 1 h, waits out the
+  partner's hold window and then accepts. Duplicates and rejections move the lead to the next partner; late duplicate
+  claims become commission disputes. Partners report back to `POST /v1/partners/{slug}/events` (HMAC-signed). The
+  partner page's Connection tab holds the API credential, the signing secret (shown once), pushes, events and disputes.
+- Notifications (`/notifications`, `supabase/migrations/*_m9*.sql`): once a partner accepts a lead, the student gets
+  one WhatsApp message (an approved template sent through Meta's Cloud API from Eduwit's number) and one email
+  (Resend or Brevo), inside quiet hours, in Hindi or English, naming the partner and when it will call. Never to test
+  leads, opted-out students or partners with notifications off. pg_cron runs `b2b.notify_tick` every 30 seconds; a
+  failed message is retried once, then marked failed with an alert. Each channel has its own live switch (both off),
+  and a message due while its switch is off is cancelled, not sent late. The screen holds the switches with what is
+  still missing, the templates with a preview per partner, the provider settings (keys go to Vault) and the masked
+  send log with "Send again". The lead drawer's Routing tab lists the student's messages.
 
 ## How access is enforced
 

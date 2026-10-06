@@ -50,7 +50,7 @@ export function Simulator({ initialLead }: { initialLead: number | null }) {
             <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
               <p className="mr-auto text-[12.5px] text-muted">
                 {d.destination === "partner"
-                  ? `Routing now records the allocation and queues the push to ${d.partner_name}${d.is_test ? "'s sandbox" : ""} (pushes start with the push adapter build).`
+                  ? `Routing now records the allocation and sends the lead to ${d.partner_name}${d.is_test ? "'s sandbox" : ""} within seconds; the student is told once the partner's hold window passes.`
                   : d.destination === "not_passed"
                     ? "Routing now records the lead as not passed; it then shows in the Leads list's Not passed view."
                     : `Routing now hands the lead to ${d.b2c_lane === "nurture" ? "B2C nurture" : "B2C sales"} with this reason. B2B sends the student no message.`}

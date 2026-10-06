@@ -11,14 +11,17 @@ import {
   ADAPTER_LABEL, CHECKLIST_LABEL, DEDUPE_LABEL, partnerTitle, SLA_FIELDS, STATUS_LABEL, STATUS_TONE, summariseHours, type PartnerDetail,
 } from "@/lib/partners";
 import { partnerDetail } from "@/lib/partners-data";
+import { partnerConnection } from "@/lib/push-data";
 import { PartnerForm } from "../PartnerForm";
 import { PartnerLogo } from "../PartnerLogo";
+import { ConnectionTab } from "./ConnectionTab";
 import { PartnerControls } from "./PartnerControls";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "settings", label: "Settings" },
+  { id: "connection", label: "Connection" },
   { id: "activity", label: "Activity" },
 ] as const;
 
@@ -88,6 +91,8 @@ function Overview({ d }: { d: PartnerDetail }) {
                     {!item.done && !item.available && label.pending && <p className="text-[12px] text-subtle">{label.pending}</p>}
                     {!item.done && item.available && (item.key === "programmes"
                       ? <Link href={`/programmes/${p.id}?tab=upload`} className="text-[12px] text-info hover:underline">Upload the programme file</Link>
+                      : item.key === "credentials" ? <Link href="?tab=connection" className="text-[12px] text-info hover:underline">Set it up in Connection</Link>
+                      : item.key === "test_leads" ? <Link href="/routing?tab=simulate" className="text-[12px] text-info hover:underline">Route a test lead to the sandbox</Link>
                       : <Link href="?tab=settings" className="text-[12px] text-info hover:underline">Set it in Settings</Link>)}
                   </div>
                 </li>
@@ -167,6 +172,7 @@ export default async function PartnerPage({ params, searchParams }: Props) {
   const p = d.partner;
   const title = partnerTitle(p);
   const missing = d.checklist.filter((c) => !c.done).length;
+  const connection = tab === "connection" ? await partnerConnection(p.id) : null;
 
   return (
     <>
@@ -211,6 +217,7 @@ export default async function PartnerPage({ params, searchParams }: Props) {
 
       {tab === "overview" && <Overview d={d} />}
       {tab === "settings" && <PartnerForm partner={p} />}
+      {tab === "connection" && connection && <ConnectionTab id={p.id} c={connection} />}
       {tab === "activity" && <Card><Activity events={d.events} /></Card>}
     </>
   );

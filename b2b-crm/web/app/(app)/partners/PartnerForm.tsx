@@ -105,7 +105,7 @@ export function PartnerForm({ partner }: { partner?: Partner }) {
         </div>
       </Section>
 
-      <Section title="Connection" description="How leads reach the partner's CRM and how it reports duplicates. Credentials are stored in Vault with the push adapter, never here.">
+      <Section title="Connection" description="How leads reach the partner's CRM and how it reports duplicates. The API credential and signing secret are set in the Connection tab and stored in Vault, never here.">
         <div className="grid gap-4 sm:grid-cols-2">
           <F id="adapter_type" label="CRM type" error={e.adapter_type}>
             <select id="adapter_type" name="adapter_type" defaultValue={partner?.adapter_type ?? "leadsquared"} className={cn(control, "h-10")}>

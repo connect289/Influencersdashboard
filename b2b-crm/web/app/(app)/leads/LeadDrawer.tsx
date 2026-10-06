@@ -2,9 +2,11 @@ import { BellOff, Bot, FlaskConical, MessageCircle, SearchX, Trash2 } from "luci
 import { Badge, EmptyState } from "@/components/ui/Card";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { DESTINATION_LABEL, formatPhone, humanize, statusTone, whatsappLink } from "@/lib/leads";
+import type { EditHistory } from "@/lib/lead-edit";
 import type { LeadDetail } from "@/lib/leads-data";
 import type { LeadRouting } from "@/lib/routing-data";
 import { DrawerShell } from "./DrawerShell";
+import { EditTab } from "./EditTab";
 import { LeadActions } from "./LeadMutations";
 import { RoutingTab } from "./RoutingTab";
 
@@ -130,7 +132,7 @@ function Chat({ messages }: { messages: LeadDetail["messages"] }) {
 }
 
 type Item = { at: string; title: string; detail?: string | null; tone: "neutral" | "danger" | "success" | "info" };
-const EVENT_LABEL: Record<string, string> = { "lead.deleted": "Moved to the recycle bin", "lead.restored": "Restored from the recycle bin" };
+const EVENT_LABEL: Record<string, string> = { "lead.deleted": "Moved to the recycle bin", "lead.restored": "Restored from the recycle bin", "lead.edited": "Corrected by an Admin" };
 
 function Activity({ d }: { d: LeadDetail }) {
   const items: Item[] = [
@@ -169,8 +171,10 @@ function Activity({ d }: { d: LeadDetail }) {
   );
 }
 
-/** Lead drawer: who the student is, their Witty chat and what happened to the lead. Read-only except delete/restore. */
-export function LeadDrawer({ id, detail, routing, closeHref }: { id: number; detail: LeadDetail | null; routing: LeadRouting | null; closeHref: string }) {
+/** Lead drawer: who the student is, their Witty chat, what happened to the lead, and corrections with their history. */
+export function LeadDrawer({ id, detail, routing, history, closeHref }: {
+  id: number; detail: LeadDetail | null; routing: LeadRouting | null; history: EditHistory | null; closeHref: string;
+}) {
   if (!detail) {
     return (
       <DrawerShell closeHref={closeHref} label="Lead not found" header={<h2 className="pb-4 text-[15px] font-semibold text-fg">Lead #{id}</h2>} tabs={[
@@ -220,6 +224,7 @@ export function LeadDrawer({ id, detail, routing, closeHref }: { id: number; det
         { id: "chat", label: "Witty chat", count: detail.messages.length, content: <Chat messages={detail.messages} /> },
         { id: "routing", label: "Routing", count: routing?.decisions.length, content: <RoutingTab leadId={l.id} r={routing} /> },
         { id: "activity", label: "Activity", count: detail.touchpoints.length + detail.events.length + 1, content: <Activity d={detail} /> },
+        { id: "edit", label: "Edit", count: history?.length || undefined, content: <EditTab id={l.id} lead={l} history={history} deleted={Boolean(l.deleted_at)} /> },
       ]}
     />
   );
