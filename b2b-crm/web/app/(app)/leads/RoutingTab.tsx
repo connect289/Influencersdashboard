@@ -4,6 +4,7 @@ import { buttonClass } from "@/components/ui/Button";
 import { Badge, EmptyState } from "@/components/ui/Card";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { ALLOCATION_LABEL, LANE_LABEL, MODE_LABEL, NOT_PASSED_LABEL, REASON_LABEL, segmentLabel } from "@/lib/routing";
+import { CHANNEL_LABEL, STATUS_LABEL as NOTIFY_LABEL, STATUS_TONE as NOTIFY_TONE } from "@/lib/notifications";
 import type { LeadRouting } from "@/lib/routing-data";
 import { RoutingActions } from "./RoutingActions";
 
@@ -68,6 +69,25 @@ export function RoutingTab({ leadId, r }: { leadId: number; r: LeadRouting | nul
                 <Badge tone={a.destination_type === "partner" ? "info" : "warning"}>{a.outcome === "lost" ? "Lost at partner" : ALLOCATION_LABEL[a.status] ?? a.status}</Badge>
                 {a.reason && a.destination_type === "in_house" && <span className="text-[12px] text-muted">{REASON_LABEL[a.reason] ?? a.reason}</span>}
                 <span className="text-[12px] text-subtle" title={formatDateTime(a.created_at)}>{relativeTime(a.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {(r.notifications ?? []).length > 0 && (
+        <section className="px-5 py-4">
+          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-subtle">Messages to the student</h3>
+          <ul className="space-y-2 text-[13px]">
+            {(r.notifications ?? []).map((n) => (
+              <li key={n.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-fg">{CHANNEL_LABEL[n.channel]}</span>
+                <Badge tone={NOTIFY_TONE[n.status] ?? "neutral"}>{NOTIFY_LABEL[n.status] ?? n.status}</Badge>
+                {n.partner_name && <span className="text-[12px] text-muted">{n.partner_name}</span>}
+                {n.error && <span className="text-[12px] text-muted">{n.error}</span>}
+                <span className="text-[12px] text-subtle" title={formatDateTime(n.sent_at ?? n.scheduled_for ?? n.created_at)}>
+                  {n.status === "scheduled" && n.scheduled_for ? `due ${formatDateTime(n.scheduled_for)}` : relativeTime(n.sent_at ?? n.created_at)}
+                </span>
               </li>
             ))}
           </ul>

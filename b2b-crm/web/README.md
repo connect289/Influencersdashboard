@@ -34,6 +34,20 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   nurture lane; rules may also send leads to B2C. From the lead drawer: send a B2C lead to partners by hand, or record
   that a partner marked a lead lost (B2C nurture). Passed leads that Witty later reclassifies wait in the review queue.
   The engine is `b2b.route_decide` (`supabase/migrations/*_m7b1_route_decide.sql`).
+- Pushes to partners (`supabase/migrations/*_m8*.sql`, contract in `docs/partner-api.md`): pg_cron runs
+  `b2b.push_tick` every 10 seconds, which sends queued leads with pg_net (signed, idempotent), reads the partner's
+  answer (created, duplicate, rejected, error), retries after 10 s, 1 min, 5 min, 15 min and 1 h, waits out the
+  partner's hold window and then accepts. Duplicates and rejections move the lead to the next partner; late duplicate
+  claims become commission disputes. Partners report back to `POST /v1/partners/{slug}/events` (HMAC-signed). The
+  partner page's Connection tab holds the API credential, the signing secret (shown once), pushes, events and disputes.
+- Notifications (`/notifications`, `supabase/migrations/*_m9*.sql`): once a partner accepts a lead, the student gets
+  one WhatsApp message (an approved template sent through Meta's Cloud API from Eduwit's number) and one email
+  (Resend or Brevo), inside quiet hours, in Hindi or English, naming the partner and when it will call. Never to test
+  leads, opted-out students or partners with notifications off. pg_cron runs `b2b.notify_tick` every 30 seconds; a
+  failed message is retried once, then marked failed with an alert. Each channel has its own live switch (both off),
+  and a message due while its switch is off is cancelled, not sent late. The screen holds the switches with what is
+  still missing, the templates with a preview per partner, the provider settings (keys go to Vault) and the masked
+  send log with "Send again". The lead drawer's Routing tab lists the student's messages.
 
 ## How access is enforced
 

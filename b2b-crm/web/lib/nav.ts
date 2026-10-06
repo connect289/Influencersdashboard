@@ -56,7 +56,7 @@ export const NAV: NavGroup[] = [
   {
     label: "Outreach",
     items: [
-      { href: "/notifications", label: "Notifications", icon: Bell, phase: 1, summary: "WhatsApp and email templates per language with a live preview per partner, and the send log with delivery status.", keywords: "whatsapp email templates" },
+      { href: "/notifications", label: "Notifications", icon: Bell, summary: "What students hear once a partner accepts their lead: WhatsApp and email switches, templates per language with a preview per partner, providers and the send log.", keywords: "whatsapp email templates" },
       { href: "/capi", label: "Conversions (CAPI)", icon: Target, phase: 2, summary: "Stage-to-event map for Meta and Google, the event log and match quality.", keywords: "meta google ads" },
     ],
   },
