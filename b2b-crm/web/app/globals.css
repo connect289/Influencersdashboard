@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+  Eduwit Partner CRM design tokens.
+  Brand: navy #0B2F5E and amber #F5A800 from the Eduwit logo. Neutral zinc surfaces, 1px borders, no heavy shadows.
+  Light: navy drives primary actions, amber marks focus and highlights.
+  Dark: amber drives primary actions (navy is too dark to read on a dark surface), navy tints the brand panels.
+  Semantic colours stay distinct from the brand: emerald ok, orange warning (amber is the brand), rose breach, sky info.
+*/
+:root {
+  --brand-navy: #0b2f5e;
+  --brand-navy-600: #12407c;
+  --brand-amber: #f5a800;
+  --brand-amber-300: #ffcf5c;
+
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --surface-hover: #eceff3;
+  --border: #e3e6eb;
+  --border-strong: #cfd4dc;
+  --fg: #0f1729;
+  --muted: #5b6475;
+  --subtle: #8a93a3;
+
+  --primary: var(--brand-navy);
+  --primary-hover: var(--brand-navy-600);
+  --primary-fg: #ffffff;
+  --accent: var(--brand-amber);
+  --accent-fg: #0b2f5e;
+  --ring: #f5a800;
+
+  --success: #059669;
+  --success-bg: #ecfdf5;
+  --warning: #c2410c;
+  --warning-bg: #fff7ed;
+  --danger: #e11d48;
+  --danger-bg: #fff1f2;
+  --info: #0284c7;
+  --info-bg: #f0f9ff;
+
+  --overlay: rgb(15 23 41 / 0.35);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0a0d12;
+  --surface: #10141b;
+  --surface-2: #161b24;
+  --surface-hover: #1b212c;
+  --border: #232a36;
+  --border-strong: #2f3846;
+  --fg: #e8ebf1;
+  --muted: #9aa3b2;
+  --subtle: #6b7484;
+
+  --primary: var(--brand-amber);
+  --primary-hover: var(--brand-amber-300);
+  --primary-fg: #0b2f5e;
+  --accent: var(--brand-amber);
+  --accent-fg: #0b2f5e;
+  --ring: #f5a800;
+
+  --success: #34d399;
+  --success-bg: rgb(16 185 129 / 0.12);
+  --warning: #fb923c;
+  --warning-bg: rgb(249 115 22 / 0.12);
+  --danger: #fb7185;
+  --danger-bg: rgb(244 63 94 / 0.12);
+  --info: #38bdf8;
+  --info-bg: rgb(14 165 233 / 0.12);
+
+  --overlay: rgb(0 0 0 / 0.55);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ring: var(--ring);
+  --color-navy: var(--brand-navy);
+  --color-amber: var(--brand-amber);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-overlay: var(--overlay);
+
+  --radius-card: 12px;
+  --animate-fade-in: fade-in 180ms ease-out;
+  --animate-slide-in: slide-in 200ms ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: none; }
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgb(245 168 0 / 0.35); }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 6px; }
+  .tabular { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
