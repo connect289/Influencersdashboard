@@ -12,6 +12,10 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
 - Leads (`/leads`): search (name, phone, email, ID), status/stage/source/routing filters with counts, keyset paging,
   a drawer with the lead's details, Witty chat and activity, bulk soft delete with a reason, the recycle bin with
   restore, and CSV export (full or masked; every export is logged). State lives in the URL, so every view is a link.
+- Partners (`/partners`): cards with status, live state, today's and this month's leads and go-live progress; add and
+  edit (identity and student-facing brand, CRM type, duplicate handling and hold window, caps, working hours and
+  holidays, SLAs, lead criteria, notification switch); mark active, pause, resume, close (with reasons); the live
+  switch, which stays locked until the go-live checklist is complete.
 
 ## How access is enforced
 

@@ -7,7 +7,7 @@ export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputEleme
       className={cn(
         "h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg placeholder:text-subtle",
         "transition-colors hover:border-border-strong focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30",
-        "aria-[invalid=true]:border-danger",
+        "aria-[invalid=true]:border-danger disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-subtle",
         className,
       )}
       {...rest}

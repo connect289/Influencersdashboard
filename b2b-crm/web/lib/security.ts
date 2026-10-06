@@ -31,7 +31,8 @@ export function buildCsp(nonce: string, supabaseOrigin: string, isDev: boolean):
     "script-src": ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(isDev ? ["'unsafe-eval'"] : [])],
     // Inline style attributes are used by UI libraries; style injection cannot run code.
     "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "blob:", supabaseOrigin, "https://lh3.googleusercontent.com"],
+    // Any https image: partner logos live on the partners' own sites (rendered with referrerpolicy=no-referrer).
+    "img-src": ["'self'", "data:", "blob:", "https:"],
     "font-src": ["'self'"],
     "connect-src": ["'self'", supabaseOrigin, wsOrigin],
     "frame-src": ["'none'"],
