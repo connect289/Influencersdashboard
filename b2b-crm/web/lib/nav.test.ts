@@ -17,6 +17,7 @@ describe("navigation", () => {
     expect(SECTION_BY_SLUG["routing"]).toBeUndefined(); // built: app/(app)/routing
     expect(SECTION_BY_SLUG["notifications"]).toBeUndefined(); // built: app/(app)/notifications
     expect(SECTION_BY_SLUG["pool"]).toBeUndefined(); // built: app/(app)/pool
+    expect(SECTION_BY_SLUG["system"]).toBeUndefined(); // built: app/(app)/system
   });
   it("marks the right item active", () => {
     expect(isActive("/", "/")).toBe(true);
