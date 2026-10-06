@@ -447,6 +447,12 @@ Steps marked ⚠ need an explicit yes because they touch shared objects.
 | **M6** | Money: `public.enrollments` gets `allocation_id` and `source_product` ⚠ (adds columns to a shared table); `receipts`; statements; invoice fields; the delete-blocking trigger on money lines; `b2b.earnings_for_b2c` view | Additive only |
 | **M7…** | Mapping layer (Phase 2), CAPI, imports, analytics rollups, AI and ML tables (Phases 3 and 4) | Separate plans |
 
+**As built (6 Oct 2026).** The migration files in `b2b-crm/supabase/migrations/` are numbered by build order, not by
+the steps above: `m3_*` leads, `m4*` partners, `m5*` Programme Repository, `m6a–c` routing (rates, rules,
+`engine_decisions`, `allocations`, `b2b.route_core`, the admin functions and the `b2b-route-ready-leads` pg_cron job).
+There is no trigger on `student_leads`: the cron job reads ready leads instead. Routing sets
+`student_leads.destination_type`, which makes `w2_crm_owned` true, so Witty stops chatting once a lead is routed.
+
 ### 7.1 Retiring the old CRM cleanly
 
 1. **After M3 and M5:** the old CRM's Partners, Engine and partner-events API are superseded by the B2B CRM. Keep `eduwit-crm.vercel.app` online for B2C features (leads, agenda, comms, marketing, payouts) until the B2C CRM exists.

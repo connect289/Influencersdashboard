@@ -7,6 +7,7 @@ import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
 import { hasFilters, leadsHref, leadsSearch, parseLeadId, parseLeadQuery } from "@/lib/leads";
 import { leadDetail, leadFacets, listLeads } from "@/lib/leads-data";
+import { leadRouting } from "@/lib/routing-data";
 import { FilterBar } from "./FilterBar";
 import { LeadDrawer } from "./LeadDrawer";
 import { LeadsTable } from "./LeadsTable";
@@ -21,10 +22,12 @@ export default async function LeadsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const query = parseLeadQuery(sp);
   const leadId = parseLeadId(sp);
-  const [page, facets, detail] = await Promise.all([
+  const [page, facets, detail, routing] = await Promise.all([
     listLeads(query),
     leadFacets(query),
     leadId ? leadDetail(leadId) : Promise.resolve(null),
+    // The drawer still opens if routing details fail to load; its Routing tab says so.
+    leadId ? leadRouting(leadId).catch(() => null) : Promise.resolve(null),
   ]);
   const search = leadsSearch(query);
   const filtered = hasFilters(query);
@@ -102,7 +105,7 @@ export default async function LeadsPage({ searchParams }: Props) {
         )}
       </Card>
 
-      {leadId && <LeadDrawer key={leadId} id={leadId} detail={detail} closeHref={leadsHref(query)} />}
+      {leadId && <LeadDrawer key={leadId} id={leadId} detail={detail} routing={routing} closeHref={leadsHref(query)} />}
     </>
   );
 }

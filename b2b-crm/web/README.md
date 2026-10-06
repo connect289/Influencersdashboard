@@ -21,6 +21,13 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   modes, levels, dates, commission) and matched to the catalogue. Review the rows that need it, preview what changes
   against the live offers (removals that leave a programme with no partner are flagged), publish, and roll back to any
   earlier version. Catalogue coverage by course across partners.
+- Routing (`/routing`): the automatic-routing switch (off until turned on; it warns when no partner is live or consent
+  is missing), today's numbers, partner readiness and the decision log; a simulator that runs the engine on any lead
+  without writing anything and can then route it by hand with a note; rules (always send to, only consider, never send
+  to); commission rates (confirm the file's proposals, or set a partner-wide rate; versioned, never edited); engine
+  settings saved as a new version with a reason. Each decision has its own page explaining why, and the lead drawer
+  has a Routing tab. The engine itself is `b2b.route_core` (`supabase/migrations/*_m6b_route_lead.sql`); pg_cron calls
+  `b2b.route_ready_leads` every minute, which does nothing while the switch is off.
 
 ## How access is enforced
 

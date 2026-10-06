@@ -1,0 +1,117 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { assertAdmin } from "@/lib/auth";
+import { EngineSchema, parseRuleForm, RateSchema, type Decision } from "@/lib/routing";
+import { createClient } from "@/lib/supabase/server";
+
+const Id = z.number().int().positive();
+
+/** Messages raised by the b2b routing functions for the Admin (22023, P0002) are safe to show; others are generic. */
+function dbMessage(error: { code?: string; message: string }, fallback: string): string {
+  if (error.code === "22023" || error.code === "P0002") return error.message.charAt(0).toUpperCase() + error.message.slice(1) + ".";
+  return fallback;
+}
+
+async function rpc(fn: string, args: Record<string, unknown>) {
+  const supabase = await createClient();
+  return supabase.schema("b2b").rpc(fn, args);
+}
+
+const refresh = () => { revalidatePath("/routing"); revalidatePath("/leads"); revalidatePath("/", "layout"); };
+
+export async function simulateLead(leadId: number): Promise<{ ok: true; decision: Decision } | { ok: false; error: string }> {
+  await assertAdmin();
+  if (!Id.safeParse(leadId).success) return { ok: false, error: "Enter a lead ID." };
+  const { data, error } = await rpc("route_simulate", { p_lead_id: leadId });
+  if (error) return { ok: false, error: dbMessage(error, "The simulation failed. Try again.") };
+  return { ok: true, decision: data as Decision };
+}
+
+export async function routeLeadNow(leadId: number, note: string): Promise<{ ok: true; decision: Decision } | { ok: false; error: string }> {
+  await assertAdmin();
+  const p = z.object({ leadId: Id, note: z.string().trim().min(3).max(300) }).safeParse({ leadId, note });
+  if (!p.success) return { ok: false, error: "Add a short note for the audit log." };
+  const { data, error } = await rpc("route_now", { p_lead_id: p.data.leadId, p_note: p.data.note });
+  if (error) return { ok: false, error: dbMessage(error, "Routing failed. Try again.") };
+  refresh();
+  return { ok: true, decision: data as Decision };
+}
+
+export async function setRoutingLive(live: boolean, reason: string): Promise<string | void> {
+  await assertAdmin();
+  const p = z.object({ live: z.boolean(), reason: z.string().trim().min(3).max(300) }).safeParse({ live, reason });
+  if (!p.success) return "A reason is required.";
+  const { error } = await rpc("set_live_switch", { p_scope: "routing", p_live: p.data.live, p_reason: p.data.reason });
+  if (error) return dbMessage(error, "Could not change the switch. Try again.");
+  refresh();
+}
+
+export type FormState = { errors?: Record<string, string>; error?: string; ok?: number } | undefined;
+
+export async function saveRule(_prev: FormState, form: FormData): Promise<FormState> {
+  await assertAdmin();
+  const parsed = parseRuleForm(form);
+  if (!parsed.ok) return { errors: parsed.errors, error: "Check the highlighted fields." };
+  const { error } = await rpc("routing_rule_save", { p: parsed.data });
+  if (error) return { error: dbMessage(error, "Could not save the rule. Try again.") };
+  refresh();
+  return { ok: Date.now() };
+}
+
+export async function setRuleActive(id: number, active: boolean): Promise<string | void> {
+  await assertAdmin();
+  if (!Id.safeParse(id).success) return "Invalid rule.";
+  const { error } = await rpc("routing_rule_set_active", { p_id: id, p_active: active });
+  if (error) return dbMessage(error, "Could not change the rule. Try again.");
+  refresh();
+}
+
+export async function saveRate(_prev: FormState, form: FormData): Promise<FormState> {
+  await assertAdmin();
+  const raw = Object.fromEntries(["partner_id", "rate_type", "value", "fee_base", "gst_inclusive", "valid_from", "note"].map((k) => [k, form.get(k) ?? undefined]));
+  const p = RateSchema.safeParse(raw);
+  if (!p.success) {
+    const errors: Record<string, string> = {};
+    for (const i of p.error.issues) errors[String(i.path[0])] ??= i.message;
+    return { errors, error: "Check the highlighted fields." };
+  }
+  const { error } = await rpc("rate_save", { p: { ...p.data, scope: "partner" } });
+  if (error) return { error: dbMessage(error, "Could not save the rate. Try again.") };
+  refresh();
+  return { ok: Date.now() };
+}
+
+export async function endRate(id: number): Promise<string | void> {
+  await assertAdmin();
+  if (!Id.safeParse(id).success) return "Invalid rate.";
+  const { error } = await rpc("rate_end", { p_id: id });
+  if (error) return dbMessage(error, "Could not end the rate. Try again.");
+  refresh();
+}
+
+export async function confirmFileRates(partnerId: number): Promise<{ created: number; unchanged: number; tiers_skipped: number } | { error: string }> {
+  await assertAdmin();
+  if (!Id.safeParse(partnerId).success) return { error: "Invalid partner." };
+  const { data, error } = await rpc("rates_confirm_from_offers", { p_partner_id: partnerId });
+  if (error) return { error: dbMessage(error, "Could not confirm the rates. Try again.") };
+  refresh();
+  return data as { created: number; unchanged: number; tiers_skipped: number };
+}
+
+export async function saveEngineSettings(_prev: FormState, form: FormData): Promise<FormState> {
+  await assertAdmin();
+  const raw = Object.fromEntries(["exploration_share", "cpe_aggregate", "min_learning_leads", "attempt_limit", "partner_limit", "witty_idle_minutes",
+    "require_partner_consent", "trusted_sources", "reason"].map((k) => [k, form.get(k) ?? undefined]));
+  const p = EngineSchema.safeParse(raw);
+  if (!p.success) {
+    const errors: Record<string, string> = {};
+    for (const i of p.error.issues) errors[String(i.path[0])] ??= i.message;
+    return { errors, error: "Check the highlighted fields." };
+  }
+  const { reason, ...settings } = p.data;
+  const { error } = await rpc("engine_settings_save", { p: settings, p_reason: reason });
+  if (error) return { error: dbMessage(error, "Could not save the settings. Try again.") };
+  refresh();
+  return { ok: Date.now() };
+}

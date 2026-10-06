@@ -9,11 +9,12 @@ describe("navigation", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
   it("gives every unbuilt top-level section a placeholder", () => {
-    expect(Object.keys(SECTION_BY_SLUG)).toEqual(expect.arrayContaining(["routing", "money", "mapping"]));
+    expect(Object.keys(SECTION_BY_SLUG)).toEqual(expect.arrayContaining(["pool", "money", "mapping"]));
     expect(SECTION_BY_SLUG["settings"]).toBeUndefined();
     expect(SECTION_BY_SLUG["leads"]).toBeUndefined(); // built: app/(app)/leads
     expect(SECTION_BY_SLUG["partners"]).toBeUndefined(); // built: app/(app)/partners
     expect(SECTION_BY_SLUG["programmes"]).toBeUndefined(); // built: app/(app)/programmes
+    expect(SECTION_BY_SLUG["routing"]).toBeUndefined(); // built: app/(app)/routing
   });
   it("marks the right item active", () => {
     expect(isActive("/", "/")).toBe(true);
