@@ -8,6 +8,9 @@ import { formatDateTime, relativeTime } from "@/lib/format";
 import { inr } from "@/lib/programmes";
 import { ALLOCATION_LABEL, LANE_LABEL, MODE_LABEL, NOT_PASSED_LABEL, REASON_LABEL, segmentLabel } from "@/lib/routing";
 import { notPassedSummary, routingOverview, type NotPassedSummary, type RoutingOverview } from "@/lib/routing-data";
+import type { PushOverview } from "@/lib/push";
+import { pushOverview } from "@/lib/push-data";
+import { DisputeList } from "../partners/[id]/ConnectionControls";
 import { EngineForm } from "./EngineForm";
 import { HandoffForm } from "./HandoffForm";
 import { RatesPanel } from "./RatesPanel";
@@ -39,7 +42,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "su
   );
 }
 
-function Overview({ o, np }: { o: RoutingOverview; np: NotPassedSummary }) {
+function Overview({ o, np, push }: { o: RoutingOverview; np: NotPassedSummary; push: PushOverview }) {
   const engine = o.engine.value;
   const consentRequired = engine.require_partner_consent ?? true;
   const reasons = Object.entries(o.today.b2c_reasons).sort((a, b) => b[1] - a[1]);
@@ -157,6 +160,29 @@ function Overview({ o, np }: { o: RoutingOverview; np: NotPassedSummary }) {
           : <ReviewQueue flags={o.flags_open} />}
       </Card>
 
+      <Card className="min-w-0">
+        <CardHeader title="Pushes to partners" description="Last 30 days. A pushed lead waits out the partner's hold window before it is accepted and the student is told." />
+        <div className="grid grid-cols-2 gap-2 px-5 py-4 sm:grid-cols-4">
+          <Stat label="Queued or sending" value={(push.by_status.queued ?? 0) + (push.by_status.pushing ?? 0)} />
+          <Stat label="In hold window" value={push.by_status.pushed ?? 0} />
+          <Stat label="Accepted" value={push.by_status.accepted ?? 0} tone="success" />
+          <Stat label="Duplicate / rejected / failed" value={(push.by_status.duplicate ?? 0) + (push.by_status.rejected ?? 0) + (push.by_status.failed ?? 0)}
+            tone={(push.by_status.failed ?? 0) > 0 ? "danger" : undefined} />
+        </div>
+        {push.retrying.length > 0 && (
+          <ul className="space-y-1 border-t border-border px-5 py-3 text-[12.5px] text-warning">
+            {push.retrying.map((r) => <li key={r.id}><span className="font-mono">{r.reference}</span> to {r.partner_name}: attempt {r.attempts} failed ({r.last_error})</li>)}
+          </ul>
+        )}
+      </Card>
+
+      <Card className="min-w-0">
+        <CardHeader title="Commission disputes" description="Duplicate claims after acceptance. The lead stays with the partner; you decide the commission." />
+        {push.disputes.length === 0
+          ? <EmptyState icon={History} title="No open disputes">A partner&apos;s late duplicate claim appears here with its proof.</EmptyState>
+          : <DisputeList disputes={push.disputes} />}
+      </Card>
+
       <Card className="min-w-0 xl:col-span-2">
         <CardHeader title="Decision log" description="The latest 50 routing decisions, automatic and by hand. Open one to see why." />
         {o.decisions.length === 0 ? (
@@ -210,7 +236,7 @@ export default async function RoutingPage({ searchParams }: Props) {
   const sp = await searchParams;
   const tab: Tab = TABS.find((t) => t.id === sp.tab)?.id ?? (typeof sp.lead === "string" ? "simulate" : "overview");
   const leadParam = typeof sp.lead === "string" && /^\d{1,15}$/.test(sp.lead) ? Number(sp.lead) : null;
-  const [o, np] = await Promise.all([routingOverview(), notPassedSummary()]);
+  const [o, np, push] = await Promise.all([routingOverview(), notPassedSummary(), pushOverview()]);
   const partners = o.partners.map((p) => ({ id: p.id, name: p.name, status: p.status }));
 
   return (
@@ -231,7 +257,7 @@ export default async function RoutingPage({ searchParams }: Props) {
         ))}
       </nav>
 
-      {tab === "overview" && <Overview o={o} np={np} />}
+      {tab === "overview" && <Overview o={o} np={np} push={push} />}
       {tab === "simulate" && (
         <Card className="min-w-0 p-5">
           <Simulator key={leadParam ?? "none"} initialLead={leadParam} />

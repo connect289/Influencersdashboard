@@ -104,11 +104,11 @@ export const SLA_FIELDS: { key: keyof Sla; label: string; unit: "hours" | "days"
 export const CHECKLIST_LABEL: Record<string, { title: string; pending: string }> = {
   agreement: { title: "Agreement and data-processing terms uploaded", pending: "Partner documents come with the next build" },
   programmes: { title: "Programme file published in the Programme Repository", pending: "" },
-  credentials: { title: "CRM credentials stored in Vault", pending: "Comes with the push adapter" },
+  credentials: { title: "Endpoint, API credential and signing secret set", pending: "" },
   mapping: { title: "Stage and field mapping published, every gate at 100%", pending: "Comes with the Mapping studio" },
   sla_hours: { title: "SLAs and working hours set", pending: "" },
   branding: { title: "Student-facing brand: display name, logo and colour", pending: "" },
-  test_leads: { title: "10 test leads pass end to end", pending: "Comes with the push adapter and mock partner" },
+  test_leads: { title: "A test lead accepted by the partner's sandbox", pending: "" },
 };
 
 export const DEFAULT_WORKING_HOURS: WorkingHours = {
