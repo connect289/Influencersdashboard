@@ -1,6 +1,6 @@
 # Eduwit B2B Partner CRM: design
 
-Version 1 · 6 October 2026 · Status: **for review, no B2B migrations written yet**
+Version 1.1 · 6 October 2026 · Status: **approved; M0–M2 applied (staging, then production)**
 
 Inputs: `docs/B2B_CRM_PROMPT.md` (the spec), `docs/phase0-audit.md` (the database audit), Vikas's answers of 6 Oct, the old CRM (`connect289/eduwit-crm`: `crm/sql` 001–008, `crm/web`, `CLAUDE.md`), and the n8n exports in that repo (`n8n/*.json`).
 
@@ -121,7 +121,7 @@ Admin (connect@eduwit.in) ──► Next.js app (b2b-crm/web) ──► server a
 | --- | --- |
 | `b2b.app_users` | `user_id` (= the existing `auth.users` id `c9a540e1…`), `email`, `role` (`admin` only today), `is_active`, `require_totp`, `created_at` |
 | `b2b.sign_in_log` | Every sign-in attempt: method, IP, user agent, outcome. Includes refused accounts |
-| `b2b.app_sessions` | Active sessions (device, last seen) so the Admin can sign out a device. Idle expiry is 12 hours |
+| `b2b.my_sessions()` | Active sessions, read from Supabase Auth's own `auth.sessions` (no extra table). Signing other devices out uses Supabase Auth (`signOut({ scope: 'others' })`). Idle expiry is 12 hours |
 
 **Sign-in:**
 
@@ -307,7 +307,7 @@ Conventions:
 
 | Table | Key columns |
 | --- | --- |
-| `app_users`, `app_sessions`, `sign_in_log` | Section 3.1 |
+| `app_users`, `sign_in_log` | Section 3.1 |
 | `settings` | `key`, `value jsonb`, `version`. Seeded from `crm_settings` (engine, stages, sub_stages, lost_reasons, money, required_fields), with the new defaults below |
 | `settings_versions` | `key`, `version`, `value`, `reason`, `actor_type`, `actor_id`, `ai_run_id` (B7.4 versioning; also serves as `engine_settings_versions`) |
 | `events` | Append-only log: `id`, `occurred_at`, `lead_id`, `allocation_id`, `partner_id`, `type`, `actor_type`, `actor_id`, `payload`. The source for timelines, analytics and audit. Partitioned by month later, when volume needs it |
@@ -438,9 +438,9 @@ Steps marked ⚠ need an explicit yes because they touch shared objects.
 | --- | --- | --- |
 | ✅ H1 | `crm_auto_assign` disabled | Done. `enable trigger` reverts it |
 | ✅ H2 | Influencer exposure closed, plus `influencer_dashboard_leads()` | Done. Grants can be re-added |
-| **M0** | **Baseline.** Generate the current schema (tables, constraints, indexes, functions, views, triggers, policies, grants, RLS flags) from the database catalog into `00000000000000_baseline.sql`. Create the staging project, apply the baseline, and seed it with synthetic test leads only (never production data) | No production change |
-| **M1** | **Lock down functions (D2).** Revoke EXECUTE from `anon` and `authenticated` on internal `SECURITY DEFINER` functions with no role check (`lead_intake`, `crm_partner_*`, `crm_sync_*`, `crm_api_key_check`, the trigger functions, `rls_auto_enable`), leaving `w2_*` as they are. n8n uses the privileged Postgres role, and the old CRM's server calls use the service role | ⚠ The old CRM's UI calls some functions as `authenticated` (for example `crm_new_lead`, which has `crm_require`). Only functions **without** a role check are revoked, so its role-gated features keep working |
-| **M2** | `create extension pgmq, pg_cron` (pg_net is already installed); `create schema b2b`; `app_users` (seeded with the Admin), `sign_in_log`, `app_sessions`, `settings` (+ versions, copied from `crm_settings`), `events`, `api_keys`, `integration_outbox`, `live_switches`; `b2b.is_admin()`; RLS; grants. Index on phone digits for `crm_find_lead` (`CONCURRENTLY`, not in a transaction) | New objects only. The extensions are free on our plan |
+| ✅ **M0** | **Baseline.** Generate the current schema (tables, constraints, indexes, functions, views, triggers, policies, grants, RLS flags) from the database catalog into `00000000000000_baseline.sql`. Create the staging project, apply the baseline, and seed it with synthetic test leads only (never production data) | No production change |
+| ✅ **M1** | **Lock down functions (D2).** Revoke EXECUTE from `anon` and `authenticated` on internal `SECURITY DEFINER` functions with no role check (`lead_intake`, `crm_partner_*`, `crm_sync_*`, `crm_api_key_check`, the trigger functions, `rls_auto_enable`), leaving `w2_*` as they are. n8n uses the privileged Postgres role, and the old CRM's server calls use the service role | ⚠ The old CRM's UI calls some functions as `authenticated` (for example `crm_new_lead`, which has `crm_require`). Only functions **without** a role check are revoked, so its role-gated features keep working |
+| ✅ **M2** | `create extension pgmq, pg_cron` (pg_net is already installed); `create schema b2b`; `app_users` (seeded with the Admin), `sign_in_log`, `app_sessions`, `settings` (+ versions, copied from `crm_settings`), `events`, `api_keys`, `integration_outbox`, `live_switches`; `b2b.is_admin()`; RLS; grants. Index on phone digits for `crm_find_lead` (`CONCURRENTLY`, not in a transaction) | New objects only. The extensions are free on our plan |
 | **M3** | ⚠ **Move the empty B2B tables.** `alter table … set schema b2b` for `partners`, `allocations`, `partner_events`, `routing_rules`, `engine_decisions`, `earning_rates`, `earnings`, `invoices`. In the same transaction: drop the old engine and sync functions that only served them, plus the view `partners_v`; widen `search_path` on the shared functions that still reference them (`crm_merge_leads`, `crm_apply_stage_system`, `crm_report_enrollment`, `crm_money_summary`, `crm_period_close`, `crm_verify_enrollment`, `crm_refund_enrollment`, `crm_invoice_set_status`, `crm_add_earning_rate`, `crm_earning_rate`, `crm_conversion`, `crm_scorecards`). `engine_decisions` row 1 moves with its table | Tables are empty, so no data moves. **Effect on the old CRM:** its Partners and Engine screens stop working, which is intended; its Money screens keep working through the widened `search_path` until M6. Rollback: `set schema public` plus re-create the functions from the M0 baseline |
 | **M4** | Reshape the moved tables (allocation state machine with `pending` → `queued` and `assigned` → `handed_off`, CASCADE → RESTRICT, new partner fields, `partner_programme` rate scope, Vault secret IDs replacing secret columns); `allocation_transition()`; Programme Repository tables; `lead_watch`; the readiness function; the **enqueue-only trigger `b2b_lead_changed` on `student_leads`** ⚠ | The trigger is the only new object on a shared table; it never raises and is tested against `lead_intake` on staging, with a timing check, before production |
 | **M5** | `b2b.route_lead` (commission-first plus exploration plus B2C fallback); push, notify and outbox jobs; partner event intake (generic mapping); `student_notifications`; `commission_disputes`; the B2C hand-off contract | New functions. The engine stays off in production until a partner has `live_mode` on |
@@ -464,9 +464,31 @@ Steps marked ⚠ need an explicit yes because they touch shared objects.
 
 ---
 
+### 7.2 What M0–M2 actually did (6 Oct 2026)
+
+- **M0:**
+  - `b2b-crm/supabase/migrations/00000000000000_baseline.sql` was generated from production's catalog: 71 tables, 175 functions, 6 views, 7 triggers, 38 policies, grants and RLS.
+  - It excludes n8n's internal tables and the `*_backup_*` tables.
+  - Staging project `mplbspysxmtohnlwpbti` was created on the free plan and loaded from it. Its object counts match production.
+- **M1:**
+  - 27 unchecked definer functions are revoked from `anon` and `authenticated`.
+  - `is_admin` and `current_referral_code` are revoked from `anon`.
+  - 10 functions the old CRM UI calls are wrapped. The original moves to `<name>__impl`, and a wrapper refuses signed-in non-staff.
+  - Tested on staging first.
+- **M2:** applied as five parts (`m2a`…`m2e`), because the Supabase connector holds large or `DROP`-containing migrations for confirmation.
+  - Objects: schema `b2b`, `pgmq` 1.5.1, `pg_cron` 1.6.4.
+  - Allowlist: `app_users`, seeded with connect@eduwit.in.
+  - Logs: `sign_in_log` with a 5-failure lockout, and append-only `events`.
+  - Settings: versioned, with a reason required for every change; 10 keys seeded.
+  - `api_keys` (hashed), `integration_outbox`, and `live_switches` (all off).
+  - The phone-digits index on `student_leads`, confirmed used by `crm_find_lead`'s query.
+  - 22 behaviour checks passed on staging before production.
+- **Change from the design:** there is no `revoke_session` SQL function. Deleting from `auth.sessions` from SQL is avoided; the app uses Supabase Auth's sign-out instead.
+- **Pending:** `b2b-crm/supabase/pending/drop_tmp_transfer.sql`. The temporary objects used to copy the schema to staging need a confirmed `DROP`. API access to them is already revoked.
+
 ## 8. Build order after approval
 
-1. **M0, then M1 and M2 on staging.** Then the app shell (`b2b-crm/web`): Admin-only sign-in (Google, email and password with TOTP), allowlist enforced on the server, light and dark tokens, ⌘K, an empty Command Center. Deployed as a staging preview.
+1. **M0, then M1 and M2 on staging.** Then the app shell (`b2b-crm/web`): Admin-only sign-in (Google, email and password with TOTP), allowlist enforced on the server, light and dark tokens built on the Eduwit logo's colours (navy `#0B2F5E` primary, amber `#F5A800` accent; this replaces the spec's indigo accent at Vikas's request), the Eduwit logo, ⌘K, an empty Command Center. Deployed as a staging preview.
 2. **Phase 1:**
    - M3–M5 and the Master Lead Table (soft delete, Recycle Bin, export);
    - Partners and the Programme Repository (Excel first, then Google Sheet);
