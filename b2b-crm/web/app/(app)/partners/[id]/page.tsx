@@ -86,7 +86,9 @@ function Overview({ d }: { d: PartnerDetail }) {
                   <div className="min-w-0 flex-1">
                     <p className={cn("text-[13px]", item.done ? "text-fg" : "text-muted")}>{label.title}</p>
                     {!item.done && !item.available && label.pending && <p className="text-[12px] text-subtle">{label.pending}</p>}
-                    {!item.done && item.available && <Link href="?tab=settings" className="text-[12px] text-info hover:underline">Set it in Settings</Link>}
+                    {!item.done && item.available && (item.key === "programmes"
+                      ? <Link href={`/programmes/${p.id}?tab=upload`} className="text-[12px] text-info hover:underline">Upload the programme file</Link>
+                      : <Link href="?tab=settings" className="text-[12px] text-info hover:underline">Set it in Settings</Link>)}
                   </div>
                 </li>
               );
@@ -100,8 +102,9 @@ function Overview({ d }: { d: PartnerDetail }) {
         <Card>
           <CardHeader title="Coming to this page" />
           <p className="px-5 py-4 text-[13px] leading-6 text-muted">
-            Programmes and commission per programme, funnel and sales effort, live SLA timers, sync and mapping health, and the
-            notification preview arrive with the Programme Repository, routing and push builds.
+            Commission per programme, funnel and sales effort, live SLA timers, sync and mapping health, and the notification
+            preview arrive with the routing, push and commission builds. Programmes live in the{" "}
+            <Link href={`/programmes/${p.id}`} className="text-info hover:underline">Programme Repository</Link>.
           </p>
         </Card>
       </div>

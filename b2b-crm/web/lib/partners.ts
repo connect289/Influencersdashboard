@@ -103,7 +103,7 @@ export const SLA_FIELDS: { key: keyof Sla; label: string; unit: "hours" | "days"
 
 export const CHECKLIST_LABEL: Record<string, { title: string; pending: string }> = {
   agreement: { title: "Agreement and data-processing terms uploaded", pending: "Partner documents come with the next build" },
-  programmes: { title: "Programme file published, rates approved", pending: "Comes with the Programme Repository" },
+  programmes: { title: "Programme file published in the Programme Repository", pending: "" },
   credentials: { title: "CRM credentials stored in Vault", pending: "Comes with the push adapter" },
   mapping: { title: "Stage and field mapping published, every gate at 100%", pending: "Comes with the Mapping studio" },
   sla_hours: { title: "SLAs and working hours set", pending: "" },

@@ -14,6 +14,8 @@ const securityHeaders = [
 const config: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  // Partner programme files (≤ 4 MB) are uploaded through a server action; Vercel caps request bodies at 4.5 MB.
+  experimental: { serverActions: { bodySizeLimit: "4.5mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
