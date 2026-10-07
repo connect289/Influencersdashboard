@@ -5,7 +5,11 @@
 --                      matrix   {metric, row_dim, col_dim, filters, period}: the metric pivoted, rows by columns
 --   report_run(def)  runs a definition (saved or not); report_email(id) renders it for scheduled delivery (first 50 rows
 --                    in the e-mail, everything as CSV). Exports are CSV from the app. Columns are only those of the facts,
---                    which hold no names, phones or e-mails.
+--                    which hold no names, phones or e-mails. Tabular reports list up to 5,000 rows (1,000 unless a limit
+--                    is given; exports and e-mails ask for 5,000); summary and matrix reports keep up to 2,000 breakdown
+--                    values per metric and say 'truncated' when values were cut.
+--   csv_cell(v)      one quoted CSV cell; text starting with = + - @ tab or CR gets a leading ' (spreadsheet formulas),
+--                    plain numbers stay as they are
 
 create table if not exists b2b.reports (
   id          bigint generated always as identity primary key,
@@ -31,6 +35,8 @@ do $fk$ begin
     alter table b2b.report_schedules add constraint report_schedules_report_fk foreign key (report_id) references b2b.reports (id);
   end if;
 end $fk$;
+-- schedules of reports archived before report_archive switched them off
+update b2b.report_schedules s set active = false from b2b.reports rp where rp.id = s.report_id and rp.archived_at is not null and s.active;
 
 /* The columns of a fact (for tabular reports), with their types. */
 create or replace function b2b.fact_columns(p_fact text)
@@ -63,7 +69,7 @@ begin
       raise exception 'choose what the report lists' using errcode = '22023';
     end if;
     v_cols := b2b.fact_columns(v_fact);
-    if jsonb_typeof(d -> 'columns') <> 'array' or jsonb_array_length(d -> 'columns') = 0 or jsonb_array_length(d -> 'columns') > 30 then
+    if (case when jsonb_typeof(d -> 'columns') = 'array' then jsonb_array_length(d -> 'columns') else 0 end) not between 1 and 30 then
       raise exception 'choose 1 to 30 columns' using errcode = '22023';
     end if;
     v_sel := '';
@@ -75,7 +81,7 @@ begin
     for k in select jsonb_object_keys(coalesce(d -> 'filters', '{}')) loop
       v_expr := b2b.metric_dim_expr(v_fact, v_date, k);
       if v_expr is null then raise exception 'cannot filter by %', k using errcode = '22023'; end if;
-      v_where := v_where || format(' and (%s)::text in (select jsonb_array_elements_text($1 -> %L))', v_expr, k);
+      v_where := v_where || format(' and coalesce((%s)::text, '''') in (select jsonb_array_elements_text($1 -> %L))', v_expr, k);
     end loop;
     if d ->> 'sort' is not null and not exists (select 1 from jsonb_array_elements(v_cols) x where x ->> 'name' = d ->> 'sort') then
       raise exception 'unknown sort column' using errcode = '22023';
@@ -87,36 +93,48 @@ begin
     return jsonb_build_object('kind', 'tabular', 'columns', d -> 'columns', 'rows', v_rows, 'from', lower(r), 'to', upper(r), 'limit', v_limit,
                               'labels', jsonb_build_object('partner_id', coalesce((select jsonb_object_agg(p.id::text, coalesce(p.display_name, p.name)) from b2b.partners p), '{}')));
   elsif p_kind = 'summary' then
-    if jsonb_typeof(d -> 'metrics') <> 'array' or jsonb_array_length(d -> 'metrics') = 0 or jsonb_array_length(d -> 'metrics') > 12 then
+    if (case when jsonb_typeof(d -> 'metrics') = 'array' then jsonb_array_length(d -> 'metrics') else 0 end) not between 1 and 12 then
       raise exception 'choose 1 to 12 metrics' using errcode = '22023';
     end if;
     if jsonb_array_length(coalesce(d -> 'dims', '[]')) not between 1 and 2 then raise exception 'choose one or two breakdowns' using errcode = '22023'; end if;
     for m in select jsonb_array_elements_text(d -> 'metrics') loop
       v_series := v_series || jsonb_build_array(b2b.metric_run(jsonb_build_object('metric', m, 'dims', d -> 'dims', 'filters', coalesce(d -> 'filters', '{}'),
-                                                                                  'from', lower(r), 'to', upper(r), 'compare', 'none', 'limit', 500)));
+                                                                                  'from', lower(r), 'to', upper(r), 'compare', 'none', 'limit', 2000)));
     end loop;
-    -- one row per breakdown value, a column per metric
-    select coalesce(jsonb_agg(jsonb_build_object('d', k2.d, 'values', (select jsonb_agg((select rw -> 'value' from jsonb_array_elements(s -> 'rows') rw where rw -> 'd' = k2.d limit 1) order by o)
-                                                                       from jsonb_array_elements(v_series) with ordinality q(s, o)))
-                              order by k2.d), '[]')
-      into v_rows
-      from (select distinct rw -> 'd' d from jsonb_array_elements(v_series) s, jsonb_array_elements(s -> 'rows') rw) k2;
+    -- one row per breakdown value, a column per metric (values in metric order, JSON null where a metric has no value)
+    with sv as (select q.o, rw -> 'd' d, rw -> 'value' v
+                  from jsonb_array_elements(v_series) with ordinality q(s, o), jsonb_array_elements(q.s -> 'rows') rw),
+         keys as (select distinct sv.d from sv),
+         grid as (select keys.d, g.o from keys cross join generate_series(1, jsonb_array_length(v_series)) g(o))
+    select coalesce(jsonb_agg(jsonb_build_object('d', x.d, 'values', x.vals) order by x.d), '[]') into v_rows
+      from (select grid.d, jsonb_agg(sv.v order by grid.o) vals
+              from grid left join sv on sv.o = grid.o and sv.d = grid.d group by grid.d) x;
     return jsonb_build_object('kind', 'summary', 'dims', d -> 'dims', 'metrics', (select jsonb_agg(s -> 'metric') from jsonb_array_elements(v_series) s),
                               'rows', v_rows, 'totals', (select jsonb_agg(s -> 'total' -> 'value') from jsonb_array_elements(v_series) s),
-                              'from', lower(r), 'to', upper(r), 'labels', v_series -> 0 -> 'labels');
+                              'from', lower(r), 'to', upper(r), 'labels', v_series -> 0 -> 'labels',
+                              'truncated', exists (select 1 from jsonb_array_elements(v_series) s where (s ->> 'truncated')::boolean));
   elsif p_kind = 'matrix' then
     if d ->> 'row_dim' is null or d ->> 'col_dim' is null or d ->> 'row_dim' = d ->> 'col_dim' then raise exception 'choose two different breakdowns' using errcode = '22023'; end if;
     v_x := b2b.metric_run(jsonb_build_object('metric', d ->> 'metric', 'dims', jsonb_build_array(d ->> 'row_dim', d ->> 'col_dim'), 'filters', coalesce(d -> 'filters', '{}'),
-                                             'from', lower(r), 'to', upper(r), 'compare', 'none', 'limit', 500));
+                                             'from', lower(r), 'to', upper(r), 'compare', 'none', 'limit', 2000));
     return jsonb_build_object('kind', 'matrix', 'metric', v_x -> 'metric', 'row_dim', d ->> 'row_dim', 'col_dim', d ->> 'col_dim',
                               'rows', (select coalesce(jsonb_agg(distinct rw -> 'd' -> 0), '[]') from jsonb_array_elements(v_x -> 'rows') rw),
                               'cols', (select coalesce(jsonb_agg(distinct rw -> 'd' -> 1), '[]') from jsonb_array_elements(v_x -> 'rows') rw),
-                              'cells', v_x -> 'rows', 'total', v_x -> 'total', 'from', lower(r), 'to', upper(r), 'labels', v_x -> 'labels');
+                              'cells', v_x -> 'rows', 'total', v_x -> 'total', 'from', lower(r), 'to', upper(r), 'labels', v_x -> 'labels',
+                              'truncated', coalesce((v_x ->> 'truncated')::boolean, false));
   end if;
   raise exception 'unknown kind of report' using errcode = '22023';
 end $fn$;
 
-/* CSV of a report result (all rows), with partner names instead of ids. */
+/* One CSV cell, always quoted. Text a spreadsheet would run as a formula (starting with = + - @, tab or CR) gets a leading ';
+   plain numbers, negative ones included, stay as they are. Null is an empty cell. */
+create or replace function b2b.csv_cell(v text) returns text language sql immutable set search_path = '' as $fn$
+  select '"' || replace(case when v ~ '^[=+\-@\t\r]' and v !~ '^-?[0-9]+(\.[0-9]+)?(e-?[0-9]+)?$' then '''' || v else coalesce(v, '') end, '"', '""') || '"';
+$fn$;
+revoke execute on function b2b.csv_cell(text) from public, anon, authenticated;
+grant execute on function b2b.csv_cell(text) to service_role;
+
+/* CSV of a report result (all rows), with partner names instead of ids. Text cells go through csv_cell. */
 create or replace function b2b.report_csv(p_res jsonb)
 returns text language sql immutable set search_path = '' as $fn$
   select case p_res ->> 'kind'
@@ -124,41 +142,46 @@ returns text language sql immutable set search_path = '' as $fn$
       select string_agg(line, E'\n' order by o) from (
         select 0 o, (select string_agg(c, ',') from jsonb_array_elements_text(p_res -> 'columns') c) line
         union all
-        select row_number() over (), (select string_agg('"' || replace(coalesce(case when c = 'partner_id' then coalesce(p_res -> 'labels' -> 'partner_id' ->> (rw ->> c), rw ->> c) else rw ->> c end, ''), '"', '""') || '"', ',' order by co)
+        select row_number() over (), (select string_agg(b2b.csv_cell(case when c = 'partner_id' then coalesce(p_res -> 'labels' -> 'partner_id' ->> (rw ->> c), rw ->> c) else rw ->> c end), ',' order by co)
                                         from jsonb_array_elements_text(p_res -> 'columns') with ordinality cc(c, co))
           from jsonb_array_elements(p_res -> 'rows') rw) z)
     when 'summary' then (
       select string_agg(line, E'\n' order by o) from (
-        select 0 o, (select string_agg(dd, ',') from jsonb_array_elements_text(p_res -> 'dims') dd) || ',' || (select string_agg('"' || (m ->> 'label') || '"', ',') from jsonb_array_elements(p_res -> 'metrics') m) line
+        select 0 o, (select string_agg(dd, ',') from jsonb_array_elements_text(p_res -> 'dims') dd) || ',' ||
+                    (select string_agg(b2b.csv_cell(coalesce(m ->> 'label', m ->> 'key', '')), ',' order by o) from jsonb_array_elements(p_res -> 'metrics') with ordinality q(m, o)) line
         union all
-        select row_number() over (), (select string_agg('"' || replace(coalesce(case when p_res -> 'dims' ->> (o2 - 1)::int = 'partner' then coalesce(p_res -> 'labels' -> 'partner' ->> v, v) else v end, ''), '"', '""') || '"', ',' order by o2)
+        select row_number() over (), (select string_agg(b2b.csv_cell(case when p_res -> 'dims' ->> (o2 - 1)::int = 'partner' then coalesce(p_res -> 'labels' -> 'partner' ->> v, v) else v end), ',' order by o2)
                                         from jsonb_array_elements_text(rw -> 'd') with ordinality q2(v, o2))
                                      || ',' || (select string_agg(case when jsonb_typeof(x) in ('number', 'string', 'boolean') then x #>> '{}' else '' end, ',' order by o3) from jsonb_array_elements(rw -> 'values') with ordinality q3(x, o3))
           from jsonb_array_elements(p_res -> 'rows') rw) z)
     else (
       select string_agg(line, E'\n' order by o) from (
-        select 0 o, '"' || (p_res ->> 'row_dim') || ' by ' || (p_res ->> 'col_dim') || '",' || (select string_agg('"' || replace(c #>> '{}', '"', '""') || '"', ',' order by c #>> '{}') from jsonb_array_elements(p_res -> 'cols') c) line
+        select 0 o, b2b.csv_cell((p_res ->> 'row_dim') || ' by ' || (p_res ->> 'col_dim')) || ',' ||
+               coalesce((select string_agg(b2b.csv_cell(coalesce(case when p_res ->> 'col_dim' = 'partner' then p_res -> 'labels' -> 'partner' ->> (c #>> '{}') end, c #>> '{}', '(none)')), ',' order by c #>> '{}')
+                           from jsonb_array_elements(p_res -> 'cols') c), '') line
         union all
-        select row_number() over (), '"' || replace(rv #>> '{}', '"', '""') || '",' ||
-               (select string_agg(coalesce((select cell ->> 'value' from jsonb_array_elements(p_res -> 'cells') cell where cell -> 'd' -> 0 = rv and cell -> 'd' -> 1 = c limit 1), ''), ',' order by c #>> '{}')
-                  from jsonb_array_elements(p_res -> 'cols') c)
+        select row_number() over (), b2b.csv_cell(coalesce(case when p_res ->> 'row_dim' = 'partner' then p_res -> 'labels' -> 'partner' ->> (rv #>> '{}') end, rv #>> '{}', '(none)')) || ',' ||
+               coalesce((select string_agg(coalesce((select cell ->> 'value' from jsonb_array_elements(p_res -> 'cells') cell where cell -> 'd' -> 0 = rv and cell -> 'd' -> 1 = c limit 1), ''), ',' order by c #>> '{}')
+                           from jsonb_array_elements(p_res -> 'cols') c), '')
           from jsonb_array_elements(p_res -> 'rows') rv) z)
   end;
 $fn$;
 
 create or replace function b2b.report_email(p_report_id bigint)
 returns jsonb language plpgsql stable security definer set search_path = '' as $fn$
-declare rp b2b.reports; res jsonb; v_csv text; v_lines text[];
+declare rp b2b.reports; res jsonb; v_csv text; v_lines text[]; v_cut text;
 begin
   select * into rp from b2b.reports where id = p_report_id and archived_at is null;
   if rp.id is null then raise exception 'report not found' using errcode = 'P0002'; end if;
-  res := b2b.report_run_def(rp.kind, rp.definition);
+  -- a tabular report e-mails up to 5,000 rows (a limit saved with the report wins)
+  res := b2b.report_run_def(rp.kind, case when rp.kind = 'tabular' then jsonb_build_object('limit', 5000) || rp.definition else rp.definition end);
   v_csv := coalesce(b2b.report_csv(res), '');
   v_lines := string_to_array(v_csv, E'\n');
+  v_cut := case when res ->> 'truncated' = 'true' then 'Cut at 2,000 breakdown values: narrow the filters or the period.' end;
   return jsonb_build_object('name', rp.name,
-    'text', rp.name || E'\n' || array_to_string(v_lines[1:51], E'\n'),
-    'html', format('<div style="font-family:Arial,sans-serif;font-size:13px"><h2 style="font-size:18px">%s</h2><p style="color:#666">%s rows; the first 50 are below, all are attached as CSV.</p><pre style="font-size:12px">%s</pre></div>',
-                   b2b.html_escape(rp.name), greatest(coalesce(array_length(v_lines, 1), 1) - 1, 0), b2b.html_escape(array_to_string(v_lines[1:51], E'\n'))),
+    'text', rp.name || E'\n' || array_to_string(v_lines[1:51], E'\n') || coalesce(E'\n' || v_cut, ''),
+    'html', format('<div style="font-family:Arial,sans-serif;font-size:13px"><h2 style="font-size:18px">%s</h2><p style="color:#666">%s rows; the first 50 are below, all are attached as CSV.%s</p><pre style="font-size:12px">%s</pre></div>',
+                   b2b.html_escape(rp.name), greatest(coalesce(array_length(v_lines, 1), 1) - 1, 0), coalesce(' ' || v_cut, ''), b2b.html_escape(array_to_string(v_lines[1:51], E'\n'))),
     'attachments', jsonb_build_array(jsonb_build_object('filename', regexp_replace(lower(rp.name), '[^a-z0-9]+', '-', 'g') || '.csv',
                                                         'content_base64', translate(encode(convert_to(v_csv, 'UTF8'), 'base64'), E'\n', ''))));
 end $fn$;

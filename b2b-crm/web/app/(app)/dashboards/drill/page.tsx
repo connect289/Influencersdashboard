@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ChevronLeft, SearchX } from "lucide-react";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { requireAdmin } from "@/lib/auth";
-import { DIM_LABEL, dimLabel, formatValue } from "@/lib/analytics";
+import { periodBounds } from "@/lib/ai/ask";
+import { applicableFilters, DIM_LABEL, dimLabel, formatValue, PERIODS, viewParams, type Period } from "@/lib/analytics";
 import { metricCatalogue, metricDrill, metricQuery } from "@/lib/analytics-data";
 import { formatDateTime } from "@/lib/format";
 import { SaveViewButton } from "../DashboardClient";
@@ -14,9 +15,9 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 const SHOW: Record<string, string[]> = {
   fact_leads: ["lead_id", "created_at", "source", "campaign", "state", "course", "lead_status", "stage", "destination", "partner_id"],
   fact_allocations: ["allocation_id", "lead_id", "created_at", "partner_id", "segment", "routing_mode", "status", "first_attempt_hours", "stage_reached", "enrolled", "reward"],
-  fact_enrollments: ["enrollment_id", "lead_id", "enrolled_on", "partner_id", "course", "university", "status", "fee", "expected_inr", "realised_inr"],
+  fact_enrollments: ["enrollment_id", "lead_id", "enrolled_on", "verified_at", "partner_id", "course", "university", "status", "fee", "expected_inr", "realised_inr"],
   fact_sla: ["sla_id", "allocation_id", "partner_id", "sla", "due_at", "status", "hours"],
-  fact_money: ["line_id", "lead_id", "partner_id", "period", "kind", "status", "net_inr", "created_at"],
+  fact_money: ["line_id", "lead_id", "partner_id", "period", "kind", "status", "net_inr", "realised_at", "created_at"],
   fact_invoices: ["invoice_id", "number", "partner_id", "status", "issue_date", "total_inr", "outstanding_inr", "ageing"],
   fact_notifications: ["notification_id", "partner_id", "channel", "kind", "status", "created_at", "minutes_to_send"],
   fact_capi: ["event_id", "platform", "stage", "status", "created_at"],
@@ -40,13 +41,18 @@ export default async function DrillPage({ searchParams }: Props) {
   await requireAdmin();
   const sp = await searchParams;
   const metric = typeof sp.metric === "string" ? sp.metric : "";
-  let filters: Record<string, string[]> = {};
-  try { if (typeof sp.filters === "string") filters = JSON.parse(sp.filters); } catch { filters = {}; }
-  const from = typeof sp.from === "string" ? sp.from : undefined;
-  const to = typeof sp.to === "string" ? sp.to : undefined;
+  // malformed filters (not an object of string lists) read as none, like the dashboards do
+  const raw = viewParams(sp, "30d").filters ?? {};
+  // a link from a widget carries its period: explicit from/to win, the period alone gives its window, and a saved view keeps it
+  const period = PERIODS.includes(sp.period as Period) ? (sp.period as Period) : undefined;
+  const b = period && typeof sp.from !== "string" ? periodBounds(period) : undefined;
+  const from = typeof sp.from === "string" ? sp.from : b?.from;
+  const to = typeof sp.to === "string" ? sp.to : b?.to;
   const cat = await metricCatalogue();
   const m = cat.metrics.find((x) => x.key === metric);
   if (!m) return <EmptyState icon={SearchX} title="Unknown metric">Open a number on a dashboard to see the rows behind it.</EmptyState>;
+  // only the filters the number on the widget used: dashboard filters on keys this metric lacks are dropped (as widget_data does)
+  const filters = applicableFilters(raw, m.dims);
   const [drill, total] = await Promise.all([metricDrill({ metric, filters, from, to, limit: 500 }), metricQuery({ metric, filters, from, to, compare: "none" })]);
   const cols = SHOW[drill.fact] ?? Object.keys(drill.rows[0] ?? {});
   return (
@@ -61,7 +67,7 @@ export default async function DrillPage({ searchParams }: Props) {
           </p>
           <p className="text-[12px] text-subtle">{drill.shown} rows{drill.shown >= drill.limit ? ` (first ${drill.limit})` : ""}. {m.description}</p>
         </div>
-        <SaveViewButton metric={metric} filters={filters} period="30d" />
+        <SaveViewButton metric={metric} filters={filters} period={period ?? "30d"} />
       </div>
       <Card className="min-w-0 overflow-hidden">
         {drill.rows.length === 0 ? <EmptyState icon={SearchX} title="Nothing behind this number">No rows match in this period.</EmptyState> : (

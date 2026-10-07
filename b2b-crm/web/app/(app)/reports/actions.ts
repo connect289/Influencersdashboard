@@ -41,4 +41,5 @@ export async function archiveReport(id: number): Promise<string | void> {
   const { error } = await rpc("report_archive", { p_id: id });
   if (error) return dbMessage(error, "Could not archive. Try again.");
   revalidatePath("/reports");
+  revalidatePath("/dashboards");   // the report's schedules were switched off
 }

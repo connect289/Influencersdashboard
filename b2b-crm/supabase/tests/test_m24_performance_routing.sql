@@ -4,7 +4,8 @@
 -- 0.05 the numbers are computed by hand below. Then: the seeded sampler, the mode switch (performance once 2 partners have
 -- 5 matured leads), reproducible Thompson sampling and its logged probability, pins, the seeded exploration lane, the
 -- holdout ignoring AI changes, the kill switch, the share cap, partner weights, validation, the Admin reads, replay,
--- auto-pause, the drop alert, and a real route_decide logging seed, mode and candidate numbers.
+-- auto-pause, the drop alert, a real route_decide logging seed, mode and candidate numbers, and the Partners list's NCPL for
+-- the month (m30b).
 -- Every row must say ok = true.
 begin;
 create temp table r (name text, ok boolean, detail text);
@@ -333,6 +334,59 @@ insert into r select 'route_decide_logs_scoring', d.seed is not null and d.scori
  where x ->> 'destination' = 'partner';
 insert into r select 'route_decide_partner', x ->> 'destination' = 'partner' and x ? 'scoring_mode' and x ? 'holdout', x ->> 'destination' || ' ' || coalesce(x ->> 'reason', '')
   from (select pg_temp.v('RD')::jsonb x) z;
+
+-- ---------- Partners list: this month's NCPL (C130, review F195; m30b) ----------
+-- Z: two accepted allocations this month in zzncpl|PG|Online (snapshots: yesterday 900, today 1200), one in zzncpl2|UG|Online
+-- (today's snapshot has no NCPL, so that segment is left out of the weights), plus a test and a rejected allocation in the
+-- first segment and one from last month in the second (all three left out). Y: one accepted allocation, no snapshot.
+with x as (insert into b2b.partners (slug, name, status) values ('zzncpl-z', 'ZZ NCPL Zeta', 'onboarding') returning id) insert into t select 'Z', id::text from x;
+with x as (insert into b2b.partners (slug, name, status) values ('zzncpl-y', 'ZZ NCPL Ypsilon', 'onboarding') returning id) insert into t select 'Y', id::text from x;
+insert into b2b.allocations (lead_id, cycle_no, segment, destination_type, partner_id, status, mode, accepted_at, created_at, is_test)
+select pg_temp.v('L')::bigint, v.c, v.seg, 'partner', pg_temp.v(v.who)::bigint, v.st, 'commission_first', case when v.st = 'accepted' then v.at_ts end, v.at_ts, v.tst
+  from (select c, seg, who, st, tst, case when last_month then (date_trunc('month', now() at time zone 'Asia/Kolkata') at time zone 'Asia/Kolkata') - interval '1 hour'
+                                          else now() end as at_ts
+          from (values (80, 'zzncpl|PG|Online', 'Z', 'accepted', false, false), (81, 'zzncpl|PG|Online', 'Z', 'accepted', false, false),
+                       (82, 'zzncpl2|UG|Online', 'Z', 'accepted', false, false), (83, 'zzncpl|PG|Online', 'Z', 'accepted', true, false),
+                       (84, 'zzncpl|PG|Online', 'Z', 'rejected', false, false), (85, 'zzncpl2|UG|Online', 'Z', 'accepted', false, true),
+                       (86, 'zzncpl|PG|Online', 'Y', 'accepted', false, false)) w (c, seg, who, st, tst, last_month)) v;
+insert into b2b.stats_snapshots (day, partner_id, segment, p_hat, ncpl_inr, n_matured)
+values ((now() at time zone 'Asia/Kolkata')::date - 1, pg_temp.v('Z')::bigint, 'zzncpl|PG|Online', 0.1, 900, 0),
+       ((now() at time zone 'Asia/Kolkata')::date, pg_temp.v('Z')::bigint, 'zzncpl|PG|Online', 0.1, 1200, 0),
+       ((now() at time zone 'Asia/Kolkata')::date, pg_temp.v('Z')::bigint, 'zzncpl2|UG|Online', 0.1, null, 0);
+set local role authenticated;
+select pg_temp.admin();
+insert into t select 'PL1', b2b.partners_list()::text;
+reset role;
+insert into r select 'partners_list_ncpl_month', coalesce(z.x ->> 'ncpl_month' = '1200.00' and z.x ? 'leads_today' and z.x ? 'leads_month'
+                                                         and z.x ? 'checklist_done' and z.x ? 'checklist_total' and not z.x ? 'outbound_auth', false),
+                     coalesce(z.x ->> 'ncpl_month', 'no ncpl')
+  from (select (select x from jsonb_array_elements(pg_temp.v('PL1')::jsonb) x where x ->> 'id' = pg_temp.v('Z')) x) z;
+insert into r select 'partners_list_ncpl_null_without_snapshot', coalesce(z.x -> 'ncpl_month' = 'null'::jsonb, false), coalesce((z.x -> 'ncpl_month')::text, 'missing')
+  from (select (select x from jsonb_array_elements(pg_temp.v('PL1')::jsonb) x where x ->> 'id' = pg_temp.v('Y')) x) z;
+-- the second segment gets an NCPL: (2 x 1200 + 1 x 600) / 3 = 1000.00; counting the test, rejected or last month's allocations
+-- would give 1080 or 900. Y's only snapshot is 8 days old, outside the 7-day window, so Y stays null.
+update b2b.stats_snapshots set ncpl_inr = 600
+ where partner_id = pg_temp.v('Z')::bigint and segment = 'zzncpl2|UG|Online' and day = (now() at time zone 'Asia/Kolkata')::date;
+insert into b2b.stats_snapshots (day, partner_id, segment, p_hat, ncpl_inr, n_matured)
+values ((now() at time zone 'Asia/Kolkata')::date - 8, pg_temp.v('Y')::bigint, 'zzncpl|PG|Online', 0.1, 500, 0);
+set local role authenticated;
+select pg_temp.admin();
+insert into t select 'PL2', b2b.partners_list()::text;
+reset role;
+insert into r select 'partners_list_ncpl_weighted', coalesce(z.x ->> 'ncpl_month' = '1000.00', false), coalesce(z.x ->> 'ncpl_month', 'no ncpl')
+  from (select (select x from jsonb_array_elements(pg_temp.v('PL2')::jsonb) x where x ->> 'id' = pg_temp.v('Z')) x) z;
+insert into r select 'partners_list_ncpl_stale_snapshot', coalesce(z.x -> 'ncpl_month' = 'null'::jsonb, false), coalesce((z.x -> 'ncpl_month')::text, 'missing')
+  from (select (select x from jsonb_array_elements(pg_temp.v('PL2')::jsonb) x where x ->> 'id' = pg_temp.v('Y')) x) z;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-0000000000d2","role":"authenticated","aal":"aal2","email":"nobody24@test.local"}', true);
+set local role authenticated;
+do $x$ declare e text; begin
+  begin perform b2b.partners_list(); e := 'read'; exception when others then e := sqlstate; end;
+  insert into r values ('partners_list_non_admin_refused', e = '42501', e);
+end $x$;
+reset role;
+insert into r select 'partners_list_grants', has_function_privilege('authenticated', 'b2b.partners_list()', 'execute')
+                     and has_function_privilege('service_role', 'b2b.partners_list()', 'execute')
+                     and not has_function_privilege('anon', 'b2b.partners_list()', 'execute'), null;
 
 select name, ok, detail from r order by ok, name;
 rollback;

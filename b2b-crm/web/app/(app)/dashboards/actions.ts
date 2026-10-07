@@ -90,18 +90,30 @@ export async function saveAlertSettings(input: { enabled: boolean; emails: strin
 
 export async function testAlert(): Promise<string | void> {
   await assertAdmin();
-  const { error } = await rpc("admin_alerts_test", {});
+  const { data, error } = await rpc("admin_alerts_test", {});
   if (error) return dbMessage(error, "Could not queue the test. Try again.");
+  if (!(data as { queued?: number } | null)?.queued) return "No recipients saved yet: add an e-mail address or WhatsApp number and save first.";
   refresh();
 }
 
 export async function saveMetricAlert(input: { id?: number | null; name: string; metric: string; op: string; threshold: number; window_hours: number;
-                                               filters: Record<string, string[]>; channels: string[]; cooldown_hours: number; active?: boolean }): Promise<string | void> {
+                                               filters: Record<string, string[]>; channels: string[]; cooldown_hours: number; active?: boolean;
+                                               min_volume?: number; volume_metric?: string | null }): Promise<string | void> {
   await assertAdmin();
   if (!input.name.trim()) return "Give the alert a name.";
   if (!Number.isFinite(input.threshold)) return "Enter the threshold.";
+  if (input.min_volume !== undefined && (!Number.isInteger(input.min_volume) || input.min_volume < 0)) return "The minimum is a whole number, 0 or more.";
+  if ((input.min_volume ?? 0) > 0 && !input.volume_metric) return "Choose what the minimum counts.";
   const { error } = await rpc("metric_alert_save", { p: { ...input, name: input.name.trim() } });
   if (error) return dbMessage(error, "Could not save the alert. Try again.");
+  refresh();
+}
+
+export async function setMetricAlertActive(id: number, active: boolean): Promise<string | void> {
+  await assertAdmin();
+  if (!Id.safeParse(id).success) return "Invalid alert.";
+  const { error } = await rpc("metric_alert_set_active", { p_id: id, p_active: active });
+  if (error) return dbMessage(error, "Could not change the alert. Try again.");
   refresh();
 }
 
@@ -112,6 +124,15 @@ export async function saveSchedule(input: { id?: number | null; name: string; da
   if (!r.success) return r.error.issues[0]?.message;
   const { error } = await rpc("schedule_save", { p: { ...input, recipients: r.data } });
   if (error) return dbMessage(error, "Could not save the schedule. Try again.");
+  refresh();
+  revalidatePath("/reports");
+}
+
+export async function setScheduleActive(id: number, active: boolean): Promise<string | void> {
+  await assertAdmin();
+  if (!Id.safeParse(id).success) return "Invalid schedule.";
+  const { error } = await rpc("schedule_set_active", { p_id: id, p_active: active });
+  if (error) return dbMessage(error, "Could not change the schedule. Try again.");
   refresh();
   revalidatePath("/reports");
 }

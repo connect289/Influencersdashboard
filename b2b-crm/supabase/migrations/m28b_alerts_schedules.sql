@@ -5,7 +5,8 @@
 --                         subject, body, attachments, status, provider answer
 --   metric_alerts         a threshold on any metric (with filters and a window), checked every 5 minutes, with a cooldown
 --   report_schedules      a dashboard (or a report, M29) by e-mail: daily, weekly or monthly at an hour (IST); every
---                         widget's numbers in the e-mail, tables and breakdowns attached as CSV
+--                         widget's numbers in the e-mail, tables and breakdowns attached as CSV; switched off when its
+--                         dashboard or report is archived, or after 5 failed sends in a row
 --   settings 'admin_alerts': recipients (e-mails, WhatsApp numbers), the WhatsApp template, which alert types go out
 --                         immediately, and the digest interval
 --   admin_alerts_tick()   every minute: queues a digest of new alert.* events, checks metric alerts, runs due schedules,
@@ -72,11 +73,13 @@ create table if not exists b2b.report_schedules (
   active        boolean not null default true,
   last_sent_at  timestamptz,
   next_due_at   timestamptz,
+  failures      int not null default 0,              -- consecutive failed sends; the fifth switches the schedule off
   created_by    text,
   created_at    timestamptz not null default now(),
   check (dashboard_id is not null or report_id is not null),
   check (cardinality(recipients) between 1 and 20)
 );
+alter table b2b.report_schedules add column if not exists failures int not null default 0;
 
 do $rls$
 declare t text;
@@ -133,23 +136,33 @@ declare
 begin
   if w ->> 'type' = 'text' then return '{}'; end if;
   if w ->> 'type' = 'sla_timers' then
-    return jsonb_build_object('rows', coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'lead_id', c.lead_id, 'sla', c.sla, 'due_at', c.due_at,
+    -- open SLAs and breaches still owed (the rule of sla_timers; it mirrors sla_tick's void rule and 30-day re-check window)
+    return jsonb_build_object('rows', coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'lead_id', c.lead_id, 'sla', c.sla, 'due_at', c.due_at, 'status', c.status,
                                                                                      'partner', coalesce(p.display_name, p.name)) order by c.due_at)
-                                                  from (select * from b2b.sla_checks c where c.status = 'pending' and not c.is_test
-                                                          and (f -> 'partner' is null or c.partner_id::text in (select jsonb_array_elements_text(f -> 'partner')))
-                                                        order by c.due_at limit 15) c join b2b.partners p on p.id = c.partner_id), '[]'));
+                                                  from (select c.* from b2b.sla_checks c join b2b.allocations y on y.id = c.allocation_id
+                                                         where c.status in ('pending', 'breached') and not c.is_test
+                                                           and (c.status = 'pending'
+                                                                or (c.status = 'breached' and c.due_at > now() - interval '30 days'
+                                                                    and case when c.sla = 'enrollment_proof' then y.status not in ('duplicate', 'rejected', 'recalled', 'failed')
+                                                                             else y.status in ('pushed', 'accepted')
+                                                                                  and not exists (select 1 from public.student_leads l where l.id = y.lead_id and l.allocation_id = y.id
+                                                                                                     and l.stage in ('enrolled', 'verified', 'commission_booked', 'paid', 'lost')) end))
+                                                           and (f -> 'partner' is null or c.partner_id::text in (select jsonb_array_elements_text(f -> 'partner')))
+                                                         order by c.due_at limit 15) c join b2b.partners p on p.id = c.partner_id), '[]'));
   end if;
   if w ->> 'type' = 'alerts' then
     return jsonb_build_object('rows', coalesce((select jsonb_agg(jsonb_build_object('type', e.type, 'at', e.occurred_at, 'partner', (select coalesce(p.display_name, p.name) from b2b.partners p where p.id = e.partner_id),
                                                                                      'payload', e.payload - 'phone' - 'email' - 'name') order by e.occurred_at desc)
                                                   from (select * from b2b.events e where (e.type like 'alert.%' or e.type = 'routing.error') order by e.occurred_at desc limit 12) e), '[]'));
   end if;
-  -- dashboard filters apply only where the metric has that dimension
+  -- dashboard filters apply only where every base of the metric has that dimension
   for m in select coalesce(w ->> 'metric', x) from (select null::text x union all select jsonb_array_elements_text(coalesce(w -> 'metrics', '[]'))) z
             where coalesce(w ->> 'metric', x) is not null loop
     v_ok := (select coalesce(jsonb_object_agg(fk, fv), '{}') from jsonb_each(f) e(fk, fv)
-              where b2b.metric_dim_expr((select coalesce(d.fact, (select d2.fact from b2b.metric_definitions d2 where d2.key = (b2b.metric_bases(d))[1]))
-                                           from b2b.metric_definitions d where d.key = m), 'created_at', fk) is not null);
+              where not exists (select 1 from b2b.metric_definitions d
+                                  cross join lateral unnest(b2b.metric_bases(d)) b(k)
+                                  join b2b.metric_definitions d2 on d2.key = b.k
+                                 where d.key = m and b2b.metric_dim_expr(d2.fact, d2.date_col, fk) is null));
     if w ->> 'type' = 'sankey' then
       for i in 1 .. jsonb_array_length(w -> 'steps') - 1 loop
         v_out := v_out || jsonb_build_array(b2b.metric_run(jsonb_build_object('metric', m, 'dims', jsonb_build_array(w -> 'steps' ->> (i - 1), w -> 'steps' ->> i),
@@ -158,7 +171,7 @@ begin
     else
       v_out := v_out || jsonb_build_array(b2b.metric_run(jsonb_build_object('metric', m, 'dims', coalesce(w -> 'dims', '[]'), 'filters', v_ok,
                                                                             'from', lower(r), 'to', upper(r), 'compare', case when w ->> 'type' in ('kpi', 'gauge', 'table', 'leaderboard') then 'previous' else 'none' end,
-                                                                            'limit', case when w ->> 'type' in ('kpi', 'gauge') then 1 else 200 end)));
+                                                                            'limit', case when w ->> 'type' in ('kpi', 'gauge') then 1 else 500 end)));
     end if;
   end loop;
   return jsonb_build_object('series', v_out, 'from', lower(r), 'to', upper(r));
@@ -174,11 +187,13 @@ begin
   for w in select * from jsonb_array_elements(d.widgets) loop
     begin
       v_out := v_out || jsonb_build_object(w ->> 'id', b2b.widget_data(w, coalesce(p_period, d.period), coalesce(p_filters, d.filters)));
-    exception when sqlstate '22023' then
-      v_out := v_out || jsonb_build_object(w ->> 'id', jsonb_build_object('error', sqlerrm));
+    exception when others then   -- one widget's error stays in that widget: 22023 messages are for the Admin, others are named by their code
+      v_out := v_out || jsonb_build_object(w ->> 'id', jsonb_build_object('error',
+                 case when sqlstate = '22023' then sqlerrm else 'this widget failed (' || sqlstate || ')' end));
     end;
   end loop;
-  return jsonb_build_object('dashboard', to_jsonb(d), 'data', v_out, 'facts_at', (select value ->> 'refreshed_at' from b2b.ai_state where key = 'facts'));
+  return jsonb_build_object('dashboard', to_jsonb(d) || jsonb_build_object('is_home', coalesce(d.id = (select (value ->> 'home_dashboard_id')::bigint from b2b.settings where key = 'analytics'), false)),
+                            'data', v_out, 'facts_at', (select value ->> 'refreshed_at' from b2b.ai_state where key = 'facts'));
 end $fn$;
 
 create or replace function b2b.dashboard_data(p_id bigint, p_period text default null, p_filters jsonb default null)
@@ -229,7 +244,7 @@ end $fn$;
 
 create or replace function b2b.admin_queue(p_kind text, p_subject text, p_text text, p_html text, p_attachments jsonb, p_ref jsonb, p_channels text[] default '{email}', p_to text[] default null)
 returns int language plpgsql volatile security definer set search_path = '' as $fn$
-declare al jsonb := coalesce((select value from b2b.settings where key = 'admin_alerts'), '{}'); v_n int := 0; v_to text[];
+declare al jsonb := coalesce((select value from b2b.settings where key = 'admin_alerts'), '{}'); v_n int := 0; v_to text[]; v_rows int;
 begin
   if 'email' = any (p_channels) then
     v_to := coalesce(p_to, (select array_agg(x) from jsonb_array_elements_text(coalesce(al -> 'emails', '[]')) x));
@@ -240,14 +255,20 @@ begin
     end if;
   end if;
   if 'whatsapp' = any (p_channels) and jsonb_array_length(coalesce(al -> 'whatsapp_numbers', '[]')) > 0 then
+    -- one row per number: each send is tracked and retried on its own; template parameters cannot hold newlines or tabs
     insert into b2b.admin_messages (kind, channel, recipients, subject, body_text, ref)
-    values (p_kind, 'whatsapp', (select array_agg(x) from jsonb_array_elements_text(al -> 'whatsapp_numbers') x), left(p_subject, 200), left(p_text, 900), coalesce(p_ref, '{}'));
-    v_n := v_n + 1;
+    select p_kind, 'whatsapp', array[n.x], left(p_subject, 200),
+           left(btrim(regexp_replace(regexp_replace(p_text, '\s*[\r\n\t]+\s*', ' · ', 'g'), ' {4,}', ' ', 'g'), ' ·'), 900),
+           coalesce(p_ref, '{}')
+      from (select distinct x from jsonb_array_elements_text(al -> 'whatsapp_numbers') x) n;
+    get diagnostics v_rows = row_count;
+    v_n := v_n + v_rows;
   end if;
   return v_n;
 end $fn$;
 
-/* Sends queued admin messages and collects answers (like notify_tick). Nothing goes out while admin_alerts.enabled is off. */
+/* Sends queued admin messages and collects answers (like notify_tick). Nothing goes out while admin_alerts.enabled is off;
+   messages still queued after 2 days are skipped, and a retry waits 5 minutes per attempt already made. */
 create or replace function b2b.admin_send_tick()
 returns jsonb language plpgsql volatile security definer set search_path = '' as $fn$
 declare
@@ -276,8 +297,12 @@ begin
       update b2b.admin_messages set status = 'failed', error = left(coalesce(r.error_msg, 'HTTP ' || r.status_code || ': ' || left(r.content, 200)), 300) where id = r.id;
     end if;
   end loop;
+  update b2b.admin_messages set status = 'skipped', error = 'not sent within 2 days (alerts were off or the provider kept failing)'
+   where status = 'queued' and created_at <= now() - interval '2 days';
   if not coalesce((al ->> 'enabled')::boolean, false) then return jsonb_build_object('sent', 0, 'why', 'admin alerts are off'); end if;
-  for m in select * from b2b.admin_messages where status = 'queued' and created_at > now() - interval '2 days' order by id limit 20 for update skip locked loop
+  for m in select * from b2b.admin_messages where status = 'queued' and created_at > now() - interval '2 days'
+             and (attempts = 0 or sent_at < now() - make_interval(mins => 5 * attempts))
+           order by id limit 20 for update skip locked loop
     req := b2b.admin_message_request(m);
     if req ? 'error' then
       update b2b.admin_messages set status = 'failed', error = req ->> 'error' where id = m.id;
@@ -329,7 +354,7 @@ begin
     begin
       v := (b2b.metric_run(jsonb_build_object('metric', a.metric, 'filters', a.filters, 'from', now() - make_interval(hours => a.window_hours), 'to', now(), 'compare', 'none')) -> 'total' ->> 'value')::numeric;
       vol := case when a.volume_metric is not null then (b2b.metric_run(jsonb_build_object('metric', a.volume_metric, 'filters', a.filters, 'from', now() - make_interval(hours => a.window_hours), 'to', now(), 'compare', 'none')) -> 'total' ->> 'value')::numeric end;
-      v_fire := v is not null and coalesce(vol, a.min_volume) >= a.min_volume
+      v_fire := v is not null and (a.min_volume = 0 or coalesce(vol, 0) >= a.min_volume)
                 and case a.op when '>' then v > a.threshold when '>=' then v >= a.threshold when '<' then v < a.threshold else v <= a.threshold end
                 and (a.last_fired_at is null or a.last_fired_at < now() - make_interval(hours => a.cooldown_hours));
       update b2b.metric_alerts set last_value = v, last_checked_at = now(), last_fired_at = case when v_fire then now() else last_fired_at end where id = a.id;
@@ -395,7 +420,7 @@ begin
         v_csv := (select string_agg(x, E'\n') from (
                     select (select string_agg(dd, ',') from jsonb_array_elements_text(s -> 'dims') dd) || ',value' x
                     union all
-                    select (select string_agg('"' || replace(coalesce(case when s -> 'dims' ->> (o - 1)::int = 'partner' then coalesce(s -> 'labels' -> 'partner' ->> v, v) else v end, ''), '"', '""') || '"', ',' order by o)
+                    select (select string_agg(b2b.csv_cell(case when s -> 'dims' ->> (o - 1)::int = 'partner' then coalesce(s -> 'labels' -> 'partner' ->> v, v) else v end), ',' order by o)
                               from jsonb_array_elements_text(rw -> 'd') with ordinality q(v, o)) || ',' || coalesce(rw ->> 'value', '')
                       from jsonb_array_elements(s -> 'rows') rw) z);
         v_att := v_att || jsonb_build_object('filename', regexp_replace(lower(coalesce(nullif(w ->> 'title', ''), md ->> 'key')), '[^a-z0-9]+', '-', 'g') || '-' || (md ->> 'key') || '.csv',
@@ -423,11 +448,15 @@ begin
         e := b2b.report_email(s.report_id);
       end if;
       perform b2b.admin_queue('report', s.name || ': ' || (e ->> 'name'), e ->> 'text', e ->> 'html', e -> 'attachments', jsonb_build_object('schedule_id', s.id), '{email}', s.recipients);
-      update b2b.report_schedules set last_sent_at = now(), next_due_at = b2b.schedule_next(s, now()) where id = s.id;
+      update b2b.report_schedules set last_sent_at = now(), next_due_at = b2b.schedule_next(s, now()), failures = 0 where id = s.id;
       v_n := v_n + 1;
-    exception when others then
-      update b2b.report_schedules set next_due_at = now() + interval '1 hour' where id = s.id;
-      perform b2b.log_event('alert.schedule_failed', null, null, null, jsonb_build_object('schedule_id', s.id, 'error', left(sqlerrm, 300)));
+    exception
+      when sqlstate 'P0002' then   -- the dashboard or report was archived: switch the schedule off instead of retrying every hour
+        update b2b.report_schedules set active = false, failures = failures + 1 where id = s.id;
+        perform b2b.log_event('alert.schedule_failed', null, null, null, jsonb_build_object('schedule_id', s.id, 'name', s.name, 'error', left(sqlerrm, 300), 'deactivated', true));
+      when others then
+        update b2b.report_schedules set failures = failures + 1, active = failures + 1 < 5, next_due_at = now() + interval '1 hour' where id = s.id;
+        perform b2b.log_event('alert.schedule_failed', null, null, null, jsonb_build_object('schedule_id', s.id, 'name', s.name, 'error', left(sqlerrm, 300), 'deactivated', s.failures + 1 >= 5));
     end;
   end loop;
   return v_n;
@@ -508,8 +537,25 @@ begin
   if p ->> 'op' not in ('>', '>=', '<', '<=') then raise exception 'choose above or below' using errcode = '22023'; end if;
   if jsonb_typeof(p -> 'threshold') <> 'number' then raise exception 'the threshold is a number' using errcode = '22023'; end if;
   select coalesce(array_agg(x), '{email}') into v_ch from jsonb_array_elements_text(coalesce(p -> 'channels', '["email"]')) x;
+  if coalesce((p ->> 'window_hours')::int, 24) not between 1 and 2160 then raise exception 'the window is 1 to 2160 hours' using errcode = '22023'; end if;
+  if coalesce((p ->> 'cooldown_hours')::int, 24) not between 1 and 720 then raise exception 'the wait is 1 to 720 hours' using errcode = '22023'; end if;
+  if not (v_ch <@ array['email', 'whatsapp']::text[]) then raise exception 'send by email or whatsapp' using errcode = '22023'; end if;
+  if nullif(p ->> 'volume_metric', '') is not null and not exists (select 1 from b2b.metric_definitions where key = p ->> 'volume_metric') then
+    raise exception 'unknown volume metric' using errcode = '22023';
+  end if;
   -- the filters must be valid for the metric (raises 22023 otherwise)
   perform b2b.metric_run(jsonb_build_object('metric', p ->> 'metric', 'filters', coalesce(p -> 'filters', '{}'), 'from', now() - interval '1 hour', 'to', now(), 'compare', 'none'));
+  if coalesce((p ->> 'min_volume')::int, 0) not between 0 and 1000000 then raise exception 'the minimum is a whole number, 0 or more' using errcode = '22023'; end if;
+  if coalesce((p ->> 'min_volume')::int, 0) > 0 and nullif(p ->> 'volume_metric', '') is null then
+    raise exception 'choose the count the minimum applies to' using errcode = '22023';
+  end if;
+  if nullif(p ->> 'volume_metric', '') is not null then
+    if not exists (select 1 from b2b.metric_definitions where key = p ->> 'volume_metric' and unit = 'count') then
+      raise exception 'the minimum is counted with a count metric' using errcode = '22023';
+    end if;
+    -- the alert's filters must also suit the count (raises 22023 otherwise)
+    perform b2b.metric_run(jsonb_build_object('metric', p ->> 'volume_metric', 'filters', coalesce(p -> 'filters', '{}'), 'from', now() - interval '1 hour', 'to', now(), 'compare', 'none'));
+  end if;
   if v_id is null then
     insert into b2b.metric_alerts (name, metric, filters, window_hours, op, threshold, min_volume, volume_metric, channels, cooldown_hours, created_by)
     values (left(trim(p ->> 'name'), 80), p ->> 'metric', coalesce(p -> 'filters', '{}'), coalesce((p ->> 'window_hours')::int, 24), p ->> 'op', (p ->> 'threshold')::numeric,
@@ -533,6 +579,9 @@ begin
   if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
   if coalesce(trim(p ->> 'name'), '') = '' then raise exception 'give the schedule a name' using errcode = '22023'; end if;
   if p ->> 'frequency' not in ('daily', 'weekly', 'monthly') then raise exception 'daily, weekly or monthly' using errcode = '22023'; end if;
+  if coalesce((p ->> 'hour_ist')::int, 9) not between 0 and 23 then raise exception 'the hour is 0 to 23' using errcode = '22023'; end if;
+  if (p ->> 'weekday')::int not between 1 and 7 then raise exception 'choose a day of the week' using errcode = '22023'; end if;
+  if (p ->> 'monthday')::int not between 1 and 28 then raise exception 'the day of the month is 1 to 28' using errcode = '22023'; end if;
   select array_agg(lower(trim(x))) into v_to from jsonb_array_elements_text(coalesce(p -> 'recipients', '[]')) x;
   if coalesce(cardinality(v_to), 0) = 0 or cardinality(v_to) > 20 or exists (select 1 from unnest(v_to) x where x !~ '^[^@\s]+@[^@\s]+\.[a-z]{2,}$') then
     raise exception '1 to 20 e-mail addresses' using errcode = '22023';
@@ -540,6 +589,10 @@ begin
   if (p ->> 'dashboard_id') is null and (p ->> 'report_id') is null then raise exception 'choose a dashboard or a report' using errcode = '22023'; end if;
   if (p ->> 'dashboard_id') is not null and not exists (select 1 from b2b.dashboards where id = (p ->> 'dashboard_id')::bigint and archived_at is null) then
     raise exception 'dashboard not found' using errcode = 'P0002';
+  end if;
+  -- b2b.reports comes with M29 (PL/pgSQL resolves it when this runs)
+  if (p ->> 'report_id') is not null and not exists (select 1 from b2b.reports where id = (p ->> 'report_id')::bigint and archived_at is null) then
+    raise exception 'report not found' using errcode = 'P0002';
   end if;
   if v_id is null then
     insert into b2b.report_schedules (name, dashboard_id, report_id, frequency, hour_ist, weekday, monthday, recipients, created_by)
@@ -549,7 +602,7 @@ begin
   else
     update b2b.report_schedules set name = left(trim(p ->> 'name'), 80), dashboard_id = (p ->> 'dashboard_id')::bigint, report_id = (p ->> 'report_id')::bigint,
            frequency = p ->> 'frequency', hour_ist = coalesce((p ->> 'hour_ist')::int, 9), weekday = (p ->> 'weekday')::int, monthday = (p ->> 'monthday')::int,
-           recipients = v_to, active = coalesce((p ->> 'active')::boolean, active)
+           recipients = v_to, active = coalesce((p ->> 'active')::boolean, active), failures = 0
      where id = v_id;
     if not found then raise exception 'schedule not found' using errcode = 'P0002'; end if;
   end if;
@@ -557,6 +610,47 @@ begin
   update b2b.report_schedules set next_due_at = b2b.schedule_next(s, now()) where id = v_id;
   return jsonb_build_object('id', v_id, 'next_due_at', (select next_due_at from b2b.report_schedules where id = v_id));
 end $fn$;
+
+/* Switch a metric alert on or off. Switching on re-checks the metric and the filters, and checks again at the next tick. */
+create or replace function b2b.metric_alert_set_active(p_id bigint, p_active boolean)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $fn$
+declare a b2b.metric_alerts;
+begin
+  if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
+  select * into a from b2b.metric_alerts where id = p_id for update;
+  if a.id is null then raise exception 'alert not found' using errcode = 'P0002'; end if;
+  if p_active then   -- re-check the metric and filters (22023 is shown to the Admin)
+    perform b2b.metric_run(jsonb_build_object('metric', a.metric, 'filters', a.filters, 'from', now() - interval '1 hour', 'to', now(), 'compare', 'none'));
+    if a.volume_metric is not null then
+      perform b2b.metric_run(jsonb_build_object('metric', a.volume_metric, 'filters', a.filters, 'from', now() - interval '1 hour', 'to', now(), 'compare', 'none'));
+    end if;
+  end if;
+  update b2b.metric_alerts set active = p_active, last_checked_at = case when p_active then null else last_checked_at end where id = p_id;
+  perform b2b.log_event('analytics.metric_alert_switched', null, null, null, jsonb_build_object('id', p_id, 'active', p_active));
+  return jsonb_build_object('id', p_id, 'active', p_active);
+end $fn$;
+
+/* Switch a schedule on or off. It cannot be switched on while its dashboard or report is archived. */
+create or replace function b2b.schedule_set_active(p_id bigint, p_active boolean)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $fn$
+declare s b2b.report_schedules;
+begin
+  if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
+  select * into s from b2b.report_schedules where id = p_id for update;
+  if s.id is null then raise exception 'schedule not found' using errcode = 'P0002'; end if;
+  if p_active and s.dashboard_id is not null and not exists (select 1 from b2b.dashboards where id = s.dashboard_id and archived_at is null) then
+    raise exception 'the dashboard is archived: schedule another one' using errcode = '22023';
+  end if;
+  if p_active and s.report_id is not null and not exists (select 1 from b2b.reports where id = s.report_id and archived_at is null) then
+    raise exception 'the report is archived: schedule another one' using errcode = '22023';
+  end if;
+  update b2b.report_schedules set active = p_active, failures = 0, next_due_at = case when p_active then b2b.schedule_next(s, now()) end where id = p_id;
+  perform b2b.log_event('analytics.schedule_switched', null, null, null, jsonb_build_object('id', p_id, 'active', p_active));
+  return jsonb_build_object('id', p_id, 'active', p_active);
+end $fn$;
+
+revoke execute on function b2b.metric_alert_set_active(bigint, boolean), b2b.schedule_set_active(bigint, boolean) from public, anon;
+grant execute on function b2b.metric_alert_set_active(bigint, boolean), b2b.schedule_set_active(bigint, boolean) to authenticated, service_role;
 
 /* A test message to the configured recipients (queued; sent by the tick when alerts are on). */
 create or replace function b2b.admin_alerts_test()
@@ -581,3 +675,9 @@ revoke execute on function b2b.dashboard_data(bigint, text, jsonb), b2b.admin_al
                            b2b.schedule_save(jsonb), b2b.admin_alerts_test() from public, anon;
 grant execute on function b2b.dashboard_data(bigint, text, jsonb), b2b.admin_alerts_overview(), b2b.admin_alerts_settings_save(jsonb, text), b2b.metric_alert_save(jsonb),
                           b2b.schedule_save(jsonb), b2b.admin_alerts_test() to authenticated, service_role;
+
+-- ---------- data (idempotent) ----------
+-- a minimum without a count to measure it never applied: clear it, so the alert behaves as it always has
+update b2b.metric_alerts set min_volume = 0 where volume_metric is null and min_volume <> 0;
+-- schedules of archived dashboards stop (those of archived reports: M29)
+update b2b.report_schedules s set active = false from b2b.dashboards d where d.id = s.dashboard_id and d.archived_at is not null and s.active;

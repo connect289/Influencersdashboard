@@ -16,17 +16,52 @@
 insert into b2b.settings (key, value) values ('ai', jsonb_build_object(
   'enabled', false, 'mode', 'advisory',
   'models', jsonb_build_object('regular', 'claude-sonnet-5-5', 'deep', 'claude-opus-5-5', 'quick', 'claude-haiku-4-5-20251001'),
-  'daily_budget_usd', 5, 'max_turns', 8, 'max_tokens', 4000,
+  'daily_budget_usd', 5, 'max_turns', 8, 'max_tokens', 12000,
   'schedules', jsonb_build_object('light', true, 'hourly', true, 'nightly', true, 'weekly', true),
   'prices_per_mtok', jsonb_build_object(
-    'claude-sonnet-5-5', jsonb_build_object('in', 3, 'out', 15, 'cache_read', 0.3, 'cache_write', 3.75),
-    'claude-opus-5-5', jsonb_build_object('in', 5, 'out', 25, 'cache_read', 0.5, 'cache_write', 6.25),
+    'claude-sonnet-5-5', jsonb_build_object('in', 2, 'out', 10, 'cache_read', 0.2, 'cache_write', 2.5),
+    'claude-sonnet-5', jsonb_build_object('in', 2, 'out', 10, 'cache_read', 0.2, 'cache_write', 2.5),
+    'claude-opus-5-5', jsonb_build_object('in', 4, 'out', 20, 'cache_read', 0.2, 'cache_write', 5),
     'claude-haiku-4-5-20251001', jsonb_build_object('in', 1, 'out', 5, 'cache_read', 0.1, 'cache_write', 1.25)),
   'recommendation_days', 7, 'worker_url', null))
 on conflict (key) do nothing;
 insert into b2b.settings_versions (key, version, value, reason, actor_type)
 select 'ai', 1, s.value, 'initial defaults (M26)', 'system' from b2b.settings s
  where s.key = 'ai' and not exists (select 1 from b2b.settings_versions v where v.key = 'ai');
+
+/* Defaults for an existing 'ai' row (the seed above does not touch one), one settings version at most, none on a re-run:
+   - prices (review F48): the old seed values only, so an Admin's edit is kept; Sonnet 5 added when missing;
+   - max_tokens at least 12000, room for adaptive thinking on Opus/Sonnet 5.5 (review F51);
+   - a pseudonym salt (review F143), added once and never changed, so lead hashes sent to Claude cannot be recomputed
+     from lead ids and stay stable across runs. */
+do $ai_defaults$
+declare
+  v jsonb; v0 jsonb; p jsonb;
+  v_why text[] := '{}';
+begin
+  perform set_config('b2b.actor', 'system', true);
+  v := (select value from b2b.settings where key = 'ai');
+  if v is null then return; end if;
+  v0 := v; p := coalesce(v -> 'prices_per_mtok', '{}');
+  if p #>> '{claude-sonnet-5-5,in}' = '3' and p #>> '{claude-sonnet-5-5,out}' = '15' then p := p || '{"claude-sonnet-5-5":{"in":2,"out":10,"cache_read":0.2,"cache_write":2.5}}'; end if;
+  if p #>> '{claude-opus-5-5,in}' = '5' and p #>> '{claude-opus-5-5,out}' = '25' then p := p || '{"claude-opus-5-5":{"in":4,"out":20,"cache_read":0.2,"cache_write":5}}'; end if;
+  if p -> 'claude-sonnet-5' is null then p := p || '{"claude-sonnet-5":{"in":2,"out":10,"cache_read":0.2,"cache_write":2.5}}'; end if;
+  if p is distinct from coalesce(v -> 'prices_per_mtok', '{}') then
+    v := v || jsonb_build_object('prices_per_mtok', p);
+    v_why := v_why || 'Anthropic list prices: Sonnet 5.5 and Sonnet 5 $2/$10, Opus 5.5 $4/$20, cache reads $0.20, 5-minute cache writes 1.25x input'::text;
+  end if;
+  if coalesce((v ->> 'max_tokens')::numeric, 0) < 12000 then
+    v := v || '{"max_tokens":12000}';
+    v_why := v_why || 'max_tokens 12000: room for adaptive thinking on Opus/Sonnet 5.5 (review F51)'::text;
+  end if;
+  if not (v ? 'salt') then
+    v := v || jsonb_build_object('salt', replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''));
+    v_why := v_why || 'AI pseudonym salt (review F143): lead hashes sent to Claude can no longer be recomputed from lead ids'::text;
+  end if;
+  if v is distinct from v0 then
+    perform b2b.set_setting('ai', v, array_to_string(v_why, '; '));
+  end if;
+end $ai_defaults$;
 
 alter table b2b.api_keys drop constraint if exists api_keys_scopes_check;
 alter table b2b.api_keys add constraint api_keys_scopes_check

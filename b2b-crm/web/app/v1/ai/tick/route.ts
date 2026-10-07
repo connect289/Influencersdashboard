@@ -43,10 +43,12 @@ async function tick(): Promise<Response> {
   const messages = anthropicMessages(apiKey);
   const done: unknown[] = [];
   const started = Date.now();
-  // up to 3 runs per wake-up, while there is time left
-  for (let i = 0; i < 3 && Date.now() - started < 150_000; i++) {
+  const deadline = started + 260_000; // maxDuration is 300 s: 40 s spare for validation, api_ai_finish (it simulates each recommendation) or api_ai_fail
+  // up to 3 runs per wake-up; another run starts only after quick ones: a long run's successor stays queued and
+  // ai_schedule_tick wakes the worker again within 5 minutes
+  for (let i = 0; i < 3 && Date.now() - started < 30_000; i++) {
     try {
-      const r = await runOnce(d, messages, { has_anthropic_key: true });
+      const r = await runOnce(d, messages, { has_anthropic_key: true }, deadline);
       if (r.run === null) break;
       done.push({ run: r.run, status: r.status });
     } catch (e) {

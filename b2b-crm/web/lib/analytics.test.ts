@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  delta, dimLabel, drillHref, formatValue, formulaText, parseFormula, pivot, rowFilters, sankeyLayout, viewParams, widgetProblem,
-  DashboardSchema, STATE_TILES, type MetricResult,
+  applicableFilters, dashboardFilterDims, delta, dimLabel, drillHref, formatValue, formulaText, gaugeTargetInput, gaugeTargetValue, parseFormula, pivot,
+  rowFilters, sankeyLayout, viewParams, widgetDims, widgetProblem, widgetProblemIn,
+  DashboardSchema, STATE_TILES, type CatalogueMetric, type MetricResult,
 } from "./analytics";
 import { ask, periodBounds } from "./ai/ask";
 import { decodeDef, encodeDef, ReportDefSchema } from "./reports";
@@ -38,7 +39,19 @@ describe("formatting", () => {
   });
   it("builds drill links and row filters", () => {
     expect(drillHref("leads", { state: ["Delhi"] }, "a", "b")).toBe("/dashboards/drill?metric=leads&filters=%7B%22state%22%3A%5B%22Delhi%22%5D%7D&from=a&to=b");
-    expect(rowFilters({ segment: ["x"] }, ["week", "partner"], ["2026-10-05", "4"])).toEqual({ segment: ["x"], partner: ["4"] });
+    expect(drillHref("leads", {}, undefined, undefined, "year")).toBe("/dashboards/drill?metric=leads&period=year");
+    expect(drillHref("leads", {}, "a", "b", "7d")).toBe("/dashboards/drill?metric=leads&from=a&to=b&period=7d");
+    expect(rowFilters({ segment: ["x"] }, ["week", "partner"], ["2026-10-05", "4"])).toEqual({ segment: ["x"], week: ["2026-10-05"], partner: ["4"] });
+    // a heatmap cell keeps its time bucket
+    expect(rowFilters({}, ["sla", "week"], ["first_attempt", "2026-09-28"])).toEqual({ sla: ["first_attempt"], week: ["2026-09-28"] });
+    // a null bucket filters on '(none)'
+    expect(rowFilters({}, ["campaign"], [null])).toEqual({ campaign: [""] });
+    expect(rowFilters({ campaign: ["x"] }, ["campaign"], null)).toEqual({ campaign: ["x"] });
+  });
+  it("keeps only the dashboard filters a metric can use", () => {
+    expect(applicableFilters({ source: ["facebook"], platform: ["meta"] }, ["platform", "stage", "day"])).toEqual({ platform: ["meta"] });
+    expect(applicableFilters({ platform: "meta", stage: [1, "x"], day: ["2026-10-01"] }, ["platform", "stage", "day"])).toEqual({ day: ["2026-10-01"] });
+    expect(applicableFilters({ platform: ["meta"] }, [])).toEqual({});
   });
 });
 
@@ -95,6 +108,43 @@ describe("widgets and dashboards", () => {
     expect(widgetProblem({ id: "a", type: "alerts", w: 3, h: 1 })).toBeNull();
     expect(widgetProblem({ id: "a", type: "sankey", metric: "allocations", steps: ["source", "partner"], w: 6, h: 2 })).toBeNull();
   });
+  const cm = (key: string, fact: string | null, dims: string[], formula: unknown = null): CatalogueMetric => ({
+    key, label: key, unit: "count", area: "x", higher_is_better: true, description: null, calculated: fact === null, fact, dims, formula,
+  });
+  it("checks breakdowns against every chosen metric", () => {
+    const cat = [cm("leads", "fact_leads", ["source", "destination", "partner", "day"]), cm("allocations", "fact_allocations", ["partner", "status", "day"])];
+    expect(widgetDims({ id: "a", type: "table", metrics: ["leads", "allocations"], w: 12, h: 2 }, cat)).toEqual(["partner", "day"]);
+    expect(widgetDims({ id: "a", type: "kpi", w: 3, h: 1 }, cat)).toEqual([]);
+    expect(widgetProblemIn({ id: "a", type: "table", metrics: ["leads", "allocations"], dims: ["destination"], w: 12, h: 2 }, cat))
+      .toBe("Destination is not a breakdown of every chosen metric");
+    expect(widgetProblemIn({ id: "a", type: "table", metrics: ["leads", "allocations"], dims: ["partner"], w: 12, h: 2 }, cat)).toBeNull();
+    expect(widgetProblemIn({ id: "a", type: "sankey", metric: "allocations", steps: ["partner", "source"], w: 6, h: 2 }, cat))
+      .toBe("Source is not a breakdown of every chosen metric");
+    expect(widgetProblemIn({ id: "a", type: "table", w: 12, h: 2 }, cat)).toBe("Choose at least one metric");
+    expect(widgetProblemIn({ id: "a", type: "alerts", dims: ["x"], w: 6, h: 2 }, cat)).toBeNull();
+  });
+  it("offers only unambiguous dashboard filters", () => {
+    const cat = [
+      cm("allocations", "fact_allocations", ["partner", "status", "day"]),
+      cm("sla_compliance", "fact_sla", ["partner", "status"]),
+      cm("alloc_calc", null, ["partner", "status"], [{ m: "allocations" }]),
+    ];
+    const w = (...ks: string[]) => ks.map((k, i) => ({ id: `w${i}`, type: "kpi" as const, metric: k, w: 3, h: 1 }));
+    expect(dashboardFilterDims(w("allocations", "sla_compliance"), cat)).toEqual(["partner"]);
+    expect(dashboardFilterDims(w("allocations"), cat)).toEqual(["partner", "status"]);
+    expect(dashboardFilterDims(w("allocations", "alloc_calc"), cat)).toEqual(["partner", "status"]);
+  });
+  it("shows pct gauge targets in percent and stores them as fractions", () => {
+    expect(gaugeTargetValue("90", "pct")).toBe(0.9);
+    expect(gaugeTargetValue("90", "count")).toBe(90);
+    expect(gaugeTargetValue("", "pct")).toBeUndefined();
+    expect(gaugeTargetValue("abc", "pct")).toBeUndefined();
+    expect(gaugeTargetInput(0.07, "pct")).toBe("7");
+    expect(gaugeTargetInput(0.57, "pct")).toBe("57");
+    expect(gaugeTargetInput(0.29, "pct")).toBe("29");
+    expect(gaugeTargetInput(undefined, "pct")).toBe("");
+    expect(gaugeTargetInput(1200, "inr")).toBe("1200");
+  });
   it("validates a dashboard", () => {
     expect(DashboardSchema.safeParse({ id: null, name: "Mine", period: "30d", filters: {}, widgets: [{ id: "a", type: "kpi", metric: "leads", w: 13, h: 1 }] }).success).toBe(false);
     expect(DashboardSchema.safeParse({ id: null, name: "Mine", period: "30d", filters: {}, widgets: [{ id: "a", type: "kpi", metric: "leads", w: 3, h: 1 }] }).success).toBe(true);
@@ -103,6 +153,9 @@ describe("widgets and dashboards", () => {
     expect(viewParams({ period: "7d", filters: '{"state":["Delhi"]}' }, "30d")).toEqual({ period: "7d", filters: { state: ["Delhi"] } });
     expect(viewParams({ period: "nope", filters: "{bad" }, "30d")).toEqual({ period: "30d", filters: null });
     expect(viewParams({ filters: '{"x; drop":["a"]}' }, "30d").filters).toBeNull();
+    expect(viewParams({ filters: "null" }, "30d").filters).toBeNull();
+    expect(viewParams({ filters: '{"source":"x"}' }, "30d").filters).toBeNull();
+    expect(viewParams({ filters: '["a"]' }, "30d").filters).toBeNull();
   });
 });
 

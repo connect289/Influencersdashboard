@@ -6,9 +6,14 @@
 --   fact_allocations   one row per partner allocation: partner, segment, mode, attempt, outcome flags, effort (time to
 --                      first attempt, attempts in 24 h / 72 h, connect), stage reached, enrolment, realised commission, holdout
 --   fact_enrollments   one row per enrolment (B2B and shared): partner, programme, status, amounts, days to enrol
---   fact_sla           one row per SLA check; fact_money one row per earning line; fact_invoices one row per invoice
---   fact_notifications, fact_capi, fact_sync (partner events), fact_ai (runs and recommendations)
+--   fact_sla           one row per SLA check (breached: breached, or met late after the due time); fact_money one row per
+--                      earning line; fact_invoices one row per issued invoice (drafts and cancelled ones excluded; outstanding
+--                      and ageing only for approved, sent and partly paid)
+--   fact_notifications, fact_capi, fact_sync (partner events; test flag from the allocation, discarded events are neither
+--                      unmapped nor dead letters), fact_ai (runs and recommendations)
 -- refresh_facts() refreshes them all concurrently (readers are never blocked); pg_cron runs it every minute.
+-- The views are created only if missing: a database that ran an earlier version of this file (staging) gets the current
+-- fact_sla, fact_invoices and fact_sync from supabase/pending/m30b_fact_views.sql.
 
 create materialized view if not exists b2b.fact_leads as
 select l.id lead_id,
@@ -113,7 +118,7 @@ create unique index if not exists fact_enrollments_pk on b2b.fact_enrollments (e
 
 create materialized view if not exists b2b.fact_sla as
 select c.id sla_id, c.allocation_id, c.partner_id, c.sla, c.started_at, c.due_at, c.status, c.is_test,
-       c.status = 'met' met, c.status = 'breached' breached, c.status in ('met', 'met_late', 'breached') decided,
+       c.status = 'met' met, c.status in ('breached', 'met_late') breached, c.status in ('met', 'met_late', 'breached') decided,
        round(extract(epoch from coalesce(c.met_at, now()) - c.started_at)::numeric / 3600, 2) hours,
        extract(hour from c.due_at at time zone 'Asia/Kolkata')::int due_hour
   from b2b.sla_checks c where c.status <> 'void';
@@ -127,13 +132,14 @@ create unique index if not exists fact_money_pk on b2b.fact_money (line_id);
 
 create materialized view if not exists b2b.fact_invoices as
 select i.id invoice_id, i.partner_id, i.number, i.status, i.issue_date, i.due_date, i.total_inr, coalesce(i.received_inr, 0) received_inr,
-       coalesce(i.tds_inr, 0) tds_inr, greatest(i.total_inr - coalesce(i.received_inr, 0) - coalesce(i.tds_inr, 0), 0) outstanding_inr,
-       case when i.status in ('sent', 'partly_paid') and i.due_date is not null then greatest(current_date - i.due_date, 0) end days_overdue,
-       case when i.status not in ('sent', 'partly_paid') or i.due_date is null then null
+       coalesce(i.tds_inr, 0) tds_inr,
+       case when i.status in ('approved', 'sent', 'partly_paid') then greatest(i.total_inr - coalesce(i.received_inr, 0) - coalesce(i.tds_inr, 0), 0) else 0 end outstanding_inr,
+       case when i.status in ('approved', 'sent', 'partly_paid') and i.due_date is not null then greatest(current_date - i.due_date, 0) end days_overdue,
+       case when i.status not in ('approved', 'sent', 'partly_paid') or i.due_date is null then null
             when current_date - i.due_date <= 0 then 'not due' when current_date - i.due_date <= 30 then '1-30'
             when current_date - i.due_date <= 60 then '31-60' when current_date - i.due_date <= 90 then '61-90' else '90+' end ageing,
        coalesce(i.issue_date::timestamptz, i.created_at) created_at, false is_test
-  from b2b.invoices i where i.status <> 'cancelled';
+  from b2b.invoices i where i.status not in ('draft', 'cancelled');
 create unique index if not exists fact_invoices_pk on b2b.fact_invoices (invoice_id);
 
 create materialized view if not exists b2b.fact_notifications as
@@ -148,10 +154,16 @@ select e.id event_id, e.platform, e.stage, e.status, e.occurred_at created_at, e
 create unique index if not exists fact_capi_pk on b2b.fact_capi (event_id);
 
 create materialized view if not exists b2b.fact_sync as
-select e.id event_id, e.partner_id, e.received_at created_at, e.status, e.status = 'error' error, e.status = 'held_unmapped' unmapped,
-       round(greatest(extract(epoch from e.received_at - b2b.try_timestamptz(e.raw ->> 'occurred_at')), 0)::numeric / 60, 1) lag_minutes, false is_test
-  from b2b.partner_events e;
+select e.id event_id, e.partner_id, e.received_at created_at, e.status,
+       e.status = 'error' error,
+       e.status = 'held_unmapped' and e.discarded_at is null unmapped,
+       e.status in ('error', 'held_unmapped') and e.discarded_at is null dead_letter,
+       round(greatest(extract(epoch from e.received_at - b2b.try_timestamptz(e.raw ->> 'occurred_at')), 0)::numeric / 60, 1) lag_minutes,
+       coalesce(a.is_test, false) is_test
+  from b2b.partner_events e
+  left join b2b.allocations a on a.id = e.allocation_id;
 create unique index if not exists fact_sync_pk on b2b.fact_sync (event_id);
+create index if not exists fact_sync_created_idx on b2b.fact_sync (created_at);
 
 create materialized view if not exists b2b.fact_ai as
 select 'run:' || r.id ai_id, 'run' kind, r.created_at, r.kind run_kind, r.status, r.cost_usd, null::text rec_status, false is_test

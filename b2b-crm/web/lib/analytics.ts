@@ -8,6 +8,10 @@ export type MetricRow = { d: (string | null)[] | null; value: number | null; pre
 export type MetricResult = {
   metric: MetricMeta; dims: string[]; from: string; to: string; rows: MetricRow[]; total: { value: number | null; prev: number | null };
   labels: { partner: Record<string, string> };
+  /** The period the numbers were run for (filled on the client side only, so drill links keep it). */
+  period?: string;
+  /** The row cap metric_run applied, and whether rows were cut at it. */
+  limit?: number; truncated?: boolean;
 };
 export type CatalogueMetric = MetricMeta & { fact: string | null; dims: string[]; formula: unknown };
 export type Catalogue = { metrics: CatalogueMetric[]; facts_at: string | null };
@@ -59,6 +63,18 @@ export function formatValue(v: number | null | undefined, unit: Unit, compact = 
   }
 }
 
+/** Gauge targets are stored in the metric's own scale (a pct target as a fraction); the editor shows pct targets in percent. */
+export function gaugeTargetInput(target: number | undefined, unit: Unit | undefined): string {
+  if (target === undefined) return "";
+  return String(unit === "pct" ? Math.round(target * 1e6) / 1e4 : target);
+}
+export function gaugeTargetValue(input: string, unit: Unit | undefined): number | undefined {
+  if (input.trim() === "") return undefined;
+  const n = Number(input);
+  if (!Number.isFinite(n)) return undefined;
+  return unit === "pct" ? n / 100 : n;
+}
+
 /** Change against the previous period: the arrow's direction and whether it is good. */
 export function delta(value: number | null, prev: number | null, higherIsBetter: boolean, unit: Unit): { text: string; tone: "good" | "bad" | "flat" } | null {
   if (value === null || prev === null || !Number.isFinite(value) || !Number.isFinite(prev)) return null;
@@ -85,19 +101,26 @@ export function dimLabel(dim: string, v: string | null | undefined, labels?: Met
 }
 
 /** The link that lists the rows behind a number. */
-export function drillHref(metric: string, filters: Record<string, string[]>, from?: string, to?: string): string {
+export function drillHref(metric: string, filters: Record<string, string[]>, from?: string, to?: string, period?: string): string {
   const p = new URLSearchParams({ metric });
   if (Object.keys(filters).length) p.set("filters", JSON.stringify(filters));
   if (from) p.set("from", from);
   if (to) p.set("to", to);
+  if (period) p.set("period", period);
   return `/dashboards/drill?${p.toString()}`;
 }
 
-/** Filters for one row of a breakdown: the row's dimension values added to the widget's filters (time dims are dropped). */
+/** Filters for one row or cell of a breakdown: its dimension values (time buckets included) added to the widget's filters.
+ *  A null value filters on '(none)' (sent as "", which the SQL matches to NULL). */
 export function rowFilters(base: Record<string, string[]>, dims: string[], d: (string | null)[] | null): Record<string, string[]> {
   const out = { ...base };
-  dims.forEach((dim, i) => { const v = d?.[i]; if (!TIME_DIMS.has(dim) && v !== null && v !== undefined) out[dim] = [v]; });
+  dims.forEach((dim, i) => { const v = d?.[i]; if (v !== undefined) out[dim] = [v ?? ""]; });
   return out;
+}
+
+/** Dashboard filters that apply to a metric: only its own dimensions (same rule as widget_data). */
+export function applicableFilters(filters: Record<string, unknown>, dims: string[]): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(filters).filter(([k, v]) => dims.includes(k) && Array.isArray(v) && v.every((x) => typeof x === "string"))) as Record<string, string[]>;
 }
 
 // ---------- the formula parser (calculated metrics) ----------
@@ -259,6 +282,33 @@ export function widgetProblem(w: Widget): string | null {
   if (["bar", "line", "leaderboard", "map"].includes(w.type) && (w.dims?.length ?? 0) < 1) return "Choose a breakdown";
   if (w.type === "map" && w.dims?.[0] !== "state") return "A map is broken down by state";
   return null;
+}
+
+/** The breakdowns every metric of a widget shares (the same rule dashboard_check_widgets applies on save). */
+export function widgetDims(w: Widget, metrics: CatalogueMetric[]): string[] {
+  const keys = [w.metric, ...(w.metrics ?? [])].filter((k): k is string => !!k);
+  const ms = metrics.filter((x) => keys.includes(x.key));
+  return ms.length ? ms.map((x) => x.dims).reduce((a, b) => a.filter((d) => b.includes(d))) : [];
+}
+
+/** widgetProblem, plus a breakdown or step that one of the chosen metrics cannot be broken down by. */
+export function widgetProblemIn(w: Widget, metrics: CatalogueMetric[]): string | null {
+  const p = widgetProblem(w);
+  if (p || ["text", "sla_timers", "alerts"].includes(w.type)) return p;
+  const ok = widgetDims(w, metrics);
+  const bad = [...(w.dims ?? []), ...(w.steps ?? [])].find((d) => !ok.includes(d));
+  return bad ? `${DIM_LABEL[bad] ?? bad} is not a breakdown of every chosen metric` : null;
+}
+
+/** Breakdown keys that mean different columns on different facts (a status of a lead is not the status of an SLA). */
+export const AMBIGUOUS_DIMS = ["status", "stage", "kind", "channel"];
+/** Dashboard-wide filter choices: the dims of the metrics in use, minus time grains, minus ambiguous keys that more than one fact uses. */
+export function dashboardFilterDims(widgets: Widget[], metrics: CatalogueMetric[]): string[] {
+  const used = new Set(widgets.flatMap((w) => [w.metric, ...(w.metrics ?? [])].filter(Boolean) as string[]));
+  const ms = metrics.filter((m) => used.has(m.key));
+  const factOf = (m: CatalogueMetric) => m.fact ?? (() => { const b = (Array.isArray(m.formula) ? (m.formula as { m?: string }[]) : []).find((t) => t?.m)?.m; return metrics.find((x) => x.key === b)?.fact ?? `calc:${m.key}`; })();
+  const factsWith = (d: string) => new Set(ms.filter((m) => m.dims.includes(d)).map(factOf)).size;
+  return [...new Set(ms.flatMap((m) => m.dims))].filter((d) => !TIME_DIMS.has(d) && !(AMBIGUOUS_DIMS.includes(d) && factsWith(d) > 1)).sort();
 }
 
 /** Parses the period and filter controls from the URL. */

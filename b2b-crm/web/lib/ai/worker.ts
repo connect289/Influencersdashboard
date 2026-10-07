@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { ALL_TOOLS, DATA_TOOL_NAMES, normaliseReport, PROMPT_VERSION, reportText, systemPrompt, userPrompt, type Report, type RunKind } from "./prompts";
+import { ALL_TOOLS, DATA_TOOL_NAMES, normaliseReport, PROMPT_FACTS, PROMPT_VERSION, reportText, systemPrompt, userPrompt, type Report, type RunKind } from "./prompts";
 import { validateNumbers } from "./validate";
 
 /**
@@ -23,7 +23,8 @@ export type Db = {
   fail(runId: number, error: string, usage: Usage): Promise<unknown>;
 };
 type Block = { type: string; id?: string; name?: string; input?: unknown; text?: string };
-export type Messages = (body: Record<string, unknown>) => Promise<{
+/** One Messages API call; timeoutMs bounds the whole call, retries included (the worker passes what its deadline leaves). */
+export type Messages = (body: Record<string, unknown>, timeoutMs?: number) => Promise<{
   content: Block[]; stop_reason: string;
   usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number };
 }>;
@@ -31,53 +32,114 @@ export type Messages = (body: Record<string, unknown>) => Promise<{
 const MAX_TOOL_RESULT_CHARS = 24_000;
 
 export function costUsd(u: Usage, p: Claimed["price_per_mtok"]): number {
-  const pr = p ?? { in: 3, out: 15, cache_read: 0.3, cache_write: 3.75 };
+  // api_ai_claim always returns a price (b2b.ai_price); this fallback is Opus 5.5's list price, so it never under-counts
+  const pr = p ?? { in: 4, out: 20, cache_read: 0.2, cache_write: 5 };
   return (u.in * pr.in + u.out * pr.out + u.cache_read * (pr.cache_read ?? 0) + u.cache_write * (pr.cache_write ?? 0)) / 1_000_000;
 }
 
-/** Anthropic's Messages API through fetch (no SDK): tools and the system prompt are cached between turns. */
-export function anthropicMessages(apiKey: string, fetchImpl: typeof fetch = fetch): Messages {
-  return async (body) => {
-    const res = await fetchImpl("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(120_000),
-    });
-    const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;
-    if (!res.ok || !json) {
+const RETRY_STATUS = new Set([429, 500, 502, 503, 504, 529]);
+
+/**
+ * Anthropic's Messages API through fetch (no SDK): tools and the system prompt are cached between turns.
+ * Rate limits and overloads (429, 5xx, 529) and network errors are retried a few times with back-off (retry-after when
+ * given), but one call never outlives its time budget: a retry that would end within 5 s of it is not started, and the
+ * call's own timeout is never retried. Used by the worker and by Ask the CRM.
+ */
+export function anthropicMessages(
+  apiKey: string,
+  fetchImpl: typeof fetch = fetch,
+  opts: { retries?: number; sleep?: (ms: number) => Promise<void> } = {},
+): Messages {
+  const retries = opts.retries ?? 2;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  return async (body, timeoutMs = 180_000) => {
+    const until = Date.now() + (Number.isFinite(timeoutMs) ? Math.max(5_000, Math.min(180_000, timeoutMs)) : 180_000);
+    const payload = JSON.stringify(body);
+    for (let attempt = 0; ; attempt++) {
+      let res: Response;
+      try {
+        res = await fetchImpl("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+          body: payload,
+          signal: AbortSignal.timeout(Math.max(1_000, until - Date.now())),
+        });
+      } catch (e) {
+        const name = (e as { name?: unknown } | null)?.name;
+        const wait = 1000 * 2 ** attempt;
+        if (attempt < retries && name !== "TimeoutError" && name !== "AbortError" && Date.now() + wait < until - 5_000) {
+          await sleep(wait);
+          continue;
+        }
+        throw e;
+      }
+      const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+      if (res.ok && json) return json as Awaited<ReturnType<Messages>>;
+      if (RETRY_STATUS.has(res.status) && attempt < retries) {
+        const ra = Number(res.headers.get("retry-after"));
+        const wait = Math.min(Number.isFinite(ra) && ra > 0 ? ra * 1000 : 1000 * 2 ** attempt, 20_000);
+        if (Date.now() + wait < until - 5_000) {
+          await sleep(wait);
+          continue;
+        }
+      }
       const err = (json?.error as { message?: string } | undefined)?.message ?? `HTTP ${res.status}`;
       throw new Error(`Anthropic API: ${err}`);
     }
-    return json as Awaited<ReturnType<Messages>>;
   };
 }
 
-export async function runOnce(db: Db, messages: Messages, info: Record<string, unknown> = {}): Promise<{ run: number | null; status: string; detail?: unknown }> {
+/** The note added to the newest user message when Claude must report now (no forced tool_choice: Sonnet/Opus 5.5 reject it). */
+const LAST_TURN_NOTE = "This is your last turn. Call submit_report now with what you have.";
+
+/**
+ * Claims and runs one queued run. deadline (epoch ms) is when this worker call must be done with Claude: a turn starts
+ * only with 45 s left, each request gets what is left minus 15 s, and with under 120 s left the turn is the last one.
+ */
+export async function runOnce(
+  db: Db, messages: Messages, info: Record<string, unknown> = {}, deadline = Number.POSITIVE_INFINITY,
+): Promise<{ run: number | null; status: string; detail?: unknown }> {
   const claimed = await db.claim(info);
   if (!claimed.run) return { run: null, status: claimed.why ?? "nothing queued" };
   const run = claimed.run;
-  const limits = claimed.limits ?? { max_turns: 8, max_tokens: 4000, budget_left_usd: 1 };
+  const limits = claimed.limits ?? { max_turns: 8, max_tokens: 12000, budget_left_usd: 1 };
   const usage: Usage = { in: 0, out: 0, cache_read: 0, cache_write: 0 };
   const outputs: unknown[] = [];
   const tools = ALL_TOOLS.map((t, i) => (i === ALL_TOOLS.length - 1 ? { ...t, cache_control: { type: "ephemeral" } } : t));
   const system = [{ type: "text", text: systemPrompt(run.kind), cache_control: { type: "ephemeral" } }];
   const msgs: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: userPrompt(run.kind, run.context ?? {}) }];
+  // Opus/Sonnet 4.6+ and 5.x take an effort level; Haiku 4.5 rejects it, so it gets none
+  const effort = /^claude-(opus|sonnet)-(4-[6-9]|5)/.test(run.model) ? { output_config: { effort: "medium" } } : {};
   let report: Report | null = null;
   let nudged = false;
 
   try {
     for (let turn = 0; turn < limits.max_turns && !report; turn++) {
       if (costUsd(usage, claimed.price_per_mtok) >= limits.budget_left_usd) throw new Error("stopped: the daily budget would be exceeded");
-      const last = turn === limits.max_turns - 1;
-      const res = await messages({
-        model: run.model, max_tokens: limits.max_tokens, system, tools, messages: msgs,
-        ...(last ? { tool_choice: { type: "tool", name: "submit_report" } } : {}),
-      });
+      const left = deadline - Date.now();
+      if (left < 45_000) throw new Error("stopped: this worker call ran out of time");
+      // the last turn, or too little time for another tool round: ask for the report now. The note is appended to the
+      // newest user message, which has not been sent yet; earlier messages, system and tools never change, so the cached
+      // prefix and Claude's thinking blocks stay valid (append-only history)
+      const last = turn === limits.max_turns - 1 || left < 120_000;
+      if (last) {
+        const note = { type: "text", text: LAST_TURN_NOTE };
+        const tail = msgs[msgs.length - 1]!;
+        if (tail.role !== "user") msgs.push({ role: "user", content: [note] });
+        else tail.content = typeof tail.content === "string" ? [{ type: "text", text: tail.content }, note] : [...(tail.content as unknown[]), note];
+      }
+      // tool_choice stays auto (never forced); the top-level cache_control caches the growing conversation as well
+      const res = await messages(
+        { model: run.model, max_tokens: limits.max_tokens, system, tools, messages: msgs, cache_control: { type: "ephemeral" }, ...effort },
+        Math.min(180_000, left - 15_000),
+      );
       usage.in += res.usage?.input_tokens ?? 0;
       usage.out += res.usage?.output_tokens ?? 0;
       usage.cache_read += res.usage?.cache_read_input_tokens ?? 0;
       usage.cache_write += res.usage?.cache_creation_input_tokens ?? 0;
+      // a cut-off or declined turn ends the run; its usage is already counted, so db.fail records the spend
+      if (res.stop_reason === "max_tokens") throw new Error(`Claude was cut off at max_tokens (${limits.max_tokens}) before finishing a turn`);
+      if (res.stop_reason === "refusal") throw new Error("Claude declined this run (refusal)");
       msgs.push({ role: "assistant", content: res.content });
 
       const calls = res.content.filter((b) => b.type === "tool_use");
@@ -109,8 +171,20 @@ export async function runOnce(db: Db, messages: Messages, info: Record<string, u
     }
     if (!report) throw new Error("no report within the turn limit");
 
-    const allowed = [report.recommendations.map((r) => r.change ?? null), { bounds: [0, 0.5, 30, 90, 14, 60, 5, 50, 0.9, 1.1, 1, 100] }];
-    const validation = validateNumbers(reportText(report), outputs, allowed);
+    // Claude's proposed values (and a rule's ids and priority) are proposals, not data claims;
+    // its free text (a pause reason, a rule name) and its evidence values are claims and are checked
+    const proposed = report.recommendations.flatMap((r) => {
+      const c = r.change;
+      if (!c) return [];
+      const rule = (c.rule ?? {}) as { conditions?: unknown; partner_ids?: unknown; priority?: unknown };
+      return [c.value, c.partner_id, rule.conditions, rule.partner_ids, rule.priority];
+    });
+    const evidence = [...report.findings, ...report.recommendations].flatMap((x) => x.evidence ?? [])
+      .map((e) => e?.value)
+      .filter((v): v is string | number => typeof v === "number" || typeof v === "string").map(String);
+    const changeText = report.recommendations.flatMap((r) => [
+      String(r.change?.reason ?? ""), String((r.change?.rule as { name?: unknown } | null | undefined)?.name ?? "")]);
+    const validation = validateNumbers([reportText(report), ...changeText, ...evidence].join("\n"), outputs, [proposed, { bounds: PROMPT_FACTS }]);
     const inputHash = createHash("sha256").update(JSON.stringify(outputs)).digest("hex");
     const narrative = reportText(report);
     const detail = await db.finish(run.id, { narrative, output: report, usage, prompt_version: PROMPT_VERSION, input_hash: inputHash, validation });

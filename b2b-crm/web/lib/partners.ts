@@ -61,7 +61,7 @@ export type Partner = {
   payment_terms_days?: number;
 };
 
-export type PartnerListItem = Partner & { leads_today: number; leads_month: number; checklist_done: number; checklist_total: number };
+export type PartnerListItem = Partner & { leads_today: number; leads_month: number; ncpl_month: number | null; checklist_done: number; checklist_total: number };
 export type ChecklistItem = { key: string; done: boolean; available: boolean };
 export type PartnerDetail = {
   partner: Partner;

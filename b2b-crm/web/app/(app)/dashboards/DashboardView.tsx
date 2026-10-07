@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/Card";
 import { WidgetCard } from "@/components/charts/WidgetView";
-import { viewParams } from "@/lib/analytics";
+import { dashboardFilterDims, viewParams } from "@/lib/analytics";
 import { dashboardData, metricCatalogue } from "@/lib/analytics-data";
 import { relativeTime } from "@/lib/format";
 import { DashboardActions, DashboardControls } from "./DashboardClient";
@@ -14,8 +14,7 @@ export async function DashboardView({ id, sp, home }: { id: number; sp: Record<s
   const d = v.period === first.dashboard.period && !v.filters ? first : await dashboardData(id, v.period, v.filters);
   const filters = v.filters ?? d.dashboard.filters;
   const cat = await metricCatalogue();
-  const used = new Set(d.dashboard.widgets.flatMap((w) => [w.metric, ...(w.metrics ?? [])].filter(Boolean) as string[]));
-  const dims = [...new Set(cat.metrics.filter((m) => used.has(m.key)).flatMap((m) => m.dims))].filter((x) => !["day", "week", "month"].includes(x)).sort();
+  const dims = dashboardFilterDims(d.dashboard.widgets, cat.metrics);
   return (
     <>
       {!home && <Link href="/dashboards" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-fg print:hidden"><ChevronLeft className="size-4" /> Dashboards</Link>}
@@ -35,7 +34,7 @@ export async function DashboardView({ id, sp, home }: { id: number; sp: Record<s
       <div className="print:hidden"><DashboardControls period={v.period} filters={filters} dims={dims}
         partners={Object.values(d.data).flatMap((x) => x.series ?? []).find((x) => x.labels?.partner)?.labels.partner ?? {}} /></div>
       <div className="grid grid-cols-12 gap-4">
-        {d.dashboard.widgets.map((w) => <WidgetCard key={w.id} w={w} data={d.data[w.id]} filters={filters} />)}
+        {d.dashboard.widgets.map((w) => <WidgetCard key={w.id} w={w} data={d.data[w.id]} filters={filters} period={v.period} />)}
       </div>
     </>
   );

@@ -128,7 +128,18 @@ export const ALERT_LABEL: Record<string, string> = {
   "alert.capi_auth": "Meta or Google refused the CAPI credentials",
   "alert.partner_auth": "A partner's CRM refused Eduwit's credentials",
   "alert.invoice_overdue": "A partner invoice is overdue",
+  "alert.model_drift": "Model inputs or predictions drifted from training",
   "routing.error": "Routing error",
+  "alert.ai_budget": "AI optimiser: daily budget reached",
+  "alert.ai_review_worse": "AI change did worse than the holdout",
+  "alert.ai_rollback": "AI change rolled back automatically",
+  "alert.ai_run_failed": "AI optimiser run failed",
+  "alert.metric": "Metric alert",
+  "alert.metric_invalid": "Metric alert broken",
+  "alert.model_fallback": "Lead model fell back to segment rates",
+  "alert.ncpl_drop": "Net commission per lead dropped",
+  "alert.partner_auto_paused": "Partner paused automatically",
+  "alert.schedule_failed": "Scheduled report failed",
 };
 
 /** Change against the same hours yesterday, as a short label; null when there is nothing to compare. */

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/components/ui/cn";
 import {
-  DIM_LABEL, PERIOD_LABEL, PERIODS, WIDGET_LABEL, WIDGET_TYPES, widgetProblem,
+  DIM_LABEL, gaugeTargetInput, gaugeTargetValue, PERIOD_LABEL, PERIODS, WIDGET_LABEL, WIDGET_TYPES, widgetDims, widgetProblemIn,
   type CatalogueMetric, type Dashboard, type Period, type Widget, type WidgetType,
 } from "@/lib/analytics";
 import { saveDashboard } from "../../actions";
@@ -21,7 +21,8 @@ function L({ label, children }: { label: string; children: React.ReactNode }) {
 
 function WidgetEditor({ w, metrics, onChange }: { w: Widget; metrics: CatalogueMetric[]; onChange: (w: Widget) => void }) {
   const m = metrics.find((x) => x.key === (w.metric ?? w.metrics?.[0]));
-  const dims = m?.dims ?? [];
+  // only the breakdowns every chosen metric has (the save checks the same)
+  const dims = widgetDims(w, metrics);
   const byArea = useMemo(() => Object.entries(metrics.reduce<Record<string, CatalogueMetric[]>>((a, x) => { (a[x.area] ??= []).push(x); return a; }, {})), [metrics]);
   const metricSelect = (value: string | undefined, set: (v: string) => void) => (
     <select value={value ?? ""} onChange={(e) => set(e.target.value)} className={field}>
@@ -35,7 +36,7 @@ function WidgetEditor({ w, metrics, onChange }: { w: Widget; metrics: CatalogueM
       {dims.map((d) => <option key={d} value={d}>{DIM_LABEL[d] ?? d}</option>)}
     </select>
   );
-  const problem = widgetProblem(w);
+  const problem = widgetProblemIn(w, metrics);
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <L label="Type">
@@ -66,7 +67,7 @@ function WidgetEditor({ w, metrics, onChange }: { w: Widget; metrics: CatalogueM
       {["bar", "line", "stacked", "heatmap", "leaderboard", "map", "table"].includes(w.type) && <L label="Breakdown">{dimSelect(0)}</L>}
       {["bar", "line", "stacked", "heatmap"].includes(w.type) && <L label="Second breakdown">{dimSelect(1)}</L>}
       {w.type === "sankey" && [0, 1, 2, 3].map((i) => <L key={i} label={`Step ${i + 1}`}>{dimSelect(i, w.steps ?? [], "steps")}</L>)}
-      {w.type === "gauge" && <L label="Target"><input type="number" step="any" value={w.target ?? ""} onChange={(e) => onChange({ ...w, target: e.target.value === "" ? undefined : Number(e.target.value) })} className={field} /></L>}
+      {w.type === "gauge" && <L label={m?.unit === "pct" ? "Target (%)" : "Target"}><input type="number" step="any" value={gaugeTargetInput(w.target, m?.unit)} onChange={(e) => onChange({ ...w, target: gaugeTargetValue(e.target.value, m?.unit) })} className={field} /></L>}
       {!NO_METRIC.includes(w.type) && (
         <L label="Period">
           <select value={w.period ?? ""} onChange={(e) => onChange({ ...w, period: (e.target.value || undefined) as Period | undefined })} className={field}>
@@ -94,7 +95,7 @@ export function Builder({ initial, metrics }: { initial: Dashboard | null; metri
   const [busy, start] = useTransition();
   const move = (from: number, to: number) => setWidgets((ws) => { if (to < 0 || to >= ws.length) return ws; const n = [...ws]; const [x] = n.splice(from, 1); n.splice(to, 0, x!); return n; });
   const add = () => { const w: Widget = { id: newId(), type: "kpi", title: "", w: 3, h: 1 }; setWidgets((ws) => [...ws, w]); setOpen(w.id); };
-  const problems = widgets.map(widgetProblem).filter(Boolean);
+  const problems = widgets.map((w) => widgetProblemIn(w, metrics)).filter(Boolean);
   const save = () => start(async () => {
     if (problems.length) { toast.error("Some widgets are not complete yet"); return; }
     const r = await saveDashboard({ id: initial?.id ?? null, name, description, period, filters: initial?.filters ?? {}, widgets });
@@ -119,7 +120,7 @@ export function Builder({ initial, metrics }: { initial: Dashboard | null; metri
             <button key={w.id} type="button" draggable onDragStart={() => setDrag(i)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (drag !== null) move(drag, i); setDrag(null); }}
               onClick={() => setOpen(w.id)} style={{ gridColumn: `span ${w.w} / span ${w.w}`, minHeight: `${w.h * 22}px` }}
               className={cn("truncate rounded-md border px-2 py-1 text-left text-[11px]", open === w.id ? "border-amber bg-amber/10 text-fg" : "border-border bg-surface-2 text-muted",
-                widgetProblem(w) && "border-warning/50")}>
+                widgetProblemIn(w, metrics) && "border-warning/50")}>
               {w.title || WIDGET_LABEL[w.type]}
             </button>
           ))}

@@ -7,9 +7,14 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useFormAction } from "@/components/ui/useFormAction";
 import { periodBounds } from "@/lib/ai/ask";
-import { drillHref } from "@/lib/analytics";
-import { editable, RUN_KIND_LABEL, type AiSettings, type Change, type MlModel } from "@/lib/ai/labels";
-import { askCrm, type AskAnswer, decideRecommendation, rollbackModel, rollbackRecommendation, runNow, saveAiSettings, setModelStatus, trainModel, type FormState } from "./actions";
+import { drillHref, PERIOD_LABEL, type Period } from "@/lib/analytics";
+import {
+  AI_MODEL_ROLES, editable, PRICE_PARTS, rupees, RUN_KIND_LABEL, RUN_NOW_KINDS,
+  type AiModelRole, type AiOverview, type AiSettings, type Change, type MlModel, type MlOverview, type RunNowKind,
+} from "@/lib/ai/labels";
+import {
+  askCrm, type AskAnswer, decideRecommendation, rollbackModel, rollbackRecommendation, runNow, saveAiSettings, saveMlSettings, setModelStatus, trainModel, type FormState,
+} from "./actions";
 
 const field = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 aria-[invalid=true]:border-danger";
 
@@ -63,12 +68,12 @@ export function RollbackRecommendation({ id }: { id: number }) {
 }
 
 export function RunNow({ enabled }: { enabled: boolean }) {
-  const [kind, setKind] = useState<keyof typeof RUN_KIND_LABEL>("optimise");
+  const [kind, setKind] = useState<RunNowKind>("optimise");
   const [open, setOpen] = useState(false);
   return (
     <div className="flex items-center gap-2">
-      <select value={kind} onChange={(e) => setKind(e.target.value)} className="h-8 rounded-lg border border-border bg-surface px-2 text-[12.5px]" aria-label="Kind of run">
-        {Object.entries(RUN_KIND_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+      <select value={kind} onChange={(e) => setKind(e.target.value as RunNowKind)} className="h-8 rounded-lg border border-border bg-surface px-2 text-[12.5px]" aria-label="Kind of run">
+        {RUN_NOW_KINDS.map((k) => <option key={k} value={k}>{RUN_KIND_LABEL[k]}</option>)}
       </select>
       <Button size="sm" variant="secondary" disabled={!enabled} onClick={() => setOpen(true)} title={enabled ? undefined : "Switch the optimiser on in AI settings first"}>
         <Play className="size-3.5" /> Run now
@@ -93,10 +98,17 @@ function L({ label, error, hint, children }: { label: string; error?: string; hi
   );
 }
 
-export function AiSettingsForm({ s, version }: { s: AiSettings; version: number }) {
+const ROLE_LABEL: Record<AiModelRole, string> = { regular: "Regular passes", deep: "Deep review and weekly report", quick: "Light checks" };
+const PRICE_LABEL: Record<(typeof PRICE_PARTS)[number], string> = { in: "Input", out: "Output", cache_read: "Cache read", cache_write: "Cache write" };
+
+export function AiSettingsForm({ s, version, gate }: { s: AiSettings; version: number; gate?: AiOverview["autopilot_gate"] }) {
   const [state, onSubmit, pending] = useFormAction<FormState>(saveAiSettings, undefined);
   const e = state?.errors ?? {};
   useEffect(() => { if (state?.ok) toast.success("AI settings saved"); }, [state?.ok]);
+  // Autopilot can be switched on only once the gate is open (the database checks it too); absent gate: older database
+  const locked = !!gate && !gate.open && s.mode !== "autopilot";
+  // the price rows follow the model names as typed, so a new model never inherits the old model's prices
+  const [models, setModels] = useState<Record<AiModelRole, string>>({ ...s.models });
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-4">
       <label className="flex items-start gap-2 text-[13px]">
@@ -108,8 +120,9 @@ export function AiSettingsForm({ s, version }: { s: AiSettings; version: number 
         <legend className="px-1 text-[12px] text-muted">Mode</legend>
         <label className="flex items-start gap-2"><input type="radio" name="mode" value="advisory" defaultChecked={s.mode !== "autopilot"} className="mt-0.5 accent-[var(--primary)]" />
           <span><span className="font-medium text-fg">Advisory</span><span className="block text-[12px] text-muted">Every change waits for your approval.</span></span></label>
-        <label className="flex items-start gap-2"><input type="radio" name="mode" value="autopilot" defaultChecked={s.mode === "autopilot"} className="mt-0.5 accent-[var(--primary)]" />
-          <span><span className="font-medium text-fg">Autopilot (bounded)</span><span className="block text-[12px] text-muted">A setting change inside the bounds applies by itself when its simulation is confident; drafts and everything else still wait for you. Each one is reviewed after 7 days against the holdout and rolled back automatically if it did worse.</span></span></label>
+        <label className={`flex items-start gap-2${locked ? " opacity-70" : ""}`}><input type="radio" name="mode" value="autopilot" defaultChecked={s.mode === "autopilot"} disabled={locked} className="mt-0.5 accent-[var(--primary)]" />
+          <span><span className="font-medium text-fg">Autopilot (bounded)</span><span className="block text-[12px] text-muted">A setting change inside the bounds applies by itself when its simulation is confident; drafts and everything else still wait for you. Each one is reviewed after 7 days against the holdout and rolled back automatically if it did worse.</span>
+            {locked && gate && <span className="mt-1 block text-[12px] text-muted">Locked until AI-steered leads beat the holdout over 4 weeks of matured leads (now {gate.steered.leads} steered at {rupees(gate.steered.ncpl)} vs {gate.holdout.leads} holdout at {rupees(gate.holdout.ncpl)}).</span>}</span></label>
         <div className="grid gap-3 pl-6 sm:grid-cols-2">
           <L label="Minimum simulated gain (%)" error={e.min_gain_pct}><input name="min_gain_pct" inputMode="decimal" defaultValue={s.autopilot?.min_gain_pct ?? 3} className={field} /></L>
           <L label="At most per day" error={e.max_per_day}><input name="max_per_day" inputMode="numeric" defaultValue={s.autopilot?.max_per_day ?? 3} className={field} /></L>
@@ -122,10 +135,36 @@ export function AiSettingsForm({ s, version }: { s: AiSettings; version: number 
         <L label="Worker address" error={e.worker_url} hint="This CRM's https:// address; the database wakes /v1/ai/tick there.">
           <input name="worker_url" defaultValue={s.worker_url ?? ""} placeholder="https://b2b.eduwit.in" className={field} aria-invalid={Boolean(e.worker_url)} />
         </L>
-        <L label="Model: regular passes" error={e.model_regular}><input name="model_regular" defaultValue={s.models.regular} className={field} /></L>
-        <L label="Model: deep review and weekly report" error={e.model_deep}><input name="model_deep" defaultValue={s.models.deep} className={field} /></L>
-        <L label="Model: light checks" error={e.model_quick}><input name="model_quick" defaultValue={s.models.quick} className={field} /></L>
+        {AI_MODEL_ROLES.map((role) => (
+          <L key={role} label={`Model: ${ROLE_LABEL[role].toLowerCase()}`} error={e[`model_${role}`]}>
+            <input name={`model_${role}`} defaultValue={s.models[role]} onChange={(ev) => { const v = ev.target.value; setModels((m) => ({ ...m, [role]: v })); }}
+              className={field} aria-invalid={Boolean(e[`model_${role}`])} />
+          </L>
+        ))}
       </div>
+      <fieldset className="space-y-3 rounded-lg border border-border p-3 text-[13px]">
+        <legend className="px-1 text-[12px] text-muted">Prices (US$ per million tokens)</legend>
+        <p className="text-[12px] text-muted">For the model named above, from Anthropic&apos;s price list. The cost log and the daily budget use them, and every model in use needs one. Cache read and cache write are optional.</p>
+        {AI_MODEL_ROLES.map((role) => {
+          const model = (models[role] ?? "").trim();
+          const pr = s.prices_per_mtok?.[model];
+          return (
+            <div key={`${role}:${model}`} className="space-y-1.5">
+              <p className="text-[12px]"><span className="font-medium text-fg">{ROLE_LABEL[role]}</span>{model && <span className="ml-1.5 break-all font-mono text-[11.5px] text-subtle">{model}</span>}</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {PRICE_PARTS.map((part) => {
+                  const k = `price_${role}_${part}`;
+                  return (
+                    <L key={part} label={PRICE_LABEL[part]} error={e[k]}>
+                      <input name={k} inputMode="decimal" defaultValue={pr?.[part] ?? ""} className={field} aria-invalid={Boolean(e[k])} />
+                    </L>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </fieldset>
       <fieldset className="space-y-1.5 text-[13px]">
         <legend className="mb-1 text-[12px] text-muted">When it runs</legend>
         <label className="flex items-center gap-2"><input type="checkbox" name="light" defaultChecked={s.schedules.light} className="size-4 accent-[var(--primary)]" /> Light check every 15 minutes, only when new alerts arrived</label>
@@ -154,8 +193,9 @@ export function ModelActions({ m }: { m?: MlModel }) {
       {m?.status === "challenger" && <Button size="sm" disabled={!m.champion_check?.ready} title={m.champion_check?.ready ? undefined : "Not yet better with confidence"}
         onClick={() => open({ title: `Make ${m.version} the champion`, label: "Promote", body: "It will decide every performance-mode lead outside the holdout.", run: (r) => setModelStatus(m.id, "champion", r) })}>Make champion</Button>}
       {m?.status === "challenger" && <Button size="sm" variant="secondary" onClick={() => open({ title: `Send ${m.version} back to shadow`, label: "Back to shadow", body: "It stops deciding and only scores.", run: (r) => setModelStatus(m.id, "shadow", r) })}>Back to shadow</Button>}
-      {m?.status === "champion" && <Button size="sm" variant="secondary" onClick={() => open({ title: "Roll back the champion", label: "Roll back", tone: "danger", body: "The champion is retired and the previous champion, if any, comes back. Without one, the engine uses segment P̂.", run: rollbackModel })}><RotateCcw className="size-3.5" /> Roll back</Button>}
+      {m?.status === "champion" && <Button size="sm" variant="secondary" onClick={() => open({ title: "Roll back the champion", label: "Roll back", tone: "danger", body: "The champion is retired and the champion it replaced, if any, comes back. Without one, the engine uses segment P̂.", run: rollbackModel })}><RotateCcw className="size-3.5" /> Roll back</Button>}
       {m && ["shadow", "challenger"].includes(m.status) && <Button size="sm" variant="secondary" onClick={() => open({ title: `Retire ${m.version}`, label: "Retire", tone: "danger", body: "It stops scoring and deciding.", run: (r) => setModelStatus(m.id, "retired", r) })}>Retire</Button>}
+      {m?.status === "training" && <Button size="sm" variant="secondary" onClick={() => open({ title: `Cancel training ${m.version}`, label: "Cancel training", tone: "danger", body: "The queued training run is cancelled; you can queue a new one.", run: (r) => setModelStatus(m.id, "retired", r) })}><X className="size-3.5" /> Cancel training</Button>}
       {dialog && (
         <ConfirmDialog open onClose={() => setDialog(null)} title={dialog.title} confirmLabel={dialog.label} tone={dialog.tone} reason={{ label: "Why" }}
           onConfirm={async (r) => { const err = await dialog.run(r); if (!err) toast.success("Done"); return err; }}>
@@ -163,6 +203,37 @@ export function ModelActions({ m }: { m?: MlModel }) {
         </ConfirmDialog>
       )}
     </div>
+  );
+}
+
+/** The model registry's thresholds and the nightly switch (versioned, like the AI settings). */
+export function MlSettingsForm({ s, version }: { s: MlOverview["settings"]; version: number }) {
+  const [state, onSubmit, pending] = useFormAction<FormState>(saveMlSettings, undefined);
+  const e = state?.errors ?? {};
+  useEffect(() => { if (state?.ok) toast.success("Model settings saved"); }, [state?.ok]);
+  return (
+    <form onSubmit={onSubmit} noValidate className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <L label="Matured outcomes to train" error={e.min_outcomes} hint="100 to 100000">
+          <input name="min_outcomes" inputMode="numeric" defaultValue={s.min_outcomes} className={field} aria-invalid={Boolean(e.min_outcomes)} />
+        </L>
+        <L label="Challenger share (%)" error={e.challenger_pct} hint="Of performance-mode leads, 1 to 50">
+          <input name="challenger_pct" inputMode="decimal" defaultValue={Math.round(s.challenger_share * 1000) / 10} className={field} aria-invalid={Boolean(e.challenger_pct)} />
+        </L>
+        <L label="Fall back above calibration error" error={e.ece_fallback} hint="0.01 to 0.30">
+          <input name="ece_fallback" inputMode="decimal" defaultValue={s.ece_fallback} className={field} aria-invalid={Boolean(e.ece_fallback)} />
+        </L>
+        <L label="Nightly training hour (IST)" error={e.train_hour_ist} hint="0 to 23">
+          <input name="train_hour_ist" inputMode="numeric" defaultValue={s.train_hour_ist} className={field} aria-invalid={Boolean(e.train_hour_ist)} />
+        </L>
+      </div>
+      <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" name="auto_train" defaultChecked={s.auto_train} className="size-4 accent-[var(--primary)]" /> Train a new model nightly</label>
+      <L label="Reason" error={e.reason} hint={`Saved as version ${version + 1}.`}><input name="reason" maxLength={500} className={field} aria-invalid={Boolean(e.reason)} /></L>
+      <div className="flex items-center justify-end gap-3">
+        {state?.error && <span role="alert" className="mr-auto text-[13px] text-danger">{state.error}</span>}
+        <Button type="submit" size="sm" disabled={pending}>{pending && <LoaderCircle className="size-3.5 animate-spin" />} Save model settings</Button>
+      </div>
+    </form>
   );
 }
 
@@ -196,7 +267,7 @@ export function AskPanel() {
             <p className="text-[12px] text-subtle">Sources:{" "}
               {res.sources.map((s, i) => {
                 const { from, to } = periodBounds(s.period);
-                return <span key={i}>{i > 0 && " · "}<Link className="text-info hover:underline" href={drillHref(s.metric, s.filters ?? {}, from, to)}>{s.metric}{s.dims?.length ? ` by ${s.dims.join(", ")}` : ""}{s.period ? ` (${s.period})` : ""}</Link></span>;
+                return <span key={i}>{i > 0 && " · "}<Link className="text-info hover:underline" href={drillHref(s.metric, s.filters ?? {}, from, to, s.period)}>{s.metric}{s.dims?.length ? ` by ${s.dims.join(", ")}` : ""}{s.period ? ` (${PERIOD_LABEL[s.period as Period] ?? s.period})` : ""}</Link></span>;
               })}
             </p>
           )}

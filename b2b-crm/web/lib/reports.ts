@@ -25,3 +25,12 @@ export const encodeDef = (d: ReportDef) => Buffer.from(JSON.stringify(d)).toStri
 export function decodeDef(s: string): ReportDef | null {
   try { const r = ReportDefSchema.safeParse(JSON.parse(Buffer.from(s, "base64url").toString("utf8"))); return r.success ? r.data : null; } catch { return null; }
 }
+
+/** Keeps the chosen breakdowns valid for the chosen metrics (the selects can only display valid ones).
+ *  Rows take precedence: with a single allowed breakdown it goes on the rows and the columns are left empty. */
+export function reconcileBreakdowns(allowed: string[], s: { dims: string[]; rowDim: string; colDim: string }) {
+  const dims = s.dims.filter((d) => allowed.includes(d));
+  const rowDim = allowed.includes(s.rowDim) ? s.rowDim : (allowed.find((d) => d !== s.colDim) ?? allowed[0] ?? "");
+  const colDim = allowed.includes(s.colDim) && s.colDim !== rowDim ? s.colDim : (allowed.find((d) => d !== rowDim) ?? "");
+  return { dims, rowDim, colDim };
+}

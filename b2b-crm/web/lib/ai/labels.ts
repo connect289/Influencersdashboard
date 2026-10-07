@@ -31,11 +31,15 @@ export type Uplift = {
 export type AiSettings = {
   enabled: boolean; mode: "advisory" | "autopilot"; autopilot?: { min_gain_pct: number; max_per_day: number; min_decisions?: number }; models: { regular: string; deep: string; quick: string }; daily_budget_usd: number;
   schedules: { light: boolean; hourly: boolean; nightly: boolean; weekly: boolean }; worker_url: string | null; max_turns?: number;
+  /** US$ per million tokens, by model name (every model in use needs one). */
+  prices_per_mtok?: Record<string, { in: number; out: number; cache_read?: number; cache_write?: number }>;
 };
 export type AiOverview = {
   settings: AiSettings; settings_version: number;
   worker: { seen_at?: string; has_anthropic_key?: boolean; updated_at?: string } | null; worker_key: boolean;
   spend: { today_usd: number; month_usd: number }; uplift: Uplift; holdout_share: number | null;
+  /** When Autopilot may be switched on (absent on databases before the gate). */
+  autopilot_gate?: { open: boolean; steered: { leads: number; ncpl: number; weeks: number }; holdout: { leads: number; ncpl: number; weeks: number } };
   open: Recommendation[]; decided: Recommendation[]; runs: AiRun[];
 };
 export type AiRunDetail = AiRun & {
@@ -55,7 +59,12 @@ export type MlModel = {
     baseline?: { log_loss: number; ece: number };
     policy?: { decisions: number; agree: number; logged_value: number; model_value: number; ess: number };
     top_weights?: { feature: string; w: number }[];
-    monitor?: { at: string; matured?: { n: number; ece: number }; mean_p_30d?: number };
+    monitor?: {
+      at: string; matured?: { n: number; ece: number }; mean_p_30d?: number | null;
+      mean_p_training?: number | null; mean_p_reference?: number | null; drift?: boolean;
+      feature_psi?: { n_live: number; n_training: number; max: number; top: { feature: string; training: number; recent: number; psi: number }[];
+                      score_training: number | null; score_30d: number | null } | null;
+    };
   };
   features: number; was_champion: boolean;
   champion_check: { model_leads: number; other_leads: number; model_ncpl: number; other_ncpl: number; z: number; ready: boolean } | null;
@@ -70,6 +79,9 @@ export type MlOverview = {
 export const RUN_KIND_LABEL: Record<string, string> = {
   light_check: "Light check", optimise: "Optimisation", deep_review: "Nightly deep review", weekly_report: "Weekly report", ask: "Ask the CRM",
 };
+/** The kinds of run the Admin can queue by hand ('ask' runs come only from Ask the CRM). */
+export const RUN_NOW_KINDS = ["light_check", "optimise", "deep_review", "weekly_report"] as const;
+export type RunNowKind = (typeof RUN_NOW_KINDS)[number];
 export const TRIGGER_LABEL: Record<string, string> = {
   light: "new alerts", hourly: "hourly", nightly: "nightly", weekly: "weekly", event: "an event", manual: "by hand", ask: "a question",
 };
@@ -135,6 +147,28 @@ export function editedChange(c: Change, typed: string): Change | string {
   return { ...c, value: asFraction ? Math.round(n * 10) / 1000 : n };
 }
 
+/** The three model roles of the AI settings, and the parts of a model's price (US$ per million tokens). */
+export const AI_MODEL_ROLES = ["regular", "deep", "quick"] as const;
+export type AiModelRole = (typeof AI_MODEL_ROLES)[number];
+export const PRICE_PARTS = ["in", "out", "cache_read", "cache_write"] as const;
+type PricePart = (typeof PRICE_PARTS)[number];
+type PriceKey = `price_${AiModelRole}_${PricePart}`;
+/** The form fields of the prices, price_<role>_<part>. */
+export const AI_PRICE_KEYS = AI_MODEL_ROLES.flatMap((r) => PRICE_PARTS.map((p) => `price_${r}_${p}` as PriceKey));
+type ModelPrice = NonNullable<AiSettings["prices_per_mtok"]>[string];
+
+/** An optional price field: empty is "not given", otherwise 0 to 1000. */
+const price = z.preprocess((v) => (v == null || (typeof v === "string" && v.trim() === "") ? undefined : v),
+  z.coerce.number({ error: "0 to 1000" }).min(0, "0 to 1000").max(1000, "0 to 1000").optional());
+
+/** One role's price from the parsed form, or null unless both in and out are given. */
+function rolePrice(d: Partial<Record<PriceKey, number>>, role: AiModelRole): ModelPrice | null {
+  const v = (part: PricePart) => d[`price_${role}_${part}`];
+  const pin = v("in"), pout = v("out"), cr = v("cache_read"), cw = v("cache_write");
+  if (pin === undefined || pout === undefined) return null;
+  return { in: pin, out: pout, ...(cr !== undefined ? { cache_read: cr } : {}), ...(cw !== undefined ? { cache_write: cw } : {}) };
+}
+
 export const AiSettingsSchema = z.object({
   enabled: z.string().optional().transform((v) => v === "on"),
   mode: z.enum(["advisory", "autopilot"]).default("advisory"),
@@ -149,16 +183,52 @@ export const AiSettingsSchema = z.object({
   hourly: z.string().optional().transform((v) => v === "on"),
   nightly: z.string().optional().transform((v) => v === "on"),
   weekly: z.string().optional().transform((v) => v === "on"),
+  price_regular_in: price, price_regular_out: price, price_regular_cache_read: price, price_regular_cache_write: price,
+  price_deep_in: price, price_deep_out: price, price_deep_cache_read: price, price_deep_cache_write: price,
+  price_quick_in: price, price_quick_out: price, price_quick_cache_read: price, price_quick_cache_write: price,
   reason: z.string().trim().min(3, "Say why").max(300),
+}).superRefine((d, ctx) => {
+  // a price is in and out (cache optional); two roles on the same model must agree on its price
+  const seen = new Map<string, (number | undefined)[]>();
+  for (const role of AI_MODEL_ROLES) {
+    const parts = PRICE_PARTS.map((part) => d[`price_${role}_${part}`]);
+    if (parts.every((x) => x === undefined)) continue;
+    for (const part of ["in", "out"] as const) {
+      if (d[`price_${role}_${part}`] === undefined) ctx.addIssue({ code: "custom", path: [`price_${role}_${part}`], message: "Give the in and out prices" });
+    }
+    const model = d[`model_${role}`], prev = seen.get(model);
+    const differs = prev ? PRICE_PARTS.findIndex((_, i) => prev[i] !== parts[i]) : -1;
+    if (differs >= 0) ctx.addIssue({ code: "custom", path: [`price_${role}_${PRICE_PARTS[differs]}`], message: "Same model as above: give it the same prices" });
+    if (!prev) seen.set(model, parts);
+  }
 });
 
 export function aiSettingsPayload(d: z.infer<typeof AiSettingsSchema>) {
+  // prices keyed by the chosen model names; a role left blank adds none (the database keeps the stored price)
+  const prices: Record<string, ModelPrice> = {};
+  for (const role of AI_MODEL_ROLES) {
+    const pr = rolePrice(d, role);
+    if (pr && !prices[d[`model_${role}`]]) prices[d[`model_${role}`]] = pr;
+  }
   return {
     enabled: d.enabled, mode: d.mode, daily_budget_usd: d.daily_budget_usd, worker_url: d.worker_url,
     autopilot: { min_gain_pct: d.min_gain_pct, max_per_day: d.max_per_day },
     models: { regular: d.model_regular, deep: d.model_deep, quick: d.model_quick },
     schedules: { light: d.light, hourly: d.hourly, nightly: d.nightly, weekly: d.weekly },
+    ...(Object.keys(prices).length ? { prices_per_mtok: prices } : {}),
   };
+}
+
+export const MlSettingsSchema = z.object({
+  min_outcomes: z.coerce.number().int().min(100, "100 to 100000").max(100000, "100 to 100000"),
+  challenger_pct: z.coerce.number().min(1, "1 to 50%").max(50, "1 to 50%"),
+  ece_fallback: z.coerce.number().min(0.01, "0.01 to 0.30").max(0.3, "0.01 to 0.30"),
+  train_hour_ist: z.coerce.number().int().min(0, "0 to 23").max(23, "0 to 23"),
+  auto_train: z.string().optional().transform((v) => v === "on"),
+  reason: z.string().trim().min(3, "Say why (3 characters or more)").max(500),
+});
+export function mlSettingsPayload(d: z.infer<typeof MlSettingsSchema>) {
+  return { min_outcomes: d.min_outcomes, challenger_share: Math.round(d.challenger_pct * 10) / 1000, ece_fallback: d.ece_fallback, train_hour_ist: d.train_hour_ist, auto_train: d.auto_train };
 }
 
 /** What still stands between the Admin and a working optimiser. */

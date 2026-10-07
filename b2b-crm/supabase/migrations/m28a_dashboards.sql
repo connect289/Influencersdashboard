@@ -1,6 +1,6 @@
 -- M28a: dashboards (spec B13.3, B13.4, B14.3 "Dashboards: gallery of defaults and saved dashboards; builder").
 --   dashboards      name, widgets (JSON: type, metric(s), breakdowns, filters, period, size), dashboard-wide period and
---                   filters, the nine defaults shipped (read-only; "duplicate to edit"), archive instead of delete
+--                   filters, the nine defaults shipped (read-only; "duplicate to edit"), archived, never removed
 --   saved_views     a drill-down list saved by name (metric, filters, period)
 --   settings 'analytics': which dashboard is the home screen (null: the Command Center)
 --   dashboards_list / dashboard_get / dashboard_save / dashboard_copy / dashboard_archive / dashboard_set_home,
@@ -97,7 +97,7 @@ insert into b2b.dashboards (slug, name, description, period, is_default, widgets
   {"id":"t1","type":"table","title":"Effort by partner","metrics":["first_attempt_median","first_attempt_p90","attempts_24h","attempts_72h","connect_rate","stale_share"],"dims":["partner"],"w":12,"h":2},
   {"id":"h1","type":"heatmap","title":"SLA compliance by partner and SLA","metric":"sla_compliance","dims":["partner","sla"],"w":6,"h":2},
   {"id":"c1","type":"bar","title":"Breaches by hour due","metric":"sla_breaches","dims":["due_hour"],"w":6,"h":2},
-  {"id":"s1","type":"sla_timers","title":"Open SLAs due soonest","w":12,"h":2}
+  {"id":"s1","type":"sla_timers","title":"Open SLAs and breaches","w":12,"h":2}
 ]'),
 ('commission', 'Commission & Receivables', 'Expected against realised, invoices, collection and ageing.', 'year', true, '[
   {"id":"k1","type":"kpi","title":"Expected","metric":"commission_expected","w":3,"h":1},
@@ -133,7 +133,7 @@ on conflict (slug) do update set name = excluded.name, description = excluded.de
 -- ---------- validation ----------
 create or replace function b2b.dashboard_check_widgets(p jsonb)
 returns jsonb language plpgsql stable set search_path = '' as $fn$
-declare w jsonb; v_ids text[] := '{}'; k text; v_out jsonb := '[]';
+declare w jsonb; v_ids text[] := '{}'; k text; d text; v_out jsonb := '[]';
 begin
   if jsonb_typeof(p) <> 'array' then raise exception 'widgets must be a list' using errcode = '22023'; end if;
   if jsonb_array_length(p) > 40 then raise exception 'at most 40 widgets' using errcode = '22023'; end if;
@@ -143,10 +143,22 @@ begin
     if w ->> 'type' not in ('kpi', 'line', 'bar', 'stacked', 'funnel', 'sankey', 'heatmap', 'table', 'leaderboard', 'map', 'gauge', 'sla_timers', 'alerts', 'text') then
       raise exception 'unknown widget type %', w ->> 'type' using errcode = '22023';
     end if;
+    if w ->> 'type' = 'sankey' and jsonb_array_length(coalesce(w -> 'steps', '[]')) < 2 then
+      raise exception '"%" needs at least two steps', w ->> 'title' using errcode = '22023';
+    end if;
+    if w ->> 'type' is null or w ->> 'w' is null or w ->> 'h' is null then raise exception 'each widget needs a type and a size' using errcode = '22023'; end if;
     if not ((w ->> 'w')::int between 1 and 12) or not ((w ->> 'h')::int between 1 and 4) then raise exception 'widget sizes are 1–12 wide and 1–4 high' using errcode = '22023'; end if;
     if w ->> 'type' not in ('sla_timers', 'alerts', 'text') then
       for k in select coalesce(w ->> 'metric', x) from (select null::text x union all select jsonb_array_elements_text(coalesce(w -> 'metrics', '[]'))) z where coalesce(w ->> 'metric', x) is not null loop
         if not exists (select 1 from b2b.metric_definitions where key = k) then raise exception 'unknown metric % in "%"', k, w ->> 'title' using errcode = '22023'; end if;
+        -- every breakdown and sankey step must exist on every base metric (system or calculated)
+        for d in select jsonb_array_elements_text(coalesce(w -> 'dims', '[]') || coalesce(w -> 'steps', '[]')) loop
+          if exists (select 1 from b2b.metric_definitions x cross join unnest(b2b.metric_bases(x)) bb(key)
+                     join b2b.metric_definitions y on y.key = bb.key
+                      where x.key = k and b2b.metric_dim_expr(y.fact, y.date_col, d) is null) then
+            raise exception '% cannot be broken down by %', (select x2.label from b2b.metric_definitions x2 where x2.key = k), d using errcode = '22023';
+          end if;
+        end loop;
       end loop;
       if w ->> 'metric' is null and jsonb_array_length(coalesce(w -> 'metrics', '[]')) = 0 then raise exception '"%" needs a metric', w ->> 'title' using errcode = '22023'; end if;
     end if;
@@ -220,16 +232,21 @@ begin
   return b2b.dashboard_save(jsonb_build_object('name', left(d.name || ' (copy)', 80), 'description', d.description, 'period', d.period, 'filters', d.filters, 'widgets', d.widgets));
 end $fn$;
 
+/* Archives a saved dashboard and switches off its active schedules (b2b.report_schedules comes with M28b; PL/pgSQL
+   resolves it when this runs). */
 create or replace function b2b.dashboard_archive(p_id bigint)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $fn$
+declare v_n int;
 begin
   if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
   update b2b.dashboards set archived_at = now() where id = p_id and not is_default and archived_at is null;
   if not found then raise exception 'only your own dashboards can be archived' using errcode = '22023'; end if;
+  update b2b.report_schedules set active = false where dashboard_id = p_id and active;
+  get diagnostics v_n = row_count;
   if (select (value ->> 'home_dashboard_id')::bigint from b2b.settings where key = 'analytics') = p_id then
     perform b2b.set_setting('analytics', '{"home_dashboard_id": null}', 'home dashboard archived');
   end if;
-  return jsonb_build_object('archived', p_id);
+  return jsonb_build_object('archived', p_id, 'schedules_stopped', v_n);
 end $fn$;
 
 create or replace function b2b.dashboard_set_home(p_id bigint)
@@ -255,16 +272,26 @@ begin
   return jsonb_build_object('id', v_id);
 end $fn$;
 
-/* Open SLA checks, soonest due first (the live SLA timer widget). */
+/* Open SLA checks and breaches still owed, soonest due first (the live SLA timer list; the same rule as widget_data's
+   sla_timers branch). A breach stays listed for the 30 days sla_tick re-checks it. An enrolment-proof breach leaves the list
+   once its allocation is duplicate, rejected, recalled or failed; any other breach once the allocation is no longer
+   pushed or accepted, or its lead is enrolled, verified, commission booked, paid or lost. */
 create or replace function b2b.sla_timers(p_partner bigint default null, p_limit int default 20)
 returns jsonb language plpgsql stable security definer set search_path = '' as $fn$
 begin
   if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
-  return coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'allocation_id', c.allocation_id, 'lead_id', c.lead_id, 'sla', c.sla, 'due_at', c.due_at,
-                                                       'partner', coalesce(p.display_name, p.name), 'reference', a.reference) order by c.due_at)
-                     from (select * from b2b.sla_checks c where c.status = 'pending' and not c.is_test and (p_partner is null or c.partner_id = p_partner)
+  return coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'allocation_id', c.allocation_id, 'lead_id', c.lead_id, 'sla', c.sla, 'due_at', c.due_at, 'status', c.status,
+                                                       'partner', coalesce(p.display_name, p.name), 'reference', c.reference) order by c.due_at)
+                     from (select c.*, y.reference from b2b.sla_checks c join b2b.allocations y on y.id = c.allocation_id
+                            where c.status in ('pending', 'breached') and not c.is_test and (p_partner is null or c.partner_id = p_partner)
+                              and (c.status = 'pending'
+                                   or (c.status = 'breached' and c.due_at > now() - interval '30 days'
+                                       and case when c.sla = 'enrollment_proof' then y.status not in ('duplicate', 'rejected', 'recalled', 'failed')
+                                                else y.status in ('pushed', 'accepted')
+                                                     and not exists (select 1 from public.student_leads l where l.id = y.lead_id and l.allocation_id = y.id
+                                                                        and l.stage in ('enrolled', 'verified', 'commission_booked', 'paid', 'lost')) end))
                             order by c.due_at limit least(greatest(p_limit, 1), 100)) c
-                     join b2b.partners p on p.id = c.partner_id left join b2b.allocations a on a.id = c.allocation_id), '[]');
+                     join b2b.partners p on p.id = c.partner_id), '[]');
 end $fn$;
 
 /* The latest alerts (the alerts widget). */
@@ -283,3 +310,6 @@ revoke execute on function b2b.dashboards_list(), b2b.dashboard_get(bigint), b2b
                            b2b.dashboard_set_home(bigint), b2b.saved_view_save(jsonb), b2b.sla_timers(bigint, int), b2b.alert_feed(int) from public, anon;
 grant execute on function b2b.dashboards_list(), b2b.dashboard_get(bigint), b2b.dashboard_save(jsonb), b2b.dashboard_copy(bigint), b2b.dashboard_archive(bigint),
                           b2b.dashboard_set_home(bigint), b2b.saved_view_save(jsonb), b2b.sla_timers(bigint, int), b2b.alert_feed(int) to authenticated, service_role;
+
+-- ---------- the seeded dashboards pass the checks a saved dashboard passes (a bad seeded widget fails this migration) ----------
+do $seeds$ begin perform b2b.dashboard_check_widgets(d.widgets) from b2b.dashboards d where d.is_default and d.archived_at is null; end $seeds$;

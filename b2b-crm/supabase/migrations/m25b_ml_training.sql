@@ -1,14 +1,15 @@
 -- M25b: the per-lead model, part 2: training, calibration, validation, the activation gate, serving and monitoring.
---   ml_train(model id)   builds the rows (matured outcomes only; the newest valid_share of them by time is the holdout),
+--   ml_train(model id)   builds the rows (the newest 50,000 matured outcomes; the newest valid_share of them is the holdout),
 --                        keeps features seen in at least min_feature_rows training rows, fits the logistic regression by
 --                        full-batch gradient descent (AdaGrad, L2), fits isotonic calibration on the training scores, then
 --                        measures on the holdout: log loss, calibration error (ECE, 10 bins), deciles, and the same for
 --                        segment-level P̂ (the baseline it must beat); and offline policy value by inverse propensity on the
 --                        holdout's logged decisions (B7.8.1: "offline policy value shows higher net commission per lead").
 --                        A trained model starts in shadow; the gate says whether it may decide.
---   ml_tick()            every 10 minutes: trains a requested model, or the nightly one (train_hour_ist), and once a day
---                        checks the deciding models' calibration on matured leads: above ece_fallback the model is
---                        retired automatically (fallback to segment P̂) with an alert.
+--   ml_tick()            every 10 minutes (cron, statement_timeout 15 min): fails a run that never finished, trains a
+--                        requested model, or the nightly one (train_hour_ist), and once a day monitors the deciding models:
+--                        calibration on matured leads (above ece_fallback the model is retired automatically, fallback to
+--                        segment P̂, with an alert) and feature and prediction drift (an alert only).
 --   model_score(...)     the hook route_score calls: the champion decides (or the challenger on challenger_share of leads,
 --                        by seeded draw); a shadow model only scores. Never for holdout leads.
 --   ml_champion_check(id) realised net commission per lead of the challenger's leads against the rest, with a one-sided
@@ -89,7 +90,8 @@ begin
   if m.id is null then raise exception 'no model waiting for training' using errcode = 'P0002'; end if;
   perform set_config('b2b.actor', 'engine', true);
 
-  -- 1. rows: matured outcomes, features as they were at the decision (the logged candidate), newest valid_share held out
+  -- 1. rows: the newest 50,000 matured outcomes (a run stays well under the tick's 15-minute timeout), features as they
+  --    were at the decision (the logged candidate), newest valid_share held out
   insert into b2b.ml_training_rows (model_id, allocation_id, split, y, x, baseline_p, decision_id)
   select m.id, o.allocation_id,
          case when row_number() over (order by o.created_at, o.allocation_id) > ceil(count(*) over () * (1 - (cfg ->> 'valid_share')::numeric)) then 'valid' else 'train' end,
@@ -97,15 +99,16 @@ begin
          b2b.ml_features(b2b.ml_lead_features(l), o.partner_id, coalesce(cand.c, jsonb_build_object('p_hat', st.p_hat, 'sla_compliance', st.sla_compliance))),
          coalesce((cand.c ->> 'p_hat')::numeric, st.p_hat, (prm ->> 'default_p_enroll')::numeric),
          a.engine_decision_id
-    from b2b.allocation_outcomes() o
+    from (select * from b2b.allocation_outcomes() x
+           where x.age_days >= (prm ->> 'maturity_days')::numeric
+           order by x.created_at desc, x.allocation_id desc limit 50000) o
     join b2b.allocations a on a.id = o.allocation_id
     join public.student_leads l on l.id = o.lead_id
     left join lateral (select c from b2b.engine_decisions d, jsonb_array_elements(d.candidates) c
                         where d.id = a.engine_decision_id and (c ->> 'partner_id')::bigint = o.partner_id limit 1) cand on true
     left join lateral (select s.p_hat, s.sla_compliance from b2b.partner_segment_stats s
                         where s.variant = 'base' and s.partner_id = o.partner_id and s.segment in (o.segment, b2b.segment_rollup(o.segment))
-                        order by (s.segment = o.segment and s.n_leads >= 30) desc, s.segment = b2b.segment_rollup(o.segment) desc limit 1) st on true
-   where o.age_days >= (prm ->> 'maturity_days')::numeric;
+                        order by (s.segment = o.segment and s.n_leads >= 30) desc, s.segment = b2b.segment_rollup(o.segment) desc limit 1) st on true;
 
   select count(*), count(*) filter (where y = 1), count(*) filter (where split = 'train'), count(*) filter (where split = 'valid')
     into v_n, v_pos, v_ntrain, v_nvalid from b2b.ml_training_rows where model_id = m.id;
@@ -263,34 +266,98 @@ begin
   return v_out;
 end $fn$;
 
-/* Once a day: calibration of each deciding model on its matured leads; above ece_fallback it is retired (the engine falls
-   back to segment P̂) and the Admin is alerted. Prediction drift is recorded. */
+/* Once a day, for each deciding model (champion, challenger):
+   - calibration on its matured leads: above ece_fallback the model is retired (the engine falls back to segment P̂) and
+     the Admin is alerted (alert.model_fallback);
+   - prediction drift, like for like: the model's mean P over the eligible candidates of its decisions in the last 30 days,
+     against the same over its holdout's logged decisions (mean_p_reference: computed once, then kept in metrics.monitor);
+   - feature drift: PSI of each lead feature's presence, its decisions in the last 30 days against its training rows.
+   With at least drift_min_decisions (200) decisions in 30 days, a largest PSI above psi_alert (0.25) or a mean P that moved
+   by more than pred_drift_rel (0.5) of the reference raises alert.model_drift for the Admin. Drift never retires a model.
+   The model's P of a candidate is the logged p_model, or p_used when p_source = 'model' (the Addendum 3 format). */
 create or replace function b2b.ml_monitor()
 returns jsonb language plpgsql volatile security definer set search_path = '' as $fn$
 declare
   cfg jsonb := b2b.ml_cfg();
   prm jsonb := b2b.engine_params(true);
   m b2b.ml_models;
+  v_md int := coalesce((prm ->> 'maturity_days')::int, (prm ->> 'matured_days')::int, 60);
   v_eval jsonb;
   v_recent numeric;
+  v_ref numeric;
+  v_psi jsonb;
+  v_drift boolean;
   v_out jsonb := '[]';
 begin
   perform set_config('b2b.actor', 'engine', true);
   for m in select * from b2b.ml_models where status in ('champion', 'challenger') loop
-    select b2b.ml_eval(array_agg((c ->> 'p_model')::float8), array_agg(case when e.status is not null then 1 else 0 end::float8))
+    -- calibration: the model's P for the partner that won, against enrolment, on matured allocations
+    select b2b.ml_eval(array_agg(cc.p::float8), array_agg(case when e.status is not null then 1 else 0 end::float8))
       into v_eval
       from b2b.engine_decisions d
       join b2b.allocations a on a.engine_decision_id = d.id and not a.is_test and a.status in ('pushed', 'accepted', 'closed')
-      cross join lateral (select c from jsonb_array_elements(d.candidates) c where (c ->> 'partner_id')::bigint = d.winner_partner_id and c ? 'p_model' limit 1) cc(c)
+      cross join lateral (select coalesce(c ->> 'p_model', case when c ->> 'p_source' = 'model' then c ->> 'p_used' end)::numeric p
+                            from jsonb_array_elements(d.candidates) c
+                           where (c ->> 'partner_id')::bigint = d.winner_partner_id and (c ? 'p_model' or c ->> 'p_source' = 'model') limit 1) cc
       left join lateral (select x.status from public.enrollments x where x.allocation_id = a.id order by x.id desc limit 1) e on true
-     where d.model_version = m.version and a.created_at <= now() - make_interval(days => (prm ->> 'maturity_days')::int);
-    select avg((c ->> 'p_model')::numeric) into v_recent
+     where d.model_version = m.version and a.created_at <= now() - make_interval(days => v_md);
+
+    -- prediction drift, like for like: the model's P over every eligible candidate in the last 30 days ...
+    select avg(coalesce(c ->> 'p_model', case when c ->> 'p_source' = 'model' then c ->> 'p_used' end)::numeric) into v_recent
       from b2b.engine_decisions d, jsonb_array_elements(d.candidates) c
-     where d.model_version = m.version and d.created_at > now() - interval '30 days' and c ? 'p_model';
+     where d.model_version = m.version and not d.is_test and d.created_at > now() - interval '30 days'
+       and coalesce((c ->> 'eligible')::boolean, true) and (c ? 'p_model' or c ->> 'p_source' = 'model');
+    -- ... against the same over the holdout's logged decisions, computed once, then cached
+    v_ref := (m.metrics -> 'monitor' ->> 'mean_p_reference')::numeric;
+    if v_ref is null then
+      select avg((b2b.ml_predict(m.weights, m.calibration, b2b.ml_features(b2b.ml_lead_features(l), (c ->> 'partner_id')::bigint, c)) ->> 'p')::numeric)
+        into v_ref
+        from b2b.ml_training_rows r
+        join b2b.engine_decisions d on d.id = r.decision_id
+        join public.student_leads l on l.id = d.lead_id
+        cross join lateral jsonb_array_elements(d.candidates) c
+       where r.model_id = m.id and r.split = 'valid' and coalesce((c ->> 'eligible')::boolean, true);
+    end if;
+
+    -- feature drift: PSI of each lead feature's presence, this model's decisions in 30 days against its training rows.
+    -- The training rows also hold ml_features' partner and candidate keys (p:*, p_logit, sla, sla_missing; effort under
+    -- Addendum 3): keep the regex in step with ml_features.
+    with live as (select b2b.ml_lead_features(l) - '_src' - '_lvl' x
+                    from b2b.engine_decisions d join public.student_leads l on l.id = d.lead_id
+                   where d.model_version = m.version and not d.is_test and d.created_at > now() - interval '30 days'),
+         tr as (select r.x from b2b.ml_training_rows r where r.model_id = m.id),
+         n as (select (select count(*) from live)::float8 nl, (select count(*) from tr)::float8 nt),
+         kl as (select f.key, count(*)::float8 k from live, jsonb_object_keys(live.x) f(key) where f.key <> 'score' group by 1),
+         kt as (select f.key, count(*)::float8 k from tr, jsonb_object_keys(tr.x) f(key)
+                 where f.key !~ '^(p:|p_logit$|sla|effort|score$)' group by 1),
+         sh as (select coalesce(kl.key, kt.key) key, (coalesce(kl.k, 0) + 0.5) / (n.nl + 1) a, (coalesce(kt.k, 0) + 0.5) / (n.nt + 1) e
+                  from kl full join kt on kt.key = kl.key cross join n),
+         psi as (select sh.key, sh.a, sh.e, (sh.a - sh.e) * ln(sh.a / sh.e) + (sh.e - sh.a) * ln((1 - sh.a) / (1 - sh.e)) v from sh)
+    select case when n.nt >= 30 then jsonb_build_object('n_live', n.nl::int, 'n_training', n.nt::int,
+             'max', round(coalesce((select max(v) from psi), 0)::numeric, 4),
+             'top', coalesce((select jsonb_agg(jsonb_build_object('feature', t.key, 'training', round(t.e::numeric, 3), 'recent', round(t.a::numeric, 3),
+                                                                  'psi', round(t.v::numeric, 4)) order by t.v desc)
+                                from (select * from psi order by v desc limit 5) t), '[]'),
+             'score_training', (select round(avg((tr.x ->> 'score')::numeric), 3) from tr),
+             'score_30d', (select round(avg((live.x ->> 'score')::numeric), 3) from live)) end
+      into v_psi from n;
+
+    v_drift := coalesce(coalesce((v_psi ->> 'n_live')::int, 0) >= coalesce((cfg ->> 'drift_min_decisions')::int, 200)
+                        and (coalesce((v_psi ->> 'max')::numeric, 0) > coalesce((cfg ->> 'psi_alert')::numeric, 0.25)
+                             or (v_ref > 0 and v_recent is not null
+                                 and abs(v_recent - v_ref) > coalesce((cfg ->> 'pred_drift_rel')::numeric, 0.5) * v_ref)), false);
+
     update b2b.ml_models set metrics = metrics || jsonb_build_object('monitor', jsonb_build_object('at', now(), 'matured', v_eval - 'deciles',
                                      'deciles', v_eval -> 'deciles', 'mean_p_30d', round(v_recent, 5),
-                                     'mean_p_training', metrics -> 'holdout' -> 'mean_p'))
+                                     'mean_p_training', metrics -> 'holdout' -> 'mean_p',
+                                     'mean_p_reference', round(v_ref, 5), 'feature_psi', v_psi, 'drift', v_drift))
      where id = m.id;
+    -- for the Admin only: drift never retires a model
+    if v_drift then
+      perform b2b.log_event('alert.model_drift', null, null, null, jsonb_build_object('version', m.version, 'status', m.status,
+        'max_psi', v_psi -> 'max', 'top', v_psi -> 'top', 'mean_p_30d', round(v_recent, 5), 'mean_p_reference', round(v_ref, 5)));
+    end if;
+
     if coalesce((v_eval ->> 'n')::int, 0) >= 100 and (v_eval ->> 'ece')::numeric > (cfg ->> 'ece_fallback')::numeric then
       update b2b.ml_models set status = 'retired', status_at = now(), status_by = 'engine',
              status_reason = format('calibration error %s above %s on %s matured leads: fell back to segment P̂', v_eval ->> 'ece', cfg ->> 'ece_fallback', v_eval ->> 'n'),
@@ -305,7 +372,14 @@ begin
   return v_out;
 end $fn$;
 
-/* Every 10 minutes: train a requested model, start the nightly one, fail a stuck one, and monitor once a day. */
+/* The b2b-ml-tick cron job, every 10 minutes, under statement_timeout 15min (set in the job's command), one at a time
+   (an advisory lock: a second tick returns {"busy":true}). In order:
+   1. fails a training run queued more than an hour ago that is still 'training': its run never finished (cancelled or
+      timed out, which WHEN OTHERS cannot catch), so the queue is freed (ml.model_failed);
+   2. queues the nightly run at train_hour_ist (IST) when auto_train is on, nothing is queued and no model was created in
+      the last 20 hours;
+   3. trains the queued model (ml_train); an error marks it failed (ml.model_failed);
+   4. once a day (23 hours after the last ml.monitored event), monitors the champion and the challenger (ml_monitor). */
 create or replace function b2b.ml_tick()
 returns jsonb language plpgsql volatile security definer set search_path = '' as $fn$
 declare
@@ -317,6 +391,15 @@ declare
 begin
   if not pg_try_advisory_xact_lock(hashtext('b2b.ml_tick')) then return '{"busy":true}'; end if;
   perform set_config('b2b.actor', 'engine', true);
+  -- a run that never finished (cancelled or timed out: WHEN OTHERS cannot catch query_canceled) frees the queue
+  for m in update b2b.ml_models
+              set status = 'failed', error = 'training did not finish within an hour (cancelled or timed out)',
+                  status_at = now(), status_by = 'engine'
+            where status = 'training' and created_at < now() - interval '1 hour'
+           returning * loop
+    perform b2b.log_event('ml.model_failed', null, null, null, jsonb_build_object('version', m.version, 'error', 'did not finish within an hour'));
+    v_res := v_res || jsonb_build_object('stuck_failed', m.version);
+  end loop;
   -- nightly training when the auto switch is on and nothing was trained in the last 20 hours
   if coalesce((cfg ->> 'auto_train')::boolean, true) and v_hour = coalesce((cfg ->> 'train_hour_ist')::int, 2)
      and not exists (select 1 from b2b.ml_models where status = 'training')
@@ -326,11 +409,11 @@ begin
   select * into m from b2b.ml_models where status = 'training' order by id limit 1;
   if m.id is not null then
     begin
-      v_res := jsonb_build_object('trained', b2b.ml_train(m.id));
+      v_res := v_res || jsonb_build_object('trained', b2b.ml_train(m.id));
     exception when others then
       update b2b.ml_models set status = 'failed', error = left(sqlerrm, 500), status_at = now(), status_by = 'engine' where id = m.id;
       perform b2b.log_event('ml.model_failed', null, null, null, jsonb_build_object('version', m.version, 'error', left(sqlerrm, 300)));
-      v_res := jsonb_build_object('failed', m.version, 'error', left(sqlerrm, 300));
+      v_res := v_res || jsonb_build_object('failed', m.version, 'error', left(sqlerrm, 300));
     end;
   end if;
   select max(occurred_at) into v_last from b2b.events where type = 'ml.monitored';
@@ -343,10 +426,16 @@ begin
   return v_res;
 end $fn$;
 
+-- The timeout is part of the job's command: a SET clause on the function would not work, because the statement timer is
+-- armed when the outer statement starts. An existing job only gets the new command and keeps its active flag, so a job
+-- paused for the promotion window stays paused.
 do $cron$
 begin
-  perform cron.unschedule(jobid) from cron.job where jobname = 'b2b-ml-tick';
-  perform cron.schedule('b2b-ml-tick', '*/10 * * * *', 'select b2b.ml_tick()');
+  if exists (select 1 from cron.job where jobname = 'b2b-ml-tick') then
+    perform cron.alter_job(jobid, command := 'set statement_timeout = ''15min''; select b2b.ml_tick()') from cron.job where jobname = 'b2b-ml-tick';
+  else
+    perform cron.schedule('b2b-ml-tick', '*/10 * * * *', 'set statement_timeout = ''15min''; select b2b.ml_tick()');
+  end if;
 end $cron$;
 
 revoke execute on function b2b.ml_cfg(), b2b.ml_isotonic(float8[], float8[]), b2b.ml_eval(float8[], float8[]), b2b.ml_train(bigint),

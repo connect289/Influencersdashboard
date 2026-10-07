@@ -2,6 +2,8 @@
 -- tick, the API (schema, get, feed, lookup, update, activity) with keys, idempotency, version conflicts and field rules,
 -- release when a lead leaves B2C, the Admin's settings, resync, inspector and overview. Every row must say ok = true.
 begin;
+-- hold the cron ticks' locks for this transaction so an overlapping staging cron run cannot make the calls below return busy; rollback releases them
+select pg_advisory_xact_lock(hashtext('b2b.b2c_sync_tick'));
 create temp table r (name text, ok boolean, detail text);
 create temp table t (k text primary key, v text);
 grant all on r, t to authenticated;

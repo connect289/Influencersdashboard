@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   const def = req.nextUrl.searchParams.get("def");
   let p: Record<string, unknown> | null = null;
-  if (id && /^\d{1,15}$/.test(id)) p = { id: Number(id) };
-  else if (def) { const d = decodeDef(def); if (d) p = d; }
+  if (id && /^\d{1,15}$/.test(id)) p = { id: Number(id), override: { limit: 5000 } };
+  else if (def) { const d = decodeDef(def); if (d) p = d.kind === "tabular" ? { ...d, definition: { ...d.definition, limit: d.definition.limit ?? 5000 } } : d; }
   if (!p) return new NextResponse("Unknown report", { status: 400 });
   const supabase = await createClient();
   const { data, error } = await supabase.schema("b2b").rpc("report_csv_admin", { p });

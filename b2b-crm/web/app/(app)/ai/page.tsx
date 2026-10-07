@@ -11,9 +11,11 @@ import {
 } from "@/lib/ai/labels";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { routingOverview } from "@/lib/routing-data";
-import { AiSettingsForm, AskPanel, DecideButtons, ModelActions, RollbackRecommendation, RunNow } from "./AiClient";
+import { AiSettingsForm, AskPanel, DecideButtons, MlSettingsForm, ModelActions, RollbackRecommendation, RunNow } from "./AiClient";
 
 export const metadata: Metadata = { title: "AI Optimiser" };
+// Ask the CRM runs as a server action of this page and stops itself at 240 s (lib/ai/ask.ts)
+export const maxDuration = 300;
 
 const TABS = [
   { id: "inbox", label: "Inbox" },
@@ -62,7 +64,7 @@ function RecCard({ r, names }: { r: Recommendation; names: Record<string, string
         <ul className="flex flex-wrap gap-1.5">
           {r.evidence.slice(0, 8).map((e, i) => (
             <li key={i} className="rounded-md border border-border bg-surface-2 px-2 py-0.5 text-[11.5px] text-muted">
-              {e.tool && <span className="text-subtle">{e.tool}: </span>}{e.metric} {e.value !== undefined && <span className="text-fg">{String(e.value)}</span>}
+              {typeof e?.tool === "string" && <span className="text-subtle">{e.tool}: </span>}{typeof e?.metric === "string" ? e.metric : null} {e?.value !== undefined && e?.value !== null && <span className="text-fg">{typeof e.value === "object" ? "…" : String(e.value)}</span>}
             </li>
           ))}
         </ul>
@@ -220,6 +222,19 @@ function Calibration({ d }: { d: NonNullable<NonNullable<MlModel["metrics"]["hol
   );
 }
 
+/** The daily monitor's drift rows: the model's mean P (30 days against its holdout reference) and feature drift (PSI). */
+function MonitorRows({ mon }: { mon: NonNullable<MlModel["metrics"]["monitor"]> }) {
+  const psi = mon.feature_psi;
+  const top = psi?.top?.[0];
+  return (
+    <>
+      {(mon.mean_p_30d != null || mon.mean_p_reference != null) && <><dt className="text-muted">Mean prediction, 30 days / reference</dt><dd className="tabular text-right">{pct(mon.mean_p_30d, 2)} / {pct(mon.mean_p_reference, 2)}</dd></>}
+      {psi && <><dt className="text-muted">Feature drift (max PSI)</dt>
+        <dd className="tabular text-right">{psi.max}{top && <span className="text-muted"> · {top.feature} {pct(top.training, 0)} → {pct(top.recent, 0)}</span>}</dd></>}
+    </>
+  );
+}
+
 function Models({ ml }: { ml: MlOverview }) {
   const active = ml.models.filter((m) => ["shadow", "challenger", "champion", "training"].includes(m.status));
   const rest = ml.models.filter((m) => !active.includes(m));
@@ -228,6 +243,7 @@ function Models({ ml }: { ml: MlOverview }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-[13px] font-semibold text-fg">{m.version}</span>
         <Badge tone={m.status === "champion" ? "success" : m.status === "challenger" ? "info" : m.status === "failed" ? "danger" : "neutral"}>{MODEL_STATUS_LABEL[m.status]}</Badge>
+        {m.metrics.monitor?.drift && <Badge tone="warning"><TriangleAlert className="size-3" /> Drifted from training</Badge>}
         <span className="text-[12px] text-subtle">{m.trained_at ? `trained ${relativeTime(m.trained_at)}` : `queued ${relativeTime(m.created_at)}`}{m.status_reason && m.status_reason !== "trained" && ` · ${m.status_reason}`}</span>
       </div>
       {m.error && <p className="text-[12.5px] text-danger">{m.error}</p>}
@@ -240,6 +256,7 @@ function Models({ ml }: { ml: MlOverview }) {
             <dt className="text-muted">Calibration error: model / P̂</dt><dd className="tabular text-right">{m.metrics.holdout.ece} / {m.metrics.baseline?.ece}</dd>
             <dt className="text-muted">Policy value (logged decisions)</dt><dd className="tabular text-right">{rupees(m.metrics.policy?.model_value)} vs {rupees(m.metrics.policy?.logged_value)} ({m.metrics.policy?.decisions ?? 0})</dd>
             {m.metrics.monitor?.matured && <><dt className="text-muted">Live calibration error</dt><dd className="tabular text-right">{m.metrics.monitor.matured.ece} on {m.metrics.monitor.matured.n}</dd></>}
+            {m.metrics.monitor && <MonitorRows mon={m.metrics.monitor} />}
             {m.champion_check && <><dt className="text-muted">Challenger vs rest (NCPL)</dt><dd className="tabular text-right">{rupees(m.champion_check.model_ncpl)} vs {rupees(m.champion_check.other_ncpl)} · z {m.champion_check.z}</dd></>}
           </dl>
         </div>
@@ -275,10 +292,8 @@ function Models({ ml }: { ml: MlOverview }) {
           <dt className="text-muted">of which enrolled</dt><dd className="tabular text-right">{ml.data.matured_enrolled}</dd>
           <dt className="text-muted">Partners</dt><dd className="tabular text-right">{ml.data.partners}</dd>
           <dt className="text-muted">Younger leads</dt><dd className="tabular text-right">{ml.data.young}</dd>
-          <dt className="text-muted">Challenger share</dt><dd className="tabular text-right">{pct(ml.settings.challenger_share, 0)}</dd>
-          <dt className="text-muted">Automatic fallback above</dt><dd className="tabular text-right">calibration error {ml.settings.ece_fallback}</dd>
-          <dt className="text-muted">Nightly training</dt><dd className="tabular text-right">{ml.settings.auto_train ? `${ml.settings.train_hour_ist}:00 IST` : "off"}</dd>
         </dl>
+        <div className="border-t border-border px-5 py-4"><MlSettingsForm key={ml.settings_version} s={ml.settings} version={ml.settings_version} /></div>
         {Object.keys(ml.decided_30d).length > 0 && (
           <div className="border-t border-border px-5 py-3 text-[12.5px]">
             <p className="mb-1 text-[11px] uppercase tracking-wider text-subtle">Performance decisions, 30 days</p>
@@ -340,7 +355,7 @@ export default async function AiPage({ searchParams }: Props) {
       {tab === "settings" && (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <Card className="min-w-0"><CardHeader title="AI settings" description="Every change is versioned with your reason." />
-            <div className="px-5 pb-5"><AiSettingsForm key={o.settings_version} s={o.settings} version={o.settings_version} /></div></Card>
+            <div className="px-5 pb-5"><AiSettingsForm key={o.settings_version} s={o.settings} version={o.settings_version} gate={o.autopilot_gate} /></div></Card>
           <Card className="min-w-0"><CardHeader title="Worker" description="The server-side worker that talks to Claude." />
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-5 pb-4 text-[12.5px]">
               <dt className="text-muted">Last seen</dt><dd className="text-right">{o.worker?.seen_at ? relativeTime(o.worker.seen_at) : "never"}</dd>

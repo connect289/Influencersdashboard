@@ -1,12 +1,14 @@
 "use client";
-import { useMemo, useState, useTransition } from "react";
-import { Download, LoaderCircle, Play, Save } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Archive, Download, LoaderCircle, Play, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DIM_LABEL, dimLabel, formatValue, PERIOD_LABEL, PERIODS, type CatalogueMetric, type Period } from "@/lib/analytics";
 import type { ReportResult } from "@/lib/analytics-data";
-import { FACT_LABEL, KIND_LABEL, type ReportDef, type ReportKind } from "@/lib/reports";
-import { runReport, saveReport } from "./actions";
+import { FACT_LABEL, KIND_LABEL, reconcileBreakdowns, type ReportDef, type ReportKind } from "@/lib/reports";
+import { archiveReport, runReport, saveReport } from "./actions";
 
 const field = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30";
 function L({ label, children }: { label: string; children: React.ReactNode }) {
@@ -61,6 +63,10 @@ export function ReportBuilder({ metrics, facts, initial }: { metrics: CatalogueM
   const [period, setPeriod] = useState<Period>((d0.period as Period) ?? "30d");
   const [fact, setFact] = useState<string>((d0.fact as string) ?? "fact_allocations");
   const [columns, setColumns] = useState<string[]>((d0.columns as string[]) ?? []);
+  const [sort, setSort] = useState<string>((d0.sort as string) ?? "");
+  const [desc, setDesc] = useState<boolean>((d0.desc as boolean) ?? true);
+  // optional: without a saved or typed limit the screen shows 1,000 rows and the CSV export up to 5,000
+  const [limit, setLimit] = useState<number | "">((d0.limit as number) ?? "");
   const [sel, setSel] = useState<string[]>((d0.metrics as string[]) ?? []);
   const [dims, setDims] = useState<string[]>((d0.dims as string[]) ?? ["partner"]);
   const [metric, setMetric] = useState<string>((d0.metric as string) ?? "allocations");
@@ -69,9 +75,11 @@ export function ReportBuilder({ metrics, facts, initial }: { metrics: CatalogueM
   const [fdim, setFdim] = useState<string>(Object.keys((d0.filters as object) ?? {})[0] ?? "");
   const [fval, setFval] = useState<string>(Object.values((d0.filters as Record<string, string[]>) ?? {})[0]?.join(", ") ?? "");
   const [result, setResult] = useState<ReportResult | null>(null);
+  const [archiving, setArchiving] = useState(false);
   const [busy, start] = useTransition();
+  const router = useRouter();
   const filters = fdim && fval.trim() ? { [fdim]: fval.split(",").map((x) => x.trim()).filter(Boolean) } : {};
-  const def: ReportDef = kind === "tabular" ? { kind, definition: { fact, columns, filters, period } }
+  const def: ReportDef = kind === "tabular" ? { kind, definition: { fact, columns, filters, period, ...(sort ? { sort } : {}), desc, ...(limit !== "" ? { limit } : {}) } }
     : kind === "summary" ? { kind, definition: { metrics: sel, dims, filters, period } }
     : { kind, definition: { metric, row_dim: rowDim, col_dim: colDim, filters, period } };
   const dimsFor = useMemo(() => {
@@ -79,9 +87,20 @@ export function ReportBuilder({ metrics, facts, initial }: { metrics: CatalogueM
     const ms = metrics.filter((m) => keys.includes(m.key));
     return ms.length ? ms.map((m) => m.dims).reduce((a, b) => a.filter((x) => b.includes(x))) : [];
   }, [kind, sel, metric, metrics]);
+  // Keep the breakdowns of the kind on screen valid for its metrics (the selects can only display valid ones). The other
+  // kinds' breakdowns are left alone, and a summary without metrics keeps its default until metrics are chosen.
+  useEffect(() => {
+    if (kind === "tabular" || (kind === "summary" && sel.length === 0)) return;
+    const n = reconcileBreakdowns(dimsFor, { dims, rowDim, colDim });
+    if (kind === "summary") { if (n.dims.length !== dims.length) setDims(n.dims); return; }
+    if (n.rowDim !== rowDim) setRowDim(n.rowDim);
+    if (n.colDim !== colDim) setColDim(n.colDim);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dimsFor]);
   const run = () => start(async () => { const r = await runReport(def); if (!r.ok) { toast.error(r.error); return; } setResult(r.result); });
   const save = () => start(async () => { const r = await saveReport(id, name, def); if (!r.ok) { toast.error(r.error); return; } setId(r.id); toast.success("Report saved"); });
-  const exportHref = id ? `/reports/export?id=${id}&name=${encodeURIComponent(name || "report")}` : `/reports/export?def=${b64url(JSON.stringify(def))}&name=${encodeURIComponent(name || "report")}`;
+  // the CSV always matches the definition on screen (saved or not)
+  const exportHref = `/reports/export?def=${b64url(JSON.stringify(def))}&name=${encodeURIComponent(name || "report")}`;
 
   return (
     <div className="space-y-4">
@@ -92,7 +111,7 @@ export function ReportBuilder({ metrics, facts, initial }: { metrics: CatalogueM
       </div>
       {kind === "tabular" && (
         <div className="space-y-3">
-          <L label="List of"><select value={fact} onChange={(e) => { setFact(e.target.value); setColumns([]); }} className={field}>{Object.keys(facts).map((f) => <option key={f} value={f}>{FACT_LABEL[f] ?? f}</option>)}</select></L>
+          <L label="List of"><select value={fact} onChange={(e) => { setFact(e.target.value); setColumns([]); setSort(""); }} className={field}>{Object.keys(facts).map((f) => <option key={f} value={f}>{FACT_LABEL[f] ?? f}</option>)}</select></L>
           <fieldset><legend className="mb-1 text-[12px] text-muted">Columns ({columns.length}/30)</legend>
             <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[12.5px]">
               {(facts[fact] ?? []).map((c) => (
@@ -101,6 +120,12 @@ export function ReportBuilder({ metrics, facts, initial }: { metrics: CatalogueM
               ))}
             </div>
           </fieldset>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <L label="Sort by"><select value={sort} onChange={(e) => setSort(e.target.value)} className={field}><option value="">Date (default)</option>{(facts[fact] ?? []).map((c) => <option key={c.name} value={c.name}>{c.name.replace(/_/g, " ")}</option>)}</select></L>
+            <L label="Order"><select value={desc ? "desc" : "asc"} onChange={(e) => setDesc(e.target.value === "desc")} className={field}><option value="desc">Highest / newest first</option><option value="asc">Lowest / oldest first</option></select></L>
+            <L label="Rows (max 5,000)"><input type="number" min={1} max={5000} step={1} value={limit} placeholder="1,000 on screen, 5,000 in the CSV" className={field}
+              onChange={(e) => { const v = e.target.value; setLimit(v === "" ? "" : Math.min(5000, Math.max(1, Math.trunc(Number(v)) || 1))); }} /></L>
+          </div>
         </div>
       )}
       {kind === "summary" && (
@@ -134,14 +159,22 @@ export function ReportBuilder({ metrics, facts, initial }: { metrics: CatalogueM
       <div className="flex flex-wrap gap-2 border-t border-border pt-4">
         <Button size="sm" onClick={run} disabled={busy}>{busy ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Run</Button>
         <Button size="sm" variant="secondary" onClick={save} disabled={busy || !name.trim()}><Save className="size-3.5" /> {id ? "Save changes" : "Save report"}</Button>
+        {id && <Button size="sm" variant="secondary" onClick={() => setArchiving(true)} disabled={busy}><Archive className="size-3.5" /> Archive</Button>}
         <a href={exportHref} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-[13px] text-fg hover:bg-surface-hover"><Download className="size-3.5" /> Export CSV</a>
         {id && <a href={`/dashboards?tab=alerts&schedule=r:${id}`} className="inline-flex h-8 items-center rounded-lg px-3 text-[13px] text-info hover:underline">Schedule by e-mail</a>}
       </div>
       {result && (
         <div className="overflow-x-auto rounded-lg border border-border">
-          <p className="border-b border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">{result.kind === "tabular" ? `${result.rows.length} rows${result.rows.length >= result.limit ? ` (first ${result.limit})` : ""}` : `${result.rows.length} rows`} · {new Date(result.from).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} to {new Date(result.to).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+          <p className="border-b border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">{result.kind === "tabular" ? `${result.rows.length} rows${result.rows.length >= result.limit ? ` (first ${result.limit})` : ""}`
+            : `${result.rows.length} rows${result.truncated ? " (cut at 2,000 breakdown values: narrow the filters or period)" : ""}`} · {new Date(result.from).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} to {new Date(result.to).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
           <ResultTable r={result} />
         </div>
+      )}
+      {id && (
+        <ConfirmDialog open={archiving} onClose={() => setArchiving(false)} title="Archive this report" confirmLabel="Archive" tone="danger"
+          onConfirm={async () => { const err = await archiveReport(id); if (!err) { toast.success("Archived"); router.push("/reports"); } return err; }}>
+          <p className="text-[13px] text-muted">It leaves the list. Schedules that send it stop.</p>
+        </ConfirmDialog>
       )}
     </div>
   );

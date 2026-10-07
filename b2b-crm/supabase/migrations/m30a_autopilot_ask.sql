@@ -3,6 +3,7 @@
 --     Admin when its simulation rests on enough decisions, shows at least autopilot.min_gain_pct (default 3%) more net
 --     commission per lead, and the lower end of its 95% interval is above zero; at most autopilot.max_per_day (default 3)
 --     a day. Drafts (rules, pauses) and anything else stay in the inbox. Every auto-applied change is versioned "by autopilot".
+--     The Admin can switch it on only once AI-steered leads beat the holdout over 4 weeks of matured leads (ai_autopilot_gate).
 --   7-day review (every applied setting change, Advisory or Autopilot): realised commission cannot exist 7 days after a
 --     change (leads mature after 60), so the review compares, inside the change's scope, the AI-steered leads routed since
 --     the change with the holdout leads routed in the same days, on expected net commission per lead from the stage each
@@ -123,7 +124,7 @@ begin
   if coalesce((cfg ->> 'enabled')::boolean, false) and cfg ->> 'mode' = 'autopilot' then
     select count(*) into v_today from b2b.ai_recommendations
      where decided_by = 'autopilot' and decided_at >= date_trunc('day', now() at time zone 'Asia/Kolkata') at time zone 'Asia/Kolkata';
-    for rec in select * from b2b.ai_recommendations where status = 'open' and kind = 'setting_change' and expires_at > now() order by created_at for update skip locked loop
+    for rec in select * from b2b.ai_recommendations where status = 'open' and kind = 'setting_change' and expires_at > now() order by created_at, id for update skip locked loop
       exit when v_today + v_applied >= coalesce((ap ->> 'max_per_day')::int, 3);
       continue when not coalesce((rec.simulation ->> 'simulated')::boolean, false)
                  or coalesce((rec.simulation ->> 'decisions')::int, 0) < coalesce((ap ->> 'min_decisions')::int, 30)
@@ -149,14 +150,20 @@ begin
   perform cron.schedule('b2b-ai-autopilot', '*/5 * * * *', 'select b2b.ai_autopilot_tick()');
 end $cron$;
 
-/* As in M26b, plus Autopilot and its bounds. */
+/* As in M26b, plus Autopilot (locked until AI-steered leads beat the holdout, ai_autopilot_gate) and its bounds, and the
+   prices per million tokens (every model in use needs one). */
 create or replace function b2b.ai_settings_save(p jsonb, p_reason text)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $fn$
-declare v jsonb := b2b.ai_cfg();
+declare v jsonb := b2b.ai_cfg(); v_model text;
 begin
   if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
   if p ? 'enabled' and jsonb_typeof(p -> 'enabled') <> 'boolean' then raise exception 'the optimiser is on or off' using errcode = '22023'; end if;
   if p ? 'mode' and p ->> 'mode' not in ('advisory', 'autopilot') then raise exception 'advisory or autopilot' using errcode = '22023'; end if;
+  -- only switching into Autopilot is checked, so other settings can still be saved while in Autopilot
+  if p ->> 'mode' = 'autopilot' and coalesce(v ->> 'mode', 'advisory') <> 'autopilot'
+     and not coalesce((b2b.ai_autopilot_gate() ->> 'open')::boolean, false) then
+    raise exception 'Autopilot unlocks once AI-steered leads beat the holdout over 4 weeks of matured leads (see AI vs holdout)' using errcode = '22023';
+  end if;
   if p ? 'daily_budget_usd' and not ((p ->> 'daily_budget_usd')::numeric between 0 and 200) then raise exception 'the daily budget is $0 to $200' using errcode = '22023'; end if;
   if p ? 'worker_url' and coalesce(p ->> 'worker_url', '') <> '' and p ->> 'worker_url' !~ '^https://[^\s/]+(/[^\s]*)?$' then
     raise exception 'the worker address starts with https://' using errcode = '22023';
@@ -166,6 +173,15 @@ begin
     raise exception 'models are claude-… names for regular, deep and quick runs' using errcode = '22023';
   end if;
   if p ? 'schedules' and jsonb_typeof(p -> 'schedules') <> 'object' then raise exception 'schedules are on or off' using errcode = '22023'; end if;
+  if p ? 'prices_per_mtok' and (jsonb_typeof(p -> 'prices_per_mtok') <> 'object'
+       or exists (select 1 from jsonb_each(p -> 'prices_per_mtok') m(k, x)
+                   where k !~ '^claude-[a-z0-9.-]{3,60}$'
+                      or case when jsonb_typeof(x) <> 'object' or not (x ? 'in' and x ? 'out') then true
+                              else exists (select 1 from jsonb_each(x) f(fk, fx)
+                                            where fk not in ('in', 'out', 'cache_read', 'cache_write')
+                                               or case when jsonb_typeof(fx) = 'number' then not ((fx #>> '{}')::numeric between 0 and 1000) else true end) end)) then
+    raise exception 'prices are dollars per million tokens (in, out, cache_read, cache_write) for claude-… models' using errcode = '22023';
+  end if;
   if p ? 'autopilot' then
     if not ((p -> 'autopilot' ->> 'min_gain_pct')::numeric between 1 and 50) then raise exception 'Autopilot needs a simulated gain of 1 to 50%%' using errcode = '22023'; end if;
     if not ((p -> 'autopilot' ->> 'max_per_day')::int between 1 and 10) then raise exception 'Autopilot applies 1 to 10 changes a day' using errcode = '22023'; end if;
@@ -179,7 +195,12 @@ begin
                                                                  where k in ('light', 'hourly', 'nightly', 'weekly') and x in ('true', 'false'))) else '{}' end
        || case when p ? 'autopilot' then jsonb_build_object('autopilot', coalesce(v -> 'autopilot', '{}')
                                                             || jsonb_build_object('min_gain_pct', round((p -> 'autopilot' ->> 'min_gain_pct')::numeric, 1),
-                                                                                  'max_per_day', (p -> 'autopilot' ->> 'max_per_day')::int)) else '{}' end;
+                                                                                  'max_per_day', (p -> 'autopilot' ->> 'max_per_day')::int)) else '{}' end
+       || case when p ? 'prices_per_mtok' then jsonb_build_object('prices_per_mtok', coalesce(v -> 'prices_per_mtok', '{}') || (p -> 'prices_per_mtok')) else '{}' end;
+  -- every model in use is priced, so the cost log and the daily budget never guess
+  select m.x into v_model from jsonb_each_text(coalesce(v -> 'models', '{}')) m(k, x)
+   where jsonb_typeof(v -> 'prices_per_mtok' -> m.x) is distinct from 'object' order by m.k limit 1;
+  if v_model is not null then raise exception 'add a price for % first', v_model using errcode = '22023'; end if;
   return b2b.set_setting('ai', v, p_reason);
 end $fn$;
 
@@ -191,7 +212,7 @@ begin
   if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
   return jsonb_build_object('ok', v_spent < coalesce((cfg ->> 'daily_budget_usd')::numeric, 5), 'left_usd', round(coalesce((cfg ->> 'daily_budget_usd')::numeric, 5) - v_spent, 4),
                             'model', coalesce(cfg -> 'models' ->> 'regular', 'claude-sonnet-5-5'),
-                            'price_per_mtok', coalesce(cfg -> 'prices_per_mtok' -> coalesce(cfg -> 'models' ->> 'regular', 'claude-sonnet-5-5'), '{"in":3,"out":15}'));
+                            'price_per_mtok', b2b.ai_price(coalesce(cfg -> 'models' ->> 'regular', 'claude-sonnet-5-5')));
 end $fn$;
 
 /* p: {question, answer, sources [{metric, dims, filters, from, to}], tool_calls, usage {in, out, cache_read, cache_write}, model, validation, error} */
@@ -200,7 +221,7 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare cfg jsonb := b2b.ai_cfg(); pr jsonb; v_id bigint; v_cost numeric; v_ok boolean := coalesce((p -> 'validation' ->> 'ok')::boolean, false);
 begin
   if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
-  pr := coalesce(cfg -> 'prices_per_mtok' -> (p ->> 'model'), '{"in":3,"out":15,"cache_read":0.3,"cache_write":3.75}');
+  pr := b2b.ai_price(p ->> 'model');
   v_cost := round((coalesce((p -> 'usage' ->> 'in')::numeric, 0) * (pr ->> 'in')::numeric + coalesce((p -> 'usage' ->> 'out')::numeric, 0) * (pr ->> 'out')::numeric
                    + coalesce((p -> 'usage' ->> 'cache_read')::numeric, 0) * coalesce((pr ->> 'cache_read')::numeric, 0)
                    + coalesce((p -> 'usage' ->> 'cache_write')::numeric, 0) * coalesce((pr ->> 'cache_write')::numeric, 0)) / 1000000, 4);

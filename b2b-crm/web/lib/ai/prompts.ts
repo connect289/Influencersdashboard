@@ -4,7 +4,7 @@
  * nothing Claude returns is applied until an Admin approves it (Advisory).
  */
 
-export const PROMPT_VERSION = "opt-2026-10-07.1";
+export const PROMPT_VERSION = "opt-2026-10-07.2";
 
 export type RunKind = "light_check" | "optimise" | "deep_review" | "weekly_report";
 
@@ -12,6 +12,12 @@ export const LEVERS = [
   "exploration_share", "segment_pin", "partner_weight", "share_cap", "maturity_days", "half_life_days", "prior_weight",
   "speed_factor", "reliability_factor", "rule_draft", "pause_draft",
 ] as const;
+
+/**
+ * The numbers BASE states as fixed facts (the lever bounds and limits), which Claude may quote without a tool result.
+ * The validator allows them. Addendum 3's prompt rewrite replaces this list with the numbers its new BASE text states.
+ */
+export const PROMPT_FACTS: number[] = [0, 0.5, 30, 90, 14, 60, 5, 50, 0.9, 1.1, 1, 100];
 
 const BASE = `You are the allocation optimiser of Eduwit's B2B partner CRM. Eduwit sends qualified student leads (people
 interested in online and distance degree programmes in India) to partner companies that sell those programmes, and earns
@@ -130,10 +136,11 @@ export const SUBMIT_TOOL: ToolDef = {
 export const ALL_TOOLS: ToolDef[] = [...DATA_TOOLS, SUBMIT_TOOL];
 export const DATA_TOOL_NAMES = new Set(DATA_TOOLS.map((t) => t.name));
 
+export type Evidence = { tool?: string; metric?: string; value?: string | number | boolean };
 export type Report = {
   summary: string;
-  findings: { title: string; detail: string; evidence?: unknown[] }[];
-  recommendations: { title: string; rationale: string; risk?: string; evidence?: unknown[]; change?: Record<string, unknown> }[];
+  findings: { title: string; detail: string; evidence?: Evidence[] }[];
+  recommendations: { title: string; rationale: string; risk?: string; evidence?: Evidence[]; change?: Record<string, unknown> }[];
 };
 
 /** The text the validator checks: everything a person reads. */
@@ -152,17 +159,24 @@ export function normaliseReport(input: unknown): Report | null {
   const s = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
   if (!s(o.summary, 2000)) return null;
   const arr = (v: unknown) => (Array.isArray(v) ? v : []);
+  // evidence items are objects {tool, metric, value} with a text tool and metric and a scalar value; anything else is dropped
+  const ev = (v: unknown): Evidence[] => arr(v).slice(0, 10).flatMap((e) => {
+    if (!e || typeof e !== "object" || Array.isArray(e)) return [];
+    const x = e as Record<string, unknown>;
+    const value = typeof x.value === "number" || typeof x.value === "string" || typeof x.value === "boolean" ? x.value : undefined;
+    return [{ tool: s(x.tool, 60) || undefined, metric: s(x.metric, 120) || undefined, value }];
+  });
   return {
     summary: s(o.summary, 2000),
     findings: arr(o.findings).slice(0, 10).flatMap((f) => {
       const x = f as Record<string, unknown>;
-      return s(x?.title, 200) && s(x?.detail, 3000) ? [{ title: s(x.title, 200), detail: s(x.detail, 3000), evidence: arr(x.evidence).slice(0, 10) }] : [];
+      return s(x?.title, 200) && s(x?.detail, 3000) ? [{ title: s(x.title, 200), detail: s(x.detail, 3000), evidence: ev(x.evidence) }] : [];
     }),
     recommendations: arr(o.recommendations).slice(0, 5).flatMap((r) => {
       const x = r as Record<string, unknown>;
       if (!s(x?.title, 200) || !s(x?.rationale, 3000)) return [];
       const c = x.change && typeof x.change === "object" && !Array.isArray(x.change) ? (x.change as Record<string, unknown>) : undefined;
-      return [{ title: s(x.title, 200), rationale: s(x.rationale, 3000), risk: s(x.risk, 1000) || undefined, evidence: arr(x.evidence).slice(0, 10), change: c }];
+      return [{ title: s(x.title, 200), rationale: s(x.rationale, 3000), risk: s(x.risk, 1000) || undefined, evidence: ev(x.evidence), change: c }];
     }),
   };
 }

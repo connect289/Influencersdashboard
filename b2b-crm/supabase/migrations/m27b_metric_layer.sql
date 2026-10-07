@@ -3,8 +3,10 @@
 --                        higher is better, and which rows a drill-down shows) and the Admin's calculated metrics (a formula
 --                        over other metrics, e.g. commission_realised / allocations)
 --   metric_dimensions()  which dimensions each fact can be cut by (B13.2), plus day / week / month on its date column
---   metric_run(p)        {metric, dims (up to 2), filters {dim: [values]}, from, to, compare: previous|none, limit,
---                        include_test} -> rows with value and previous-period value, the total, labels for partner ids.
+--   metric_run(p)        {metric, dims (up to 2), filters {dim: [values]}, from, to, compare: previous|none, limit (up to
+--                        2,000 rows; a time series keeps its newest buckets), include_test} -> rows with value and
+--                        previous-period value, the total, the limit and whether rows were cut off, labels for partner
+--                        ids. A filter value '' matches a null ('(none)') bucket.
 --                        Identifiers come only from the catalogue; values are bound parameters.
 --   metric_drill(p)      the rows behind a number (leads, allocations, enrolments, SLA checks …), up to 500
 --   metric_query / metric_drill_admin / metric_catalogue / metric_save   Admin-checked wrappers for the app
@@ -70,11 +72,11 @@ insert into b2b.metric_definitions (key, label, area, unit, fact, agg, date_col,
   ('ncpl_holdout', 'NCPL, holdout leads', 'AI and ML', 'inr', 'fact_allocations', 'avg(f.reward) filter (where f.matured and f.holdout)', 'created_at', 'f.matured and f.holdout', true, null),
   ('ncpl_steered', 'NCPL, AI-steered leads', 'AI and ML', 'inr', 'fact_allocations', 'avg(f.reward) filter (where f.matured and not f.holdout and f.scoring_mode is not null)', 'created_at', 'f.matured and not f.holdout and f.scoring_mode is not null', true, null),
   ('enrolments', 'Enrolments', 'Conversion', 'count', 'fact_enrollments', 'count(*) filter (where f.status <> ''cancelled'')', 'created_at', 'f.status <> ''cancelled''', true, null),
-  ('verified_enrolments', 'Verified enrolments', 'Conversion', 'count', 'fact_enrollments', 'count(*) filter (where f.status = ''verified'')', 'created_at', 'f.status = ''verified''', true, null),
+  ('verified_enrolments', 'Verified enrolments', 'Conversion', 'count', 'fact_enrollments', 'count(*) filter (where f.status = ''verified'')', 'verified_at', 'f.status = ''verified''', true, null),
   ('refund_rate', 'Refunded or cancelled', 'Conversion', 'pct', 'fact_enrollments', 'avg((f.status in (''refunded'', ''cancelled''))::int) filter (where f.status in (''verified'', ''refunded'', ''cancelled''))', 'created_at', 'f.status in (''refunded'', ''cancelled'')', false, null),
   ('days_to_enrol', 'Days to enrol (median)', 'Conversion', 'days', 'fact_enrollments', 'percentile_cont(0.5) within group (order by f.days_to_enrol)', 'created_at', 'f.days_to_enrol is not null', false, null),
   ('commission_expected', 'Commission expected', 'Commission', 'inr', 'fact_money', 'coalesce(sum(f.net_inr) filter (where f.status = ''expected''), 0)', 'created_at', 'f.status = ''expected''', true, 'Net of GST'),
-  ('commission_realised', 'Commission realised', 'Commission', 'inr', 'fact_money', 'coalesce(sum(f.net_inr) filter (where f.status = ''realised''), 0)', 'created_at', 'f.status = ''realised''', true, 'Net of GST'),
+  ('commission_realised', 'Commission realised', 'Commission', 'inr', 'fact_money', 'coalesce(sum(f.net_inr) filter (where f.status = ''realised''), 0)', 'realised_at', 'f.status = ''realised''', true, 'Net of GST'),
   ('invoiced', 'Invoiced', 'Receivables', 'inr', 'fact_invoices', 'coalesce(sum(f.total_inr), 0)', 'created_at', null, true, 'Gross, with GST'),
   ('outstanding', 'Outstanding', 'Receivables', 'inr', 'fact_invoices', 'coalesce(sum(f.outstanding_inr), 0)', 'created_at', 'f.outstanding_inr > 0', false, null),
   ('collection_rate', 'Collected', 'Receivables', 'pct', 'fact_invoices', 'sum(f.received_inr + f.tds_inr) / nullif(sum(f.total_inr), 0)', 'created_at', null, true, 'Received plus TDS, of invoiced'),
@@ -129,11 +131,11 @@ begin
   return b2b.metric_dimensions() -> p_fact ->> p_dim;
 end $fn$;
 
-/* The base metrics a metric needs: itself, or the metrics in its formula. */
+/* The base metrics a metric needs: itself, or the metrics in its formula, in formula order (each once). */
 create or replace function b2b.metric_bases(m b2b.metric_definitions)
 returns text[] language sql immutable set search_path = '' as $fn$
   select case when m.is_system then array[m.key]
-              else (select array_agg(distinct t ->> 'm') from jsonb_array_elements(m.formula) t where t ? 'm') end;
+              else (select array_agg(s.k order by s.o) from (select x.t ->> 'm' k, min(x.o) o from jsonb_array_elements(m.formula) with ordinality x(t, o) where x.t ? 'm' group by 1) s) end;
 $fn$;
 
 /* One base metric over a period: rows of (dims as text[], value). */
@@ -161,7 +163,7 @@ begin
   for k in select jsonb_object_keys(coalesce(p_filters, '{}')) loop
     v_expr := b2b.metric_dim_expr(m.fact, m.date_col, k);
     if v_expr is null then raise exception '% cannot be filtered by %', m.label, k using errcode = '22023'; end if;
-    v_where := v_where || format(' and (%s)::text in (select jsonb_array_elements_text($1 -> %L))', v_expr, k);
+    v_where := v_where || format(' and coalesce((%s)::text, '''') in (select jsonb_array_elements_text($1 -> %L))', v_expr, k);
   end loop;
   return query execute format(
     'select %s, (%s)::numeric from b2b.%I f where f.%I >= $2 and f.%I < $3 %s %s %s',
@@ -206,7 +208,12 @@ begin
       select bb.key, x.d, x.value from unnest(b2b.metric_bases(m)) bb(key)
       cross join lateral b2b.metric_base_rows(bb.key, p_dims, p_filters, p_from, p_to, p_test) x),
     keys as (select distinct parts.d from parts)
-    select k.d, b2b.metric_eval(m.formula, (select coalesce(jsonb_object_agg(p.key, p.value), '{}') from parts p where p.d is not distinct from k.d))
+    -- a count or sum base with no rows in a group is 0 there (avg, percentile and ratio bases stay null)
+    select k.d, b2b.metric_eval(m.formula,
+             (select coalesce(jsonb_object_agg(bb.key, coalesce(p.value, case when md.agg ~* '^(count\(|coalesce\(sum\()' then 0 end)), '{}')
+                from unnest(b2b.metric_bases(m)) bb(key)
+                join b2b.metric_definitions md on md.key = bb.key
+                left join parts p on p.key = bb.key and p.d is not distinct from k.d))
       from keys k;
 end $fn$;
 
@@ -220,9 +227,10 @@ declare
   v_len interval;
   v_cmp boolean := coalesce(p ->> 'compare', 'previous') = 'previous';
   v_test boolean := coalesce((p ->> 'include_test')::boolean, false);
-  v_limit int := least(greatest(coalesce((p ->> 'limit')::int, 100), 1), 500);
-  v_time boolean;
+  v_limit int := least(greatest(coalesce((p ->> 'limit')::int, 100), 1), 2000);
+  v_tpos int;                -- position of the first day / week / month breakdown, null without one
   v_rows jsonb;
+  v_more boolean;
   v_total jsonb;
 begin
   select * into m from b2b.metric_definitions where key = p ->> 'metric';
@@ -231,14 +239,17 @@ begin
   if v_from >= v_to then raise exception 'the period is empty' using errcode = '22023'; end if;
   if v_to - v_from > interval '3 years' then raise exception 'at most three years at a time' using errcode = '22023'; end if;
   v_len := v_to - v_from;
-  v_time := v_dims && array['day', 'week', 'month'];
+  v_tpos := (select min(i) from generate_subscripts(v_dims, 1) i where v_dims[i] in ('day', 'week', 'month'));
 
+  -- over the limit, a time series keeps its newest buckets (returned oldest first); otherwise the largest values are kept
   with cur as (select * from b2b.metric_values(m, v_dims, p -> 'filters', v_from, v_to, v_test)),
-       prev as (select * from b2b.metric_values(m, v_dims, p -> 'filters', v_from - v_len, v_from, v_test) where v_cmp and not v_time),
-       j as (select c.d, c.value, pr.value prev from cur c left join prev pr on pr.d is not distinct from c.d)
-  select coalesce(jsonb_agg(jsonb_build_object('d', to_jsonb(j.d), 'value', round(j.value, 4), 'prev', round(j.prev, 4))
-                            order by case when v_time then j.d[1] end, j.value desc nulls last, j.d), '[]')
-    into v_rows from (select * from j order by case when v_time then j.d[1] end, j.value desc nulls last limit v_limit) j;
+       prev as (select * from b2b.metric_values(m, v_dims, p -> 'filters', v_from - v_len, v_from, v_test) where v_cmp and v_tpos is null),
+       j as (select c.d, c.value, pr.value prev from cur c left join prev pr on pr.d is not distinct from c.d),
+       k as (select j.*, row_number() over (order by case when v_tpos is not null then j.d[v_tpos] end desc nulls last, j.value desc nulls last, j.d) rn from j)
+  select coalesce(jsonb_agg(jsonb_build_object('d', to_jsonb(k.d), 'value', round(k.value, 4), 'prev', round(k.prev, 4))
+                            order by case when v_tpos is not null then k.d[v_tpos] end, k.value desc nulls last, k.d) filter (where k.rn <= v_limit), '[]'),
+         count(*) > v_limit
+    into v_rows, v_more from k;
 
   select jsonb_build_object('value', round((select value from b2b.metric_values(m, '{}', p -> 'filters', v_from, v_to, v_test) limit 1), 4),
                             'prev', case when v_cmp then round((select value from b2b.metric_values(m, '{}', p -> 'filters', v_from - v_len, v_from, v_test) limit 1), 4) end)
@@ -247,7 +258,7 @@ begin
   return jsonb_build_object(
     'metric', jsonb_build_object('key', m.key, 'label', m.label, 'unit', m.unit, 'area', m.area, 'higher_is_better', m.higher_is_better,
                                  'description', m.description, 'calculated', not m.is_system),
-    'dims', to_jsonb(v_dims), 'from', v_from, 'to', v_to, 'rows', v_rows, 'total', v_total,
+    'dims', to_jsonb(v_dims), 'from', v_from, 'to', v_to, 'rows', v_rows, 'limit', v_limit, 'truncated', coalesce(v_more, false), 'total', v_total,
     'labels', jsonb_build_object('partner', coalesce((select jsonb_object_agg(p2.id::text, coalesce(p2.display_name, p2.name)) from b2b.partners p2), '{}')));
 end $fn$;
 
@@ -277,7 +288,7 @@ begin
   for k in select jsonb_object_keys(coalesce(p -> 'filters', '{}')) loop
     v_expr := b2b.metric_dim_expr(v_fact, v_date, k);
     if v_expr is null then raise exception 'cannot filter by %', k using errcode = '22023'; end if;
-    v_where := v_where || format(' and (%s)::text in (select jsonb_array_elements_text($1 -> %L))', v_expr, k);
+    v_where := v_where || format(' and coalesce((%s)::text, '''') in (select jsonb_array_elements_text($1 -> %L))', v_expr, k);
   end loop;
   if m.drill_where is not null then v_where := v_where || ' and (' || m.drill_where || ')'; end if;
   execute format('select count(*), coalesce(jsonb_agg(to_jsonb(x) order by x.%I desc), ''[]'') from (select f.* from b2b.%I f where f.%I >= $2 and f.%I < $3 and not f.is_test %s order by f.%I desc limit %s) x',
@@ -295,8 +306,11 @@ begin
   return jsonb_build_object(
     'metrics', coalesce((select jsonb_agg(jsonb_build_object('key', m.key, 'label', m.label, 'area', m.area, 'unit', m.unit, 'description', m.description,
                                  'higher_is_better', m.higher_is_better, 'calculated', not m.is_system, 'formula', m.formula, 'fact', m.fact,
-                                 'dims', (select coalesce(jsonb_agg(d order by d), '[]') from (
-                                            select jsonb_object_keys(b2b.metric_dimensions() -> coalesce(m.fact, (select f2.fact from b2b.metric_definitions f2 where f2.key = (b2b.metric_bases(m))[1]))) d
+                                 -- the dimensions every base metric shares, plus the time grains
+                                 'dims', (select coalesce(jsonb_agg(z.d order by z.d), '[]') from (
+                                            select k d from b2b.metric_definitions f2, jsonb_object_keys(b2b.metric_dimensions() -> f2.fact) k
+                                             where f2.key = any (b2b.metric_bases(m)) and f2.is_system
+                                             group by k having count(*) = cardinality(b2b.metric_bases(m))
                                             union select unnest(array['day', 'week', 'month'])) z))
                                order by m.area, m.label) from b2b.metric_definitions m), '[]'),
     'facts_at', (select value ->> 'refreshed_at' from b2b.ai_state where key = 'facts'));
@@ -317,10 +331,11 @@ begin
 end $fn$;
 
 /* A calculated metric: p {key, label, area?, unit, description?, higher_is_better, formula: RPN tokens}. Only system
-   metrics may be referenced, and they must share a fact family for breakdowns (checked when queried). */
+   metrics may be referenced, at least one of them; breakdowns and filters are limited to the dimensions every base
+   metric shares (metric_catalogue, widget_data). */
 create or replace function b2b.metric_save(p jsonb)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $fn$
-declare t jsonb; v_depth int := 0;
+declare t jsonb; v_depth int := 0; v_m int := 0;
 begin
   if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
   if coalesce(p ->> 'key', '') !~ '^[a-z][a-z0-9_]{1,59}$' then raise exception 'the key is lower-case letters, digits and _' using errcode = '22023'; end if;
@@ -333,6 +348,7 @@ begin
   for t in select * from jsonb_array_elements(p -> 'formula') loop
     if t ? 'm' then
       if not exists (select 1 from b2b.metric_definitions where key = t ->> 'm' and is_system) then raise exception 'unknown metric % in the formula', t ->> 'm' using errcode = '22023'; end if;
+      v_m := v_m + 1;
       v_depth := v_depth + 1;
     elsif t ? 'n' then
       if jsonb_typeof(t -> 'n') <> 'number' then raise exception 'numbers only' using errcode = '22023'; end if;
@@ -344,6 +360,7 @@ begin
     end if;
   end loop;
   if v_depth <> 1 then raise exception 'the formula is not well formed' using errcode = '22023'; end if;
+  if v_m = 0 then raise exception 'use at least one metric' using errcode = '22023'; end if;
   insert into b2b.metric_definitions (key, label, area, description, unit, formula, higher_is_better, is_system, created_by)
   values (p ->> 'key', left(trim(p ->> 'label'), 80), coalesce(nullif(trim(p ->> 'area'), ''), 'Custom'), left(p ->> 'description', 300), p ->> 'unit',
           p -> 'formula', coalesce((p ->> 'higher_is_better')::boolean, true), false, coalesce(auth.uid()::text, 'admin'))

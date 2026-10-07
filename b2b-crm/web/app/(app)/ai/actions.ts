@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
-import { AiSettingsSchema, aiSettingsPayload, editedChange, type Change } from "@/lib/ai/labels";
+import { AI_PRICE_KEYS, AiSettingsSchema, aiSettingsPayload, editedChange, MlSettingsSchema, mlSettingsPayload, RUN_NOW_KINDS, type Change } from "@/lib/ai/labels";
 import { createClient } from "@/lib/supabase/server";
 import { ask, ASK_PROMPT_VERSION, type AskSource } from "@/lib/ai/ask";
 import { anthropicMessages } from "@/lib/ai/worker";
@@ -47,7 +47,7 @@ export async function rollbackRecommendation(id: number, reason: string): Promis
 
 export async function runNow(kind: string, reason: string): Promise<string | void> {
   await assertAdmin();
-  if (!["light_check", "optimise", "deep_review", "weekly_report"].includes(kind)) return "Unknown kind of run.";
+  if (!(RUN_NOW_KINDS as readonly string[]).includes(kind)) return "Unknown kind of run.";
   if (!Reason.safeParse(reason).success) return "Say why (3 characters or more).";
   const { error } = await rpc("ai_run_now", { p_kind: kind, p_reason: reason.trim() });
   if (error) return dbMessage(error, "Could not queue the run. Try again.");
@@ -58,7 +58,8 @@ export type FormState = { errors?: Record<string, string>; error?: string; ok?: 
 
 export async function saveAiSettings(_prev: FormState, form: FormData): Promise<FormState> {
   await assertAdmin();
-  const keys = ["enabled", "mode", "min_gain_pct", "max_per_day", "daily_budget_usd", "worker_url", "model_regular", "model_deep", "model_quick", "light", "hourly", "nightly", "weekly", "reason"];
+  const keys = ["enabled", "mode", "min_gain_pct", "max_per_day", "daily_budget_usd", "worker_url", "model_regular", "model_deep", "model_quick", "light", "hourly", "nightly", "weekly",
+                ...AI_PRICE_KEYS, "reason"];
   const p = AiSettingsSchema.safeParse(Object.fromEntries(keys.map((k) => [k, form.get(k) ?? undefined])));
   if (!p.success) {
     const errors: Record<string, string> = {};
@@ -96,6 +97,17 @@ export async function rollbackModel(reason: string): Promise<string | void> {
   const { error } = await rpc("ml_rollback", { p_reason: reason.trim() });
   if (error) return dbMessage(error, "Could not roll back. Try again.");
   refresh();
+}
+
+export async function saveMlSettings(_prev: FormState, form: FormData): Promise<FormState> {
+  await assertAdmin();
+  const keys = ["min_outcomes", "challenger_pct", "ece_fallback", "train_hour_ist", "auto_train", "reason"];
+  const p = MlSettingsSchema.safeParse(Object.fromEntries(keys.map((k) => [k, form.get(k) ?? undefined])));
+  if (!p.success) { const errors: Record<string, string> = {}; for (const i of p.error.issues) errors[String(i.path[0])] ??= i.message; return { errors, error: "Check the highlighted fields." }; }
+  const { error } = await rpc("ml_settings_save", { p: mlSettingsPayload(p.data), p_reason: p.data.reason });
+  if (error) return { error: dbMessage(error, "Could not save the model settings. Try again.") };
+  refresh();
+  return { ok: Date.now() };
 }
 
 // ---------- Ask the CRM ----------

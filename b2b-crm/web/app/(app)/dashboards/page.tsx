@@ -5,10 +5,10 @@ import { buttonClass } from "@/components/ui/Button";
 import { Badge, Card, CardHeader, EmptyState, PageHeader } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
-import { DIM_LABEL, drillHref, formatValue, formulaText, type Token, type Unit } from "@/lib/analytics";
+import { DIM_LABEL, drillHref, formatValue, formulaText, PERIOD_LABEL, type Period, type Token, type Unit } from "@/lib/analytics";
 import { alertsOverview, dashboardsList, metricCatalogue, reportsList } from "@/lib/analytics-data";
 import { formatDateTime, relativeTime } from "@/lib/format";
-import { AlertSettingsForm, MetricAlertForm, MetricForm, ScheduleForm } from "./DeliveryClient";
+import { ActiveToggle, AlertSettingsForm, MetricAlertForm, MetricForm, ScheduleForm } from "./DeliveryClient";
 
 export const metadata: Metadata = { title: "Dashboards" };
 const TABS = [{ id: "gallery", label: "Dashboards" }, { id: "metrics", label: "Metrics" }, { id: "alerts", label: "Alerts & delivery" }] as const;
@@ -42,8 +42,8 @@ async function Gallery() {
         <section>
           <h2 className="mb-3 text-[13px] font-semibold text-fg">Saved views</h2>
           <ul className="divide-y divide-border rounded-[var(--radius-card)] border border-border bg-surface text-[13px]">
-            {l.views.map((v) => <li key={v.id} className="flex items-center gap-3 px-4 py-2.5"><Link href={drillHref(v.metric, v.filters)} className="text-info hover:underline">{v.name}</Link>
-              <span className="text-subtle">{v.metric} {Object.keys(v.filters).map((k) => `· ${DIM_LABEL[k] ?? k}`).join(" ")}</span></li>)}
+            {l.views.map((v) => <li key={v.id} className="flex items-center gap-3 px-4 py-2.5"><Link href={drillHref(v.metric, v.filters, undefined, undefined, v.period)} className="text-info hover:underline">{v.name}</Link>
+              <span className="text-subtle">{v.metric} · {PERIOD_LABEL[v.period as Period] ?? v.period} {Object.keys(v.filters).map((k) => `· ${DIM_LABEL[k] ?? k}`).join(" ")}</span></li>)}
           </ul>
         </section>
       )}
@@ -86,6 +86,7 @@ async function Metrics() {
 
 async function Alerts({ preset }: { preset?: string }) {
   const [a, cat, l, rl] = await Promise.all([alertsOverview(), metricCatalogue(), dashboardsList(), reportsList()]);
+  const metricLabel = (key: string) => cat.metrics.find((m) => m.key === key)?.label ?? key;
   return (
     <div className="grid gap-6 xl:grid-cols-2">
       <div className="min-w-0 space-y-6">
@@ -97,8 +98,10 @@ async function Alerts({ preset }: { preset?: string }) {
               {a.alerts.map((x) => (
                 <li key={x.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5">
                   <span className="font-medium text-fg">{x.name}</span>
-                  <span className="text-muted">{x.metric_label} {x.op} {formatValue(x.threshold, x.unit as Unit)} · {x.window_hours} h{Object.keys(x.filters).length ? ` · ${Object.entries(x.filters).map(([k, v]) => `${DIM_LABEL[k] ?? k}: ${v.join(", ")}`).join("; ")}` : ""}</span>
+                  <span className="text-muted">{x.metric_label} {x.op} {formatValue(x.threshold, x.unit as Unit)} · {x.window_hours} h{Object.keys(x.filters).length ? ` · ${Object.entries(x.filters).map(([k, v]) => `${DIM_LABEL[k] ?? k}: ${v.join(", ")}`).join("; ")}` : ""}
+                    {x.min_volume > 0 && ` · at least ${x.min_volume}${x.volume_metric ? ` ${metricLabel(x.volume_metric)}` : ""}`}</span>
                   <span className="ml-auto text-subtle">{x.active ? (x.last_value !== null ? `now ${formatValue(x.last_value, x.unit as Unit)}` : "not checked yet") : "off"}{x.last_fired_at && ` · fired ${relativeTime(x.last_fired_at)}`}</span>
+                  <ActiveToggle kind="alert" id={x.id} active={x.active} />
                 </li>
               ))}
             </ul>
@@ -113,7 +116,8 @@ async function Alerts({ preset }: { preset?: string }) {
                 <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5">
                   <span className="font-medium text-fg">{s.name}</span>
                   <span className="text-muted">{s.dashboard ?? `Report #${s.report_id}`} · {s.frequency} at {String(s.hour_ist).padStart(2, "0")}:00 · {s.recipients.length} recipient{s.recipients.length > 1 ? "s" : ""}</span>
-                  <span className="ml-auto text-subtle">{s.active ? (s.next_due_at ? `next ${formatDateTime(s.next_due_at)}` : "") : "off"}</span>
+                  <span className="ml-auto text-subtle">{s.active ? (s.next_due_at ? `next ${formatDateTime(s.next_due_at)}` : "") : s.failures >= 5 ? "off after 5 failures" : "off"}</span>
+                  <ActiveToggle kind="schedule" id={s.id} active={s.active} />
                 </li>
               ))}
             </ul>
