@@ -639,6 +639,7 @@ Conflicts with work already done, and what is still open:
   - **Partner CRMs.** Live polling defaults to the interval (was 10 minutes) and sandbox polling to 2 minutes while testing; a partner's own minutes win.
   - **Not batched, on purpose:** pushing a new lead (one create call per lead either way; speed to lead and SLAs), student messages, and CAPI (Meta and Google calls are free and already batched per minute).
   - **Screen.** The Sync cadence card on B2C CRM link (switch, interval, next batch, each partner's polling) and a tenth checklist step.
+  - **Verification.** 25 rolled-back checks on staging (`supabase/tests/test_m23_sync_cadence.sql`); `test_m19` (42) and `test_m22` (38) re-run clean; on production all 11 function checksums match. Production starts in real time; the Admin switches the B2C CRM to batches after its testing.
 - **Pending:** `b2b-crm/supabase/pending/drop_tmp_transfer.sql`. The temporary objects used to copy the schema to staging need a confirmed `DROP`. API access to them is already revoked.
 
 ## 8. Build order after approval
