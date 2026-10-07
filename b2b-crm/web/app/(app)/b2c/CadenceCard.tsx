@@ -11,6 +11,11 @@ import { formatDateTime, relativeTime } from "@/lib/format";
 import type { SyncCadence } from "@/lib/b2c-link";
 import { saveDelivery, saveSyncInterval } from "./actions";
 
+function inMinutes(iso: string): string {
+  const m = Math.round((Date.parse(iso) - Date.now()) / 60000);
+  return m <= 0 ? "any moment" : `in ${m} min`;
+}
+
 /** Real time while a connection is integrated and tested; every sync interval (15 minutes) in production, to save paid API calls. */
 export function CadenceCard({ c }: { c: SyncCadence }) {
   const [dialog, setDialog] = useState<"delivery" | "interval" | null>(null);
@@ -26,7 +31,7 @@ export function CadenceCard({ c }: { c: SyncCadence }) {
           <p className="flex items-center gap-2 font-medium text-fg">B2C CRM
             {batched ? <Badge tone="success"><Clock className="size-3" /> Every {m} minutes</Badge> : <Badge tone="warning"><Zap className="size-3" /> Real time (testing)</Badge>}</p>
           {batched ? (
-            <p className="text-muted">Changes go in one batch webhook per {m} minutes{c.b2c.next_batch_at ? <>; next <span title={formatDateTime(c.b2c.next_batch_at)}>{relativeTime(c.b2c.next_batch_at)}</span></> : null}
+            <p className="text-muted">Changes go in one batch webhook per {m} minutes{c.b2c.next_batch_at ? <>; next <span title={formatDateTime(c.b2c.next_batch_at)}>{inMinutes(c.b2c.next_batch_at)}</span></> : null}
               {c.b2c.waiting ? <>, {c.b2c.waiting} {c.b2c.waiting === 1 ? "lead" : "leads"} waiting</> : null}.
               {c.b2c.last_batch_at && <> Last batch {relativeTime(c.b2c.last_batch_at)}: {c.b2c.last_batch_leads ?? 0} leads.</>}</p>
           ) : <p className="text-muted">Every change goes out within seconds, one webhook per change. Switch once the B2C CRM is fully integrated and tested.</p>}
@@ -36,14 +41,13 @@ export function CadenceCard({ c }: { c: SyncCadence }) {
         <div className="space-y-2 bg-surface px-5 py-4 text-[12.5px]">
           <p className="font-medium text-fg">Partner CRMs</p>
           {c.partners.length === 0 ? <p className="text-muted">No partner CRM is polled yet.</p> : (
-            <ul className="space-y-1">
+            <ul className="space-y-1.5">
               {c.partners.map((p) => (
-                <li key={p.id} className="flex flex-wrap items-center gap-2">
-                  <Link href={`/partners/${p.id}?tab=connection`} className="text-fg hover:underline">{p.name}</Link>
-                  {!p.poll ? <span className="text-subtle">webhooks only</span>
-                    : <span className={cn(p.live ? "text-muted" : "text-subtle")}>
-                        {p.live ? `live every ${p.live_minutes} min${p.own_minutes ? " (its own setting)" : ""}` : `testing: sandbox every ${p.sandbox_minutes} min`}</span>}
-                  {p.last_poll_at && <span className="ml-auto text-subtle">{relativeTime(p.last_poll_at)}</span>}
+                <li key={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3">
+                  <Link href={`/partners/${p.id}?tab=connection`} className="truncate text-fg hover:underline">{p.name}</Link>
+                  <span className="text-right text-subtle">{p.last_poll_at ? relativeTime(p.last_poll_at) : ""}</span>
+                  <span className={cn("col-span-2 text-[12px]", p.live ? "text-muted" : "text-subtle")}>
+                    {!p.poll ? "webhooks only" : p.live ? `live, polled every ${p.live_minutes} min${p.own_minutes ? " (its own setting)" : ""}` : `testing: sandbox polled every ${p.sandbox_minutes} min`}</span>
                 </li>
               ))}
             </ul>
