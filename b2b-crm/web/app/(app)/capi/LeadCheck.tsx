@@ -48,11 +48,26 @@ export function LeadCheck({ initial }: { initial: number | null }) {
       {error && <Notice tone="error">{error}</Notice>}
       {res && (
         <>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-lg border border-border p-3 text-[12.5px]">
               <p className="mb-1.5 font-medium text-fg"><Link href={`/leads?lead=${res.lead.id}`} className="hover:underline">{res.lead.name ?? `Lead #${res.lead.id}`}</Link>
                 {res.lead.is_test && <Badge tone="brand" className="ml-1.5">test: never sent</Badge>}</p>
               <p className="text-muted">Cycle {res.lead.cycle_no}{res.lead.deleted && " · deleted"}</p>
+            </div>
+            <div className="rounded-lg border border-border p-3 text-[12.5px]">
+              <p className="mb-1.5 flex flex-wrap items-center gap-1.5 font-medium text-fg">Campaign
+                {res.campaign.paid ? <Badge tone="success">Paid · {res.campaign.platform === "meta" ? "Meta" : res.campaign.platform === "google" ? "Google" : "other"}</Badge>
+                  : <Badge>{res.campaign.platform === "none" ? "No ad" : "Organic or unknown"}</Badge>}</p>
+              {res.campaign.campaign_name || res.campaign.campaign_id || res.campaign.utm?.campaign ? (
+                <ul className="space-y-0.5 text-muted">
+                  <li className="text-fg">{res.campaign.campaign_name ?? res.campaign.utm?.campaign ?? `Campaign ${res.campaign.campaign_id}`}</li>
+                  {res.campaign.campaign_id && <li>ID <span className="font-mono text-[11.5px]">{res.campaign.campaign_id}</span></li>}
+                  {(res.campaign.adset_name || res.campaign.adset_id) && <li>Ad set {res.campaign.adset_name ?? res.campaign.adset_id}</li>}
+                  {(res.campaign.ad_name || res.campaign.ad_id) && <li>Ad {res.campaign.ad_name ?? res.campaign.ad_id}</li>}
+                </ul>
+              ) : <p className="text-muted">No campaign recorded.</p>}
+              {!res.campaign.paid && <p className="mt-1 text-warning">Not from a paid ad: nothing is reported.</p>}
+              {res.campaign.paid && !res.campaign.matchable && <p className="mt-1 text-warning">UTM tags only: the platform cannot match it, so nothing is reported.</p>}
             </div>
             <div className="rounded-lg border border-border p-3 text-[12.5px]">
               <p className="mb-1.5 font-medium text-fg">Ad identifiers</p>
@@ -93,7 +108,7 @@ export function LeadCheck({ initial }: { initial: number | null }) {
                               <button type="button" className="ml-1.5 text-[11.5px] text-info hover:underline" onClick={() => setOpen(open === key ? null : key)}>{open === key ? "Hide" : "Payload"}</button>
                               {open === key && <pre className="mt-1.5 max-h-56 max-w-sm overflow-auto rounded bg-surface-2 p-2 font-mono text-[11px] text-fg">{JSON.stringify(ev.payload, null, 2)}</pre>}
                             </>
-                          ) : <span className="text-subtle">Not sent (off, or no identifier)</span>}
+                          ) : <span className="text-subtle">{!res.campaign.paid || !res.campaign.matchable ? "Not a paid, matchable lead" : res.campaign.platform !== p ? "—" : "Off for this signal"}</span>}
                         </td>
                       );
                     })}

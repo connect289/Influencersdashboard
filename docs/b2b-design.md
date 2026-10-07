@@ -584,6 +584,33 @@ Conflicts with work already done, and what is still open:
   - **Screen.** `/money`: Overview, Enrolments (verify, cancel, refund, record, adjustment), Invoices, Receipts, Statements, Settings; `/money/invoices/[id]` is the printable GST invoice; `/money/statements/[id]` shows the four piles with CSV export. Routing → Rates now takes tiered rates.
   - **Verification.** 57 rolled-back checks on staging (`supabase/tests/test_m20_money.sql`), covering tiers settling 20% → 15%, a ₹53,100 IGST invoice, an exact receipt with TDS, a refund, the three statement piles, the scan, reminders and access; all 47 function checksums match on production.
   - **Not built:** e-invoicing (IRN) and e-mailing invoices; credit notes as documents (a cancelled or refunded line shows on the next invoice instead); proof file uploads (a link is stored); B2C's `b2c_enrollment_money_v`.
+- **M21a–M21e (7 Oct): Vikas's additions on CAPI, in-house partner CRMs and commission levels.**
+  - **Paid campaigns and signals (B11).** CAPI now reports only leads a paid ad brought, only to that ad's platform, tagged with the campaign. `b2b.lead_campaigns` (one row per lead and enquiry cycle) records:
+    - the platform, paid and matchable flags, and the origin;
+    - campaign, ad set and ad (IDs and names), the form, the UTM tags and the click key.
+  - **Campaign detection.** `lead_campaign_detect` picks the first paid touch of the cycle, in order:
+    - Meta lead forms that are not organic (the organic flag is carried to the lead's other copies of the leadgen ID);
+    - Google lead forms;
+    - touchpoints with `fbclid` / `fbc` / `gclid` / `gbraid` / `wbraid`;
+    - paid UTM mediums (recorded, but not matchable, so not sent).
+  - **Signals and values.** The ladder is enrolled (verified) → applicant → interested (rank 60+ from the partner or B2C) → qualified (routed to a partner or B2C sales). The weak signals stay available, off. Values (`capi.values`, `base_value_inr`) are shares of the lead's expected commission.
+  - **CAPI functions.** `capi_lead_sync` records the campaign for every lead, then sends only when the lead is paid and matchable. `capi_lead_check` shows the campaign. `capi_campaigns` gives lead quality per paid campaign (qualified, interested, applicants, enrolled, verified, junk, commission, events sent) for the new Campaigns tab. Guide: `docs/capi-setup.md`.
+  - **In-house partner CRMs (B8.1).** Adapter `inhouse`, with settings in `adapter_spec`:
+    - create URL and auth (bearer, header, Basic, query or none);
+    - wrapper key, record ID path and duplicate HTTP status;
+    - changed-leads URL with `{since}` or a since parameter.
+  - **In-house functions.**
+    - `adapter_push_result_p` reads answers with the partner's own settings; `push_collect` uses it.
+    - `adapter_call` / `adapter_poll_parse` read any list shape, and status or reference fields as dotted paths.
+    - `partner_adapter_save` validates the settings; with auth `none` no key is needed.
+    - The other two options (Eduwit's contract, or no API) are in `docs/partner-adapters.md`.
+  - **Commission levels (B5.3).** Rate scope `partner_university` is added. Precedence: partner + programme → partner + university → partner → programme → university. The programme sheet's commission % is GST-inclusive by default (`partner_programme_sources.commission_includes_gst`, toggled on the partner's Live programmes tab). Publishing a reviewed sheet confirms it as partner + programme rates (`rates_from_offers`, also behind *Confirm*). A commission dropped from the sheet ends its file rate. Excel percentage cells (0.18) are read as 18%.
+  - **Screens.**
+    - `/capi`: Campaigns tab; Setup → Signals and their value; the campaign in Check a lead.
+    - Partner Connection: the In-house CRM panel, with a select for the auth type.
+    - Routing → Rates: Level (partner-wide or one university).
+    - Programmes: GST toggle and a column template (`/programme-sheet-template.csv`).
+  - **Verification.** 61 rolled-back checks on staging (`supabase/tests/test_m21_campaigns_inhouse_rates.sql`), covering paid / organic / Google / UTM-only / no-ad detection, gated events with values, the report, in-house push / duplicate / poll, and rate precedence and GST. `test_m18` was updated for the new signals and still passes (46), as do `test_m19` (42) and `test_m20` (57).
 - **Pending:** `b2b-crm/supabase/pending/drop_tmp_transfer.sql`. The temporary objects used to copy the schema to staging need a confirmed `DROP`. API access to them is already revoked.
 
 ## 8. Build order after approval

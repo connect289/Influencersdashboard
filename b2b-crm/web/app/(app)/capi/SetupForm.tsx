@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Notice";
 import { cn } from "@/components/ui/cn";
-import { STAGES, STAGE_LABEL, settingsProblems, type CapiOverview, type GoogleMap, type MetaMap } from "@/lib/capi";
+import { STAGES, STAGE_LABEL, STRENGTH_LABEL, VALUE_STAGES, formatInr, settingsProblems, valuesProblems, type CapiOverview, type GoogleMap, type MetaMap, type SignalValues, type ValueStage } from "@/lib/capi";
 import { saveCapiSettings } from "./actions";
 
 const base = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg placeholder:text-subtle focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 aria-[invalid=true]:border-danger";
@@ -35,8 +35,17 @@ function Secret({ id, l, value, onChange, on, hint }: { id: string; l: string; v
   );
 }
 
-export function SetupForm({ s }: { s: CapiOverview["settings"] }) {
+const pct = (n: number) => String(Math.round(n * 1000) / 10);
+
+function Strength({ st }: { st: (typeof STAGES)[number] }) {
+  const k = STAGE_LABEL[st].strength;
+  return k ? <Badge tone={k === "strongest" ? "success" : k === "strong" ? "info" : "neutral"} className="ml-1.5 align-middle">{STRENGTH_LABEL[k]}</Badge> : null;
+}
+
+export function SetupForm({ s, v }: { s: CapiOverview["settings"]; v: SignalValues }) {
   const [consent, setConsent] = useState(s.consent);
+  const [vals, setVals] = useState({ pct: { applied: pct(v.values.applied), interested: pct(v.values.interested), qualified: pct(v.values.qualified) } as Record<ValueStage, string>,
+                                     base: String(v.base_value_inr) });
   const [meta, setMeta] = useState({ dataset_id: s.meta.dataset_id ?? "", api_version: s.meta.api_version ?? "v21.0", test_event_code: s.meta.test_event_code ?? "", token: "" });
   const [metaMap, setMetaMap] = useState<MetaMap>(s.meta.map);
   const [google, setGoogle] = useState({ customer_id: s.google.customer_id ?? "", login_customer_id: s.google.login_customer_id ?? "", api_version: s.google.api_version ?? "v21",
@@ -44,13 +53,16 @@ export function SetupForm({ s }: { s: CapiOverview["settings"] }) {
   const [googleMap, setGoogleMap] = useState<GoogleMap>(s.google.map);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const errors = useMemo(() => settingsProblems({ meta: { ...meta, map: metaMap }, google: { ...google, map: googleMap } }), [meta, metaMap, google, googleMap]);
+  const errors = useMemo(() => ({ ...settingsProblems({ meta: { ...meta, map: metaMap }, google: { ...google, map: googleMap } }), ...valuesProblems(vals) }),
+                         [meta, metaMap, google, googleMap, vals]);
+  const baseInr = Number(vals.base) || 0;
 
   const save = async () => {
     if (Object.keys(errors).length) { setError("Check the highlighted fields."); return; }
     setPending(true); setError(null);
     try {
-      const e = await saveCapiSettings({ consent, meta: { ...meta, map: metaMap }, google: { ...google, map: googleMap } });
+      const values = Object.fromEntries(VALUE_STAGES.map((k) => [k, Number(vals.pct[k]) / 100])) as Record<ValueStage, number>;
+      const e = await saveCapiSettings({ consent, meta: { ...meta, map: metaMap }, google: { ...google, map: googleMap }, values, base_value_inr: Number(vals.base) });
       if (e) setError(e);
       else { toast.success("Saved"); setMeta((m) => ({ ...m, token: "" })); setGoogle((g) => ({ ...g, client_secret: "", refresh_token: "", developer_token: "" })); }
     } finally { setPending(false); }
@@ -74,6 +86,38 @@ export function SetupForm({ s }: { s: CapiOverview["settings"] }) {
       </section>
 
       <section className="space-y-4 p-5">
+        <h3 className="text-[13.5px] font-semibold text-fg">Signals and their value</h3>
+        <p className="text-[12.5px] text-muted">Only leads from <span className="font-medium text-fg">paid</span> Meta and Google campaigns are reported, and only to the platform whose ad brought them,
+          tagged with the campaign. Each lead tells the platform how far it got, strongest first: <span className="text-fg">enrolled → applicant → interested → qualified</span>.
+          The value tells the platform how much each step is worth, so it bids for students who enrol rather than for form fills.</p>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <label htmlFor="v-base" className="block space-y-1">
+            <span className={label}>Commission per enrolment (₹)</span>
+            <input id="v-base" inputMode="numeric" className={cn(base, "tabular")} value={vals.base} aria-invalid={Boolean(errors.base)}
+              onChange={(e) => setVals({ ...vals, base: e.target.value.replace(/[^\d.]/g, "") })} />
+            {errors.base ? <span className="block text-xs text-danger">{errors.base}</span>
+              : <span className="block text-xs text-muted">Used when a lead has no expected commission from its allocation.</span>}
+          </label>
+          {VALUE_STAGES.map((k) => (
+            <label key={k} htmlFor={`v-${k}`} className="block space-y-1">
+              <span className={label}>{STAGE_LABEL[k].label} <Strength st={k} /></span>
+              <span className="relative block">
+                <input id={`v-${k}`} inputMode="decimal" className={cn(base, "tabular pr-24")} value={vals.pct[k]} aria-invalid={Boolean(errors[`values.${k}`])}
+                  onChange={(e) => setVals({ ...vals, pct: { ...vals.pct, [k]: e.target.value.replace(/[^\d.]/g, "") } })} />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[12px] text-muted">% · {formatInr((Number(vals.pct[k]) || 0) / 100 * baseInr)}</span>
+              </span>
+              {errors[`values.${k}`] ? <span className="block text-xs text-danger">{errors[`values.${k}`]}</span>
+                : <span className="block text-xs text-muted">of the lead&apos;s expected commission</span>}
+            </label>
+          ))}
+        </div>
+        {errors.order && <p className="text-[12px] text-warning">{errors.order}</p>}
+        <p className="text-[12px] text-muted">Enrolled carries the expected commission itself, and Enrolment verified the realised one.
+          Example at {formatInr(baseInr)}: qualified {formatInr((Number(vals.pct.qualified) || 0) / 100 * baseInr)}, interested {formatInr((Number(vals.pct.interested) || 0) / 100 * baseInr)},
+          applicant {formatInr((Number(vals.pct.applied) || 0) / 100 * baseInr)}, enrolled {formatInr(baseInr)}.</p>
+      </section>
+
+      <section className="space-y-4 p-5">
         <h3 className="text-[13.5px] font-semibold text-fg">Meta Conversions API</h3>
         <p className="text-[12.5px] text-muted">In Events Manager, use the dataset (pixel) your lead forms and website report to, and generate a Conversions API access token there.
           A test event code sends everything to the Test events tab only; clear it to go for real.</p>
@@ -94,7 +138,7 @@ export function SetupForm({ s }: { s: CapiOverview["settings"] }) {
                 <tr key={st} className={metaMap[st]?.enabled ? undefined : "text-muted"}>
                   <td className="px-3 py-2"><input type="checkbox" aria-label={`Send ${STAGE_LABEL[st].label} to Meta`} className="accent-[var(--primary)]" checked={metaMap[st]?.enabled ?? false}
                     onChange={(e) => setMetaMap({ ...metaMap, [st]: { ...metaMap[st], enabled: e.target.checked } })} /></td>
-                  <td className="px-3 py-2"><span className="font-medium text-fg">{STAGE_LABEL[st].label}</span><span className="block text-[11.5px] text-subtle">{STAGE_LABEL[st].hint}</span></td>
+                  <td className="px-3 py-2"><span className="font-medium text-fg">{STAGE_LABEL[st].label}</span><Strength st={st} /><span className="block text-[11.5px] text-subtle">{STAGE_LABEL[st].hint}</span></td>
                   <td className="px-3 py-1.5">
                     <input className={cn(base, "h-8")} value={metaMap[st]?.event ?? ""} aria-label={`Meta event for ${STAGE_LABEL[st].label}`} aria-invalid={Boolean(errors[`meta.map.${st}`])}
                       onChange={(e) => setMetaMap({ ...metaMap, [st]: { ...metaMap[st], event: e.target.value } })} />
@@ -104,13 +148,15 @@ export function SetupForm({ s }: { s: CapiOverview["settings"] }) {
             </tbody>
           </table>
         </div>
-        <p className="text-[12px] text-muted">For Meta&apos;s conversion-leads optimisation, use the same names as the stages set up in Events Manager → your CRM integration.</p>
+        <p className="text-[12px] text-muted">For Meta&apos;s conversion-leads optimisation, use the same names as the stages set up in Events Manager → your CRM integration,
+          and optimise the campaigns for the strongest signal that gets enough events (about 50 a week): applicant or interested at first, enrolled once volume allows.</p>
       </section>
 
       <section className="space-y-4 p-5">
         <h3 className="text-[13.5px] font-semibold text-fg">Google Ads offline conversions</h3>
         <p className="text-[12.5px] text-muted">Conversions are uploaded with the click ID (gclid, gbraid or wbraid), plus hashed email and phone for enhanced conversions for leads.
-          Create one &ldquo;Import → CRMs, files or other data sources&rdquo; conversion action per milestone and paste its resource name below.</p>
+          Create one &ldquo;Import → CRMs, files or other data sources&rdquo; conversion action per signal (Qualified lead, Interested, Applicant, Enrolled) and paste its resource name below.
+          Make Enrolled (or Applicant) the primary action for bidding and keep the earlier ones secondary.</p>
         {s.google.token_error && <Notice tone="error">{s.google.token_error}</Notice>}
         <div className="grid gap-4 md:grid-cols-2">
           <Text id="g-cid" l="Customer ID" value={google.customer_id} onChange={(v) => setGoogle({ ...google, customer_id: v })} error={errors["google.customer_id"]} placeholder="123-456-7890" mono />
@@ -132,7 +178,7 @@ export function SetupForm({ s }: { s: CapiOverview["settings"] }) {
                 <tr key={st} className={googleMap[st]?.enabled ? undefined : "text-muted"}>
                   <td className="px-3 py-2"><input type="checkbox" aria-label={`Send ${STAGE_LABEL[st].label} to Google`} className="accent-[var(--primary)]" checked={googleMap[st]?.enabled ?? false}
                     onChange={(e) => setGoogleMap({ ...googleMap, [st]: { ...googleMap[st], enabled: e.target.checked } })} /></td>
-                  <td className="px-3 py-2 font-medium text-fg">{STAGE_LABEL[st].label}</td>
+                  <td className="px-3 py-2 font-medium text-fg">{STAGE_LABEL[st].label}<Strength st={st} /></td>
                   <td className="px-3 py-1.5">
                     <input className={cn(base, "h-8 font-mono text-[12px]")} value={googleMap[st]?.action ?? ""} placeholder="customers/1234567890/conversionActions/…"
                       aria-label={`Google conversion action for ${STAGE_LABEL[st].label}`} aria-invalid={Boolean(errors[`google.map.${st}`])}

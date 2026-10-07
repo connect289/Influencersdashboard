@@ -1,8 +1,8 @@
 # Eduwit B2B CRM: partner CRM adapters
 
 Most partners run their admissions on a standard CRM. For these, Eduwit does not ask the partner to build anything: the
-B2B CRM creates the lead through the CRM's own API and reads stage changes back. Partners on their own system use the
-generic contract in `partner-api.md` instead.
+B2B CRM creates the lead through the CRM's own API and reads stage changes back. Partners with their own in-house CRM
+have three options, described under [Partners with an in-house CRM](#partners-with-an-in-house-crm).
 
 | CRM | Creates the lead with | Duplicate check | Reads changes back | Field list (Mapping studio) |
 | --- | --- | --- | --- | --- |
@@ -95,6 +95,87 @@ event and any other change an `update` event, applied exactly as webhook events 
 `poll:<record>:stage:<modified time>`), so a change seen twice counts once. Leads without an Eduwit reference are
 ignored.
 
+## Partners with an in-house CRM
+
+Some partners run their own CRM, built in-house. Choose one of three ways on the partner's *CRM type*:
+
+| Option | CRM type | Who builds what | Use it when |
+| --- | --- | --- | --- |
+| 1. Eduwit adapts to their API | **In-house CRM (partner's own API)** | Nothing on the partner's side if their CRM already has a create-lead API | The CRM has an API, even a simple one |
+| 2. They build Eduwit's contract | **Eduwit's API contract** | The partner's developer implements `partner-api.md` (create, signed events) | They have a developer and no usable API yet |
+| 3. No API | Not built for routing (see below) | Nobody; leads are handed over by hand | No API and no developer |
+
+### Option 1: the In-house CRM adapter
+
+On the partner's Connection tab, for sandbox and live:
+
+| Setting | Example | Notes |
+| --- | --- | --- |
+| Create-lead address | `https://crm.partner.com/api/leads` | `POST`, JSON body. https only. |
+| How the CRM checks Eduwit's key | Bearer token / API key in a header / Basic auth / key in the address / no key | As their API documentation says. "No key" suits an IP allow-list. |
+| Header or parameter name | `X-Api-Key`, `api_key` | For a key in a header or the address. |
+| API key or token | (vault) | For Basic auth enter `user:password`. |
+| Wrap the lead in | `lead` | If the API expects `{"lead": {...}}`. Empty: fields at the top level. |
+| Record ID in the answer | `data.lead_id` | A dotted path. Empty: `id`, `record_id`, `lead_id`, `data.id`, `result.id` are tried. |
+| HTTP status for a duplicate | `422` | 409, `"duplicate": true` or "already exists" in the answer are always read as duplicate. |
+| Changed-leads address | `https://crm.partner.com/api/leads?updated_since={since}` | Optional. `GET`; `{since}` becomes the last poll time (ISO, UTC). Without `{since}`, the *since parameter* (default `updated_since`) is added. |
+
+**Fields.** The lead goes out with these plain field names:
+- `name`, `first_name`, `last_name`;
+- `phone` and `email`;
+- `city` and `state`;
+- `course`, `specialization`, `university`, `level` and `mode`;
+- `eduwit_reference`, `note` and `source: "Eduwit"`.
+
+Rename or add fields with Mapping studio's outbound map. Every lead can also carry fixed values.
+
+**Status back.** There are three ways, and they can run together:
+- polling the changed-leads address;
+- the partner calling Eduwit's events address (`partner-api.md` §2);
+- uploading their export on Sync & SLAs.
+
+**The changed-leads list.** It can be:
+- a bare array;
+- an array under `data`, `records`, `results`, `items`, `leads` or `data.records`.
+
+Each record needs:
+- an ID (`id`, `record_id` or `lead_id`);
+- the Eduwit reference;
+- the status;
+- ideally a modified time (`updated_at`, `modified_at`…).
+
+The status and reference fields may be nested; write them as paths such as `stage.name`. Map the CRM's statuses to
+Eduwit stages in Mapping studio.
+
+**Answers.** Answers to a create call are read as follows:
+
+| Answer | Result |
+| --- | --- |
+| 2xx | Created |
+| The partner's duplicate status, 409, or a duplicate flag or message | Duplicate (with the existing record ID if given) |
+| 401 or 403 | Credentials refused: an alert is raised |
+| 403 or 422 with `"rejected": true` or a `reason` | Rejected |
+| Anything else | A failed attempt, retried on the usual schedule |
+
+**What to ask the partner's developer:**
+- the create-lead address and a sandbox one;
+- a key for Eduwit;
+- what a duplicate answer looks like;
+- where the new lead's ID is in the answer;
+- to store `eduwit_reference` on the lead;
+- optionally, a changed-leads address.
+
+### Option 3: no API
+
+The CRM cannot route automatically to a partner without an API: there is no email or file push yet. For now:
+- keep the partner paused for routing;
+- export the leads meant for it from Leads and hand them over yourself;
+- reconcile the partner's export on Sync & SLAs (matched by reference, phone or name);
+- reconcile its commission statement on Commission & Finance. Enrolments found only in the partner's statement show as
+  *partner only* for checking.
+
+An email or CSV push for such partners can be added if needed.
+
 ## Not yet verified
 
 The adapters are built from each CRM's public API documentation and tested against simulated replies. None has been
@@ -105,3 +186,5 @@ the Pushes table. Known points to watch:
   Salesforce normally expects a form body; if it refuses, the token call moves to a server route.
 - Meritto: the API shape varies by account; confirm the create URL and the reply format with the partner.
 - Zoho: refresh tokens issued by one data centre only work with that centre's accounts domain.
+- In-house CRMs differ: preview a push and send a test lead to the partner's sandbox before going live, and check the
+  first answers in the Pushes table (record ID found, duplicates read as duplicates).

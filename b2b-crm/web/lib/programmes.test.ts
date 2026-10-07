@@ -61,6 +61,12 @@ describe("commission", () => {
     expect(parseCommission("")).toBeNull();
     expect(parseCommission("ask sales")).toBe("invalid");
   });
+  it("reads an Excel percentage cell (a fraction)", () => {
+    expect(parseCommission(0.18)).toEqual({ type: "percent", value: 18 });
+    expect(parseCommission(0.2242)).toEqual({ type: "percent", value: 22.42 });
+    expect(parseCommission(18)).toEqual({ type: "percent", value: 18 });
+    expect(parseCommission("22.42")).toEqual({ type: "percent", value: 22.42 });
+  });
 });
 
 describe("specialization", () => {

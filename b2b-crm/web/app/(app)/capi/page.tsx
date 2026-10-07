@@ -6,7 +6,8 @@ import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { BLOCKER_LABEL, EVENT_STATUS, MATCH_KEY_LABEL, STAGE_LABEL, formatInr, keyShare, platformTotals, type CapiOverview, type Platform } from "@/lib/capi";
-import { capiOverview } from "@/lib/capi-data";
+import { capiCampaigns, capiOverview, capiValues } from "@/lib/capi-data";
+import { Campaigns } from "./Campaigns";
 import { CapiSwitch } from "./CapiSwitch";
 import { EventLog } from "./EventLog";
 import { LeadCheck } from "./LeadCheck";
@@ -16,6 +17,7 @@ export const metadata: Metadata = { title: "Conversions (CAPI)" };
 
 const TABS = [
   { id: "overview", label: "Overview" },
+  { id: "campaigns", label: "Campaigns" },
   { id: "log", label: "Event log" },
   { id: "setup", label: "Setup" },
   { id: "check", label: "Check a lead" },
@@ -82,14 +84,19 @@ export default async function CapiPage({ searchParams }: Props) {
   const tab: Tab = TABS.find((t) => t.id === sp.tab)?.id ?? "overview";
   const status = typeof sp.status === "string" && (sp.status === "problems" || sp.status in EVENT_STATUS) ? sp.status : null;
   const platform = sp.platform === "meta" || sp.platform === "google" ? sp.platform : null;
-  const o = await capiOverview(status, platform);
+  const days = [30, 90, 180, 365].includes(Number(sp.days)) ? Number(sp.days) : 90;
+  const [o, v, camp] = await Promise.all([
+    capiOverview(status, platform),
+    tab === "setup" ? capiValues() : Promise.resolve(null),
+    tab === "campaigns" ? capiCampaigns(days, platform) : Promise.resolve(null),
+  ]);
   const problems = (["meta", "google"] as const).reduce((n, p) => n + platformTotals(o.status, p).problems, 0);
   const lead = Number(sp.lead);
 
   return (
     <>
       <PageHeader title="Conversions (CAPI)"
-        description="What happens to leads from Meta and Google ads, reported back so the ad platforms optimise on qualified leads and enrolments, not form fills. Hashed contact details only, consent-gated, test leads never sent." />
+        description="How far each lead from a paid Meta or Google campaign got (enrolled, applicant, interested, qualified), reported back campaign by campaign so the ad platforms bid for students who enrol, not form fills. Paid leads only, hashed contact details, consent-gated; test leads are never sent." />
       <nav className="mb-6 flex gap-5 overflow-x-auto border-b border-border" aria-label="Conversions sections">
         {TABS.map((t) => (
           <Link key={t.id} href={`/capi?tab=${t.id}`} aria-current={tab === t.id ? "page" : undefined}
@@ -108,7 +115,7 @@ export default async function CapiPage({ searchParams }: Props) {
           <Card className="min-w-0">
             <CardHeader title="By milestone, last 30 days" description="Each milestone is sent once per lead and enquiry (event ID lead:stage:cycle), so retries never double count." />
             {o.events.length === 0 ? (
-              <EmptyState icon={BarChart3} title="Nothing yet">Leads need an ad identifier (a Meta lead ID, fbclid, gclid…) to make events. Use Check a lead to see why a lead makes none.</EmptyState>
+              <EmptyState icon={BarChart3} title="Nothing yet">Only leads from a paid Meta or Google campaign with an ad identifier (a Meta lead ID, fbclid, gclid…) make events. Use Check a lead to see why a lead makes none.</EmptyState>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-[12.5px]">
@@ -143,6 +150,8 @@ export default async function CapiPage({ searchParams }: Props) {
         </div>
       )}
 
+      {tab === "campaigns" && camp && <Campaigns data={camp} days={days} platform={platform} />}
+
       {tab === "log" && (
         <Card className="min-w-0">
           <CardHeader title="Event log" description="The latest 150. Retried after 1, 5 and 30 minutes, 2 and 6 hours; events a platform refuses are not retried." />
@@ -164,7 +173,7 @@ export default async function CapiPage({ searchParams }: Props) {
       {tab === "setup" && (
         <Card className="min-w-0">
           <CardHeader title="Setup" description="Accounts, credentials and which milestones each platform receives. Credentials are stored in the database vault and never shown again." />
-          <SetupForm s={o.settings} />
+          {v && <SetupForm s={o.settings} v={v} />}
         </Card>
       )}
 

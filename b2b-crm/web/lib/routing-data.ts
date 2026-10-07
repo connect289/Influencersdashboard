@@ -23,7 +23,7 @@ export type Rule = {
 };
 
 export type Rate = {
-  id: number; scope: string; partner_id: number; partner_name: string | null; programme_id: number | null; programme: ProgrammeLabel | null;
+  id: number; scope: string; partner_id: number; partner_name: string | null; programme_id: number | null; programme: ProgrammeLabel | null; university_id: number | null;
   rate_type: string; fee_base: string; value: number | null; tiers?: { from_pct: number; pct: number }[] | null; gst_inclusive: boolean; valid_from: string; valid_to: string | null; source: string; note: string | null;
 };
 

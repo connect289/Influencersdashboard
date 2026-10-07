@@ -28,7 +28,9 @@ export function ConnectionTab({ id, c, adapter }: { id: number; c: PartnerConnec
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Card className="min-w-0 xl:self-start">
-        <CardHeader title="Setup" description={adapter
+        <CardHeader title="Setup" description={adapter?.adapter === "inhouse"
+          ? "The partner's own CRM: Eduwit sends each lead to its create-lead address, reads the answer for the record ID or a duplicate, and reads status back from its changed-leads address, a webhook to the events address, or its export. See docs/partner-adapters.md."
+          : adapter
           ? `${adapter.spec.label} adapter: Eduwit creates the lead through ${adapter.spec.label}'s own API${adapter.spec.poll ? " and reads stage changes back by polling or webhook" : ""}. See docs/partner-adapters.md.`
           : `${ADAPTER_LABEL[c.adapter_type as keyof typeof ADAPTER_LABEL] ?? c.adapter_type}. Pushes follow the generic contract in docs/partner-api.md.`} />
         <ul className="space-y-2 px-5 py-4">

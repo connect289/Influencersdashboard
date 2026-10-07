@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Notice";
 import { cn } from "@/components/ui/cn";
 import { formatDateTime, relativeTime } from "@/lib/format";
-import { REFERENCE_HELP, SECRET_FIELD, SETTING_FIELD, adapterProblems, pollSummary, type AdapterPreview, type AdapterStatus, type Env } from "@/lib/adapters";
+import { REFERENCE_HELP, SETTING_FIELD, adapterProblems, pollSummary, secretField, type AdapterPreview, type AdapterStatus, type Env } from "@/lib/adapters";
 import { adapterAction, adapterPreview, saveAdapter } from "./adapter-actions";
 
 const field = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg placeholder:text-subtle focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 aria-[invalid=true]:border-danger";
@@ -86,14 +86,22 @@ export function AdapterPanel({ id, s }: { id: number; s: AdapterStatus }) {
           return (
             <label key={k} className="block space-y-1">
               <span className="text-[12.5px] font-medium text-fg">{d.label}{d.optional && <span className="font-normal text-subtle"> (optional)</span>}</span>
-              <input className={cn(field, "font-mono text-[12.5px]")} value={f.settings[k] ?? ""} placeholder={d.placeholder} aria-invalid={Boolean(err)}
-                onChange={(x) => setF({ ...f, settings: { ...f.settings, [k]: x.target.value } })} />
+              {d.options ? (
+                <select className={field} value={f.settings[k] ?? ""} aria-invalid={Boolean(err)} onChange={(x) => setF({ ...f, settings: { ...f.settings, [k]: x.target.value } })}>
+                  <option value="" disabled>Choose…</option>
+                  {d.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              ) : (
+                <input className={cn(field, "font-mono text-[12.5px]")} value={f.settings[k] ?? ""} placeholder={d.placeholder} aria-invalid={Boolean(err)}
+                  onChange={(x) => setF({ ...f, settings: { ...f.settings, [k]: x.target.value } })} />
+              )}
               {err ? <span className="block text-xs text-danger">{err}</span> : d.hint && <span className="block text-xs text-muted">{d.hint}</span>}
             </label>
           );
         })}
         {s.spec.secrets.map((k) => {
-          const d = SECRET_FIELD[k] ?? { label: k, hint: "" };
+          const d = secretField(s.adapter, k);
+          if (s.adapter === "inhouse" && f.settings.auth_type === "none") return null;
           const set = e?.secrets_set.includes(k) ?? false;
           const err = problems[`secrets.${k}`];
           return (
@@ -123,7 +131,9 @@ export function AdapterPanel({ id, s }: { id: number; s: AdapterStatus }) {
                 onChange={(x) => setF({ ...f, status_field: x.target.value })} />
               {problems.status_field && <span className="block text-xs text-danger">{problems.status_field}</span>}</label>
           </div>
-          {s.spec.poll ? (
+          {s.spec.poll && s.adapter === "inhouse" && !(f.settings.poll_url ?? "").trim() ? (
+            <p className="text-muted">Add a changed-leads address above to poll this CRM. Without one, status comes by webhook (the events address on this page) or from the partner&apos;s export in Sync &amp; SLAs.</p>
+          ) : s.spec.poll ? (
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex items-center gap-2"><input type="checkbox" className="accent-[var(--primary)]" checked={f.poll} onChange={(x) => setF({ ...f, poll: x.target.checked })} />
                 Poll the CRM for changes</label>

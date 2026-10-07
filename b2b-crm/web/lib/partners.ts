@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /** Partners: types, labels and form parsing. Pure, so the server action and the tests share one definition. */
 
-export const ADAPTERS = ["leadsquared", "salesforce", "zoho", "meritto", "hubspot", "generic_rest", "webhook"] as const;
+export const ADAPTERS = ["leadsquared", "salesforce", "zoho", "meritto", "hubspot", "inhouse", "generic_rest", "webhook"] as const;
 export const DEDUPE_MODES = ["async", "sync", "none"] as const;
 export const STATUSES = ["onboarding", "active", "paused", "closed"] as const;
 export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -79,7 +79,8 @@ export const ADAPTER_LABEL: Record<Adapter, string> = {
   zoho: "Zoho CRM",
   meritto: "Meritto (NoPaperForms)",
   hubspot: "HubSpot",
-  generic_rest: "Generic REST API",
+  inhouse: "In-house CRM (partner's own API)",
+  generic_rest: "Eduwit's API contract (partner builds it)",
   webhook: "Webhook",
 };
 

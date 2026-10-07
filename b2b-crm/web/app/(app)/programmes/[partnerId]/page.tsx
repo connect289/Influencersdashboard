@@ -11,6 +11,7 @@ import { partnerTitle } from "@/lib/partners";
 import { VERSION_LABEL, VERSION_TONE } from "@/lib/programmes";
 import { partnerRepo, type VersionSummary } from "@/lib/programmes-data";
 import { PartnerLogo } from "../../partners/PartnerLogo";
+import { CommissionGst } from "./CommissionGst";
 import { OffersTable } from "./OffersTable";
 import { SheetSource } from "./SheetSource";
 import { UploadWizard } from "./UploadWizard";
@@ -121,7 +122,13 @@ export default async function PartnerProgrammesPage({ params, searchParams }: Pr
             ? <EmptyState icon={BookOpen} title="No live programmes" action={<Link href={`/programmes/${p.id}?tab=upload`} className={buttonClass("primary", "sm")}>Upload the partner&apos;s file</Link>}>
                 <p>Until a file is published, routing never offers this partner a lead.</p>
               </EmptyState>
-            : <OffersTable offers={repo.offers} />}
+            : <>
+                {repo.source && repo.offers.some((o) => o.commission) && (
+                  <CommissionGst partnerId={p.id} includesGst={repo.source.commission_includes_gst !== false}
+                    withCommission={repo.offers.filter((o) => o.commission && o.commission.type !== "tier").length} />
+                )}
+                <OffersTable offers={repo.offers} />
+              </>}
         </Card>
       )}
       {tab === "versions" && <Card><Versions partnerId={p.id} versions={repo.versions} /></Card>}

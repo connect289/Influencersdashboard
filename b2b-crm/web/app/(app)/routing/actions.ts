@@ -69,14 +69,14 @@ export async function setRuleActive(id: number, active: boolean): Promise<string
 
 export async function saveRate(_prev: FormState, form: FormData): Promise<FormState> {
   await assertAdmin();
-  const raw = Object.fromEntries(["partner_id", "rate_type", "value", "tiers", "fee_base", "gst_inclusive", "valid_from", "note"].map((k) => [k, form.get(k) ?? undefined]));
+  const raw = Object.fromEntries(["partner_id", "scope", "university_id", "rate_type", "value", "tiers", "fee_base", "gst_inclusive", "valid_from", "note"].map((k) => [k, form.get(k) ?? undefined]));
   const p = RateSchema.safeParse(raw);
   if (!p.success) {
     const errors: Record<string, string> = {};
     for (const i of p.error.issues) errors[String(i.path[0])] ??= i.message;
     return { errors, error: "Check the highlighted fields." };
   }
-  const { error } = await rpc("rate_save", { p: { ...p.data, scope: "partner" } });
+  const { error } = await rpc("rate_save", { p: p.data });
   if (error) return { error: dbMessage(error, "Could not save the rate. Try again.") };
   refresh();
   return { ok: Date.now() };

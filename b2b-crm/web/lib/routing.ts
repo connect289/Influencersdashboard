@@ -230,6 +230,8 @@ export function parseTiers(text: string): { from_pct: number; pct: number }[] | 
 
 export const RateSchema = z.object({
   partner_id: z.string().regex(/^\d+$/, "Choose a partner").transform(Number),
+  scope: z.enum(["partner", "partner_university"]).default("partner"),
+  university_id: z.string().regex(/^\d*$/).optional().default(""),
   rate_type: z.enum(["percent", "fixed", "tiered"]),
   value: z.string().trim().optional().default(""),
   tiers: z.string().trim().max(300).optional().default(""),
@@ -238,6 +240,7 @@ export const RateSchema = z.object({
   valid_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A date").or(z.literal("")),
   note: z.string().trim().max(300),
 }).superRefine((r, ctx) => {
+  if (r.scope === "partner_university" && !r.university_id) ctx.addIssue({ code: "custom", path: ["university_id"], message: "Choose a university" });
   if (r.rate_type === "tiered") {
     const t = parseTiers(r.tiers);
     if (typeof t === "string") ctx.addIssue({ code: "custom", path: ["tiers"], message: t });
@@ -246,8 +249,9 @@ export const RateSchema = z.object({
   const v = Number(r.value);
   if (!r.value || !Number.isFinite(v) || v <= 0) ctx.addIssue({ code: "custom", path: ["value"], message: "Enter a value above 0" });
   else if (r.rate_type === "percent" && v > 100) ctx.addIssue({ code: "custom", path: ["value"], message: "At most 100%" });
-}).transform(({ tiers, value, ...r }) => ({
+}).transform(({ tiers, value, university_id, ...r }) => ({
   ...r, value: r.rate_type === "tiered" ? null : Number(value), tiers: r.rate_type === "tiered" ? (parseTiers(tiers) as { from_pct: number; pct: number }[]) : null,
+  university_id: r.scope === "partner_university" ? Number(university_id) : null,
 }));
 
 /** Hand-off settings (Addenda 1 and 2): the paid-campaign rule, B2C-created sources and blocked phones. */

@@ -10,6 +10,7 @@ import { ALLOCATION_LABEL, LANE_LABEL, MODE_LABEL, NOT_PASSED_LABEL, REASON_LABE
 import { notPassedSummary, routingOverview, type NotPassedSummary, type RoutingOverview } from "@/lib/routing-data";
 import type { PushOverview } from "@/lib/push";
 import { pushOverview } from "@/lib/push-data";
+import { catalogueUniversities } from "@/lib/programmes-data";
 import { DisputeList } from "../partners/[id]/ConnectionControls";
 import { EngineForm } from "./EngineForm";
 import { HandoffForm } from "./HandoffForm";
@@ -264,7 +265,7 @@ export default async function RoutingPage({ searchParams }: Props) {
         </Card>
       )}
       {tab === "rules" && <Card className="min-w-0 overflow-hidden"><RulesPanel rules={o.rules} partners={partners.filter((p) => p.status !== "closed")} /></Card>}
-      {tab === "rates" && <Card className="min-w-0 overflow-hidden"><RatesPanel rates={o.rates} partners={o.partners} /></Card>}
+      {tab === "rates" && <Card className="min-w-0 overflow-hidden"><RatesPanel rates={o.rates} partners={o.partners} universities={await catalogueUniversities()} /></Card>}
       {tab === "handoff" && (
         <Card className="min-w-0">
           <CardHeader title="Hand-off rules" description="Addenda 1 and 2: every lead is passed to a CRM except junk and programme mismatch. These lists decide which leads are paid campaigns (B2C sales), which came from the B2C CRM, and which numbers are junk." />

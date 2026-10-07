@@ -33,6 +33,8 @@ const SettingsSchema = z.object({
     client_id: z.string().trim().max(200), client_secret: Secret, refresh_token: Secret, developer_token: Secret,
     map: z.partialRecord(Stage, z.object({ action: z.string().trim().max(120).nullable(), enabled: z.boolean() })),
   }),
+  values: z.object({ qualified: z.number().min(0).max(1), interested: z.number().min(0).max(1), applied: z.number().min(0).max(1) }).optional(),
+  base_value_inr: z.number().min(0).max(10_000_000).optional(),
 });
 export type SettingsForm = z.input<typeof SettingsSchema>;
 

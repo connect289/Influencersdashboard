@@ -11,6 +11,8 @@ create function pg_temp.v(key text) returns text language sql as $f$ select v fr
 -- a clean slate for the sender in this transaction
 update b2b.capi_state set value = jsonb_build_object('at', now()) where key = 'scan';
 update b2b.live_switches set live = false where scope in ('capi_meta', 'capi_google');
+-- since m21 the weak signals are off by default; this test exercises the sender with two of them on
+update b2b.settings set value = jsonb_set(jsonb_set(value, '{meta,map,contacted,enabled}', 'true'), '{google,map,partner_accepted,enabled}', 'true') where key = 'capi';
 
 -- ---------- leads ----------
 -- A: a Meta Lead Ads lead with every consent; routed to B2C, contacted, applied, enrolled
@@ -48,7 +50,7 @@ insert into r values ('hash_phone_meta', b2b.capi_hash_phone('98765 43210', 'met
 insert into r values ('hash_phone_google_e164', b2b.capi_hash_phone('+91 98765 43210', 'google') = encode(extensions.digest('+919876543210', 'sha256'), 'hex'), null);
 insert into r select 'ids_from_click_ids', b2b.capi_ids(l) = '{"leadgen_id":"1234567890123"}', b2b.capi_ids(l)::text
   from public.student_leads l where l.id = pg_temp.v('A')::bigint;
-insert into r select 'milestones_A', string_agg(m.stage, ',' order by m.stage) = 'applied,contacted,enrolled,lead,partner_accepted,ready_to_route'
+insert into r select 'milestones_A', string_agg(m.stage, ',' order by m.stage) = 'applied,contacted,enrolled,interested,lead,partner_accepted,qualified'
                        and bool_or(m.stage = 'enrolled' and m.value_inr = 15000), string_agg(m.stage || '=' || coalesce(m.value_inr::text, ''), ',')
   from public.student_leads l, b2b.capi_milestones(l) m where l.id = pg_temp.v('A')::bigint;
 
@@ -68,14 +70,14 @@ insert into r select 'no_raw_pii', not exists (select 1 from b2b.conversion_even
 insert into r select 'google_no_consent_skipped', count(*) = 2 and bool_and(status = 'skipped' and reason = 'no consent') and bool_and(platform = 'google'),
                        string_agg(platform || ':' || stage || ':' || status, ' ')
   from b2b.conversion_events where lead_id = pg_temp.v('B')::bigint;
-insert into r select 'google_payload', payload ->> 'gclid' = 'Cj0TESTGCLID' and payload ->> 'orderId' = pg_temp.v('B') || ':ready_to_route:1'
+insert into r select 'google_payload', payload ->> 'gclid' = 'Cj0TESTGCLID' and payload ->> 'orderId' = pg_temp.v('B') || ':qualified:1'
                        and payload ->> 'conversionDateTime' like '%+05:30' and jsonb_array_length(payload -> 'userIdentifiers') = 2
                        and payload -> 'userIdentifiers' -> 1 ->> 'hashedPhoneNumber' = encode(extensions.digest('+919876504102', 'sha256'), 'hex'), payload::text
-  from b2b.conversion_events where lead_id = pg_temp.v('B')::bigint and stage = 'ready_to_route';
+  from b2b.conversion_events where lead_id = pg_temp.v('B')::bigint and stage = 'qualified';
 insert into r select 'test_lead_dry_run', count(*) > 0 and bool_and(status = 'dry_run' and is_test), string_agg(stage || ':' || status, ' ')
   from b2b.conversion_events where lead_id = pg_temp.v('C')::bigint;
 insert into r select 'website_event_fbc', payload ->> 'action_source' = 'website' and payload -> 'user_data' ->> 'fbc' like 'fb.1.%.IwTESTFBCLID', payload::text
-  from b2b.conversion_events where lead_id = pg_temp.v('C')::bigint and stage = 'ready_to_route';
+  from b2b.conversion_events where lead_id = pg_temp.v('C')::bigint and stage = 'qualified';
 insert into r select 'no_identifier_no_events', not exists (select 1 from b2b.conversion_events where lead_id = pg_temp.v('D')::bigint), null;
 insert into r select 'junk_signal_off', not exists (select 1 from b2b.conversion_events where lead_id = pg_temp.v('E')::bigint), null;
 
@@ -124,7 +126,7 @@ begin
     'meta', jsonb_build_object('dataset_id', '123456789012345', 'token', 'EAATESTTOKEN-NOT-REAL', 'test_event_code', 'TEST123'),
     'google', jsonb_build_object('customer_id', '123-456-7890', 'client_id', 'test-client.apps.googleusercontent.com', 'client_secret', 'TEST-CLIENT-SECRET',
                                  'refresh_token', '1//TEST-REFRESH-TOKEN', 'developer_token', 'TEST-DEV-TOKEN',
-                                 'map', jsonb_build_object('ready_to_route', jsonb_build_object('action', 'customers/1234567890/conversionActions/111', 'enabled', true),
+                                 'map', jsonb_build_object('qualified', jsonb_build_object('action', 'customers/1234567890/conversionActions/111', 'enabled', true),
                                                            'partner_accepted', jsonb_build_object('action', 'customers/1234567890/conversionActions/222', 'enabled', true),
                                                            'applied', jsonb_build_object('action', null, 'enabled', true)))));
   o := b2b.capi_overview();
@@ -135,7 +137,7 @@ begin
   perform b2b.set_live_switch('capi_meta', true, 'staging test');
   perform b2b.set_live_switch('capi_google', true, 'staging test');
   c := b2b.capi_lead_check(pg_temp.v('A')::bigint, false);
-  insert into r values ('lead_check', c -> 'ids' ->> 'leadgen_id' = '1234567890123' and jsonb_array_length(c -> 'milestones') = 6
+  insert into r values ('lead_check', c -> 'ids' ->> 'leadgen_id' = '1234567890123' and jsonb_array_length(c -> 'milestones') = 7
                           and jsonb_array_length(c -> 'events') = 5, left(c::text, 300));
   begin perform b2b.capi_retry(-1); e := 'retried'; exception when others then e := sqlerrm; end;
   insert into r values ('retry_needs_failed', e like 'only a failed%', e);
@@ -152,7 +154,8 @@ insert into r select 'meta_request', q.url = 'https://graph.facebook.com/v21.0/1
                        and q.headers ->> 'Authorization' = 'Bearer EAATESTTOKEN-NOT-REAL', q.url
   from net.http_request_queue q where q.id = (select max(request_id) from b2b.conversion_events where platform = 'meta');
 insert into r select 'google_token_requested', (value ->> 'request_id') is not null, value::text from b2b.capi_state where key = 'google_token';
-insert into r select 'google_no_action_held', count(*) = 1 and min(reason) = 'no conversion action for this stage', string_agg(stage || ':' || status, ' ')
+insert into r select 'google_no_action_held', count(*) = 2 and min(reason) = 'no conversion action for this stage' and string_agg(stage, ',' order by stage) = 'applied,interested',
+                       string_agg(stage || ':' || status, ' ')
   from b2b.conversion_events where platform = 'google' and status = 'held';
 
 -- answers: Meta refuses the batch (400) → split into singles; then one single is accepted and one refused

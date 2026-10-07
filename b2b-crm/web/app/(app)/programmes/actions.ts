@@ -281,6 +281,18 @@ export async function publishVersion(partnerId: number, versionId: number, note:
   revalidatePath(`/programmes/${partnerId}`);
 }
 
+/** Whether the commission % in this partner's sheet includes GST; its programme rates follow at once. */
+export async function setCommissionGst(partnerId: number, includesGst: boolean): Promise<{ created: number } | { error: string }> {
+  await assertAdmin();
+  if (!Id.safeParse(partnerId).success || typeof includesGst !== "boolean") return { error: "Invalid request." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.schema("b2b").rpc("programme_commission_gst_save", { p_partner_id: partnerId, p_includes_gst: includesGst });
+  if (error) return { error: dbMessage(error, "Could not save. Try again.") };
+  revalidatePath(`/programmes/${partnerId}`);
+  revalidatePath("/routing");
+  return { created: Number((data as { created?: number } | null)?.created ?? 0) };
+}
+
 export async function discardVersion(partnerId: number, versionId: number): Promise<string | void> {
   await assertAdmin();
   if (!Id.safeParse(partnerId).success || !Id.safeParse(versionId).success) return "Invalid request.";

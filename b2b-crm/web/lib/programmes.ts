@@ -19,7 +19,7 @@ export const FIELDS = [
   { key: "fee_exam", label: "Exam fee", required: false },
   { key: "min_qualification", label: "Minimum qualification", required: false },
   { key: "min_pct", label: "Minimum %", required: false },
-  { key: "commission", label: "Commission", required: false },
+  { key: "commission", label: "Commission %", required: false },
   { key: "valid_from", label: "Valid from", required: false },
   { key: "valid_to", label: "Valid to", required: false },
   { key: "intake", label: "Intake / session", required: false },
@@ -170,7 +170,7 @@ export function parsePct(v: Cell): number | null | "invalid" {
 
 export type Commission = { type: "percent"; value: number } | { type: "fixed"; value: number } | { type: "tier"; ref: string };
 
-/** "20%" → percent; "₹35,000" or "35000" → fixed; "Tier 2" → tier reference. Becomes a proposed rate only. */
+/** "20%" (or Excel's 0.2) → percent; "₹35,000" or "35000" → fixed; "Tier 2" → tier reference. Publishing the sheet confirms it as a programme rate. */
 export function parseCommission(v: Cell): Commission | null | "invalid" {
   const raw = cellText(v);
   if (!raw || raw === "-") return null;
@@ -179,6 +179,14 @@ export function parseCommission(v: Cell): Commission | null | "invalid" {
     return Number.isFinite(n) && n > 0 && n <= 100 ? { type: "percent", value: n } : "invalid";
   }
   if (/tier|slab/i.test(raw)) return { type: "tier", ref: raw.slice(0, 60) };
+  // a plain number: up to 100 is a percentage (decimals kept); an Excel cell formatted as a percentage arrives as a
+  // fraction (18% is 0.18; no commission is below 1%); above 100 it is rupees
+  const plain = typeof v === "number" ? v : /^\d+(\.\d+)?$/.test(raw.replace(/,/g, "")) ? Number(raw.replace(/,/g, "")) : null;
+  if (plain !== null) {
+    if (!(plain > 0)) return "invalid";
+    if (plain < 1) return { type: "percent", value: Math.round(plain * 1e6) / 1e4 };
+    return plain <= 100 ? { type: "percent", value: plain } : { type: "fixed", value: Math.round(plain) };
+  }
   const m = parseMoney(raw);
   if (typeof m === "number" && m > 0) return m <= 100 && !/[₹]|rs|inr/i.test(raw) ? { type: "percent", value: m } : { type: "fixed", value: m };
   return "invalid";

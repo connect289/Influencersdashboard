@@ -1,18 +1,65 @@
 /** Conversion feedback to Meta and Google (spec B11): labels, types and the settings form's checks. */
 
-export const STAGES = ["lead", "ready_to_route", "partner_accepted", "contacted", "applied", "enrolled", "verified", "disqualified"] as const;
+/** Signals, strongest first. CAPI tells Meta and Google how far each paid lead got, so they bid for students who enrol:
+ * enrolled (verified) → applicant → interested → qualified. The weak ones below are off by default. */
+export const STAGES = ["verified", "enrolled", "applied", "interested", "qualified", "contacted", "partner_accepted", "lead", "disqualified"] as const;
 export type Stage = (typeof STAGES)[number];
 export type Platform = "meta" | "google";
 
-export const STAGE_LABEL: Record<Stage, { label: string; hint: string }> = {
-  lead: { label: "Lead received", hint: "The enquiry itself. Off by default: the ad platform already counts its own leads." },
-  ready_to_route: { label: "Ready to route", hint: "The lead was qualified and sent to a partner or to B2C." },
-  partner_accepted: { label: "Accepted", hint: "A partner accepted the lead, or Eduwit's B2C team took it." },
-  contacted: { label: "Contacted", hint: "The first call or message reached the student." },
-  applied: { label: "Applied", hint: "The student applied to the programme." },
-  enrolled: { label: "Enrolled", hint: "Enrolment reported. Value: the expected net commission (₹)." },
-  verified: { label: "Enrolment verified", hint: "Proof checked. Value: the realised net commission (₹)." },
+export const STAGE_LABEL: Record<Stage, { label: string; hint: string; strength?: "strongest" | "strong" | "medium" | "early" }> = {
+  verified: { label: "Enrolment verified", strength: "strongest", hint: "Proof checked. Value: the realised net commission (₹)." },
+  enrolled: { label: "Enrolled", strength: "strongest", hint: "Enrolment reported. Value: the expected net commission (₹)." },
+  applied: { label: "Applicant", strength: "strong", hint: "The student applied to the programme. Value: a share of the expected commission." },
+  interested: { label: "Interested", strength: "medium", hint: "Counselled or further, as the partner's CRM or the B2C CRM reports. Value: a share of the expected commission." },
+  qualified: { label: "Qualified lead", strength: "early", hint: "Routed to a partner or to Eduwit's B2C sales team (not nurture, not junk). Value: a share of the expected commission." },
+  contacted: { label: "Contacted", hint: "Weak signal: the first call or message reached the student." },
+  partner_accepted: { label: "Accepted", hint: "Weak signal: a partner accepted the lead, or Eduwit's B2C team took it." },
+  lead: { label: "Lead received", hint: "The enquiry itself. Off: the ad platform already counts its own leads." },
   disqualified: { label: "Disqualified (junk)", hint: "Sent only when the junk signal is on (Routing → Hand-off rules)." },
+};
+
+export const STRENGTH_LABEL: Record<NonNullable<(typeof STAGE_LABEL)[Stage]["strength"]>, string> = {
+  strongest: "Strongest", strong: "Strong", medium: "Medium", early: "Early",
+};
+
+/** Signals whose value is a share of the lead's expected commission (enrolled and verified carry the commission itself). */
+export const VALUE_STAGES = ["applied", "interested", "qualified"] as const;
+export type ValueStage = (typeof VALUE_STAGES)[number];
+export type SignalValues = { values: Record<ValueStage, number>; base_value_inr: number };
+export const DEFAULT_VALUES: SignalValues = { values: { qualified: 0.05, interested: 0.15, applied: 0.4 }, base_value_inr: 15000 };
+
+/** Problems with the values form (shares as percentages). Mirrors b2b.capi_settings_save. */
+export function valuesProblems(v: { pct: Record<ValueStage, string>; base: string }): Record<string, string> {
+  const e: Record<string, string> = {};
+  for (const k of VALUE_STAGES) {
+    const n = Number(v.pct[k]);
+    if (v.pct[k].trim() === "" || !Number.isFinite(n) || n < 0 || n > 100) e[`values.${k}`] = "A percentage from 0 to 100.";
+  }
+  const b = Number(v.base);
+  if (v.base.trim() === "" || !Number.isFinite(b) || b < 0 || b > 10_000_000) e.base = "Rupees, up to 1,00,00,000.";
+  const [ap, int, qu] = VALUE_STAGES.map((k) => Number(v.pct[k])) as [number, number, number];
+  if (!e["values.applied"] && !e["values.interested"] && !e["values.qualified"] && !(ap >= int && int >= qu)) {
+    e.order = "Stronger signals should be worth at least as much: applicant ≥ interested ≥ qualified.";
+  }
+  return e;
+}
+
+export type CampaignRow = {
+  platform: "meta" | "google" | "other"; campaign_key: string; campaign_id: string | null; campaign_name: string | null;
+  leads: number; matchable: number; qualified: number; interested: number; applied: number; enrolled: number; verified: number; junk: number;
+  commission: number; events_sent: number; last_lead_at: string | null;
+};
+export type CapiCampaigns = { days: number; campaigns: CampaignRow[]; unpaid: number };
+
+/** a ÷ b as a whole percentage, or null when b is 0. */
+export function rate(a: number, b: number): number | null {
+  return b > 0 ? Math.round((a / b) * 100) : null;
+}
+
+export type LeadCampaign = {
+  platform: "meta" | "google" | "other" | "none"; paid: boolean; matchable: boolean; origin?: string | null; click_key?: string | null;
+  campaign_id?: string | null; campaign_name?: string | null; adset_id?: string | null; adset_name?: string | null; ad_id?: string | null; ad_name?: string | null;
+  form_id?: string | null; utm?: Record<string, string | null>; at?: string | null;
 };
 
 export const EVENT_STATUS: Record<string, { label: string; tone: "success" | "info" | "warning" | "danger" | "neutral" | "brand"; hint: string }> = {
@@ -67,6 +114,7 @@ export type CapiEvent = {
 export type LeadCheck = {
   lead: { id: number; name: string | null; is_test: boolean; cycle_no: number; has_email: boolean; deleted: boolean };
   ids: Record<string, string>;
+  campaign: LeadCampaign;
   consent: { rule: "marketing" | "sales"; sales_at: string | null; marketing_at: string | null; opted_out: boolean };
   milestones: { stage: Stage; at: string; value_inr: number | null; meta: { name: string; match_keys: string[]; payload: unknown } | null;
                 google: { name: string; match_keys: string[]; payload: unknown } | null }[];

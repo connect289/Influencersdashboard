@@ -77,6 +77,8 @@ export function UploadWizard({ partnerId, hasTemplate, initial, onCancel }: { pa
         {error && <Notice tone="error">{error}</Notice>}
         <p className="text-[12.5px] text-muted">
           The file is kept exactly as uploaded. {hasTemplate ? "Columns are matched using this partner's saved template." : "You map its columns once; the mapping is saved for the next file."}
+          {" "}One sheet per partner, one row per programme, with its fees and its commission % (GST included unless you say otherwise).{" "}
+          <a href="/programme-sheet-template.csv" download className="text-info hover:underline">Download the column template</a>.
         </p>
       </div>
     );

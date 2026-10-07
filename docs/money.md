@@ -68,8 +68,26 @@ Upload the partner's own statement (Excel .xlsx or CSV, up to 5,000 rows) for a 
 
 ## Commission rates
 
-Rates are set in **Routing → Rates**, per partner or per partner and programme. They are versioned and never edited. The
-most specific rate in force on the enrolment date wins.
+Commission is set at three levels. Rates are versioned and never edited. The most specific rate in force on the
+enrolment date wins:
+
+1. **Programme.** Each partner has its own programme sheet (Excel or Google Sheet, one row per programme) in the
+   Programme Repository. It carries the programme details, fees and a **commission %** column.
+   - **Publishing confirms it.** Publishing the reviewed sheet turns each commission into a programme-level rate for that
+     partner.
+   - **GST.** The % is taken as GST-inclusive. Untick *The % includes 18% GST* on the partner's Live programmes tab if
+     its sheet states commission before GST; the rates follow at once.
+   - **Changes.** A changed % starts a new rate from the publishing day. A programme whose commission is removed from
+     the sheet falls back to the university or partner rate from the next day.
+   - **Excel.** Cells formatted as a percentage (18%) are read correctly.
+   - **Tier references.** A "Tier 2" in the sheet is skipped; set tiered rates by hand.
+2. **University.** One rate for every programme of a university at this partner: Routing → Rates → *Level: One
+   university*.
+3. **Partner.** Everything else the partner offers: Routing → Rates → *Level: Partner-wide*.
+
+Catalogue-wide programme and university rates (without a partner) remain as a last fallback.
+
+A template with the expected columns is linked from the partner's upload screen (`/programme-sheet-template.csv`).
 
 - **Percent** of the first-year fee or the total fee. The fee comes first from the partner's Programme Repository file, then
   from the catalogue. The total-fee base uses the fee recorded on the enrolment first. If the first-year fee is unknown, the
