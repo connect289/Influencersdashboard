@@ -20,7 +20,7 @@ Vikas, 7 Oct 2026: "Make required changes to Witty", "Push changes to Witty and 
 
 ## Files
 
-- `../supabase/migrations/w1_witty_addendum3.sql`: `w2_crm_owned`, `w2_nurture_due`, `w2_crm_payload`, `w2_commit_turn`, and the
+- `../supabase/migrations/20261007094058_w1_witty_addendum3.sql`: `w2_crm_owned`, `w2_nurture_due`, `w2_crm_payload`, `w2_commit_turn`, and the
   extractor prompt example. The previous definitions are saved on production in `b2b.witty_backup_20261007` (rollback: run
   each saved `def`, and restore the `extractor:v4` body with a version bump).
 - `patch_nodes.py`: exact, counted find-and-replace on the live workflow export (aborts if any snippet is missing or found a
@@ -34,6 +34,15 @@ Vikas, 7 Oct 2026: "Make required changes to Witty", "Push changes to Witty and 
 | Finalize Counselor | `a90ce11c-f1dc-4a9f-9229-3bc30d0bd99f` | `9826f83140f491cf5a83c5289a71835c` | `77dfdba0dc487d89e352e8be5b339f8e` | 10 |
 | Assemble Commit | `967df84b-eda9-4938-8735-30dbfa74d472` | `a23ccd036fad8fe89c28b3bc89c27976` | `e421a9b3a60b05f3fdf68019ed86ab2f` | 4 |
 | Validate + Decide | `f9e167ab-4b3f-4ecd-80f4-9603f6123f30` | `d413d9373d348e41011d0f329963b97f` | `a7f3ab6e050eda0c3197162b070070e3` | 7 |
+
+## Status (7 Oct 2026)
+
+- **Database half: live on production** (migration `20261007094058`). A line diff against `b2b.witty_backup_20261007` shows only
+  the intended lines; 15 rolled-back checks on 910000… test numbers passed (ownership for six cases, consent keys reaching
+  `student_leads`, the `lead.interest` touchpoint only for B2C-held leads with an interest intent, the nurture filter, the
+  extractor prompt v5). It works with the current workflow: the consent keys stay empty until the workflow sets them.
+- **Workflow half: not applied.** Patching the live nodes was refused by Claude Code's permission check. Apply the six node
+  changes below in the n8n editor (or allow the action), then run the harness and publish.
 
 ## Release steps
 
