@@ -629,6 +629,16 @@ Conflicts with work already done, and what is still open:
   - **Admin.** `b2c_link_overview` gives the 9-step checklist, sync / delivery / write numbers, delivery time and a two-way activity log. Also `b2c_link_settings_save` (on / off, scope, writable fields; versioned with a reason), `b2c_link_resync` (one lead or all) and `b2c_link_lead` (the inspector). `webhook_endpoint_save` accepts the two new event types. Screen `/b2c`: Overview, Fields and access, Inspect a lead, API.
   - **Verification.** 38 rolled-back checks on staging (`supabase/tests/test_m22_b2c_link.sql`): versions, the queued webhook, keys and scopes, schema, read, feed, lookup, updates (field rules, idempotency, conflicts, custom fields), activities, Admin settings, resync, inspector and release. On production all 22 function checksums match. The test found four bugs before release: a CASE inside an IF condition, the missing `b2c_link` setting, the missing stage type, and a test timing issue.
   - **Not done here:** the B2C CRM's own switch-over. It still reads the table directly until its developer follows §5 of the contract. B2B cannot detect direct writes without a trigger on the shared table, so none was added.
+- **M23a–M23b (7 Oct): production sync cadence (Vikas: real-time sync with partner CRMs and the B2C CRM makes too many paid API calls; sync every 15 minutes once integrated and tested).**
+  - **Interval.** Setting `sync.interval_minutes` (default 15, 5–60), read through `sync_minutes()`.
+  - **B2C CRM.** `b2c_link.delivery` is `realtime` (the default, for integration and testing) or `batched`. Batched works like this:
+    - versions are still computed every 5 seconds inside the database (no outside call);
+    - real students' changes go out as one `b2c.leads_batch` per interval (`b2c_batch_send`, 100 leads per webhook, each lead at its newest version);
+    - test leads stay real time;
+    - the B2C CRM can send its own writes in one `POST /v1/b2c/leads/batch` (`api_b2c_batch`, up to 200 items).
+  - **Partner CRMs.** Live polling defaults to the interval (was 10 minutes) and sandbox polling to 2 minutes while testing; a partner's own minutes win.
+  - **Not batched, on purpose:** pushing a new lead (one create call per lead either way; speed to lead and SLAs), student messages, and CAPI (Meta and Google calls are free and already batched per minute).
+  - **Screen.** The Sync cadence card on B2C CRM link (switch, interval, next batch, each partner's polling) and a tenth checklist step.
 - **Pending:** `b2b-crm/supabase/pending/drop_tmp_transfer.sql`. The temporary objects used to copy the schema to staging need a confirmed `DROP`. API access to them is already revoked.
 
 ## 8. Build order after approval

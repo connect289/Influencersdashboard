@@ -5,8 +5,9 @@ import { Badge, Card, CardHeader, EmptyState, PageHeader } from "@/components/ui
 import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
 import { formatDateTime, relativeTime } from "@/lib/format";
-import { CHECK_STEPS, actorText, describeActivity, describeChanges, lagText, linkHealth, type LinkOverview } from "@/lib/b2c-link";
-import { b2cLinkOverview } from "@/lib/b2c-link-data";
+import { CHECK_STEPS, actorText, describeActivity, describeChanges, lagText, linkHealth, type LinkOverview, type SyncCadence } from "@/lib/b2c-link";
+import { b2cLinkOverview, syncCadence } from "@/lib/b2c-link-data";
+import { CadenceCard } from "./CadenceCard";
 import { LeadInspector } from "./LeadInspector";
 import { LinkSettingsForm } from "./LinkSettingsForm";
 import { ResyncAll } from "./ResyncAll";
@@ -30,12 +31,14 @@ const IN_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = { 
 const API: { method: string; path: string; what: string }[] = [
   { method: "WEBHOOK", path: "b2c.lead_upserted", what: "A lead B2C holds changed: its full record and version, within seconds" },
   { method: "WEBHOOK", path: "b2c.lead_released", what: "A lead left B2C (sent to a partner, deleted or merged): drop or archive it" },
+  { method: "WEBHOOK", path: "b2c.leads_batch", what: "Production cadence: every changed lead since the last batch, once, newest version (up to 100 per call)" },
   { method: "WEBHOOK", path: "b2c.lead_handed_off …", what: "Hand-off news (lane, reason, partners tried), as before" },
   { method: "GET", path: "/v1/b2c/leads?after=0&limit=500", what: "Change feed: build the copy, then catch up from next_after" },
   { method: "GET", path: "/v1/b2c/leads/{id}", what: "One lead's current record and version" },
   { method: "GET", path: "/v1/b2c/leads?phone=98…", what: "Find leads by phone or email" },
   { method: "PATCH", path: "/v1/b2c/leads/{id}", what: "Write B2C's fields (stage, owner, application, enrolment…) with the counsellor" },
   { method: "POST", path: "/v1/b2c/leads/{id}/activities", what: "Log a call, message, meeting or note" },
+  { method: "POST", path: "/v1/b2c/leads/batch", what: "Up to 200 updates and activities in one call (the B2C CRM's own 15-minute sync)" },
   { method: "POST", path: "/v1/leads", what: "Create a new student (lead_source b2c_created): the engine hands it straight back" },
   { method: "POST", path: "/v1/leads/{id}/route-to-partners", what: "Hand a lead to the engine to find a partner" },
   { method: "POST", path: "/v1/events/b2ccrm", what: "Opt-out and erasure requests (signed)" },
@@ -51,8 +54,9 @@ function Stat({ label, value, tone, hint }: { label: string; value: React.ReactN
   );
 }
 
-function Overview({ o }: { o: LinkOverview }) {
-  const done = CHECK_STEPS.filter((s) => o.checks[s.key]).length;
+function Overview({ o, c }: { o: LinkOverview; c: SyncCadence }) {
+  const checks = { ...o.checks, production: c.b2c.delivery === "batched" };
+  const done = CHECK_STEPS.filter((s) => checks[s.key]).length;
   const w = o.writes.by_status;
   const writesOk = (w["update.applied"] ?? 0) + (w["update.unchanged"] ?? 0) + (w["activity.applied"] ?? 0);
   const writesBad = (w["update.rejected"] ?? 0) + (w["update.conflict"] ?? 0) + (w["activity.rejected"] ?? 0);
@@ -64,7 +68,7 @@ function Overview({ o }: { o: LinkOverview }) {
             description="The B2C developer builds against docs/b2c-contract.md; you issue the secret and the key from System health." />
           <ol className="divide-y divide-border">
             {CHECK_STEPS.map((s) => {
-              const ok = o.checks[s.key];
+              const ok = checks[s.key];
               return (
                 <li key={s.key} className="flex gap-3 px-5 py-2.5 text-[12.5px]">
                   {ok ? <Check className="mt-0.5 size-4 shrink-0 text-success" /> : <CircleDashed className="mt-0.5 size-4 shrink-0 text-subtle" />}
@@ -80,7 +84,9 @@ function Overview({ o }: { o: LinkOverview }) {
         </Card>
         <div className="min-w-0 space-y-6">
           <Card className="min-w-0">
-            <CardHeader title="Real-time sync" description="Lead changes are picked up every 5 seconds and delivered at once, signed. The B2C CRM keeps the highest version of each lead." />
+            <CardHeader title="Sync" description={c.b2c.delivery === "batched"
+              ? `Lead changes are picked up every 5 seconds inside the database and delivered in one signed batch every ${c.interval_minutes} minutes. The B2C CRM keeps the highest version of each lead.`
+              : "Lead changes are picked up every 5 seconds and delivered at once, signed. The B2C CRM keeps the highest version of each lead."} />
             <dl className="grid grid-cols-2 gap-px border-t border-border bg-border sm:grid-cols-4">
               <Stat label="Leads in B2C's copy" value={o.sync.in_scope} hint={`${o.sync.held_now} held by B2C now`} />
               <Stat label="Changes sent, 24 h" value={o.sync.changes_24h} />
@@ -99,6 +105,7 @@ function Overview({ o }: { o: LinkOverview }) {
               <span className="ml-auto"><ResyncAll count={o.sync.in_scope || o.sync.held_now} /></span>
             </div>
           </Card>
+          <CadenceCard c={c} />
           <Card className="min-w-0">
             <CardHeader title="Rule in force" />
             <ul className="space-y-1.5 px-5 pb-4 text-[12.5px] text-muted">
@@ -163,7 +170,7 @@ export default async function B2cLinkPage({ searchParams }: Props) {
   await requireAdmin();
   const sp = await searchParams;
   const tab: Tab = TABS.find((t) => t.id === sp.tab)?.id ?? "overview";
-  const o = await b2cLinkOverview();
+  const [o, c] = await Promise.all([b2cLinkOverview(), syncCadence()]);
   const h = linkHealth(o);
   const lead = Number(sp.lead);
 
@@ -180,7 +187,7 @@ export default async function B2cLinkPage({ searchParams }: Props) {
           </Link>
         ))}
       </nav>
-      {tab === "overview" && <Overview o={o} />}
+      {tab === "overview" && <Overview o={o} c={c} />}
       {tab === "fields" && (
         <Card className="min-w-0">
           <CardHeader title="Fields and access" description="What the B2C CRM receives and what it may change. Saved as a new settings version with your reason." />

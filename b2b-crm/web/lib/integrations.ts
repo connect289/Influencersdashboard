@@ -103,6 +103,7 @@ export const PUBLISHED_EVENTS = [
   { type: "b2c.lead_close_agreed", label: "A partner agreed to close a lead B2C now holds" },
   { type: "b2c.lead_upserted", label: "A lead B2C holds changed: its full record (real-time sync)" },
   { type: "b2c.lead_released", label: "A lead left B2C (routed to a partner, deleted or merged)" },
+  { type: "b2c.leads_batch", label: "Production cadence: changed leads in one batch every sync interval" },
   { type: "b2b.lead_routed_to_partner", label: "A lead B2C sent to partners was accepted by one" },
   { type: "lead.allocated", label: "Any lead is allocated (partner or B2C)" },
   { type: "lead.accepted", label: "A partner accepted a lead" },

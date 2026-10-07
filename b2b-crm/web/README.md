@@ -110,7 +110,8 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   `b2c.lead_released` webhooks with per-lead versions, plus a change feed). It writes its pipeline fields and activities
   back through `PATCH /v1/b2c/leads/{id}` and `POST …/activities` (validated, idempotent, audited with the counsellor).
   The screen has the connection checklist, live numbers, the two-way log, field access and a per-lead inspector.
-  Contract: `docs/b2c-contract.md` (v2).
+  Contract: `docs/b2c-contract.md` (v2). Once tested, the link switches to the production cadence (m23): one batch
+  webhook every 15 minutes, with live partner CRM polling on the same interval, to keep paid API calls down.
 - Commission & Finance (`/money`, `supabase/migrations/*_m20*.sql`): enrolments to verify against proof (expected →
   realised commission from the rate in force, tiered rates settled at month close), monthly draft GST invoices to approve
   and print (IGST or CGST + SGST), receipts with TDS matched to invoices, ageing and overdue alerts, partner statement

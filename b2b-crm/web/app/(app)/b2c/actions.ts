@@ -20,6 +20,7 @@ async function rpc(fn: string, args?: Record<string, unknown>) {
 
 const SettingsSchema = z.object({
   enabled: z.boolean(),
+  delivery: z.enum(["realtime", "batched"]).optional(),
   scope: z.enum(["held", "all"]),
   writable: z.array(z.string().regex(/^[a-z_]{1,40}$/)).max(100),
   reason: z.string().trim().min(3, "Give a reason (3 to 300 characters).").max(300),
@@ -51,4 +52,26 @@ export async function inspectLead(id: number): Promise<{ ok: true; data: LinkLea
   const { data, error } = await rpc("b2c_link_lead", { p_lead_id: id });
   if (error) return { ok: false, error: dbMessage(error, "Could not read the lead. Try again.") };
   return { ok: true, data: data as LinkLead };
+}
+
+/** Real time while integrating and testing; batched (one webhook per sync interval) in production. */
+export async function saveDelivery(delivery: "realtime" | "batched", reason: string): Promise<string | void> {
+  await assertAdmin();
+  const p = z.object({ delivery: z.enum(["realtime", "batched"]), reason: z.string().trim().min(3, "Give a reason (3 to 300 characters).").max(300) }).safeParse({ delivery, reason });
+  if (!p.success) return p.error.issues[0]?.message ?? "Check the form.";
+  const { error } = await rpc("b2c_link_settings_save", { p: { delivery: p.data.delivery }, p_reason: p.data.reason });
+  if (error) return dbMessage(error, "Could not save. Try again.");
+  revalidatePath("/b2c");
+}
+
+/** The production sync interval (5 to 60 minutes): B2C batches and partner CRM polling. */
+export async function saveSyncInterval(minutes: number, reason: string): Promise<string | void> {
+  await assertAdmin();
+  const p = z.object({ minutes: z.number().int().min(5, "5 to 60 minutes.").max(60, "5 to 60 minutes."), reason: z.string().trim().min(3, "Give a reason (3 to 300 characters).").max(300) })
+    .safeParse({ minutes, reason });
+  if (!p.success) return p.error.issues[0]?.message ?? "Check the form.";
+  const { error } = await rpc("sync_settings_save", { p_minutes: p.data.minutes, p_reason: p.data.reason });
+  if (error) return dbMessage(error, "Could not save. Try again.");
+  revalidatePath("/b2c");
+  revalidatePath("/partners");
 }

@@ -85,6 +85,7 @@ or `9190000000`); keep them out of counsellor queues and reports.
 | --- | --- | --- |
 | `b2c.lead_upserted` | A lead you hold was created or changed, by anyone (Witty, the engine, a partner event, the Admin, your own write) | `version`, `seq`, `origin`, `record` (§2.1). **Store it if `version` is higher than your copy's** |
 | `b2c.lead_released` | A lead left you: routed to a partner, deleted, merged or anonymised | `version`, `seq`, `record` (only `id`, `held_by_b2c: false`, `deleted`, `merged_into_id`, `allocation`). Close your pipeline for it and keep only what your records need |
+| `b2c.leads_batch` | Production cadence only (see *Sync cadence* below): every lead that changed since the last batch, once, at its newest version, up to 100 per call | `from_seq`, `to_seq`, `part`, `leads`: a list of `{ type, lead_id, version, seq, changed_at, origin, record }` exactly as in the change feed (§2.3). Apply each entry like a single webhook |
 | `b2c.lead_handed_off` | The engine gives a lead to B2C | `b2c_lane` (`sales` / `nurture`), `reason` (below), `cause` (for `manual_route_failed`: why), `reference` (`EDW-…`), `allocation_id`, `decision_id`, `partners_tried` (each partner and its outcome), `paid` (the paid-campaign signal or null), `test`. For `partner_lost` also `partner_id`, `partner_record_id`, `lost_reason`, `partner_status`, the partner's last activity |
 | `b2c.lead_reenquired` | A lead you already hold enquires again (new paid enquiry, Witty qualifies it). It stays yours | `b2c_lane`, `cycle_no`, `decision_id`, `what` (`lead_status`, `source`, `paid`), `allocation_id`, `reference` |
 | `b2c.lead_flagged` | A lead you hold needs attention (e.g. its classification changed) | `classification`, `allocation_id` |
@@ -102,6 +103,26 @@ including partner-held ones; the B2C endpoint does not need them.
 
 **What B2B does not do for B2C leads:** it sends the student no message (you message them from your own number when a
 counsellor is assigned), and it writes none of the pipeline columns while you hold the lead.
+
+### Sync cadence
+
+To keep paid API calls down, a connection runs in real time only while it is being integrated and tested:
+
+| Mode | When | What you receive |
+| --- | --- | --- |
+| **Real time** (default) | Integration and testing | One `b2c.lead_upserted` / `b2c.lead_released` per change, within seconds |
+| **Every 15 minutes** (production) | After the Admin switches it on B2C CRM link, once you have tested end to end | One `b2c.leads_batch` per interval, with every changed lead at its newest version. Test leads still come one by one in real time, so you can keep testing |
+
+The interval is 15 minutes by default; the Admin can set 5 to 60. `GET /v1/b2c/schema` tells you the current `delivery` and
+`interval_minutes`.
+
+**Unchanged in production:**
+- the change feed (§2.3);
+- reads (§3.3);
+- writes (§3.4–3.5), which take effect at once.
+
+On your side, send your writes in batches too: queue them and post them every 15 minutes with
+`POST /v1/b2c/leads/batch` (§3.8). A counsellor's urgent change can still go at once.
 
 ## 2. Your copy of the leads
 
@@ -278,6 +299,20 @@ Look the student up first (§3.3).
 The field catalogue (`field`, `group`, `kind`, `max`, `writable` now), the stage keys with their rank and group, and
 the activity kinds. Read it at start-up and build your forms and checks from it.
 
+### 3.8 `POST /v1/b2c/leads/batch`: many writes in one call
+
+Up to 200 items (1 MB), each an update (§3.4) or an activity (§3.5) with `op` and `lead_id` added:
+
+```json
+{ "items": [
+  { "op": "update", "lead_id": 949, "request_id": "b2c-upd-7f3c2a", "if_version": 7, "actor": { "name": "Priya" }, "set": { "stage": "assigned" } },
+  { "op": "activity", "lead_id": 950, "request_id": "b2c-act-91a0", "kind": "call", "at": "2026-10-07T11:02:00+05:30", "outcome": "connected" } ] }
+```
+
+- **Items are independent.** Each item is applied on its own, so a refused item does not stop the others.
+- **Answer.** `200` with `{ "applied": n, "items": [ { "lead_id", "request_id", "op", "ok", "status", "error"?, "fields"?, "version"?, "changed"? } ] }`, in the same order as the request.
+- **Retries.** `request_id` makes each item safe to retry, as in the single calls.
+
 ## 4. Events: B2C → B2B (signed)
 
 `POST /v1/events/b2ccrm`, signed exactly like our webhooks, with the **same signing secret**:
@@ -336,7 +371,8 @@ Ask the Admin for a staging connection (separate secret and key). Use test phone
 1. The `ping` verifies.
 2. A test lead without partner consent arrives as `b2c.lead_handed_off` (`reason: no_partner_consent`) and as
    `b2c.lead_upserted` version 1.
-3. `GET /v1/b2c/leads?after=0` lists it with the same record.
+3. `GET /v1/b2c/leads?after=0` lists it with the same record. (While testing, the link is in real time; check the batch
+   format too by asking the Admin to switch to the production cadence for a short test with a real, non-test lead.)
 4. A `PATCH` with `stage: "assigned"` answers version 2, and the echo arrives as a webhook.
 5. The same `request_id` answers `replayed: true`.
 6. A stale `if_version` answers `409`.

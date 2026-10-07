@@ -2,7 +2,7 @@
 
 export type FieldKind = "text" | "email" | "phone" | "int" | "numeric" | "pct" | "ts" | "date" | "uuid" | "stage" | "temperature" | "bool" | "json";
 export type LinkField = { field: string; column: string; group: string; kind: FieldKind; write: "b2c" | "b2b"; max: number | null };
-export type LinkSettings = { enabled: boolean; scope: "held" | "all"; writable: string[] };
+export type LinkSettings = { enabled: boolean; scope: "held" | "all"; writable: string[]; delivery?: "realtime" | "batched" };
 
 export type LinkLogRow =
   | { dir: "out"; at: string; lead_id: number; name: string | null; type: "upserted" | "released"; version: number; origin: string | null;
@@ -11,7 +11,16 @@ export type LinkLogRow =
       http_status: number; error: string | null; actor: Record<string, string>; changes: Record<string, unknown>; request_id: string; version: number | null };
 
 export type LinkChecks = { endpoint: boolean; secret: boolean; subscribed: boolean; ping: boolean; active: boolean; key: boolean; key_used: boolean;
-                           first_delivery: boolean; first_write: boolean };
+                           first_delivery: boolean; first_write: boolean; production?: boolean };
+
+/** What syncs when (b2b.sync_cadence). */
+export type SyncCadence = {
+  interval_minutes: number;
+  b2c: { delivery: "realtime" | "batched"; last_batch_at: string | null; last_batch_leads: number | null; last_batch_parts: number | null;
+         next_batch_at: string | null; waiting: number | null };
+  partners: { id: number; name: string; adapter: string; live: boolean; poll: boolean; live_minutes: number; sandbox_minutes: number;
+              own_minutes: boolean; last_poll_at: string | null }[];
+};
 
 export type LinkOverview = {
   settings: LinkSettings;
@@ -45,6 +54,7 @@ export const CHECK_STEPS: { key: keyof LinkChecks; label: string; hint: string; 
   { key: "key_used", label: "The B2C CRM has called the API", hint: "Usually the first feed call that builds its copy.", where: "" },
   { key: "first_delivery", label: "First lead change delivered", hint: "A lead handed to B2C arrives within seconds.", where: "" },
   { key: "first_write", label: "First update written back", hint: "A counsellor's change reached the lead through the API.", where: "" },
+  { key: "production", label: "Switched to the production cadence", hint: "After full testing: changes go in one batch every sync interval, to save API calls.", where: "/b2c#cadence" },
 ];
 
 export const GROUP_LABEL: Record<string, string> = {

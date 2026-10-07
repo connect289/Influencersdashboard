@@ -8,6 +8,7 @@ import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
  */
 
 export const MAX_BODY_BYTES = 64 * 1024;
+export const MAX_BATCH_BYTES = 1024 * 1024;
 const LEAD_ID = /^\d{1,18}$/;
 
 export const fail = (status: number, error: string, extra?: Record<string, unknown>) => Response.json({ ok: false, error, ...extra }, { status });
@@ -22,10 +23,10 @@ export function leadIdFrom(id: string): number | null {
   return LEAD_ID.test(id) ? Number(id) : null;
 }
 
-/** A JSON object body of at most 64 KB, or the answer explaining why not. */
-export async function jsonBody(request: Request): Promise<Record<string, unknown> | Response> {
+/** A JSON object body (64 KB unless said otherwise), or the answer explaining why not. */
+export async function jsonBody(request: Request, max = MAX_BODY_BYTES): Promise<Record<string, unknown> | Response> {
   const text = await request.text();
-  if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) return fail(413, "body is larger than 64 KB");
+  if (new TextEncoder().encode(text).length > max) return fail(413, `body is larger than ${Math.round(max / 1024)} KB`);
   let json: unknown;
   try { json = JSON.parse(text); } catch { return fail(400, "body is not JSON"); }
   if (!json || typeof json !== "object" || Array.isArray(json)) return fail(400, "body must be a JSON object");

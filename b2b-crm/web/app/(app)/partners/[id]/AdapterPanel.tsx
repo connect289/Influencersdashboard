@@ -138,9 +138,9 @@ export function AdapterPanel({ id, s }: { id: number; s: AdapterStatus }) {
               <label className="flex items-center gap-2"><input type="checkbox" className="accent-[var(--primary)]" checked={f.poll} onChange={(x) => setF({ ...f, poll: x.target.checked })} />
                 Poll the CRM for changes</label>
               <label className="block w-36 space-y-1"><span className="text-muted">every (minutes)</span>
-                <input className={field} inputMode="numeric" value={f.poll_minutes} placeholder="10" aria-invalid={Boolean(problems.poll_minutes)}
+                <input className={field} inputMode="numeric" value={f.poll_minutes} placeholder={env === "live" ? "15" : "2"} aria-invalid={Boolean(problems.poll_minutes)}
                   onChange={(x) => setF({ ...f, poll_minutes: x.target.value.replace(/\D/g, "") })} /></label>
-              <span className="text-muted">Use it when the partner cannot send webhooks; both can run together.</span>
+              <span className="text-muted">Empty: live polls every sync interval (15 minutes, to save the partner&apos;s API calls), the sandbox every 2 minutes while testing. Webhooks can run as well.</span>
             </div>
           ) : <p className="text-muted">{s.spec.label} reports changes by webhook only (the events address on this page).</p>}
           <div className="space-y-1.5">

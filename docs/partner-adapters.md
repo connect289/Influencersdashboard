@@ -58,8 +58,10 @@ On the partner's page, set *Adapter* in Settings to the partner's CRM, then open
 3. Route a test lead from **Routing → Simulate**. Test leads go only to the sandbox, real students only to live.
 4. **Fetch fields** takes the CRM's field list into Mapping studio as a schema snapshot; map the CRM's stages there
    (Status map) so polled changes become Eduwit stages.
-5. **Live**: enter the live settings and keys and Save. Polling runs every 10 minutes (set 2–1,440 under
-   *Fields and polling*, or turn it off if the partner sends webhooks). The live field list is checked daily; a change
+5. **Live**: enter the live settings and keys and Save. Live polling runs once every sync interval (15 minutes by
+   default, set on B2C CRM link → Sync cadence) to keep the partner's API calls down. While testing, the sandbox is polled
+   every 2 minutes. A partner's own minutes (2–1,440 under *Fields and polling*) win; turn polling off if the partner
+   sends webhooks. The live field list is checked daily; a change
    raises `alert.mapping_drift`.
 6. *Fixed values* add fields every lead carries (for example an owner or a source the partner asks for). Mapping studio's
    outbound field map, when it has one, is sent too and wins over the defaults.
