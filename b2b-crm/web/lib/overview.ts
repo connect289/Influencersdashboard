@@ -124,6 +124,8 @@ export const ALERT_LABEL: Record<string, string> = {
   "alert.intake_new_form": "Leads from a new Meta or Google form (map it)",
   "alert.intake_bad_signature": "Lead webhook with a bad signature or key",
   "alert.intake_failed": "A lead from an ad form could not be stored",
+  "alert.capi_failed": "Conversions refused or given up (CAPI)",
+  "alert.capi_auth": "Meta or Google refused the CAPI credentials",
   "routing.error": "Routing error",
 };
 

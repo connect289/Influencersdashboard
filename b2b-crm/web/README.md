@@ -93,6 +93,11 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   hand) and Connections (webhook URLs; secrets go to Vault). Machine routes: `POST /v1/leads` (Intake API, contract
   in `docs/intake-api.md`), `GET/POST /v1/webhooks/meta/leadgen`, `POST /v1/webhooks/google/leadform`. pg_cron runs
   `b2b.intake_tick` every 10 seconds (Meta fetches) and `b2b.import_tick` every minute.
+- Conversions (`/capi`, `supabase/migrations/*_m18*.sql`): lead milestones reported to Meta (Conversions API) and
+  Google Ads (offline and enhanced conversions for leads). It shows each platform's live switch and what blocks it,
+  totals and match-key coverage, per-milestone counts and value, an event log with Retry, Setup (consent rule, accounts,
+  credentials in Vault, stage-to-event maps) and Check a lead (the exact payloads, hashed). pg_cron runs `b2b.capi_tick`
+  every minute. Setup guide: `docs/capi-setup.md`.
 
 ## How access is enforced
 

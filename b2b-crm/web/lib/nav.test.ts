@@ -9,7 +9,7 @@ describe("navigation", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
   it("gives every unbuilt top-level section a placeholder", () => {
-    expect(Object.keys(SECTION_BY_SLUG)).toEqual(expect.arrayContaining(["money", "capi"]));
+    expect(Object.keys(SECTION_BY_SLUG)).toEqual(expect.arrayContaining(["money", "dashboards"]));
     expect(SECTION_BY_SLUG["settings"]).toBeUndefined();
     expect(SECTION_BY_SLUG["leads"]).toBeUndefined(); // built: app/(app)/leads
     expect(SECTION_BY_SLUG["partners"]).toBeUndefined(); // built: app/(app)/partners
@@ -20,6 +20,7 @@ describe("navigation", () => {
     expect(SECTION_BY_SLUG["system"]).toBeUndefined(); // built: app/(app)/system
     expect(SECTION_BY_SLUG["mapping"]).toBeUndefined(); // built: app/(app)/mapping
     expect(SECTION_BY_SLUG["intake"]).toBeUndefined(); // built: app/(app)/intake
+    expect(SECTION_BY_SLUG["capi"]).toBeUndefined(); // built: app/(app)/capi
   });
   it("marks the right item active", () => {
     expect(isActive("/", "/")).toBe(true);
