@@ -64,6 +64,8 @@ export function delta(value: number | null, prev: number | null, higherIsBetter:
   if (value === null || prev === null || !Number.isFinite(value) || !Number.isFinite(prev)) return null;
   const diff = value - prev;
   if (Math.abs(diff) < 1e-9) return { text: "no change", tone: "flat" };
+  // a change too small to show at the display precision reads as no change, not "−0.0 pts"
+  if (unit === "pct" ? Math.round(Math.abs(diff) * 1000) === 0 : prev !== 0 && Math.round(Math.abs(diff / prev) * 100) === 0) return { text: "no change", tone: "flat" };
   const sign = diff > 0 ? "+" : "−";
   const text = unit === "pct" ? `${sign}${Math.abs(diff * 100).toFixed(1)} pts`
     : prev !== 0 ? `${sign}${Math.abs((diff / Math.abs(prev)) * 100).toFixed(0)}%` : `${sign}${formatValue(Math.abs(diff), unit)}`;

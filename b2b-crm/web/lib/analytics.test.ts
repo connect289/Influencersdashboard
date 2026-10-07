@@ -26,6 +26,8 @@ describe("formatting", () => {
     expect(delta(5, 0, true, "count")).toEqual({ text: "+5", tone: "good" });
     expect(delta(5, 5, true, "count")?.tone).toBe("flat");
     expect(delta(5, null, true, "count")).toBeNull();
+    expect(delta(0.3804, 0.3806, true, "pct")).toEqual({ text: "no change", tone: "flat" });
+    expect(delta(1001, 1000, true, "count")).toEqual({ text: "no change", tone: "flat" });
   });
   it("labels breakdown values", () => {
     expect(dimLabel("partner", "4", res([]).labels)).toBe("Acme");

@@ -11,7 +11,7 @@ import { archiveDashboard, copyDashboard, saveView, setHomeDashboard } from "./a
 const field = "h-8 rounded-lg border border-border bg-surface px-2 text-[12.5px] text-fg focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30";
 
 /** Dashboard-wide period and filters, kept in the URL so every view is a link. */
-export function DashboardControls({ period, filters, dims }: { period: Period; filters: Record<string, string[]>; dims: string[] }) {
+export function DashboardControls({ period, filters, dims, partners = {} }: { period: Period; filters: Record<string, string[]>; dims: string[]; partners?: Record<string, string> }) {
   const router = useRouter();
   const sp = useSearchParams();
   const [dim, setDim] = useState(dims[0] ?? "");
@@ -29,7 +29,7 @@ export function DashboardControls({ period, filters, dims }: { period: Period; f
       </select>
       {Object.entries(filters).map(([k, vs]) => (
         <span key={k} className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface-2 px-2 py-1 text-[12px]">
-          <span className="text-subtle">{DIM_LABEL[k] ?? k}:</span> <span className="max-w-[180px] truncate text-fg">{vs.join(", ")}</span>
+          <span className="text-subtle">{DIM_LABEL[k] ?? k}:</span> <span className="max-w-[180px] truncate text-fg">{vs.map((v) => (k === "partner" ? partners[v] ?? `#${v}` : v)).join(", ")}</span>
           <button type="button" aria-label={`Remove ${k} filter`} className="text-subtle hover:text-fg" onClick={() => { const f = { ...filters }; delete f[k]; go(period, f); }}><X className="size-3" /></button>
         </span>
       ))}
@@ -38,7 +38,9 @@ export function DashboardControls({ period, filters, dims }: { period: Period; f
           <select value={dim} onChange={(e) => setDim(e.target.value)} className={field} aria-label="Filter by">
             {dims.map((d) => <option key={d} value={d}>{DIM_LABEL[d] ?? d}</option>)}
           </select>
-          <input value={val} onChange={(e) => setVal(e.target.value)} placeholder={dim === "partner" ? "partner ID" : "value, value"} className={`${field} w-36`} aria-label="Filter values" />
+          {dim === "partner" && Object.keys(partners).length > 0
+            ? <select value={val} onChange={(e) => setVal(e.target.value)} className={`${field} w-44`} aria-label="Partner"><option value="">Choose</option>{Object.entries(partners).map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
+            : <input value={val} onChange={(e) => setVal(e.target.value)} placeholder="value, value" className={`${field} w-36`} aria-label="Filter values" />}
           <Button type="submit" size="sm" variant="secondary"><Plus className="size-3.5" /> Filter</Button>
         </form>
       )}

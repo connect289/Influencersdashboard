@@ -32,7 +32,8 @@ export async function DashboardView({ id, sp, home }: { id: number; sp: Record<s
         </div>
         <div className="print:hidden"><DashboardActions id={d.dashboard.id} isDefault={d.dashboard.is_default} isHome={Boolean(d.dashboard.is_home) || Boolean(home)} /></div>
       </div>
-      <div className="print:hidden"><DashboardControls period={v.period} filters={filters} dims={dims} /></div>
+      <div className="print:hidden"><DashboardControls period={v.period} filters={filters} dims={dims}
+        partners={Object.values(d.data).flatMap((x) => x.series ?? []).find((x) => x.labels?.partner)?.labels.partner ?? {}} /></div>
       <div className="grid grid-cols-12 gap-4">
         {d.dashboard.widgets.map((w) => <WidgetCard key={w.id} w={w} data={d.data[w.id]} filters={filters} />)}
       </div>

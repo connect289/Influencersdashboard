@@ -24,9 +24,10 @@ function Kpi({ s, filters, compact }: { s: MetricResult; filters: Record<string,
         {formatValue(s.total.value, s.metric.unit, true)}
       </Link>
       {d ? (
-        <p className={cn("flex items-center gap-1 text-[12px]", d.tone === "good" ? "text-success" : d.tone === "bad" ? "text-danger" : "text-subtle")}>
-          {d.tone === "flat" ? null : d.text.startsWith("+") ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
-          {d.text} <span className="text-subtle">vs previous period</span>
+        <p className={cn("flex min-w-0 items-center gap-1 whitespace-nowrap text-[12px]", d.tone === "good" ? "text-success" : d.tone === "bad" ? "text-danger" : "text-subtle")}
+           title="Against the previous period of the same length">
+          {d.tone === "flat" ? null : d.text.startsWith("+") ? <ArrowUpRight className="size-3.5 shrink-0" /> : <ArrowDownRight className="size-3.5 shrink-0" />}
+          {d.text} <span className="truncate text-subtle">vs before</span>
         </p>
       ) : <p className="text-[12px] text-subtle">&nbsp;</p>}
     </div>
@@ -133,7 +134,7 @@ function Line({ s }: { s: MetricResult }) {
           </g>
         ))}
         {xs.map((x, i) => (xs.length <= 10 || i % Math.ceil(xs.length / 10) === 0) && (
-          <text key={x} x={px(i)} y={H + 13} textAnchor="middle" className="fill-[var(--subtle)] text-[10px]">{dimLabel(s.dims[0]!, x, s.labels)}</text>
+          <text key={x} x={px(i)} y={H + 13} textAnchor={i === 0 && xs.length > 1 ? "start" : i === xs.length - 1 && xs.length > 1 ? "end" : "middle"} className="fill-[var(--subtle)] text-[10px]">{dimLabel(s.dims[0]!, x, s.labels)}</text>
         ))}
       </svg>
       {two && <Legend items={series.map((c) => dimLabel(s.dims[1]!, c, s.labels))} />}
@@ -164,7 +165,7 @@ function Heatmap({ s, filters }: { s: MetricResult; filters: Record<string, stri
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-[11.5px]">
-        <thead><tr><th />{p.cols.map((c) => <th key={c} className="px-1 pb-1 text-left font-medium text-subtle">{dimLabel(s.dims[1]!, c, s.labels)}</th>)}</tr></thead>
+        <thead><tr><th />{p.cols.map((c) => <th key={c} className="whitespace-nowrap px-1 pb-1 text-left font-medium text-subtle">{dimLabel(s.dims[1]!, c, s.labels)}</th>)}</tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r}>
@@ -230,12 +231,13 @@ function Sankey({ series }: { series: MetricResult[] }) {
   if (series.every((s) => !s.rows.length)) return <Empty />;
   const H = 200, W = 600;
   const { nodes, links, steps } = sankeyLayout(series, H);
-  const colX = (step: number) => (steps === 1 ? 0 : (step / (steps - 1)) * (W - 110));
+  const colX = (step: number) => (steps === 1 ? 0 : (step / (steps - 1)) * (W - 130));
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const dims = [series[0]!.dims[0]!, ...series.map((s) => s.dims[1]!)];
   const labels = series[0]!.labels;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Flow">
+    <div className="overflow-x-auto">
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full min-w-[540px]" role="img" aria-label="Flow">
       {links.map((l, i) => {
         const a = byId.get(l.from)!, b = byId.get(l.to)!;
         const x0 = colX(a.step) + 10, x1 = colX(b.step);
@@ -251,6 +253,7 @@ function Sankey({ series }: { series: MetricResult[] }) {
         </g>
       ))}
     </svg>
+    </div>
   );
 }
 
@@ -285,16 +288,35 @@ function SlaTimers({ rows }: { rows: Record<string, unknown>[] }) {
         const due = new Date(String(r.due_at));
         const late = due.getTime() < Date.now();
         return (
-          <li key={String(r.id)} className="flex items-center gap-2 py-1.5">
+          <li key={String(r.id)} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-1.5">
             <Clock className={cn("size-3.5 shrink-0", late ? "text-danger" : "text-subtle")} />
             <Link href={`/leads?lead=${r.lead_id}`} className="text-info hover:underline">Lead #{String(r.lead_id)}</Link>
             <span className="text-muted">{String(r.partner)} · {String(r.sla).replace(/_/g, " ")}</span>
-            <span className={cn("tabular ml-auto", late ? "text-danger" : "text-fg")}>{late ? "overdue " : "due "}{relativeTime(due.toISOString())}</span>
+            <span className={cn("tabular ml-auto whitespace-nowrap", late ? "text-danger" : "text-fg")}>{late ? `overdue ${relativeTime(due.toISOString())}` : `due in ${untilShort(due)}`}</span>
           </li>
         );
       })}
     </ul>
   );
+}
+
+function untilShort(d: Date): string {
+  const m = Math.max(1, Math.round((d.getTime() - Date.now()) / 60000));
+  return m < 60 ? `${m} min` : m < 48 * 60 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} days`;
+}
+
+const ALERT_LABEL: Record<string, string> = {
+  "alert.partner_auto_paused": "Partner paused automatically", "alert.sla_breach": "SLA breach", "alert.ncpl_drop": "NCPL drop",
+  "alert.model_fallback": "ML model fell back", "alert.reconciliation_items": "Reconciliation items", "alert.partner_bad_signature": "Bad webhook signature",
+  "alert.notification_failed": "Notification failed", "alert.ai_budget": "AI budget reached", "alert.ai_run_failed": "AI run failed",
+  "alert.schedule_failed": "Scheduled report failed", "alert.metric_invalid": "Metric alert broken", "routing.error": "Routing error",
+};
+function alertLabel(r: Record<string, unknown>): string {
+  const type = String(r.type);
+  const name = (r.payload as { name?: unknown } | null)?.name;
+  if (type === "alert.metric") return typeof name === "string" && name ? `Metric alert: ${name}` : "Metric alert";
+  const t = ALERT_LABEL[type] ?? type.replace(/^alert\./, "").replace(/_/g, " ");
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 function Alerts({ rows }: { rows: Record<string, unknown>[] }) {
@@ -304,7 +326,7 @@ function Alerts({ rows }: { rows: Record<string, unknown>[] }) {
       {rows.map((r, i) => (
         <li key={i} className="flex gap-2 py-1.5">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warning" />
-          <span className="min-w-0 flex-1"><span className="text-fg">{String(r.type).replace(/^alert\./, "").replace(/_/g, " ")}</span>
+          <span className="min-w-0 flex-1"><span className="text-fg">{alertLabel(r)}</span>
             {r.partner ? <span className="text-muted"> · {String(r.partner)}</span> : null}</span>
           <span className="shrink-0 text-subtle">{relativeTime(String(r.at))}</span>
         </li>
@@ -343,11 +365,11 @@ const SPAN: Record<number, string> = {
   1: "md:col-span-1", 2: "md:col-span-2", 3: "md:col-span-3", 4: "md:col-span-4", 5: "md:col-span-5", 6: "md:col-span-6",
   7: "md:col-span-7", 8: "md:col-span-8", 9: "md:col-span-9", 10: "md:col-span-10", 11: "md:col-span-11", 12: "md:col-span-12",
 };
-const ROWS: Record<number, string> = { 1: "min-h-[118px]", 2: "min-h-[250px]", 3: "min-h-[360px]", 4: "min-h-[470px]" };
+const ROWS: Record<number, string> = { 1: "md:min-h-[118px]", 2: "md:min-h-[250px]", 3: "md:min-h-[360px]", 4: "md:min-h-[470px]" };
 
 export function WidgetCard({ w, data, filters, children }: { w: Widget; data: WidgetData | undefined; filters: Record<string, string[]>; children?: React.ReactNode }) {
   return (
-    <section className={cn("col-span-12 flex min-w-0 flex-col rounded-[var(--radius-card)] border border-border bg-surface p-4", SPAN[w.w], ROWS[w.h])} aria-label={w.title}>
+    <section className={cn(w.type === "kpi" && w.w <= 4 ? "col-span-6" : "col-span-12", "flex min-w-0 flex-col rounded-[var(--radius-card)] border border-border bg-surface p-4", SPAN[w.w], ROWS[w.h])} aria-label={w.title}>
       <header className="mb-2 flex items-start gap-2">
         <h3 className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-muted" title={w.title}>{w.title || data?.series?.[0]?.metric.label}</h3>
         {children}

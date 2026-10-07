@@ -139,7 +139,7 @@ export function ReportBuilder({ metrics, facts, initial }: { metrics: CatalogueM
       </div>
       {result && (
         <div className="overflow-x-auto rounded-lg border border-border">
-          <p className="border-b border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">{result.kind === "tabular" ? `${result.rows.length} rows${result.rows.length >= result.limit ? ` (first ${result.limit})` : ""}` : `${result.rows.length} rows`} · {new Date(result.from).toLocaleDateString("en-IN")} to {new Date(result.to).toLocaleDateString("en-IN")}</p>
+          <p className="border-b border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">{result.kind === "tabular" ? `${result.rows.length} rows${result.rows.length >= result.limit ? ` (first ${result.limit})` : ""}` : `${result.rows.length} rows`} · {new Date(result.from).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} to {new Date(result.to).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
           <ResultTable r={result} />
         </div>
       )}
