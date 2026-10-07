@@ -102,13 +102,24 @@ export function describeChange(c: Change | null, names: Record<string, string> =
   }
 }
 
+export const rupees = (n: number | null | undefined) => (n == null || !Number.isFinite(n) ? "—" : `₹${Math.round(n).toLocaleString("en-IN")}`);
+const signedRupees = (n: number) => `${n < 0 ? "−" : "+"}${rupees(Math.abs(n))}`;
+
 /** The simulated impact in words, or why there is none. */
 export function simulationText(s: Simulation | null): string {
   if (!s) return "Not simulated";
   if (!s.simulated) return s.why ?? "Cannot be simulated";
   if (!s.decisions) return "No matured decisions to replay yet";
-  const ci = s.ci95 ? ` (95%: ${s.ci95[0] >= 0 ? "+" : ""}₹${s.ci95[0]} to ${s.ci95[1] >= 0 ? "+" : ""}₹${s.ci95[1]})` : "";
-  return `NCPL ₹${s.ncpl_now} → ₹${s.ncpl_new}${s.gain_pct != null ? `, ${s.gain_pct >= 0 ? "+" : ""}${s.gain_pct}%` : ""}${ci} on ${s.decisions} decisions${s.enough ? "" : ": too few to rely on"}`;
+  const ci = s.ci95 ? ` (95%: ${signedRupees(s.ci95[0])} to ${signedRupees(s.ci95[1])})` : "";
+  return `NCPL ${rupees(s.ncpl_now)} → ${rupees(s.ncpl_new)}${s.gain_pct != null ? `, ${s.gain_pct >= 0 ? "+" : "−"}${Math.abs(s.gain_pct)}%` : ""}${ci} on ${s.decisions} decisions${s.enough ? "" : ": too few to rely on"}`;
+}
+
+/** "expires in 6 days" / "expires in 5 h" / "expired". */
+export function expiresText(at: string, now = new Date()): string {
+  const ms = new Date(at).getTime() - now.getTime();
+  if (!Number.isFinite(ms) || ms <= 0) return "expired";
+  const d = Math.floor(ms / 86_400_000);
+  return d >= 1 ? `expires in ${d} day${d === 1 ? "" : "s"}` : `expires in ${Math.max(1, Math.round(ms / 3_600_000))} h`;
 }
 
 /** Whether the change could be edited in the inbox: numeric levers only. */

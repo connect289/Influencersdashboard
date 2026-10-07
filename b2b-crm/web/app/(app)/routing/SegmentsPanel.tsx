@@ -122,8 +122,7 @@ export function SegmentView({ d, policyVersion }: { d: SegmentDetail; policyVers
         <ModeBadge m={d.mode} />
         {d.mode.pin?.until && <span className="text-[12px] text-subtle">pin {untilText(d.mode.pin.until)}</span>}
       </div>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-6">
+      <div className="space-y-6">
           <Card className="min-w-0">
             <CardHeader title="Partners in this segment" description={`${SCORING_HINT[d.mode.mode]} ${prog.text}.`} />
             <div className="px-5 pb-3"><Bar share={prog.share} /></div>
@@ -154,10 +153,10 @@ export function SegmentView({ d, policyVersion }: { d: SegmentDetail; policyVers
                             {x.weight && <Badge tone={x.weight.source === "ai" ? "info" : "brand"} className="ml-1.5">×{x.weight.weight} {untilText(x.weight.until)}</Badge>}
                           </td>
                           <td className="tabular px-3 py-2.5 text-right">{x.cpe != null ? inr(x.cpe) : <span className="text-warning">No rate</span>}</td>
-                          <td className="tabular px-3 py-2.5 text-right text-muted">{x.exact ? `${x.exact.leads} / ${x.exact.matured} / ${x.exact.enrolled}` : "0 / 0 / 0"}</td>
-                          <td className="tabular px-3 py-2.5 text-right">
-                            {est ? <><span className="text-fg">{pct(est.p_hat)}</span> <span className="text-subtle">{pct(est.interval.low)}–{pct(est.interval.high)}</span></> : "prior"}
-                            {x.uses === "course" && <span className="block text-[11px] text-subtle">from the course (under 30 leads here)</span>}
+                          <td className="tabular whitespace-nowrap px-3 py-2.5 text-right text-muted">{x.exact ? `${x.exact.leads} / ${x.exact.matured} / ${x.exact.enrolled}` : "0 / 0 / 0"}</td>
+                          <td className="tabular whitespace-nowrap px-3 py-2.5 text-right">
+                            {est ? <><span className="text-fg">{pct(est.p_hat)}</span> <span className="text-subtle">({pct(est.interval.low)}–{pct(est.interval.high)})</span></> : <span className="text-subtle">segment average</span>}
+                            {x.uses === "course" && est && <span className="block text-[11px] text-subtle">course level: under 30 leads here</span>}
                           </td>
                           <td className="tabular px-3 py-2.5 text-right text-muted">{pct(x.refund_rate)}</td>
                           <td className="tabular px-3 py-2.5 text-right text-muted">{pct(x.sla_compliance, 0)}</td>
@@ -171,6 +170,7 @@ export function SegmentView({ d, policyVersion }: { d: SegmentDetail; policyVers
             )}
           </Card>
 
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <Card className="min-w-0">
             <CardHeader title="Latest decisions" description={flowTotal ? `Last 30 days: ${d.flow_30d.map((f) => `${f.n} ${(MODE_LABEL[f.mode] ?? f.mode).toLowerCase()}${f.holdout ? " (holdout)" : ""}`).join(", ")}.` : "No real leads routed in this segment in 30 days."} />
             {d.decisions.length === 0 ? (
@@ -189,9 +189,7 @@ export function SegmentView({ d, policyVersion }: { d: SegmentDetail; policyVers
               </ul>
             )}
           </Card>
-        </div>
-
-        <div className="min-w-0 space-y-6">
+          <div className="min-w-0 space-y-6">
           <Card className="min-w-0">
             <CardHeader title="Segment policy" description="Pin the mode, set its own exploration share or share cap, or switch scoring off for it. AI changes show as AI and never apply to holdout leads." />
             <div className="px-5 pb-4"><SegmentPolicyForm key={policyVersion} segment={d.segment} policy={d.policy} mode={d.mode} /></div>
@@ -200,6 +198,7 @@ export function SegmentView({ d, policyVersion }: { d: SegmentDetail; policyVers
             <CardHeader title="Temporary partner weight" description="Nudges a partner's net commission per lead by up to 10% for up to 14 days (performance mode only), e.g. while a new counsellor team settles in." />
             <div className="px-5 pb-4"><PartnerWeightForm key={policyVersion} partners={d.partners} /></div>
           </Card>
+          </div>
         </div>
       </div>
     </>

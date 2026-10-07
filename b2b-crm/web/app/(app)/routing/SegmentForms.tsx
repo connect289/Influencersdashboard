@@ -74,13 +74,13 @@ export function PartnerWeightForm({ partners }: { partners: Pick<SegmentPartner,
   useEffect(() => { if (state?.ok) toast.success("Partner weight saved"); }, [state?.ok]);
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <L label="Partner" error={e.partner_id}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2"><L label="Partner" error={e.partner_id}>
           <select name="partner_id" defaultValue="" className={field} aria-invalid={Boolean(e.partner_id)}>
             <option value="" disabled>Choose</option>
             {partners.map((p) => <option key={p.partner_id} value={p.partner_id}>{p.name}{p.weight ? ` (now ${Math.round(p.weight.weight * 100)}%)` : ""}</option>)}
           </select>
-        </L>
+        </L></div>
         <L label="Weight (%)" error={e.weight} hint="90 to 110; empty removes it.">
           <input name="weight" inputMode="decimal" placeholder="105" className={field} aria-invalid={Boolean(e.weight)} />
         </L>

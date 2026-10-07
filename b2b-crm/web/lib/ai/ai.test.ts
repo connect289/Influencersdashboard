@@ -129,3 +129,26 @@ describe("worker loop", () => {
     expect(costUsd({ in: 1_000_000, out: 100_000, cache_read: 1_000_000, cache_write: 0 }, { in: 3, out: 15, cache_read: 0.3 })).toBeCloseTo(4.8);
   });
 });
+
+describe("inbox labels", async () => {
+  const { describeChange, simulationText, expiresText, editedChange, setupSteps } = await import("./labels");
+  it("describes changes and simulations", () => {
+    expect(describeChange({ lever: "exploration_share", segment: "mca|PG|Online", value: 0.3 })).toBe("Exploration share 30% for MCA · PG · Online");
+    expect(describeChange({ lever: "partner_weight", partner_id: 4, value: 1.05 }, { "4": "SkillBridge" })).toBe("Weight SkillBridge at 105%");
+    expect(describeChange(null)).toBe("No change: an observation");
+    expect(simulationText({ simulated: true, decisions: 40, ncpl_now: 3400, ncpl_new: 4000, difference: 600, ci95: [-38, 1240], gain_pct: 17.6, enough: true }))
+      .toBe("NCPL ₹3,400 → ₹4,000, +17.6% (95%: −₹38 to +₹1,240) on 40 decisions");
+    expect(simulationText({ simulated: true, decisions: 0 })).toBe("No matured decisions to replay yet");
+    expect(simulationText({ simulated: false, why: "cannot replay" })).toBe("cannot replay");
+  });
+  it("words expiry, edits and setup", () => {
+    const now = new Date("2026-10-07T10:00:00Z");
+    expect(expiresText("2026-10-13T11:00:00Z", now)).toBe("expires in 6 days");
+    expect(expiresText("2026-10-07T09:00:00Z", now)).toBe("expired");
+    expect(editedChange({ lever: "exploration_share", segment: "a|b|c", value: 0.5 }, "15")).toEqual({ lever: "exploration_share", segment: "a|b|c", value: 0.15 });
+    expect(editedChange({ lever: "maturity_days", value: 60 }, "45")).toEqual({ lever: "maturity_days", value: 45 });
+    expect(editedChange({ lever: "maturity_days", value: 60 }, "soon")).toBe("Enter a number");
+    const steps = setupSteps({ settings: { enabled: false, worker_url: null } as never, worker: null, worker_key: false });
+    expect(steps.filter((x) => x.done)).toHaveLength(0);
+  });
+});

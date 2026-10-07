@@ -6,7 +6,7 @@ import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
 import { aiOverview, mlOverview } from "@/lib/ai/data";
 import {
-  describeChange, MODEL_STATUS_LABEL, REC_STATUS_LABEL, RUN_KIND_LABEL, setupSteps, simulationText, TRIGGER_LABEL,
+  describeChange, expiresText, MODEL_STATUS_LABEL, rupees, REC_STATUS_LABEL, RUN_KIND_LABEL, setupSteps, simulationText, TRIGGER_LABEL,
   type AiOverview, type MlModel, type MlOverview, type Recommendation,
 } from "@/lib/ai/labels";
 import { formatDateTime, relativeTime } from "@/lib/format";
@@ -43,7 +43,7 @@ function RecCard({ r, names }: { r: Recommendation; names: Record<string, string
           <p className="text-[12px] text-subtle">
             Run <Link href={`/ai/runs/${r.run_id}`} className="text-info hover:underline">#{r.run_id}</Link>
             {r.run_kind && <> · {RUN_KIND_LABEL[r.run_kind] ?? r.run_kind}</>} · {relativeTime(r.created_at)}
-            {open && <> · expires {relativeTime(r.expires_at)}</>}
+            {open && <> · {expiresText(r.expires_at)}</>}
           </p>
         </div>
         {!open && <Badge tone={r.status === "applied" ? "success" : r.status === "rolled_back" ? "warning" : "neutral"}>{REC_STATUS_LABEL[r.status]}</Badge>}
@@ -83,7 +83,8 @@ function Inbox_({ o, names }: { o: AiOverview; names: Record<string, string> }) 
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-6">
         <Card className="min-w-0">
-          <CardHeader title="Recommendations" description="Advisory mode: Claude proposes, you approve, edit or reject. Every number was checked against the data it read; each change is simulated on logged decisions first." action={<RunNow enabled={o.settings.enabled} />} />
+          <CardHeader title="Recommendations" description="Advisory mode: Claude proposes, you approve, edit or reject. Every number was checked against the data it read; each change is simulated on logged decisions first." />
+          <div className="border-b border-border px-5 pb-4"><RunNow enabled={o.settings.enabled} /></div>
           {o.open.length === 0
             ? <EmptyState icon={Inbox} title="Nothing waiting">{o.settings.enabled ? "New recommendations appear after the next run." : "Recommendations appear once the optimiser is set up and on."}</EmptyState>
             : <ul className="divide-y divide-border">{o.open.map((r) => <RecCard key={r.id} r={r} names={names} />)}</ul>}
@@ -129,9 +130,9 @@ function UpliftCard({ u, holdout }: { u: AiOverview["uplift"]; holdout: number |
       <CardHeader title="AI-steered against holdout" description={`Realised net commission per lead after ${u.maturity_days} days. ${pct(holdout ?? 0.1, 0)} of leads are held out from every AI change.`} />
       <div className="grid grid-cols-2 gap-2 px-5 pb-3">
         <div className="rounded-lg border border-border bg-surface-2/50 px-3 py-2"><p className="text-[11px] uppercase tracking-wider text-subtle">AI-steered</p>
-          <p className="tabular text-xl font-semibold text-fg">₹{u.steered.ncpl}</p><p className="text-[11.5px] text-subtle">{u.steered.leads} matured leads</p></div>
+          <p className="tabular text-xl font-semibold text-fg">{rupees(u.steered.ncpl)}</p><p className="text-[11.5px] text-subtle">{u.steered.leads} matured leads</p></div>
         <div className="rounded-lg border border-border bg-surface-2/50 px-3 py-2"><p className="text-[11px] uppercase tracking-wider text-subtle">Holdout</p>
-          <p className="tabular text-xl font-semibold text-fg">₹{u.holdout.ncpl}</p><p className="text-[11.5px] text-subtle">{u.holdout.leads} matured leads</p></div>
+          <p className="tabular text-xl font-semibold text-fg">{rupees(u.holdout.ncpl)}</p><p className="text-[11.5px] text-subtle">{u.holdout.leads} matured leads</p></div>
       </div>
       <p className="px-5 pb-4 text-[12.5px] text-muted">
         {enough
@@ -155,8 +156,8 @@ function Uplift({ u, holdout }: { u: AiOverview["uplift"]; holdout: number | nul
               <li key={m.month} className="grid grid-cols-[80px_minmax(0,1fr)] items-center gap-3 text-[12px]">
                 <span className="text-muted">{new Date(m.month).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
                 <span className="space-y-1">
-                  <span className="flex items-center gap-2"><span className="h-2 rounded bg-primary" style={{ width: `${((m.steered ?? 0) / max) * 100}%` }} /><span className="tabular text-fg">₹{m.steered ?? "—"} · {m.steered_n}</span></span>
-                  <span className="flex items-center gap-2"><span className="h-2 rounded border border-primary" style={{ width: `${((m.holdout ?? 0) / max) * 100}%` }} /><span className="tabular text-muted">₹{m.holdout ?? "—"} · {m.holdout_n}</span></span>
+                  <span className="flex items-center gap-2"><span className="h-2 rounded bg-primary" style={{ width: `${((m.steered ?? 0) / max) * 100}%` }} /><span className="tabular text-fg">{rupees(m.steered)} · {m.steered_n}</span></span>
+                  <span className="flex items-center gap-2"><span className="h-2 rounded border border-primary" style={{ width: `${((m.holdout ?? 0) / max) * 100}%` }} /><span className="tabular text-muted">{rupees(m.holdout)} · {m.holdout_n}</span></span>
                 </span>
               </li>
             ))}
@@ -170,7 +171,8 @@ function Uplift({ u, holdout }: { u: AiOverview["uplift"]; holdout: number | nul
 function Runs({ o }: { o: AiOverview }) {
   return (
     <Card className="min-w-0">
-      <CardHeader title="Runs" description="Every run is logged with its trigger, model, tools called, tokens and cost." action={<RunNow enabled={o.settings.enabled} />} />
+      <CardHeader title="Runs" description="Every run is logged with its trigger, model, tools called, tokens and cost." />
+      <div className="border-b border-border px-5 pb-4"><RunNow enabled={o.settings.enabled} /></div>
       {o.runs.length === 0 ? <EmptyState icon={Sparkles} title="No runs yet">Runs appear once the optimiser is on.</EmptyState> : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-[13px]">
@@ -224,7 +226,7 @@ function Models({ ml }: { ml: MlOverview }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-[13px] font-semibold text-fg">{m.version}</span>
         <Badge tone={m.status === "champion" ? "success" : m.status === "challenger" ? "info" : m.status === "failed" ? "danger" : "neutral"}>{MODEL_STATUS_LABEL[m.status]}</Badge>
-        <span className="text-[12px] text-subtle">{m.trained_at ? `trained ${relativeTime(m.trained_at)}` : `queued ${relativeTime(m.created_at)}`}{m.status_reason && ` · ${m.status_reason}`}</span>
+        <span className="text-[12px] text-subtle">{m.trained_at ? `trained ${relativeTime(m.trained_at)}` : `queued ${relativeTime(m.created_at)}`}{m.status_reason && m.status_reason !== "trained" && ` · ${m.status_reason}`}</span>
       </div>
       {m.error && <p className="text-[12.5px] text-danger">{m.error}</p>}
       {m.metrics.holdout && (
@@ -234,9 +236,9 @@ function Models({ ml }: { ml: MlOverview }) {
             <dt className="text-muted">Rows (train / holdout)</dt><dd className="tabular text-right">{m.trained_on.train} / {m.trained_on.valid}</dd>
             <dt className="text-muted">Log loss: model / segment P̂</dt><dd className="tabular text-right">{m.metrics.holdout.log_loss} / {m.metrics.baseline?.log_loss}</dd>
             <dt className="text-muted">Calibration error: model / P̂</dt><dd className="tabular text-right">{m.metrics.holdout.ece} / {m.metrics.baseline?.ece}</dd>
-            <dt className="text-muted">Policy value (logged decisions)</dt><dd className="tabular text-right">₹{m.metrics.policy?.model_value ?? "—"} vs ₹{m.metrics.policy?.logged_value ?? "—"} ({m.metrics.policy?.decisions ?? 0})</dd>
+            <dt className="text-muted">Policy value (logged decisions)</dt><dd className="tabular text-right">{rupees(m.metrics.policy?.model_value)} vs {rupees(m.metrics.policy?.logged_value)} ({m.metrics.policy?.decisions ?? 0})</dd>
             {m.metrics.monitor?.matured && <><dt className="text-muted">Live calibration error</dt><dd className="tabular text-right">{m.metrics.monitor.matured.ece} on {m.metrics.monitor.matured.n}</dd></>}
-            {m.champion_check && <><dt className="text-muted">Challenger vs rest (NCPL)</dt><dd className="tabular text-right">₹{m.champion_check.model_ncpl} vs ₹{m.champion_check.other_ncpl} · z {m.champion_check.z}</dd></>}
+            {m.champion_check && <><dt className="text-muted">Challenger vs rest (NCPL)</dt><dd className="tabular text-right">{rupees(m.champion_check.model_ncpl)} vs {rupees(m.champion_check.other_ncpl)} · z {m.champion_check.z}</dd></>}
           </dl>
         </div>
       )}
