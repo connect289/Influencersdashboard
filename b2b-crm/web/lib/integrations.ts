@@ -79,13 +79,14 @@ export type SystemOverview = {
 
 export type ErasureRow = { id: number; lead_id: number; source: string; requested_at: string; note: string | null; name: string | null };
 
-export const SCOPES = ["intake", "referrals", "events", "b2c"] as const;
+export const SCOPES = ["intake", "referrals", "events", "b2c", "ai_worker"] as const;
 export type Scope = (typeof SCOPES)[number];
 export const SCOPE_LABEL: Record<Scope, string> = {
   intake: "Lead intake",
   referrals: "Referrals",
   events: "Product integrations (B2C CRM)",
   b2c: "B2C CRM link (read and write leads)",
+  ai_worker: "AI optimiser worker (server only)",
 };
 
 export const CONSUMER_LABEL: Record<Consumer, string> = {

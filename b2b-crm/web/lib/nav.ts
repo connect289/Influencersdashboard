@@ -45,7 +45,7 @@ export const NAV: NavGroup[] = [
     label: "Routing",
     items: [
       { href: "/routing", label: "Routing", icon: Route, key: "r", summary: "Automatic routing switch, lead simulator, rules (to partners or B2C), commission rates, hand-off rules, engine settings, the review queue and the decision log.", keywords: "engine allocation rules simulate commission rates decisions b2c nurture paid junk mismatch" },
-      { href: "/ai", label: "AI Optimiser", icon: Sparkles, phase: 3, summary: "Claude's recommendations with evidence and simulated impact, the holdout comparison and the model registry.", keywords: "claude ml" },
+      { href: "/ai", label: "AI Optimiser", icon: Sparkles, key: "a", summary: "Claude's recommendations with evidence and simulated impact (approve, edit, reject, roll back), AI-steered against holdout, the run log with cost, and the per-lead model registry.", keywords: "claude ml model optimiser recommendations holdout uplift" },
     ],
   },
   {

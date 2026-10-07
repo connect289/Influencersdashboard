@@ -9,7 +9,8 @@ describe("navigation", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
   it("gives every unbuilt top-level section a placeholder", () => {
-    expect(Object.keys(SECTION_BY_SLUG)).toEqual(expect.arrayContaining(["ai", "dashboards"]));
+    expect(Object.keys(SECTION_BY_SLUG)).toEqual(expect.arrayContaining(["dashboards"]));
+    expect(SECTION_BY_SLUG["ai"]).toBeUndefined(); // built: app/(app)/ai
     expect(SECTION_BY_SLUG["settings"]).toBeUndefined();
     expect(SECTION_BY_SLUG["leads"]).toBeUndefined(); // built: app/(app)/leads
     expect(SECTION_BY_SLUG["partners"]).toBeUndefined(); // built: app/(app)/partners
