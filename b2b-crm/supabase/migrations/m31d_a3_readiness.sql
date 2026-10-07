@@ -115,9 +115,10 @@ end $fn$;
      completed_by_b2c): an open qualification-nurture hold, name, email, course and programme level all present, and a
      b2c.lead_updated or lead.edited event after the hand-off that changed the name, email, course or programme level.
    Other leads, and any lead under override (basis fields): missing no_course; no_valid_contact (an invalid or blocked
-     phone, or spam; reachable only under override); phone_not_verified when phone_verified_at is null and the lead_source
-     is in engine.require_verified_phone_sources, or the lead came through the website agent (a web_agent touchpoint or a
-     web session) while that list names website_agent or web_agent.
+     phone, or spam; reachable only under override); phone_not_verified when phone_verified_at is null, the source has not
+     vouched for the phone (intake_directives.phone_trusted, as m17a), and the lead_source is in
+     engine.require_verified_phone_sources or the lead came through the website agent (a web_agent touchpoint or a web
+     session) while that list names website_agent or web_agent.
    reason: null when qualified, 'not_qualified' when unqualified. There is no score gate and no university is needed. */
 create or replace function b2b.lead_class(l public.student_leads)
 returns jsonb language plpgsql stable security definer set search_path = '' as $fn$
@@ -200,7 +201,8 @@ begin
   -- R9 for every other source (and for any lead the Admin passed): a course plus a valid contact
   if not v_has_course then m := array_append(m, 'no_course'); end if;
   if v_phone is not null or v_spam is not null then m := array_append(m, 'no_valid_contact'); end if;
-  if l.phone_verified_at is null then
+  if l.phone_verified_at is null
+     and not exists (select 1 from b2b.intake_directives d where d.lead_id = l.id and d.phone_trusted) then
     v_srcs := array(select lower(trim(x)) from jsonb_array_elements_text(
                       case when jsonb_typeof(e -> 'require_verified_phone_sources') = 'array' then e -> 'require_verified_phone_sources'
                            else '["website_agent","web_agent"]'::jsonb end) x);
@@ -441,6 +443,9 @@ begin
       when others then
         begin
           perform b2b.log_event('routing.error', r.id, null, null, jsonb_build_object('error', left(sqlerrm, 300), 'code', sqlstate));
+        exception when others then null;
+        end;
+        begin
           perform b2b.lead_wait_set(r.id, now() + interval '15 minutes', 'error', r.updated_at);
         exception when others then null;
         end;
