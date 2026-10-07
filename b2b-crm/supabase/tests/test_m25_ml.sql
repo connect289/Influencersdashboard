@@ -145,11 +145,13 @@ insert into b2b.ml_models (version, status, weights, calibration, was_champion, 
 update b2b.ml_models set status = 'champion' where id = pg_temp.v('M1')::bigint;
 set local role authenticated;
 select pg_temp.admin();
+-- (a check in the same statement as the call would not see the call's own changes, so the answer is kept first)
+insert into t select 'rb', b2b.ml_rollback('m25 test: worse than expected')::text;
+reset role;
 insert into r select 'rollback_restores_previous', x ->> 'champion' = 'm25-old-champion'
                      and (select status from b2b.ml_models where id = pg_temp.v('M1')::bigint) = 'retired'
                      and (select status from b2b.ml_models where version = 'm25-old-champion') = 'champion', x::text
-  from (select b2b.ml_rollback('m25 test: worse than expected') x) z;
-reset role;
+  from (select pg_temp.v('rb')::jsonb x) z;
 
 -- ---------- calibration fallback ----------
 -- 100 matured decisions by the (restored) champion that predicted 0.9 for leads that did not enrol
@@ -166,8 +168,9 @@ do $x$ declare i int; v_d bigint; begin
             now() - interval '69 days', now() - interval '70 days', false);
   end loop;
 end $x$;
-insert into r select 'fallback_retires', exists (select 1 from jsonb_array_elements(b2b.ml_monitor()) x where x ->> 'version' = 'm25-old-champion' and (x ->> 'retired')::boolean)
-                     and (select status from b2b.ml_models where version = 'm25-old-champion') = 'retired', null;
+insert into t select 'mon', b2b.ml_monitor()::text;
+insert into r select 'fallback_retires', exists (select 1 from jsonb_array_elements(pg_temp.v('mon')::jsonb) x where x ->> 'version' = 'm25-old-champion' and (x ->> 'retired')::boolean)
+                     and (select status from b2b.ml_models where version = 'm25-old-champion') = 'retired', pg_temp.v('mon');
 insert into r select 'fallback_alert', count(*) = 1, count(*)::text from b2b.events where type = 'alert.model_fallback' and payload ->> 'version' = 'm25-old-champion';
 insert into r select 'no_model_after_fallback', b2b.route_score(pg_temp.v('L2')::bigint, 'zzm25|PG|Online', pg_temp.kept(), 0.31, false) ->> 'model_version' is null, null;
 

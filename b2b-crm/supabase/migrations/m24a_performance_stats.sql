@@ -283,7 +283,7 @@ begin
   select percentile_cont(0.5) within group (order by o.first_contact_hours) into v_med_contact
     from b2b.allocation_outcomes() o where o.first_contact_hours is not null and o.created_at > v_now - interval '30 days';
 
-  if (b2b.engine_params(false) ->> 'variant') = 'ai' then v_variants := v_variants || 'ai'; end if;
+  if (b2b.engine_params(false) ->> 'variant') = 'ai' then v_variants := array_append(v_variants, 'ai'); end if;
 
   foreach v_variant in array v_variants loop
     prm := b2b.engine_params(v_variant = 'base');

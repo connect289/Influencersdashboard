@@ -131,7 +131,7 @@ returns text language sql immutable set search_path = '' as $fn$
       select string_agg(line, E'\n' order by o) from (
         select 0 o, (select string_agg(dd, ',') from jsonb_array_elements_text(p_res -> 'dims') dd) || ',' || (select string_agg('"' || (m ->> 'label') || '"', ',') from jsonb_array_elements(p_res -> 'metrics') m) line
         union all
-        select row_number() over (), (select string_agg('"' || replace(coalesce(case when p_res -> 'dims' ->> (o2 - 1) = 'partner' then coalesce(p_res -> 'labels' -> 'partner' ->> v, v) else v end, ''), '"', '""') || '"', ',' order by o2)
+        select row_number() over (), (select string_agg('"' || replace(coalesce(case when p_res -> 'dims' ->> (o2 - 1)::int = 'partner' then coalesce(p_res -> 'labels' -> 'partner' ->> v, v) else v end, ''), '"', '""') || '"', ',' order by o2)
                                         from jsonb_array_elements_text(rw -> 'd') with ordinality q2(v, o2))
                                      || ',' || (select string_agg(case when jsonb_typeof(x) in ('number', 'string', 'boolean') then x #>> '{}' else '' end, ',' order by o3) from jsonb_array_elements(rw -> 'values') with ordinality q3(x, o3))
           from jsonb_array_elements(p_res -> 'rows') rw) z)

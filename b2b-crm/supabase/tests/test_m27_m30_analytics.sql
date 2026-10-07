@@ -221,9 +221,8 @@ update b2b.settings set value = value || '{"enabled":false,"mode":"advisory"}' w
 -- ---------- Ask the CRM log, simulator, access ----------
 set local role authenticated;
 select pg_temp.admin();
-insert into r select 'ask_logged', (select kind = 'ask' and status = 'done' and cost_usd = round((10000 * 3 + 500 * 15) / 1000000.0, 4) from b2b.ai_runs where id = (x ->> 'id')::bigint)
-                     and jsonb_array_length(b2b.ai_ask_history(5)) >= 1, x::text
-  from (select b2b.ai_ask_log('{"question":"How many leads this week?","answer":"12 leads.","model":"claude-sonnet-5-5","usage":{"in":10000,"out":500},"validation":{"ok":true},"sources":[{"metric":"leads"}]}') x) z;
+-- (checked after the role is reset: a check in the same statement as the call would not see the new run)
+insert into t select 'ask', b2b.ai_ask_log('{"question":"How many leads this week?","answer":"12 leads.","model":"claude-sonnet-5-5","usage":{"in":10000,"out":500},"validation":{"ok":true},"sources":[{"metric":"leads"}]}')::text;
 do $x$ declare e text; begin
   begin perform b2b.simulate_change('{"lever":"exploration_share","segment":"zzm27|PG|Online","value":0.9}', 30); e := 'ran'; exception when others then e := sqlerrm; end;
   insert into r values ('simulate_change_bounds', e = 'exploration share is 0 to 50%', e);
@@ -231,6 +230,9 @@ end $x$;
 insert into r select 'simulate_change_runs', (x ->> 'simulated')::boolean and x ? 'decisions', x::text
   from (select b2b.simulate_change('{"lever":"exploration_share","segment":"zzm27|PG|Online","value":0.3}', 30) x) z;
 reset role;
+insert into r select 'ask_logged', (select kind = 'ask' and status = 'done' and cost_usd = round((10000 * 3 + 500 * 15) / 1000000.0, 4) from b2b.ai_runs where id = (x ->> 'id')::bigint)
+                     and jsonb_array_length(b2b.ai_ask_history(5)) >= 1, x::text
+  from (select pg_temp.v('ask')::jsonb x) z;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-0000000000a8","role":"authenticated","aal":"aal2","email":"nobody27@test.local"}', true);
 set local role authenticated;
 do $x$ declare e text; begin

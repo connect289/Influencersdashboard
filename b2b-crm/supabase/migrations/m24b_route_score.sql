@@ -184,7 +184,7 @@ begin
                                         (select s.prior from b2b.segment_stats s where s.variant = prm ->> 'variant' and s.segment = b2b.segment_rollup(p_segment) and s.n_matured > 0),
                                         (prm ->> 'default_p_enroll')::numeric) prior) pr
     cross join lateral (select coalesce(case when (pw ->> 'until') is null or (pw ->> 'until')::timestamptz > now()
-                                             then least(greatest((pw ->> 'weight')::numeric, 0.9), 1.1) end, 1) weight
+                                             then least(greatest(coalesce((pw ->> 'weight')::numeric, 1), 0.9), 1.1) end, 1) weight
                           from (select case when v_hold and pol -> 'partner_weights' -> (c2 ->> 'partner_id') ->> 'source' = 'ai' then null
                                             else pol -> 'partner_weights' -> (c2 ->> 'partner_id') end pw) z) w;
   v_kept := v_scored;

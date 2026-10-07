@@ -395,7 +395,7 @@ begin
         v_csv := (select string_agg(x, E'\n') from (
                     select (select string_agg(dd, ',') from jsonb_array_elements_text(s -> 'dims') dd) || ',value' x
                     union all
-                    select (select string_agg('"' || replace(coalesce(case when s -> 'dims' ->> (o - 1) = 'partner' then s -> 'labels' -> 'partner' ->> v else v end, ''), '"', '""') || '"', ',' order by o)
+                    select (select string_agg('"' || replace(coalesce(case when s -> 'dims' ->> (o - 1)::int = 'partner' then coalesce(s -> 'labels' -> 'partner' ->> v, v) else v end, ''), '"', '""') || '"', ',' order by o)
                               from jsonb_array_elements_text(rw -> 'd') with ordinality q(v, o)) || ',' || coalesce(rw ->> 'value', '')
                       from jsonb_array_elements(s -> 'rows') rw) z);
         v_att := v_att || jsonb_build_object('filename', regexp_replace(lower(coalesce(nullif(w ->> 'title', ''), md ->> 'key')), '[^a-z0-9]+', '-', 'g') || '-' || (md ->> 'key') || '.csv',

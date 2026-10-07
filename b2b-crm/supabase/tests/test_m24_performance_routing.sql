@@ -99,7 +99,8 @@ insert into r select 'refund_rate_shrunk', s.refund_rate = round((0 + pg_temp.v(
 insert into r select 'course_rollup_row', count(*) = 2 and bool_and(s.is_rollup), count(*)::text
   from b2b.partner_segment_stats s where s.variant = 'base' and s.segment = 'zzm24|*|*';
 insert into r select 'stage_rates_bounded', count(*) = 5 and bool_and(rate > 0 and rate < 1), count(*)::text from b2b.stage_rates;
-insert into r select 'refresh_idempotent', (b2b.stats_refresh() ->> 'variants') = '["base"]'
+insert into t select 'sr2', b2b.stats_refresh()::text;
+insert into r select 'refresh_idempotent', (pg_temp.v('sr2')::jsonb ->> 'variants') = '["base"]'
                      and (select p_hat from b2b.partner_segment_stats where variant = 'base' and segment = 'zzm24|PG|Online' and partner_id = pg_temp.v('B')::bigint) = round(3.8948 / 30, 5), null;
 
 -- ---------- performance mode: Thompson sampling ----------
@@ -182,10 +183,11 @@ reset role;
 insert into r select 'weight_applied', (c ->> 'weight')::numeric = 1.1
                      and abs((c ->> 'ncpl')::numeric - round(12000 * (c ->> 'p_hat')::numeric * (1 - (c ->> 'refund_rate')::numeric) * 1.1, 2)) <= 0.01, c::text
   from jsonb_array_elements(pg_temp.score(0.4242) -> 'candidates') c where c ->> 'partner_id' = pg_temp.v('B');
-select pg_temp.policy('{"holdout_share":1}');
+-- the holdout share is capped at 50%: hold_seed is a seed that is held out at 50%
+select pg_temp.policy('{"holdout_share":0.5}');
 update b2b.settings set value = jsonb_set(value, array['partner_weights', pg_temp.v('B')], (value -> 'partner_weights' -> pg_temp.v('B')) || '{"source":"ai"}') where key = 'engine_policy';
 insert into r select 'holdout_ignores_ai_weight', (c ->> 'weight')::numeric = 1, c ->> 'weight'
-  from jsonb_array_elements(pg_temp.score(0.4242) -> 'candidates') c where c ->> 'partner_id' = pg_temp.v('B');
+  from jsonb_array_elements(pg_temp.score(pg_temp.v('hold_seed')::numeric) -> 'candidates') c where c ->> 'partner_id' = pg_temp.v('B');
 select pg_temp.policy('{"holdout_share":0,"partner_weights":{}}');
 
 -- ---------- kill switch ----------
@@ -227,12 +229,13 @@ update b2b.settings set value = value || '{"maturity_days":60}' || jsonb_build_o
 
 -- ---------- AI parameters make an 'ai' stats variant; the holdout keeps 'base' ----------
 select pg_temp.policy('{"ai":{"prior_weight":5}}');
-insert into r select 'ai_variant_refreshed', (b2b.stats_refresh() ->> 'variants') = '["base", "ai"]'
+insert into t select 'sr_ai', b2b.stats_refresh()::text;
+insert into r select 'ai_variant_refreshed', (pg_temp.v('sr_ai')::jsonb -> 'variants') = '["base", "ai"]'::jsonb
                      and (select s.prior from b2b.segment_stats s where s.variant = 'ai' and s.segment = 'zzm24|PG|Online') = round((4.5 + 0.05 * 5) / (18 + 5), 5), null;
-select pg_temp.policy('{"holdout_share":1}');
+select pg_temp.policy('{"holdout_share":0.5}');
 insert into r select 'holdout_uses_base_stats', abs((c ->> 'alpha')::numeric - (select alpha from b2b.partner_segment_stats where variant = 'base' and segment = 'zzm24|*|*'
                                                                                      and partner_id = pg_temp.v('B')::bigint)) < 0.0001, c ->> 'alpha'
-  from jsonb_array_elements(pg_temp.score(0.4242) -> 'candidates') c where c ->> 'partner_id' = pg_temp.v('B');
+  from jsonb_array_elements(pg_temp.score(pg_temp.v('hold_seed')::numeric) -> 'candidates') c where c ->> 'partner_id' = pg_temp.v('B');
 select pg_temp.policy('{"holdout_share":0}');
 insert into r select 'steered_uses_ai_stats', abs((c ->> 'alpha')::numeric - (select alpha from b2b.partner_segment_stats where variant = 'ai' and segment = 'zzm24|*|*'
                                                                                    and partner_id = pg_temp.v('B')::bigint)) < 0.0001, c ->> 'alpha'

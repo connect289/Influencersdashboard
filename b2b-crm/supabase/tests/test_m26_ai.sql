@@ -124,7 +124,7 @@ insert into r select 'tool_log', jsonb_array_length(tool_calls) = 4 and (select 
 
 insert into t select 'f1', b2b.api_ai_finish('eb2b_m26test_key_0001', pg_temp.v('R1')::bigint, jsonb_build_object(
   'narrative', 'B converts better.', 'prompt_version', 'test', 'input_hash', 'abc',
-  'usage', '{"in":200000,"out":10000}', 'validation', '{"ok":true,"checked":3,"unverified":[]}',
+  'usage', '{"in":200000,"out":10000}'::jsonb, 'validation', '{"ok":true,"checked":3,"unverified":[]}'::jsonb,
   'output', jsonb_build_object('summary', 'B converts better.', 'findings', '[]'::jsonb, 'recommendations', jsonb_build_array(
     jsonb_build_object('title', 'Explore more in MBA PG Online', 'rationale', 'B enrols half its leads.', 'risk', 'Small sample.',
                        'evidence', '[{"tool":"run_simulation","metric":"difference","value":600}]'::jsonb,
@@ -153,11 +153,13 @@ insert into t select 'rec_ins', id::text from b2b.ai_recommendations where run_i
 update b2b.settings set value = value || '{"daily_budget_usd":100}' where key = 'ai';
 insert into t select 'R2', b2b.ai_queue('manual', 'deep_review', '{}')::text;
 select b2b.api_ai_claim('eb2b_m26test_key_0001');
+-- (a check in the same statement as the call would not see the call's own changes, so the answer is kept first)
+insert into t select 'f2', b2b.api_ai_finish('eb2b_m26test_key_0001', pg_temp.v('R2')::bigint, jsonb_build_object('narrative', 'Uplift is 12%.',
+          'output', '{"summary":"Uplift is 12%.","findings":[],"recommendations":[{"title":"x","rationale":"y","change":{"lever":"prior_weight","value":10}}]}'::jsonb,
+          'usage', '{"in":1000,"out":100}'::jsonb, 'validation', '{"ok":false,"unverified":["12%"]}'::jsonb))::text;
 insert into r select 'unvalidated_rejected', x -> 'result' ->> 'status' = 'rejected' and jsonb_array_length(x -> 'result' -> 'recommendations') = 0
                      and (select error from b2b.ai_runs where id = pg_temp.v('R2')::bigint) like 'the validator found numbers%', x::text
-  from (select b2b.api_ai_finish('eb2b_m26test_key_0001', pg_temp.v('R2')::bigint, jsonb_build_object('narrative', 'Uplift is 12%.',
-          'output', '{"summary":"Uplift is 12%.","findings":[],"recommendations":[{"title":"x","rationale":"y","change":{"lever":"prior_weight","value":10}}]}'::jsonb,
-          'usage', '{"in":1000,"out":100}', 'validation', '{"ok":false,"unverified":["12%"]}')) x) z;
+  from (select pg_temp.v('f2')::jsonb x) z;
 -- a failed run is logged and alerts
 insert into t select 'R3', b2b.ai_queue('manual', 'weekly_report', '{}')::text;
 select b2b.api_ai_claim('eb2b_m26test_key_0001');
@@ -167,7 +169,8 @@ insert into r select 'fail_logged', (select status from b2b.ai_runs where id = p
 -- the daily budget: the first run cost $0.75, so with a $0.50 budget the next queued run is skipped
 update b2b.settings set value = value || '{"daily_budget_usd":0.5}' where key = 'ai';
 insert into t select 'R4', b2b.ai_queue('manual', 'light_check', '{}')::text;
-insert into r select 'budget_stops_runs', b2b.api_ai_claim('eb2b_m26test_key_0001') -> 'result' ->> 'why' = 'daily budget reached'
+insert into t select 'c4', b2b.api_ai_claim('eb2b_m26test_key_0001')::text;
+insert into r select 'budget_stops_runs', pg_temp.v('c4')::jsonb -> 'result' ->> 'why' = 'daily budget reached'
                      and (select status from b2b.ai_runs where id = pg_temp.v('R4')::bigint) = 'skipped'
                      and exists (select 1 from b2b.events where type = 'alert.ai_budget'), null;
 update b2b.settings set value = value || '{"daily_budget_usd":100}' where key = 'ai';
@@ -182,14 +185,16 @@ reset role;
 insert into r select 'applied_as_ai', (value -> 'segments' -> 'zzm26|PG|Online' -> 'exploration_share' ->> 'value')::numeric = 0.3
                      and value -> 'segments' -> 'zzm26|PG|Online' -> 'exploration_share' ->> 'source' = 'ai', value -> 'segments' ->> 'zzm26|PG|Online'
   from b2b.settings where key = 'engine_policy';
-insert into r select 'applied_logged', x.status = 'applied' and (x.applied ->> 'edited')::boolean and x.applied -> 'from' is null and x.check_due_at > now()
+insert into r select 'applied_logged', x.status = 'applied' and (x.applied ->> 'edited')::boolean and x.applied ->> 'from' is null and x.check_due_at > now()
                      and exists (select 1 from b2b.settings_versions v where v.key = 'engine_policy' and v.reason like 'AI recommendation #' || x.id || ' (run #%) approved by m26-admin@test.local%'),
                      x.applied::text
   from b2b.ai_recommendations x where x.id = pg_temp.v('rec_x')::bigint;
 -- AI-steered leads use it, holdout leads do not
 insert into r select 'steered_uses_ai_change', (b2b.route_score(pg_temp.v('L')::bigint, 'zzm26|PG|Online', pg_temp.kept(), 0.4, false) ->> 'exploration_share')::numeric = 0.3, null;
-update b2b.settings set value = value || '{"holdout_share":1}' where key = 'engine_policy';
-insert into r select 'holdout_ignores_ai_change', (b2b.route_score(pg_temp.v('L')::bigint, 'zzm26|PG|Online', pg_temp.kept(), 0.4, false) ->> 'exploration_share')::numeric = 0.2, null;
+-- the holdout share is capped at 50%; seed 0.31 draws 0.276 for the holdout, so it is held out
+update b2b.settings set value = value || '{"holdout_share":0.5}' where key = 'engine_policy';
+insert into r select 'holdout_ignores_ai_change', (x ->> 'holdout')::boolean and (x ->> 'exploration_share')::numeric = 0.2, x::text
+  from (select b2b.route_score(pg_temp.v('L')::bigint, 'zzm26|PG|Online', pg_temp.kept(), 0.31, false) x) z;
 update b2b.settings set value = value || '{"holdout_share":0}' where key = 'engine_policy';
 
 set local role authenticated;

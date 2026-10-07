@@ -126,8 +126,9 @@ returns jsonb language sql immutable set search_path = '' as $fn$
                from jsonb_each_text(p_x) f where f.value ~ '^-?[0-9.]+(e-?[0-9]+)?$'),
        r as (select 1 / (1 + exp(-least(greatest(s.z, -30), 30))) raw from s)
   select jsonb_build_object('raw', round(r.raw::numeric, 6),
-    'p', round(coalesce((select (c ->> 'p')::numeric from jsonb_array_elements(p_calibration) c where (c ->> 'upto')::float8 >= r.raw
-                          order by (c ->> 'upto')::float8 limit 1),
+    -- calibration bins hold scores rounded to 6 places (as training stored them), so compare the rounded score
+    'p', round(coalesce((select (c ->> 'p')::numeric from jsonb_array_elements(p_calibration) c where (c ->> 'upto')::numeric >= round(r.raw::numeric, 6)
+                          order by (c ->> 'upto')::numeric limit 1),
                         (select (c ->> 'p')::numeric from jsonb_array_elements(p_calibration) c order by (c ->> 'upto')::float8 desc limit 1),
                         r.raw::numeric), 6))
   from r;
