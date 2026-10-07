@@ -150,7 +150,7 @@ begin
   s := b2b.b2c_link_settings_save('{"enabled":true,"scope":"all","writable":["owner_user_id","sub_stage"]}', 'm22 test: narrow');
   insert into r values ('settings_saved', s ->> 'scope' = 'all' and s -> 'writable' = '["owner_user_id", "sub_stage"]', s::text);
   i := b2b.b2c_link_resync(pg_temp.v('H')::bigint);
-  insert into r values ('resync_one', (i ->> 'leads')::int = 1 and b2b.b2c_version(pg_temp.v('H')::bigint) = 7, i::text);
+  insert into r values ('resync_one', (i ->> 'leads')::int = 1 and (select version from b2b.b2c_sync where lead_id = pg_temp.v('H')::bigint) = 7, i::text);
   i := b2b.b2c_link_lead(pg_temp.v('H')::bigint);
   insert into r values ('inspector', (i ->> 'shared')::boolean and (i ->> 'version')::int = 7 and jsonb_array_length(i -> 'writes') >= 5
                           and jsonb_array_length(i -> 'deliveries') >= 2 and i ->> 'origin' = 'resync', left(i::text, 200));
