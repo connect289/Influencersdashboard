@@ -82,7 +82,7 @@ insert into r select 'feed', exists (select 1 from jsonb_array_elements(x -> 're
                        and (x -> 'result' ->> 'next_after')::bigint >= (select seq from b2b.b2c_sync where lead_id = pg_temp.v('H')::bigint), left(x::text, 200)
   from (select pg_temp.api('api_b2c_leads_feed', jsonb_build_object('p_key', 'eb2b_m22test_key_0001', 'p_after', (select seq - 1 from b2b.b2c_sync where lead_id = pg_temp.v('H')::bigint), 'p_limit', 50)) x) y;
 insert into r select 'lookup', (x -> 'result' -> 'leads' -> 0 ->> 'lead_id') = pg_temp.v('H') and (x -> 'result' -> 'leads' -> 0 ->> 'held_by_b2c')::boolean, left(x::text, 200)
-  from (select pg_temp.api('api_b2c_lead_lookup', '{"p_key":"eb2b_m22test_key_0001","p_phone":"98765 04701"}') x) y;
+  from (select pg_temp.api('api_b2c_lead_lookup', '{"p_key":"eb2b_m22test_key_0001","p_phone":"98765 04701","p_email":null}') x) y;
 
 -- update: stage, owner, attempts
 insert into t select 'u1', pg_temp.api('api_b2c_lead_update', jsonb_build_object('p_key', 'eb2b_m22test_key_0001', 'p_lead_id', pg_temp.v('H'),
