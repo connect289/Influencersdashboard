@@ -220,3 +220,9 @@ No lead in the database carries partner-sharing consent today. Without it, R8 wo
 13. **Stage C:** with 30 matured leads each, the partner with the higher net commission × lead-to-enrollment ratio (adjusted by effort and SLA) wins.
 14. A partner that syncs no activity data never gets a sales-effort factor above 1.0.
 15. An unqualified Witty lead appears in the B2B CRM, goes to B2C nurture, and is routed to a partner when it qualifies.
+
+## Amendment 1 (Vikas, 7 October 2026)
+
+1. **Unqualified Witty leads are pushed only after 18 hours of inactivity.** A Witty lead that is still unqualified is decided (R7, B2C qualification nurture) only once the student has been inactive for **18 hours continuously** after their last chat session with Witty. Every new message restarts the 18 hours. If the student qualifies in the meantime, the qualified hand-off points of PART 2 apply (HOT escalation, final programme confirmed, or 30 minutes idle) and the lead goes to partner routing (R9). The 18 hours is an Admin setting.
+2. **Welcome message from the B2C CRM.** As soon as such a lead is pushed to B2C qualification nurture, the B2C CRM automatically sends the student a WhatsApp message prompting them to explore suitable programmes to enhance their career. The B2B CRM asks for it in the hand-off event; it does not send the message itself.
+   - Note for the B2C developer: WhatsApp allows free-form messages only within 24 hours of the student's last message, and only from the number they wrote to. A message from the B2C number therefore needs a Meta-approved template.
