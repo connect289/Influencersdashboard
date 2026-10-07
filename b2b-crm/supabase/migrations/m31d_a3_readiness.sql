@@ -424,6 +424,7 @@ begin
         select x.id, now() + interval '5 minutes', 'decided without a destination', now(), x.updated_at
           from public.student_leads x
          where x.id = v_l.id and x.destination_type is null and x.deleted_at is null and x.merged_into_id is null
+           and not exists (select 1 from b2b.not_passed np where np.lead_id = x.id and np.passed_at is null)
            and not exists (select 1 from b2b.lead_waits w where w.lead_id = x.id and w.decide_after > now() and w.lead_updated_at = x.updated_at)
         on conflict (lead_id) do update
           set decide_after = excluded.decide_after, why = excluded.why, set_at = excluded.set_at, lead_updated_at = excluded.lead_updated_at;
