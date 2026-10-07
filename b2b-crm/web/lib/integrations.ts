@@ -79,12 +79,13 @@ export type SystemOverview = {
 
 export type ErasureRow = { id: number; lead_id: number; source: string; requested_at: string; note: string | null; name: string | null };
 
-export const SCOPES = ["intake", "referrals", "events"] as const;
+export const SCOPES = ["intake", "referrals", "events", "b2c"] as const;
 export type Scope = (typeof SCOPES)[number];
 export const SCOPE_LABEL: Record<Scope, string> = {
   intake: "Lead intake",
   referrals: "Referrals",
   events: "Product integrations (B2C CRM)",
+  b2c: "B2C CRM link (read and write leads)",
 };
 
 export const CONSUMER_LABEL: Record<Consumer, string> = {
@@ -100,6 +101,8 @@ export const PUBLISHED_EVENTS = [
   { type: "b2c.lead_reenquired", label: "A B2C lead enquires again" },
   { type: "b2c.lead_flagged", label: "A B2C lead is flagged (e.g. partner lost it)" },
   { type: "b2c.lead_close_agreed", label: "A partner agreed to close a lead B2C now holds" },
+  { type: "b2c.lead_upserted", label: "A lead B2C holds changed: its full record (real-time sync)" },
+  { type: "b2c.lead_released", label: "A lead left B2C (routed to a partner, deleted or merged)" },
   { type: "b2b.lead_routed_to_partner", label: "A lead B2C sent to partners was accepted by one" },
   { type: "lead.allocated", label: "Any lead is allocated (partner or B2C)" },
   { type: "lead.accepted", label: "A partner accepted a lead" },
@@ -127,6 +130,7 @@ export const JOB_LABEL: Record<string, string> = {
   "b2b-push-tick": "Push leads to partners",
   "b2b-notify-tick": "Student notifications",
   "b2b-outbox-tick": "Webhook deliveries",
+  "b2b-b2c-sync-tick": "B2C CRM real-time sync",
 };
 
 export const ApiKeySchema = z.object({

@@ -105,6 +105,12 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   fields, polling, fixed values, sign-in state, last poll, field fetch and a masked push preview. pg_cron runs
   `b2b.partner_sync_tick` every minute. Partners with their own CRM use the In-house CRM adapter (their create-lead and
   changed-leads addresses, any auth). Guide: `docs/partner-adapters.md`.
+- B2C CRM link (`/b2c`, `app/v1/b2c/*`, `supabase/migrations/*_m22*.sql`): the B2C CRM's only way to the lead data. Leads it
+  holds are synced to it in real time (pg_cron `b2b.b2c_sync_tick` every 5 seconds, signed `b2c.lead_upserted` /
+  `b2c.lead_released` webhooks with per-lead versions, plus a change feed). It writes its pipeline fields and activities
+  back through `PATCH /v1/b2c/leads/{id}` and `POST …/activities` (validated, idempotent, audited with the counsellor).
+  The screen has the connection checklist, live numbers, the two-way log, field access and a per-lead inspector.
+  Contract: `docs/b2c-contract.md` (v2).
 - Commission & Finance (`/money`, `supabase/migrations/*_m20*.sql`): enrolments to verify against proof (expected →
   realised commission from the rate in force, tiered rates settled at month close), monthly draft GST invoices to approve
   and print (IGST or CGST + SGST), receipts with TDS matched to invoices, ageing and overdue alerts, partner statement

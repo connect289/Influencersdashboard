@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   Bell, BookOpen, Building2, ChartColumn, FileText, GitMerge, IndianRupee, Inbox, LayoutDashboard, Plug, Radio,
   Route, Settings, Sparkles, Target, Users,
 } from "lucide-react";
@@ -70,6 +71,7 @@ export const NAV: NavGroup[] = [
   {
     label: "System",
     items: [
+      { href: "/b2c", label: "B2C CRM link", icon: ArrowLeftRight, summary: "The B2C CRM's only way to Eduwit's lead data: real-time sync of the leads it holds, its writes back with the counsellor who made them, which fields it may change, and a per-lead inspector.", keywords: "b2c crm sync counsellors in-house api webhook" },
       { href: "/system", label: "System health", icon: Radio, summary: "Background jobs, webhook endpoints and deliveries, API keys, events from the B2C CRM and erasure requests.", keywords: "outbox queue api keys webhooks b2c jobs cron" },
       { href: "/settings/security", label: "Settings", icon: Settings, key: "s", summary: "Your sign-in security: two-step verification, active sessions and sign-in history.", keywords: "security sessions account" },
     ],

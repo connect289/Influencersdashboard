@@ -611,6 +611,24 @@ Conflicts with work already done, and what is still open:
     - Routing → Rates: Level (partner-wide or one university).
     - Programmes: GST toggle and a column template (`/programme-sheet-template.csv`).
   - **Verification.** 61 rolled-back checks on staging (`supabase/tests/test_m21_campaigns_inhouse_rates.sql`), covering paid / organic / Google / UTM-only / no-ad detection, gated events with values, the report, in-house push / duplicate / poll, and rate precedence and GST. `test_m18` was updated for the new signals and still passes (46), as do `test_m19` (42) and `test_m20` (57).
+- **M22a–M22c (7 Oct): the B2C CRM link (Addendum 1 §2; Vikas, 7 Oct: "the B2C CRM syncs with the B2B CRM in real time and never connects to the leads table directly").** Contract v2: `docs/b2c-contract.md`.
+  - **Copy and versions.** The B2C CRM keeps its own copy of the leads it holds (`destination_type = in_house`), or of every lead read-only when the Admin chooses. `b2c_record` builds the record: standard field names in groups, the allocation and the campaign. `b2c_fields` is the catalogue: column, type, and who writes it. `b2c_sync` keeps one row per shared lead: a per-lead version, a global sequence (the feed cursor) and the record hash, so an unchanged record is never resent.
+  - **Real time.** `b2c_sync_tick` (pg_cron every 5 s) picks up leads whose row, allocation or campaign changed, using a new index on `student_leads.updated_at` (no trigger on the shared table). `b2c_sync_lead` queues one signed `b2c.lead_upserted` (or `b2c.lead_released` when the lead leaves B2C), cancels older undelivered versions of the same lead, and delivers at once through `outbox_kick`. That is `outbox_tick` under an advisory lock; the 15-second job now uses it too.
+  - **API** (key scope `b2c`):
+    - `GET /v1/b2c/schema`;
+    - `GET /v1/b2c/leads?after=` (the change feed);
+    - `?phone=` / `?email=` (lookup);
+    - `GET /v1/b2c/leads/{id}`;
+    - `PATCH /v1/b2c/leads/{id}`;
+    - `POST /v1/b2c/leads/{id}/activities`.
+  - **Writes.**
+    - **Checks.** `api_b2c_lead_update` checks every field against the catalogue and the Admin's writable list (`b2c_coerce`: types, ranges, stage keys). Only leads B2C holds can be written.
+    - **Idempotent.** A repeated `request_id` replays the first answer; an optional `if_version` gives 409 with the current record.
+    - **Audit.** `custom_fields` is merged. Each change is written with `updated_by = b2c_crm:<user>`, logged as `b2c.lead_updated` with a from → to diff and the actor, and echoed as a new version.
+    - **Activities.** `api_b2c_activity` logs calls, messages, meetings and notes (`b2c.activity`) and keeps the contact fields current.
+  - **Admin.** `b2c_link_overview` gives the 9-step checklist, sync / delivery / write numbers, delivery time and a two-way activity log. Also `b2c_link_settings_save` (on / off, scope, writable fields; versioned with a reason), `b2c_link_resync` (one lead or all) and `b2c_link_lead` (the inspector). `webhook_endpoint_save` accepts the two new event types. Screen `/b2c`: Overview, Fields and access, Inspect a lead, API.
+  - **Verification.** Rolled-back checks on staging (`supabase/tests/test_m22_b2c_link.sql`).
+  - **Not done here:** the B2C CRM's own switch-over. It still reads the table directly until its developer follows §5 of the contract. B2B cannot detect direct writes without a trigger on the shared table, so none was added.
 - **Pending:** `b2b-crm/supabase/pending/drop_tmp_transfer.sql`. The temporary objects used to copy the schema to staging need a confirmed `DROP`. API access to them is already revoked.
 
 ## 8. Build order after approval

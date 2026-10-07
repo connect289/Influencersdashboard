@@ -1,8 +1,18 @@
-# Eduwit B2B CRM ↔ B2C CRM: integration contract
+# Eduwit B2B CRM ↔ B2C CRM: integration contract (version 2)
 
 The B2B CRM is Eduwit's lead allocation engine. Every lead enters through it, and it decides where the lead goes: to a
-partner university's CRM, or to Eduwit's own B2C CRM (in-house counsellors). This document is everything the B2C CRM's
-developer needs to connect. The rules behind it are in `B2B_CRM_ADDENDUM_1.md` §1–4.
+partner university's CRM, or to Eduwit's own B2C CRM (in-house counsellors). The rules behind it are in
+`B2B_CRM_ADDENDUM_1.md` §1–4.
+
+**Version 2 (7 Oct 2026): the B2B CRM is the only gateway to the lead table.** The B2C CRM never reads or writes
+`public.student_leads` (or any `b2b.*` table) directly. Instead:
+- it keeps its own copy of the leads it works, kept current in real time by signed webhooks (§1) and rebuildable at any
+  time from the change feed (§2);
+- it writes its counsellors' work back through the API (§3): stage, owner, contact, application, enrolment and lost
+  fields, plus calls, messages and notes;
+- its own tables (users, teams, tasks, notes, templates…) stay its own.
+
+This document is everything the B2C CRM's developer needs. The Admin follows the connection on **B2C CRM link** (`/b2c`).
 
 Base URL of the B2B CRM: `https://<b2b-crm-host>` (the Vercel production domain). All bodies are JSON in UTF-8.
 
@@ -13,7 +23,7 @@ Both come once, through a secure channel (never by chat or plain email), from **
 | Item | Looks like | Used for |
 | --- | --- | --- |
 | **Signing secret** of your webhook endpoint | `whsec_…` (54 characters) | Verifying the webhooks we send you, and signing the events you send us |
-| **API key** with the *Product integrations* (`events`) scope | `eb2b_…` | `GET /v1/handoffs` and `POST /v1/leads/{id}/route-to-partners` |
+| **API key** with the scopes *B2C CRM link* (`b2c`), *Product integrations* (`events`) and *Lead intake* (`intake`) | `eb2b_…` | `b2c`: the lead API in §2–3. `events`: `GET /v1/handoffs` and `POST /v1/leads/{id}/route-to-partners`. `intake`: `POST /v1/leads` |
 
 Give the Admin the HTTPS URL that should receive webhooks. The Admin registers it, sends a test event, and switches it on
 once you confirm your signature check passes. Nothing is delivered before that, so use `GET /v1/handoffs` to catch up on
@@ -73,11 +83,13 @@ or `9190000000`); keep them out of counsellor queues and reports.
 
 | Type | When | `data` |
 | --- | --- | --- |
+| `b2c.lead_upserted` | A lead you hold was created or changed, by anyone (Witty, the engine, a partner event, the Admin, your own write) | `version`, `seq`, `origin`, `record` (§2.1). **Store it if `version` is higher than your copy's** |
+| `b2c.lead_released` | A lead left you: routed to a partner, deleted, merged or anonymised | `version`, `seq`, `record` (only `id`, `held_by_b2c: false`, `deleted`, `merged_into_id`, `allocation`). Close your pipeline for it and keep only what your records need |
 | `b2c.lead_handed_off` | The engine gives a lead to B2C | `b2c_lane` (`sales` / `nurture`), `reason` (below), `cause` (for `manual_route_failed`: why), `reference` (`EDW-…`), `allocation_id`, `decision_id`, `partners_tried` (each partner and its outcome), `paid` (the paid-campaign signal or null), `test`. For `partner_lost` also `partner_id`, `partner_record_id`, `lost_reason`, `partner_status`, the partner's last activity |
 | `b2c.lead_reenquired` | A lead you already hold enquires again (new paid enquiry, Witty qualifies it). It stays yours | `b2c_lane`, `cycle_no`, `decision_id`, `what` (`lead_status`, `source`, `paid`), `allocation_id`, `reference` |
 | `b2c.lead_flagged` | A lead you hold needs attention (e.g. its classification changed) | `classification`, `allocation_id` |
 | `b2c.lead_close_agreed` | A partner agreed it no longer works a lead you now hold | `classification` |
-| `b2b.lead_routed_to_partner` | A lead you sent to partners (§2.2) was accepted by one. **Close your pipeline for it** | `allocation_id`, `reference`, `partner_id` |
+| `b2b.lead_routed_to_partner` | A lead you sent to partners (§3.2) was accepted by one. **Close your pipeline for it** | `allocation_id`, `reference`, `partner_id` |
 | `ping` | The Admin pressed *Send test* | `{}`, with `test: true` |
 
 `reason` codes on `b2c.lead_handed_off`: `paid_campaign`, `b2c_created`, `not_qualified` (nurture), `no_partner_consent`,
@@ -91,13 +103,81 @@ including partner-held ones; the B2C endpoint does not need them.
 **What B2B does not do for B2C leads:** it sends the student no message (you message them from your own number when a
 counsellor is assigned), and it writes none of the pipeline columns while you hold the lead.
 
-## 2. Calls: B2C → B2B (API key)
+## 2. Your copy of the leads
+
+### 2.1 The record
+
+Every lead you hold is one record with standard field names, grouped. `GET /v1/b2c/schema` lists them all with their
+type and whether you may write them now.
+
+```json
+{
+  "id": 949, "cycle_no": 1, "created_at": "…", "updated_at": "…", "is_test": false, "deleted": false, "merged_into_id": null,
+  "held_by_b2c": true,
+  "student": { "name": "Asha Verma", "phone": "919876543210", "alternate_phone": null, "email": "asha@example.com", "city": "Pune", "state": "Maharashtra", "…": "…" },
+  "education": { "highest_qualification": "B.Com", "academic_score_pct": 68, "work_experience_years": 3, "…": "…" },
+  "interest": { "course": "MBA", "specialization": "Finance", "university": null, "programme_level": "PG", "study_mode": "Online", "…": "…" },
+  "consent": { "contact_consent_at": "…", "marketing_consent_at": null, "partner_share_consent_at": "…", "opted_out": false, "…": "…" },
+  "source": { "lead_source": "meta_lead_ad", "campaign": "Oct MBA", "utm_source": "facebook", "click_ids": { }, "…": "…" },
+  "qualification": { "lead_status": "QUALIFIED", "classification": "WARM", "lead_score": 72, "temperature": "warm", "…": "…" },
+  "pipeline": { "owner_user_id": null, "team_id": null, "stage": "nurture", "sub_stage": null, "contact_attempts": 0, "…": "…" },
+  "application": { "application_id": null, "application_status": null, "applied_at": null, "fee_amount_inr": null, "fee_paid_inr": null },
+  "enrolment": { "enrollment_status": null, "enrolled_program": null, "enrollment_date": null, "expected_net_revenue_inr": null, "…": "…" },
+  "lost": { "lost_reason": null, "lost_at": null },
+  "other": { "custom_fields": { } },
+  "allocation": { "destination": "in_house", "allocation_id": 5501, "reference": "EDW-5501", "b2c_lane": "sales", "reason": "paid_campaign",
+                  "allocated_at": "…", "status": "handed_off", "partner": null },
+  "campaign": { "platform": "meta", "paid": true, "campaign_id": "120210001", "campaign_name": "Oct MBA · Lead form", "adset_name": "…", "ad_name": "…" }
+}
+```
+
+**Who owns which fields**
+
+| Groups | Written by | Notes |
+| --- | --- | --- |
+| `student`, `education`, `interest` | You (except `student.phone`) and the B2B CRM | A counsellor's correction goes through §3.4; the phone is the student's identity and changes only in the B2B CRM |
+| `pipeline`, `application`, `enrolment`, `lost`, `other.custom_fields`, `qualification.lead_score`, `qualification.temperature` | You | Your pipeline. `stage` must be one of the stage keys in the schema |
+| `consent`, `source`, the rest of `qualification`, `allocation`, `campaign` | The B2B CRM only | Opt-out and erasure go through §4 |
+
+The Admin can narrow the fields you may write (B2C CRM link → Fields and access). A refused field answers 422 and
+names the field.
+
+### 2.2 Versions
+
+Every change to a lead's record gives it a new `version` (1, 2, 3…, per lead) and a new `seq` (one counter across all
+leads). Keep the version with your copy and **apply a webhook or feed entry only when its version is higher**: deliveries
+can arrive out of order and retries repeat. Your own writes come back as a `b2c.lead_upserted` with
+`origin: "b2c:<request_id>"` and the new version; applying it is harmless.
+
+### 2.3 Building and repairing the copy: the change feed
+
+`GET /v1/b2c/leads?after=<seq>&limit=<1–500>` (scope `b2c`) lists every lead whose record changed after `seq`, oldest
+first, each with its **current** record:
+
+```json
+{ "ok": true, "result": { "leads": [
+    { "type": "b2c.lead_upserted", "lead_id": 949, "version": 7, "seq": 18802, "changed_at": "…", "record": { } },
+    { "type": "b2c.lead_released", "lead_id": 951, "version": 4, "seq": 18803, "changed_at": "…", "record": null } ],
+  "next_after": 18803 } }
+```
+
+- **First build:** start with `after=0` and page until `leads` is empty.
+- **Keep the cursor:** store `next_after` and poll every few minutes. A missed webhook can then never lose a change.
+- **Size:** a lead appears once per page, at its latest change.
+
+### 2.4 Scope
+
+By default you receive the leads you hold (the engine handed them to B2C, sales or nurture lane). The Admin can switch
+to *every lead, read-only*: you then also receive partner-held leads (`held_by_b2c: false`) for lookups and
+reporting, but you can write only the leads you hold.
+
+## 3. Calls: B2C → B2B (API key)
 
 Send the key as `Authorization: Bearer <key>` (or `x-api-key: <key>`). Every answer is
 `{ "ok": true, … }` or `{ "ok": false, "error": "…" }` with a matching HTTP status. `401` means a missing, wrong or revoked
 key; `503` means try again shortly.
 
-### 2.1 `GET /v1/handoffs` — reconciliation feed
+### 3.1 `GET /v1/handoffs` — hand-off news feed
 
 The same envelopes the webhooks carry, oldest first. Poll it every few minutes, and at start-up, so a missed webhook
 never loses a lead.
@@ -116,7 +196,7 @@ Store `next_after` and send it as `after` next time. When nothing is new, `event
 the value you sent. A page can hold fewer events than `limit` (internal events are skipped); keep calling while
 `events` is non-empty. Envelope ids are the same as on the webhooks, so one de-duplication table covers both.
 
-### 2.2 `POST /v1/leads/{id}/route-to-partners`
+### 3.2 `POST /v1/leads/{id}/route-to-partners`
 
 Hands a lead you hold back to the engine to find a partner. The only way a B2C lead reaches a partner.
 
@@ -137,7 +217,68 @@ Hands a lead you hold back to the engine to find a partner. The only way a B2C l
 before closing your pipeline. If it comes back as `in_house` (or later a `b2c.lead_handed_off` with reason
 `manual_route_failed` arrives), no partner took it and the lead is yours again.
 
-## 3. Events: B2C → B2B (signed)
+### 3.3 `GET /v1/b2c/leads/{id}` and lookup
+
+`GET /v1/b2c/leads/{id}` answers `{ "version": 7, "record": { … } }` for a lead in your scope (404 otherwise).
+`GET /v1/b2c/leads?phone=9876543210` or `?email=…` finds leads (10-digit numbers are taken as Indian). Each match has
+`lead_id`, `version` and `held_by_b2c`, plus `record` when it is in your scope. Use the lookup before creating a
+student, to avoid a duplicate.
+
+### 3.4 `PATCH /v1/b2c/leads/{id}`: write your fields
+
+```json
+{
+  "request_id": "b2c-upd-7f3c2a",
+  "if_version": 7,
+  "actor": { "id": "u-17", "email": "priya@eduwit.in", "name": "Priya" },
+  "set": { "stage": "assigned", "owner_user_id": "4c1e…", "assigned_at": "2026-10-07T11:00:00+05:30", "custom_fields": { "batch": "weekend" } }
+}
+```
+
+- **`request_id`** (required, up to 100 characters) is unique per change. A repeat returns the first answer with
+  `replayed: true` and changes nothing, so retry freely.
+- **`if_version`** (optional) is the version your counsellor saw. If the lead changed since, the answer is `409` with the
+  current `version` and `record`. Show the counsellor the new data and let them retry. Without it, the last write wins.
+- **`actor`** is the B2C user who made the change. It is kept in the audit log and shown to the Admin.
+- **`set`** holds only the fields to change. `null` clears a field. `custom_fields` is merged into the stored object: a
+  key set to `null` is removed.
+- **Values:** timestamps in ISO 8601, dates as `YYYY-MM-DD`, numbers as numbers, `stage` from the schema's stage keys,
+  `temperature` as hot, warm or cold. A new `stage` stamps `stage_changed_at` unless you send it.
+
+| Answer | Meaning |
+| --- | --- |
+| `200` `{ "result": { "lead_id", "version", "changed": [fields], "record" } }` | Applied. `changed` is empty when nothing differed |
+| `400` | No `request_id`, `set` is not an object, or `actor` is not a small object |
+| `404` / `410` | Unknown lead / the lead was deleted or merged (`merged_into_id` given) |
+| `409` | You do not hold the lead, or `if_version` is stale (with the current record) |
+| `422` `{ "fields": { "phone": "is read-only for the B2C CRM", … } }` | Some fields were refused; nothing was written |
+
+### 3.5 `POST /v1/b2c/leads/{id}/activities`: calls, messages, notes
+
+```json
+{ "request_id": "b2c-act-91a0", "kind": "call", "at": "2026-10-07T11:02:00+05:30", "outcome": "connected",
+  "duration_seconds": 240, "note": "Wants the weekend batch", "actor": { "id": "u-17", "name": "Priya" } }
+```
+
+- **`kind`** is `call`, `whatsapp`, `sms`, `email`, `meeting` or `note`.
+- **Contact kinds.** Anything but a note counts as a contact attempt. It updates `first_contacted_at`,
+  `last_contacted_at`, `contact_attempts` and `last_activity_at`. A note updates only `last_activity_at`.
+- **Timeline.** The activity shows on the lead's timeline in the B2B CRM.
+- **Idempotency.** `request_id` works as in §3.4. The answer is the lead's new `version`.
+
+### 3.6 New students: `POST /v1/leads`
+
+New students that the B2C CRM creates (walk-ins, calls, your own WhatsApp number) go in through the Intake API
+(`docs/intake-api.md`, scope `intake`) with `lead_source` `b2c_created` or `b2c_whatsapp`. The engine hands them
+straight back to you (`reason: b2c_created`), so they arrive as `b2c.lead_handed_off` plus `b2c.lead_upserted`.
+Look the student up first (§3.3).
+
+### 3.7 `GET /v1/b2c/schema`
+
+The field catalogue (`field`, `group`, `kind`, `max`, `writable` now), the stage keys with their rank and group, and
+the activity kinds. Read it at start-up and build your forms and checks from it.
+
+## 4. Events: B2C → B2B (signed)
 
 `POST /v1/events/b2ccrm`, signed exactly like our webhooks, with the **same signing secret**:
 
@@ -157,9 +298,9 @@ freely. Body limit 100 KB.
 
 | `type` | What B2B does | Put in `data` |
 | --- | --- | --- |
-| `b2ccrm.lead_assigned` | Timeline and analytics (`b2c.counsellor_assigned`) | `lead_id`, counsellor or team identifiers you want shown |
-| `b2ccrm.stage_changed` | Timeline and analytics (`b2c.stage_changed`) | `lead_id`, `stage`, `sub_stage` |
-| `b2ccrm.enrolled` | Timeline and analytics (`b2c.enrolled`) | `lead_id`, programme, `enrolled_at` |
+| `b2ccrm.lead_assigned` | Timeline only (kept for compatibility; use `PATCH` §3.4 to write the owner) | `lead_id`, counsellor or team identifiers you want shown |
+| `b2ccrm.stage_changed` | Timeline only (kept for compatibility; use `PATCH` §3.4 to write the stage) | `lead_id`, `stage`, `sub_stage` |
+| `b2ccrm.enrolled` | Timeline only (use `PATCH` §3.4 for the enrolment fields) | `lead_id`, programme, `enrolled_at` |
 | `b2ccrm.opted_out` | Marks the student opted out, cancels any B2B message still scheduled, alerts the Admin to tell every partner that ever received the lead | `lead_id` |
 | `b2ccrm.erasure_requested` | Opens an erasure request for the Admin, who carries it out across B2B, Witty and partners | `lead_id`, `note` |
 
@@ -169,24 +310,38 @@ be applied (the Admin sees it; do not resend); `503` the B2C connection is not s
 
 Every event, applied or not, is listed on the Admin's System health screen.
 
-## 4. Shared data
+## 5. Lead data: through the B2B CRM only
 
-Both products use the same Supabase database (`public.student_leads`). While B2C holds a lead, the B2C CRM writes:
+- **No direct access.** The B2C CRM reads no `public.student_leads` and no `b2b.*` table, and writes none. Its own
+  tables (users, teams, tasks, notes, templates, call logs) are its own and stay in its database.
+- **Its copy.** It keeps its copy of the leads (§2), keyed by `id`, with `version`.
+- **Its writes.** It writes only through §3.4 and §3.5. The B2B CRM checks every value, writes the lead and audits who
+  changed what.
+- **Allocation.** The B2B CRM alone sets where a lead goes (`allocation`); the B2C CRM moves a lead to partners only
+  with §3.2.
 
-- its assignment columns `owner_user_id`, `assigned_at`, `team_id`;
-- the pipeline columns `first_contacted_at`, `last_contacted_at`, `contact_attempts`, `next_task_due_at`, `stage`,
-  `sub_stage`, `application_*`, `fee_*`, `enrollment_*`, `enrolled_*`, `lost_*`, `expected_net_revenue_inr`,
-  `realised_net_revenue_inr`, and `lead_score` / `temperature`.
+**Moving the current B2C CRM over.** Today it still reads and writes the lead table directly. The order is:
+1. Build the copy from the change feed (§2.3).
+2. Switch its screens to read the copy.
+3. Point its writes at §3.4 and §3.5.
+4. Subscribe the endpoint to `b2c.*` and keep the feed as a safety net.
+5. Remove its database credentials for `student_leads`.
 
-It never writes the allocation columns (`destination_type`, `partner_id`, `allocation_id`, `allocated_at`,
-`allocation_reason`); those belong to B2B. It never reads `b2b.integration_outbox` or other `b2b.*` tables directly.
-New students the B2C CRM creates go in through the B2B Intake API (`POST /v1/leads`, the next build step) with
-`lead_source` `b2c_created` or `b2c_whatsapp`, so the engine hands them straight back (`reason: b2c_created`).
+The Admin's B2C CRM link screen shows each step: deliveries, writes, refused writes and conflicts.
 
-## 5. Testing
+## 6. Testing
 
 Ask the Admin for a staging connection (separate secret and key). Use test phones `9190000000NN`: they are flagged
-`test: true`, never reach a live partner and never get a message. Check, in order: the `ping` verifies; a test lead
-without partner consent arrives as `b2c.lead_handed_off` with `reason: no_partner_consent`; the same envelope appears in
-`GET /v1/handoffs`; a signed `b2ccrm.stage_changed` for it answers `200` and shows on the System health screen; a
-repeated `event_id` answers `already received`.
+`test: true`, never reach a live partner and never get a message. Check, in order:
+1. The `ping` verifies.
+2. A test lead without partner consent arrives as `b2c.lead_handed_off` (`reason: no_partner_consent`) and as
+   `b2c.lead_upserted` version 1.
+3. `GET /v1/b2c/leads?after=0` lists it with the same record.
+4. A `PATCH` with `stage: "assigned"` answers version 2, and the echo arrives as a webhook.
+5. The same `request_id` answers `replayed: true`.
+6. A stale `if_version` answers `409`.
+7. A call activity raises `contact_attempts`.
+8. Writing `student.phone` answers `422`.
+9. A signed `b2ccrm.opted_out` answers `200` and shows on the System health screen.
+
+The Admin can follow every step on B2C CRM link → Inspect a lead.
