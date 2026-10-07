@@ -53,6 +53,8 @@ create table if not exists b2b.b2c_link_state (
   updated_at  timestamptz not null default now()
 );
 insert into b2b.b2c_link_state (key, value) values ('cursor', jsonb_build_object('at', now())) on conflict (key) do nothing;
+-- the link's settings (b2b.set_setting only updates known keys); writable defaults to every B2C-writable field
+insert into b2b.settings (key, value) values ('b2c_link', '{"enabled": true, "scope": "held"}') on conflict (key) do nothing;
 
 do $rls$
 declare t text;
