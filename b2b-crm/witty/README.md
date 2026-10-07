@@ -56,6 +56,103 @@ Vikas, 7 Oct 2026: "Make required changes to Witty", "Push changes to Witty and 
 6. Copy the four functions into the Eduwit CRM's `crm/sql/001_lead_intake.sql` (re-running 001 would revert them) and update
    its CLAUDE.md line on `w2_crm_owned`. Do not run n8n's "Setup Request" webhook: its SQL predates the CRM.
 
+## Making the workflow edits by hand (n8n editor)
+
+Open "Eduwit Witty", edit each Code node's JavaScript, and use find-and-replace (match case) for each pair. Every "find" text must exist before you replace it. Save (this updates the draft), run the harness, then publish.
+
+**Plan Reply, Verify Reply, Verify Rewrite, Finalize Counselor**
+
+Find:
+```
+Thank you for sharing your details{name}. Based on your interest in {course}, I've arranged for one of our Academic Counselors to contact you on this number. They'll help you with the next steps.
+```
+Replace with:
+```
+Thank you{name}. An academic counsellor will contact you shortly about {course}.
+```
+
+Find:
+```
+Details share karne ke liye thank you{name}. {course} mein aapki interest ke hisaab se maine hamare ek Academic Counselor ko aapse isi number par contact karne ke liye bol diya hai. Woh aapko next steps mein madad karenge.
+```
+Replace with:
+```
+Thank you{name}. Ek academic counsellor jald hi aapse {course} ke baare mein contact karenge.
+```
+
+**Plan Reply, Verify Reply, Verify Rewrite, Finalize Counselor, Assemble Commit (Hinglish text appears twice: keys hinglish and hindi)**
+
+Find:
+```
+Your details are used only to help with your admission and may be shared with our partner universities. Reply STOP anytime to opt out.
+```
+Replace with:
+```
+Your details are used only to help with your admission and may be shared with our partner universities and our admission partners (edtech companies). Reply STOP anytime to opt out.
+```
+
+Find:
+```
+Aapki details sirf admission help ke liye use hongi aur partner universities ke saath share ho sakti hain. Kabhi bhi STOP likh kar band kar sakte hain.
+```
+Replace with:
+```
+Aapki details sirf admission help ke liye use hongi aur hamari partner universities aur admission partners (edtech companies) ke saath share ho sakti hain. Kabhi bhi STOP likh kar band kar sakte hain.
+```
+
+**Plan Reply, Validate + Decide**
+
+Find:
+```
+Would you like one of our academic counselors to help you with the next steps?
+```
+Replace with:
+```
+Would you like an academic counsellor to help you with the next steps?
+```
+
+Find:
+```
+Kya aap chahenge ki hamare ek academic counselor next steps mein aapki madad karein?
+```
+Replace with:
+```
+Kya aap chahenge ki ek academic counsellor next steps mein aapki madad karein?
+```
+
+Find:
+```
+const type = !s.crm_fingerprint ? 'lead.qualified' : escalate ? 'lead.escalated' : clsChanged ? 'classification_changed' : 'lead.updated';
+```
+Replace with:
+```
+const type = escalate ? 'lead.escalated' : !s.crm_fingerprint ? 'lead.qualified' : clsChanged ? 'classification_changed' : 'lead.updated';
+```
+
+Find:
+```
+s.phase = 'ESCALATION'; s.bot_paused = true; }
+else if (mode === 'SUPPORT') s.phase = 'SUPPORT';
+```
+Replace with:
+```
+s.phase = 'ESCALATION'; s.bot_paused = true; }
+else if (s.escalated_at && s.bot_paused) s.phase = 'ESCALATION';
+else if (mode === 'SUPPORT') s.phase = 'SUPPORT';
+```
+
+**Assemble Commit**
+
+Find:
+```
+s.consent_at = new Date().toISOString(); }
+```
+Replace with:
+```
+s.consent_at = new Date().toISOString(); s.consent_partner_share_at = s.consent_at; s.consent_text_version = 'witty-notice-2026-10-v2'; }
+```
+
+
 ## Not in this release
 
 - The one-tap YES/NO consent request from Witty's number (PART 7.2) is not built in Witty: every new Witty lead now gets the
