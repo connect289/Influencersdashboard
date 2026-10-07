@@ -4,6 +4,9 @@ Allocates every Eduwit lead to the partner edtech that earns Eduwit the most, ke
 tells the student who will call, and tracks partner commission. Spec: `../docs/B2B_CRM_PROMPT.md`.
 Design: `../docs/b2b-design.md`. Database audit: `../docs/phase0-audit.md`.
 
+Feature guides in `../docs/`: `intake-api.md`, `partner-api.md`, `partner-adapters.md`, `b2c-contract.md`, `capi-setup.md`,
+`money.md`, `performance-routing.md`, `ai-optimiser.md`, `dashboards-reports.md`.
+
 This folder is the B2B CRM only. The influencer dashboard lives elsewhere in this repository.
 
 ## Databases
