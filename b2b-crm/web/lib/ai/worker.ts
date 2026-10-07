@@ -100,7 +100,7 @@ export async function runOnce(db: Db, messages: Messages, info: Record<string, u
           continue;
         }
         const r = await db.tool(run.id, c.name, c.input ?? {});
-        outputs.push(r.output);
+        outputs.push({ input: c.input ?? {}, output: r.output });
         const text = JSON.stringify(r.output);
         results.push({ type: "tool_result", tool_use_id: c.id,
           content: text.length > MAX_TOOL_RESULT_CHARS ? text.slice(0, MAX_TOOL_RESULT_CHARS) + " …(truncated)" : text });

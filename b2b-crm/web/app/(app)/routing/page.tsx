@@ -21,6 +21,7 @@ import { RoutingSwitch } from "./RoutingSwitch";
 import { RulesPanel } from "./RulesPanel";
 import { SegmentsPanel, SegmentView } from "./SegmentsPanel";
 import { Simulator } from "./Simulator";
+import { ChangeSimulator } from "./ChangeSimulator";
 
 export const metadata: Metadata = { title: "Routing" };
 
@@ -266,9 +267,15 @@ export default async function RoutingPage({ searchParams }: Props) {
         ? <SegmentView d={await routingSegment(sp.segment)} policyVersion={(await routingSegments()).policy_version} />
         : <SegmentsPanel s={await routingSegments()} />)}
       {tab === "simulate" && (
-        <Card className="min-w-0 p-5">
-          <Simulator key={leadParam ?? "none"} initialLead={leadParam} />
-        </Card>
+        <div className="space-y-6">
+          <Card className="min-w-0 p-5">
+            <Simulator key={leadParam ?? "none"} initialLead={leadParam} />
+          </Card>
+          <Card className="min-w-0">
+            <CardHeader title="What if: replay a change" description="Estimates net commission per lead under a proposed setting, from logged decisions and their selection probabilities (inverse propensity), with a 95% interval." />
+            <div className="px-5 pb-5"><ChangeSimulator partners={partners.filter((p) => p.status === "active")} /></div>
+          </Card>
+        </div>
       )}
       {tab === "rules" && <Card className="min-w-0 overflow-hidden"><RulesPanel rules={o.rules} partners={partners.filter((p) => p.status !== "closed")} /></Card>}
       {tab === "rates" && <Card className="min-w-0 overflow-hidden"><RatesPanel rates={o.rates} partners={o.partners} universities={await catalogueUniversities()} /></Card>}

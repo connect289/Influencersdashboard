@@ -4,6 +4,8 @@ import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
 import { AiSettingsSchema, aiSettingsPayload, editedChange, type Change } from "@/lib/ai/labels";
 import { createClient } from "@/lib/supabase/server";
+import { ask, ASK_PROMPT_VERSION, type AskSource } from "@/lib/ai/ask";
+import { anthropicMessages } from "@/lib/ai/worker";
 
 const Id = z.number().int().positive();
 const Reason = z.string().trim().min(3).max(500);
@@ -56,7 +58,7 @@ export type FormState = { errors?: Record<string, string>; error?: string; ok?: 
 
 export async function saveAiSettings(_prev: FormState, form: FormData): Promise<FormState> {
   await assertAdmin();
-  const keys = ["enabled", "daily_budget_usd", "worker_url", "model_regular", "model_deep", "model_quick", "light", "hourly", "nightly", "weekly", "reason"];
+  const keys = ["enabled", "mode", "min_gain_pct", "max_per_day", "daily_budget_usd", "worker_url", "model_regular", "model_deep", "model_quick", "light", "hourly", "nightly", "weekly", "reason"];
   const p = AiSettingsSchema.safeParse(Object.fromEntries(keys.map((k) => [k, form.get(k) ?? undefined])));
   if (!p.success) {
     const errors: Record<string, string> = {};
@@ -94,4 +96,31 @@ export async function rollbackModel(reason: string): Promise<string | void> {
   const { error } = await rpc("ml_rollback", { p_reason: reason.trim() });
   if (error) return dbMessage(error, "Could not roll back. Try again.");
   refresh();
+}
+
+// ---------- Ask the CRM ----------
+export type AskAnswer = { ok: true; answer: string | null; sources: AskSource[]; unverified: string[]; cost_usd: number; error?: string } | { ok: false; error: string };
+
+export async function askCrm(question: string): Promise<AskAnswer> {
+  await assertAdmin();
+  const q = question.trim();
+  if (q.length < 5 || q.length > 500) return { ok: false, error: "Ask a question of 5 to 500 characters." };
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return { ok: false, error: "The Anthropic API key is not set on the server yet (ANTHROPIC_API_KEY)." };
+  const supabase = await createClient();
+  const b = await supabase.schema("b2b").rpc("ai_ask_budget");
+  if (b.error) return { ok: false, error: "Could not check the AI budget. Try again." };
+  const budget = b.data as { ok: boolean; model: string };
+  if (!budget.ok) return { ok: false, error: "Today's AI budget is spent. Raise it in AI settings or ask tomorrow." };
+  const db = {
+    catalogue: async () => { const r = await supabase.schema("b2b").rpc("metric_catalogue"); if (r.error) throw new Error("catalogue unavailable"); return r.data; },
+    query: async (p: Record<string, unknown>) => { const r = await supabase.schema("b2b").rpc("metric_query", { p }); if (r.error) throw new Error(r.error.code === "22023" ? r.error.message : "query failed"); return r.data; },
+  };
+  const res = await ask(q, budget.model, db, anthropicMessages(apiKey));
+  const log = await supabase.schema("b2b").rpc("ai_ask_log", { p: { question: q, answer: res.answer, sources: res.sources, tool_calls: res.tool_calls, usage: res.usage,
+    model: budget.model, prompt_version: ASK_PROMPT_VERSION, validation: res.validation, error: res.error ?? null } });
+  revalidatePath("/ai");
+  if (res.error) return { ok: false, error: `Claude could not answer: ${res.error}` };
+  return { ok: true, answer: res.validation.ok ? res.answer : null, sources: res.sources, unverified: res.validation.unverified,
+           cost_usd: Number((log.data as { cost_usd?: number } | null)?.cost_usd ?? 0) };
 }

@@ -7,6 +7,8 @@ import { formatDateTime, relativeTime } from "@/lib/format";
 import { ALERT_LABEL, STREAM_LABEL, STREAM_TONE, delta, flowByDestination, slaShare, type CommandCenter as CC } from "@/lib/overview";
 import { commandCenter } from "@/lib/overview-data";
 import { inr } from "@/lib/programmes";
+import { homeDashboardId } from "@/lib/analytics-data";
+import { DashboardView } from "./dashboards/DashboardView";
 
 export const metadata: Metadata = { title: "Command Center" };
 
@@ -84,7 +86,15 @@ function Flow({ c }: { c: CC }) {
   );
 }
 
-export default async function CommandCenter() {
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+/** The home screen: the Command Center, or the dashboard the Admin set as home (B13.3), unless ?view=command. */
+export default async function CommandCenter({ searchParams }: Props) {
+  const sp = await searchParams;
+  if (sp.view !== "command") {
+    const home = await homeDashboardId().catch(() => null);
+    if (home) return <DashboardView id={home} sp={sp} home />;
+  }
   const c = await commandCenter();
   const k = c.kpis;
   const sla = slaShare(k.sla_met_7d, k.sla_due_7d);

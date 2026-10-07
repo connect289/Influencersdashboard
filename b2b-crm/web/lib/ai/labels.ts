@@ -17,6 +17,8 @@ export type Recommendation = {
   simulation: Simulation | null; risk: string | null; expires_at: string; decided_by: string | null; decided_at: string | null;
   decision_note: string | null; applied: { version?: number; from?: unknown; to?: unknown; edited?: boolean; rule_id?: string } | null;
   check_due_at: string | null; created_at: string;
+  check_result?: { verdict?: "waiting" | "kept" | "worse" | "inconclusive"; z?: number | null; auto_rolled_back?: boolean;
+                   steered?: { leads: number; expected_ncpl: number | null }; holdout?: { leads: number; expected_ncpl: number | null } } | null;
 };
 export type AiRun = {
   id: number; trigger: string; kind: string; model: string; status: string; created_at: string; finished_at: string | null; tools: number;
@@ -27,7 +29,7 @@ export type Uplift = {
   by_month: { month: string; steered: number | null; holdout: number | null; steered_n: number; holdout_n: number }[];
 };
 export type AiSettings = {
-  enabled: boolean; mode: "advisory"; models: { regular: string; deep: string; quick: string }; daily_budget_usd: number;
+  enabled: boolean; mode: "advisory" | "autopilot"; autopilot?: { min_gain_pct: number; max_per_day: number; min_decisions?: number }; models: { regular: string; deep: string; quick: string }; daily_budget_usd: number;
   schedules: { light: boolean; hourly: boolean; nightly: boolean; weekly: boolean }; worker_url: string | null; max_turns?: number;
 };
 export type AiOverview = {
@@ -66,10 +68,10 @@ export type MlOverview = {
 };
 
 export const RUN_KIND_LABEL: Record<string, string> = {
-  light_check: "Light check", optimise: "Optimisation", deep_review: "Nightly deep review", weekly_report: "Weekly report",
+  light_check: "Light check", optimise: "Optimisation", deep_review: "Nightly deep review", weekly_report: "Weekly report", ask: "Ask the CRM",
 };
 export const TRIGGER_LABEL: Record<string, string> = {
-  light: "new alerts", hourly: "hourly", nightly: "nightly", weekly: "weekly", event: "an event", manual: "by hand",
+  light: "new alerts", hourly: "hourly", nightly: "nightly", weekly: "weekly", event: "an event", manual: "by hand", ask: "a question",
 };
 export const REC_STATUS_LABEL: Record<RecStatus, string> = {
   open: "Open", applied: "Applied", rejected: "Rejected", expired: "Expired", rolled_back: "Rolled back", superseded: "Superseded",
@@ -135,6 +137,9 @@ export function editedChange(c: Change, typed: string): Change | string {
 
 export const AiSettingsSchema = z.object({
   enabled: z.string().optional().transform((v) => v === "on"),
+  mode: z.enum(["advisory", "autopilot"]).default("advisory"),
+  min_gain_pct: z.coerce.number().min(1, "1 to 50%").max(50, "1 to 50%").default(3),
+  max_per_day: z.coerce.number().int().min(1, "1 to 10").max(10, "1 to 10").default(3),
   daily_budget_usd: z.coerce.number().min(0, "$0 to $200").max(200, "$0 to $200"),
   worker_url: z.string().trim().max(300).refine((v) => v === "" || /^https:\/\/[^\s/]+(\/\S*)?$/.test(v), "Starts with https://"),
   model_regular: z.string().trim().regex(/^claude-[a-z0-9.-]{3,60}$/, "A claude-… model name"),
@@ -149,7 +154,8 @@ export const AiSettingsSchema = z.object({
 
 export function aiSettingsPayload(d: z.infer<typeof AiSettingsSchema>) {
   return {
-    enabled: d.enabled, mode: "advisory", daily_budget_usd: d.daily_budget_usd, worker_url: d.worker_url,
+    enabled: d.enabled, mode: d.mode, daily_budget_usd: d.daily_budget_usd, worker_url: d.worker_url,
+    autopilot: { min_gain_pct: d.min_gain_pct, max_per_day: d.max_per_day },
     models: { regular: d.model_regular, deep: d.model_deep, quick: d.model_quick },
     schedules: { light: d.light, hourly: d.hourly, nightly: d.nightly, weekly: d.weekly },
   };
@@ -163,4 +169,19 @@ export function setupSteps(o: Pick<AiOverview, "settings" | "worker" | "worker_k
     { label: "The worker address (the CRM's https:// address) in AI settings", done: !!o.settings.worker_url },
     { label: "The optimiser switched on", done: o.settings.enabled },
   ];
+}
+
+export type AskHistoryItem = { id: number; at: string; status: string; question: string; answer: string | null; sources: { metric: string; dims?: string[]; period?: string }[] | null;
+                               cost_usd: number; unverified: string[] | null; error: string | null };
+
+/** The 7-day review in words. */
+export function reviewText(c: Recommendation["check_result"]): string | null {
+  if (!c?.verdict) return null;
+  const nums = c.steered && c.holdout ? ` (AI-steered ₹${Math.round(c.steered.expected_ncpl ?? 0)} on ${c.steered.leads} leads, holdout ₹${Math.round(c.holdout.expected_ncpl ?? 0)} on ${c.holdout.leads})` : "";
+  switch (c.verdict) {
+    case "waiting": return `7-day review: too few leads yet, checked again next week${nums}`;
+    case "kept": return `7-day review: kept${nums}`;
+    case "inconclusive": return `7-day review: inconclusive after three weeks, kept${nums}`;
+    case "worse": return `7-day review: did worse than the holdout${c.auto_rolled_back ? ", rolled back automatically" : "; consider rolling it back"}${nums}`;
+  }
 }

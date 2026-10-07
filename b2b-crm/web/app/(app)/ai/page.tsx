@@ -4,19 +4,20 @@ import { BrainCircuit, CircleCheck, CircleDashed, FlaskConical, Inbox, Scale, Sp
 import { Badge, Card, CardHeader, EmptyState, PageHeader } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
-import { aiOverview, mlOverview } from "@/lib/ai/data";
+import { aiOverview, askHistory, mlOverview } from "@/lib/ai/data";
 import {
-  describeChange, expiresText, MODEL_STATUS_LABEL, rupees, REC_STATUS_LABEL, RUN_KIND_LABEL, setupSteps, simulationText, TRIGGER_LABEL,
+  describeChange, expiresText, reviewText, MODEL_STATUS_LABEL, rupees, REC_STATUS_LABEL, RUN_KIND_LABEL, setupSteps, simulationText, TRIGGER_LABEL,
   type AiOverview, type MlModel, type MlOverview, type Recommendation,
 } from "@/lib/ai/labels";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { routingOverview } from "@/lib/routing-data";
-import { AiSettingsForm, DecideButtons, ModelActions, RollbackRecommendation, RunNow } from "./AiClient";
+import { AiSettingsForm, AskPanel, DecideButtons, ModelActions, RollbackRecommendation, RunNow } from "./AiClient";
 
 export const metadata: Metadata = { title: "AI Optimiser" };
 
 const TABS = [
   { id: "inbox", label: "Inbox" },
+  { id: "ask", label: "Ask the CRM" },
   { id: "uplift", label: "AI vs holdout" },
   { id: "runs", label: "Runs" },
   { id: "models", label: "Model registry" },
@@ -71,6 +72,7 @@ function RecCard({ r, names }: { r: Recommendation; names: Record<string, string
         <p className="text-[12px] text-subtle">{REC_STATUS_LABEL[r.status]} by {r.decided_by} {r.decided_at && relativeTime(r.decided_at)}
           {r.decision_note && <> · “{r.decision_note}”</>}{r.applied?.edited && " · value edited"}{r.applied?.version && <> · engine policy v{r.applied.version}</>}</p>
       )}
+      {reviewText(r.check_result) && <p className={cn("text-[12px]", r.check_result?.verdict === "worse" ? "text-danger" : "text-muted")}>{reviewText(r.check_result)}</p>}
       {r.status === "applied" && r.kind === "setting_change" && <RollbackRecommendation id={r.id} />}
     </li>
   );
@@ -83,7 +85,7 @@ function Inbox_({ o, names }: { o: AiOverview; names: Record<string, string> }) 
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-6">
         <Card className="min-w-0">
-          <CardHeader title="Recommendations" description="Advisory mode: Claude proposes, you approve, edit or reject. Every number was checked against the data it read; each change is simulated on logged decisions first." />
+          <CardHeader title="Recommendations" description={`${o.settings.mode === "autopilot" ? "Autopilot: confident setting changes apply by themselves (see the change log); the rest wait here." : "Advisory: Claude proposes, you approve, edit or reject."} Every number was checked against the data it read; each change is simulated on logged decisions first.`} />
           <div className="border-b border-border px-5 pb-4"><RunNow enabled={o.settings.enabled} /></div>
           {o.open.length === 0
             ? <EmptyState icon={Inbox} title="Nothing waiting">{o.settings.enabled ? "New recommendations appear after the next run." : "Recommendations appear once the optimiser is set up and on."}</EmptyState>
@@ -288,6 +290,29 @@ function Models({ ml }: { ml: MlOverview }) {
   );
 }
 
+async function Ask() {
+  const h = await askHistory();
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      <Card className="min-w-0"><CardHeader title="Ask the CRM" description="Claude answers from the metric layer only (the same numbers as the dashboards), shows its sources, and never sees personal data. An answer whose numbers cannot be traced to the data is not shown." />
+        <div className="px-5 pb-5"><AskPanel /></div></Card>
+      <Card className="min-w-0"><CardHeader title="Recent questions" />
+        {h.length === 0 ? <EmptyState icon={Sparkles} title="No questions yet" /> : (
+          <ul className="divide-y divide-border text-[12.5px]">
+            {h.map((x) => (
+              <li key={x.id} className="space-y-1 px-5 py-3">
+                <p className="font-medium text-fg">{x.question}</p>
+                {x.status === "done" ? <p className="line-clamp-3 whitespace-pre-line text-muted">{x.answer}</p>
+                  : <p className="text-warning">{x.error ?? `Not shown: unverified numbers ${(x.unverified ?? []).join(", ")}`}</p>}
+                <p className="text-[11.5px] text-subtle">{relativeTime(x.at)} · ${Number(x.cost_usd).toFixed(4)}</p>
+              </li>
+            ))}
+          </ul>
+        )}</Card>
+    </div>
+  );
+}
+
 export default async function AiPage({ searchParams }: Props) {
   await requireAdmin();
   const sp = await searchParams;
@@ -308,6 +333,7 @@ export default async function AiPage({ searchParams }: Props) {
         ))}
       </nav>
       {tab === "inbox" && <Inbox_ o={o} names={names} />}
+      {tab === "ask" && <Ask />}
       {tab === "uplift" && <Uplift u={o.uplift} holdout={o.holdout_share} />}
       {tab === "runs" && <Runs o={o} />}
       {tab === "models" && ml && <Models ml={ml} />}
@@ -320,7 +346,7 @@ export default async function AiPage({ searchParams }: Props) {
               <dt className="text-muted">Last seen</dt><dd className="text-right">{o.worker?.seen_at ? relativeTime(o.worker.seen_at) : "never"}</dd>
               <dt className="text-muted">Anthropic key on the server</dt><dd className="text-right">{o.worker?.has_anthropic_key ? "yes" : "not seen"}</dd>
               <dt className="text-muted">Worker API key</dt><dd className="text-right">{o.worker_key ? "created" : <Link href="/system?tab=integrations" className="text-info hover:underline">create one</Link>}</dd>
-              <dt className="text-muted">Mode</dt><dd className="text-right">Advisory</dd>
+              <dt className="text-muted">Mode</dt><dd className="text-right">{o.settings.mode === "autopilot" ? `Autopilot (≥${o.settings.autopilot?.min_gain_pct ?? 3}%, ≤${o.settings.autopilot?.max_per_day ?? 3}/day)` : "Advisory"}</dd>
             </dl></Card>
         </div>
       )}

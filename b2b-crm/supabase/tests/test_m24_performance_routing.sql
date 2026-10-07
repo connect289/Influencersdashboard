@@ -50,8 +50,8 @@ update b2b.settings set value = value || '{"maturity_days":60,"half_life_days":3
  where key = 'engine';
 select pg_temp.policy('{"holdout_share":0,"mc_draws":200,"leading_weight":0.5,"leading_min_days":3,"segments":{},"partner_weights":{},"kill_segments":[],"ai":{}}');
 
-insert into t select 'A', id::text from (insert into b2b.partners (slug, name, status) values ('m24-alpha', 'M24 Alpha', 'active') returning id) x;
-insert into t select 'B', id::text from (insert into b2b.partners (slug, name, status) values ('m24-beta', 'M24 Beta', 'active') returning id) x;
+with x as (insert into b2b.partners (slug, name, status) values ('m24-alpha', 'M24 Alpha', 'active') returning id) insert into t select 'A', id::text from x;
+with x as (insert into b2b.partners (slug, name, status) values ('m24-beta', 'M24 Beta', 'active') returning id) insert into t select 'B', id::text from x;
 insert into b2b.live_switches (scope, live, reason) select 'partner:' || v, true, 'm24 test' from t where k in ('A', 'B')
 on conflict (scope) do update set live = true;
 do $x$ begin

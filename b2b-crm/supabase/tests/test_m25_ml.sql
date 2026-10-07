@@ -27,8 +27,8 @@ update b2b.settings set value = value || '{"min_outcomes":100,"min_feature_rows"
 -- no model of the shared staging registry interferes (rolled back)
 update b2b.ml_models set status = 'retired' where status in ('shadow', 'challenger', 'champion', 'training');
 
-insert into t select 'A', id::text from (insert into b2b.partners (slug, name, status) values ('m25-alpha', 'M25 Alpha', 'active') returning id) x;
-insert into t select 'B', id::text from (insert into b2b.partners (slug, name, status) values ('m25-beta', 'M25 Beta', 'active') returning id) x;
+with x as (insert into b2b.partners (slug, name, status) values ('m25-alpha', 'M25 Alpha', 'active') returning id) insert into t select 'A', id::text from x;
+with x as (insert into b2b.partners (slug, name, status) values ('m25-beta', 'M25 Beta', 'active') returning id) insert into t select 'B', id::text from x;
 
 do $x$
 declare i int; v_id bigint; c int; v_p bigint; v_a bigint; v_wa boolean; v_y boolean;
@@ -173,7 +173,7 @@ insert into r select 'no_model_after_fallback', b2b.route_score(pg_temp.v('L2'):
 
 -- ---------- a run without enough data fails cleanly ----------
 update b2b.settings set value = value || '{"maturity_days":180}' where key = 'engine';
-insert into t select 'M2', id::text from (insert into b2b.ml_models (version, requested_by) values ('m25-too-early', 'test') returning id) x;
+with x as (insert into b2b.ml_models (version, requested_by) values ('m25-too-early', 'test') returning id) insert into t select 'M2', id::text from x;
 select b2b.ml_tick();
 insert into r select 'training_fails_cleanly', m.status = 'failed' and m.error like 'not enough matured outcomes%'
                      and not exists (select 1 from b2b.ml_training_rows where model_id = m.id), m.status || ' ' || coalesce(m.error, '')

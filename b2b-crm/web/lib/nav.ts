@@ -64,8 +64,8 @@ export const NAV: NavGroup[] = [
   {
     label: "Insights",
     items: [
-      { href: "/dashboards", label: "Dashboards", icon: ChartColumn, key: "d", phase: 4, summary: "Default dashboards and a builder: KPIs, funnels, Sankey, cohorts, leaderboards and alerts, all drilling down to leads.", keywords: "analytics charts" },
-      { href: "/reports", label: "Reports", icon: FileText, phase: 4, summary: "Tabular, summary and matrix reports; save, schedule and export.", keywords: "export" },
+      { href: "/dashboards", label: "Dashboards", icon: ChartColumn, key: "d", summary: "Nine built-in dashboards and a builder: KPIs, charts, funnels, Sankey, cohorts, leaderboards, the India map, SLA timers; every number drills down to its leads; calculated metrics, metric alerts and scheduled e-mail.", keywords: "analytics charts metrics alerts schedule kpi" },
+      { href: "/reports", label: "Reports", icon: FileText, summary: "Tabular, summary and matrix reports; save, schedule and export CSV.", keywords: "export csv summary matrix" },
     ],
   },
   {

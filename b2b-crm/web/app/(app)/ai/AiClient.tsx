@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Check, LoaderCircle, Play, RotateCcw, X } from "lucide-react";
+import { Check, LoaderCircle, MessageSquareText, Play, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useFormAction } from "@/components/ui/useFormAction";
 import { editable, RUN_KIND_LABEL, type AiSettings, type Change, type MlModel } from "@/lib/ai/labels";
-import { decideRecommendation, rollbackModel, rollbackRecommendation, runNow, saveAiSettings, setModelStatus, trainModel, type FormState } from "./actions";
+import { askCrm, type AskAnswer, decideRecommendation, rollbackModel, rollbackRecommendation, runNow, saveAiSettings, setModelStatus, trainModel, type FormState } from "./actions";
 
 const field = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 aria-[invalid=true]:border-danger";
 
@@ -99,8 +99,19 @@ export function AiSettingsForm({ s, version }: { s: AiSettings; version: number 
       <label className="flex items-start gap-2 text-[13px]">
         <input type="checkbox" name="enabled" defaultChecked={s.enabled} className="mt-0.5 size-4 accent-[var(--primary)]" />
         <span><span className="font-medium text-fg">Optimiser on</span>
-          <span className="block text-[12px] text-muted">Advisory: Claude recommends; nothing changes until you approve. Autopilot is not available yet.</span></span>
+          <span className="block text-[12px] text-muted">Scheduled runs and recommendations. Ask the CRM works whenever the API key is set.</span></span>
       </label>
+      <fieldset className="space-y-2 rounded-lg border border-border p-3 text-[13px]">
+        <legend className="px-1 text-[12px] text-muted">Mode</legend>
+        <label className="flex items-start gap-2"><input type="radio" name="mode" value="advisory" defaultChecked={s.mode !== "autopilot"} className="mt-0.5 accent-[var(--primary)]" />
+          <span><span className="font-medium text-fg">Advisory</span><span className="block text-[12px] text-muted">Every change waits for your approval.</span></span></label>
+        <label className="flex items-start gap-2"><input type="radio" name="mode" value="autopilot" defaultChecked={s.mode === "autopilot"} className="mt-0.5 accent-[var(--primary)]" />
+          <span><span className="font-medium text-fg">Autopilot (bounded)</span><span className="block text-[12px] text-muted">A setting change inside the bounds applies by itself when its simulation is confident; drafts and everything else still wait for you. Each one is reviewed after 7 days against the holdout and rolled back automatically if it did worse.</span></span></label>
+        <div className="grid gap-3 pl-6 sm:grid-cols-2">
+          <L label="Minimum simulated gain (%)" error={e.min_gain_pct}><input name="min_gain_pct" inputMode="decimal" defaultValue={s.autopilot?.min_gain_pct ?? 3} className={field} /></L>
+          <L label="At most per day" error={e.max_per_day}><input name="max_per_day" inputMode="numeric" defaultValue={s.autopilot?.max_per_day ?? 3} className={field} /></L>
+        </div>
+      </fieldset>
       <div className="grid gap-3 sm:grid-cols-2">
         <L label="Daily budget (US$)" error={e.daily_budget_usd} hint="Runs stop for the day once it is spent.">
           <input name="daily_budget_usd" inputMode="decimal" defaultValue={s.daily_budget_usd} className={field} aria-invalid={Boolean(e.daily_budget_usd)} />
@@ -147,6 +158,40 @@ export function ModelActions({ m }: { m?: MlModel }) {
           onConfirm={async (r) => { const err = await dialog.run(r); if (!err) toast.success("Done"); return err; }}>
           <p className="text-[13px] text-muted">{dialog.body}</p>
         </ConfirmDialog>
+      )}
+    </div>
+  );
+}
+
+/** Ask the CRM: answers come only from the metric layer, with their sources; unverifiable answers are not shown. */
+export function AskPanel() {
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState<AskAnswer | null>(null);
+  const examples = ["How many leads went to each partner this month?", "Which partner has the best SLA compliance in the last 30 days?", "What is the duplicate rate by partner this quarter?"];
+  const submit = async (text: string) => {
+    if (!text.trim()) return;
+    setBusy(true); setRes(null);
+    try { setRes(await askCrm(text)); } finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-4">
+      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void submit(q); }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} placeholder="Ask about leads, partners, SLAs, commission…" className={`${field} flex-1`} aria-label="Question" />
+        <Button type="submit" size="sm" disabled={busy || q.trim().length < 5}>{busy ? <LoaderCircle className="size-3.5 animate-spin" /> : <MessageSquareText className="size-3.5" />} Ask</Button>
+      </form>
+      <div className="flex flex-wrap gap-2">
+        {examples.map((x) => <button key={x} type="button" onClick={() => { setQ(x); void submit(x); }} className="rounded-full border border-border px-3 py-1 text-[12px] text-muted hover:text-fg">{x}</button>)}
+      </div>
+      {busy && <p className="text-[13px] text-muted">Reading the metrics…</p>}
+      {res && !res.ok && <p role="alert" className="text-[13px] text-danger">{res.error}</p>}
+      {res && res.ok && (
+        <div className="space-y-2 rounded-lg border border-border bg-surface-2/50 p-4 text-[13px]">
+          {res.answer ? <p className="whitespace-pre-line text-fg">{res.answer}</p>
+            : <p className="text-warning">The answer contained numbers that could not be traced to the data ({res.unverified.join(", ")}), so it is not shown. Try asking more specifically.</p>}
+          {res.sources.length > 0 && <p className="text-[12px] text-subtle">Sources: {res.sources.map((s) => `${s.metric}${s.dims?.length ? ` by ${s.dims.join(", ")}` : ""}${s.period ? ` (${s.period})` : ""}`).join(" · ")}</p>}
+          <p className="text-[11.5px] text-subtle">Cost ${res.cost_usd.toFixed(4)}</p>
+        </div>
       )}
     </div>
   );

@@ -241,3 +241,12 @@ export async function replayDecision(id: number): Promise<{ ok: true; replay: De
   if (error) return { ok: false, error: dbMessage(error, "Could not replay the decision. Try again.") };
   return { ok: true, replay: data as DecisionReplay };
 }
+
+/** Replays a proposed change on logged, matured decisions (b2b.simulate_change). */
+export async function simulateChange(change: Record<string, unknown>, days: number): Promise<{ ok: true; result: Record<string, unknown> } | { ok: false; error: string }> {
+  await assertAdmin();
+  if (!z.number().int().min(7).max(365).safeParse(days).success) return { ok: false, error: "7 to 365 days." };
+  const { data, error } = await rpc("simulate_change", { p_change: change, p_days: days });
+  if (error) return { ok: false, error: dbMessage(error, "The simulation failed. Try again.") };
+  return { ok: true, result: data as Record<string, unknown> };
+}

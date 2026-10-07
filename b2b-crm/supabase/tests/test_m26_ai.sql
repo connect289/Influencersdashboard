@@ -30,8 +30,8 @@ update b2b.settings set value = value || '{"enabled":false,"daily_budget_usd":1,
 update b2b.ai_runs set status = 'skipped' where status in ('queued', 'running');
 update b2b.ai_recommendations set status = 'superseded' where status = 'open';
 
-insert into t select 'A', id::text from (insert into b2b.partners (slug, name, status) values ('m26-alpha', 'M26 Alpha', 'active') returning id) x;
-insert into t select 'B', id::text from (insert into b2b.partners (slug, name, status) values ('m26-beta', 'M26 Beta', 'active') returning id) x;
+with x as (insert into b2b.partners (slug, name, status) values ('m26-alpha', 'M26 Alpha', 'active') returning id) insert into t select 'A', id::text from x;
+with x as (insert into b2b.partners (slug, name, status) values ('m26-beta', 'M26 Beta', 'active') returning id) insert into t select 'B', id::text from x;
 do $x$ begin
   perform set_config('b2b.actor', 'engine', true);
   perform public.lead_intake(jsonb_build_object('phone', '919876505201', 'source_system', 'crm', 'event_type', 'lead.created',
