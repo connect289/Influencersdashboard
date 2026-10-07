@@ -126,6 +126,7 @@ export const ALERT_LABEL: Record<string, string> = {
   "alert.intake_failed": "A lead from an ad form could not be stored",
   "alert.capi_failed": "Conversions refused or given up (CAPI)",
   "alert.capi_auth": "Meta or Google refused the CAPI credentials",
+  "alert.partner_auth": "A partner's CRM refused Eduwit's credentials",
   "routing.error": "Routing error",
 };
 

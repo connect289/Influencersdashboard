@@ -1,6 +1,7 @@
 # Eduwit B2B CRM: partner integration (generic REST and webhook)
 
-This is the contract for a partner whose CRM has no ready-made Eduwit adapter. Two kinds of calls are involved. Eduwit
+This is the contract for a partner whose CRM has no ready-made Eduwit adapter (LeadSquared, Zoho CRM, Salesforce, HubSpot and Meritto
+have one: see `partner-adapters.md`; those partners can still send events as in §2). Two kinds of calls are involved. Eduwit
 sends each student to the partner (a push). The partner reports back what happens to that student (events).
 
 ## 1. Push: Eduwit → partner

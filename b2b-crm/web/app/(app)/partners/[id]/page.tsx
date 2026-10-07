@@ -11,7 +11,8 @@ import {
   ADAPTER_LABEL, CHECKLIST_LABEL, DEDUPE_LABEL, partnerTitle, SLA_FIELDS, STATUS_LABEL, STATUS_TONE, summariseHours, type PartnerDetail,
 } from "@/lib/partners";
 import { partnerDetail } from "@/lib/partners-data";
-import { partnerConnection } from "@/lib/push-data";
+import { partnerAdapterStatus, partnerConnection } from "@/lib/push-data";
+import { isCrmAdapter } from "@/lib/adapters";
 import { partnerSync } from "@/lib/sync-data";
 import { PartnerForm } from "../PartnerForm";
 import { PartnerLogo } from "../PartnerLogo";
@@ -178,6 +179,7 @@ export default async function PartnerPage({ params, searchParams }: Props) {
   const title = partnerTitle(p);
   const missing = d.checklist.filter((c) => !c.done).length;
   const connection = tab === "connection" ? await partnerConnection(p.id) : null;
+  const adapter = tab === "connection" && isCrmAdapter(p.adapter_type) ? await partnerAdapterStatus(p.id) : null;
   const sync = tab === "sync" ? await partnerSync(p.id) : null;
 
   return (
@@ -223,7 +225,7 @@ export default async function PartnerPage({ params, searchParams }: Props) {
 
       {tab === "overview" && <Overview d={d} />}
       {tab === "settings" && <PartnerForm partner={p} />}
-      {tab === "connection" && connection && <ConnectionTab id={p.id} c={connection} />}
+      {tab === "connection" && connection && <ConnectionTab id={p.id} c={connection} adapter={adapter} />}
       {tab === "sync" && sync && <SyncTab s={sync} />}
       {tab === "activity" && <Card><Activity events={d.events} /></Card>}
     </>

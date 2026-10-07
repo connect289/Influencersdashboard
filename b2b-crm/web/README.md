@@ -98,6 +98,10 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   totals and match-key coverage, per-milestone counts and value, an event log with Retry, Setup (consent rule, accounts,
   credentials in Vault, stage-to-event maps) and Check a lead (the exact payloads, hashed). pg_cron runs `b2b.capi_tick`
   every minute. Setup guide: `docs/capi-setup.md`.
+- Partner CRM adapters (partner page → Connection, `supabase/migrations/*_m19*.sql`): LeadSquared, Zoho CRM,
+  Salesforce, HubSpot and Meritto, per environment (live and sandbox): settings, keys (to Vault), reference and status
+  fields, polling, fixed values, sign-in state, last poll, field fetch and a masked push preview. pg_cron runs
+  `b2b.partner_sync_tick` every minute. Guide: `docs/partner-adapters.md`.
 
 ## How access is enforced
 

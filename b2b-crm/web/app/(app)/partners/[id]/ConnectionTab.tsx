@@ -7,7 +7,9 @@ import { formatDateTime, relativeTime } from "@/lib/format";
 import { ALLOCATION_LABEL } from "@/lib/routing";
 import { EVENT_STATUS_LABEL, PUSH_OUTCOME_LABEL, type PartnerConnection } from "@/lib/push";
 import { ADAPTER_LABEL } from "@/lib/partners";
+import type { AdapterStatus } from "@/lib/adapters";
 import { CredentialsForm, DisputeList, SigningSecret } from "./ConnectionControls";
+import { AdapterPanel } from "./AdapterPanel";
 
 function Step({ done, children }: { done: boolean; children: React.ReactNode }) {
   return (
@@ -19,18 +21,25 @@ function Step({ done, children }: { done: boolean; children: React.ReactNode }) 
 }
 
 /** How Eduwit talks to the partner's CRM (spec B8.1) and how the partner talks back (B8.2). */
-export function ConnectionTab({ id, c }: { id: number; c: PartnerConnection }) {
+export function ConnectionTab({ id, c, adapter }: { id: number; c: PartnerConnection; adapter?: AdapterStatus | null }) {
   const events = `${siteUrl()}${c.events_url_path}`;
   const push = c.push;
   const statuses = Object.entries(push.by_status).sort((a, b) => b[1] - a[1]);
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <Card className="min-w-0">
-        <CardHeader title="Setup" description={`${ADAPTER_LABEL[c.adapter_type as keyof typeof ADAPTER_LABEL] ?? c.adapter_type}. Pushes follow the generic contract in docs/partner-api.md until a dedicated adapter exists.`} />
+      <Card className="min-w-0 xl:self-start">
+        <CardHeader title="Setup" description={adapter
+          ? `${adapter.spec.label} adapter: Eduwit creates the lead through ${adapter.spec.label}'s own API${adapter.spec.poll ? " and reads stage changes back by polling or webhook" : ""}. See docs/partner-adapters.md.`
+          : `${ADAPTER_LABEL[c.adapter_type as keyof typeof ADAPTER_LABEL] ?? c.adapter_type}. Pushes follow the generic contract in docs/partner-api.md.`} />
         <ul className="space-y-2 px-5 py-4">
+          {adapter ? (<>
+            <Step done={adapter.envs.sandbox.configured}>Sandbox connection set up (a test org or account)</Step>
+            <Step done={adapter.envs.live.configured}>Live connection set up</Step>
+          </>) : (<>
           <Step done={Boolean(c.test_endpoint)}>Sandbox endpoint {c.test_endpoint ? <span className="break-all font-mono text-[12px]">{c.test_endpoint}</span> : <Link href="?tab=settings" className="text-info hover:underline">set it in Settings</Link>}</Step>
           <Step done={Boolean(c.api_base_url)}>Live endpoint {c.api_base_url ? <span className="break-all font-mono text-[12px]">{c.api_base_url}</span> : <Link href="?tab=settings" className="text-info hover:underline">set it in Settings</Link>}</Step>
           <Step done={c.has_token || c.auth_type === "none"}>API credential stored</Step>
+          </>)}
           <Step done={c.has_inbound_secret}>Signing secret shared with the partner</Step>
           <Step done={c.test_accepted}>A test lead accepted by the partner&apos;s sandbox</Step>
         </ul>
@@ -40,10 +49,17 @@ export function ConnectionTab({ id, c }: { id: number; c: PartnerConnection }) {
       </Card>
 
       <div className="min-w-0 space-y-6">
-        <Card className="min-w-0">
-          <CardHeader title="API credential" />
-          <CredentialsForm id={id} authType={c.auth_type} header={c.auth_header} hasToken={c.has_token} />
-        </Card>
+        {adapter ? (
+          <Card className="min-w-0">
+            <CardHeader title={`${adapter.spec.label} connection`} description="Credentials go to the vault and are never shown again. Live and sandbox are kept apart." />
+            <AdapterPanel id={id} s={adapter} />
+          </Card>
+        ) : (
+          <Card className="min-w-0">
+            <CardHeader title="API credential" />
+            <CredentialsForm id={id} authType={c.auth_type} header={c.auth_header} hasToken={c.has_token} />
+          </Card>
+        )}
         <Card className="min-w-0">
           <CardHeader title="Signing secret" description="HMAC-SHA256 over timestamp.body, both ways." />
           <SigningSecret id={id} has={c.has_inbound_secret} />
