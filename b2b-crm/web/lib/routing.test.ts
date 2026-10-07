@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeConditions, EngineSchema, fromStored, HandoffSchema, handoffPayload, parseRuleForm, RateSchema, segmentLabel } from "./routing";
+import { describeConditions, EngineSchema, fromStored, HandoffSchema, handoffPayload, parseRuleForm, parseTiers, RateSchema, segmentLabel } from "./routing";
 
 function form(entries: [string, string][]): FormData {
   const f = new FormData();
@@ -52,6 +52,14 @@ describe("RateSchema", () => {
     expect(RateSchema.safeParse({ partner_id: "4", rate_type: "percent", value: "120", fee_base: "first_year", valid_from: "", note: "" }).success).toBe(false);
     expect(RateSchema.safeParse({ partner_id: "4", rate_type: "fixed", value: "35000", fee_base: "total", gst_inclusive: "on", valid_from: "2026-11-01", note: "" }).success).toBe(true);
     expect(RateSchema.safeParse({ partner_id: "", rate_type: "fixed", value: "0", fee_base: "total", valid_from: "", note: "" }).success).toBe(false);
+  });
+  it("validates tiered rates by conversion", () => {
+    const ok = RateSchema.safeParse({ partner_id: "4", rate_type: "tiered", tiers: "7: 20.42, 0: 22.42, 9%: 18.42%", fee_base: "first_year", valid_from: "", note: "" });
+    expect(ok.success && ok.data.tiers).toEqual([{ from_pct: 0, pct: 22.42 }, { from_pct: 7, pct: 20.42 }, { from_pct: 9, pct: 18.42 }]);
+    expect(ok.success && ok.data.value).toBe(null);
+    expect(parseTiers("5: 20, 9: 18")).toBe("The first tier starts at 0% conversion");
+    expect(parseTiers("0: 20")).toMatch(/2 to 10 tiers/);
+    expect(parseTiers("0: 20, 7 20")).toMatch(/should look like/);
   });
 });
 

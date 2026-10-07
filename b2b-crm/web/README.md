@@ -102,6 +102,11 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   Salesforce, HubSpot and Meritto, per environment (live and sandbox): settings, keys (to Vault), reference and status
   fields, polling, fixed values, sign-in state, last poll, field fetch and a masked push preview. pg_cron runs
   `b2b.partner_sync_tick` every minute. Guide: `docs/partner-adapters.md`.
+- Commission & Finance (`/money`, `supabase/migrations/*_m20*.sql`): enrolments to verify against proof (expected →
+  realised commission from the rate in force, tiered rates settled at month close), monthly draft GST invoices to approve
+  and print (IGST or CGST + SGST), receipts with TDS matched to invoices, ageing and overdue alerts, partner statement
+  reconciliation (matched, amount mismatch, partner only, Eduwit only) and CSV exports for accounts. pg_cron runs
+  `b2b.money_tick` every 5 minutes and `b2b.money_daily` at 09:05 IST. Guide: `docs/money.md`.
 
 ## How access is enforced
 

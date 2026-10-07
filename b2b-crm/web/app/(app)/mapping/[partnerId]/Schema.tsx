@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { DRIFT_LABEL, STAGE_LABEL, parseSchemaText, type PartnerSchema, type Studio } from "@/lib/mapping";
 import { runBackfill, saveSnapshot } from "./actions";
-import { area } from "./Modal";
+import { area } from "@/components/ui/Modal";
 
 const EXAMPLE = "kind,name,parent,type\nfield,mx_Highest_Education,,picklist\nvalue,Graduate,mx_Highest_Education,\nstage,Attempted,,\nsub_stage,RNR,Attempted,\npipeline,Online MBA,,\nactivity,Call Log,,\noutcome,Connected,Call Log,";
 

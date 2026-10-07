@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/components/ui/cn";
 import { STAGE_LABEL, type Studio } from "@/lib/mapping";
 import { archiveGolden, saveGolden, testInbound, testOutbound } from "./actions";
-import { area, field, fieldBase } from "./Modal";
+import { area, field, fieldBase } from "@/components/ui/Modal";
 
 type InResult = {
   status?: { matched: boolean; stage?: string; sub_stage?: string; lost_reason?: string; ignored?: boolean; ignore_reason?: string; is_reopen?: boolean };

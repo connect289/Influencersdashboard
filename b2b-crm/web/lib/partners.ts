@@ -52,6 +52,13 @@ export type Partner = {
   updated_at: string;
   live: boolean;
   has_outbound_credentials: boolean;
+  // billing (m20a): the invoice recipient
+  legal_name?: string | null;
+  gstin?: string | null;
+  billing_address?: string | null;
+  billing_state_code?: string | null;
+  billing_email?: string | null;
+  payment_terms_days?: number;
 };
 
 export type PartnerListItem = Partner & { leads_today: number; leads_month: number; checklist_done: number; checklist_total: number };

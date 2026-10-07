@@ -50,7 +50,7 @@ export const NAV: NavGroup[] = [
   {
     label: "Money",
     items: [
-      { href: "/money", label: "Commission & Finance", icon: IndianRupee, key: "m", phase: 3, summary: "Enrollment verification, earnings ledger, GST invoices, receipts, statement reconciliation and tier watch.", keywords: "invoices earnings gst" },
+      { href: "/money", label: "Commission & Finance", icon: IndianRupee, key: "m", summary: "Enrollment verification, earnings ledger, GST invoices, receipts, statement reconciliation and tier watch.", keywords: "invoices earnings gst receipts tds statement" },
     ],
   },
   {

@@ -210,15 +210,45 @@ export const EngineSchema = z.object({
   reason: z.string().trim().min(3, "Say why you are changing the engine").max(300),
 });
 
+/** Tiers as typed by the Admin, "conversion from %: rate %" pairs: "0: 22.42, 7: 20.42, 9: 18.42". Returns the list or what is wrong. */
+export function parseTiers(text: string): { from_pct: number; pct: number }[] | string {
+  const parts = text.split(/[,;\n]+/).map((x) => x.trim()).filter(Boolean);
+  if (parts.length < 2 || parts.length > 10) return "Give 2 to 10 tiers, e.g. 0: 22.42, 7: 20.42, 9: 18.42";
+  const tiers: { from_pct: number; pct: number }[] = [];
+  for (const part of parts) {
+    const m = /^(\d+(?:\.\d+)?)\s*%?\s*[:=]\s*(\d+(?:\.\d+)?)\s*%?$/.exec(part);
+    if (!m) return `"${part}" should look like 7: 20.42`;
+    const from_pct = Number(m[1]), pct = Number(m[2]);
+    if (from_pct > 100 || pct <= 0 || pct > 100) return `"${part}": conversion and rate are percentages`;
+    tiers.push({ from_pct, pct });
+  }
+  tiers.sort((a, b) => a.from_pct - b.from_pct);
+  if (tiers[0]!.from_pct !== 0) return "The first tier starts at 0% conversion";
+  if (new Set(tiers.map((t) => t.from_pct)).size !== tiers.length) return "Each tier needs its own starting conversion";
+  return tiers;
+}
+
 export const RateSchema = z.object({
   partner_id: z.string().regex(/^\d+$/, "Choose a partner").transform(Number),
-  rate_type: z.enum(["percent", "fixed"]),
-  value: z.coerce.number().positive("Enter a value above 0"),
+  rate_type: z.enum(["percent", "fixed", "tiered"]),
+  value: z.string().trim().optional().default(""),
+  tiers: z.string().trim().max(300).optional().default(""),
   fee_base: z.enum(["first_year", "total"]),
   gst_inclusive: z.string().optional().transform((v) => v === "on"),
   valid_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A date").or(z.literal("")),
   note: z.string().trim().max(300),
-}).refine((r) => r.rate_type !== "percent" || r.value <= 100, { message: "At most 100%", path: ["value"] });
+}).superRefine((r, ctx) => {
+  if (r.rate_type === "tiered") {
+    const t = parseTiers(r.tiers);
+    if (typeof t === "string") ctx.addIssue({ code: "custom", path: ["tiers"], message: t });
+    return;
+  }
+  const v = Number(r.value);
+  if (!r.value || !Number.isFinite(v) || v <= 0) ctx.addIssue({ code: "custom", path: ["value"], message: "Enter a value above 0" });
+  else if (r.rate_type === "percent" && v > 100) ctx.addIssue({ code: "custom", path: ["value"], message: "At most 100%" });
+}).transform(({ tiers, value, ...r }) => ({
+  ...r, value: r.rate_type === "tiered" ? null : Number(value), tiers: r.rate_type === "tiered" ? (parseTiers(tiers) as { from_pct: number; pct: number }[]) : null,
+}));
 
 /** Hand-off settings (Addenda 1 and 2): the paid-campaign rule, B2C-created sources and blocked phones. */
 export const HandoffSchema = z.object({

@@ -18,6 +18,7 @@ const date = (d: string | null) => (d ? formatDateTime(`${d}T00:00:00+05:30`).re
 export function RatesPanel({ rates, partners }: { rates: Rate[]; partners: RoutingOverview["partners"] }) {
   const [state, onSubmit, pending] = useFormAction<FormState>(saveRate, undefined);
   const [busy, start] = useTransition();
+  const [type, setType] = useState("percent");
   const e = state?.errors ?? {};
   const live = rates.filter((r) => r.valid_to === null || r.valid_to >= new Date().toISOString().slice(0, 10));
   const proposed = partners.filter((p) => p.proposed > 0);
@@ -56,10 +57,17 @@ export function RatesPanel({ rates, partners }: { rates: Rate[]; partners: Routi
             </select>
           </label>
           <label className="space-y-1"><span className="text-[12px] text-muted">Type</span>
-            <select name="rate_type" className={field} defaultValue="percent"><option value="percent">% of fee</option><option value="fixed">Fixed ₹</option></select>
+            <select name="rate_type" className={field} value={type} onChange={(x) => setType(x.target.value)}>
+              <option value="percent">% of fee</option><option value="fixed">Fixed ₹</option><option value="tiered">Tiered %</option>
+            </select>
           </label>
-          <label className="space-y-1"><span className="text-[12px] text-muted">Value</span>
-            <input name="value" inputMode="decimal" className={field} aria-invalid={Boolean(e.value)} placeholder="20" /></label>
+          {type === "tiered" ? (
+            <label className="space-y-1"><span className="text-[12px] text-muted">Tiers (conversion: rate)</span>
+              <input name="tiers" className={field} aria-invalid={Boolean(e.tiers)} placeholder="0: 22.42, 7: 20.42, 9: 18.42" /></label>
+          ) : (
+            <label className="space-y-1"><span className="text-[12px] text-muted">Value</span>
+              <input name="value" inputMode="decimal" className={field} aria-invalid={Boolean(e.value)} placeholder="20" /></label>
+          )}
           <label className="space-y-1"><span className="text-[12px] text-muted">Percent of</span>
             <select name="fee_base" className={field} defaultValue="first_year"><option value="first_year">First-year fee</option><option value="total">Total fee</option></select>
           </label>
@@ -70,7 +78,8 @@ export function RatesPanel({ rates, partners }: { rates: Rate[]; partners: Routi
           <input name="note" placeholder="Note (optional), e.g. per agreement of 1 Oct" maxLength={300} className={cn(field, "sm:col-span-2 lg:col-span-4")} />
         </form>
         {(state?.error || Object.keys(e).length > 0) && <p role="alert" className="mt-2 text-[13px] text-danger">{Object.values(e)[0] ?? state?.error}</p>}
-        <p className="mt-2 text-[12px] text-subtle">The most specific rate in force wins: partner + programme, then partner. A new rate ends the previous one the day before it starts.</p>
+        <p className="mt-2 text-[12px] text-subtle">The most specific rate in force wins: partner + programme, then partner. A new rate ends the previous one the day before it starts.
+          {type === "tiered" && <> Tiered: the rate depends on the partner&apos;s lead-to-enrolment conversion in the month (enrolments ÷ leads accepted); &quot;7: 20.42&quot; means 20.42% from 7% conversion. Provisional until the month is closed in Commission &amp; Finance.</>}</p>
       </section>
 
       {live.length === 0 ? (
@@ -96,7 +105,10 @@ export function RatesPanel({ rates, partners }: { rates: Rate[]; partners: Routi
                   <td className="px-3 py-2.5 text-right text-fg">
                     {r.rate_type === "percent"
                       ? <><span className="tabular">{r.value}%</span> <span className="text-muted">of {r.fee_base === "total" ? "total" : "first-year"} fee</span></>
-                      : <span className="tabular">{inr(r.value)}</span>}
+                      : r.rate_type === "tiered"
+                        ? <><span className="tabular">{r.tiers?.map((t) => `${t.pct}%`).join(" / ") ?? "Tiered"}</span> <span className="text-muted">by conversion</span>
+                            {r.tiers && <span className="block text-[11px] text-subtle">{r.tiers.map((t) => `from ${t.from_pct}%`).join(" · ")}</span>}</>
+                        : <span className="tabular">{inr(r.value)}</span>}
                     {r.gst_inclusive && <span className="block text-[11px] text-subtle">incl. GST</span>}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-muted">{date(r.valid_from)} → {date(r.valid_to)}</td>

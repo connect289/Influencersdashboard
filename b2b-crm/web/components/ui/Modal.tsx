@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { LoaderCircle } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "./Button";
 
 export const fieldBase = "h-9 rounded-lg border border-border bg-surface px-3 text-[13px] text-fg placeholder:text-subtle focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 aria-[invalid=true]:border-danger disabled:bg-surface-2 disabled:text-subtle";
 export const field = `${fieldBase} w-full`;
