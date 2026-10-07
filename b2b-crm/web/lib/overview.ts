@@ -1,10 +1,11 @@
 /** The pre-routing pool (B13) and the basic Command Center: types and labels for b2b.pool_overview / b2b.command_center. */
 
-export const POOL_GROUPS = ["chatting", "routing_off", "due", "opted_out", "too_old", "test"] as const;
+export const POOL_GROUPS = ["chatting", "held", "routing_off", "due", "opted_out", "too_old", "test"] as const;
 export type PoolGroup = (typeof POOL_GROUPS)[number];
 
 export const POOL_GROUP_LABEL: Record<PoolGroup, string> = {
   chatting: "Still chatting with Witty",
+  held: "Held for review",
   routing_off: "Ready; automatic routing is off",
   due: "Ready; routes within a minute",
   opted_out: "Opted out",
@@ -14,6 +15,7 @@ export const POOL_GROUP_LABEL: Record<PoolGroup, string> = {
 
 export const POOL_GROUP_HINT: Record<PoolGroup, string> = {
   chatting: "Decided once the chat has been quiet for the idle time, or at once on hand-off.",
+  held: "Imported or entered with \"hold for review\". Release them on the Intake screen, or route single leads by hand.",
   routing_off: "Turn on automatic routing, or route single leads by hand from the lead.",
   due: "The next routing run picks these up.",
   opted_out: "Never routed.",
@@ -119,6 +121,9 @@ export const ALERT_LABEL: Record<string, string> = {
   "alert.mapping_drift": "Partner's CRM schema changed",
   "alert.sla_breach": "Partner missed the first-contact SLA",
   "alert.reconciliation_items": "Reconciliation found mismatches",
+  "alert.intake_new_form": "Leads from a new Meta or Google form (map it)",
+  "alert.intake_bad_signature": "Lead webhook with a bad signature or key",
+  "alert.intake_failed": "A lead from an ad form could not be stored",
   "routing.error": "Routing error",
 };
 

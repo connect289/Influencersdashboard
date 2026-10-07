@@ -85,6 +85,14 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   night and on demand, or against the partner's own export (CSV or JSON). The lead drawer's Partner sync tab shows
   the lead's SLA clocks, the partner's calls, messages and stage changes, and every raw event with its mapping.
   pg_cron runs `b2b.sla_tick` every 5 minutes and `b2b.reconcile_all` nightly.
+- Intake (`/intake`, `supabase/migrations/*_m17*.sql`): sources by volume, failed requests with Retry and Discard,
+  and the latest requests with where each lead is heading. The import wizard reads .xlsx or CSV in the browser (up
+  to 50,000 rows), maps columns (mappings can be saved), matches courses to the catalogue, previews duplicates (with
+  CSV downloads), then records the consent basis and the routing choice (route, hold, B2C); history with release
+  and a 24-hour rollback. Ad forms (Meta and Google question mapping, fixed values, consent), New lead (typed in by
+  hand) and Connections (webhook URLs; secrets go to Vault). Machine routes: `POST /v1/leads` (Intake API, contract
+  in `docs/intake-api.md`), `GET/POST /v1/webhooks/meta/leadgen`, `POST /v1/webhooks/google/leadform`. pg_cron runs
+  `b2b.intake_tick` every 10 seconds (Meta fetches) and `b2b.import_tick` every minute.
 
 ## How access is enforced
 

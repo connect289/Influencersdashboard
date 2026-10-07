@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Pre-routing pool" };
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 const GROUP_TONE: Record<PoolGroup, "info" | "warning" | "success" | "neutral" | "brand"> = {
-  chatting: "info", routing_off: "warning", due: "success", opted_out: "neutral", too_old: "warning", test: "brand",
+  chatting: "info", held: "warning", routing_off: "warning", due: "success", opted_out: "neutral", too_old: "warning", test: "brand",
 };
 
 function GroupCard({ g, o, active }: { g: PoolGroup; o: PoolOverview; active: boolean }) {

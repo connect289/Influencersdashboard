@@ -29,7 +29,7 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/leads", label: "Leads", icon: Users, key: "l", summary: "Every lead from every source: search, filter, the Witty chat, soft delete with a recycle bin, and export.", keywords: "students master table recycle bin export" },
       { href: "/pool", label: "Pre-routing pool", icon: Inbox, summary: "Leads with no destination yet, grouped by why they wait (still chatting, routing off, too old), with their age and where each will go.", keywords: "waiting not ready" },
-      { href: "/intake", label: "Intake", icon: Plug, phase: 2, summary: "Sources (Witty, website agent, Meta, Google, imports) with volume and errors, the Excel/CSV import wizard and per-form field mapping.", keywords: "import csv meta google" },
+      { href: "/intake", label: "Intake", icon: Plug, summary: "Sources (Witty, website agent, Meta, Google, the API, imports) with volume and errors, the Excel/CSV import wizard, per-form field mapping, manual entry and connections.", keywords: "import csv meta google" },
     ],
   },
   {
