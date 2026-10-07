@@ -133,11 +133,11 @@ export function Builder({ initial, metrics }: { initial: Dashboard | null; metri
             <div className="flex items-center gap-2 px-3 py-2">
               <GripVertical className="size-4 text-subtle" />
               <button type="button" className="min-w-0 flex-1 truncate text-left text-[13px] font-medium text-fg" onClick={() => setOpen(open === w.id ? null : w.id)}>
-                {w.title || WIDGET_LABEL[w.type]} <span className="font-normal text-subtle">· {WIDGET_LABEL[w.type]} · {w.w}×{w.h}</span>
+                {w.title || WIDGET_LABEL[w.type]} <span className="hidden font-normal text-subtle sm:inline">· {WIDGET_LABEL[w.type]} · {w.w}×{w.h}</span>
               </button>
-              <Button size="sm" variant="ghost" aria-label="Move up" onClick={() => move(i, i - 1)} disabled={i === 0}><ArrowUp className="size-3.5" /></Button>
-              <Button size="sm" variant="ghost" aria-label="Move down" onClick={() => move(i, i + 1)} disabled={i === widgets.length - 1}><ArrowDown className="size-3.5" /></Button>
-              <Button size="sm" variant="ghost" aria-label="Remove" onClick={() => setWidgets((ws) => ws.filter((x) => x.id !== w.id))}><Trash2 className="size-3.5" /></Button>
+              <Button size="sm" variant="ghost" className="px-2" aria-label="Move up" onClick={() => move(i, i - 1)} disabled={i === 0}><ArrowUp className="size-3.5" /></Button>
+              <Button size="sm" variant="ghost" className="px-2" aria-label="Move down" onClick={() => move(i, i + 1)} disabled={i === widgets.length - 1}><ArrowDown className="size-3.5" /></Button>
+              <Button size="sm" variant="ghost" className="px-2" aria-label="Remove" onClick={() => setWidgets((ws) => ws.filter((x) => x.id !== w.id))}><Trash2 className="size-3.5" /></Button>
             </div>
             {open === w.id && <div className="border-t border-border px-3 py-3"><WidgetEditor w={w} metrics={metrics} onChange={(nw) => setWidgets((ws) => ws.map((x) => (x.id === w.id ? nw : x)))} /></div>}
           </li>

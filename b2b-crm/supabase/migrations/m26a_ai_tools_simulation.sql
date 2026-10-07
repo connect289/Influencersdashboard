@@ -214,14 +214,14 @@ begin
        and d.created_at > now() - make_interval(days => least(greatest(p_days, 7), 365))
        and a.created_at <= now() - make_interval(days => (prm ->> 'maturity_days')::int)
        and a.status in ('pushed', 'accepted', 'closed')),
-  terms as (select r, coalesce((pi ->> winner_partner_id::text)::numeric, 0) / selection_probability w from dec where pi is not null)
+  terms as (select r::numeric r, (coalesce((pi ->> winner_partner_id::text)::numeric, 0) / selection_probability::numeric) w from dec where pi is not null)
   select jsonb_build_object(
     'simulated', true, 'change', p_change, 'days', p_days, 'decisions', count(*),
     'ncpl_now', round(coalesce(avg(r), 0), 2),
     'ncpl_new', round(coalesce(avg(w * r), 0), 2),
     'difference', round(coalesce(avg(w * r - r), 0), 2),
-    'ci95', jsonb_build_array(round(coalesce(avg(w * r - r) - 1.96 * stddev_samp(w * r - r) / sqrt(nullif(count(*), 0)), 0), 2),
-                              round(coalesce(avg(w * r - r) + 1.96 * stddev_samp(w * r - r) / sqrt(nullif(count(*), 0)), 0), 2)),
+    'ci95', jsonb_build_array(round(coalesce(avg(w * r - r) - 1.96 * stddev_samp(w * r - r) / sqrt(nullif(count(*), 0)::numeric), 0), 2),
+                              round(coalesce(avg(w * r - r) + 1.96 * stddev_samp(w * r - r) / sqrt(nullif(count(*), 0)::numeric), 0), 2)),
     'gain_pct', case when avg(r) > 0 then round(100 * avg(w * r - r) / avg(r), 1) end,
     'ess', round(coalesce(power(sum(w), 2) / nullif(sum(w * w), 0), 0), 1),
     'enough', count(*) >= 30)

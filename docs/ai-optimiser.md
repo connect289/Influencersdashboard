@@ -1,4 +1,4 @@
-# AI Optimiser (Claude, Advisory mode)
+# AI Optimiser (Claude: Advisory, Autopilot, Ask the CRM)
 
 Claude watches outcomes, partner effort and money, and recommends bounded changes to the routing engine (spec B7.8.2).
 In Advisory mode nothing changes until an Admin approves. Screen: **AI Optimiser** (`/ai`).
@@ -86,5 +86,31 @@ Database: `b2b.ai_runs`, `ai_tool_outputs`, `ai_recommendations`, `ai_state`; `a
 `ai_recommendation_decide`, `ai_recommendation_rollback`, `ai_settings_save` (M26b). Web: `lib/ai/` (prompts, worker,
 validator), `app/v1/ai/tick`, `app/(app)/ai`.
 
-Autopilot (changes inside the bounds applied automatically when the simulation shows at least a 3% gain, at most 3 a
-day, re-checked after 7 days and rolled back if worse) is Phase 4.
+## 8. Autopilot (Phase 4)
+
+AI Optimiser → Settings → Mode: **Advisory** (default) or **Autopilot**.
+
+- **What it applies.** Only a *setting* change inside the bounds of section 2, and only when its simulation rests on at
+  least 30 decisions, shows at least 3% more net commission per lead (setting `ai.autopilot.min_gain_pct`, 1–50) and
+  the lower end of its 95% interval is above zero. At most 3 a day (`max_per_day`, 1–10). Drafts (a rule, a pause) and
+  anything below the bar stay in the inbox for the Admin. `ai_autopilot_tick` runs every 5 minutes.
+- **Recorded.** Each change is versioned "by autopilot" with the run, the simulation and the reason, and appears in the
+  change log with one-click rollback.
+- **7-day review (every applied change, Advisory or Autopilot).** Realised commission cannot exist 7 days after a change
+  (leads mature after 60), so the review compares, inside the change's scope, the AI-steered leads routed since the
+  change with the holdout leads routed in the same days, on *expected* net commission per lead from the stage each lead
+  has reached (the same leading indicators as P̂).
+  - Steered clearly worse (z ≤ −1): an autopilot change is **rolled back automatically**; an approved one raises an alert
+    and the change log suggests rolling it back.
+  - Too few leads: checked again a week later, three times at most, then kept as inconclusive.
+- **Kill switch.** Switching the mode back to Advisory stops new automatic changes at once; applied ones stay until
+  rolled back.
+
+## 9. Ask the CRM (Phase 4)
+
+AI Optimiser → **Ask the CRM**: a question in plain words ("Which partner had the best SLA compliance last month?").
+Claude answers only through the metric layer (`list_metrics`, `query_metric`: the same definitions as the dashboards),
+never free SQL and never personal data. Every number in the answer must appear in a tool result; otherwise the answer is
+not shown, and the screen lists the numbers that could not be traced. Each answer lists the queries behind it, each a
+link to the matching drill-down. Questions are logged as AI runs (kind `ask`), priced and counted against the daily
+budget; the last 20 are kept on the tab.

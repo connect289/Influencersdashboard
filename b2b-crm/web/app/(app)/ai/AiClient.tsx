@@ -1,10 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Check, LoaderCircle, MessageSquareText, Play, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useFormAction } from "@/components/ui/useFormAction";
+import { periodBounds } from "@/lib/ai/ask";
+import { drillHref } from "@/lib/analytics";
 import { editable, RUN_KIND_LABEL, type AiSettings, type Change, type MlModel } from "@/lib/ai/labels";
 import { askCrm, type AskAnswer, decideRecommendation, rollbackModel, rollbackRecommendation, runNow, saveAiSettings, setModelStatus, trainModel, type FormState } from "./actions";
 
@@ -189,7 +192,14 @@ export function AskPanel() {
         <div className="space-y-2 rounded-lg border border-border bg-surface-2/50 p-4 text-[13px]">
           {res.answer ? <p className="whitespace-pre-line text-fg">{res.answer}</p>
             : <p className="text-warning">The answer contained numbers that could not be traced to the data ({res.unverified.join(", ")}), so it is not shown. Try asking more specifically.</p>}
-          {res.sources.length > 0 && <p className="text-[12px] text-subtle">Sources: {res.sources.map((s) => `${s.metric}${s.dims?.length ? ` by ${s.dims.join(", ")}` : ""}${s.period ? ` (${s.period})` : ""}`).join(" · ")}</p>}
+          {res.sources.length > 0 && (
+            <p className="text-[12px] text-subtle">Sources:{" "}
+              {res.sources.map((s, i) => {
+                const { from, to } = periodBounds(s.period);
+                return <span key={i}>{i > 0 && " · "}<Link className="text-info hover:underline" href={drillHref(s.metric, s.filters ?? {}, from, to)}>{s.metric}{s.dims?.length ? ` by ${s.dims.join(", ")}` : ""}{s.period ? ` (${s.period})` : ""}</Link></span>;
+              })}
+            </p>
+          )}
           <p className="text-[11.5px] text-subtle">Cost ${res.cost_usd.toFixed(4)}</p>
         </div>
       )}

@@ -177,7 +177,8 @@ export type AskHistoryItem = { id: number; at: string; status: string; question:
 /** The 7-day review in words. */
 export function reviewText(c: Recommendation["check_result"]): string | null {
   if (!c?.verdict) return null;
-  const nums = c.steered && c.holdout ? ` (AI-steered ₹${Math.round(c.steered.expected_ncpl ?? 0)} on ${c.steered.leads} leads, holdout ₹${Math.round(c.holdout.expected_ncpl ?? 0)} on ${c.holdout.leads})` : "";
+  const inr = (v: number | null | undefined) => `₹${Math.round(v ?? 0).toLocaleString("en-IN")}`;
+  const nums = c.steered && c.holdout ? ` (AI-steered ${inr(c.steered.expected_ncpl)} on ${c.steered.leads} leads, holdout ${inr(c.holdout.expected_ncpl)} on ${c.holdout.leads})` : "";
   switch (c.verdict) {
     case "waiting": return `7-day review: too few leads yet, checked again next week${nums}`;
     case "kept": return `7-day review: kept${nums}`;

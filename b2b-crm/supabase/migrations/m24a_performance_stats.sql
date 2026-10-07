@@ -137,7 +137,9 @@ declare
   boost double precision := 1;
 begin
   if a < 1 then
-    boost := power(b2b.u01(p_seed, p_tag || ':b'), 1.0 / a);
+    -- u^(1/a) in log space: for a tiny shape it is below the smallest double, and Postgres raises on underflow
+    boost := ln(b2b.u01(p_seed, p_tag || ':b')) / a;
+    boost := case when boost < -700 then 0 else exp(boost) end;
     a := a + 1;
   end if;
   d := a - 1.0 / 3.0;

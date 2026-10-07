@@ -232,6 +232,7 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare
   v jsonb := coalesce((select value from b2b.settings where key = 'engine'), '{}');
   v_split jsonb;
+  v_on boolean;
 begin
   if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
   if not ((p ->> 'exploration_share')::numeric between 0 and 0.5) then raise exception 'exploration share must be between 0 and 50%%' using errcode = '22023'; end if;
@@ -271,13 +272,18 @@ begin
     if not ((p ->> 'min_matured_leads')::int between 5 and 500) then raise exception 'matured leads for performance mode are 5 to 500' using errcode = '22023'; end if;
     v := v || jsonb_build_object('min_matured_leads', (p ->> 'min_matured_leads')::int);
   end if;
+  -- the factors are true / false, or their stored shape {enabled, bounds} sent back unchanged
   if p ? 'speed_factor' then
-    if jsonb_typeof(p -> 'speed_factor') <> 'boolean' then raise exception 'the speed factor is on or off' using errcode = '22023'; end if;
-    v := jsonb_set(v, '{speed_factor}', coalesce(v -> 'speed_factor', '{"bounds":[0.85,1.15]}') || jsonb_build_object('enabled', (p ->> 'speed_factor')::boolean));
+    v_on := case jsonb_typeof(p -> 'speed_factor') when 'boolean' then (p ->> 'speed_factor')::boolean
+                 when 'object' then case jsonb_typeof(p -> 'speed_factor' -> 'enabled') when 'boolean' then (p -> 'speed_factor' ->> 'enabled')::boolean end end;
+    if v_on is null then raise exception 'the speed factor is on or off' using errcode = '22023'; end if;
+    v := jsonb_set(v, '{speed_factor}', coalesce(v -> 'speed_factor', '{"bounds":[0.85,1.15]}') || jsonb_build_object('enabled', v_on));
   end if;
   if p ? 'reliability_factor' then
-    if jsonb_typeof(p -> 'reliability_factor') <> 'boolean' then raise exception 'the reliability factor is on or off' using errcode = '22023'; end if;
-    v := jsonb_set(v, '{reliability_factor}', coalesce(v -> 'reliability_factor', '{"bounds":[0.7,1.0]}') || jsonb_build_object('enabled', (p ->> 'reliability_factor')::boolean));
+    v_on := case jsonb_typeof(p -> 'reliability_factor') when 'boolean' then (p ->> 'reliability_factor')::boolean
+                 when 'object' then case jsonb_typeof(p -> 'reliability_factor' -> 'enabled') when 'boolean' then (p -> 'reliability_factor' ->> 'enabled')::boolean end end;
+    if v_on is null then raise exception 'the reliability factor is on or off' using errcode = '22023'; end if;
+    v := jsonb_set(v, '{reliability_factor}', coalesce(v -> 'reliability_factor', '{"bounds":[0.7,1.0]}') || jsonb_build_object('enabled', v_on));
   end if;
   if p ? 'fixed_split' then
     if jsonb_typeof(p -> 'fixed_split') <> 'object' then raise exception 'the fixed split lists partners and their shares' using errcode = '22023'; end if;
