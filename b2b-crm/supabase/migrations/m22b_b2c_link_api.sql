@@ -55,6 +55,10 @@ begin
     when 'uuid' then
       if lower(t) !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then return jsonb_build_object('error', 'must be a UUID'); end if;
       return jsonb_build_object('value', lower(t));
+    when 'stage' then
+      -- checked against the stage list by the caller
+      if length(t) > 60 then return jsonb_build_object('error', 'is not a known stage'); end if;
+      return jsonb_build_object('value', lower(t));
     when 'temperature' then
       if lower(t) not in ('hot', 'warm', 'cold') then return jsonb_build_object('error', 'must be hot, warm or cold'); end if;
       return jsonb_build_object('value', lower(t));
