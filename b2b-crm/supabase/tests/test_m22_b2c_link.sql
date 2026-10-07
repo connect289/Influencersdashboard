@@ -125,9 +125,11 @@ insert into r select 'unchanged_write', (x -> 'result' -> 'changed') = '[]' and 
 insert into t select 'a1', pg_temp.api('api_b2c_activity', jsonb_build_object('p_key', 'eb2b_m22test_key_0001', 'p_lead_id', pg_temp.v('H'),
   'p', jsonb_build_object('request_id', 'm22-a1', 'kind', 'call', 'at', now() - interval '5 minutes', 'outcome', 'connected', 'duration_seconds', 240,
                           'note', 'Wants the weekend batch', 'actor', jsonb_build_object('name', 'Priya'))))::text;
-select pg_temp.api('api_b2c_activity', jsonb_build_object('p_key', 'eb2b_m22test_key_0001', 'p_lead_id', pg_temp.v('H'), 'p', '{"request_id":"m22-a2","kind":"note","note":"Sent brochure"}'));
+-- the note comes a minute later (inside one transaction now() does not move)
+select pg_temp.api('api_b2c_activity', jsonb_build_object('p_key', 'eb2b_m22test_key_0001', 'p_lead_id', pg_temp.v('H'),
+  'p', jsonb_build_object('request_id', 'm22-a2', 'kind', 'note', 'note', 'Sent brochure', 'at', now() + interval '1 minute')));
 insert into r select 'activity', (pg_temp.v('a1')::jsonb ->> 'ok')::boolean and l.contact_attempts = 3 and l.first_contacted_at is not null and l.last_contacted_at < now()
-                       and l.last_activity_at = now() and b2b.b2c_version(l.id) = 6
+                       and l.last_activity_at = now() + interval '1 minute' and b2b.b2c_version(l.id) = 6
                        and exists (select 1 from b2b.events e where e.type = 'b2c.activity' and e.lead_id = l.id and e.payload ->> 'outcome' = 'connected'),
                        l.contact_attempts || ' v' || b2b.b2c_version(l.id)
   from public.student_leads l where l.id = pg_temp.v('H')::bigint;
