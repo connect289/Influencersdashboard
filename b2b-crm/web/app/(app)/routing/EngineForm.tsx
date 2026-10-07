@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/components/ui/cn";
 import { useFormAction } from "@/components/ui/useFormAction";
 import type { EngineSettings } from "@/lib/routing-data";
+import { splitText } from "@/lib/segments";
 import { saveEngineSettings, type FormState } from "./actions";
 
 const field = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 aria-[invalid=true]:border-danger";
@@ -60,6 +61,34 @@ export function EngineForm({ v, version }: { v: EngineSettings; version: number 
         </Row>
         <Row label="Trusted sources" hint="Sources whose phone numbers count as verified (comma-separated)." error={e.trusted_sources}>
           <input name="trusted_sources" defaultValue={(v.trusted_sources ?? []).join(", ")} className={field} />
+        </Row>
+        <p className="pt-5 pb-1 text-[11px] font-medium uppercase tracking-wider text-subtle">Performance mode (B7.2)</p>
+        <Row label="Maturity" hint="A lead's outcome counts once it was sent to the partner this many days ago (days)." error={e.maturity_days}>
+          <input name="maturity_days" inputMode="numeric" defaultValue={v.maturity_days ?? 60} className={field} aria-invalid={Boolean(e.maturity_days)} />
+        </Row>
+        <Row label="Recency half-life" hint="A matured lead this many days older counts half as much (days)." error={e.half_life_days}>
+          <input name="half_life_days" inputMode="numeric" defaultValue={v.half_life_days ?? 30} className={field} aria-invalid={Boolean(e.half_life_days)} />
+        </Row>
+        <Row label="Prior strength" hint="How many leads' worth of the segment average each partner starts with, so a few early results cannot swing it (leads)." error={e.prior_weight}>
+          <input name="prior_weight" inputMode="decimal" defaultValue={v.prior_weight ?? 20} className={field} aria-invalid={Boolean(e.prior_weight)} />
+        </Row>
+        <Row label="Default enrolment rate" hint="Used while a segment has no matured leads at all (%)." error={e.default_p_enroll}>
+          <input name="default_p_enroll" inputMode="decimal" defaultValue={Math.round((v.default_p_enroll ?? 0.05) * 1000) / 10} className={field} aria-invalid={Boolean(e.default_p_enroll)} />
+        </Row>
+        <Row label="Matured leads for performance mode" hint="A segment switches from highest commission to net commission per lead once 2 partners each have this many." error={e.min_matured_leads}>
+          <input name="min_matured_leads" inputMode="numeric" defaultValue={v.min_matured_leads ?? 30} className={field} aria-invalid={Boolean(e.min_matured_leads)} />
+        </Row>
+        <Row label="Optional factors" hint="Speed (0.85–1.15, time to first contact against all partners) and reliability (0.7–1.0, SLA breaches and sync errors in 7 days). Off by default." error={e.speed_factor ?? e.reliability_factor}>
+          <div className="space-y-1.5 text-[13px]">
+            <label className="flex items-center gap-2"><input type="checkbox" name="speed_factor" defaultChecked={v.speed_factor?.enabled ?? false} className="size-4 accent-[var(--primary)]" /> Speed</label>
+            <label className="flex items-center gap-2"><input type="checkbox" name="reliability_factor" defaultChecked={v.reliability_factor?.enabled ?? false} className="size-4 accent-[var(--primary)]" /> Reliability</label>
+          </div>
+        </Row>
+        <Row label="Fixed split for the kill switch" hint="Partner ID: share, e.g. 12: 60, 14: 40. Used only while the kill switch is on (globally or for a segment). B2C cannot be part of it." error={e.fixed_split}>
+          <input name="fixed_split" defaultValue={splitText(v.fixed_split)} placeholder="12: 60, 14: 40" className={field} aria-invalid={Boolean(e.fixed_split)} />
+        </Row>
+        <Row label="Kill switch (all segments)" hint="Stops scoring, exploration and AI changes; leads are split between partners in the fixed shares. Rules, consent and B2C hand-offs still apply." error={e.kill_switch}>
+          <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" name="kill_switch" defaultChecked={v.kill_switch ?? false} className="size-4 accent-[var(--primary)]" /> On</label>
         </Row>
         <Row label="Reason for this change" hint={`Saved as version ${version + 1} of the engine settings, with your reason.`} error={e.reason}>
           <input name="reason" maxLength={300} placeholder="e.g. second partner signed" className={cn(field)} aria-invalid={Boolean(e.reason)} />

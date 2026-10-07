@@ -7,7 +7,8 @@ import { requireAdmin } from "@/lib/auth";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { inr } from "@/lib/programmes";
 import { ALLOCATION_LABEL, LANE_LABEL, MODE_LABEL, NOT_PASSED_LABEL, REASON_LABEL, segmentLabel } from "@/lib/routing";
-import { notPassedSummary, routingOverview, type NotPassedSummary, type RoutingOverview } from "@/lib/routing-data";
+import { notPassedSummary, routingOverview, routingSegment, routingSegments, type NotPassedSummary, type RoutingOverview } from "@/lib/routing-data";
+import { isSegment } from "@/lib/segments";
 import type { PushOverview } from "@/lib/push";
 import { pushOverview } from "@/lib/push-data";
 import { catalogueUniversities } from "@/lib/programmes-data";
@@ -18,12 +19,14 @@ import { RatesPanel } from "./RatesPanel";
 import { ReviewQueue } from "./ReviewQueue";
 import { RoutingSwitch } from "./RoutingSwitch";
 import { RulesPanel } from "./RulesPanel";
+import { SegmentsPanel, SegmentView } from "./SegmentsPanel";
 import { Simulator } from "./Simulator";
 
 export const metadata: Metadata = { title: "Routing" };
 
 const TABS = [
   { id: "overview", label: "Overview" },
+  { id: "segments", label: "Segments" },
   { id: "simulate", label: "Simulate" },
   { id: "rules", label: "Rules" },
   { id: "rates", label: "Commission rates" },
@@ -51,7 +54,7 @@ function Overview({ o, np, push }: { o: RoutingOverview; np: NotPassedSummary; p
   const rated = new Set(o.rates.filter((r) => r.valid_to === null).map((r) => r.partner_id));
   const warnings = [
     engine.enabled === false && "The engine is disabled in its settings, so nothing routes even with the switch on.",
-    engine.kill_switch && "The engine's kill switch is on, so nothing routes.",
+    engine.kill_switch && "The engine's kill switch is on: scoring is off and leads split between partners in the fixed shares (Engine settings).",
     o.live_partners === 0 && "No partner is live yet: every qualified lead routed now goes to B2C sales.",
     consentRequired && "Partner-sharing consent is required and Witty does not ask for it yet, so qualified Witty leads go to B2C sales (reason: no consent).",
     "Witty stops chatting with any routed lead, B2C nurture included. Addendum 1 asks Witty to keep talking to nurture leads; that needs a change on Witty's side (w2_crm_owned).",
@@ -259,6 +262,9 @@ export default async function RoutingPage({ searchParams }: Props) {
       </nav>
 
       {tab === "overview" && <Overview o={o} np={np} push={push} />}
+      {tab === "segments" && (isSegment(sp.segment)
+        ? <SegmentView d={await routingSegment(sp.segment)} policyVersion={(await routingSegments()).policy_version} />
+        : <SegmentsPanel s={await routingSegments()} />)}
       {tab === "simulate" && (
         <Card className="min-w-0 p-5">
           <Simulator key={leadParam ?? "none"} initialLead={leadParam} />

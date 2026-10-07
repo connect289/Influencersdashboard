@@ -1,8 +1,9 @@
-import { ArrowRight, Ban, CircleCheck, CircleDashed, FlaskConical, Megaphone, Scale, ShieldOff } from "lucide-react";
+import { ArrowRight, Ban, CircleCheck, CircleDashed, FlaskConical, Gauge, Megaphone, Scale, ShieldOff } from "lucide-react";
 import { Badge } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { inr } from "@/lib/programmes";
 import { LANE_LABEL, MODE_LABEL, NOT_PASSED_LABEL, REASON_LABEL, segmentLabel, type Decision } from "@/lib/routing";
+import { pct, scoringSummary } from "@/lib/segments";
 
 function Chip({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -17,6 +18,9 @@ export function DecisionView({ d }: { d: Decision }) {
   const toPartner = d.destination === "partner";
   const notPassed = d.destination === "not_passed";
   const missing = d.readiness.not_qualified ?? [];
+  const scored = d.candidates.some((c) => c.p_hat !== undefined);
+  const performance = d.scoring_mode === "performance" && d.mode === "performance";
+  const summary = toPartner ? scoringSummary(d) : null;
   return (
     <div className="space-y-5">
       <div className={cn("flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border px-4 py-3",
@@ -41,6 +45,7 @@ export function DecisionView({ d }: { d: Decision }) {
         <div className="flex flex-wrap gap-1.5">
           {d.is_test && <Badge tone="brand"><FlaskConical className="size-3" /> Test lead: partner sandboxes only</Badge>}
           {d.paid && d.reason !== "paid_campaign" && <Badge tone="info"><Megaphone className="size-3" /> Paid: {d.paid}</Badge>}
+          {d.holdout && toPartner && <Badge tone="info">Holdout</Badge>}
           {d.committed ? <Badge tone="success">Routed</Badge> : <Badge>Simulation: nothing was sent</Badge>}
           {d.already_routed && !d.committed && <Badge tone="warning">Already routed</Badge>}
         </div>
@@ -73,11 +78,14 @@ export function DecisionView({ d }: { d: Decision }) {
                   <th scope="col" className="px-3 py-2 text-right font-medium">Commission (net)</th>
                   <th scope="col" className="px-3 py-2 text-right font-medium">Today / cap</th>
                   <th scope="col" className="px-3 py-2 text-right font-medium">Leads in segment</th>
+                  {scored && <th scope="col" className="px-3 py-2 text-right font-medium" title="Estimated chance this partner enrols the lead (Beta posterior)">P̂ enrol</th>}
+                  {scored && <th scope="col" className="px-3 py-2 text-right font-medium" title="Expected net commission per lead: P̂ × commission × (1 − refunds) × factors">NCPL</th>}
+                  {performance && <th scope="col" className="px-3 py-2 text-right font-medium" title="Share of the seeded draws this partner won">Won</th>}
                   <th scope="col" className="px-3 py-2 font-medium">Result</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {[...d.candidates].sort((a, b) => (b.cpe ?? -1) - (a.cpe ?? -1)).map((c) => {
+                {[...d.candidates].sort((a, b) => performance ? (b.ncpl ?? -1) - (a.ncpl ?? -1) : (b.cpe ?? -1) - (a.cpe ?? -1)).map((c) => {
                   const won = toPartner && c.partner_id === d.partner_id;
                   const why = d.excluded.find((x) => Number(x.partner_id) === c.partner_id)?.why;
                   return (
@@ -87,7 +95,12 @@ export function DecisionView({ d }: { d: Decision }) {
                       <td className="tabular px-3 py-2 text-right text-fg">{c.has_rate ? inr(c.cpe) : <span className="text-warning">No rate</span>}</td>
                       <td className="tabular px-3 py-2 text-right text-muted">{c.leads_today} / {c.daily_cap ?? "∞"}</td>
                       <td className="tabular px-3 py-2 text-right text-muted">{c.segment_leads}</td>
-                      <td className="px-3 py-2 text-muted">{won ? <span className="font-medium text-success">Chosen</span> : why ?? (c.eligible ? "Eligible, lower commission" : "—")}</td>
+                      {scored && <td className="tabular px-3 py-2 text-right text-muted" title={c.stats_rollup ? "From the course roll-up (fewer than 30 leads in this segment)" : undefined}>
+                        {c.p_hat !== undefined ? <>{pct(c.p_hat)}{c.stats_rollup && <span className="text-subtle">*</span>}</> : "—"}</td>}
+                      {scored && <td className="tabular px-3 py-2 text-right text-fg">{c.p_hat !== undefined && c.ncpl != null ? inr(c.ncpl) : "—"}
+                        {c.weight !== undefined && c.weight !== 1 && <span className="ml-1 text-[11px] text-info">×{c.weight}</span>}</td>}
+                      {performance && <td className="tabular px-3 py-2 text-right text-muted">{c.win_share !== undefined ? pct(c.win_share, 0) : "—"}</td>}
+                      <td className="px-3 py-2 text-muted">{won ? <span className="font-medium text-success">Chosen</span> : why ?? (c.eligible ? (performance ? "Eligible, lost the draw" : "Eligible, lower commission") : "—")}</td>
                     </tr>
                   );
                 })}
@@ -106,7 +119,17 @@ export function DecisionView({ d }: { d: Decision }) {
         </div>
       )}
 
-      {toPartner && d.draw !== null && (
+      {summary && (
+        <p className="flex flex-wrap items-center gap-1.5 text-[12px] text-subtle">
+          <Gauge className="size-3.5" /> {summary}
+          {d.why && <> · {d.why}</>}
+          {scored && d.candidates.some((c) => c.stats_rollup) && <> · * from the course roll-up</>}
+          {d.seed != null && <> · seed <span className="font-mono">{Number(d.seed).toFixed(6)}</span></>}
+          {d.policy_version != null && <> · policy v{d.policy_version}</>}
+        </p>
+      )}
+
+      {toPartner && d.draw !== null && d.draw !== undefined && (
         <p className="flex items-center gap-1.5 text-[12px] text-subtle">
           <CircleDashed className="size-3.5" /> Exploration draw {d.draw.toFixed(3)} against a {Math.round(d.exploration_share * 100)}% lane
           {d.mode === "exploration" ? ": the lead went to an under-sampled partner so its conversion can be learned." : ": the highest commission won."}

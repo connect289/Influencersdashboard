@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format";
 import { ALLOCATION_LABEL, fromStored } from "@/lib/routing";
 import { routingDecision } from "@/lib/routing-data";
 import { DecisionView } from "../../DecisionView";
+import { ReplayButton } from "./ReplayButton";
 
 export const metadata: Metadata = { title: "Routing decision" };
 
@@ -39,6 +40,11 @@ export default async function DecisionPage({ params }: Props) {
       </div>
       <Card className="min-w-0 p-5">
         <DecisionView d={fromStored(s)} />
+        {s.scoring_mode && s.destination_type === "partner" && (
+          <div className="mt-5 border-t border-border pt-4">
+            <ReplayButton id={s.id} names={Object.fromEntries((s.candidates ?? []).map((c) => [String(c.partner_id), c.name]))} />
+          </div>
+        )}
       </Card>
     </>
   );

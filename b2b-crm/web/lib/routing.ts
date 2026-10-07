@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ScoringMode } from "@/lib/segments";
 
 /** Routing: labels, decision types and form parsing shared by the routing screen, the lead drawer and the tests. */
 
@@ -80,6 +81,9 @@ export type Candidate = {
   leads_week: number;
   segment_leads: number;
   eligible: boolean;
+  /** M24 statistics (absent on decisions made before performance routing). */
+  p_hat?: number; alpha?: number; beta?: number; refund_rate?: number; sla_compliance?: number | null; speed?: number; reliability?: number;
+  weight?: number; win_share?: number; stats_segment?: string | null; stats_rollup?: boolean; matured_in_segment?: number; leads_in_segment?: number;
 };
 
 export type Decision = {
@@ -108,6 +112,14 @@ export type Decision = {
   already_routed: boolean;
   committed: boolean;
   reference?: string;
+  /** M24: scoring mode, AI holdout, seed (replay), policy version, pin and Monte Carlo draws. */
+  scoring_mode?: ScoringMode | null;
+  holdout?: boolean;
+  seed?: number | null;
+  policy_version?: number | null;
+  pinned?: boolean;
+  mc_draws?: number | null;
+  why?: string | null;
 };
 
 /** A decision as stored in b2b.engine_decisions (routing_decision / lead_routing). */
@@ -115,6 +127,7 @@ export type StoredDecisionCore = {
   lead_id: number; is_test: boolean; interest: Interest; destination_type: "partner" | "in_house"; reason: string | null; mode: string; b2c_lane?: "sales" | "nurture" | null;
   winner_partner_id: number | null; partner_name: string | null; candidates: Candidate[] | null; excluded: Decision["excluded"] | null;
   rules: Decision["rules"] | null; selection_probability: number | null; allocation: { reference: string; cpe_net_inr: number | null } | null;
+  scoring_mode?: ScoringMode | null; holdout?: boolean; seed?: number | null; policy_version?: number | null;
 };
 
 /** A stored decision in the shape DecisionView shows. Readiness and the exploration lane are not stored, so they are left out. */
@@ -127,6 +140,7 @@ export function fromStored(s: StoredDecisionCore): Decision {
     cpe: s.allocation?.cpe_net_inr ?? won?.cpe ?? null, has_rate: won?.has_rate ?? null, candidates, excluded: s.excluded ?? [], rules: s.rules ?? [],
     draw: null, exploration_share: 0, selection_probability: Number(s.selection_probability ?? 1), already_routed: true, committed: true,
     reference: s.allocation?.reference,
+    scoring_mode: s.scoring_mode ?? null, holdout: s.holdout ?? false, seed: s.seed ?? null, policy_version: s.policy_version ?? null,
   };
 }
 

@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { ProgrammeLabel } from "@/lib/programmes-data";
 import type { Candidate, Decision, Interest } from "@/lib/routing";
+import type { RoutingSegments, ScoringMode, SegmentDetail } from "@/lib/segments";
 
 /** Routing reads as the signed-in Admin; every b2b.routing_* / lead_routing function re-checks b2b.is_admin(). */
 
@@ -14,6 +15,8 @@ export type DecisionRow = {
 
 export type StoredDecision = DecisionRow & {
   interest: Interest; candidates: Candidate[]; excluded: Decision["excluded"]; rules: Decision["rules"]; seed: number | null; settings_version: number | null;
+  /** M24: how the partner was scored, whether the lead is in the AI holdout, and the policy version in force. */
+  scoring_mode?: ScoringMode | null; holdout?: boolean; policy_version?: number | null; stats_at?: string | null;
 };
 
 export type Rule = {
@@ -32,6 +35,9 @@ export type EngineSettings = {
   witty_idle_minutes?: number; require_partner_consent?: boolean; trusted_sources?: string[]; enabled?: boolean; kill_switch?: boolean;
   paid_rule?: { sources?: string[]; click_ids?: string[]; utm_mediums?: string[]; include_campaigns?: string[]; exclude_campaigns?: string[] };
   b2c_sources?: string[]; blocked_phones?: string[]; junk_capi_signal?: boolean;
+  /** Performance routing (B7.2, M24). */
+  maturity_days?: number; half_life_days?: number; prior_weight?: number; default_p_enroll?: number; min_matured_leads?: number;
+  speed_factor?: { enabled?: boolean }; reliability_factor?: { enabled?: boolean }; fixed_split?: Record<string, number>;
 };
 
 /** A passed lead that Witty later classified junk or mismatch, waiting for the Admin (Addendum 2). */
@@ -87,3 +93,12 @@ export const leadRouting = (id: number) => rpc<LeadRouting | null>("lead_routing
 
 export type NotPassedSummary = { by_reason: Record<string, number>; by_source: Record<string, number>; mismatch_courses: { course: string; n: number }[] };
 export const notPassedSummary = () => rpc<NotPassedSummary>("not_passed_summary");
+
+export const routingSegments = () => rpc<RoutingSegments>("routing_segments");
+export const routingSegment = (segment: string) => rpc<SegmentDetail>("routing_segment", { p_segment: segment });
+
+export type DecisionReplay =
+  | { replayable: false; why: string }
+  | { replayable: true; scoring_mode: ScoringMode; winner?: number | null; logged_winner: number | null; reproduced?: boolean; selection_probability?: number | null;
+      logged_probability?: number | null; wins?: Record<string, number>; draws?: number; holdout_draw?: number; holdout?: boolean; exploration_draw?: number; mode?: string };
+export const decisionReplay = (id: number) => rpc<DecisionReplay>("decision_replay", { p_decision_id: id });

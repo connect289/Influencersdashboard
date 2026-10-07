@@ -4,6 +4,8 @@ import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
 import { EngineSchema, HandoffSchema, handoffPayload, parseRuleForm, RateSchema, type Decision } from "@/lib/routing";
 import { createClient } from "@/lib/supabase/server";
+import type { DecisionReplay } from "@/lib/routing-data";
+import { PartnerWeightSchema, PerformanceSchema, PolicySchema, SegmentPolicySchema, segmentPolicyPayload } from "@/lib/segments";
 
 const Id = z.number().int().positive();
 
@@ -104,13 +106,18 @@ export async function saveEngineSettings(_prev: FormState, form: FormData): Prom
   const raw = Object.fromEntries(["exploration_share", "cpe_aggregate", "min_learning_leads", "attempt_limit", "partner_limit", "witty_idle_minutes",
     "require_partner_consent", "trusted_sources", "reason"].map((k) => [k, form.get(k) ?? undefined]));
   const p = EngineSchema.safeParse(raw);
-  if (!p.success) {
+  const perf = PerformanceSchema.safeParse(Object.fromEntries(["maturity_days", "half_life_days", "prior_weight", "default_p_enroll", "min_matured_leads",
+    "speed_factor", "reliability_factor", "kill_switch", "fixed_split"].map((k) => [k, form.get(k) ?? undefined])));
+  if (!p.success || !perf.success) {
     const errors: Record<string, string> = {};
-    for (const i of p.error.issues) errors[String(i.path[0])] ??= i.message;
+    for (const i of [...(p.error?.issues ?? []), ...(perf.error?.issues ?? [])]) errors[String(i.path[0])] ??= i.message;
     return { errors, error: "Check the highlighted fields." };
   }
+  if (perf.data.kill_switch && Object.keys(perf.data.fixed_split).length === 0) {
+    return { errors: { fixed_split: "Set the fixed split before turning the kill switch on" }, error: "Check the highlighted fields." };
+  }
   const { reason, ...settings } = p.data;
-  const { error } = await rpc("engine_settings_save", { p: settings, p_reason: reason });
+  const { error } = await rpc("engine_settings_save", { p: { ...settings, ...perf.data }, p_reason: reason });
   if (error) return { error: dbMessage(error, "Could not save the settings. Try again.") };
   refresh();
   return { ok: Date.now() };
@@ -177,4 +184,60 @@ export async function resolveFlag(id: number, resolution: "keep" | "close", note
   const { error } = await rpc("review_flag_resolve", { p_id: p.data.id, p_resolution: p.data.resolution, p_note: p.data.note });
   if (error) return dbMessage(error, "Could not resolve the flag. Try again.");
   refresh();
+}
+
+// ---------- performance routing (M24): segments, partner weights, policy ----------
+
+function fieldErrors(issues: { path: PropertyKey[]; message: string }[]) {
+  const errors: Record<string, string> = {};
+  for (const i of issues) errors[String(i.path[0])] ??= i.message;
+  return errors;
+}
+const formRaw = (form: FormData, keys: string[]) => Object.fromEntries(keys.map((k) => [k, form.get(k) ?? undefined]));
+
+export async function saveSegmentPolicy(_prev: FormState, form: FormData): Promise<FormState> {
+  await assertAdmin();
+  const p = SegmentPolicySchema.safeParse(formRaw(form, ["segment", "pin", "pin_until", "exploration_share", "share_cap", "killed", "reason"]));
+  if (!p.success) return { errors: fieldErrors(p.error.issues), error: "Check the highlighted fields." };
+  const { error } = await rpc("segment_policy_save", { p_segment: p.data.segment, p: segmentPolicyPayload(p.data), p_reason: p.data.reason });
+  if (error) return { error: dbMessage(error, "Could not save the segment. Try again.") };
+  refresh();
+  return { ok: Date.now() };
+}
+
+export async function savePartnerWeight(_prev: FormState, form: FormData): Promise<FormState> {
+  await assertAdmin();
+  const p = PartnerWeightSchema.safeParse(formRaw(form, ["partner_id", "weight", "days", "reason"]));
+  if (!p.success) return { errors: fieldErrors(p.error.issues), error: "Check the highlighted fields." };
+  const until = p.data.weight === null ? null : new Date(Date.now() + p.data.days * 86_400_000).toISOString();
+  const { error } = await rpc("partner_weight_save", { p_partner_id: p.data.partner_id, p_weight: p.data.weight, p_until: until, p_reason: p.data.reason });
+  if (error) return { error: dbMessage(error, "Could not save the weight. Try again.") };
+  refresh();
+  return { ok: Date.now() };
+}
+
+export async function saveEnginePolicy(_prev: FormState, form: FormData): Promise<FormState> {
+  await assertAdmin();
+  const p = PolicySchema.safeParse(formRaw(form, ["holdout_share", "mc_draws", "leading_weight", "leading_min_days", "reason"]));
+  if (!p.success) return { errors: fieldErrors(p.error.issues), error: "Check the highlighted fields." };
+  const { reason, ...policy } = p.data;
+  const { error } = await rpc("engine_policy_save", { p: policy, p_reason: reason });
+  if (error) return { error: dbMessage(error, "Could not save the policy. Try again.") };
+  refresh();
+  return { ok: Date.now() };
+}
+
+export async function refreshStats(): Promise<string | void> {
+  await assertAdmin();
+  const { error } = await rpc("stats_refresh_now", {});
+  if (error) return dbMessage(error, "Could not refresh the statistics. Try again.");
+  refresh();
+}
+
+export async function replayDecision(id: number): Promise<{ ok: true; replay: DecisionReplay } | { ok: false; error: string }> {
+  await assertAdmin();
+  if (!Id.safeParse(id).success) return { ok: false, error: "Invalid decision." };
+  const { data, error } = await rpc("decision_replay", { p_decision_id: id });
+  if (error) return { ok: false, error: dbMessage(error, "Could not replay the decision. Try again.") };
+  return { ok: true, replay: data as DecisionReplay };
 }
