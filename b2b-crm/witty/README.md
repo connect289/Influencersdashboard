@@ -41,7 +41,8 @@ Vikas, 7 Oct 2026: "Make required changes to Witty", "Push changes to Witty and 
   the intended lines; 15 rolled-back checks on 910000… test numbers passed (ownership for six cases, consent keys reaching
   `student_leads`, the `lead.interest` touchpoint only for B2C-held leads with an interest intent, the nurture filter, the
   extractor prompt v5). It works with the current workflow: the consent keys stay empty until the workflow sets them.
-- **Workflow half: not applied.** Patching the live nodes was refused by Claude Code's permission check. Apply the six node
+- **Workflow half: not applied.** Run `WITTY_CHANGES_PROMPT.md` in a Claude Code session on Vikas's machine (it has the
+  checks, the harness, publishing and rollback). Patching the live nodes was refused by Claude Code's permission check. Apply the six node
   changes below in the n8n editor (or allow the action), then run the harness and publish.
 
 ## Release steps
