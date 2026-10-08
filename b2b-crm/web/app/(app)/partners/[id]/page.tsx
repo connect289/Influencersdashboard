@@ -22,6 +22,7 @@ import { PartnerLogo } from "../PartnerLogo";
 import { ConnectionTab } from "./ConnectionTab";
 import { SyncTab } from "./SyncTab";
 import { PartnerControls } from "./PartnerControls";
+import { AgreementCard } from "./AgreementCard";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 const TABS = [
@@ -167,6 +168,7 @@ function Overview({ d }: { d: PartnerDetail }) {
   const p = d.partner;
   const c = p.lead_criteria ?? {};
   const checklistLink = (key: string) => {
+    if (key === "agreement") return { href: "#agreement", text: "Confirm the signed agreement below" };
     if (key === "programmes") return { href: `/programmes/${p.id}?tab=upload`, text: "Upload the programme file" };
     if (key === "credentials") return { href: "?tab=connection", text: "Set it up in Connection" };
     if (key === "dedupe") return isCrmAdapter(p.adapter_type)
@@ -202,6 +204,7 @@ function Overview({ d }: { d: PartnerDetail }) {
             </li>
           </ul>
         </Card>
+        <AgreementCard partnerId={p.id} confirmedAt={p.agreement_confirmed_at ?? null} confirmedBy={p.agreement_confirmed_by ?? null} note={p.agreement_note ?? null} />
         <RoutingFactors f={d.factors} />
         <Card>
           <CardHeader title="Elsewhere for this partner" />

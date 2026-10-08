@@ -65,6 +65,9 @@ export type Partner = {
   duplicate_window_hours: number;
   /** When the Admin confirmed that this CRM blocks duplicates on create (Connection tab); required before a CRM adapter is 'sync'. */
   dedupe_confirmed_at: string | null;
+  agreement_confirmed_at?: string | null;
+  agreement_confirmed_by?: string | null;
+  agreement_note?: string | null;
   push_options: PushOptions;
   notify_enabled: boolean;
   daily_cap: number | null;
@@ -212,7 +215,7 @@ export const SLA_FIELDS: SlaField[] = [
 export const slaMax = (f: SlaField): number => (f.rulebook === undefined ? f.max : Math.min(f.max, f.rulebook));
 
 export const CHECKLIST_LABEL: Record<string, { title: string; pending: string }> = {
-  agreement: { title: "Agreement and data-processing terms uploaded", pending: "Partner documents come with the next build" },
+  agreement: { title: "Signed agreement and data-processing terms confirmed", pending: "" },
   programmes: { title: "Programme file published in the Programme Repository", pending: "" },
   credentials: { title: "Endpoint, API credential and signing secret set", pending: "" },
   dedupe: { title: "Confirm whether the CRM blocks duplicates on create", pending: "" },
