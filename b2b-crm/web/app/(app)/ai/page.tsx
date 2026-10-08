@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BrainCircuit, CircleCheck, CircleDashed, FlaskConical, Inbox, Scale, Sparkles, TriangleAlert } from "lucide-react";
+import { BrainCircuit, CircleCheck, CircleDashed, FlaskConical, Inbox, Scale, SlidersHorizontal, Sparkles, TriangleAlert } from "lucide-react";
 import { Badge, Card, CardHeader, EmptyState, PageHeader } from "@/components/ui/Card";
+import { Notice } from "@/components/ui/Notice";
 import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
 import { aiOverview, askHistory, mlOverview } from "@/lib/ai/data";
 import {
-  describeChange, expiresText, reviewText, MODEL_STATUS_LABEL, rupees, REC_STATUS_LABEL, RUN_KIND_LABEL, setupSteps, simulationText, TRIGGER_LABEL,
-  type AiOverview, type MlModel, type MlOverview, type Recommendation,
+  ADMIN_LEVER_RANGES, AI_LEVER_RANGES, autopilotRuleText, changeLine, evidenceHref, expiresText, fromToText, LEVER_LABEL, leverRangeText, leverValueText,
+  MODEL_STATUS_LABEL, realisedText, REC_STATUS_LABEL, reviewText, RUN_KIND_LABEL, rupees, SETTING_LEVERS, setupSteps, signedRupees, simulationText, supportText,
+  TRIGGER_LABEL, type AiOverview, type MlModel, type MlOverview, type Recommendation,
 } from "@/lib/ai/labels";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { routingOverview } from "@/lib/routing-data";
@@ -30,14 +32,20 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 
 const usd = (v: number) => `$${v.toFixed(v < 1 ? 3 : 2)}`;
 const pct = (v: number | null | undefined, d = 1) => (v == null ? "—" : `${(v * 100).toFixed(d)}%`);
+const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
+/** The proposed value in the Admin's units (a percent only for the SLA floor; days; leads), for the edit field's "now …" (C100). */
 function currentValue(r: Recommendation): string {
-  const v = r.change?.value;
-  return typeof v === "number" && ["exploration_share", "partner_weight", "share_cap"].includes(r.change!.lever) ? `${Math.round(v * 1000) / 10}%` : String(v ?? "—");
+  return r.change ? leverValueText(r.change.lever, r.change.value) : "—";
 }
 
 function RecCard({ r, names }: { r: Recommendation; names: Record<string, string> }) {
   const open = r.status === "open";
+  const fromTo = fromToText(r);
+  const support = supportText(r.simulation);
+  const win = r.simulation?.window;
+  const realised = realisedText(r);
+  const review = reviewText(r.check_result);
   return (
     <li className="space-y-2.5 px-5 py-4">
       <div className="flex flex-wrap items-start gap-2">
@@ -52,19 +60,29 @@ function RecCard({ r, names }: { r: Recommendation; names: Record<string, string
         {!open && <Badge tone={r.status === "applied" ? "success" : r.status === "rolled_back" ? "warning" : "neutral"}>{REC_STATUS_LABEL[r.status]}</Badge>}
         {r.kind !== "setting_change" && <Badge tone={r.kind === "insight" ? "neutral" : "info"}>{r.kind === "insight" ? "Observation" : r.kind === "rule_draft" ? "Rule draft" : "Pause draft"}</Badge>}
       </div>
-      <p className="text-[13px] text-fg"><Scale className="mr-1 inline size-3.5 text-subtle" /><span className="font-medium">{describeChange(r.change, names)}</span></p>
+      {/* the value that went live (edited by the Admin when so), with the proposal in brackets (C42) */}
+      <p className="text-[13px] text-fg"><Scale className="mr-1 inline size-3.5 text-subtle" /><span className="font-medium">{changeLine(r, names)}</span></p>
+      {fromTo && <p className="text-[12.5px] text-muted">Setting {fromTo}</p>}
       <p className="whitespace-pre-line text-[13px] text-muted">{r.rationale}</p>
       {r.kind === "setting_change" && (
-        <p className={cn("rounded-lg border px-3 py-2 text-[12.5px]", r.simulation?.enough ? "border-info/25 bg-info-bg text-info" : "border-border bg-surface-2/60 text-muted")}>
-          <FlaskConical className="mr-1 inline size-3.5" /> Simulated on logged decisions: {simulationText(r.simulation)}
-        </p>
+        <div className={cn("space-y-0.5 rounded-lg border px-3 py-2 text-[12.5px]", r.simulation?.enough ? "border-info/25 bg-info-bg text-info" : "border-border bg-surface-2/60 text-muted")}>
+          <p><FlaskConical className="mr-1 inline size-3.5" /> Simulated on logged decisions: {simulationText(r.simulation)}</p>
+          {(support || win) && (
+            <p className="pl-5 text-[12px] opacity-90">
+              {support}{support && win && " · "}{win && <>decisions routed {day(win.from)} to {day(win.to)}</>}
+            </p>
+          )}
+        </div>
       )}
       {r.risk && <p className="text-[12.5px] text-warning"><TriangleAlert className="mr-1 inline size-3.5" /> {r.risk}</p>}
       {r.evidence.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5">
+        <ul className="flex flex-wrap gap-1.5" aria-label="Evidence">
           {r.evidence.slice(0, 8).map((e, i) => (
-            <li key={i} className="rounded-md border border-border bg-surface-2 px-2 py-0.5 text-[11.5px] text-muted">
-              {typeof e?.tool === "string" && <span className="text-subtle">{e.tool}: </span>}{typeof e?.metric === "string" ? e.metric : null} {e?.value !== undefined && e?.value !== null && <span className="text-fg">{typeof e.value === "object" ? "…" : String(e.value)}</span>}
+            <li key={i}>
+              <Link href={evidenceHref(r, e)} title="Open the run at this tool's output"
+                className="block rounded-md border border-border bg-surface-2 px-2 py-0.5 text-[11.5px] text-muted hover:border-ring hover:text-fg">
+                {typeof e?.tool === "string" && <span className="text-subtle">{e.tool}: </span>}{typeof e?.metric === "string" ? e.metric : null} {e?.value !== undefined && e?.value !== null && <span className="text-fg">{typeof e.value === "object" ? "…" : String(e.value)}</span>}
+              </Link>
             </li>
           ))}
         </ul>
@@ -72,9 +90,11 @@ function RecCard({ r, names }: { r: Recommendation; names: Record<string, string
       {open && <DecideButtons id={r.id} change={r.change} current={currentValue(r)} />}
       {!open && r.decided_by && (
         <p className="text-[12px] text-subtle">{REC_STATUS_LABEL[r.status]} by {r.decided_by} {r.decided_at && relativeTime(r.decided_at)}
-          {r.decision_note && <> · “{r.decision_note}”</>}{r.applied?.edited && " · value edited"}{r.applied?.version && <> · engine policy v{r.applied.version}</>}</p>
+          {r.decision_note && <> · “{r.decision_note}”</>}{r.applied?.edited && " · value edited"}{r.applied?.version && <> · engine policy v{r.applied.version}</>}
+          {r.check_result?.superseded_by && <> · superseded by #{r.check_result.superseded_by}</>}</p>
       )}
-      {reviewText(r.check_result) && <p className={cn("text-[12px]", r.check_result?.verdict === "worse" ? "text-danger" : "text-muted")}>{reviewText(r.check_result)}</p>}
+      {review && <p className={cn("text-[12px]", r.check_result?.verdict === "worse" ? "text-danger" : "text-muted")}>{review}</p>}
+      {realised && <p className="text-[12px] text-muted">{realised}</p>}
       {r.status === "applied" && r.kind === "setting_change" && <RollbackRecommendation id={r.id} />}
     </li>
   );
@@ -83,18 +103,22 @@ function RecCard({ r, names }: { r: Recommendation; names: Record<string, string
 function Inbox_({ o, names }: { o: AiOverview; names: Record<string, string> }) {
   const steps = setupSteps(o);
   const ready = steps.every((s) => s.done);
+  const autopilot = o.settings.mode === "autopilot";
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-6">
         <Card className="min-w-0">
-          <CardHeader title="Recommendations" description={`${o.settings.mode === "autopilot" ? "Autopilot: confident setting changes apply by themselves (see the change log); the rest wait here." : "Advisory: Claude proposes, you approve, edit or reject."} Every number was checked against the data it read; each change is simulated on logged decisions first.`} />
+          <CardHeader title="Recommendations"
+            description={`${autopilot
+              ? "Autopilot: a setting change applies by itself once its simulation clears the gain, interval and support bar (see Settings); drafts and everything else wait here."
+              : "Advisory: Claude proposes, you approve, edit or reject."} Every number was checked against the data it read; each change is replayed on logged decisions first, with the share of decisions the log can speak for (support).`} />
           <div className="border-b border-border px-5 pb-4"><RunNow enabled={o.settings.enabled} /></div>
           {o.open.length === 0
             ? <EmptyState icon={Inbox} title="Nothing waiting">{o.settings.enabled ? "New recommendations appear after the next run." : "Recommendations appear once the optimiser is set up and on."}</EmptyState>
             : <ul className="divide-y divide-border">{o.open.map((r) => <RecCard key={r.id} r={r} names={names} />)}</ul>}
         </Card>
-        <Card className="min-w-0">
-          <CardHeader title="Change log" description="Decided recommendations, with what was applied and one-click rollback." />
+        <Card id="change-log" className="min-w-0 scroll-mt-20">
+          <CardHeader title="Change log" description="Decided recommendations: what went live (before → after), the 7-day review against the holdout, the realised effect once the leads have matured, and one-click rollback." />
           {o.decided.length === 0
             ? <EmptyState icon={CircleDashed} title="No decisions yet">Approved, rejected and expired recommendations are kept here.</EmptyState>
             : <ul className="divide-y divide-border">{o.decided.map((r) => <RecCard key={r.id} r={r} names={names} />)}</ul>}
@@ -129,9 +153,10 @@ function Inbox_({ o, names }: { o: AiOverview; names: Record<string, string> }) 
 
 function UpliftCard({ u, holdout }: { u: AiOverview["uplift"]; holdout: number | null }) {
   const enough = u.steered.leads >= 30 && u.holdout.leads >= 30;
+  const ci = u.diff_ci95;
   return (
     <Card className="min-w-0">
-      <CardHeader title="AI-steered against holdout" description={`Realised net commission per lead after ${u.maturity_days} days. ${pct(holdout ?? 0.1, 0)} of leads are held out from every AI change.`} />
+      <CardHeader title="AI-steered against holdout" description={`Realised net commission per lead once leads are ${u.maturity_days} days old (matured, fixed by Addendum 3). ${pct(holdout ?? 0.1, 0)} of leads are held out from every AI change and decided on your settings alone: they are the only measure of the AI's value.`} />
       <div className="grid grid-cols-2 gap-2 px-5 pb-3">
         <div className="rounded-lg border border-border bg-surface-2/50 px-3 py-2"><p className="text-[11px] uppercase tracking-wider text-subtle">AI-steered</p>
           <p className="tabular text-xl font-semibold text-fg">{rupees(u.steered.ncpl)}</p><p className="text-[11.5px] text-subtle">{u.steered.leads} matured leads</p></div>
@@ -142,6 +167,7 @@ function UpliftCard({ u, holdout }: { u: AiOverview["uplift"]; holdout: number |
         {enough
           ? <>Uplift {u.uplift_pct != null ? `${u.uplift_pct >= 0 ? "+" : ""}${u.uplift_pct}%` : "—"} (z = {u.z}{Math.abs(u.z) >= 1.96 ? ", significant" : ", not yet significant"}).</>
           : "Not enough matured leads in both groups to compare yet (30 each). Until then the AI's value is unproven."}
+        {ci && <> 95% interval {signedRupees(ci[0])} to {signedRupees(ci[1])} per lead{ci[0] > 0 ? ": the AI-steered leads earn more." : ci[1] < 0 ? ": the holdout earns more." : ": the difference could go either way."}</>}
       </p>
     </Card>
   );
@@ -154,7 +180,7 @@ function Uplift({ u, holdout }: { u: AiOverview["uplift"]; holdout: number | nul
       <UpliftCard u={u} holdout={holdout} />
       <Card className="min-w-0">
         <CardHeader title="By month of allocation" description="Net commission per matured lead. Bars: AI-steered (filled) and holdout (outline)." />
-        {u.by_month.length === 0 ? <EmptyState icon={Scale} title="No matured leads yet">Months appear once leads are older than the maturity window.</EmptyState> : (
+        {u.by_month.length === 0 ? <EmptyState icon={Scale} title="No matured leads yet">Months appear once leads are older than the maturity window ({u.maturity_days} days).</EmptyState> : (
           <ul className="space-y-3 px-5 pb-5">
             {u.by_month.map((m) => (
               <li key={m.month} className="grid grid-cols-[80px_minmax(0,1fr)] items-center gap-3 text-[12px]">
@@ -175,7 +201,7 @@ function Uplift({ u, holdout }: { u: AiOverview["uplift"]; holdout: number | nul
 function Runs({ o }: { o: AiOverview }) {
   return (
     <Card className="min-w-0">
-      <CardHeader title="Runs" description="Every run is logged with its trigger, model, tools called, tokens and cost." />
+      <CardHeader title="Runs" description="Every run is logged with its trigger, model, tools called, tokens and cost. Open a run to read every tool output exactly as Claude received it." />
       <div className="border-b border-border px-5 pb-4"><RunNow enabled={o.settings.enabled} /></div>
       {o.runs.length === 0 ? <EmptyState icon={Sparkles} title="No runs yet">Runs appear once the optimiser is on.</EmptyState> : (
         <div className="overflow-x-auto">
@@ -254,7 +280,8 @@ function Models({ ml }: { ml: MlOverview }) {
             <dt className="text-muted">Rows (train / holdout)</dt><dd className="tabular text-right">{m.trained_on.train} / {m.trained_on.valid}</dd>
             <dt className="text-muted">Log loss: model / segment P̂</dt><dd className="tabular text-right">{m.metrics.holdout.log_loss} / {m.metrics.baseline?.log_loss}</dd>
             <dt className="text-muted">Calibration error: model / P̂</dt><dd className="tabular text-right">{m.metrics.holdout.ece} / {m.metrics.baseline?.ece}</dd>
-            <dt className="text-muted">Policy value (logged decisions)</dt><dd className="tabular text-right">{rupees(m.metrics.policy?.model_value)} vs {rupees(m.metrics.policy?.logged_value)} ({m.metrics.policy?.decisions ?? 0})</dd>
+            <dt className="text-muted">Policy value (logged Stage C decisions{m.metrics.policy?.estimator === "doubly_robust" ? ", doubly robust" : ""})</dt>
+            <dd className="tabular text-right">{rupees(m.metrics.policy?.model_value)} vs {rupees(m.metrics.policy?.logged_value)} ({m.metrics.policy?.decisions ?? 0}{m.metrics.policy?.support != null && `, support ${pct(m.metrics.policy.support, 0)}`})</dd>
             {m.metrics.monitor?.matured && <><dt className="text-muted">Live calibration error</dt><dd className="tabular text-right">{m.metrics.monitor.matured.ece} on {m.metrics.monitor.matured.n}</dd></>}
             {m.metrics.monitor && <MonitorRows mon={m.metrics.monitor} />}
             {m.champion_check && <><dt className="text-muted">Challenger vs rest (NCPL)</dt><dd className="tabular text-right">{rupees(m.champion_check.model_ncpl)} vs {rupees(m.champion_check.other_ncpl)} · z {m.champion_check.z}</dd></>}
@@ -262,7 +289,7 @@ function Models({ ml }: { ml: MlOverview }) {
         </div>
       )}
       {m.status !== "failed" && m.trained_at && (
-        <ul className="flex flex-wrap gap-1.5 text-[11.5px]">
+        <ul className="flex flex-wrap gap-1.5 text-[11.5px]" aria-label="Activation gate">
           {([["Matured outcomes", m.gate.outcomes_ok, `${m.gate.outcomes}/${m.gate.min_outcomes}`], ["2+ partners", m.gate.partners_ok, String(m.gate.partners)],
              ["Beats segment P̂", m.gate.beats_baseline, ""], ["Offline policy value", m.gate.policy_value_ok, ""]] as const).map(([label, ok, v]) => (
             <li key={label} className={cn("rounded-md border px-2 py-0.5", ok ? "border-success/30 text-success" : "border-border text-muted")}>{ok ? "✓" : "✗"} {label}{v && ` ${v}`}</li>
@@ -275,8 +302,16 @@ function Models({ ml }: { ml: MlOverview }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
       <Card className="min-w-0">
-        <CardHeader title="Per-lead model" description="Predicts each partner's chance of enrolling this student. Shadow scores only; a challenger decides its share of performance-mode leads; the champion decides the rest. Holdout leads never use it." action={<ModelActions />} />
-        {active.length === 0 ? <EmptyState icon={BrainCircuit} title="No model in use">Segment P̂ decides performance mode. A model trains nightly once enough leads have matured, or press Train now.</EmptyState>
+        <CardHeader title="Per-lead model" description="Predicts each partner's chance of enrolling this student: the P(enrol) of Stage C. A shadow only scores; a challenger decides its share of Stage C leads; the champion decides the rest. Stage A and B never use it, and holdout leads never do." action={<ModelActions />} />
+        {/* D29: every pre-Addendum 3 model was retired at the cutover; the next one trains on A3 decisions and starts in shadow */}
+        <div className="px-5 pt-4">
+          <Notice tone="info">
+            Addendum 3 (7 Oct 2026) changed the lead features and Stage C scoring, so every model trained before it was retired and none decides now:
+            segment P̂ (matured conversion, recency-weighted and shrunk to the prior) does. The next model trains on Addendum 3 decisions, nightly once
+            enough leads have matured or on Train now, and starts in shadow: it scores but never decides until it passes the gate and you promote it.
+          </Notice>
+        </div>
+        {active.length === 0 ? <EmptyState icon={BrainCircuit} title="No model in use">Segment P̂ decides Stage C. A model trains nightly once {ml.settings.min_outcomes} leads have matured, or press Train now.</EmptyState>
           : <ul className="divide-y divide-border">{active.map((m) => <ModelCard key={m.id} m={m} />)}</ul>}
         {rest.length > 0 && (
           <details className="border-t border-border">
@@ -286,7 +321,7 @@ function Models({ ml }: { ml: MlOverview }) {
         )}
       </Card>
       <Card className="min-w-0">
-        <CardHeader title="Training data" description={`Outcomes count once leads are ${ml.maturity_days} days old.`} />
+        <CardHeader title="Training data" description={`Outcomes count once leads are ${ml.maturity_days} days old (matured, fixed by Addendum 3).`} />
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-5 pb-4 text-[12.5px]">
           <dt className="text-muted">Matured leads</dt><dd className="tabular text-right">{ml.data.matured} / {ml.settings.min_outcomes} needed</dd>
           <dt className="text-muted">of which enrolled</dt><dd className="tabular text-right">{ml.data.matured_enrolled}</dd>
@@ -296,12 +331,49 @@ function Models({ ml }: { ml: MlOverview }) {
         <div className="border-t border-border px-5 py-4"><MlSettingsForm key={ml.settings_version} s={ml.settings} version={ml.settings_version} /></div>
         {Object.keys(ml.decided_30d).length > 0 && (
           <div className="border-t border-border px-5 py-3 text-[12.5px]">
-            <p className="mb-1 text-[11px] uppercase tracking-wider text-subtle">Performance decisions, 30 days</p>
+            <p className="mb-1 text-[11px] uppercase tracking-wider text-subtle">Stage B and C decisions, 30 days</p>
+            <p className="mb-1.5 text-[11.5px] text-subtle">By the model logged on the decision; “segment P̂” means no model was in use.</p>
             {Object.entries(ml.decided_30d).map(([k, n]) => <p key={k} className="flex justify-between"><span className="text-muted">{k}</span><span className="tabular">{n}</span></p>)}
           </div>
         )}
       </Card>
     </div>
+  );
+}
+
+/** The five levers and how far each side may move them (C113): the AI inside the Admin's current setting, the Admin inside Addendum 3's fixed ranges. */
+function LeverRanges() {
+  return (
+    <Card className="min-w-0">
+      <CardHeader title="What the AI may change" description="Five levers of the routing engine, all stored as versioned settings. Everything else (stages, the 60-day maturity, the 0.2 exploration lane, limits, rules, consent, rates, switches) is out of reach." />
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] text-left text-[12.5px]">
+          <thead className="text-[11px] uppercase tracking-wider text-subtle">
+            <tr className="border-b border-border">
+              <th scope="col" className="px-5 py-2 font-medium">Lever</th>
+              <th scope="col" className="px-3 py-2 font-medium">The AI may propose</th>
+              <th scope="col" className="px-5 py-2 font-medium">You may set</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {SETTING_LEVERS.map((l) => (
+              <tr key={l} className="align-top">
+                <th scope="row" className="px-5 py-2 font-medium text-fg">{LEVER_LABEL[l]}</th>
+                <td className="px-3 py-2 text-muted">{leverRangeText(l, AI_LEVER_RANGES)}</td>
+                <td className="px-5 py-2 text-muted">{leverRangeText(l, ADMIN_LEVER_RANGES)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="space-y-1.5 border-t border-border px-5 py-3 text-[12px] text-muted">
+        <p>At run time the AI is held inside your current setting as well: effort bounds between your low bound and 1 and between 1 and your high bound, the SLA floor between your floor and ceiling. The widest Admin ranges are fixed by Addendum 3.</p>
+        <p>
+          Your own levers live in <Link href="/routing?tab=settings" className="text-info hover:underline">Routing → Engine settings</Link>; to try a change before saving it, use the{" "}
+          <Link href="/routing?tab=simulate" className="text-info hover:underline">What-if simulator</Link> (the same replay the AI uses, with your ranges).
+        </p>
+      </div>
+    </Card>
   );
 }
 
@@ -334,10 +406,11 @@ export default async function AiPage({ searchParams }: Props) {
   const tab: Tab = TABS.find((t) => t.id === sp.tab)?.id ?? "inbox";
   const [o, ml, ro] = await Promise.all([aiOverview(), tab === "models" ? mlOverview() : Promise.resolve(null), routingOverview()]);
   const names = Object.fromEntries(ro.partners.map((p) => [String(p.id), p.name]));
+  const ap = o.settings.autopilot;
   return (
     <>
       <PageHeader title="AI Optimiser"
-        description="Claude watches outcomes, partner effort and money, and recommends bounded changes to the routing engine. It reads only aggregated, pseudonymised data, never touches rules, consent, rates or switches, and changes nothing without your approval." />
+        description="Claude watches outcomes, partner effort and money, and recommends changes to five bounded levers of the routing engine: the sales-effort weights and bounds, the SLA floor, and the recency half-life and prior of P(enrol). It reads only aggregated, pseudonymised data, never touches rules, consent, rates, switches or the numbers Addendum 3 fixed, and changes nothing without your approval." />
       <nav aria-label="AI sections" className="mb-6 flex gap-5 overflow-x-auto border-b border-border">
         {TABS.map((t) => (
           <Link key={t.id} href={`/ai?tab=${t.id}`} aria-current={tab === t.id ? "page" : undefined}
@@ -356,13 +429,27 @@ export default async function AiPage({ searchParams }: Props) {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <Card className="min-w-0"><CardHeader title="AI settings" description="Every change is versioned with your reason." />
             <div className="px-5 pb-5"><AiSettingsForm key={o.settings_version} s={o.settings} version={o.settings_version} gate={o.autopilot_gate} /></div></Card>
-          <Card className="min-w-0"><CardHeader title="Worker" description="The server-side worker that talks to Claude." />
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-5 pb-4 text-[12.5px]">
-              <dt className="text-muted">Last seen</dt><dd className="text-right">{o.worker?.seen_at ? relativeTime(o.worker.seen_at) : "never"}</dd>
-              <dt className="text-muted">Anthropic key on the server</dt><dd className="text-right">{o.worker?.has_anthropic_key ? "yes" : "not seen"}</dd>
-              <dt className="text-muted">Worker API key</dt><dd className="text-right">{o.worker_key ? "created" : <Link href="/system?tab=integrations" className="text-info hover:underline">create one</Link>}</dd>
-              <dt className="text-muted">Mode</dt><dd className="text-right">{o.settings.mode === "autopilot" ? `Autopilot (≥${o.settings.autopilot?.min_gain_pct ?? 3}%, ≤${o.settings.autopilot?.max_per_day ?? 3}/day)` : "Advisory"}</dd>
-            </dl></Card>
+          <div className="min-w-0 space-y-6">
+            <Card className="min-w-0">
+              <CardHeader title="Autopilot's bar" description="What a setting change must show before Autopilot applies it without you. The support share is fixed by Addendum 3 and cannot be lowered here." />
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-5 pb-3 text-[12.5px]">
+                <dt className="text-muted">Simulated gain</dt><dd className="tabular text-right">≥ {ap?.min_gain_pct ?? 3}%</dd>
+                <dt className="text-muted">Matured decisions replayed</dt><dd className="tabular text-right">≥ {ap?.min_decisions ?? 30}</dd>
+                <dt className="text-muted">95% interval</dt><dd className="text-right">above zero</dd>
+                <dt className="text-muted">Support (decisions the log can speak for)</dt><dd className="tabular text-right">≥ {pct(ap?.min_support ?? 0.5, 0)}</dd>
+                <dt className="text-muted">Changes a day</dt><dd className="tabular text-right">≤ {ap?.max_per_day ?? 3}</dd>
+              </dl>
+              <p className="border-t border-border px-5 py-3 text-[12px] text-muted"><SlidersHorizontal className="mr-1 inline size-3.5 text-subtle" /> {autopilotRuleText(ap)}</p>
+            </Card>
+            <LeverRanges />
+            <Card className="min-w-0"><CardHeader title="Worker" description="The server-side worker that talks to Claude." />
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-5 pb-4 text-[12.5px]">
+                <dt className="text-muted">Last seen</dt><dd className="text-right">{o.worker?.seen_at ? relativeTime(o.worker.seen_at) : "never"}</dd>
+                <dt className="text-muted">Anthropic key on the server</dt><dd className="text-right">{o.worker?.has_anthropic_key ? "yes" : "not seen"}</dd>
+                <dt className="text-muted">Worker API key</dt><dd className="text-right">{o.worker_key ? "created" : <Link href="/system?tab=integrations" className="text-info hover:underline">create one</Link>}</dd>
+                <dt className="text-muted">Mode</dt><dd className="text-right">{o.settings.mode === "autopilot" ? `Autopilot (≥${ap?.min_gain_pct ?? 3}%, support ≥${pct(ap?.min_support ?? 0.5, 0)}, ≤${ap?.max_per_day ?? 3}/day)` : "Advisory"}</dd>
+              </dl></Card>
+          </div>
         </div>
       )}
     </>

@@ -9,8 +9,8 @@ import { useFormAction } from "@/components/ui/useFormAction";
 import { periodBounds } from "@/lib/ai/ask";
 import { drillHref, PERIOD_LABEL, type Period } from "@/lib/analytics";
 import {
-  AI_MODEL_ROLES, editable, PRICE_PARTS, rupees, RUN_KIND_LABEL, RUN_NOW_KINDS,
-  type AiModelRole, type AiOverview, type AiSettings, type Change, type MlModel, type MlOverview, type RunNowKind,
+  AI_LEVER_RANGES, AI_MODEL_ROLES, autopilotRuleText, editable, leverRangeText, PRICE_PARTS, rupees, RUN_KIND_LABEL, RUN_NOW_KINDS,
+  type AiModelRole, type AiOverview, type AiSettings, type Change, type Lever, type MlModel, type MlOverview, type RunNowKind, type SettingLever,
 } from "@/lib/ai/labels";
 import {
   askCrm, type AskAnswer, decideRecommendation, rollbackModel, rollbackRecommendation, runNow, saveAiSettings, saveMlSettings, setModelStatus, trainModel, type FormState,
@@ -18,11 +18,16 @@ import {
 
 const field = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 aria-[invalid=true]:border-danger";
 
+/** The inbox edit field's placeholder per editable lever, in the units the Admin types (C100: the SLA floor as a percent). */
+const EDIT_PLACEHOLDER: Partial<Record<Lever, string>> = { sla_floor: "e.g. 85 (%)", half_life_days: "e.g. 30", prior_weight: "e.g. 20" };
+
 /** Approve (optionally with an edited value), reject with a reason. */
 export function DecideButtons({ id, change, current }: { id: number; change: Change | null; current: string }) {
   const [dialog, setDialog] = useState<"approve" | "reject" | null>(null);
   const [typed, setTyped] = useState("");
+  // only the one-number levers (SLA floor, half-life, prior) can be edited here; weights, bounds and drafts are approved or rejected as proposed
   const canEdit = editable(change);
+  const lever = change?.lever;
   return (
     <div className="flex flex-wrap gap-2">
       <Button size="sm" onClick={() => { setTyped(""); setDialog("approve"); }}><Check className="size-3.5" /> Approve{canEdit ? " or edit" : ""}</Button>
@@ -34,12 +39,16 @@ export function DecideButtons({ id, change, current }: { id: number; change: Cha
           if (!err) toast.success("Applied. The change log keeps the previous value for rollback.");
           return err;
         }}>
-        <p className="text-[13px] text-muted">It is applied now and versioned with this recommendation and your name. Holdout leads never use it.</p>
-        {canEdit && (
+        <p className="text-[13px] text-muted">It is applied now and versioned with this recommendation and your name. Holdout leads never use it; the 7-day review compares against them.</p>
+        {canEdit && lever && (
           <label className="mt-3 block space-y-1">
-            <span className="text-[12px] text-muted">Edit the value (optional; now {current})</span>
-            <input value={typed} onChange={(e) => setTyped(e.target.value)} inputMode="decimal" placeholder={change?.lever === "maturity_days" || change?.lever === "half_life_days" || change?.lever === "prior_weight" ? "e.g. 45" : "e.g. 15 (%)"} className={field} />
+            <span className="text-[12px] text-muted">Edit the value (optional; proposed {current})</span>
+            <input value={typed} onChange={(e) => setTyped(e.target.value)} inputMode="decimal" placeholder={EDIT_PLACEHOLDER[lever]} className={field} aria-describedby={`edit-hint-${id}`} />
+            <span id={`edit-hint-${id}`} className="block text-[11.5px] text-subtle">Inside the AI&apos;s range: {leverRangeText(lever as SettingLever, AI_LEVER_RANGES)}.</span>
           </label>
+        )}
+        {!canEdit && change && change.lever !== "rule_draft" && change.lever !== "pause_draft" && (
+          <p className="mt-2 text-[12px] text-subtle">Weights and bounds are approved or rejected as proposed; to set your own, use Routing → Engine settings.</p>
         )}
       </ConfirmDialog>
       <ConfirmDialog open={dialog === "reject"} onClose={() => setDialog(null)} title="Reject this recommendation" confirmLabel="Reject" tone="danger"
@@ -121,11 +130,15 @@ export function AiSettingsForm({ s, version, gate }: { s: AiSettings; version: n
         <label className="flex items-start gap-2"><input type="radio" name="mode" value="advisory" defaultChecked={s.mode !== "autopilot"} className="mt-0.5 accent-[var(--primary)]" />
           <span><span className="font-medium text-fg">Advisory</span><span className="block text-[12px] text-muted">Every change waits for your approval.</span></span></label>
         <label className={`flex items-start gap-2${locked ? " opacity-70" : ""}`}><input type="radio" name="mode" value="autopilot" defaultChecked={s.mode === "autopilot"} disabled={locked} className="mt-0.5 accent-[var(--primary)]" />
-          <span><span className="font-medium text-fg">Autopilot (bounded)</span><span className="block text-[12px] text-muted">A setting change inside the bounds applies by itself when its simulation is confident; drafts and everything else still wait for you. Each one is reviewed after 7 days against the holdout and rolled back automatically if it did worse.</span>
+          <span><span className="font-medium text-fg">Autopilot (bounded)</span><span className="block text-[12px] text-muted">{autopilotRuleText(s.autopilot)} Each applied change is reviewed after 7 days against the holdout and rolled back automatically if it did worse.</span>
             {locked && gate && <span className="mt-1 block text-[12px] text-muted">Locked until AI-steered leads beat the holdout over 4 weeks of matured leads (now {gate.steered.leads} steered at {rupees(gate.steered.ncpl)} vs {gate.holdout.leads} holdout at {rupees(gate.holdout.ncpl)}).</span>}</span></label>
-        <div className="grid gap-3 pl-6 sm:grid-cols-2">
-          <L label="Minimum simulated gain (%)" error={e.min_gain_pct}><input name="min_gain_pct" inputMode="decimal" defaultValue={s.autopilot?.min_gain_pct ?? 3} className={field} /></L>
-          <L label="At most per day" error={e.max_per_day}><input name="max_per_day" inputMode="numeric" defaultValue={s.autopilot?.max_per_day ?? 3} className={field} /></L>
+        <div className="grid gap-3 pl-6 sm:grid-cols-3">
+          <L label="Minimum simulated gain (%)" error={e.min_gain_pct} hint="1 to 50"><input name="min_gain_pct" inputMode="decimal" defaultValue={s.autopilot?.min_gain_pct ?? 3} className={field} aria-invalid={Boolean(e.min_gain_pct)} /></L>
+          <L label="At most per day" error={e.max_per_day} hint="1 to 10"><input name="max_per_day" inputMode="numeric" defaultValue={s.autopilot?.max_per_day ?? 3} className={field} aria-invalid={Boolean(e.max_per_day)} /></L>
+          {/* ai.autopilot.min_support is seeded by Addendum 3 (0.5) and kept by the database: shown, never sent */}
+          <L label="Support needed (%)" hint="Fixed by Addendum 3: the share of replayed decisions the log can speak for.">
+            <input value={Math.round((s.autopilot?.min_support ?? 0.5) * 100)} readOnly aria-readonly="true" tabIndex={-1} className={`${field} bg-surface-2 text-muted`} />
+          </L>
         </div>
       </fieldset>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -187,11 +200,11 @@ export function ModelActions({ m }: { m?: MlModel }) {
   const open = (d: NonNullable<typeof dialog>) => setDialog(d);
   return (
     <div className="flex flex-wrap gap-2">
-      {!m && <Button size="sm" variant="secondary" onClick={() => open({ title: "Train a new model", label: "Queue training", body: "It trains inside the database within 10 minutes and starts in shadow (scores, never decides).", run: trainModel })}>Train now</Button>}
+      {!m && <Button size="sm" variant="secondary" onClick={() => open({ title: "Train a new model", label: "Queue training", body: "It trains inside the database within 10 minutes on Addendum 3 decisions and starts in shadow (scores, never decides).", run: trainModel })}>Train now</Button>}
       {m?.status === "shadow" && <Button size="sm" disabled={!m.gate.passed} title={m.gate.passed ? undefined : "The activation gate has not passed"}
-        onClick={() => open({ title: `Make ${m.version} the challenger`, label: "Promote", body: "It will decide its share of performance-mode leads (holdout leads never).", run: (r) => setModelStatus(m.id, "challenger", r) })}>Make challenger</Button>}
+        onClick={() => open({ title: `Make ${m.version} the challenger`, label: "Promote", body: "It will supply P(enrol) for its share of Stage C leads (holdout leads never).", run: (r) => setModelStatus(m.id, "challenger", r) })}>Make challenger</Button>}
       {m?.status === "challenger" && <Button size="sm" disabled={!m.champion_check?.ready} title={m.champion_check?.ready ? undefined : "Not yet better with confidence"}
-        onClick={() => open({ title: `Make ${m.version} the champion`, label: "Promote", body: "It will decide every performance-mode lead outside the holdout.", run: (r) => setModelStatus(m.id, "champion", r) })}>Make champion</Button>}
+        onClick={() => open({ title: `Make ${m.version} the champion`, label: "Promote", body: "It will supply P(enrol) for every Stage C lead outside the holdout.", run: (r) => setModelStatus(m.id, "champion", r) })}>Make champion</Button>}
       {m?.status === "challenger" && <Button size="sm" variant="secondary" onClick={() => open({ title: `Send ${m.version} back to shadow`, label: "Back to shadow", body: "It stops deciding and only scores.", run: (r) => setModelStatus(m.id, "shadow", r) })}>Back to shadow</Button>}
       {m?.status === "champion" && <Button size="sm" variant="secondary" onClick={() => open({ title: "Roll back the champion", label: "Roll back", tone: "danger", body: "The champion is retired and the champion it replaced, if any, comes back. Without one, the engine uses segment P̂.", run: rollbackModel })}><RotateCcw className="size-3.5" /> Roll back</Button>}
       {m && ["shadow", "challenger"].includes(m.status) && <Button size="sm" variant="secondary" onClick={() => open({ title: `Retire ${m.version}`, label: "Retire", tone: "danger", body: "It stops scoring and deciding.", run: (r) => setModelStatus(m.id, "retired", r) })}>Retire</Button>}
@@ -217,7 +230,7 @@ export function MlSettingsForm({ s, version }: { s: MlOverview["settings"]; vers
         <L label="Matured outcomes to train" error={e.min_outcomes} hint="100 to 100000">
           <input name="min_outcomes" inputMode="numeric" defaultValue={s.min_outcomes} className={field} aria-invalid={Boolean(e.min_outcomes)} />
         </L>
-        <L label="Challenger share (%)" error={e.challenger_pct} hint="Of performance-mode leads, 1 to 50">
+        <L label="Challenger share (%)" error={e.challenger_pct} hint="Of Stage C leads outside the holdout, 1 to 50">
           <input name="challenger_pct" inputMode="decimal" defaultValue={Math.round(s.challenger_share * 1000) / 10} className={field} aria-invalid={Boolean(e.challenger_pct)} />
         </L>
         <L label="Fall back above calibration error" error={e.ece_fallback} hint="0.01 to 0.30">

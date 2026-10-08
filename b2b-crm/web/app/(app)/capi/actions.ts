@@ -2,7 +2,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
-import { STAGES, type LeadCheck } from "@/lib/capi";
+import { STAGES, type AttributionForm, type LeadCheck } from "@/lib/capi";
+import { AttributionSchema, attributionPayload } from "@/lib/routing";
 import { createClient } from "@/lib/supabase/server";
 
 const Id = z.number().int().positive();
@@ -48,6 +49,20 @@ export async function saveCapiSettings(f: SettingsForm): Promise<string | void> 
   const { error } = await rpc("capi_settings_save", { p: { ...d, google } });
   if (error) return dbMessage(error, "Could not save. Try again.");
   refresh();
+}
+
+/** What counts as a paid lead (D38): influencer or referral markers, campaigns never paid, Meta ad parameters. Saved as a
+ *  new version of the 'attribution' setting with a reason through b2b.attribution_settings_save(p, p_reason); its 22023
+ *  messages ('<list>: at most 50 entries', 'nothing to save', …) are shown as they are. */
+export async function saveAttributionSettings(f: AttributionForm): Promise<{ ok: true; version: number | null } | { ok: false; error: string }> {
+  await assertAdmin();
+  const p = AttributionSchema.safeParse(f);
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? "Check the highlighted fields." };
+  const { data, error } = await rpc("attribution_settings_save", { p: attributionPayload(p.data), p_reason: p.data.reason });
+  if (error) return { ok: false, error: dbMessage(error, "Could not save the attribution settings. Try again.") };
+  refresh();
+  const version = (data as { version?: number | null } | null)?.version;
+  return { ok: true, version: typeof version === "number" ? version : null };
 }
 
 export async function setCapiLive(platform: "meta" | "google", live: boolean, reason: string): Promise<string | void> {

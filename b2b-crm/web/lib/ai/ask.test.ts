@@ -268,6 +268,23 @@ describe("ask: caching and the last turn (C101, F4/F7)", () => {
     const s = script([use("1", "query_metric", { metric: "leads" }), use("2", "query_metric", { metric: "leads" })]);
     const r = await ask("Leads?", "claude-sonnet-5-5", db, s.fn, 2);
     expect(r).toMatchObject({ answer: null, sources: [], error: "no answer within the turn limit" });
+    // the second (last) turn carried the note, never a forced tool_choice (C3)
+    expect(s.bodies).toHaveLength(2);
+    expect(JSON.stringify(s.bodies[1]!.messages)).toContain("This is your last turn");
+    for (const b of s.bodies) expect(b).not.toHaveProperty("tool_choice");
+  });
+
+  it("keeps a submit_answer that arrives together with a query, and runs no later tool", async () => {
+    const { db, query } = fakeDb();
+    const s = script([{ stop_reason: "tool_use", content: [
+      { type: "tool_use", id: "1", name: "query_metric", input: { metric: "leads", period: "7d" } },
+      { type: "tool_use", id: "2", name: "submit_answer", input: { answer: "42 leads in the last 7 days." } },
+    ] }]);
+    const r = await ask("Leads?", "claude-sonnet-5-5", db, s.fn, 3);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(r.answer).toBe("42 leads in the last 7 days.");
+    expect(r.validation.ok).toBe(true);
+    expect(r.sources).toEqual([{ metric: "leads", dims: [], filters: {}, period: "7d" }]);
   });
 });
 

@@ -96,16 +96,21 @@ export const CONSUMER_LABEL: Record<Consumer, string> = {
   other: "Other",
 };
 
-/** Event types an endpoint can subscribe to (b2b.webhook_endpoint_save keeps the same allow-list). */
+/** Event types an endpoint can subscribe to (b2b.webhook_endpoint_save, m31b, keeps the same allow-list). Contract version 3
+ *  (Addendum 3) added b2c.lead_requalified, b2c.lead_reengaged, b2c.consent_requested and b2c.consent_closed. */
 export const PUBLISHED_EVENTS = [
-  { type: "b2c.lead_handed_off", label: "A lead is handed to B2C (sales or nurture lane)" },
-  { type: "b2c.lead_reenquired", label: "A B2C lead enquires again" },
+  { type: "b2c.lead_handed_off", label: "A lead is handed to B2C (sales or nurture lane, with reason and handling)" },
+  { type: "b2c.lead_reenquired", label: "A lead B2C holds enquires again" },
+  { type: "b2c.lead_requalified", label: "A B2C nurture lead qualified and went back through routing" },
+  { type: "b2c.lead_reengaged", label: "A B2C nurture lead re-engaged but is still unqualified" },
+  { type: "b2c.consent_requested", label: "B2C must send the student the partner-sharing consent request" },
+  { type: "b2c.consent_closed", label: "A partner-sharing consent request was answered, expired or cancelled" },
   { type: "b2c.lead_flagged", label: "A B2C lead is flagged (e.g. partner lost it)" },
   { type: "b2c.lead_close_agreed", label: "A partner agreed to close a lead B2C now holds" },
-  { type: "b2c.lead_upserted", label: "A lead B2C holds changed: its full record (real-time sync)" },
-  { type: "b2c.lead_released", label: "A lead left B2C (routed to a partner, deleted or merged)" },
+  { type: "b2c.lead_upserted", label: "A lead in B2C's scope changed: its full record (real-time sync)" },
+  { type: "b2c.lead_released", label: "A lead left B2C's scope (routed to a partner, deleted, merged or Not passed)" },
   { type: "b2c.leads_batch", label: "Production cadence: changed leads in one batch every sync interval" },
-  { type: "b2b.lead_routed_to_partner", label: "A lead B2C sent to partners was accepted by one" },
+  { type: "b2b.lead_routed_to_partner", label: "A lead B2C sent to partners (or a requalified lead) was accepted by one" },
   { type: "lead.allocated", label: "Any lead is allocated (partner or B2C)" },
   { type: "lead.accepted", label: "A partner accepted a lead" },
   { type: "lead.status_changed", label: "A partner moved a lead to a new stage" },
@@ -114,8 +119,26 @@ export const PUBLISHED_EVENTS = [
 export const WILDCARDS = ["b2c.*", "b2b.*", "lead.*", "*"] as const;
 const KNOWN_EVENTS: readonly string[] = [...PUBLISHED_EVENTS.map((e) => e.type), ...WILDCARDS];
 
+/** Signed events the B2C CRM sends us (POST /v1/events/b2ccrm; b2b.b2ccrm_event_ingest). The two consent types are version 3. */
+export const B2C_INBOUND_EVENTS = [
+  { type: "b2ccrm.consent_request_sent", label: "The B2C CRM sent the consent request (request_id, sent_at, message_id)" },
+  { type: "b2ccrm.partner_consent", label: "The student's answer to the partner-sharing request (a YES carries the WhatsApp message id)" },
+  { type: "b2ccrm.opted_out", label: "The student opted out" },
+  { type: "b2ccrm.erasure_requested", label: "The student asked for erasure" },
+  { type: "b2ccrm.lead_assigned", label: "Counsellor assigned (timeline only)" },
+  { type: "b2ccrm.stage_changed", label: "Stage changed (timeline only)" },
+  { type: "b2ccrm.enrolled", label: "Enrolled (timeline only)" },
+] as const;
+
 /** What the B2C CRM needs: everything addressed to it. */
 export const B2C_DEFAULT_EVENTS = ["b2c.*", "b2b.*"];
+/** The routing go-live gate (b2b.routing_golive_check item b2c_endpoint_subscribed): an active B2C CRM endpoint must subscribe to both. */
+export const B2C_REQUIRED_EVENTS = ["b2c.lead_handed_off", "b2c.consent_requested"] as const;
+
+/** Whether a subscription list covers an event type, as b2b.event_subscribed does: the type itself, its family wildcard ("b2c.*") or "*". */
+export function eventSubscribed(events: readonly string[], type: string): boolean {
+  return events.some((s) => s === "*" || s === type || (s.endsWith(".*") && type.startsWith(s.slice(0, -1))));
+}
 
 export const DELIVERY_LABEL: Record<DeliveryStatus, string> = {
   pending: "Waiting", sending: "Sending", delivered: "Delivered", failed: "Retrying", dead: "Gave up",
@@ -133,6 +156,11 @@ export const JOB_LABEL: Record<string, string> = {
   "b2b-notify-tick": "Student notifications",
   "b2b-outbox-tick": "Webhook deliveries",
   "b2b-b2c-sync-tick": "B2C CRM real-time sync",
+  "b2b-consent-tick": "Partner-sharing consent requests",
+  "b2b-requalify-tick": "Requalify nurture leads",
+  "b2b-reenquiry-tick": "Re-enquiries of held leads",
+  "b2b-reenquiry-catchup": "Re-enquiry catch-up",
+  "b2b-lost-grace-tick": "Lost leads: end of the 7-day grace",
 };
 
 export const ApiKeySchema = z.object({

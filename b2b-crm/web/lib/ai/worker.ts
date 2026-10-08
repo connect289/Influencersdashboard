@@ -171,7 +171,8 @@ export async function runOnce(
     }
     if (!report) throw new Error("no report within the turn limit");
 
-    // Claude's proposed values (and a rule's ids and priority) are proposals, not data claims;
+    // Claude's proposed values (and a rule's ids and priority) are proposals, not data claims; the lever bounds and the
+    // Addendum 3 stage numbers it was told in the prompt (PROMPT_FACTS, C100) are allowed facts;
     // its free text (a pause reason, a rule name) and its evidence values are claims and are checked
     const proposed = report.recommendations.flatMap((r) => {
       const c = r.change;

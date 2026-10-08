@@ -3,7 +3,7 @@ import { ArrowDownRight, ArrowUpRight, Clock, TriangleAlert } from "lucide-react
 import { Badge } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import {
-  delta, DIM_LABEL, dimLabel, drillHref, formatValue, pivot, rowFilters, sankeyLayout, STATE_TILES, TIME_DIMS,
+  DATE_BASIS_HINT, DATE_BASIS_LABEL, delta, DIM_LABEL, dimLabel, drillHref, formatValue, pivot, rowFilters, sankeyLayout, STATE_TILES, TIME_DIMS,
   type MetricResult, type Widget, type WidgetData,
 } from "@/lib/analytics";
 import { relativeTime } from "@/lib/format";
@@ -21,7 +21,7 @@ function Kpi({ s, filters, compact }: { s: MetricResult; filters: Record<string,
   const d = delta(s.total.value, s.total.prev, s.metric.higher_is_better, s.metric.unit);
   return (
     <div className="flex h-full flex-col justify-between">
-      <Link href={drillHref(s.metric.key, filters, s.from, s.to, s.period)} className={cn("tabular font-semibold tracking-tight text-fg hover:underline", compact ? "text-xl" : "text-[28px] leading-9")}>
+      <Link href={drillHref(s.metric.key, filters, s.from, s.to, s.period, s.date_basis)} className={cn("tabular font-semibold tracking-tight text-fg hover:underline", compact ? "text-xl" : "text-[28px] leading-9")}>
         {formatValue(s.total.value, s.metric.unit, true)}
       </Link>
       {d ? (
@@ -47,7 +47,7 @@ function Gauge({ s, target, filters }: { s: MetricResult; target?: number; filte
         <path d="M10 50 A40 40 0 0 1 90 50" fill="none" stroke="var(--border)" strokeWidth="8" strokeLinecap="round" />
         {frac > 0 && <path d={`M10 50 A40 40 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)}`} fill="none" stroke={frac >= 1 ? "var(--success)" : "var(--primary)"} strokeWidth="8" strokeLinecap="round" />}
       </svg>
-      <Link href={drillHref(s.metric.key, filters, s.from, s.to, s.period)} className="tabular -mt-3 text-lg font-semibold text-fg hover:underline">{formatValue(v, s.metric.unit)}</Link>
+      <Link href={drillHref(s.metric.key, filters, s.from, s.to, s.period, s.date_basis)} className="tabular -mt-3 text-lg font-semibold text-fg hover:underline">{formatValue(v, s.metric.unit)}</Link>
       {target !== undefined && <p className="text-[11.5px] text-subtle">target {formatValue(target, s.metric.unit)}</p>}
     </div>
   );
@@ -64,7 +64,7 @@ function Bars({ s, filters, horizontal }: { s: MetricResult; filters: Record<str
         <li key={i} className="grid grid-cols-[minmax(0,40%)_minmax(0,1fr)_auto] items-center gap-2 text-[12px]">
           <span className="truncate text-muted" title={dimLabel(dim, r.d?.[0], s.labels)}>{dimLabel(dim, r.d?.[0], s.labels)}</span>
           <span className="h-2 overflow-hidden rounded-full bg-surface-2"><span className="block h-full rounded-full" style={{ width: `${Math.max(1, ((r.value ?? 0) / max) * 100)}%`, background: color(0) }} /></span>
-          <Link href={drillHref(s.metric.key, rowFilters(filters, s.dims, r.d), s.from, s.to, s.period)} className="tabular text-right text-fg hover:underline">{formatValue(r.value, s.metric.unit, true)}</Link>
+          <Link href={drillHref(s.metric.key, rowFilters(filters, s.dims, r.d), s.from, s.to, s.period, s.date_basis)} className="tabular text-right text-fg hover:underline">{formatValue(r.value, s.metric.unit, true)}</Link>
         </li>
       ))}
     </ul>
@@ -93,7 +93,7 @@ function Columns({ s, filters, stacked }: { s: MetricResult; filters: Record<str
             const gx = i * bw + (stacked || !two ? bw * 0.15 : bw * 0.1 + j * gw);
             const y = stacked ? H - acc - h : H - h;
             acc += stacked ? h : 0;
-            return <a key={`${i}-${j}`} href={drillHref(s.metric.key, rowFilters(filters, s.dims, two ? [x, c] : [x]), s.from, s.to, s.period)}>
+            return <a key={`${i}-${j}`} href={drillHref(s.metric.key, rowFilters(filters, s.dims, two ? [x, c] : [x]), s.from, s.to, s.period, s.date_basis)}>
               <rect x={gx} y={y} width={Math.max(gw - 1, 1)} height={Math.max(h, 0)} fill={color(two ? j : 0)} rx="1.5">
               <title>{`${dimLabel(s.dims[0]!, x, s.labels)}${two ? ` · ${dimLabel(s.dims[1]!, c, s.labels)}` : ""}: ${formatValue(v, s.metric.unit)}`}</title></rect></a>;
           });
@@ -139,7 +139,7 @@ function Line({ s, filters }: { s: MetricResult; filters: Record<string, string[
         {series.map((c, j) => (
           <g key={c || "one"}>
             <polyline fill="none" stroke={color(j)} strokeWidth="2" points={xs.map((x, i) => `${px(i)},${H - ((val(x, c) ?? 0) / max) * (H - 10)}`).join(" ")} />
-            {xs.map((x, i) => <a key={x} href={drillHref(s.metric.key, rowFilters(filters, s.dims, two ? [x, c] : [x]), s.from, s.to, s.period)}>
+            {xs.map((x, i) => <a key={x} href={drillHref(s.metric.key, rowFilters(filters, s.dims, two ? [x, c] : [x]), s.from, s.to, s.period, s.date_basis)}>
               <circle cx={px(i)} cy={H - ((val(x, c) ?? 0) / max) * (H - 10)} r="4" fill={color(j)}><title>{`${dimLabel(s.dims[0]!, x, s.labels)}: ${formatValue(val(x, c), s.metric.unit)}`}</title></circle></a>)}
           </g>
         ))}
@@ -161,7 +161,7 @@ function Funnel({ series, filters }: { series: MetricResult[]; filters: Record<s
         <li key={s.metric.key} className="text-[12px]">
           <div className="mx-auto flex items-center justify-between rounded-md px-2 py-1.5 text-white" style={{ width: `${Math.max(30, ((s.total.value ?? 0) / max) * 100)}%`, background: color(i) }}>
             <span className="truncate">{s.metric.label}</span>
-            <Link href={drillHref(s.metric.key, filters, s.from, s.to, s.period)} className="tabular font-semibold hover:underline">{formatValue(s.total.value, s.metric.unit)}</Link>
+            <Link href={drillHref(s.metric.key, filters, s.from, s.to, s.period, s.date_basis)} className="tabular font-semibold hover:underline">{formatValue(s.total.value, s.metric.unit)}</Link>
           </div>
         </li>
       ))}
@@ -187,7 +187,7 @@ function Heatmap({ s, filters }: { s: MetricResult; filters: Record<string, stri
                 return (
                   <td key={c} className="p-0.5">
                     {v === null ? <span className="block rounded bg-surface-2 px-1.5 py-1 text-center text-subtle">·</span>
-                      : <Link href={drillHref(s.metric.key, rowFilters(filters, s.dims, [r, c]), s.from, s.to, s.period)} className="tabular block rounded px-1.5 py-1 text-center text-fg hover:ring-1 hover:ring-[var(--ring)]"
+                      : <Link href={drillHref(s.metric.key, rowFilters(filters, s.dims, [r, c]), s.from, s.to, s.period, s.date_basis)} className="tabular block rounded px-1.5 py-1 text-center text-fg hover:ring-1 hover:ring-[var(--ring)]"
                               style={{ background: `color-mix(in srgb, var(--primary) ${Math.round(a * 100)}%, transparent)` }}>{formatValue(v, s.metric.unit, true)}</Link>}
                   </td>
                 );
@@ -238,7 +238,7 @@ function MultiTable({ series, filters, sort }: { series: MetricResult[]; filters
                 const v = val(s, k);
                 return (
                   <td key={s.metric.key} className={cn("tabular px-2 py-1.5 text-right", v !== null && v === best && n > 1 ? "font-semibold text-success" : "text-muted")}>
-                    {v === null ? "—" : <Link href={drillHref(s.metric.key, rowFilters(filters, s.dims, [k]), s.from, s.to, s.period)} className="hover:underline">{formatValue(v, s.metric.unit, true)}</Link>}
+                    {v === null ? "—" : <Link href={drillHref(s.metric.key, rowFilters(filters, s.dims, [k]), s.from, s.to, s.period, s.date_basis)} className="hover:underline">{formatValue(v, s.metric.unit, true)}</Link>}
                   </td>
                 );
               })}
@@ -267,13 +267,13 @@ function Sankey({ series, filters }: { series: MetricResult[]; filters: Record<s
         const x0 = colX(a.step) + 10, x1 = colX(b.step);
         const mx = (x0 + x1) / 2;
         const st = series[a.step]!;
-        return <a key={i} href={drillHref(st.metric.key, rowFilters(filters, st.dims, [a.label, b.label]), st.from, st.to, st.period)}>
+        return <a key={i} href={drillHref(st.metric.key, rowFilters(filters, st.dims, [a.label, b.label]), st.from, st.to, st.period, st.date_basis)}>
                 <path d={`M${x0},${l.y0 + l.h / 2} C${mx},${l.y0 + l.h / 2} ${mx},${l.y1 + l.h / 2} ${x1},${l.y1 + l.h / 2}`}
                      fill="none" stroke={color(nodes.filter((n) => n.step === 0).findIndex((n) => n.id === l.from) >= 0 ? nodes.filter((n) => n.step === 0).findIndex((n) => n.id === l.from) : i)}
                      strokeOpacity="0.28" strokeWidth={Math.max(l.h, 1)}><title>{`${dimLabel(dims[a.step]!, a.label, labels)} → ${dimLabel(dims[b.step]!, b.label, labels)}: ${l.value}`}</title></path></a>;
       })}
       {nodes.map((n) => (
-        <a key={n.id} href={drillHref(series[0]!.metric.key, rowFilters(filters, [dims[n.step]!], [n.label]), series[0]!.from, series[0]!.to, series[0]!.period)}>
+        <a key={n.id} href={drillHref(series[0]!.metric.key, rowFilters(filters, [dims[n.step]!], [n.label]), series[0]!.from, series[0]!.to, series[0]!.period, series[0]!.date_basis)}>
           <g>
             <rect x={colX(n.step)} y={n.y} width="10" height={n.h} rx="2" fill="var(--primary)" />
             <text x={colX(n.step) + 14} y={n.y + n.h / 2 + 3} className="fill-[var(--fg)] text-[10px]">{dimLabel(dims[n.step]!, n.label, labels).slice(0, 18)} · {Math.round(n.value)}</text>
@@ -295,7 +295,7 @@ function IndiaMap({ s, filters }: { s: MetricResult; filters: Record<string, str
         {Object.entries(STATE_TILES).map(([name, [cx, cy, code]]) => {
           const v = byState.get(name) ?? 0;
           return (
-            <a key={name} href={v ? drillHref(s.metric.key, { ...filters, state: [name] }, s.from, s.to, s.period) : undefined}>
+            <a key={name} href={v ? drillHref(s.metric.key, { ...filters, state: [name] }, s.from, s.to, s.period, s.date_basis) : undefined}>
               <rect x={cx * 30} y={cy * 30} width="27" height="27" rx="4" fill={v ? `color-mix(in srgb, var(--primary) ${Math.round(15 + 80 * (v / max))}%, transparent)` : "var(--surface-2)"} />
               <text x={cx * 30 + 13.5} y={cy * 30 + 17} textAnchor="middle" className={cn("text-[8.5px]", v / max > 0.5 ? "fill-white" : "fill-[var(--muted)]")}>{code}</text>
               <title>{`${name}: ${formatValue(v, s.metric.unit)}`}</title>
@@ -370,8 +370,8 @@ export function WidgetBody({ w, data, filters, period }: { w: Widget; data: Widg
   if (data.error) return <p className="text-[12.5px] text-danger">{data.error}</p>;
   if (w.type === "sla_timers") return <SlaTimers rows={data.rows ?? []} />;
   if (w.type === "alerts") return <Alerts rows={data.rows ?? []} />;
-  // the period goes into every drill link, so a list saved from the drill keeps the widget's period
-  const series = (data.series ?? []).map((x) => ({ ...x, period: w.period ?? period }));
+  // the period and the date basis go into every drill link, so the rows behind a number are dated and bounded like the widget
+  const series = (data.series ?? []).map((x) => ({ ...x, period: w.period ?? period, date_basis: w.date_basis ?? x.date_basis ?? null }));
   const s = series[0];
   if (!s) return <Empty />;
   const f = { ...filters, ...(w.filters ?? {}) };
@@ -404,6 +404,8 @@ export function WidgetCard({ w, data, filters, period, children }: {
     <section className={cn(w.type === "kpi" && w.w <= 4 ? "col-span-6" : "col-span-12", "flex min-w-0 flex-col rounded-[var(--radius-card)] border border-border bg-surface p-4", SPAN[w.w], ROWS[w.h])} aria-label={w.title}>
       <header className="mb-2 flex items-start gap-2">
         <h3 className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-muted" title={w.title}>{w.title || data?.series?.[0]?.metric.label}</h3>
+        {/* a widget counted by another date than the metric's own says so, since its numbers differ from its neighbours' */}
+        {w.date_basis && <span className="hidden shrink-0 text-[11px] text-subtle sm:inline" title={DATE_BASIS_HINT[w.date_basis]}>{DATE_BASIS_LABEL[w.date_basis]} date</span>}
         {children}
       </header>
       <div className="min-h-0 flex-1"><WidgetBody w={w} data={data} filters={filters} period={period} /></div>

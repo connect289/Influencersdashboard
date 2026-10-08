@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CONSENT_STATE_LABEL, HOLD_LABEL, REASON_LABEL } from "@/lib/routing";
 
 /** Analytics (B13): metric results, widgets and dashboards, formatting, the formula parser and chart helpers. Pure. */
 
@@ -10,6 +11,8 @@ export type MetricResult = {
   labels: { partner: Record<string, string> };
   /** The period the numbers were run for (filled on the client side only, so drill links keep it). */
   period?: string;
+  /** The date basis metric_run dated the rows by (Addendum 3, C70); null or absent means the metric's own date column. */
+  date_basis?: DateBasis | null;
   /** The row cap metric_run applied, and whether rows were cut at it. */
   limit?: number; truncated?: boolean;
 };
@@ -20,9 +23,23 @@ export const WIDGET_TYPES = ["kpi", "line", "bar", "stacked", "funnel", "sankey"
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 export const PERIODS = ["today", "7d", "30d", "90d", "month", "quarter", "year"] as const;
 export type Period = (typeof PERIODS)[number];
+/** The date a number can be counted by (metric_run / metric_drill `date_basis`, C70): absent = the metric's own date column. */
+export const DATE_BASES = ["created", "routed", "accepted", "enrolled"] as const;
+export type DateBasis = (typeof DATE_BASES)[number];
+export const DATE_BASIS_LABEL: Record<DateBasis, string> = { created: "Created", routed: "Routed", accepted: "Accepted", enrolled: "Enrolled" };
+export const DATE_BASIS_HINT: Record<DateBasis, string> = {
+  created: "Counted by the date the lead (or the allocation or enrolment) was created", routed: "Counted by the date the lead was routed to a partner or B2C",
+  accepted: "Counted by the date the partner accepted the lead", enrolled: "Counted by the date the student enrolled",
+};
+/** The column a basis names on each fact: the same table as b2b.metric_date_col (m31o). A fact missing a basis cannot be dated by it. */
+export const DATE_BASIS_COLUMN: Record<string, Partial<Record<DateBasis, string>>> = {
+  fact_leads: { created: "created_at", routed: "routed_at", accepted: "accepted_at", enrolled: "enrolled_at" },
+  fact_allocations: { created: "created_at", routed: "created_at", accepted: "accepted_at" },
+  fact_enrollments: { created: "created_at", enrolled: "enrolled_at" },
+};
 export type Widget = {
   id: string; type: WidgetType; title?: string; metric?: string; metrics?: string[]; dims?: string[]; steps?: string[];
-  filters?: Record<string, string[]>; period?: Period; sort?: string; target?: number; text?: string; w: number; h: number;
+  filters?: Record<string, string[]>; period?: Period; date_basis?: DateBasis; sort?: string; target?: number; text?: string; w: number; h: number;
 };
 export type Dashboard = {
   id: number; slug: string; name: string; description: string | null; widgets: Widget[]; period: Period; filters: Record<string, string[]>;
@@ -38,13 +55,28 @@ export const WIDGET_LABEL: Record<WidgetType, string> = {
   kpi: "KPI tile", line: "Line chart", bar: "Bar chart", stacked: "Stacked bars", funnel: "Funnel", sankey: "Sankey (flow)", heatmap: "Heatmap / cohorts",
   table: "Table", leaderboard: "Leaderboard", map: "India map by state", gauge: "Gauge / target", sla_timers: "Live SLA timers", alerts: "Alerts", text: "Text or note",
 };
+/** Breakdown keys as people read them (every key of b2b.metric_dimensions(), m31o). `stage` is the stage a lead reached; the A/B/C
+ *  scoring stage of Addendum 3 is `score_stage` (C90). */
 export const DIM_LABEL: Record<string, string> = {
-  source: "Source", channel: "Channel", campaign: "Campaign", platform: "Ad platform", paid: "Paid", form: "Form", utm_source: "UTM source", utm_medium: "UTM medium",
-  city: "City", state: "State", course: "Course", level: "Level", mode: "Mode", segment: "Segment", specialization: "Specialization", university: "University",
+  // lead dimensions (fact_leads, and on allocations, SLAs, enrolments and money since Addendum 3)
+  source: "Source", sub_source: "Sub-source", channel: "Channel", campaign: "Campaign", platform: "Ad platform", paid: "Paid", form: "Form", utm_source: "UTM source", utm_medium: "UTM medium",
+  city: "City", state: "State", course: "Course", level: "Level", mode: "Mode", segment: "Segment", specialization: "Specialization", university: "University", programme: "Programme",
   lead_status: "Witty status", temperature: "Temperature", stage: "Stage", sub_stage: "Sub-stage", lost_reason: "Lost reason", language: "Language",
-  destination: "Destination", b2c_lane: "B2C lane", not_passed_reason: "Why not passed", partner: "Partner", routing_mode: "Routing mode", attempt_no: "Attempt",
-  status: "Status", holdout: "Holdout", scoring_mode: "Scoring mode", model_version: "Model", counsellor: "Counsellor", product: "Product", sla: "SLA",
-  due_hour: "Hour due", kind: "Kind", period: "Period", ageing: "Age", run_kind: "Run", rec_status: "Recommendation", day: "Day", week: "Week", month: "Month",
+  destination: "Destination", b2c_lane: "B2C lane", b2c_reason: "Why sent to B2C", hold_kind: "B2C hold", partner_barred: "Partner-barred", consent_state: "Partner-sharing consent",
+  not_passed_reason: "Why not passed", partner: "Partner",
+  // allocation dimensions
+  routing_mode: "Routing mode", attempt_no: "Attempt", status: "Status", holdout: "Holdout", scoring_mode: "Scoring mode", model_version: "Model", counsellor: "Counsellor",
+  score_stage: "Scoring stage", origin: "How it was routed", from_b2c: "Sent from B2C",
+  // the other facts
+  product: "Product", sla: "SLA", due_hour: "Hour due", kind: "Kind", period: "Period", ageing: "Age", run_kind: "Run / recommendation type", rec_status: "Recommendation",
+  day: "Day", week: "Week", month: "Month",
+};
+/** Breakdown values that are yes / no. */
+export const BOOLEAN_DIMS = new Set(["holdout", "paid", "partner_barred", "from_b2c"]);
+/** allocations.origin (CONTRACT 1.1): the request that routed the lead. */
+export const ORIGIN_LABEL: Record<string, string> = {
+  auto: "Automatically", pass: "Passed by the Admin (not-passed override)", to_partners: "Sent to partners by hand", requalify: "Re-qualified from B2C nurture",
+  reroute: "Re-routed by the Admin", sandbox: "Test routing (sandbox)",
 };
 export const TIME_DIMS = new Set(["day", "week", "month"]);
 
@@ -94,20 +126,31 @@ export function dimLabel(dim: string, v: string | null | undefined, labels?: Met
   if (dim === "partner") return labels?.partner?.[v] ?? `Partner #${v}`;
   if (dim === "month") return new Date(`${v}T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
   if (dim === "day" || dim === "week") return new Date(`${v}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-  if (dim === "holdout" || dim === "paid") return v === "true" ? "Yes" : "No";
+  if (BOOLEAN_DIMS.has(dim)) return v === "true" ? "Yes" : "No";
   if (dim === "segment") return v.split("|").map((x, i) => (x === "*" ? "any" : i === 0 ? x.toUpperCase() : x)).join(" · ");
   if (dim === "course") return v.toUpperCase();
+  if (dim === "score_stage") return `Stage ${v}`;
+  if (dim === "b2c_reason") return REASON_LABEL[v] ?? v.replace(/_/g, " ");
+  if (dim === "hold_kind") return HOLD_LABEL[v] ?? v.replace(/_/g, " ");
+  if (dim === "consent_state") return CONSENT_STATE_LABEL[v] ?? v.replace(/_/g, " ");
+  if (dim === "origin") return ORIGIN_LABEL[v] ?? v.replace(/_/g, " ");
   return v.replace(/_/g, " ");
 }
 
-/** The link that lists the rows behind a number. */
-export function drillHref(metric: string, filters: Record<string, string[]>, from?: string, to?: string, period?: string): string {
+/** The link that lists the rows behind a number; a date basis (C70) goes along so the list is dated like the widget. */
+export function drillHref(metric: string, filters: Record<string, string[]>, from?: string, to?: string, period?: string, dateBasis?: DateBasis | string | null): string {
   const p = new URLSearchParams({ metric });
   if (Object.keys(filters).length) p.set("filters", JSON.stringify(filters));
   if (from) p.set("from", from);
   if (to) p.set("to", to);
   if (period) p.set("period", period);
+  if (dateBasis) p.set("date_basis", dateBasis);
   return `/dashboards/drill?${p.toString()}`;
+}
+
+/** The date basis named in a URL, or undefined when none or unknown (the SQL would refuse an unknown one with 22023). */
+export function dateBasisParam(v: string | string[] | undefined): DateBasis | undefined {
+  return typeof v === "string" && (DATE_BASES as readonly string[]).includes(v) ? (v as DateBasis) : undefined;
 }
 
 /** Filters for one row or cell of a breakdown: its dimension values (time buckets included) added to the widget's filters.
@@ -256,6 +299,7 @@ export const WidgetSchema = z.object({
   steps: z.array(z.string()).max(4).optional(),
   filters: z.record(z.string(), z.array(z.string())).optional(),
   period: z.enum(PERIODS).optional(),
+  date_basis: z.enum(DATE_BASES).optional(),
   sort: z.string().optional(),
   target: z.number().optional(),
   text: z.string().max(1000).optional(),
@@ -291,13 +335,32 @@ export function widgetDims(w: Widget, metrics: CatalogueMetric[]): string[] {
   return ms.length ? ms.map((x) => x.dims).reduce((a, b) => a.filter((d) => b.includes(d))) : [];
 }
 
-/** widgetProblem, plus a breakdown or step that one of the chosen metrics cannot be broken down by. */
+/** The fact views behind a metric: its own, or for a calculated metric the facts of every base metric in its formula. */
+export function metricFacts(m: CatalogueMetric, metrics: CatalogueMetric[]): string[] {
+  if (m.fact) return [m.fact];
+  const bases = (Array.isArray(m.formula) ? (m.formula as { m?: string }[]) : []).map((t) => t?.m).filter((k): k is string => !!k);
+  return [...new Set(bases.flatMap((k) => { const b = metrics.find((x) => x.key === k); return b?.fact ? [b.fact] : []; }))];
+}
+
+/** The date bases every metric of a widget can be dated by (the rule dashboard_check_widgets applies to date_basis on save):
+ *  every base metric's fact must name a column for the basis in DATE_BASIS_COLUMN. */
+export function widgetDateBases(w: Widget, metrics: CatalogueMetric[]): DateBasis[] {
+  const keys = [w.metric, ...(w.metrics ?? [])].filter((k): k is string => !!k);
+  const ms = metrics.filter((x) => keys.includes(x.key));
+  if (!ms.length) return [];
+  const facts = ms.flatMap((m) => { const f = metricFacts(m, metrics); return f.length ? f : ["?"]; });
+  return DATE_BASES.filter((b) => facts.every((f) => !!DATE_BASIS_COLUMN[f]?.[b]));
+}
+
+/** widgetProblem, plus a breakdown or step that one of the chosen metrics cannot be broken down by, or a date basis one of them cannot be dated by. */
 export function widgetProblemIn(w: Widget, metrics: CatalogueMetric[]): string | null {
   const p = widgetProblem(w);
   if (p || ["text", "sla_timers", "alerts"].includes(w.type)) return p;
   const ok = widgetDims(w, metrics);
   const bad = [...(w.dims ?? []), ...(w.steps ?? [])].find((d) => !ok.includes(d));
-  return bad ? `${DIM_LABEL[bad] ?? bad} is not a breakdown of every chosen metric` : null;
+  if (bad) return `${DIM_LABEL[bad] ?? bad} is not a breakdown of every chosen metric`;
+  if (w.date_basis && !widgetDateBases(w, metrics).includes(w.date_basis)) return `Not every chosen metric can be counted by the ${DATE_BASIS_LABEL[w.date_basis].toLowerCase()} date`;
+  return null;
 }
 
 /** Breakdown keys that mean different columns on different facts (a status of a lead is not the status of an SLA). */

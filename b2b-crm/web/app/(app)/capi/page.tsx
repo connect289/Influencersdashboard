@@ -96,7 +96,7 @@ export default async function CapiPage({ searchParams }: Props) {
   return (
     <>
       <PageHeader title="Conversions (CAPI)"
-        description="How far each lead from a paid Meta or Google campaign got (enrolled, applicant, interested, qualified), reported back campaign by campaign so the ad platforms bid for students who enrol, not form fills. Paid leads only, hashed contact details, consent-gated; test leads are never sent." />
+        description="How far each lead a paid Meta or Google ad brought got (enrolled, applicant, interested, qualified), reported back campaign by campaign so the ad platforms bid for students who enrol, not form fills. Paid means a Meta or Google ad, nothing else (Addendum 3); hashed contact details, consent-gated; test leads are never sent." />
       <nav className="mb-6 flex gap-5 overflow-x-auto border-b border-border" aria-label="Conversions sections">
         {TABS.map((t) => (
           <Link key={t.id} href={`/capi?tab=${t.id}`} aria-current={tab === t.id ? "page" : undefined}
@@ -115,7 +115,10 @@ export default async function CapiPage({ searchParams }: Props) {
           <Card className="min-w-0">
             <CardHeader title="By milestone, last 30 days" description="Each milestone is sent once per lead and enquiry (event ID lead:stage:cycle), so retries never double count." />
             {o.events.length === 0 ? (
-              <EmptyState icon={BarChart3} title="Nothing yet">Only leads from a paid Meta or Google campaign with an ad identifier (a Meta lead ID, fbclid, gclid…) make events. Use Check a lead to see why a lead makes none.</EmptyState>
+              <EmptyState icon={BarChart3} title="Nothing yet">
+                Only paid leads make events: a Meta lead form that is not organic, a Google lead form, a gclid, gbraid or wbraid click, or an fbclid with a Meta ad parameter.
+                UTM tags alone, organic forms and influencer or referral leads are not paid. Use Check a lead to see why a lead makes none.
+              </EmptyState>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-[12.5px]">
@@ -154,7 +157,7 @@ export default async function CapiPage({ searchParams }: Props) {
 
       {tab === "log" && (
         <Card className="min-w-0">
-          <CardHeader title="Event log" description="The latest 150. Retried after 1, 5 and 30 minutes, 2 and 6 hours; events a platform refuses are not retried." />
+          <CardHeader title="Event log" description="The latest 150. Retried after 1, 5 and 30 minutes, 2 and 6 hours; events a platform refuses are not retried. Events of leads that stopped being paid under Addendum 3 read Skipped." />
           <div className="flex flex-wrap gap-1.5 border-b border-border px-5 py-2.5 text-[12.5px]">
             {[["All", null], ["Problems", "problems"], ["Held", "held"], ["Sent", "sent"], ["Dry runs", "dry_run"], ["Skipped", "skipped"]].map(([l, v]) => (
               <Link key={l} href={`/capi?tab=log${v ? `&status=${v}` : ""}${platform ? `&platform=${platform}` : ""}`}
@@ -170,16 +173,11 @@ export default async function CapiPage({ searchParams }: Props) {
         </Card>
       )}
 
-      {tab === "setup" && (
-        <Card className="min-w-0">
-          <CardHeader title="Setup" description="Accounts, credentials and which milestones each platform receives. Credentials are stored in the database vault and never shown again." />
-          {v && <SetupForm s={o.settings} v={v} />}
-        </Card>
-      )}
+      {tab === "setup" && v && <SetupForm s={o.settings} v={v} a={o.attribution} />}
 
       {tab === "check" && (
         <Card className="min-w-0">
-          <CardHeader title="Check a lead" description="Its ad identifiers, consent, milestones and the exact event each platform gets. Use a test lead to try a setup: test leads are logged as dry runs, never sent." />
+          <CardHeader title="Check a lead" description="Its attribution (paid or not, and why), ad identifiers, consent, milestones and the exact event each platform gets. Use a test lead to try a setup: test leads are logged as dry runs, never sent." />
           <LeadCheck initial={Number.isInteger(lead) && lead > 0 ? lead : null} />
         </Card>
       )}

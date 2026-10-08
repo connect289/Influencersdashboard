@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  applicableFilters, dashboardFilterDims, delta, dimLabel, drillHref, formatValue, formulaText, gaugeTargetInput, gaugeTargetValue, parseFormula, pivot,
-  rowFilters, sankeyLayout, viewParams, widgetDims, widgetProblem, widgetProblemIn,
-  DashboardSchema, STATE_TILES, type CatalogueMetric, type MetricResult,
+  applicableFilters, dashboardFilterDims, dateBasisParam, delta, dimLabel, drillHref, formatValue, formulaText, gaugeTargetInput, gaugeTargetValue, metricFacts, parseFormula, pivot,
+  rowFilters, sankeyLayout, viewParams, widgetDateBases, widgetDims, widgetProblem, widgetProblemIn,
+  DashboardSchema, DATE_BASES, DATE_BASIS_COLUMN, DATE_BASIS_LABEL, DIM_LABEL, STATE_TILES, WidgetSchema, type CatalogueMetric, type MetricResult,
 } from "./analytics";
 import { ask, periodBounds } from "./ai/ask";
 import { decodeDef, encodeDef, ReportDefSchema } from "./reports";
@@ -37,10 +37,41 @@ describe("formatting", () => {
     expect(dimLabel("holdout", "true")).toBe("Yes");
     expect(dimLabel("lead_status", null)).toBe("(none)");
   });
+  it("labels every Addendum 3 breakdown (C70, C90, C103)", () => {
+    // the keys m31o's metric_dimensions adds on fact_leads and fact_allocations, and the lead dimensions now on allocations, SLAs, enrolments and money
+    const a3 = ["sub_source", "programme", "b2c_reason", "hold_kind", "partner_barred", "consent_state", "platform", "score_stage", "origin", "paid", "from_b2c", "run_kind",
+                "channel", "form", "utm_source", "utm_medium", "city", "university", "specialization", "temperature", "sub_stage", "lost_reason", "source", "campaign", "state",
+                "segment", "course", "level", "mode", "routing_mode", "attempt_no", "lead_status", "language"];
+    for (const k of a3) expect(DIM_LABEL[k], k).toBeTruthy();
+    expect(DIM_LABEL.sub_source).toBe("Sub-source");
+    expect(DIM_LABEL.programme).toBe("Programme");
+    expect(DIM_LABEL.b2c_reason).toBe("Why sent to B2C");
+    expect(DIM_LABEL.score_stage).toBe("Scoring stage");
+    expect(DIM_LABEL.run_kind).toBe("Run / recommendation type");
+    // 'stage' keeps meaning the stage a lead reached (C90)
+    expect(DIM_LABEL.stage).toBe("Stage");
+    // values of the new breakdowns read as words, not codes
+    expect(dimLabel("score_stage", "B")).toBe("Stage B");
+    expect(dimLabel("partner_barred", "true")).toBe("Yes");
+    expect(dimLabel("from_b2c", "false")).toBe("No");
+    expect(dimLabel("b2c_reason", "no_partner_offers_programme")).toBe("No partner offers this programme");
+    expect(dimLabel("hold_kind", "selling")).toBe("With B2C sales");
+    expect(dimLabel("consent_state", "refused")).toBe("Student said NO to sharing");
+    expect(dimLabel("origin", "requalify")).toBe("Re-qualified from B2C nurture");
+    expect(dimLabel("origin", "something_new")).toBe("something new");
+  });
   it("builds drill links and row filters", () => {
     expect(drillHref("leads", { state: ["Delhi"] }, "a", "b")).toBe("/dashboards/drill?metric=leads&filters=%7B%22state%22%3A%5B%22Delhi%22%5D%7D&from=a&to=b");
     expect(drillHref("leads", {}, undefined, undefined, "year")).toBe("/dashboards/drill?metric=leads&period=year");
     expect(drillHref("leads", {}, "a", "b", "7d")).toBe("/dashboards/drill?metric=leads&from=a&to=b&period=7d");
+    // the widget's date basis travels with the link; none or null adds nothing
+    expect(drillHref("leads", {}, "a", "b", "7d", "accepted")).toBe("/dashboards/drill?metric=leads&from=a&to=b&period=7d&date_basis=accepted");
+    expect(drillHref("leads", { state: ["Delhi"] }, undefined, undefined, undefined, "enrolled")).toBe("/dashboards/drill?metric=leads&filters=%7B%22state%22%3A%5B%22Delhi%22%5D%7D&date_basis=enrolled");
+    expect(drillHref("leads", {}, "a", "b", "7d", null)).toBe("/dashboards/drill?metric=leads&from=a&to=b&period=7d");
+    expect(dateBasisParam("accepted")).toBe("accepted");
+    expect(dateBasisParam("shipped")).toBeUndefined();
+    expect(dateBasisParam(["accepted"])).toBeUndefined();
+    expect(dateBasisParam(undefined)).toBeUndefined();
     expect(rowFilters({ segment: ["x"] }, ["week", "partner"], ["2026-10-05", "4"])).toEqual({ segment: ["x"], week: ["2026-10-05"], partner: ["4"] });
     // a heatmap cell keeps its time bucket
     expect(rowFilters({}, ["sla", "week"], ["first_attempt", "2026-09-28"])).toEqual({ sla: ["first_attempt"], week: ["2026-09-28"] });
@@ -122,6 +153,42 @@ describe("widgets and dashboards", () => {
       .toBe("Source is not a breakdown of every chosen metric");
     expect(widgetProblemIn({ id: "a", type: "table", w: 12, h: 2 }, cat)).toBe("Choose at least one metric");
     expect(widgetProblemIn({ id: "a", type: "alerts", dims: ["x"], w: 6, h: 2 }, cat)).toBeNull();
+  });
+  it("offers a date basis only when every chosen metric can be dated by it (C70)", () => {
+    const cat = [
+      cm("leads", "fact_leads", ["source", "day"]), cm("allocations", "fact_allocations", ["partner", "day"]), cm("enrolments", "fact_enrollments", ["partner", "day"]),
+      cm("sla_compliance", "fact_sla", ["partner", "day"]),
+      cm("per_alloc", null, ["day"], [{ m: "leads" }, { m: "allocations" }, { op: "/" }]),
+      cm("orphan", null, ["day"], [{ m: "nope" }]),
+    ];
+    const kpi = (metric: string, date_basis?: "created" | "routed" | "accepted" | "enrolled") => ({ id: "a", type: "kpi" as const, metric, date_basis, w: 3, h: 1 });
+    const table = (metrics: string[], date_basis?: "created" | "routed" | "accepted" | "enrolled") => ({ id: "t", type: "table" as const, metrics, dims: ["day"], date_basis, w: 12, h: 2 });
+    expect(DATE_BASES).toEqual(["created", "routed", "accepted", "enrolled"]);
+    expect(Object.keys(DATE_BASIS_LABEL)).toEqual([...DATE_BASES]);
+    // the same table as b2b.metric_date_col
+    expect(DATE_BASIS_COLUMN.fact_leads).toEqual({ created: "created_at", routed: "routed_at", accepted: "accepted_at", enrolled: "enrolled_at" });
+    expect(DATE_BASIS_COLUMN.fact_allocations).toEqual({ created: "created_at", routed: "created_at", accepted: "accepted_at" });
+    expect(DATE_BASIS_COLUMN.fact_enrollments).toEqual({ created: "created_at", enrolled: "enrolled_at" });
+    expect(metricFacts(cat[4]!, cat)).toEqual(["fact_leads", "fact_allocations"]);
+    expect(metricFacts(cat[0]!, cat)).toEqual(["fact_leads"]);
+    expect(widgetDateBases(kpi("leads"), cat)).toEqual(["created", "routed", "accepted", "enrolled"]);
+    expect(widgetDateBases(kpi("allocations"), cat)).toEqual(["created", "routed", "accepted"]);
+    expect(widgetDateBases(kpi("sla_compliance"), cat)).toEqual([]);
+    expect(widgetDateBases(kpi("per_alloc"), cat)).toEqual(["created", "routed", "accepted"]);
+    expect(widgetDateBases(kpi("orphan"), cat)).toEqual([]);
+    expect(widgetDateBases(table(["leads", "enrolments"]), cat)).toEqual(["created", "enrolled"]);
+    expect(widgetDateBases({ id: "a", type: "kpi", w: 3, h: 1 }, cat)).toEqual([]);
+    // the builder's message mirrors dashboard_check_widgets' "<label> cannot be dated by <basis>"
+    expect(widgetProblemIn(kpi("allocations", "enrolled"), cat)).toBe("Not every chosen metric can be counted by the enrolled date");
+    expect(widgetProblemIn(kpi("allocations", "accepted"), cat)).toBeNull();
+    expect(widgetProblemIn(table(["leads", "allocations"], "enrolled"), cat)).toBe("Not every chosen metric can be counted by the enrolled date");
+    expect(widgetProblemIn(table(["leads", "allocations"], "routed"), cat)).toBeNull();
+    // a breakdown problem is reported before the date basis
+    expect(widgetProblemIn({ ...kpi("allocations", "enrolled"), type: "bar", dims: ["source"] }, cat)).toBe("Source is not a breakdown of every chosen metric");
+    // the saved shape carries date_basis and refuses an unknown one, like the SQL (22023 'unknown date basis')
+    expect(WidgetSchema.safeParse({ id: "a", type: "kpi", metric: "leads", date_basis: "routed", w: 3, h: 1 }).success).toBe(true);
+    expect(WidgetSchema.safeParse({ id: "a", type: "kpi", metric: "leads", date_basis: "shipped", w: 3, h: 1 }).success).toBe(false);
+    expect(WidgetSchema.safeParse({ id: "a", type: "kpi", metric: "leads", w: 3, h: 1 }).success).toBe(true);
   });
   it("offers only unambiguous dashboard filters", () => {
     const cat = [

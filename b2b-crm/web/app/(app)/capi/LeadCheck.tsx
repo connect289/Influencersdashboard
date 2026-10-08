@@ -7,16 +7,63 @@ import { Badge } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Notice";
 import { formatDateTime } from "@/lib/format";
-import { EVENT_STATUS, MATCH_KEY_LABEL, STAGE_LABEL, formatInr, type LeadCheck as Check_ } from "@/lib/capi";
+import { EVENT_STATUS, MATCH_KEY_LABEL, NOT_MATCHABLE_HINT, NOT_PAID_HINT, SIGNAL_LABEL, STAGE_LABEL, attributionLabel, formatInr, originLabel, type LeadCampaign, type LeadCheck as Check_ } from "@/lib/capi";
 import { checkLead } from "./actions";
 
 const field = "h-9 w-40 rounded-lg border border-border bg-surface px-3 text-[13px] text-fg placeholder:text-subtle focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30";
+const PLATFORM: Record<LeadCampaign["platform"], string> = { meta: "Meta", google: "Google Ads", other: "Other", none: "No platform" };
 
 function Yes({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return <span className="flex items-center gap-1.5">{ok ? <Check className="size-3.5 text-success" /> : <X className="size-3.5 text-danger" />}{children}</span>;
 }
 
-/** One lead: its ad identifiers, consent, milestones and the event each platform would get. For checking a setup with a test lead. */
+/** Why nothing (or something) is reported for this lead's attribution, in one sentence. */
+function attributionNote(c: LeadCampaign): string | null {
+  if (!c.paid) return `${NOT_PAID_HINT[c.signal ?? "none"] ?? "Not from a paid Meta or Google ad."} Nothing is reported.`;
+  if (!c.matchable) return NOT_MATCHABLE_HINT;
+  return null;
+}
+
+/** The lead's attribution (paid or not, and why; D38) beside the campaign that brought it. */
+function AttributionBox({ c }: { c: LeadCampaign }) {
+  const note = attributionNote(c);
+  const hasCampaign = Boolean(c.campaign_name || c.campaign_id || c.utm?.campaign || c.adset_id || c.ad_id);
+  return (
+    <div className="rounded-lg border border-border p-3 text-[12.5px] md:col-span-2 xl:col-span-2">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <p className="mb-1.5 flex flex-wrap items-center gap-1.5 font-medium text-fg">Attribution
+            <Badge tone={c.paid ? "success" : "neutral"}>{attributionLabel(c)}</Badge></p>
+          <ul className="space-y-0.5 text-muted">
+            <li>Platform <span className="text-fg">{PLATFORM[c.platform] ?? c.platform}</span></li>
+            <li>Signal <span className="text-fg">{c.signal ? SIGNAL_LABEL[c.signal] ?? c.signal : "—"}</span>
+              {c.signal && <span className="ml-1 font-mono text-[11.5px] text-subtle">{c.signal}</span>}</li>
+            <li>Read from <span className="text-fg">{originLabel(c.origin)}</span>{c.at && <span className="text-subtle"> · {formatDateTime(c.at)}</span>}</li>
+            {c.paid && (
+              <li>Match key <span className="text-fg">{c.click_key ? MATCH_KEY_LABEL[c.click_key] ?? c.click_key : "none"}</span>
+                {c.matchable ? <span className="text-success"> · matchable</span> : <span className="text-warning"> · not matchable</span>}</li>
+            )}
+          </ul>
+        </div>
+        <div>
+          <p className="mb-1.5 font-medium text-fg">Campaign</p>
+          {hasCampaign ? (
+            <ul className="space-y-0.5 text-muted">
+              <li className="text-fg">{c.campaign_name ?? c.utm?.campaign ?? (c.campaign_id ? `Campaign ${c.campaign_id}` : "(no campaign name)")}</li>
+              {c.campaign_id && <li>ID <span className="font-mono text-[11.5px]">{c.campaign_id}</span></li>}
+              {(c.adset_name || c.adset_id) && <li>Ad set {c.adset_name ?? c.adset_id}</li>}
+              {(c.ad_name || c.ad_id) && <li>Ad {c.ad_name ?? c.ad_id}</li>}
+              {c.utm?.source && <li>UTM {[c.utm.source, c.utm.medium].filter(Boolean).join(" / ")}</li>}
+            </ul>
+          ) : <p className="text-muted">No campaign recorded.</p>}
+        </div>
+      </div>
+      {note && <p className="mt-2 text-warning">{note}</p>}
+    </div>
+  );
+}
+
+/** One lead: its attribution, ad identifiers, consent, milestones and the event each platform would get. For checking a setup with a test lead. */
 export function LeadCheck({ initial }: { initial: number | null }) {
   const [id, setId] = useState(initial ? String(initial) : "");
   const [res, setRes] = useState<Check_ | null>(null);
@@ -48,27 +95,13 @@ export function LeadCheck({ initial }: { initial: number | null }) {
       {error && <Notice tone="error">{error}</Notice>}
       {res && (
         <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-lg border border-border p-3 text-[12.5px]">
               <p className="mb-1.5 font-medium text-fg"><Link href={`/leads?lead=${res.lead.id}`} className="hover:underline">{res.lead.name ?? `Lead #${res.lead.id}`}</Link>
                 {res.lead.is_test && <Badge tone="brand" className="ml-1.5">test: never sent</Badge>}</p>
               <p className="text-muted">Cycle {res.lead.cycle_no}{res.lead.deleted && " · deleted"}</p>
             </div>
-            <div className="rounded-lg border border-border p-3 text-[12.5px]">
-              <p className="mb-1.5 flex flex-wrap items-center gap-1.5 font-medium text-fg">Campaign
-                {res.campaign.paid ? <Badge tone="success">Paid · {res.campaign.platform === "meta" ? "Meta" : res.campaign.platform === "google" ? "Google" : "other"}</Badge>
-                  : <Badge>{res.campaign.platform === "none" ? "No ad" : "Organic or unknown"}</Badge>}</p>
-              {res.campaign.campaign_name || res.campaign.campaign_id || res.campaign.utm?.campaign ? (
-                <ul className="space-y-0.5 text-muted">
-                  <li className="text-fg">{res.campaign.campaign_name ?? res.campaign.utm?.campaign ?? `Campaign ${res.campaign.campaign_id}`}</li>
-                  {res.campaign.campaign_id && <li>ID <span className="font-mono text-[11.5px]">{res.campaign.campaign_id}</span></li>}
-                  {(res.campaign.adset_name || res.campaign.adset_id) && <li>Ad set {res.campaign.adset_name ?? res.campaign.adset_id}</li>}
-                  {(res.campaign.ad_name || res.campaign.ad_id) && <li>Ad {res.campaign.ad_name ?? res.campaign.ad_id}</li>}
-                </ul>
-              ) : <p className="text-muted">No campaign recorded.</p>}
-              {!res.campaign.paid && <p className="mt-1 text-warning">Not from a paid ad: nothing is reported.</p>}
-              {res.campaign.paid && !res.campaign.matchable && <p className="mt-1 text-warning">UTM tags only: the platform cannot match it, so nothing is reported.</p>}
-            </div>
+            <AttributionBox c={res.campaign} />
             <div className="rounded-lg border border-border p-3 text-[12.5px]">
               <p className="mb-1.5 font-medium text-fg">Ad identifiers</p>
               {Object.keys(res.ids).length === 0 ? <p className="text-danger">None: this lead makes no events.</p>
@@ -89,9 +122,12 @@ export function LeadCheck({ initial }: { initial: number | null }) {
                   <th scope="col" className="px-3 py-2 text-right font-medium">Value</th><th scope="col" className="px-3 py-2 font-medium">Meta</th><th scope="col" className="px-3 py-2 font-medium">Google</th></tr>
               </thead>
               <tbody className="divide-y divide-border">
+                {res.milestones.length === 0 && (
+                  <tr><td colSpan={5} className="px-3 py-3 text-muted">No milestone yet: the lead has not been received, decided or moved on in this enquiry.</td></tr>
+                )}
                 {res.milestones.map((m) => (
                   <tr key={m.stage} className="align-top">
-                    <td className="px-3 py-2 font-medium text-fg">{STAGE_LABEL[m.stage]?.label ?? m.stage}</td>
+                    <td className="px-3 py-2 font-medium text-fg" title={STAGE_LABEL[m.stage]?.hint}>{STAGE_LABEL[m.stage]?.label ?? m.stage}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-muted">{formatDateTime(m.at)}</td>
                     <td className="tabular px-3 py-2 text-right">{formatInr(m.value_inr)}</td>
                     {(["meta", "google"] as const).map((p) => {
@@ -108,7 +144,7 @@ export function LeadCheck({ initial }: { initial: number | null }) {
                               <button type="button" className="ml-1.5 text-[11.5px] text-info hover:underline" onClick={() => setOpen(open === key ? null : key)}>{open === key ? "Hide" : "Payload"}</button>
                               {open === key && <pre className="mt-1.5 max-h-56 max-w-sm overflow-auto rounded bg-surface-2 p-2 font-mono text-[11px] text-fg">{JSON.stringify(ev.payload, null, 2)}</pre>}
                             </>
-                          ) : <span className="text-subtle">{!res.campaign.paid || !res.campaign.matchable ? "Not a paid, matchable lead" : res.campaign.platform !== p ? "—" : "Off for this signal"}</span>}
+                          ) : <span className="text-subtle">{!res.campaign.paid ? "Not a paid lead" : !res.campaign.matchable ? "Paid, not matchable" : res.campaign.platform !== p ? "—" : "Off for this signal"}</span>}
                         </td>
                       );
                     })}
@@ -117,7 +153,11 @@ export function LeadCheck({ initial }: { initial: number | null }) {
               </tbody>
             </table>
           </div>
-          <p className="text-[12px] text-muted">The payload is exactly what is sent: email and phone appear only as SHA-256 hashes. Google&apos;s conversion action is added when the event is sent.</p>
+          <p className="text-[12px] text-muted">
+            <span className="font-medium text-fg">Qualified lead</span> is by class, not by hand-off: the earliest of an engine decision that classed the lead qualified
+            (sent to a partner or to B2C sales), a partner-sharing consent request, or the first partner allocation. A nurture hand-off alone never counts.
+            The payload is exactly what is sent: email and phone appear only as SHA-256 hashes. Google&apos;s conversion action is added when the event is sent.
+          </p>
         </>
       )}
     </div>

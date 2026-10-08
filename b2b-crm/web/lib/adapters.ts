@@ -63,7 +63,60 @@ export type AdapterStatus = {
           record_field: string; default_fields: Record<string, string> };
   envs: Record<Env, AdapterEnvStatus>;
   polled_events_7d: number;
+  /**
+   * D37: whether the Admin confirmed that this CRM refuses a duplicate in the create call (partners.dedupe_confirmed_at). Optional
+   * because b2b.partner_adapter_status (m19e) does not return it yet: ConnectionTab fills both from partner_detail's partner row
+   * (withDedupe). Partner-wide, not per environment.
+   */
+  dedupe_confirmed?: boolean;
+  dedupe_confirmed_at?: string | null;
 };
+
+/** The AdapterStatus with the partner's duplicate-blocking confirmation attached (from partners.dedupe_confirmed_at). */
+export function withDedupe<T extends AdapterStatus>(s: T, partner: { dedupe_confirmed_at: string | null } | null | undefined): T {
+  if (!partner) return s;
+  return { ...s, dedupe_confirmed: partner.dedupe_confirmed_at !== null, dedupe_confirmed_at: partner.dedupe_confirmed_at };
+}
+
+// ---------- duplicate handling (D37, rulebook PART 5.1) ----------
+
+/** engine.a3_fixed hold_minutes_sync / hold_minutes_async: 0 minutes for a CRM that refuses duplicates on create, 30 for the rest. */
+export const ADAPTER_HOLD_MINUTES = { confirmed: 0, unconfirmed: 30 } as const;
+export const DEDUPE_CONFIRM_LABEL = "This CRM blocks duplicates on create";
+export const DEDUPE_CONFIRM_HINT = "Tick only if the CRM refuses a duplicate on create; the hold window then drops from 30 to 0 minutes";
+
+/** The hold window partner_adapter_save will set for this answer (confirmed → 'sync', 0 min; otherwise 'async', 30 min). */
+export const adapterHoldMinutes = (confirmed: boolean | null | undefined): number => (confirmed ? ADAPTER_HOLD_MINUTES.confirmed : ADAPTER_HOLD_MINUTES.unconfirmed);
+export const holdWindowLabel = (confirmed: boolean | null | undefined): string => `Hold window: ${adapterHoldMinutes(confirmed)} min`;
+
+/** What the Admin typed in the adapter form (one environment) plus the partner-wide duplicate-blocking answer. */
+export type AdapterSaveForm = {
+  env: Env;
+  settings: Record<string, string>;
+  secrets: Record<string, string>;
+  reference_field: string;
+  status_field: string;
+  poll: boolean;
+  poll_minutes: string;
+  fixed: { k: string; v: string }[];
+  /** The checkbox's answer. Absent or null: the key is not sent and partner_adapter_save keeps the stored confirmation. */
+  dedupe_confirmed?: boolean | null;
+};
+
+/** The `p` argument of b2b.partner_adapter_save(p_partner_id, p). Empty secrets are left out (the stored ones are kept). */
+export function adapterSavePayload(d: AdapterSaveForm): Record<string, unknown> {
+  return {
+    env: d.env,
+    settings: d.settings,
+    secrets: Object.fromEntries(Object.entries(d.secrets).filter(([, v]) => v)),
+    reference_field: d.reference_field || null,
+    status_field: d.status_field || null,
+    poll: d.poll,
+    ...(d.poll_minutes ? { poll_minutes: Number(d.poll_minutes) } : {}),
+    fixed: Object.fromEntries(d.fixed.filter((x) => x.k).map((x) => [x.k, x.v])),
+    ...(typeof d.dedupe_confirmed === "boolean" ? { dedupe_confirmed: d.dedupe_confirmed } : {}),
+  };
+}
 
 export type AdapterPreview = { reference: string; sample: boolean; url: string | null; headers: Record<string, string>; body: unknown; error: string | null };
 

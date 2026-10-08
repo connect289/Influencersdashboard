@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/components/ui/cn";
 import {
-  DIM_LABEL, gaugeTargetInput, gaugeTargetValue, PERIOD_LABEL, PERIODS, WIDGET_LABEL, WIDGET_TYPES, widgetDims, widgetProblemIn,
-  type CatalogueMetric, type Dashboard, type Period, type Widget, type WidgetType,
+  DATE_BASES, DATE_BASIS_HINT, DATE_BASIS_LABEL, DIM_LABEL, gaugeTargetInput, gaugeTargetValue, PERIOD_LABEL, PERIODS, WIDGET_LABEL, WIDGET_TYPES, widgetDateBases, widgetDims, widgetProblemIn,
+  type CatalogueMetric, type Dashboard, type DateBasis, type Period, type Widget, type WidgetType,
 } from "@/lib/analytics";
 import { saveDashboard } from "../../actions";
 
@@ -21,8 +21,10 @@ function L({ label, children }: { label: string; children: React.ReactNode }) {
 
 function WidgetEditor({ w, metrics, onChange }: { w: Widget; metrics: CatalogueMetric[]; onChange: (w: Widget) => void }) {
   const m = metrics.find((x) => x.key === (w.metric ?? w.metrics?.[0]));
-  // only the breakdowns every chosen metric has (the save checks the same)
+  // only the breakdowns every chosen metric has, and only the date bases every chosen metric can be counted by (the save checks the same)
   const dims = widgetDims(w, metrics);
+  const bases = widgetDateBases(w, metrics);
+  const hasMetric = Boolean(w.metric || w.metrics?.length);
   const byArea = useMemo(() => Object.entries(metrics.reduce<Record<string, CatalogueMetric[]>>((a, x) => { (a[x.area] ??= []).push(x); return a; }, {})), [metrics]);
   const metricSelect = (value: string | undefined, set: (v: string) => void) => (
     <select value={value ?? ""} onChange={(e) => set(e.target.value)} className={field}>
@@ -32,7 +34,7 @@ function WidgetEditor({ w, metrics, onChange }: { w: Widget; metrics: CatalogueM
   );
   const dimSelect = (i: number, list = w.dims ?? [], key: "dims" | "steps" = "dims") => (
     <select value={list[i] ?? ""} onChange={(e) => { const next = [...list]; if (e.target.value) next[i] = e.target.value; else next.splice(i); onChange({ ...w, [key]: next.filter(Boolean) }); }} className={field}>
-      <option value="">{i === 0 ? "None" : "None"}</option>
+      <option value="">None</option>
       {dims.map((d) => <option key={d} value={d}>{DIM_LABEL[d] ?? d}</option>)}
     </select>
   );
@@ -74,6 +76,19 @@ function WidgetEditor({ w, metrics, onChange }: { w: Widget; metrics: CatalogueM
             <option value="">The dashboard's</option>
             {PERIODS.map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
           </select>
+        </L>
+      )}
+      {!NO_METRIC.includes(w.type) && (
+        <L label="Date">
+          <select value={w.date_basis ?? ""} onChange={(e) => onChange({ ...w, date_basis: (e.target.value || undefined) as DateBasis | undefined })} className={field}
+                  title={w.date_basis ? DATE_BASIS_HINT[w.date_basis] : "Which date the numbers are counted by"} disabled={hasMetric && bases.length === 0 && !w.date_basis}>
+            <option value="">The metric&apos;s own date</option>
+            {/* a saved basis the chosen metrics cannot use stays listed, so the warning below can name it */}
+            {DATE_BASES.filter((b) => bases.includes(b) || b === w.date_basis).map((b) => <option key={b} value={b}>{DATE_BASIS_LABEL[b]}</option>)}
+          </select>
+          <span className="block text-[11px] text-subtle">
+            {hasMetric && bases.length === 0 ? "This metric has one date only" : w.date_basis ? DATE_BASIS_HINT[w.date_basis] : "Count leads by when they were created, routed, accepted or enrolled"}
+          </span>
         </L>
       )}
       {problem && <p className="text-[12px] text-warning sm:col-span-2 lg:col-span-4">{problem}</p>}

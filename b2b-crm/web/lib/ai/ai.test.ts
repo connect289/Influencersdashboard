@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { normaliseReport, reportText, systemPrompt, SUBMIT_TOOL, DATA_TOOLS } from "./prompts";
+import { ALL_TOOLS, DATA_TOOL_NAMES, DATA_TOOLS, LEVER_BOUND_FACTS, LEVERS, MATURED_DAYS_TEXT, normaliseReport, PROMPT_FACTS, PROMPT_VERSION, reportText, SUBMIT_TOOL, systemPrompt } from "./prompts";
 import { collectNumbers, extractNumbers, matches, validateNumbers } from "./validate";
 import { anthropicMessages, costUsd, runOnce, type Db, type Messages } from "./worker";
 
@@ -40,9 +40,48 @@ describe("prompts", () => {
     expect(SUBMIT_TOOL.input_schema.required).toEqual(["summary", "findings", "recommendations"]);
   });
 
+  it("is the Addendum 3 version: stages, fixed numbers, the five levers and support (C34, C100)", () => {
+    expect(PROMPT_VERSION).toBe("opt-2026-10-08.1");
+    expect([...LEVERS]).toEqual(["effort_weights", "effort_bounds", "sla_floor", "half_life_days", "prior_weight", "rule_draft", "pause_draft"]);
+    const base = systemPrompt("optimise");
+    for (const s of ["the highest score wins", "Stage A", "Stage B", "Stage C", "20 leads", "7 days old", "30 matured leads", "more than 60 days ago",
+                     "20% is fixed", "0.85 to 1.15", "80% to 100%", "14 to 60 days", "5 to 50 leads", "0 to 5 per effort metric", "the support", "holdout"]) {
+      expect(base).toContain(s);
+    }
+    for (const retired of ["segment_pin", "partner_weight", "exploration_share", "share_cap", "speed_factor", "reliability_factor", "maturity_days", "Thompson"]) {
+      expect(base).not.toContain(retired);
+    }
+    // the change schema offers exactly the A3 levers, with no segment or expiry (the levers are global)
+    const change = (SUBMIT_TOOL.input_schema.properties as Record<string, { items: { properties: Record<string, { properties: Record<string, { enum?: string[] }> }> } }>)
+      .recommendations!.items.properties.change!;
+    expect(change.properties.lever!.enum).toEqual([...LEVERS]);
+    expect(Object.keys(change.properties).sort()).toEqual(["lever", "partner_id", "reason", "rule", "value"]);
+    // the validator may allow the bounds BASE states (C100) and the stage numbers
+    for (const n of [0.8, 1, 0.85, 1.15, 0, 5, 14, 60, 5, 50, 80, 100]) expect(LEVER_BOUND_FACTS).toContain(n);
+    for (const n of [...LEVER_BOUND_FACTS, 20, 7, 30, 2, 0.2]) expect(PROMPT_FACTS).toContain(n);
+    for (const retired of [90, 0.5, 0.9, 1.1]) expect(PROMPT_FACTS).not.toContain(retired);
+  });
+
+  it("offers sales_effort after partner_scorecards and words the matured windows (C23, C34)", () => {
+    expect(DATA_TOOL_NAMES.has("sales_effort")).toBe(true);
+    const names = DATA_TOOLS.map((t) => t.name);
+    expect(names.indexOf("sales_effort")).toBe(names.indexOf("partner_scorecards") + 1);
+    expect(DATA_TOOLS.find((t) => t.name === "sales_effort")!.description).toContain("six effort metrics");
+    expect(ALL_TOOLS.at(-1)!.name).toBe("submit_report");
+    expect(systemPrompt("weekly_report")).toContain("sales effort, SLA and duplicate behaviour (sales_effort tool)");
+    const days = (name: string) => ((DATA_TOOLS.find((t) => t.name === name)!.input_schema.properties as Record<string, { description?: string; minimum?: number }>).days!);
+    expect(MATURED_DAYS_TEXT).toBe("days of matured decisions (routed more than 60 days ago)");
+    expect(days("uplift").description).toContain(MATURED_DAYS_TEXT);
+    expect(days("uplift").minimum).toBe(30);
+    expect(days("run_simulation").description).toContain(MATURED_DAYS_TEXT);
+    expect(days("run_simulation").minimum).toBe(7);
+    expect(DATA_TOOLS.find((t) => t.name === "run_simulation")!.description).toContain("support");
+    expect(DATA_TOOLS.find((t) => t.name === "partner_scorecards")!.description).not.toMatch(/speed|reliability|weight/);
+  });
+
   it("normalises a report and drops incomplete items", () => {
-    const r = normaliseReport({ summary: " ok ", findings: [{ title: "t", detail: "d" }, { title: "" }], recommendations: [{ title: "x" }, { title: "y", rationale: "z", change: { lever: "exploration_share" } }] });
-    expect(r).toMatchObject({ summary: "ok", findings: [{ title: "t", detail: "d" }], recommendations: [{ title: "y", rationale: "z", change: { lever: "exploration_share" } }] });
+    const r = normaliseReport({ summary: " ok ", findings: [{ title: "t", detail: "d" }, { title: "" }], recommendations: [{ title: "x" }, { title: "y", rationale: "z", change: { lever: "sla_floor" } }] });
+    expect(r).toMatchObject({ summary: "ok", findings: [{ title: "t", detail: "d" }], recommendations: [{ title: "y", rationale: "z", change: { lever: "sla_floor" } }] });
     expect(normaliseReport({ findings: [] })).toBeNull();
     expect(reportText(r!)).toBe("ok\nt\nd\ny\nz\n");
   });
@@ -296,16 +335,29 @@ describe("worker loop", () => {
     expect(await run(0.0612)).toEqual({ status: "done", unverified: [] });
   });
 
-  it("allows proposed values", async () => {
+  it("allows proposed values of the A3 levers", async () => {
     const db = fakeDb();
     const replies = [toolUse("segment_scorecards"), submit({ summary: "MBA has 41 matured leads.", findings: [], recommendations: [
-      { title: "Explore more", rationale: "Set exploration to 25%", change: { lever: "exploration_share", segment: "mba|PG|Online", value: 0.25 } },
+      { title: "Raise the SLA floor", rationale: "Set the floor to 85%", change: { lever: "sla_floor", value: 0.85 } },
+      { title: "Tighter effort bounds", rationale: "Bounds 0.9 to 1.1", change: { lever: "effort_bounds", value: [0.9, 1.1] } },
+      { title: "Weight the first call", rationale: "First call at 2, stale leads at 0.5", change: { lever: "effort_weights", value: { first_call: 2, stale_share: 0.5 } } },
       { title: "Prefer partner 4", rationale: "A rule with priority 50 for partner 4", change: { lever: "rule_draft", rule: { name: "MBA to 4", action: "fix_partner", partner_ids: [4], priority: 50 } } },
       { title: "Rank it", rationale: "Give it priority 70", change: { lever: "rule_draft", rule: { name: "Ranked", action: "narrow", partner_ids: [4], priority: 70 } } },
     ] })];
     const r = await runOnce(db, vi.fn(async () => replies.shift()!));
     expect(r.status).toBe("done");
     expect(validationOf(db)).toMatchObject({ ok: true, unverified: [] });
+  });
+
+  it("allows the bounds and stage numbers the prompt states, not the retired ones", async () => {
+    const run = async (summary: string) => {
+      const db = fakeDb();
+      const replies = [toolUse("segment_scorecards"), submit({ summary, findings: [], recommendations: [] })];
+      const r = await runOnce(db, vi.fn(async () => replies.shift()!));
+      return { status: r.status, unverified: validationOf(db).unverified };
+    };
+    expect(await run("The half-life may be 14 to 60 days; the SLA floor 80% to 100%; Stage B needs 20 leads and 7 days.")).toEqual({ status: "done", unverified: [] });
+    expect(await run("Exploration could be 0.5 or the maturity 90 days.")).toEqual({ status: "rejected", unverified: ["0.5", "90"] });
   });
 
   it("refuses unknown tools and stops at the budget", async () => {
@@ -398,23 +450,32 @@ describe("Anthropic API client", () => {
 });
 
 describe("inbox labels", async () => {
-  const { describeChange, simulationText, expiresText, editedChange, setupSteps } = await import("./labels");
+  const { describeChange, simulationText, expiresText, editable, editedChange, setupSteps } = await import("./labels");
   it("describes changes and simulations", () => {
-    expect(describeChange({ lever: "exploration_share", segment: "mca|PG|Online", value: 0.3 })).toBe("Exploration share 30% for MCA · PG · Online");
-    expect(describeChange({ lever: "partner_weight", partner_id: 4, value: 1.05 }, { "4": "SkillBridge" })).toBe("Weight SkillBridge at 105%");
+    expect(describeChange({ lever: "sla_floor", value: 0.85 })).toBe("SLA factor floor 85%");
+    expect(describeChange({ lever: "effort_bounds", value: [0.9, 1.1] })).toBe("Effort factor 0.90–1.10");
+    expect(describeChange({ lever: "effort_weights", value: { first_call: 2, connect_rate: 1 } })).toBe("Effort weights: Minutes to the first call 2, Connected ÷ calls 1");
+    expect(describeChange({ lever: "half_life_days", value: 30 })).toBe("Recency half-life 30 days");
+    expect(describeChange({ lever: "prior_weight", value: 20 })).toBe("Prior strength 20 leads");
+    expect(describeChange({ lever: "pause_draft", partner_id: 4 }, { "4": "SkillBridge" })).toBe("Pause SkillBridge");
     expect(describeChange(null)).toBe("No change: an observation");
     expect(simulationText({ simulated: true, decisions: 40, ncpl_now: 3400, ncpl_new: 4000, difference: 600, ci95: [-38, 1240], gain_pct: 17.6, enough: true }))
       .toBe("NCPL ₹3,400 → ₹4,000, +17.6% (95%: −₹38 to +₹1,240) on 40 decisions");
     expect(simulationText({ simulated: true, decisions: 0 })).toBe("No matured decisions to replay yet");
     expect(simulationText({ simulated: false, why: "cannot replay" })).toBe("cannot replay");
   });
-  it("words expiry, edits and setup", () => {
+  it("words expiry, edits and setup (C100)", () => {
     const now = new Date("2026-10-07T10:00:00Z");
     expect(expiresText("2026-10-13T11:00:00Z", now)).toBe("expires in 6 days");
     expect(expiresText("2026-10-07T09:00:00Z", now)).toBe("expired");
-    expect(editedChange({ lever: "exploration_share", segment: "a|b|c", value: 0.5 }, "15")).toEqual({ lever: "exploration_share", segment: "a|b|c", value: 0.15 });
-    expect(editedChange({ lever: "maturity_days", value: 60 }, "45")).toEqual({ lever: "maturity_days", value: 45 });
-    expect(editedChange({ lever: "maturity_days", value: 60 }, "soon")).toBe("Enter a number");
+    expect(editedChange({ lever: "sla_floor", value: 0.9 }, "85")).toEqual({ lever: "sla_floor", value: 0.85 });
+    expect(editedChange({ lever: "sla_floor", value: 0.9 }, "0.85")).toEqual({ lever: "sla_floor", value: 0.85 });
+    expect(editedChange({ lever: "sla_floor", value: 0.9 }, "1.05")).toBe("Enter 80 to 100 (%), e.g. 85");
+    expect(editedChange({ lever: "half_life_days", value: 30 }, "45")).toEqual({ lever: "half_life_days", value: 45 });
+    expect(editedChange({ lever: "prior_weight", value: 20 }, "soon")).toBe("Enter a number.");
+    expect(editable({ lever: "partner_weight" } as never)).toBe(false);
+    expect(editable({ lever: "effort_weights", value: {} })).toBe(false);
+    expect(editable({ lever: "sla_floor", value: 0.9 })).toBe(true);
     const steps = setupSteps({ settings: { enabled: false, worker_url: null } as never, worker: null, worker_key: false });
     expect(steps.filter((x) => x.done)).toHaveLength(0);
   });

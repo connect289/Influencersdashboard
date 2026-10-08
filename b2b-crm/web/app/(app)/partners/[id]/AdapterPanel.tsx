@@ -1,14 +1,17 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CircleDashed, Eye, LoaderCircle, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
+import { Check, CircleDashed, Eye, LoaderCircle, Plus, RefreshCw, ScanSearch, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Notice";
 import { cn } from "@/components/ui/cn";
 import { formatDateTime, relativeTime } from "@/lib/format";
-import { REFERENCE_HELP, SETTING_FIELD, adapterProblems, pollSummary, secretField, type AdapterPreview, type AdapterStatus, type Env } from "@/lib/adapters";
+import {
+  DEDUPE_CONFIRM_HINT, DEDUPE_CONFIRM_LABEL, REFERENCE_HELP, SETTING_FIELD, adapterHoldMinutes, adapterProblems, holdWindowLabel, pollSummary, secretField,
+  type AdapterPreview, type AdapterStatus, type Env,
+} from "@/lib/adapters";
 import { adapterAction, adapterPreview, saveAdapter } from "./adapter-actions";
 
 const field = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg placeholder:text-subtle focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 aria-[invalid=true]:border-danger";
@@ -26,26 +29,35 @@ function initial(s: AdapterStatus, env: Env) {
   };
 }
 
-/** A CRM adapter's connection: settings and secrets per environment, sign-in, polling, schema discovery and a push preview. */
+/** The stored answer to 'This CRM blocks duplicates on create'; null when the status read did not carry it (the key is then sent only once the Admin ticks or unticks). */
+const storedDedupe = (s: AdapterStatus): boolean | null => (typeof s.dedupe_confirmed === "boolean" ? s.dedupe_confirmed : s.dedupe_confirmed_at ? true : s.dedupe_confirmed_at === null ? false : null);
+
+/**
+ * A CRM adapter's connection: settings and secrets per environment, the duplicate-blocking confirmation that sets the hold window
+ * (D37), sign-in, polling, schema discovery and a push preview.
+ */
 export function AdapterPanel({ id, s }: { id: number; s: AdapterStatus }) {
   const router = useRouter();
   const [env, setEnv] = useState<Env>("live");
   const [f, setF] = useState(() => initial(s, "live"));
+  // partner-wide (not per environment), so it survives an environment switch
+  const [dedupe, setDedupe] = useState<boolean | null>(() => storedDedupe(s));
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<AdapterPreview | null>(null);
   const e = s.envs[env];
   const st = e?.state;
   const problems = useMemo(() => adapterProblems(s.spec, { ...f, secretsSet: e?.secrets_set ?? [] }), [s.spec, f, e?.secrets_set]);
+  const confirmed = dedupe === true;
 
   const switchEnv = (v: Env) => { setEnv(v); setF(initial(s, v)); setError(null); setPreview(null); };
   const save = async () => {
     if (Object.keys(problems).length) { setError("Check the highlighted fields."); return; }
     setPending("save"); setError(null);
     try {
-      const r = await saveAdapter(id, { env, ...f });
+      const r = await saveAdapter(id, { env, ...f, dedupe_confirmed: dedupe });
       if (!r.ok) { setError(r.error); return; }
-      toast.success(`${ENV_LABEL[env]} connection saved`);
+      toast.success(`${ENV_LABEL[env]} connection saved · ${holdWindowLabel(confirmed).toLowerCase()}`);
       setF((x) => ({ ...x, secrets: Object.fromEntries(Object.keys(x.secrets).map((k) => [k, ""])) }));
       router.refresh();
     } finally { setPending(null); }
@@ -115,6 +127,27 @@ export function AdapterPanel({ id, s }: { id: number; s: AdapterStatus }) {
             </label>
           );
         })}
+      </div>
+
+      <div className={cn("space-y-2 rounded-lg border px-3 py-2.5 text-[12.5px]", confirmed ? "border-success/25 bg-success-bg/40" : "border-border")}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label className="flex items-start gap-2 font-medium text-fg">
+            <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={confirmed} onChange={(x) => setDedupe(x.target.checked)} />
+            <span>{DEDUPE_CONFIRM_LABEL}</span>
+          </label>
+          <Badge tone={confirmed ? "success" : "neutral"}>{confirmed && <ShieldCheck className="size-3" />} {holdWindowLabel(confirmed)}</Badge>
+        </div>
+        <p className="text-muted">
+          {DEDUPE_CONFIRM_HINT}. {confirmed
+            ? "A duplicate then comes back in the create call itself, so the lead moves to the next partner at once."
+            : `Eduwit waits ${adapterHoldMinutes(false)} minutes for a duplicate or rejection before the lead counts as accepted and the student is told.`}
+          {" "}Applies to live and sandbox alike; saved with either.
+        </p>
+        {dedupe !== storedDedupe(s) ? (
+          <p className="text-warning">Not saved yet: the hold window changes when you save.</p>
+        ) : s.dedupe_confirmed_at ? (
+          <p className="text-subtle">Confirmed <span title={formatDateTime(s.dedupe_confirmed_at)}>{relativeTime(s.dedupe_confirmed_at)}</span>.</p>
+        ) : null}
       </div>
 
       <details className="rounded-lg border border-border px-3 py-2 text-[12.5px]">
@@ -194,6 +227,8 @@ export function AdapterPanel({ id, s }: { id: number; s: AdapterStatus }) {
             </dd>
           </>)}
           <dt className="text-muted">Polled events, 7 days</dt><dd className="tabular text-fg">{s.polled_events_7d}</dd>
+          <dt className="text-muted">Hold window</dt>
+          <dd className="text-fg">{adapterHoldMinutes(storedDedupe(s))} min{storedDedupe(s) ? " (CRM confirmed to block duplicates on create)" : " (duplicates may arrive after the create call)"}</dd>
         </dl>
       )}
 
