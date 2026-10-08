@@ -4,6 +4,7 @@ import { LoaderCircle, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { DIM_LABEL, parseFormula, type CatalogueMetric } from "@/lib/analytics";
+import { ALERT_LABEL, digestTypeGroups } from "@/lib/overview";
 import { saveAlertSettings, saveMetric, saveMetricAlert, saveSchedule, setMetricAlertActive, setScheduleActive, testAlert } from "./actions";
 
 const field = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30";
@@ -67,15 +68,18 @@ export function MetricForm({ metrics }: { metrics: CatalogueMetric[] }) {
   );
 }
 
-export function AlertSettingsForm({ s, emailReady }: { s: { enabled: boolean; emails: string[]; whatsapp_numbers: string[]; whatsapp_template: string | null; digest_minutes: number }; emailReady: boolean }) {
+export function AlertSettingsForm({ s, emailReady }: { s: { enabled: boolean; emails: string[]; whatsapp_numbers: string[]; whatsapp_template: string | null; digest_minutes: number;
+                                                             types?: string[] | null }; emailReady: boolean }) {
   const { busy, error, run } = useSubmit();
   const [testing, startTest] = useTransition();
+  const saved = new Set(s.types ?? []);
+  const groups = digestTypeGroups(s.types);
   return (
     <form className="space-y-3" onSubmit={(e) => {
       e.preventDefault();
       const f = new FormData(e.currentTarget);
       run(() => saveAlertSettings({ enabled: f.get("enabled") === "on", emails: String(f.get("emails")), whatsapp_numbers: String(f.get("wa")), whatsapp_template: String(f.get("tpl")),
-                                    digest_minutes: Number(f.get("digest")) || 15, reason: String(f.get("reason")) }), "Alert settings saved");
+                                    digest_minutes: Number(f.get("digest")) || 15, reason: String(f.get("reason")), types: f.getAll("types").map(String) }), "Alert settings saved");
     }}>
       <label className="flex items-start gap-2 text-[13px]"><input type="checkbox" name="enabled" defaultChecked={s.enabled} className="mt-0.5 size-4 accent-[var(--primary)]" />
         <span><span className="font-medium text-fg">Send alerts and reports</span><span className="block text-[12px] text-muted">While off, messages are queued and logged but not sent.
@@ -86,6 +90,27 @@ export function AlertSettingsForm({ s, emailReady }: { s: { enabled: boolean; em
         <L label="WhatsApp template" hint="A Meta-approved template with one body variable; empty: e-mail only."><input name="tpl" defaultValue={s.whatsapp_template ?? ""} className={field} /></L>
         <L label="Alert digest every (minutes)"><input name="digest" type="number" min={5} max={1440} defaultValue={s.digest_minutes} className={field} /></L>
       </div>
+      <fieldset className="space-y-2">
+        <legend className="text-[12px] text-muted">In the digest</legend>
+        <p className="text-[11.5px] text-subtle">Ticked alert types go out in the digest. Every alert still shows on the Command Center and the Alerts widget; metric alerts send their own message.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {groups.map((g) => (
+            <div key={g.label} className="rounded-lg border border-border p-3">
+              <p className="mb-1.5 text-[12px] font-medium text-fg">{g.label}</p>
+              <ul className="space-y-1">
+                {g.types.map((t) => (
+                  <li key={t}>
+                    <label className="flex items-start gap-2 text-[12.5px] text-fg">
+                      <input type="checkbox" name="types" value={t} defaultChecked={saved.has(t)} className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]" />
+                      <span>{ALERT_LABEL[t] ?? t}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </fieldset>
       <L label="Reason"><input name="reason" maxLength={300} className={field} /></L>
       <div className="flex items-center gap-2">
         <Button size="sm" variant="secondary" disabled={testing} onClick={() => startTest(async () => {

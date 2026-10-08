@@ -1,11 +1,14 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
-import { LoaderCircle, RefreshCw } from "lucide-react";
+import { useEffect, useTransition } from "react";
+import Link from "next/link";
+import { LoaderCircle, RefreshCw, Scale } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useFormAction } from "@/components/ui/useFormAction";
-import type { EnginePolicy, SegmentModeInfo, SegmentPartner, SegmentPolicy } from "@/lib/segments";
-import { refreshStats, saveEnginePolicy, savePartnerWeight, saveSegmentPolicy, type FormState } from "./actions";
+import { STAGE_LABEL } from "@/lib/routing";
+import type { EnginePolicy, SegmentModeInfo } from "@/lib/segments";
+import { refreshStats, saveEnginePolicy, type FormState } from "./actions";
 
 const field = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 aria-[invalid=true]:border-danger";
 
@@ -29,70 +32,35 @@ function Footer({ error, pending, label }: { error?: string; pending: boolean; l
   );
 }
 
-/** One segment's policy: mode pin, exploration share, share cap and its own kill switch. Versioned with a reason. */
-export function SegmentPolicyForm({ segment, policy, mode }: { segment: string; policy: SegmentPolicy; mode: SegmentModeInfo }) {
-  const [state, onSubmit, pending] = useFormAction<FormState>(saveSegmentPolicy, undefined);
-  const [pin, setPin] = useState(policy.pin && policy.pin.source === "admin" ? policy.pin.mode : "auto");
-  const e = state?.errors ?? {};
-  useEffect(() => { if (state?.ok) toast.success("Segment saved"); }, [state?.ok]);
-  const pct = (v?: { value: number }) => (v ? String(Math.round(v.value * 1000) / 10) : "");
+/** A segment's policy, read-only (Addendum 3, D24): pins, share caps, per-segment exploration, the kill toggle and partner
+ *  weights were retired; the Admin's only override tool is a routing rule. */
+export function SegmentPolicySummary({ mode, rulesActive }: { mode: SegmentModeInfo; rulesActive?: number | null }) {
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-3">
-      <input type="hidden" name="segment" value={segment} />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <L label="Mode" error={e.pin} hint={`Automatic is ${mode.auto === "performance" ? "performance" : "commission first"} now.`}>
-          <select name="pin" value={pin} onChange={(x) => setPin(x.target.value as typeof pin)} className={field}>
-            <option value="auto">Automatic</option>
-            <option value="commission_first">Pin: commission first</option>
-            <option value="performance">Pin: performance</option>
-          </select>
-        </L>
-        <L label="Pin ends on" error={e.pin_until} hint="Empty: until you remove it.">
-          <input type="date" name="pin_until" disabled={pin === "auto"} defaultValue={policy.pin?.until?.slice(0, 10) ?? ""} className={field} aria-invalid={Boolean(e.pin_until)} />
-        </L>
-        <L label="Exploration share (%)" error={e.exploration_share} hint="Empty: the engine's share.">
-          <input name="exploration_share" inputMode="decimal" defaultValue={pct(policy.exploration_share)} className={field} aria-invalid={Boolean(e.exploration_share)} />
-        </L>
-        <L label="Share cap (%)" error={e.share_cap} hint="Empty: no cap. It overrides highest commission.">
-          <input name="share_cap" inputMode="decimal" defaultValue={pct(policy.share_cap)} className={field} aria-invalid={Boolean(e.share_cap)} />
-        </L>
-      </div>
-      <label className="flex items-start gap-2 text-[13px]">
-        <input type="checkbox" name="killed" defaultChecked={mode.killed} className="mt-0.5 size-4 accent-[var(--primary)]" />
-        <span><span className="font-medium text-fg">Kill switch for this segment</span><span className="block text-[12px] text-muted">Leads split between partners in the fixed shares from Engine settings.</span></span>
-      </label>
-      <L label="Reason" error={e.reason}><input name="reason" maxLength={300} placeholder="e.g. new partner, keep the commission rule for a month" className={field} aria-invalid={Boolean(e.reason)} /></L>
-      <Footer error={state?.error} pending={pending} label="Save segment" />
-    </form>
+    <div className="space-y-3 text-[13px]">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+        <dt className="text-muted">Stage now</dt>
+        <dd className="text-fg">Stage {mode.stage}: {STAGE_LABEL[mode.stage]}</dd>
+        <dt className="text-muted">Stored stage</dt>
+        <dd className="text-fg">{mode.auto_stage ? `Stage ${mode.auto_stage}` : "not yet computed"}<span className="text-subtle"> (from the hourly statistics; the gates are the rulebook's fixed numbers)</span></dd>
+        <dt className="text-muted">Parameters</dt>
+        <dd className="text-fg">{mode.variant === "ai" ? <Badge tone="info" className="font-normal">AI-steered</Badge> : "the Admin's settings"}<span className="text-subtle"> · holdout leads always use the Admin&apos;s settings</span></dd>
+        <dt className="text-muted">Overrides</dt>
+        <dd className="text-fg">
+          {rulesActive == null
+            ? <Link href="/routing?tab=rules" className="inline-flex items-center gap-1 text-info hover:underline"><Scale className="size-3.5" /> Routing rules on this course, level, mode or university</Link>
+            : rulesActive > 0 ? <Link href="/routing?tab=rules" className="inline-flex items-center gap-1 text-info hover:underline"><Scale className="size-3.5" /> {rulesActive} active routing rule{rulesActive === 1 ? "" : "s"}</Link> : "none"}
+        </dd>
+      </dl>
+      <p className="text-[12.5px] text-muted">
+        Addendum 3 removed segment pins, share caps, per-segment exploration, the kill toggle and partner weights. To steer this segment,
+        add a <Link href="/routing?tab=rules" className="text-info hover:underline">routing rule</Link> (always send to, only consider, never send to, send to B2C) on its course,
+        level, mode or university, or pause the partner. The AI tunes only the effort weights and bounds, the SLA floor and P(enrol)&apos;s half-life and prior, inside your ranges.
+      </p>
+    </div>
   );
 }
 
-/** A temporary ±10% weight on a partner's net commission per lead (performance mode), at most 14 days. */
-export function PartnerWeightForm({ partners }: { partners: Pick<SegmentPartner, "partner_id" | "name" | "weight">[] }) {
-  const [state, onSubmit, pending] = useFormAction<FormState>(savePartnerWeight, undefined);
-  const e = state?.errors ?? {};
-  useEffect(() => { if (state?.ok) toast.success("Partner weight saved"); }, [state?.ok]);
-  return (
-    <form onSubmit={onSubmit} noValidate className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="sm:col-span-2"><L label="Partner" error={e.partner_id}>
-          <select name="partner_id" defaultValue="" className={field} aria-invalid={Boolean(e.partner_id)}>
-            <option value="" disabled>Choose</option>
-            {partners.map((p) => <option key={p.partner_id} value={p.partner_id}>{p.name}{p.weight ? ` (now ${Math.round(p.weight.weight * 100)}%)` : ""}</option>)}
-          </select>
-        </L></div>
-        <L label="Weight (%)" error={e.weight} hint="90 to 110; empty removes it.">
-          <input name="weight" inputMode="decimal" placeholder="105" className={field} aria-invalid={Boolean(e.weight)} />
-        </L>
-        <L label="For (days)" error={e.days}><input name="days" inputMode="numeric" defaultValue="7" className={field} aria-invalid={Boolean(e.days)} /></L>
-      </div>
-      <L label="Reason" error={e.reason}><input name="reason" maxLength={300} placeholder="e.g. new counsellor team, give them a week" className={field} aria-invalid={Boolean(e.reason)} /></L>
-      <Footer error={state?.error} pending={pending} label="Save weight" />
-    </form>
-  );
-}
-
-/** The holdout and how performance scoring samples (engine_policy). */
+/** The AI holdout share (engine_policy): the only policy value the Admin can change (C29, C63). */
 export function PolicyForm({ policy, version }: { policy: EnginePolicy; version: number }) {
   const [state, onSubmit, pending] = useFormAction<FormState>(saveEnginePolicy, undefined);
   const e = state?.errors ?? {};
@@ -100,22 +68,13 @@ export function PolicyForm({ policy, version }: { policy: EnginePolicy; version:
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <L label="AI holdout (% of leads)" error={e.holdout_share} hint="These leads always use your settings, never an AI change, so the AI's value is measured.">
-          <input name="holdout_share" inputMode="decimal" defaultValue={Math.round((policy.holdout_share ?? 0.1) * 1000) / 10} className={field} aria-invalid={Boolean(e.holdout_share)} />
+        <L label="AI holdout (% of leads, 0–50)" error={e.holdout_share} hint="These leads always use your settings, never an AI change, so the AI's value can be measured. Nothing else of the routing policy is editable: Addendum 3 fixed the lane, the limits and the stage gates.">
+          <input name="holdout_share" inputMode="decimal" defaultValue={String(Math.round((policy.holdout_share ?? 0.1) * 1000) / 10)} className={field} aria-invalid={Boolean(e.holdout_share)} />
         </L>
-        <L label="Draws per decision" error={e.mc_draws} hint="Seeded samples that estimate each choice's probability (50–1000).">
-          <input name="mc_draws" inputMode="numeric" defaultValue={policy.mc_draws ?? 200} className={field} aria-invalid={Boolean(e.mc_draws)} />
-        </L>
-        <L label="Young leads' weight (%)" error={e.leading_weight} hint="How much leads not yet matured count, through their stage (leading indicators).">
-          <input name="leading_weight" inputMode="decimal" defaultValue={Math.round((policy.leading_weight ?? 0.5) * 1000) / 10} className={field} aria-invalid={Boolean(e.leading_weight)} />
-        </L>
-        <L label="Young leads count after (days)" error={e.leading_min_days}>
-          <input name="leading_min_days" inputMode="numeric" defaultValue={policy.leading_min_days ?? 3} className={field} aria-invalid={Boolean(e.leading_min_days)} />
+        <L label="Reason" error={e.reason} hint={`Saved as policy version ${version + 1}.`}>
+          <input name="reason" maxLength={300} placeholder="e.g. more holdout while the AI is new" className={field} aria-invalid={Boolean(e.reason)} />
         </L>
       </div>
-      <L label="Reason" error={e.reason} hint={`Saved as policy version ${version + 1}.`}>
-        <input name="reason" maxLength={300} className={field} aria-invalid={Boolean(e.reason)} />
-      </L>
       <Footer error={state?.error} pending={pending} label="Save policy" />
     </form>
   );

@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Notice";
 import { cn } from "@/components/ui/cn";
 import {
-  CHUNK_ROWS, IMPORT_FIELDS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, PREVIEW_LABEL, ROUTE_CHOICE, chunk, mappingProblem, parseCsvRows, suggestMapping,
-  tableFromRows, toCsv, type Cell, type CourseMatch, type FileTable, type ImportPreview, type IntakeOverview, type Mapping,
+  CHUNK_ROWS, CONSENT_PURPOSE_LABEL, IMPORT_FIELDS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, PREVIEW_LABEL, ROUTE_CHOICE, chunk, mappingProblem, parseCsvRows,
+  suggestMapping, tableFromRows, toCsv, type Cell, type CourseMatch, type FileTable, type ImportPreview, type IntakeOverview, type Mapping,
 } from "@/lib/intake";
 import {
   commitImport, continueImport, createImport, importCourses, importPreview, importRowsPage, releaseHeld, setImportCourse, stageRows, type CommitForm,
@@ -22,6 +22,16 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "preview", label: "Duplicates" }, { id: "confirm", label: "Consent and routing" },
 ];
 const GROUPS = Object.keys(PREVIEW_LABEL);
+/** imports.counts keys shown after the run (m17d + m31h's recorded_not_passed). */
+const COUNT_LABEL: Record<string, { label: string; hint: string }> = {
+  created: { label: "Created", hint: "New leads." },
+  merged: { label: "Merged", hint: "Joined an open lead with the same phone." },
+  reopened: { label: "Reopened", hint: "A lost or enrolled lead opened as a new enquiry." },
+  imported: { label: "Written", hint: "Rows written as leads, in all." },
+  recorded_not_passed: { label: "Recorded, not passed", hint: "Blocked or invalid-phone rows: written as leads and marked Not passed, never routed." },
+  skipped: { label: "Skipped", hint: "Rows with no phone number at all." },
+  errors: { label: "Errors", hint: "Rows that could not be written; download the result for the reason." },
+};
 
 function Steps({ step }: { step: Step }) {
   const at = step === "run" ? STEPS.length : STEPS.findIndex((s) => s.id === step);
@@ -218,9 +228,12 @@ export function ImportWizard({ templates, resume }: { templates: IntakeOverview[
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState<CommitForm>({
     source_label: "", campaign: "", routing_choice: "hold", b2c_lane: "sales",
-    consent: { where: "", when: today, text: "", purposes: ["sales", "partner_share"] },
+    consent: { where: "", when: today, text: "", purposes: ["sales", "partner_share"], covers_admission_partners: false },
   });
   const purposes = form.consent.purposes as string[];
+  const shares = purposes.includes("partner_share");
+  // a partner-sharing stamp counts only under a text that names the admission partners (D8); the wording is registered as consent text import:<id>
+  const covers = shares && Boolean(form.consent.covers_admission_partners);
   const togglePurpose = (p: "partner_share" | "marketing", on: boolean) =>
     setForm((f) => ({ ...f, consent: { ...f.consent, purposes: on ? [...(f.consent.purposes as string[]), p] : (f.consent.purposes as string[]).filter((x) => x !== p) } as CommitForm["consent"] }));
 
@@ -247,7 +260,8 @@ export function ImportWizard({ templates, resume }: { templates: IntakeOverview[
 
   const pv = preview?.preview ?? {};
   const toWrite = (pv.new ?? 0) + (pv.merge ?? 0) + (pv.reopen ?? 0) + (pv.duplicate_in_file ?? 0) + (pv.test ?? 0);
-  const skipped = (pv.invalid ?? 0) + (pv.blocked ?? 0);
+  // D39: blocked and invalid-phone rows are written too and recorded as Not passed; only a row with no number at all is skipped
+  const recorded = (pv.invalid ?? 0) + (pv.blocked ?? 0);
   const noCourse = preview?.problems["no course"] ?? 0;
   const unsure = courses.filter((c) => (c.confidence ?? 0) < 0.6 && !c.choice);
 
@@ -423,6 +437,7 @@ export function ImportWizard({ templates, resume }: { templates: IntakeOverview[
             <ul className="space-y-1 text-[12.5px] text-muted">
               {GROUPS.filter((g) => (pv[g] ?? 0) > 0).map((g) => <li key={g}><span className="font-medium text-fg">{PREVIEW_LABEL[g]!.label}:</span> {PREVIEW_LABEL[g]!.hint}</li>)}
             </ul>
+            {recorded > 0 && <Notice tone="info">Every lead enters: the {recorded.toLocaleString("en-IN")} blocked or invalid-phone rows are written as leads and recorded as Not passed, so the file leaves a trace without anything being routed. Rows with no phone number at all are skipped.</Notice>}
             {Object.keys(preview.problems).length > 0 && (
               <p className="text-[12.5px] text-muted">Problems found: {Object.entries(preview.problems).map(([k, n]) => `${k} (${n})`).join(", ")}.</p>
             )}
@@ -452,7 +467,7 @@ export function ImportWizard({ templates, resume }: { templates: IntakeOverview[
                 <Button variant="secondary" onClick={() => setStep("courses")}><ArrowLeft className="size-4" /> Back</Button>
                 <Button variant="secondary" onClick={() => void downloadRows(importId, null, fileName)}><Download className="size-4" /> Download every row</Button>
               </div>
-              <Button onClick={() => setStep("confirm")} disabled={toWrite === 0}>Consent and routing <ArrowRight className="size-4" /></Button>
+              <Button onClick={() => setStep("confirm")} disabled={toWrite + recorded === 0}>Consent and routing <ArrowRight className="size-4" /></Button>
             </div>
           </>
         )}
@@ -460,8 +475,9 @@ export function ImportWizard({ templates, resume }: { templates: IntakeOverview[
         {step === "confirm" && preview && (
           <>
             <Notice tone="info">
-              <span className="tabular font-medium">{toWrite.toLocaleString("en-IN")}</span> rows will be written ({pv.new ?? 0} new, {(pv.merge ?? 0) + (pv.duplicate_in_file ?? 0)} merged,{" "}
-              {pv.reopen ?? 0} reopened, {pv.test ?? 0} test){skipped > 0 && <>; <span className="tabular">{skipped}</span> skipped (invalid or blocked phone)</>}. You can roll back the new leads for 24 hours if nothing has routed them.
+              <span className="tabular font-medium">{toWrite.toLocaleString("en-IN")}</span> rows will be written as leads ({pv.new ?? 0} new, {(pv.merge ?? 0) + (pv.duplicate_in_file ?? 0)} merged,{" "}
+              {pv.reopen ?? 0} reopened, {pv.test ?? 0} test){recorded > 0 && <>; <span className="tabular">{recorded}</span> blocked or invalid-phone rows are recorded as Not passed and never routed</>}.
+              You can roll back the new leads for 24 hours if nothing has routed them.
             </Notice>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block space-y-1">
@@ -477,7 +493,7 @@ export function ImportWizard({ templates, resume }: { templates: IntakeOverview[
             </div>
             <fieldset className="space-y-3 rounded-lg border border-border p-4">
               <legend className="px-1 text-[13px] font-semibold text-fg">Consent basis</legend>
-              <p className="text-[12.5px] text-muted">Every lead needs a record of how the student agreed to be contacted (spec B10). This is stored on each lead.</p>
+              <p className="text-[12.5px] text-muted">Every lead needs a record of how the student agreed to be contacted (spec B10). It is stored on each lead, and the wording is registered as consent text <span className="font-mono">import:&lt;id&gt;</span> under Consent texts for the lawyer&apos;s approval.</p>
               <div className="grid gap-4 md:grid-cols-[1fr_12rem]">
                 <label className="block space-y-1">
                   <span className={label}>Where they agreed</span>
@@ -495,10 +511,18 @@ export function ImportWizard({ templates, resume }: { templates: IntakeOverview[
                   onChange={(e) => setForm({ ...form, consent: { ...form.consent, text: e.target.value } })} />
               </label>
               <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px]">
-                <label className="flex items-center gap-2 text-muted"><input type="checkbox" checked disabled className="accent-[var(--primary)]" /> Contact about courses</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={purposes.includes("partner_share")} className="accent-[var(--primary)]" onChange={(e) => togglePurpose("partner_share", e.target.checked)} /> Share with partner institutions</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={purposes.includes("marketing")} className="accent-[var(--primary)]" onChange={(e) => togglePurpose("marketing", e.target.checked)} /> Marketing messages</label>
+                <label className="flex items-center gap-2 text-muted"><input type="checkbox" checked disabled className="accent-[var(--primary)]" /> {CONSENT_PURPOSE_LABEL.sales}</label>
+                <label className="flex items-center gap-2"><input type="checkbox" checked={shares} className="accent-[var(--primary)]" onChange={(e) => togglePurpose("partner_share", e.target.checked)} /> {CONSENT_PURPOSE_LABEL.partner_share}</label>
+                <label className="flex items-center gap-2"><input type="checkbox" checked={purposes.includes("marketing")} className="accent-[var(--primary)]" onChange={(e) => togglePurpose("marketing", e.target.checked)} /> {CONSENT_PURPOSE_LABEL.marketing}</label>
               </div>
+              {shares && (
+                <label className="flex items-start gap-2 text-[13px]">
+                  <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={Boolean(form.consent.covers_admission_partners)}
+                    onChange={(e) => setForm({ ...form, consent: { ...form.consent, covers_admission_partners: e.target.checked } })} />
+                  <span><span className="font-medium text-fg">The text above names our admission partners (edtech companies)</span>
+                    <span className="block text-[12.5px] text-muted">PART 7.1: only then does the partner-sharing consent count. Without it, these students are asked for consent (one-tap WhatsApp request) before any partner sees them.</span></span>
+                </label>
+              )}
             </fieldset>
             <fieldset className="space-y-2">
               <legend className="mb-1 text-[13px] font-semibold text-fg">What happens to the leads</legend>
@@ -516,11 +540,14 @@ export function ImportWizard({ templates, resume }: { templates: IntakeOverview[
                   </select>
                 </label>
               )}
-              {form.routing_choice === "route" && !purposes.includes("partner_share") && <Notice tone="warning">To route to partners the consent must cover sharing with partner institutions.</Notice>}
+              {form.routing_choice === "route" && !covers && (
+                <Notice tone="info">{shares ? "Until the covering tick is set, the partner-sharing consent does not count." : "These students have not agreed to partner sharing."}{" "}
+                  Each lead that is ready for a partner is asked for consent first (PART 7.2); the requests are spread over the hour, so a large file takes a while. Yes → partners; no → B2C sales; no answer in 48 hours → B2C nurture.</Notice>
+              )}
             </fieldset>
             <div className="flex justify-between gap-2">
               <Button variant="secondary" onClick={() => setStep("preview")} disabled={Boolean(busy)}><ArrowLeft className="size-4" /> Back</Button>
-              <Button onClick={commit} disabled={Boolean(busy)}>{busy && <LoaderCircle className="size-4 animate-spin" />} Import {toWrite.toLocaleString("en-IN")} leads</Button>
+              <Button onClick={commit} disabled={Boolean(busy)}>{busy && <LoaderCircle className="size-4 animate-spin" />} Import {(toWrite + recorded).toLocaleString("en-IN")} rows</Button>
             </div>
           </>
         )}
@@ -535,14 +562,18 @@ export function ImportWizard({ templates, resume }: { templates: IntakeOverview[
             {preview.import.status === "committing" && <p className="text-[12.5px] text-muted">You can leave this screen; the import carries on in the background (every minute).</p>}
             {preview.import.status === "done" && (
               <>
-                <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                  {(["created", "merged", "reopened", "imported", "skipped", "errors"] as const).map((k) => (
-                    <div key={k} className="rounded-lg border border-border p-3">
-                      <dt className="text-[12px] capitalize text-muted">{k}</dt>
-                      <dd className={cn("tabular mt-0.5 text-xl font-semibold", k === "errors" && (preview.import.counts[k] ?? 0) > 0 ? "text-danger" : "text-fg")}>{preview.import.counts[k] ?? 0}</dd>
+                <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+                  {Object.keys(COUNT_LABEL).map((k) => (
+                    <div key={k} className="rounded-lg border border-border p-3" title={COUNT_LABEL[k]!.hint}>
+                      <dt className="text-[12px] text-muted">{COUNT_LABEL[k]!.label}</dt>
+                      <dd className={cn("tabular mt-0.5 text-xl font-semibold", k === "errors" && (preview.import.counts[k] ?? 0) > 0 ? "text-danger" : k === "recorded_not_passed" && (preview.import.counts[k] ?? 0) > 0 ? "text-warning" : "text-fg")}>{preview.import.counts[k] ?? 0}</dd>
                     </div>
                   ))}
                 </dl>
+                {(preview.import.counts.recorded_not_passed ?? 0) > 0 && (
+                  <p className="text-[12.5px] text-muted">{preview.import.counts.recorded_not_passed} blocked or invalid-phone rows were written as leads and recorded as Not passed: they are listed under{" "}
+                    <a href="/leads?dest=not_passed" className="text-info hover:underline">Leads › Not passed</a> and are never routed.</p>
+                )}
                 {preview.import.routing_choice === "hold" && (
                   <Notice tone="info">The leads are held in the pre-routing pool. Release them when you are ready:{" "}
                     <button type="button" className="font-medium underline" onClick={async () => { const r = await releaseHeld(importId, null); if (r.ok) toast.success(`${r.data} leads released`); else toast.error(r.error); }}>release all now</button>.

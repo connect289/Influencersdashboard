@@ -73,17 +73,23 @@ export async function saveView(name: string, metric: string, filters: Record<str
 
 // ---------- alerts and delivery ----------
 const emails = z.array(z.string().trim().toLowerCase().regex(/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/, "Enter e-mail addresses"));
+/** The digest's alert types (admin_alerts.types, C87): alert.* names or routing.error, up to 60; alert.metric is refused by the SQL. */
+const alertTypes = z.array(z.string().regex(/^(alert\.[a-z_]+|routing\.error)$/, "Unknown alert type")).max(60, "Up to 60 alert types");
 
-export async function saveAlertSettings(input: { enabled: boolean; emails: string; whatsapp_numbers: string; whatsapp_template: string; digest_minutes: number; reason: string }): Promise<string | void> {
+export async function saveAlertSettings(input: { enabled: boolean; emails: string; whatsapp_numbers: string; whatsapp_template: string; digest_minutes: number; reason: string;
+                                                 types?: string[] }): Promise<string | void> {
   await assertAdmin();
   const list = (s: string) => s.split(/[,\s]+/).map((x) => x.trim()).filter(Boolean);
   const e = emails.max(10, "Up to 10 addresses").safeParse(list(input.emails));
   if (!e.success) return e.error.issues[0]?.message;
   const w = z.array(z.string().regex(/^\d{10,15}$/, "WhatsApp numbers: digits with the country code")).max(5).safeParse(list(input.whatsapp_numbers).map((x) => x.replace(/\D/g, "")));
   if (!w.success) return w.error.issues[0]?.message;
+  const t = input.types === undefined ? null : alertTypes.safeParse([...new Set(input.types)]);
+  if (t && !t.success) return t.error.issues[0]?.message;
   if (input.reason.trim().length < 3) return "Say why.";
-  const { error } = await rpc("admin_alerts_settings_save", { p: { enabled: input.enabled, emails: e.data, whatsapp_numbers: w.data, whatsapp_template: input.whatsapp_template,
-                                                                   digest_minutes: input.digest_minutes }, p_reason: input.reason.trim() });
+  const p: Record<string, unknown> = { enabled: input.enabled, emails: e.data, whatsapp_numbers: w.data, whatsapp_template: input.whatsapp_template, digest_minutes: input.digest_minutes };
+  if (t?.success) p.types = t.data;
+  const { error } = await rpc("admin_alerts_settings_save", { p, p_reason: input.reason.trim() });
   if (error) return dbMessage(error, "Could not save. Try again.");
   refresh();
 }

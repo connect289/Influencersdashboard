@@ -5,7 +5,9 @@ import { buttonClass } from "@/components/ui/Button";
 import { Card, EmptyState, PageHeader } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
-import { hasFilters, leadsHref, leadsSearch, parseLeadId, parseLeadQuery } from "@/lib/leads";
+import {
+  CLEAR_FILTERS, DESTINATION_HINT, DESTINATION_LABEL, FLAG_DESTINATIONS, PAID_FILTER_LABEL, hasFilters, leadsHref, leadsSearch, parseLeadId, parseLeadQuery,
+} from "@/lib/leads";
 import { leadDetail, leadEditHistory, leadFacets, listLeads } from "@/lib/leads-data";
 import { leadRouting } from "@/lib/routing-data";
 import { leadPartnerSync } from "@/lib/sync-data";
@@ -17,6 +19,9 @@ import { SearchBox } from "./SearchBox";
 export const metadata: Metadata = { title: "Leads" };
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+const DEFAULT_DESCRIPTION =
+  "Every lead from every source: Witty, the website, imports and the API. Junk and programme-mismatch leads are in the Not passed view; the Flags filters show partner-barred, qualifying, consent-pending, re-enquired and lost-in-grace leads. Paid is a Meta / Google label and never changes routing.";
 
 export default async function LeadsPage({ searchParams }: Props) {
   await requireAdmin();
@@ -34,18 +39,18 @@ export default async function LeadsPage({ searchParams }: Props) {
   ]);
   const search = leadsSearch(query);
   const filtered = hasFilters(query);
+  // A named view: the Not passed list or one of the Addendum 3 flags (the four routing destinations stay plain filters).
+  const view = !query.bin && query.dest && (query.dest === "not_passed" || (FLAG_DESTINATIONS as readonly string[]).includes(query.dest)) ? query.dest : null;
+  const title = query.bin ? "Recycle bin" : view ? DESTINATION_LABEL[view] ?? "Leads" : "Leads";
+  const description = query.bin
+    ? "Deleted leads stay here and can be restored. If a deleted student messages Witty again, a new lead is created."
+    : `${(view && DESTINATION_HINT[view]) || DEFAULT_DESCRIPTION}${query.paid ? ` Showing paid leads only (${PAID_FILTER_LABEL[query.paid]}).` : ""}`;
 
   return (
     <>
       <PageHeader
-        title={query.bin ? "Recycle bin" : query.dest === "not_passed" ? "Not passed" : "Leads"}
-        description={
-          query.bin
-            ? "Deleted leads stay here and can be restored. If a deleted student messages Witty again, a new lead is created."
-            : query.dest === "not_passed"
-              ? "Junk and programme-mismatch leads: kept in the master database, but no CRM works them. Select leads and pass them to a CRM when Witty got it wrong or Eduwit now offers the programme."
-              : "Every lead from every source: Witty, the website, imports and the API. Junk and programme-mismatch leads are in the Not passed view."
-        }
+        title={title}
+        description={description}
         actions={
           <>
             <Link href={leadsHref(query, { bin: !query.bin })} className={buttonClass("secondary", "sm")}>
@@ -99,7 +104,7 @@ export default async function LeadsPage({ searchParams }: Props) {
           <EmptyState
             icon={query.bin ? Trash2 : Inbox}
             title={filtered ? "No leads match these filters" : query.bin ? "The recycle bin is empty" : "No leads yet"}
-            action={filtered ? <Link href={leadsHref(query, { q: "", stage: [], source: [], status: [], dest: null })} className={buttonClass("secondary", "sm")}>Clear filters</Link> : undefined}
+            action={filtered ? <Link href={leadsHref(query, CLEAR_FILTERS)} className={buttonClass("secondary", "sm")}>Clear filters</Link> : undefined}
           >
             {!filtered && !query.bin && (
               <p>New leads appear here as soon as a student sends Witty their first message after the access code, or arrive from the website, an import or the API.{facets.tests > 0 && " Test leads are hidden; use the Test leads switch to see them."}</p>

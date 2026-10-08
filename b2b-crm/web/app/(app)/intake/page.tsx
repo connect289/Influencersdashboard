@@ -6,9 +6,10 @@ import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
 import { siteUrl } from "@/lib/env";
 import { formatDateTime, relativeTime } from "@/lib/format";
-import { OUTLOOK_LABEL, REQUEST_STATUS, SOURCE_LABEL } from "@/lib/intake";
-import { intakeOverview } from "@/lib/intake-data";
+import { OUTLOOK_LABEL, REQUEST_STATUS, SOURCE_LABEL, consentGolive, formCovers } from "@/lib/intake";
+import { consentTexts, intakeOverview } from "@/lib/intake-data";
 import { Connections } from "./Connections";
+import { ConsentTexts } from "./ConsentTexts";
 import { Forms } from "./Forms";
 import { ImportHistory } from "./ImportHistory";
 import { ImportWizard } from "./ImportWizard";
@@ -21,6 +22,7 @@ const TABS = [
   { id: "overview", label: "Sources" },
   { id: "import", label: "Import a file" },
   { id: "forms", label: "Ad forms" },
+  { id: "consent", label: "Consent texts" },
   { id: "new", label: "New lead" },
   { id: "connections", label: "Connections" },
 ] as const;
@@ -43,12 +45,14 @@ export default async function IntakePage({ searchParams }: Props) {
   await requireAdmin();
   const sp = await searchParams;
   const tab: Tab = TABS.find((t) => t.id === sp.tab)?.id ?? "overview";
-  const o = await intakeOverview();
+  const [o, texts] = await Promise.all([intakeOverview(), consentTexts()]);
   const today = o.sources.reduce((n, s) => n + s.today, 0);
   const week = o.sources.reduce((n, s) => n + s.week, 0);
   const created = o.sources.reduce((n, s) => n + s.created, 0);
   const heldImports = o.imports.reduce((n, i) => n + i.held, 0);
-  const unmappedForms = o.forms.filter((f) => f.name.startsWith("Meta form ") || f.name.startsWith("Google form ")).length;
+  // forms that still need a name, or that record partner sharing under a text that does not cover admission partners (D8)
+  const formsNeedingWork = o.forms.filter((f) => f.name.startsWith("Meta form ") || f.name.startsWith("Google form ") || formCovers(f, texts) === false).length;
+  const golive = consentGolive(texts);
   const resumeId = Number(sp.import);
   const resumeRow = Number.isInteger(resumeId) && resumeId > 0 ? o.imports.find((i) => i.id === resumeId) : undefined;
   const resume = resumeRow ? { id: resumeRow.id, status: resumeRow.status, file_name: resumeRow.file_name } : null;
@@ -63,7 +67,8 @@ export default async function IntakePage({ searchParams }: Props) {
             className={cn("-mb-px shrink-0 whitespace-nowrap border-b-2 pb-2.5 text-[13px] font-medium transition-colors", tab === t.id ? "border-amber text-fg" : "border-transparent text-muted hover:text-fg")}>
             {t.label}
             {t.id === "overview" && o.problems.length > 0 && <Badge tone="danger" className="ml-1.5">{o.problems.length}</Badge>}
-            {t.id === "forms" && unmappedForms > 0 && <Badge tone="warning" className="ml-1.5">{unmappedForms}</Badge>}
+            {t.id === "forms" && formsNeedingWork > 0 && <Badge tone="warning" className="ml-1.5">{formsNeedingWork}</Badge>}
+            {t.id === "consent" && !golive.ok && <Badge tone="warning" className="ml-1.5">{golive.unapproved.length > 0 ? golive.unapproved.length : "!"}</Badge>}
           </Link>
         ))}
       </nav>
@@ -163,15 +168,23 @@ export default async function IntakePage({ searchParams }: Props) {
 
       {tab === "forms" && (
         <Card className="min-w-0">
-          <CardHeader title="Meta and Google lead forms" description="How each form's questions map to lead fields, fixed values for single-programme forms, and the consent the form shows." />
-          <Forms forms={o.forms} />
+          <CardHeader title="Meta and Google lead forms"
+            description="How each form's questions map to lead fields, fixed values for single-programme forms, and the consent the form shows. A form that records partner sharing must name a registered consent text that covers our admission partners (edtech companies); leads from forms without it are asked for consent before routing." />
+          <Forms forms={o.forms} texts={texts} />
+        </Card>
+      )}
+
+      {tab === "consent" && (
+        <Card className="min-w-0">
+          <CardHeader title="Consent texts" description="The wording each channel shows when a student agrees, by version. Which versions cover sharing with our admission partners, and which the lawyer has approved: the approval is a routing go-live condition." />
+          <ConsentTexts texts={texts} />
         </Card>
       )}
 
       {tab === "new" && (
         <Card className="min-w-0">
-          <CardHeader title="New lead" description="A lead from a call, walk-in or event. If the phone is already known, the details are added to that lead." />
-          <NewLead />
+          <CardHeader title="New lead" description="A lead from a call, walk-in or event. If the phone is already known, the details are added to that lead; other courses the student mentioned become secondary interests." />
+          <NewLead texts={texts} />
         </Card>
       )}
 
