@@ -7,14 +7,14 @@
 --                          changed maturity, half-life or prior strength (the holdout keeps using 'base').
 --   segment_stats          per segment: the prior (all partners' conversion), how many partners have matured data, auto mode.
 --   stage_rates            historical P(enrol | reached at least this stage), from matured leads, shrunk to defaults.
---   stats_snapshots        one row per partner, segment and day, for the drop alert (P̂ or NCPL down by more than a third).
+--   stats_snapshots        one row per partner, segment and day, for the decline alert (P̂ or NCPL down by more than a third).
 --   engine_policy          (setting) what changes routing per segment or partner: mode pins, exploration and share caps per
 --                          segment, temporary partner weights, the segment kill switch, the holdout share and the AI
 --                          optimiser's bounded parameters. Every entry carries its source (admin or ai); the holdout ignores 'ai'.
 --   u01 / gamma / beta     a seeded, reproducible sampler (md5 streams; Marsaglia-Tsang gamma), so every draw in a decision
 --                          can be replayed from engine_decisions.seed.
 --   guard_tick             auto-pause (5 first-contact SLA breaches in a row; pushes failing for 30 minutes; duplicate rate
---                          above 25% over the last 20 leads) and the drop alert. Each writes an alert.* event.
+--                          above 25% over the last 20 leads) and the decline alert. Each writes an alert.* event.
 -- Nothing here touches student_leads, Witty or the catalogue.
 
 -- ---------- policy setting ----------
@@ -352,7 +352,7 @@ begin
   end loop;
   -- 'ai' rows left from AI changes since withdrawn are never read: the engine reads 'ai' only while engine_params says so
 
-  -- daily snapshot for the drop alert: NCPL uses the partner's current CPE for the segment's course (median of its offers)
+  -- daily snapshot for the decline alert: NCPL uses the partner's current CPE for the segment's course (median of its offers)
   insert into b2b.stats_snapshots (day, partner_id, segment, p_hat, ncpl_inr, n_matured)
   select (v_now at time zone 'Asia/Kolkata')::date, s.partner_id, s.segment, s.p_hat,
          round(s.p_hat * (1 - s.refund_rate) * (select percentile_cont(0.5) within group (order by b2b.cpe_net(o.partner_id, o.programme_id, o.fees))
@@ -363,7 +363,7 @@ begin
     from b2b.partner_segment_stats s where s.variant = 'base' and s.n_leads > 0
   on conflict (day, partner_id, segment) do update set p_hat = excluded.p_hat, ncpl_inr = excluded.ncpl_inr, n_matured = excluded.n_matured;
 
-  -- drop alert (B7.4): P̂ or NCPL down by more than a third against its value 30 days ago, with matured data, once a week
+  -- decline alert (B7.4): P̂ or NCPL down by more than a third against its value 30 days ago, with matured data, once a week
   for r in
     select n.partner_id, n.segment, o.p_hat old_p, n.p_hat new_p, o.ncpl_inr old_v, n.ncpl_inr new_v
       from b2b.stats_snapshots n

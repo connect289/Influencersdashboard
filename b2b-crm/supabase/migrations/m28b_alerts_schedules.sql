@@ -322,7 +322,7 @@ begin
 end $fn$;
 
 -- ---------- alerts ----------
-/* New alert events since the last digest, as one message (B7.4: auto-pause, drop alerts, SLA breaches …). */
+/* New alert events since the last digest, as one message (B7.4: auto-pause, decline alerts, SLA breaches …). */
 create or replace function b2b.alert_digest_tick()
 returns int language plpgsql volatile security definer set search_path = '' as $fn$
 declare
