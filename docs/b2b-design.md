@@ -676,3 +676,20 @@ Conflicts with work already done, and what is still open:
 1. Approve this design, or give changes.
 2. Approve **M0–M2** to start, including creating the free staging project and enabling `pgmq` and `pg_cron`.
 3. The three items in 0.3: consent through Witty, the Chatwoot note, hosting.
+
+
+## Addendum 3 (final routing rules): what was built
+
+Source: `docs/B2B_CRM_ADDENDUM_3.md` and its Amendment 1. Migrations `m31a0` to `m31p`; screens under Routing, Pool, Leads, Partners and Settings.
+
+- **Rule order R1 to R9** is one function (`route_decide`) with one outcome per lead and every step logged in `engine_decisions`. A re-enquiry is detected first and follows the lead's previous destination.
+- **Permanent partner bar** (`partner_bars`): a lead that was duplicate, lost or flagged never goes to partners again. Manual routes and the API return `partner_barred`. Lost leads stay with the partner for a 7-day grace, kept as allocation status `accepted` because Witty's live `w2_crm_owned` depends on it.
+- **Consent (R8, PART 7)**: partner sharing needs a covering consent text (`consent_texts`, lawyer approval before go-live), or the B2B CRM asks the student on WhatsApp and waits. No answer in 48 hours sends the lead to B2C nurture.
+- **Qualification and the 18-hour wait (Amendment 1)**: unqualified Witty leads reach the pool, wait 18 hours (Admin setting, 1 to 72) after the last student message, then go to B2C with the welcome message and the missing details. When they qualify later, `requalify_tick` routes them to a partner.
+- **Scoring in stages A, B, C** with deterministic "highest score wins", a 20% exploration lane, a sales-effort factor (0.85 to 1.15) and an SLA factor (0.80 to 1.00), all bounded by Admin settings. Segment pins and share caps were removed; routing rules replace them.
+- **Secondary interests** create linked secondary leads that follow the same rules.
+- **B2C contract v3** adds `b2c.consent_requested`, handling instructions (job, assignment, first-contact script) and the nurture delay for lost leads.
+- **Partner agreement (m31p)** makes the checklist item real: the Admin records where the signed document is.
+- **Deliberately unchanged**: Witty's tables and `lead_intake()`, and no triggers on `student_leads`.
+- **Go-live gate**: `routing_golive_check` refuses to switch routing on until partners, an approved consent text, a reachable B2C endpoint and the Witty W1 line are in place.
+- **Verification**: five new SQL suites (503 assertions) pass in the local full-schema harness; older suites need their fixtures reviewed against these rules (listed in `docs/go-live-setup.md` section 1.2).

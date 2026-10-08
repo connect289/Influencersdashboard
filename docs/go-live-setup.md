@@ -22,7 +22,7 @@ Short names used below:
 
 Nothing in this section needs doing. Read it so you know the starting point.
 
-1. **The CRM is built through M30 and the first four Addendum 3 steps.** Migrations `20261006…` to `20261007043511_m23b` are on production (per `docs/b2b-design.md` §7.2). `m24a` to `m30b` were applied to staging; several of their staging test runs are listed as pending in §7.2, and the production promotion is a planned "promotion window" (`b2b-crm/README.md`). `m31a0`, `m31a`, `m31b`, `m31c`, `m31d` exist as files; `m31e` to `m31o` (consent asks, the Addendum 3 engine, attribution, intake, after-push, B2C contract v3, re-decide, admin reads, AI/ML, facts, metrics) are specified in the interface contract but **not yet written**.
+1. **The CRM is fully built through M31p (Addendum 3 included) and pushed to GitHub, but only migrations up to `20261007043511_m23b` plus `w1` are on production.** `m24a` to `m31p` are applied by one script, `b2b-crm/supabase/deploy.sh` (section 1.2 step 4). Staging holds older copies of `m24a` to `m30a`; re-apply everything there first.
    Check: on the production DB, `select version from supabase_migrations.schema_migrations order by version desc limit 20;` and compare with the file names in `b2b-crm/supabase/migrations/`. Anything in the folder but not in that table is not live.
 2. **Routing is off.** Live switch `routing` is false, and `engine.enabled` gates the sweep. `pg_cron` job `b2b-route-ready-leads` runs every minute and does nothing while the switch is off. Leads collect in the pre-routing pool (`/pool`).
 3. **Every outbound channel is off.** Live switches `whatsapp`, `email`, `capi_meta`, `capi_google` are false (seeded by `m2d`). Each partner has its own switch `partner:<id>`, also false. The four student message templates in `b2b.message_templates` are drafts.
@@ -30,7 +30,7 @@ Nothing in this section needs doing. Read it so you know the starting point.
 5. **Admin alerts are off.** Setting `admin_alerts.enabled = false`, no recipients.
 6. **Sync is in real time** (the integration-and-testing mode). Setting `b2c_link.delivery = 'realtime'`; `sync.interval_minutes = 15` is only used once you switch to batched (section 14). Live partner polling defaults to that interval; sandbox polling runs every 2 minutes.
 7. **Witty is half done.** The database half of release W1 (`20261007094058_w1_witty_addendum3.sql`: `w2_crm_owned`, `w2_nurture_due`, `w2_crm_payload`, `w2_commit_turn`, extractor prompt v5) is live on production. The workflow half (six Code nodes in n8n workflow "Eduwit Witty" `PKPs7tXg9bej8AgX`) is **not applied**: Witty still says "one of our Academic Counselors" and still stamps no partner-sharing consent. Section 6.
-8. **Pending manual SQL** in `b2b-crm/supabase/pending/` (the Supabase connector refuses `DROP`/`DELETE`/`TRUNCATE` in migrations): `drop_tmp_transfer.sql` (production, housekeeping), `m25d_ml_training_rows_prune.sql`, `m30b_fact_views.sql`, `m31a_guards.sql` (apply right after `m31a`). Each file's header says when to run it.
+8. **Pending manual SQL** in `b2b-crm/supabase/pending/` (the Supabase connector refuses `DROP`/`DELETE`/`TRUNCATE` in migrations): `drop_tmp_transfer.sql` (production, housekeeping), `m25d_ml_training_rows_prune.sql`, `m30b_fact_views.sql`, `m31a_guards.sql`, `m31i_dispute_index.sql`, `m31n_facts.sql` (all applied by `deploy.sh` in the right order; `drop_tmp_transfer.sql` is not, run it by hand if you want it). Each file's header says when to run it.
 9. **The old CRM is still online** at `https://eduwit-crm.vercel.app` (Vercel project `eduwit-crm`). Its n8n workflows **Eduwit CRM · Jobs** `Wx1uai9qtOkwFQDs` and **Partner Sync Worker** `UhSUqceTwQeuI5rR` are unpublished and **must stay unpublished** (the functions they call no longer exist in `public`). The n8n workflow **Meta Leads to WhatsApp Alert** `M4WnPdy9MEXsj30d` is still active and keeps writing Meta leads to a Google Sheet; switch it off only after section 7 is verified **[Vikas]**.
 10. **No partners, no API keys, no webhook endpoints, no consent texts approved** are expected on production. Check: `select count(*) from b2b.partners; select count(*) from b2b.api_keys where revoked_at is null; select count(*) from b2b.webhook_endpoints;`.
 
@@ -67,48 +67,14 @@ Nothing in this section needs doing. Read it so you know the starting point.
    Check: Authentication → Providers shows Google and Email as enabled; MFA shows TOTP.
 3. **Cron jobs.** The jobs listed below should exist (`select jobname, schedule, active from cron.job where jobname like 'b2b-%' order by 1;`): `b2b-route-ready-leads` (every minute), `b2b-push-tick` (10 s), `b2b-notify-tick` (30 s), `b2b-outbox-tick` (15 s), `b2b-b2c-sync-tick` (5 s), `b2b-intake-tick` (10 s), `b2b-import-tick`, `b2b-capi-tick`, `b2b-partner-sync-tick`, `b2b-sla-tick` (5 min), `b2b-guard-tick` (5 min), `b2b-money-tick` (5 min), `b2b-money-daily` (09:05 IST), `b2b-reconcile-nightly` (02:37 IST), `b2b-stats-refresh` (hourly :07), `b2b-stats-ai-catchup`, `b2b-refresh-facts`, `b2b-admin-alerts`, `b2b-ml-tick`, `b2b-ai-schedule`, `b2b-ai-autopilot`. Jobs from migrations not yet on production will be missing; that is expected.
    Check: System health (`/system`) → Background jobs shows each job with its last run and no failures. `select * from cron.job_run_details order by start_time desc limit 50;` has no `failed` rows.
-4. **Migrations still to apply.** Apply any `m24…m31d` file not yet on production, staging first, each with Vikas's approval for that step, in the "promotion window" described in `b2b-crm/README.md` (pause every `b2b-*` cron job, apply, run the matching `supabase/tests/test_m*.sql` in a `begin … rollback` block, resume). Then the pending files by hand (section 0 step 8).
-   Check: the migration row exists in `supabase_migrations.schema_migrations`; the matching `test_m*.sql` returns every row `ok = true`.
-
-### 1.3 Secrets go in Vault, through the CRM screens
-
-Never paste a secret into chat, a ticket or a document. Every secret below is typed once into a CRM screen, stored in Supabase Vault by a `SECURITY DEFINER` function, and never shown again (the screen shows "(stored)"). Leave a field empty to keep the stored value.
-
-| Secret | Screen | Vault name (from the migration) |
-| --- | --- | --- |
-| Partner CRM credentials (token, access/secret keys, OAuth client secret, refresh token), live and sandbox | Partners → partner → Connection | `b2b_partner_<id>_outbound` (generic) or adapter JSON secret |
-| Partner inbound signing secret (the partner signs its events with it) | Partners → partner → Connection → Signing secret → Generate / Rotate (shown once) | `b2b_partner_<id>_inbound` |
-| WhatsApp Cloud API token (student messages and admin alerts) | Notifications → Providers and quiet hours | `b2b_whatsapp_token` |
-| Email provider API key (Resend or Brevo) | Notifications → Providers and quiet hours | `b2b_email_api_key` |
-| Meta Lead Ads verify token, app secret, Page access token; Google lead-form key | Intake → Connections | `b2b_intake_meta_*`, `b2b_intake_google_key` |
-| Meta CAPI access token; Google Ads developer token, OAuth client secret, refresh token | Conversions (CAPI) → Setup | `capi` setting ids |
-| Webhook endpoint signing secret (B2C CRM) | System health → Webhooks and API keys → endpoint → Generate secret (shown once) | `b2b_webhook_<id>` |
-
-Check: `select name, description, created_at from vault.secrets order by created_at desc;` lists the names (never select `decrypted_secret`).
-
-### 1.4 API keys
-
-1. **Where.** System health (`/system`) → **Webhooks and API keys** → API keys → Create. Give a name and tick scopes. The key (`eb2b_…`) is shown **once**; only its SHA-256 is stored in `b2b.api_keys`.
-2. **Scopes** (`lib/integrations.ts`, constraint in `m26a`): `intake` (Lead intake: `POST /v1/leads`), `events` (Product integrations: `GET /v1/handoffs`, `POST /v1/leads/{id}/route-to-partners`, webhook subscriptions), `b2c` (B2C CRM link: `/v1/b2c/*`), `referrals` (masked referral outcomes for the influencer dashboard), `ai_worker` (the AI worker route). There is **no `partner` scope**: partners never hold an API key; they sign events with their inbound signing secret (HMAC) and are identified by their slug in `POST /v1/partners/{slug}/events`.
-3. **Create now:** one key for the B2C CRM with `b2c` + `events` + `intake` (`docs/b2c-contract.md` §0); one key per website / landing-page backend with `intake` only. Hand each over once, through a secure channel.
-   Check: `select name, scopes, created_at, last_used_at from b2b.api_keys where revoked_at is null;`. A `curl -H "Authorization: Bearer <key>" https://<crm host>/v1/b2c/schema` returns `{ "ok": true, … }` for a `b2c` key and 401 for a key without that scope. `last_used_at` updates.
-4. **Revoke** a leaked key on the same screen; it stops working at once.
-
----
-
-## 2. Admin access
-
-1. **The only user** is `connect@eduwit.in`, seeded into `b2b.app_users` (M2b) from the existing `auth.users` identity. There is no user management. `b2b.is_admin()` is checked in every server action and SQL function.
-   Check: `select email, role, is_active, require_totp from b2b.app_users;` returns one row: `connect@eduwit.in`, `admin`, `true`, `false`.
-2. **Google sign-in** needs no authenticator code (`require_totp = false` since M2g; it relies on the Google account's own 2-step verification). Keep Google 2SV on for that account.
-   Check: `/login` → Continue with Google → lands on the Command Center. Settings → Security → Sign-in history shows the attempt as `google / success` (`b2b.sign_in_log`).
-3. **Password sign-in** (fallback). `/forgot` sends a reset link to `NEXT_PUBLIC_SITE_URL/reset`; the password needs 12+ characters. The first password sign-in enrols TOTP at `/mfa`; every password session must be TOTP-verified (`aal2`) or `is_admin()` is false.
-   Check: sign in with email + password + code; `select method, outcome from b2b.sign_in_log order by at desc limit 3;` shows `password / success` then `totp / success`.
-4. **Any other account** is signed out with "This app is restricted" and logged (`outcome = refused_not_allowlisted`). Five failed attempts in 15 minutes lock the email. Sessions expire after 12 hours idle.
-   Check: sign in with another Google account; it is refused and appears in Sign-in history.
-5. **To add a second user later** you need a migration (widen the `role` check and insert into `b2b.app_users`). Not a screen.
-
----
+4. **Apply migrations M24 to M31p (the promotion window).** Use `b2b-crm/supabase/deploy.sh`. It pauses every `b2b-*` cron job, applies the 34 files in the right order (each in its own transaction, stops on the first error), records them in `supabase_migrations.schema_migrations`, and resumes the cron jobs. Routing stays off, nothing is sent.
+   ```
+   cd b2b-crm/supabase
+   DATABASE_URL='postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres' ./deploy.sh
+   ```
+   Run it against **staging first** (`mplbspysxmtohnlwpbti`), then run the new tests there (below), then against production (`xlseqwgyjuqhktrguhyc`). Take a Supabase backup (Database → Backups) before the production run. Keep the connection string in your shell only.
+   Tests (each wrapped in `begin … rollback` or self-cleaning, every row must say `ok`): `tests/test_m31_scoring.sql`, `test_m31_after_push.sql`, `test_m31_b2c_contract.sql`, `test_m31_routing_rules.sql`, `test_m31_consent.sql`. These five passed 503 of 503 assertions in the local full-schema harness. Older tests (`test_e2e_50_leads`, `test_m14`, `test_m15`, `test_m16`, `test_m17`, `test_m21`, `test_m24`, `test_m25`) still assume pre-Addendum-3 behaviour in places; if one fails, compare against Addendum 3 before assuming a bug.
+   Check: the last `schema_migrations` row is `m31p_partner_agreement`; `select b2b.is_live('routing');` is still false.
 
 ## 3. Partners
 
@@ -120,8 +86,8 @@ Do this once per partner. Partners never log in.
    Check: `select dedupe_mode, hold_minutes, duplicate_window_hours from b2b.partners where slug = '…';`.
 3. **Caps, minimums, criteria.** Settings tab: `daily_cap`, `monthly_cap`, `contract_min_monthly` (served first while behind), `lead_criteria` (JSON object: geography, qualification etc.; a lead that fails it is excluded; unknown values pass or fail per setting `engine.criteria_unknown`, default `fail`), `working_hours` (per weekday; default Mon–Fri 10–19, Sat 10–17 IST), `holidays`, `sla` (defaults: first attempt 2 working hours, first connect 1 working day, counselling 5 working days, status update every 7 days, enrolment proof 7 days), `notify_enabled` (whether the student is told this partner's name).
    Check: Partners → partner → Overview shows the caps and SLA; the go-live checklist item `sla_hours` turns done.
-4. **Agreement and data-processing terms.** Spec B8.3.8 item 1 and B18 require a signed DPA before go-live. **Not built:** every version of `b2b.partner_checklist` hard-codes `agreement` as `done: false, available: false`, and `b2b.partner_set_live` refuses while any item is not done. **Today no partner can be switched live** until a migration either builds the agreement upload (`partner_documents`) or marks the item done/available. Raise this with Vikas before the first partner **[Vikas]**.
-   Check: Partners → partner → the live switch error reads `go-live checklist incomplete: agreement, …`.
+4. **Agreement and data-processing terms.** Sign the agreement and data-processing terms outside the CRM, then Partners → partner → Agreement card → **Confirm agreement** and write where the signed document is (migration `m31p`; Admin only). The go-live checklist item `agreement` turns done. **Clear** takes it back and switches the partner's live switch off.
+   Check: the checklist shows `agreement` done and the confirmation date.
 5. **Connection (adapter).** Connection tab, per environment (Sandbox first, then Live). Enter the non-secret settings and the keys (Vault). What each CRM needs from the partner is in `docs/partner-adapters.md` ("What the partner must do"): a reference field (`mx_Eduwit_Reference`, `Eduwit_Reference`, `Eduwit_Reference__c`, `eduwit_reference`), duplicates set to fail, an API user for sandbox and live. For a partner with its own CRM choose **In-house CRM** (create-lead URL, auth type, header name, wrapper key, record-ID path, duplicate HTTP status, changed-leads URL with `{since}`) or give them `docs/partner-api.md` to implement (`generic_rest` / `webhook`). Generate the **inbound signing secret** here and hand it over once.
    Check: **Preview a push** shows the exact create call with credentials masked; **Fetch fields** stores a schema snapshot (Mapping studio → Schema). Checklist item `credentials` turns done (needs `api_base_url`, an outbound credential or auth `none`, and the inbound secret).
 6. **Programme sheet (Programme Repository).** Programme Repository (`/programmes`) → partner → upload the partner's `.xlsx` or CSV (template: `/programme-sheet-template.csv`; old `.xls` must be re-saved), or connect a Google Sheet shared as "anyone with the link can view" and press **Sync now**. Map the columns once (saved as the partner's template), review the rows the matcher flags, check the preview against live offers, **Publish**. Publishing writes `b2b.partner_programmes` (the routing candidates) and confirms the sheet's **commission %** column as partner + programme rates (`rates_from_offers`).
@@ -371,7 +337,6 @@ Real-time sync is for integration and testing (Vikas: real-time calls to partner
 From `docs/b2b-design.md` §7.2 (as-built notes), the addenda, the feature guides and the sources above.
 
 **Blocks go-live until fixed**
-- Partner **agreement** checklist item is hard-coded not done; `partner_set_live` refuses every partner (section 3 step 4). Needs a migration.
 - The Addendum 3 engine steps `m31e`–`m31o` and their web forms are not written; the shipped Engine settings form saves retired keys that the database now refuses (section 11 step 2).
 - `routing_golive_check` / `consent_text_save` / `lost_delays_save` do not exist until `m31e` / `m31l`.
 - Partner-sharing consent: no lead carries it today; Witty's workflow half is not applied; the lawyer has not approved the texts.
