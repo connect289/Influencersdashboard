@@ -1,3 +1,5 @@
+-- A3 fixture: the consent wording the test leads carry
+insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 -- M14 integration hub and the B2C CRM contract, on STAGING, rolled back. Every row of the final select must say ok = true.
 begin;
 create temp table r (name text, ok boolean, detail text);
@@ -13,7 +15,7 @@ begin
                                'state', 'Delhi', 'source', 'whatsapp_direct', 'classification', 'WARM')));
   perform public.lead_intake(jsonb_build_object('phone', '919876502002', 'source_system', 'crm', 'event_type', 'lead.created',
     'lead', jsonb_build_object('full_name', 'Hub Two', 'interested_course', 'MBA', 'programme_level', 'PG', 'study_mode_preference', 'online',
-                               'state', 'Delhi', 'source', 'meta_lead_ad', 'classification', 'WARM', 'consent_partner_share_at', now())));
+                               'state', 'Delhi', 'source', 'meta_lead_ad', 'classification', 'WARM', 'consent_partner_share_at', now(), 'consent_text_version', 'test-partner-share:v1')));
   insert into t select 'lead1', id::text from public.student_leads where whatsapp_number = '919876502001';
   insert into t select 'lead2', id::text from public.student_leads where whatsapp_number = '919876502002';
 end $x$;

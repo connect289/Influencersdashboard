@@ -59,7 +59,7 @@ do $x$ begin
   perform set_config('b2b.actor', 'engine', true);
   perform public.lead_intake(jsonb_build_object('phone', '919876504901', 'source_system', 'crm', 'event_type', 'lead.created',
     'lead', jsonb_build_object('full_name', 'Perf Test', 'interested_course', 'MBA', 'programme_level', 'PG', 'study_mode_preference', 'online',
-                               'state', 'Delhi', 'source', 'whatsapp_direct', 'consent_partner_share_at', now())));
+                               'state', 'Delhi', 'source', 'whatsapp_direct', 'consent_partner_share_at', now(), 'consent_text_version', 'test-partner-share:v1')));
 end $x$;
 insert into t select 'L', id::text from public.student_leads where whatsapp_number = '919876504901';
 
@@ -323,7 +323,7 @@ do $x$ declare v_id bigint; d jsonb; begin
   perform set_config('b2b.actor', 'engine', true);
   perform public.lead_intake(jsonb_build_object('phone', '919876504902', 'source_system', 'crm', 'event_type', 'lead.created',
     'lead', jsonb_build_object('full_name', 'Perf Route', 'interested_course', 'MBA', 'programme_level', 'PG', 'study_mode_preference', 'online',
-                               'state', 'Delhi', 'source', 'whatsapp_direct', 'classification', 'WARM', 'consent_partner_share_at', now())));
+                               'state', 'Delhi', 'source', 'whatsapp_direct', 'classification', 'WARM', 'consent_partner_share_at', now(), 'consent_text_version', 'test-partner-share:v1')));
   select id into v_id from public.student_leads where whatsapp_number = '919876504902';
   d := b2b.route_decide(v_id, true, 'm24', 'auto');
   insert into t values ('RD', d::text);

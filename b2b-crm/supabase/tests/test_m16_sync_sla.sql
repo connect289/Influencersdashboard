@@ -1,3 +1,5 @@
+-- A3 fixture: the consent wording the test leads carry
+insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 -- M16 status/activity sync, SLAs and reconciliation on STAGING, rolled back. Two leads accepted by partner e2e-down
 -- (id 20, Mon–Fri 10–19, Sat 10–17); signed events go through b2b.partner_event_ingest; the SLA clock is driven by
 -- calling b2b.sla_tick(). Every row of the final select must say ok = true.
@@ -39,7 +41,7 @@ begin
     v_at := case i when 1 then '2026-09-21 10:00+05:30'::timestamptz else '2026-10-03 10:00+05:30'::timestamptz end;
     perform public.lead_intake(jsonb_build_object('phone', v_phone, 'source_system', 'crm', 'event_type', 'lead.created',
       'lead', jsonb_build_object('full_name', 'Sync ' || i, 'interested_course', 'MBA', 'programme_level', 'PG', 'study_mode_preference', 'online',
-                                 'state', 'Delhi', 'source', 'whatsapp_direct', 'classification', 'WARM', 'consent_partner_share_at', now())));
+                                 'state', 'Delhi', 'source', 'whatsapp_direct', 'classification', 'WARM', 'consent_partner_share_at', now(), 'consent_text_version', 'test-partner-share:v1')));
     select id into v_id from public.student_leads where whatsapp_number = v_phone;
     perform b2b.route_decide(v_id, true, 'm16', 'auto');
     select * into a from b2b.allocations where lead_id = v_id and destination_type = 'partner' order by id desc limit 1;

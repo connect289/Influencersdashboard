@@ -1,3 +1,5 @@
+-- A3 fixture: the consent wording the test leads carry
+insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 -- M20 money on STAGING, rolled back. Partner e2e-down (id 20) gets a tiered rate (20% below 50% conversion, 15% from 50%);
 -- three leads accepted in September 2026, two of them enrol: expected lines, verification, the ledger guards, September's
 -- close (tier settled at 15% → negative tier adjustments), the GST invoice (IGST between Delhi and Karnataka), a receipt
@@ -15,7 +17,7 @@ begin
   perform public.lead_intake(jsonb_build_object('phone', p_phone, 'source_system', 'crm', 'event_type', 'lead.created',
     'lead', jsonb_build_object('full_name', 'Money Test ' || right(p_phone, 2), 'email', 'money' || right(p_phone, 2) || '@example.com',
                                'interested_course', 'MBA', 'programme_level', 'PG', 'study_mode_preference', 'online',
-                               'state', 'Delhi', 'source', 'whatsapp_direct', 'classification', 'WARM', 'consent_partner_share_at', now())));
+                               'state', 'Delhi', 'source', 'whatsapp_direct', 'classification', 'WARM', 'consent_partner_share_at', now(), 'consent_text_version', 'test-partner-share:v1')));
   select id into v_id from public.student_leads where whatsapp_number = p_phone;
   perform b2b.route_decide(v_id, true, 'm20', 'auto');
   select id into a_id from b2b.allocations where lead_id = v_id and destination_type = 'partner' and partner_id = 20 order by id desc limit 1;

@@ -43,7 +43,7 @@ begin
     v_wa := i % 2 = 0;
     perform public.lead_intake(jsonb_build_object('phone', '91987650' || lpad((5000 + i)::text, 4, '0'), 'source_system', 'crm', 'event_type', 'lead.created',
       'lead', jsonb_build_object('full_name', 'ML Test ' || i, 'interested_course', 'MBA', 'programme_level', 'PG', 'study_mode_preference', 'online',
-                                 'state', 'Delhi', 'source', case when v_wa then 'whatsapp_direct' else 'website' end, 'consent_partner_share_at', now())));
+                                 'state', 'Delhi', 'source', case when v_wa then 'whatsapp_direct' else 'website' end, 'consent_partner_share_at', now(), 'consent_text_version', 'test-partner-share:v1')));
     select id into v_id from public.student_leads where whatsapp_number = '91987650' || lpad((5000 + i)::text, 4, '0');
     update public.student_leads set lead_source = case when v_wa then 'whatsapp_direct' else 'website' end, channel = case when v_wa then 'whatsapp' else 'web' end
      where id = v_id;

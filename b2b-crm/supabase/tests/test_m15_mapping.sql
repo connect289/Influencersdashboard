@@ -1,3 +1,5 @@
+-- A3 fixture: the consent wording the test leads carry
+insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 -- M15 mapping layer on STAGING, rolled back. Partner e2e-down (generic REST) gets a mapping through the Admin
 -- functions; signed partner events go through b2b.partner_event_ingest before and after publishing. Every row of the
 -- final select must say ok = true.
@@ -21,7 +23,7 @@ begin
   perform set_config('b2b.actor', 'engine', true);
   perform public.lead_intake(jsonb_build_object('phone', '919876503001', 'source_system', 'crm', 'event_type', 'lead.created',
     'lead', jsonb_build_object('full_name', 'Map One', 'interested_course', 'MBA', 'programme_level', 'PG', 'study_mode_preference', 'online',
-                               'state', 'Delhi', 'source', 'whatsapp_direct', 'classification', 'WARM', 'consent_partner_share_at', now())));
+                               'state', 'Delhi', 'source', 'whatsapp_direct', 'classification', 'WARM', 'consent_partner_share_at', now(), 'consent_text_version', 'test-partner-share:v1')));
   select id into v_id from public.student_leads where whatsapp_number = '919876503001';
   update b2b.settings set value = jsonb_set(value, '{exploration_share}', '0') where key = 'engine';
   perform b2b.route_decide(v_id, true, 'm15', 'auto');
