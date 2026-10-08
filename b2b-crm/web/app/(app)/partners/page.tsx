@@ -5,6 +5,7 @@ import { buttonClass } from "@/components/ui/Button";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
+import { formatInr } from "@/lib/money";
 import { ADAPTER_LABEL, partnerTitle, STATUS_LABEL, STATUS_TONE } from "@/lib/partners";
 import { listPartners } from "@/lib/partners-data";
 import { PartnerLogo } from "./PartnerLogo";
@@ -76,9 +77,13 @@ export default async function PartnersPage() {
                   </div>
                   {p.status === "paused" && p.paused_reason && <p className="mt-2 line-clamp-2 text-[12px] text-warning">{p.paused_reason}</p>}
 
-                  <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-3">
+                  <dl className="mt-4 grid grid-cols-4 gap-3 border-t border-border pt-3">
                     <Stat label="Today" value={p.leads_today} />
                     <Stat label="This month" value={p.leads_month} />
+                    <Stat
+                      label="NCPL (month)"
+                      value={<span title="Expected net commission per lead for this month's leads: P̂ × commission × (1 − refunds), from the latest segment statistics">{formatInr(p.ncpl_month)}</span>}
+                    />
                     <Stat label="Daily cap" value={p.daily_cap ?? "None"} />
                   </dl>
 

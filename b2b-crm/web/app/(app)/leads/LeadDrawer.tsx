@@ -1,13 +1,17 @@
 import { BellOff, Bot, FlaskConical, MessageCircle, SearchX, Trash2 } from "lucide-react";
 import { Badge, EmptyState } from "@/components/ui/Card";
 import { formatDateTime, relativeTime } from "@/lib/format";
+import { barText, drawerBadges, holdText, outlookText, providersSentence } from "@/lib/lead-routing-ui";
 import { DESTINATION_LABEL, formatPhone, humanize, statusTone, whatsappLink } from "@/lib/leads";
 import type { EditHistory } from "@/lib/lead-edit";
 import type { LeadDetail } from "@/lib/leads-data";
+import { CONSENT_STATE_LABEL } from "@/lib/routing";
 import type { LeadRouting } from "@/lib/routing-data";
+import type { LeadPartnerSync } from "@/lib/sync";
 import { DrawerShell } from "./DrawerShell";
 import { EditTab } from "./EditTab";
 import { LeadActions } from "./LeadMutations";
+import { PartnerSyncTab } from "./PartnerSyncTab";
 import { RoutingTab } from "./RoutingTab";
 
 type Lead = LeadDetail["lead"];
@@ -38,10 +42,17 @@ function Section({ title, rows }: { title: string; rows: [string, React.ReactNod
   );
 }
 
-function Overview({ l }: { l: Lead }) {
+function Overview({ l, r }: { l: Lead; r: LeadRouting | null }) {
   const s = (k: string) => str(l, k);
   const place = [s("city"), s("state"), s("country")].filter(Boolean).join(", ") || s("current_city_country");
   const routing = s("destination_type");
+  // Addendum 3: the consent state judged on the covering text (D8), not the bare column stamp; the bar; where it would go.
+  const consentState = r ? (CONSENT_STATE_LABEL[r.consent_detail?.state ?? (r.consent ? "given" : "none")] ?? r.consent_detail?.state ?? null) : null;
+  const consentAt = r?.consent_detail?.partner_consent?.at ?? s("consent_partner_share_at");
+  const consentRow = consentState
+    ? `${consentState}${r?.consent && consentAt ? ` · ${formatDateTime(consentAt)}` : ""}${r?.consent_detail?.partner_consent?.version ? ` · ${r.consent_detail.partner_consent.version}` : ""}`
+    : s("consent_partner_share_at") ? `Stamped ${formatDateTime(s("consent_partner_share_at"))} (coverage not checked)` : "Not given";
+  const hold = r ? holdText(r) : null;
   return (
     <div className="divide-y divide-border">
       <Section title="Contact" rows={[
@@ -80,9 +91,13 @@ function Overview({ l }: { l: Lead }) {
       ]} />
       <Section title="Routing and consent" rows={[
         ["Routing", routing ? (DESTINATION_LABEL[routing] ?? humanize(routing)) + (s("partner_id") ? ` #${s("partner_id")}` : "") : "Not routed"],
+        ["Held by", hold],
+        ["Partner bar", r?.bar ? <span key="bar" className="text-danger">{barText(r.bar)} · never routed to a partner again, not even by hand</span> : null],
+        ["Other providers", r ? providersSentence(r.other_providers)?.replace(/^Already with other providers: /, "") ?? null : null],
+        ["Would go to", r && !routing ? outlookText(r) : null],
         ["Allocated", when(s("allocated_at"))],
         ["Partner stage", s("partner_stage_raw")],
-        ["Partner sharing consent", s("consent_partner_share_at") ? formatDateTime(s("consent_partner_share_at")) : "Not given"],
+        ["Partner sharing consent", consentRow],
         ["Sales contact consent", when(s("consent_sales_at"))],
         ["Opted out", s("opted_out_at") ? formatDateTime(s("opted_out_at")) : yes(s("is_opted_out"))],
         ["Enrollment", s("enrollment_status") && humanize(s("enrollment_status"))],
@@ -172,8 +187,9 @@ function Activity({ d }: { d: LeadDetail }) {
 }
 
 /** Lead drawer: who the student is, their Witty chat, what happened to the lead, and corrections with their history. */
-export function LeadDrawer({ id, detail, routing, history, closeHref }: {
-  id: number; detail: LeadDetail | null; routing: LeadRouting | null; history: EditHistory | null; closeHref: string;
+export function LeadDrawer({ id, detail, routing, history, sync, closeHref, initialTab }: {
+  id: number; detail: LeadDetail | null; routing: LeadRouting | null; history: EditHistory | null; sync: LeadPartnerSync | null;
+  closeHref: string; initialTab?: string;
 }) {
   if (!detail) {
     return (
@@ -210,6 +226,10 @@ export function LeadDrawer({ id, detail, routing, history, closeHref }: {
         {l.is_test && <Badge tone="brand"><FlaskConical className="size-3" /> Test lead</Badge>}
         {str(l, "is_opted_out") === "true" && <Badge tone="danger"><BellOff className="size-3" /> Opted out</Badge>}
         {str(l, "is_bot_paused") === "true" && <Badge tone="warning"><Bot className="size-3" /> Witty paused</Badge>}
+        {/* Addendum 3: the partner bar, other providers, the paid label, lost in grace and the consent state (lib/lead-routing-ui) */}
+        {drawerBadges(routing, { consent_partner_share_at: l.consent_partner_share_at }).map((b) => (
+          <Badge key={b.key} tone={b.tone} className={b.title ? "cursor-help" : undefined}><span title={b.title}>{b.text}</span></Badge>
+        ))}
       </div>
     </div>
   );
@@ -219,10 +239,13 @@ export function LeadDrawer({ id, detail, routing, history, closeHref }: {
       closeHref={closeHref}
       label={`Lead ${name}`}
       header={header}
+      initialTab={initialTab}
       tabs={[
-        { id: "overview", label: "Overview", content: <Overview l={l} /> },
+        { id: "overview", label: "Overview", content: <Overview l={l} r={routing} /> },
         { id: "chat", label: "Witty chat", count: detail.messages.length, content: <Chat messages={detail.messages} /> },
         { id: "routing", label: "Routing", count: routing?.decisions.length, content: <RoutingTab leadId={l.id} r={routing} /> },
+        ...(sync && (sync.activities.length || sync.events.length || sync.slas.length)
+          ? [{ id: "partner", label: "Partner sync", count: sync.activities.length, content: <PartnerSyncTab s={sync} /> }] : []),
         { id: "activity", label: "Activity", count: detail.touchpoints.length + detail.events.length + 1, content: <Activity d={detail} /> },
         { id: "edit", label: "Edit", count: history?.length || undefined, content: <EditTab id={l.id} lead={l} history={history} deleted={Boolean(l.deleted_at)} /> },
       ]}

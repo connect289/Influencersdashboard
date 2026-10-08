@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
-import { parsePartnerForm, STATUSES, type FieldErrors } from "@/lib/partners";
+import { parsePartnerForm, partnerSaveErrorField, STATUSES, type FieldErrors } from "@/lib/partners";
 import { CredentialsSchema } from "@/lib/push";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,11 +24,16 @@ export async function savePartner(_prev: SaveState, form: FormData): Promise<Sav
   const parsed = parsePartnerForm(form);
   if (!parsed.ok) return { errors: parsed.errors, error: "Check the highlighted fields." };
 
+  // parsed.data carries the Addendum 3 keys partner_save validates again: the derived hold_minutes (ignored by the database, which
+  // derives it itself), duplicate_window_hours 24, lead_criteria incl. `unknown`, push_options {interests_array} and the SLA
+  // values inside the rulebook's bounds.
   const supabase = await createClient();
   const { data, error } = await supabase.schema("b2b").rpc("partner_save", { p: parsed.data });
   if (error) {
     if (error.code === "23505") return { errors: { slug: "Already used by another partner" }, error: dbMessage(error) };
-    return { error: dbMessage(error) };
+    // A 22023 refusal names the value it is about: show it next to that field as well as at the bottom.
+    const field = error.code === "22023" ? partnerSaveErrorField(error.message) : null;
+    return field ? { errors: { [field]: dbMessage(error) }, error: "Check the highlighted field." } : { error: dbMessage(error) };
   }
   const id = (data as { id: number }).id;
   revalidatePath("/partners");

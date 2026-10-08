@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/components/ui/cn";
 import { conditionText, knownStages, STAGE_LABEL, suggestStage, type Condition, type StatusRule, type Studio } from "@/lib/mapping";
 import { removeRule, savePipelineField, saveRule } from "./actions";
-import { field, fieldBase, Label, Modal } from "./Modal";
+import { field, fieldBase, Label, Modal } from "@/components/ui/Modal";
 
 type Draft = Partial<StatusRule> & { partner_stage: string };
 

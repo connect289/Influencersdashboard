@@ -49,6 +49,7 @@ export type PartnerRepo = {
   source: {
     type: "upload" | "gsheet"; column_template: Template; last_changed_at: string | null; last_checked_at: string | null;
     sheet_id: string | null; tab: string | null; sync_every_hours: number; last_error: string | null; content_hash: string | null;
+    commission_includes_gst?: boolean;
   } | null;
   versions: VersionSummary[];
   offers: Offer[];

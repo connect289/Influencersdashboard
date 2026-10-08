@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/components/ui/cn";
 import { DIRECTION_LABEL, formatChain, knownFields, parseChain, TRANSFORM_HELP, type Direction, type FieldRule, type Studio } from "@/lib/mapping";
 import { removeRule, resolveQueue, saveRule } from "./actions";
-import { field, Label, Modal } from "./Modal";
+import { field, Label, Modal } from "@/components/ui/Modal";
 
 type Draft = Partial<FieldRule> & { canonical_key: string };
 

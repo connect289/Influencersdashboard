@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ACTIVITY_KINDS, DIRECTION_LABEL, type ActivityRule, type Direction, type Studio, type ValueRule } from "@/lib/mapping";
 import { removeRule, saveRule } from "./actions";
-import { field, Label, Modal } from "./Modal";
+import { field, Label, Modal } from "@/components/ui/Modal";
 
 type ValueDraft = Partial<ValueRule> & { canonical_key: string };
 type ActivityDraft = Partial<ActivityRule> & { partner_type: string };

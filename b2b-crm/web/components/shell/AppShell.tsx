@@ -56,7 +56,7 @@ export function AppShell({ email, anyLive, children }: { email: string; anyLive:
       </a>
 
       {/* Desktop sidebar */}
-      <aside className={cn("fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-surface transition-[width] duration-200 lg:block", collapsed ? "w-[64px]" : "w-[248px]")}>
+      <aside className={cn("fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-surface transition-[width] duration-200 lg:block print:!hidden", collapsed ? "w-[64px]" : "w-[248px]")}>
         <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       </aside>
 
@@ -73,8 +73,8 @@ export function AppShell({ email, anyLive, children }: { email: string; anyLive:
         </div>
       )}
 
-      <div className={cn("transition-[padding] duration-200", collapsed ? "lg:pl-[64px]" : "lg:pl-[248px]")}>
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur-md sm:px-6">
+      <div className={cn("transition-[padding] duration-200 print:!pl-0", collapsed ? "lg:pl-[64px]" : "lg:pl-[248px]")}>
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur-md sm:px-6 print:hidden">
           <button type="button" onClick={() => setDrawer(true)} aria-label="Open navigation" className="grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-hover lg:hidden">
             <Menu className="size-5" />
           </button>

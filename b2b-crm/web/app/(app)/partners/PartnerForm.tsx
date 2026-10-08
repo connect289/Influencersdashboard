@@ -1,13 +1,15 @@
 "use client";
 import { startTransition, useActionState, useEffect, useState } from "react";
-import { LoaderCircle } from "lucide-react";
+import { Lock, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { cn } from "@/components/ui/cn";
 import { Input } from "@/components/ui/Field";
+import { isCrmAdapter } from "@/lib/adapters";
 import {
-  ADAPTER_LABEL, ADAPTERS, DAY_LABEL, DAYS, DEDUPE_LABEL, DEDUPE_MODES, DEFAULT_WORKING_HOURS, SLA_FIELDS, slugify, type Partner,
+  ADAPTER_LABEL, ADAPTERS, asksDedupeConfirmation, CRITERIA_UNKNOWN, CRITERIA_UNKNOWN_LABEL, DAY_LABEL, DAYS, DEDUPE_LABEL, DEDUPE_MODES,
+  DEFAULT_WORKING_HOURS, duplicateWindowText, holdWindowText, SLA_FIELDS, slaMax, slugify, type Partner,
 } from "@/lib/partners";
 import { savePartner } from "./actions";
 import { PartnerLogo } from "./PartnerLogo";
@@ -36,7 +38,21 @@ function F({ id, label, hint, error, children, className }: { id: string; label:
   );
 }
 
+/** A value Addendum 3 fixes: shown like an input, never posted. */
+function Fixed({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[13px] font-medium text-fg">{label}</p>
+      <p className="flex h-10 items-center gap-2 rounded-lg border border-dashed border-border bg-surface-2 px-3 text-sm text-muted">
+        <Lock className="size-3.5 shrink-0 text-subtle" aria-hidden /> {value}
+      </p>
+      <p className="text-xs text-muted">{hint}</p>
+    </div>
+  );
+}
+
 const lines = (v: string[] | undefined) => (v ?? []).join(", ");
+const num = (v: number | null | undefined) => (v == null ? "" : String(v));
 
 /** Create or edit a partner. Every value is validated again by b2b.partner_save. */
 export function PartnerForm({ partner }: { partner?: Partner }) {
@@ -51,7 +67,9 @@ export function PartnerForm({ partner }: { partner?: Partner }) {
   const [displayName, setDisplayName] = useState(partner?.display_name ?? "");
   const [logo, setLogo] = useState(partner?.logo_url ?? "");
   const [color, setColor] = useState(partner?.brand_color ?? "");
+  const [adapter, setAdapter] = useState<string>(partner?.adapter_type ?? "leadsquared");
   const [dedupe, setDedupe] = useState(partner?.dedupe_mode ?? "async");
+  const [unknown, setUnknown] = useState<string>(partner?.lead_criteria?.unknown ?? "");
   const hours = { ...DEFAULT_WORKING_HOURS, ...(partner?.working_hours ?? {}) };
   const [open, setOpen] = useState<Record<string, boolean>>(Object.fromEntries(DAYS.map((d) => [d, Boolean(hours[d])])));
 
@@ -61,6 +79,12 @@ export function PartnerForm({ partner }: { partner?: Partner }) {
 
   const inv = (k: string) => (e[k] ? { "aria-invalid": true, "aria-describedby": `${k}-error` } : {});
   const validColor = /^#[0-9a-f]{6}$/i.test(color);
+  const dedupeConfirmed = Boolean(partner?.dedupe_confirmed_at);
+  // A CRM adapter may be 'sync' only once the Admin confirmed, in the Connection tab, that the CRM blocks duplicates on create (D37).
+  const syncNeedsConfirmation = dedupe === "sync" && isCrmAdapter(adapter) && !dedupeConfirmed;
+  // A partner on Eduwit's API contract or a webhook has no adapter settings: it is confirmed here.
+  const asksConfirmation = asksDedupeConfirmation(adapter, dedupe);
+  const c = partner?.lead_criteria ?? {};
 
   return (
     // Submitted by hand, not via the action prop: React resets a form after its action, which would wipe the
@@ -107,8 +131,9 @@ export function PartnerForm({ partner }: { partner?: Partner }) {
 
       <Section title="Connection" description="How leads reach the partner's CRM and how it reports duplicates. The API credential and signing secret are set in the Connection tab and stored in Vault, never here.">
         <div className="grid gap-4 sm:grid-cols-2">
-          <F id="adapter_type" label="CRM type" error={e.adapter_type}>
-            <select id="adapter_type" name="adapter_type" defaultValue={partner?.adapter_type ?? "leadsquared"} className={cn(control, "h-10")}>
+          <F id="adapter_type" label="CRM type" error={e.adapter_type}
+            hint="A partner with its own CRM: In-house CRM if it already has an API (Eduwit adapts to it), or Eduwit's API contract if their developer builds it. A partner with no API cannot be routed to automatically yet.">
+            <select id="adapter_type" name="adapter_type" value={adapter} onChange={(ev) => setAdapter(ev.target.value)} className={cn(control, "h-10")}>
               {ADAPTERS.map((a) => <option key={a} value={a}>{ADAPTER_LABEL[a]}</option>)}
             </select>
           </F>
@@ -132,15 +157,33 @@ export function PartnerForm({ partner }: { partner?: Partner }) {
               </label>
             ))}
           </div>
+          {e.dedupe_mode ? (
+            <p id="dedupe_mode-error" role="alert" className="mt-2 text-xs text-danger">{e.dedupe_mode}</p>
+          ) : syncNeedsConfirmation && (
+            <p className="mt-2 text-xs text-warning">
+              This CRM adapter is not yet confirmed to block duplicates on create. Confirm it in the{" "}
+              {partner ? <Link href={`/partners/${partner.id}?tab=connection`} className="underline">Connection tab</Link> : "Connection tab (after the partner is created)"}, or keep “Later, by webhook or poll”: the save is refused otherwise.
+            </p>
+          )}
+          {asksConfirmation && (
+            <label className="mt-3 flex items-start gap-3 rounded-lg border border-border px-3 py-2.5">
+              <input type="checkbox" name="dedupe_confirmed" defaultChecked={dedupeConfirmed} className="mt-0.5 size-4 accent-[var(--primary)]" />
+              <span className="text-[13px] text-fg">
+                I confirm the partner's endpoint refuses a duplicate in the create call
+                <span className="block text-[12px] text-muted">
+                  Under Eduwit's API contract a duplicate answers HTTP 409 at once. The go-live checklist item “Confirm whether the CRM blocks duplicates on create” is done once this is ticked.
+                </span>
+              </span>
+            </label>
+          )}
         </fieldset>
         <div className="grid gap-4 sm:grid-cols-2">
-          <F id="hold_minutes" label="Hold window (minutes)" error={e.hold_minutes}
-            hint={dedupe === "sync" ? "Not needed: duplicates are refused at once." : "The student is told who will call only after this window passes without a duplicate."}>
-            <Input id="hold_minutes" name="hold_minutes" inputMode="numeric" disabled={dedupe === "sync"} defaultValue={partner?.hold_minutes ?? 30} {...inv("hold_minutes")} />
-          </F>
-          <F id="duplicate_window_hours" label="Duplicate claim window (hours)" error={e.duplicate_window_hours} hint="Later duplicate claims are logged as commission disputes.">
-            <Input id="duplicate_window_hours" name="duplicate_window_hours" inputMode="numeric" defaultValue={partner?.duplicate_window_hours ?? 24} {...inv("duplicate_window_hours")} />
-          </F>
+          <Fixed label="Hold window" value={holdWindowText({ dedupe_mode: dedupe, dedupe_confirmed_at: partner?.dedupe_confirmed_at ?? null })}
+            hint={dedupe === "sync"
+              ? "No hold: duplicates are refused in the create call, so the student is told who will call at once (Addendum 3, PART 5.1)."
+              : "The student is told who will call only after 30 minutes pass without a duplicate or rejection (Addendum 3, PART 5.1)."} />
+          <Fixed label="Duplicate claim window" value={duplicateWindowText()}
+            hint="A duplicate claimed within 24 hours of acceptance becomes a commission dispute for you to decide; later claims are ignored (PART 5.8)." />
         </div>
       </Section>
 
@@ -185,31 +228,84 @@ export function PartnerForm({ partner }: { partner?: Partner }) {
         </F>
       </Section>
 
-      <Section title="SLAs" description="Defaults from the partner agreement template; edit per partner. Breaches feed the scorecard and alerts.">
+      <Section title="SLAs" description="What the partner promised. Addendum 3 fixes the first call, the status update and the enrolment proof: a partner may promise less time, never more. Breaches feed the SLA-adherence factor, the scorecard and alerts; five first-contact breaches in a row pause the partner automatically.">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {SLA_FIELDS.map((f) => (
-            <F key={f.key} id={`sla_${f.key}`} label={`${f.label} (${f.unit})`} error={e[`sla_${f.key}`]}>
-              <Input id={`sla_${f.key}`} name={`sla_${f.key}`} inputMode="numeric" defaultValue={partner?.sla?.[f.key] ?? f.def} {...inv(`sla_${f.key}`)} />
+          {SLA_FIELDS.map((f) => f.fixed !== undefined ? (
+            <Fixed key={f.key} label={f.label} value={duplicateWindowText()} hint="Not an SLA the partner sets: the rulebook's window for duplicate claims after acceptance." />
+          ) : (
+            <F key={f.key} id={`sla_${f.key}`} label={`${f.label} (${f.unit})`} error={e[`sla_${f.key}`]}
+              hint={f.rulebook !== undefined ? `At most ${f.rulebook} ${f.unit} (Addendum 3). A smaller number is a tighter promise.` : `1 to ${slaMax(f)} ${f.unit}.`}>
+              <Input id={`sla_${f.key}`} name={`sla_${f.key}`} inputMode="numeric" min={1} max={slaMax(f)} defaultValue={partner?.sla?.[f.key] ?? f.def} {...inv(`sla_${f.key}`)} />
             </F>
           ))}
         </div>
       </Section>
 
-      <Section title="Lead criteria" description="What the partner agreed to accept. Leads that fail these never route to it.">
+      <Section title="Lead criteria" description="What the partner agreed to accept (PART 4, Step 1). A lead that fails these never routes to it. Names are matched case-insensitively; leave a list empty for no restriction.">
         <div className="grid gap-4 sm:grid-cols-2">
-          <F id="states_include" label="Only these states" hint="Comma-separated. Empty means all of India.">
-            <Input id="states_include" name="states_include" maxLength={2000} defaultValue={lines(partner?.lead_criteria?.states_include)} />
+          <F id="states_include" label="Only these states" hint="Comma-separated. Empty means all of India." error={e.states_include}>
+            <Input id="states_include" name="states_include" maxLength={2000} defaultValue={lines(c.states_include)} {...inv("states_include")} />
           </F>
-          <F id="states_exclude" label="Never these states">
-            <Input id="states_exclude" name="states_exclude" maxLength={2000} defaultValue={lines(partner?.lead_criteria?.states_exclude)} />
+          <F id="states_exclude" label="Never these states" error={e.states_exclude}>
+            <Input id="states_exclude" name="states_exclude" maxLength={2000} defaultValue={lines(c.states_exclude)} {...inv("states_exclude")} />
           </F>
-          <F id="sources_exclude" label="Never leads from these sources" hint="Source codes, e.g. meta_lead_ad.">
-            <Input id="sources_exclude" name="sources_exclude" maxLength={2000} defaultValue={lines(partner?.lead_criteria?.sources_exclude)} />
+          <F id="cities_include" label="Only these cities" hint="Comma-separated. Empty means every city." error={e.cities_include}>
+            <Input id="cities_include" name="cities_include" maxLength={2000} defaultValue={lines(c.cities_include)} {...inv("cities_include")} />
           </F>
-          <F id="criteria_other" label="Other rules" hint="For example minimum qualification.">
-            <Input id="criteria_other" name="criteria_other" maxLength={2000} defaultValue={partner?.lead_criteria?.other ?? ""} />
+          <F id="cities_exclude" label="Never these cities" error={e.cities_exclude}>
+            <Input id="cities_exclude" name="cities_exclude" maxLength={2000} defaultValue={lines(c.cities_exclude)} {...inv("cities_exclude")} />
+          </F>
+          <F id="qualifications_include" label="Only these qualifications" hint="Comma-separated, e.g. Graduate, Postgraduate, Diploma. Empty means any." error={e.qualifications_include} className="sm:col-span-2">
+            <Input id="qualifications_include" name="qualifications_include" maxLength={2000} defaultValue={lines(c.qualifications_include)} {...inv("qualifications_include")} />
+          </F>
+          <F id="min_academic_pct" label="Minimum academic score (%)" hint="0 to 100. Empty means no minimum." error={e.min_academic_pct}>
+            <Input id="min_academic_pct" name="min_academic_pct" inputMode="decimal" placeholder="e.g. 50" defaultValue={num(c.min_academic_pct)} {...inv("min_academic_pct")} />
+          </F>
+          <F id="min_work_experience_years" label="Minimum work experience (years)" hint="0 to 40. Empty means no minimum." error={e.min_work_experience_years}>
+            <Input id="min_work_experience_years" name="min_work_experience_years" inputMode="decimal" placeholder="e.g. 2" defaultValue={num(c.min_work_experience_years)} {...inv("min_work_experience_years")} />
+          </F>
+          <F id="sources_exclude" label="Never leads from these sources" hint="Source codes, e.g. meta_lead_ad." error={e.sources_exclude}>
+            <Input id="sources_exclude" name="sources_exclude" maxLength={2000} defaultValue={lines(c.sources_exclude)} {...inv("sources_exclude")} />
+          </F>
+          <F id="criteria_other" label="Other rules" hint="Free text for the record; the engine does not apply it." error={e.criteria_other}>
+            <Input id="criteria_other" name="criteria_other" maxLength={2000} defaultValue={c.other ?? ""} {...inv("criteria_other")} />
           </F>
         </div>
+        <fieldset>
+          <legend className="mb-1 text-[13px] font-medium text-fg">When the lead's data is unknown</legend>
+          <p className="mb-2 text-xs text-muted">A lead whose state, city, qualification, score or experience is missing cannot be shown to meet a criterion. What did this partner agree?</p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(["", ...CRITERIA_UNKNOWN] as const).map((v) => {
+              const text = v === ""
+                ? { label: "Follow the engine setting", hint: "Routing → Engine → “Criteria with unknown data” decides (the rulebook default is: do not send)." }
+                : CRITERIA_UNKNOWN_LABEL[v];
+              return (
+                <label key={v || "default"} className={cn("cursor-pointer rounded-lg border p-3 transition-colors", unknown === v ? "border-ring bg-amber/10" : "border-border hover:bg-surface-hover")}>
+                  <span className="flex items-center gap-2 text-[13px] font-medium text-fg">
+                    <input type="radio" name="criteria_unknown" value={v} checked={unknown === v} onChange={() => setUnknown(v)} className="accent-[var(--primary)]" />
+                    {text.label}
+                  </span>
+                  <span className="mt-1 block text-[12px] leading-4 text-muted">{text.hint}</span>
+                </label>
+              );
+            })}
+          </div>
+          {e.criteria_unknown && <p id="criteria_unknown-error" role="alert" className="mt-2 text-xs text-danger">{e.criteria_unknown}</p>}
+        </fieldset>
+      </Section>
+
+      <Section title="Push options" description="What the push to the partner's CRM carries beyond the lead itself.">
+        <label className="flex items-start gap-3">
+          <input type="checkbox" name="push_interests_array" defaultChecked={partner?.push_options?.interests_array ?? false} className="mt-0.5 size-4 accent-[var(--primary)]"
+            aria-invalid={Boolean(e.push_interests_array)} aria-describedby={e.push_interests_array ? "push_interests_array-error" : undefined} />
+          <span className="text-[13px] text-fg">
+            Send interests as a list (<code className="font-mono text-[12px]">interests[]</code>)
+            <span className="block text-[12px] text-muted">
+              Off by default: strict CRM APIs reject unknown keys. The push note always lists every interest the student named (“Interested in … Also asked about: …”), whatever this setting.
+            </span>
+          </span>
+        </label>
+        {e.push_interests_array && <p id="push_interests_array-error" role="alert" className="text-xs text-danger">{e.push_interests_array}</p>}
       </Section>
 
       <Section title="Student notification" description="After the partner accepts a lead, the student is told who will call (WhatsApp and email).">

@@ -42,7 +42,7 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
 - Routing (`/routing`): the automatic-routing switch (off until turned on; it warns when no partner is live or consent
   is missing), today's numbers, partner readiness and the decision log; a simulator that runs the engine on any lead
   without writing anything and can then route it by hand with a note; rules (always send to, only consider, never send
-  to); commission rates (confirm the file's proposals, or set a partner-wide rate; versioned, never edited); engine
+  to); commission rates at programme (the partner sheet's %, GST included by default), university or partner level; versioned, never edited); engine
   settings saved as a new version with a reason. Each decision has its own page explaining why, and the lead drawer
   has a Routing tab. The engine itself is `b2b.route_core` (`supabase/migrations/*_m6b_route_lead.sql`); pg_cron calls
   `b2b.route_ready_leads` every minute, which does nothing while the switch is off.
@@ -79,6 +79,44 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   Values, Activities, Test (a payload in, a lead out and back, golden files), Queue (everything unmapped, with counts
   and leads), Schema (uploaded field lists, what the events show, drift, stage corrections) and Versions. The partner
   page's go-live checklist links here.
+- Sync & SLAs (partner page tab, `supabase/migrations/*_m16*.sql`): sync health (last event, lag, failures, dead
+  letters, pushes, a 7-day chart and one traffic light), the SLA scorecard in the partner's working hours with recent
+  breaches, dead letters with Retry and Discard (with a reason), and reconciliation items, which are re-checked every
+  night and on demand, or against the partner's own export (CSV or JSON). The lead drawer's Partner sync tab shows
+  the lead's SLA clocks, the partner's calls, messages and stage changes, and every raw event with its mapping.
+  pg_cron runs `b2b.sla_tick` every 5 minutes and `b2b.reconcile_all` nightly.
+- Intake (`/intake`, `supabase/migrations/*_m17*.sql`): sources by volume, failed requests with Retry and Discard,
+  and the latest requests with where each lead is heading. The import wizard reads .xlsx or CSV in the browser (up
+  to 50,000 rows), maps columns (mappings can be saved), matches courses to the catalogue, previews duplicates (with
+  CSV downloads), then records the consent basis and the routing choice (route, hold, B2C); history with release
+  and a 24-hour rollback. Ad forms (Meta and Google question mapping, fixed values, consent), New lead (typed in by
+  hand) and Connections (webhook URLs; secrets go to Vault). Machine routes: `POST /v1/leads` (Intake API, contract
+  in `docs/intake-api.md`), `GET/POST /v1/webhooks/meta/leadgen`, `POST /v1/webhooks/google/leadform`. pg_cron runs
+  `b2b.intake_tick` every 10 seconds (Meta fetches) and `b2b.import_tick` every minute.
+- Conversions (`/capi`, `supabase/migrations/*_m18*.sql`): lead milestones reported to Meta (Conversions API) and
+  Google Ads (offline and enhanced conversions for leads). It shows each platform's live switch and what blocks it,
+  totals and match-key coverage, per-milestone counts and value, an event log with Retry, Setup (consent rule, accounts,
+  credentials in Vault, stage-to-event maps) and Check a lead (the exact payloads, hashed). pg_cron runs `b2b.capi_tick`
+  every minute. Since m21 only leads from paid Meta and Google campaigns are reported, to their own platform, with the
+  signals enrolled → applicant → interested → qualified and their values; the Campaigns tab shows lead quality per
+  campaign. Setup guide: `docs/capi-setup.md`.
+- Partner CRM adapters (partner page → Connection, `supabase/migrations/*_m19*.sql`): LeadSquared, Zoho CRM,
+  Salesforce, HubSpot and Meritto, per environment (live and sandbox): settings, keys (to Vault), reference and status
+  fields, polling, fixed values, sign-in state, last poll, field fetch and a masked push preview. pg_cron runs
+  `b2b.partner_sync_tick` every minute. Partners with their own CRM use the In-house CRM adapter (their create-lead and
+  changed-leads addresses, any auth). Guide: `docs/partner-adapters.md`.
+- B2C CRM link (`/b2c`, `app/v1/b2c/*`, `supabase/migrations/*_m22*.sql`): the B2C CRM's only way to the lead data. Leads it
+  holds are synced to it in real time (pg_cron `b2b.b2c_sync_tick` every 5 seconds, signed `b2c.lead_upserted` /
+  `b2c.lead_released` webhooks with per-lead versions, plus a change feed). It writes its pipeline fields and activities
+  back through `PATCH /v1/b2c/leads/{id}` and `POST …/activities` (validated, idempotent, audited with the counsellor).
+  The screen has the connection checklist, live numbers, the two-way log, field access and a per-lead inspector.
+  Contract: `docs/b2c-contract.md` (v2). Once tested, the link switches to the production cadence (m23): one batch
+  webhook every 15 minutes, with live partner CRM polling on the same interval, to keep paid API calls down.
+- Commission & Finance (`/money`, `supabase/migrations/*_m20*.sql`): enrolments to verify against proof (expected →
+  realised commission from the rate in force, tiered rates settled at month close), monthly draft GST invoices to approve
+  and print (IGST or CGST + SGST), receipts with TDS matched to invoices, ageing and overdue alerts, partner statement
+  reconciliation (matched, amount mismatch, partner only, Eduwit only) and CSV exports for accounts. pg_cron runs
+  `b2b.money_tick` every 5 minutes and `b2b.money_daily` at 09:05 IST. Guide: `docs/money.md`.
 
 ## How access is enforced
 

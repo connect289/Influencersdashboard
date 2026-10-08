@@ -4,6 +4,9 @@ Allocates every Eduwit lead to the partner edtech that earns Eduwit the most, ke
 tells the student who will call, and tracks partner commission. Spec: `../docs/B2B_CRM_PROMPT.md`.
 Design: `../docs/b2b-design.md`. Database audit: `../docs/phase0-audit.md`.
 
+Feature guides in `../docs/`: `intake-api.md`, `partner-api.md`, `partner-adapters.md`, `b2c-contract.md`, `capi-setup.md`,
+`money.md`, `performance-routing.md`, `ai-optimiser.md`, `dashboards-reports.md`.
+
 This folder is the B2B CRM only. The influencer dashboard lives elsewhere in this repository.
 
 ## Databases
@@ -20,7 +23,15 @@ This folder is the B2B CRM only. The influencer dashboard lives elsewhere in thi
 - `00000000000000_baseline.sql`: production's `public` schema on 6 Oct 2026, generated from the catalog. Reference only and the
   starting point for staging; never applied to production.
 - Every later file: applied to **staging first**, checked, then applied to production with Vikas's approval for that step.
-- `supabase/pending/`: changes waiting for a confirmed manual run.
+- `supabase/pending/`: changes waiting for a confirmed manual run (SQL editor), each with its own header:
+  - `drop_tmp_transfer.sql` (production): removes the temporary objects used on 6 Oct 2026 to copy the baseline schema
+    to staging.
+  - `m25d_ml_training_rows_prune.sql`: nightly prune of `b2b.ml_training_rows` (function `ml_training_rows_prune()` and
+    cron job `b2b-ml-prune`, 03:10 IST). Staging now; production in the promotion window right after m30a, before m31a0.
+    The window's "pause every b2b-* cron job" step covers `b2b-ml-prune`.
+  - `m30b_fact_views.sql`: staging catch-up that rebuilds `fact_sla`, `fact_invoices` and `fact_sync` with the fixed m27a
+    definitions (m27a creates them only if missing). Staging now; production does not need it once the fixed m27a is
+    applied (running it is harmless).
 
 Rules that keep Witty (the live WhatsApp bot) safe:
 

@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   Bell, BookOpen, Building2, ChartColumn, FileText, GitMerge, IndianRupee, Inbox, LayoutDashboard, Plug, Radio,
   Route, Settings, Sparkles, Target, Users,
 } from "lucide-react";
@@ -29,7 +30,7 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/leads", label: "Leads", icon: Users, key: "l", summary: "Every lead from every source: search, filter, the Witty chat, soft delete with a recycle bin, and export.", keywords: "students master table recycle bin export" },
       { href: "/pool", label: "Pre-routing pool", icon: Inbox, summary: "Leads with no destination yet, grouped by why they wait (still chatting, routing off, too old), with their age and where each will go.", keywords: "waiting not ready" },
-      { href: "/intake", label: "Intake", icon: Plug, phase: 2, summary: "Sources (Witty, website agent, Meta, Google, imports) with volume and errors, the Excel/CSV import wizard and per-form field mapping.", keywords: "import csv meta google" },
+      { href: "/intake", label: "Intake", icon: Plug, summary: "Sources (Witty, website agent, Meta, Google, the API, imports) with volume and errors, the Excel/CSV import wizard, per-form field mapping, manual entry and connections.", keywords: "import csv meta google" },
     ],
   },
   {
@@ -44,32 +45,33 @@ export const NAV: NavGroup[] = [
     label: "Routing",
     items: [
       { href: "/routing", label: "Routing", icon: Route, key: "r", summary: "Automatic routing switch, lead simulator, rules (to partners or B2C), commission rates, hand-off rules, engine settings, the review queue and the decision log.", keywords: "engine allocation rules simulate commission rates decisions b2c nurture paid junk mismatch" },
-      { href: "/ai", label: "AI Optimiser", icon: Sparkles, phase: 3, summary: "Claude's recommendations with evidence and simulated impact, the holdout comparison and the model registry.", keywords: "claude ml" },
+      { href: "/ai", label: "AI Optimiser", icon: Sparkles, key: "a", summary: "Claude's recommendations with evidence and simulated impact (approve, edit, reject, roll back), AI-steered against holdout, the run log with cost, and the per-lead model registry.", keywords: "claude ml model optimiser recommendations holdout uplift" },
     ],
   },
   {
     label: "Money",
     items: [
-      { href: "/money", label: "Commission & Finance", icon: IndianRupee, key: "m", phase: 3, summary: "Enrollment verification, earnings ledger, GST invoices, receipts, statement reconciliation and tier watch.", keywords: "invoices earnings gst" },
+      { href: "/money", label: "Commission & Finance", icon: IndianRupee, key: "m", summary: "Enrollment verification, earnings ledger, GST invoices, receipts, statement reconciliation and tier watch.", keywords: "invoices earnings gst receipts tds statement" },
     ],
   },
   {
     label: "Outreach",
     items: [
       { href: "/notifications", label: "Notifications", icon: Bell, summary: "What students hear once a partner accepts their lead: WhatsApp and email switches, templates per language with a preview per partner, providers and the send log.", keywords: "whatsapp email templates" },
-      { href: "/capi", label: "Conversions (CAPI)", icon: Target, phase: 2, summary: "Stage-to-event map for Meta and Google, the event log and match quality.", keywords: "meta google ads" },
+      { href: "/capi", label: "Conversions (CAPI)", icon: Target, summary: "Lead milestones reported back to Meta and Google: stage-to-event map, the event log, match quality and a per-lead check.", keywords: "meta google ads" },
     ],
   },
   {
     label: "Insights",
     items: [
-      { href: "/dashboards", label: "Dashboards", icon: ChartColumn, key: "d", phase: 4, summary: "Default dashboards and a builder: KPIs, funnels, Sankey, cohorts, leaderboards and alerts, all drilling down to leads.", keywords: "analytics charts" },
-      { href: "/reports", label: "Reports", icon: FileText, phase: 4, summary: "Tabular, summary and matrix reports; save, schedule and export.", keywords: "export" },
+      { href: "/dashboards", label: "Dashboards", icon: ChartColumn, key: "d", summary: "Nine built-in dashboards and a builder: KPIs, charts, funnels, Sankey, cohorts, leaderboards, the India map, SLA timers; every number drills down to its leads; calculated metrics, metric alerts and scheduled e-mail.", keywords: "analytics charts metrics alerts schedule kpi" },
+      { href: "/reports", label: "Reports", icon: FileText, summary: "Tabular, summary and matrix reports; save, schedule and export CSV.", keywords: "export csv summary matrix" },
     ],
   },
   {
     label: "System",
     items: [
+      { href: "/b2c", label: "B2C CRM link", icon: ArrowLeftRight, summary: "The B2C CRM's only way to Eduwit's lead data: real-time sync of the leads it holds, its writes back with the counsellor who made them, which fields it may change, and a per-lead inspector.", keywords: "b2c crm sync counsellors in-house api webhook" },
       { href: "/system", label: "System health", icon: Radio, summary: "Background jobs, webhook endpoints and deliveries, API keys, events from the B2C CRM and erasure requests.", keywords: "outbox queue api keys webhooks b2c jobs cron" },
       { href: "/settings/security", label: "Settings", icon: Settings, key: "s", summary: "Your sign-in security: two-step verification, active sessions and sign-in history.", keywords: "security sessions account" },
     ],

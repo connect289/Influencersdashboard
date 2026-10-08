@@ -2,12 +2,13 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, KeyRound, LoaderCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/components/ui/cn";
 import { useFormAction } from "@/components/ui/useFormAction";
 import { formatDateTime, relativeTime } from "@/lib/format";
-import { AUTH_LABEL, AUTH_TYPES, type Dispute } from "@/lib/push";
+import { AUTH_LABEL, AUTH_TYPES, DISPUTE_KIND_HINT, disputeDecisionCopy, disputeKindLabel, disputeProofOk, isDisputeKind, type Dispute } from "@/lib/push";
 import { resolveDispute, rotateInboundSecret, savePartnerCredentials, type SaveState } from "../actions";
 
 const field = "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 aria-[invalid=true]:border-danger";
@@ -89,20 +90,54 @@ export function SigningSecret({ id, has }: { id: number; has: boolean }) {
   );
 }
 
-/** Duplicate claims after acceptance: uphold (no commission) or reject (the lead stays the partner's and commission applies). */
+/** The partner's proof for one dispute row: record id and created date for a duplicate claim; the event for late activity. */
+function DisputeProof({ d }: { d: Dispute }) {
+  if (d.kind === "late_activity_after_lost") {
+    return (
+      <p className="text-[12px] text-muted">
+        {d.partner_name} reported {d.partner_event_id ? <>activity (partner event <span className="font-mono">#{d.partner_event_id}</span>)</> : "an enrolment"} after the lead moved to B2C
+        {" "}· claimed <span title={formatDateTime(d.created_at)}>{relativeTime(d.created_at)}</span>
+      </p>
+    );
+  }
+  const ok = disputeProofOk(d);
+  return (
+    <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-muted">
+      <span>
+        {d.partner_name} says it already had this student
+        {d.existing_record_id && <> as <span className="font-mono text-fg">{d.existing_record_id}</span></>}
+        {d.existing_created_on ? <>, created <span className="text-fg" title={formatDateTime(d.existing_created_on)}>{formatDateTime(d.existing_created_on)}</span></>
+          : d.existing_created_at ? <>, created <span className="text-fg">{d.existing_created_at}</span></> : null}
+        {" "}· claimed <span title={formatDateTime(d.created_at)}>{relativeTime(d.created_at)}</span>
+      </span>
+      {ok ? <Badge tone="success">With proof</Badge> : <Badge tone="warning">No proof</Badge>}
+    </p>
+  );
+}
+
+/**
+ * Open commission disputes (m31i): a duplicate claimed within 24 hours of acceptance (PART 5.8) or partner activity after a lost
+ * lead's grace ended (PART 6.1). The lead never moves; the Admin decides the commission. Upholding a duplicate claim means no
+ * commission on the lead; upholding late activity lets the later enrolment earn.
+ */
 export function DisputeList({ disputes }: { disputes: Dispute[] }) {
   const [open, setOpen] = useState<{ d: Dispute; uphold: boolean } | null>(null);
+  const copy = open ? disputeDecisionCopy(open.d.kind, open.uphold) : null;
   return (
     <>
       <ul className="divide-y divide-border">
         {disputes.map((d) => (
           <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 text-[13px]">
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-fg">{d.lead_name || `Lead #${d.lead_id}`} <span className="font-mono text-[12px] text-subtle">{d.reference}</span></p>
-              <p className="text-[12px] text-muted">
-                {d.partner_name} says it already had this student{d.existing_record_id && <> as <span className="font-mono">{d.existing_record_id}</span></>}
-                {d.existing_created_at && <>, created {d.existing_created_at}</>} · claimed <span title={formatDateTime(d.created_at)}>{relativeTime(d.created_at)}</span>
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium text-fg">
+                <span>{d.lead_name || `Lead #${d.lead_id}`}</span>
+                <span className="font-mono text-[12px] text-subtle">{d.reference}</span>
+                <span title={isDisputeKind(d.kind) ? DISPUTE_KIND_HINT[d.kind] : undefined}>
+                  <Badge tone={d.kind === "late_activity_after_lost" ? "info" : "warning"} className="font-normal">{disputeKindLabel(d.kind)}</Badge>
+                </span>
+                {d.also > 0 && <span title="Later claims by the partner joined this dispute"><Badge>+{d.also} more {d.also === 1 ? "claim" : "claims"}</Badge></span>}
               </p>
+              <DisputeProof d={d} />
             </div>
             <Button size="sm" variant="secondary" onClick={() => setOpen({ d, uphold: true })}>Uphold</Button>
             <Button size="sm" variant="ghost" onClick={() => setOpen({ d, uphold: false })}>Reject</Button>
@@ -112,19 +147,17 @@ export function DisputeList({ disputes }: { disputes: Dispute[] }) {
       <ConfirmDialog
         open={open !== null}
         onClose={() => setOpen(null)}
-        title={open?.uphold ? "Uphold the duplicate claim?" : "Reject the duplicate claim?"}
+        title={copy?.title ?? ""}
         confirmLabel={open?.uphold ? "Uphold" : "Reject"}
-        reason={{ label: "Note for the audit log", placeholder: open?.uphold ? "e.g. partner's record predates ours by 3 weeks" : "e.g. no proof the student enquired before" }}
+        reason={{ label: "Note for the audit log", placeholder: copy?.placeholder }}
         onConfirm={async (note) => {
-          if (!open) return;
+          if (!open || !copy) return;
           const err = await resolveDispute(open.d.id, open.uphold, note);
           if (err) return err;
-          toast.success(open.uphold ? "Claim upheld: no commission on this lead" : "Claim rejected");
+          toast.success(copy.toast);
         }}
       >
-        {open?.uphold
-          ? "The lead earns no commission and is left out of the partner's conversion figures. It stays with the partner."
-          : "The lead stays with the partner and commission applies as normal."}
+        {copy?.body}
       </ConfirmDialog>
     </>
   );

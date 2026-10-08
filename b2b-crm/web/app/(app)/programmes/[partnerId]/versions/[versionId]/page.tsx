@@ -26,7 +26,7 @@ export const metadata: Metadata = { title: "Programme file review" };
 
 const pct = (n: number | null) => (n === null ? "" : `${Math.round(n * 100)}%`);
 
-function Changes({ p }: { p: Preview }) {
+function Changes({ p, gstIncluded }: { p: Preview; gstIncluded: boolean }) {
   const gaps = [...p.added, ...p.changed].filter((x) => (x.fee_gap ?? 0) > 0.1);
   return (
     <div className="grid gap-px overflow-hidden bg-border md:grid-cols-3">
@@ -74,7 +74,8 @@ function Changes({ p }: { p: Preview }) {
             </p>
           )}
           {p.duplicates > 0 && <p className="text-muted">{p.duplicates} {p.duplicates === 1 ? "row matches" : "rows match"} a programme another row already has; the first row is used.</p>}
-          {p.proposed_commission > 0 && <p className="text-muted">{p.proposed_commission} programmes carry a commission in the file. These are stored as proposed rates; rates take effect only when you confirm them (rates screen, coming with Commission).</p>}
+          {p.proposed_commission > 0 && <p className="text-muted">{p.proposed_commission} programmes carry a commission in the file. Publishing confirms them as this partner&apos;s programme rates
+            ({gstIncluded ? "GST included" : "GST on top"}; change it on the partner&apos;s Live programmes tab). Tier references are set by hand in Routing → Rates.</p>}
         </section>
       )}
     </div>
@@ -120,7 +121,7 @@ export default async function VersionPage({ params, searchParams }: Props) {
           title={v.status === "published" ? "What this version changed" : "If you publish this version"}
           description={editable && preview.pending_review > 0 ? `${preview.pending_review} ${preview.pending_review === 1 ? "row needs" : "rows need"} review before publishing. Ignored rows: ${preview.ignored}.` : summary}
         />
-        <Changes p={preview} />
+        <Changes p={preview} gstIncluded={repo?.source?.commission_includes_gst !== false} />
       </Card>
 
       <Card className="overflow-hidden">
