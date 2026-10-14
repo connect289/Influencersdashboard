@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Eduwit B2C CRM Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap">
+<style>/* Layout concept: a calm desk. Navy ink on white paper for work; amber only where something needs the eye
+   (hot, at risk, the one Call per screen). Fine navy hairlines instead of shadows. No black in light mode. */
+:root {
+  --bg: #FFFFFF; --surface: #F8F9FA; --surface-2: #EEF0F3; --line: #D7DEE5; --line-strong: #778CA4;
+  --ink: #052244; --muted: #516D8C; --primary: #072E5A; --primary-hover: #052244; --on-primary: #FFFFFF; --primary-soft: #E6EAEE;
+  --amber: #F4A504; --on-amber: #052244; --amber-soft: #FDF1D7; --amber-ink: #7F5602;
+  --red: #B42318; --red-soft: #FEF3F2; --green: #067647; --green-soft: #ECFDF3; --focus: #072E5A;
+  --shadow: 0 1px 2px rgba(7, 46, 90, .06), 0 8px 24px rgba(7, 46, 90, .08);
+  --scrim: rgba(5, 34, 68, .38);
+  --font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 10px; --r-sm: 7px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #020D19; --surface: #031224; --surface-2: #041932; --line: #1B3557; --line-strong: #6A829C;
+    --ink: #F0F2F5; --muted: #A1B0C0; --primary: #B5C0CE; --primary-hover: #C8D1DB; --on-primary: #020D19; --primary-soft: #0A2748;
+    --amber: #F4A504; --on-amber: #020D19; --amber-soft: #2E2C1E; --amber-ink: #F7BC43;
+    --red: #F97066; --red-soft: #2A1416; --green: #47CD89; --green-soft: #0D2419; --focus: #F4A504;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35); --scrim: rgba(0, 0, 0, .55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #020D19; --surface: #031224; --surface-2: #041932; --line: #1B3557; --line-strong: #6A829C;
+  --ink: #F0F2F5; --muted: #A1B0C0; --primary: #B5C0CE; --primary-hover: #C8D1DB; --on-primary: #020D19; --primary-soft: #0A2748;
+  --amber: #F4A504; --on-amber: #020D19; --amber-soft: #2E2C1E; --amber-ink: #F7BC43;
+  --red: #F97066; --red-soft: #2A1416; --green: #47CD89; --green-soft: #0D2419; --focus: #F4A504;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35); --scrim: rgba(0, 0, 0, .55);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--surface-2); color: var(--ink); font: 14px/1.45 var(--font); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; letter-spacing: -.01em; }
+h1 { font-size: 22px; font-weight: 650; }
+h2 { font-size: 16px; font-weight: 650; }
+h3 { font-size: 14px; font-weight: 600; }
+p { margin: 0; }
+.num, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+a { color: var(--primary); }
+
+/* ---------- review bar (not part of the product) ---------- */
+.proto { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; background: var(--bg); border-bottom: 1px solid var(--line);
+  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.proto .brand { display: flex; align-items: center; gap: 8px; font-weight: 650; margin-right: auto; }
+.proto .brand small { font-weight: 500; color: var(--muted); }
+.logo { width: 26px; height: 26px; flex: none; }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 5px 10px; font-size: 13px; font-weight: 550; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); }
+.sample { font-size: 12px; color: var(--amber-ink); background: var(--amber-soft); padding: 3px 8px; border-radius: 999px; font-weight: 600; }
+
+.stage { padding-block: 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.stage.desk { padding: 0; }
+
+/* ---------- shared bits ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 14px; border: 1px solid transparent; line-height: 1.2; white-space: nowrap; }
+.btn.primary { background: var(--primary); color: var(--on-primary); }
+.btn.primary:hover { background: var(--primary-hover); }
+.btn.call { background: var(--amber); color: var(--on-amber); }
+.btn.ghost { background: transparent; border-color: var(--line-strong); color: var(--ink); }
+.btn.ghost:hover { background: var(--surface-2); }
+.btn.quiet { background: transparent; color: var(--primary); padding-inline: 8px; }
+.btn.danger { background: var(--red); color: var(--bg); }
+.btn.sm { padding: 5px 10px; font-size: 13px; }
+.btn.block { width: 100%; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.icon { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon.s { width: 15px; height: 15px; }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; line-height: 1.5; }
+.chip.hot { background: var(--amber); color: var(--on-amber); }
+.chip.warm { background: var(--amber-soft); color: var(--amber-ink); }
+.chip.cold, .chip.soft { background: var(--primary-soft); color: var(--ink); }
+.chip.risk { background: var(--amber-soft); color: var(--amber-ink); }
+.chip.breach { background: var(--red-soft); color: var(--red); }
+.chip.ok { background: var(--green-soft); color: var(--green); }
+.chip.line { border: 1px solid var(--line-strong); color: var(--muted); padding: 1px 7px; }
+.chip.bar { background: var(--surface-2); color: var(--ink); border: 1px dashed var(--line-strong); padding: 1px 7px; }
+
+.card { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); }
+.card.pad { padding: 14px; }
+.stack { display: grid; gap: 12px; }
+.row { display: flex; align-items: center; gap: 10px; }
+.row.wrap { flex-wrap: wrap; }
+.row.between { justify-content: space-between; }
+.grow { flex: 1; min-width: 0; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.divider { height: 1px; background: var(--line); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-soft); color: var(--ink); font-size: 12px; font-weight: 650; flex: none; }
+.avatar.lg { width: 44px; height: 44px; font-size: 15px; }
+.kv { display: grid; grid-template-columns: minmax(110px, 38%) 1fr; gap: 6px 12px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; }
+.field { display: grid; gap: 4px; font-size: 13px; }
+.field > span { color: var(--muted); font-weight: 550; }
+.input, select.input, textarea.input { width: 100%; border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+textarea.input { min-height: 72px; resize: vertical; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { border: 1px solid var(--line-strong); background: var(--bg); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 550; }
+.pill[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tabs button { border: 0; background: none; padding: 9px 12px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--amber); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-weight: 600; color: var(--muted); background: var(--surface); font-size: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; position: sticky; top: 0; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: var(--surface); }
+.bar-track { height: 6px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.bar-fill { height: 100%; background: var(--primary); border-radius: 99px; }
+.bar-fill.amber { background: var(--amber); }
+.note { font-size: 12px; color: var(--muted); }
+.banner { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-sm); background: var(--amber-soft); color: var(--amber-ink); font-size: 13px; }
+.banner.info { background: var(--primary-soft); color: var(--ink); }
+.banner.danger { background: var(--red-soft); color: var(--red); }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 550; z-index: 90; box-shadow: var(--shadow); max-width: calc(100% - 32px); }
+
+/* ---------- Sales app ---------- */
+.phone { width: 390px; max-width: 100%; height: 800px; max-height: calc(100vh - 110px); min-height: 560px; margin: 0 auto; border: 1px solid var(--line-strong); border-radius: 34px; overflow: hidden; background: var(--bg); box-shadow: var(--shadow); position: relative; display: flex; flex-direction: column; }
+.phone .statusbar { height: 30px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 0 22px; font-size: 12px; font-weight: 600; font-family: var(--mono); }
+.sales { display: flex; flex-direction: column; min-height: 0; flex: 1; background: var(--bg); }
+.s-head { padding: 10px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); flex: none; }
+.s-head h1 { font-size: 19px; }
+.s-body { flex: 1; overflow-y: auto; padding: 14px 16px 20px; display: grid; gap: 14px; align-content: start; min-height: 0; }
+.bottom-nav { flex: none; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); background: var(--bg); padding-bottom: 6px; }
+.bottom-nav button { border: 0; background: none; display: grid; justify-items: center; gap: 2px; padding: 8px 0 4px; font-size: 11px; font-weight: 600; color: var(--muted); position: relative; }
+.bottom-nav button[aria-current="page"] { color: var(--ink); }
+.bottom-nav button[aria-current="page"]::before { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 2px; background: var(--amber); border-radius: 2px; }
+.badge-dot { position: absolute; top: 6px; right: calc(50% - 16px); min-width: 16px; height: 16px; border-radius: 99px; background: var(--amber); color: var(--on-amber); font-size: 10px; display: grid; place-items: center; padding: 0 4px; }
+
+.qcard { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); text-align: left; width: 100%; }
+.qcard.breach { border-color: var(--red); }
+.qcard .name { font-weight: 650; }
+.qcard .sub { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
+.sec-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.sec-title h2 { font-size: 14px; }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.kpi { border: 1px solid var(--line); border-radius: var(--r); padding: 10px; background: var(--bg); display: grid; gap: 4px; }
+.kpi b { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; }
+.kpi .bar-track { height: 4px; }
+.fu-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.fu-card { border: 1px solid var(--line); border-radius: var(--r); padding: 8px; background: var(--bg); text-align: left; display: grid; gap: 2px; }
+.fu-card b { font-family: var(--mono); font-size: 20px; font-weight: 600; }
+.fu-card span { font-size: 11px; color: var(--muted); font-weight: 600; }
+.fu-card[aria-pressed="true"] { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.fu-card.alert b { color: var(--red); }
+.list { display: grid; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--bg); }
+.li { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; align-items: center; padding: 11px 12px; border-bottom: 1px solid var(--line); background: var(--bg); text-align: left; border-left: 0; border-right: 0; border-top: 0; width: 100%; }
+.li:last-child { border-bottom: 0; }
+.li:hover { background: var(--surface); }
+.li .t { font-weight: 600; }
+.li .s { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
+.search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line-strong); border-radius: 10px; padding: 8px 10px; background: var(--bg); }
+.search input { border: 0; outline: 0; background: none; flex: 1; min-width: 0; }
+.hscroll { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.hscroll .pill { flex: none; }
+
+.plain { background: none; border: 0; padding: 0; margin: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; }
+
+/* lead screen */
+.lead-head { display: grid; gap: 10px; }
+.lead-actions { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; }
+.brief { border-left: 3px solid var(--amber); padding: 10px 12px; background: var(--surface); border-radius: 0 var(--r-sm) var(--r-sm) 0; display: grid; gap: 4px; font-size: 13px; }
+.brief li { margin-left: 16px; }
+.brief ul { margin: 0; padding: 0; display: grid; gap: 3px; }
+.panel { border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
+.panel > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.panel > .body { padding: 12px; display: grid; gap: 10px; }
+.contact { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; align-items: center; font-size: 13px; }
+.contact .lbl { grid-column: 2; font-size: 11px; color: var(--muted); }
+.tl { display: grid; gap: 0; }
+.tl-item { display: grid; grid-template-columns: 44px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+.tl-item:last-child { border-bottom: 0; }
+.tl-item time { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.tl-kind { font-size: 11px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+/* sheets */
+.scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 30; display: flex; align-items: flex-end; }
+.sheet { background: var(--bg); width: 100%; max-height: 92%; overflow-y: auto; border-radius: 18px 18px 0 0; padding: 8px 16px 18px; display: grid; gap: 14px; }
+.sheet .grab { width: 40px; height: 4px; border-radius: 4px; background: var(--line-strong); margin: 4px auto 0; }
+.scrim.center { align-items: center; justify-content: center; padding: 16px; }
+.scrim.center .sheet { border-radius: 16px; max-width: 520px; }
+.dialer { text-align: center; display: grid; gap: 10px; justify-items: center; padding: 16px 0; }
+.dialer .bignum { font-family: var(--mono); font-size: 26px; font-weight: 600; letter-spacing: .02em; }
+.qr { width: 132px; height: 132px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: #FFFFFF; }
+
+/* inbox */
+.thread { display: grid; gap: 8px; align-content: start; }
+.msg { max-width: 82%; padding: 8px 11px; border-radius: 12px; font-size: 13px; display: grid; gap: 3px; }
+.msg.in { background: var(--surface-2); justify-self: start; border-bottom-left-radius: 4px; }
+.msg.out { background: var(--primary-soft); justify-self: end; border-bottom-right-radius: 4px; }
+.msg .meta { font-size: 11px; color: var(--muted); display: flex; gap: 6px; justify-content: flex-end; }
+.msg .tpl { font-size: 11px; font-weight: 650; color: var(--amber-ink); }
+.composer { border-top: 1px solid var(--line); padding: 10px 12px; display: grid; gap: 8px; background: var(--bg); flex: none; }
+.window { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.tpl-card { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px; display: grid; gap: 6px; text-align: left; background: var(--bg); width: 100%; }
+.tpl-card[aria-pressed="true"] { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.tpl-card code { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+/* kanban */
+.kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.kcol { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 8px; display: grid; gap: 8px; align-content: start; min-height: 160px; }
+.kcol header { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; font-weight: 650; }
+.kcard { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px; display: grid; gap: 4px; font-size: 12px; text-align: left; width: 100%; }
+.kcard b { font-size: 13px; }
+
+/* ---------- desktop shells ---------- */
+.desk-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: calc(100vh - 52px); background: var(--bg); }
+.side { border-right: 1px solid var(--line); background: var(--surface); padding: 14px 10px; display: grid; gap: 2px; align-content: start; position: sticky; top: 52px; height: calc(100vh - 52px); overflow-y: auto; }
+.side .who { display: flex; gap: 10px; align-items: center; padding: 6px 8px 14px; }
+.side .group { font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 12px 10px 4px; }
+.side button.nav { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 7px 10px; border-radius: 8px; font-weight: 550; color: var(--ink); text-align: left; width: 100%; }
+.side button.nav:hover { background: var(--surface-2); }
+.side button.nav[aria-current="page"] { background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); font-weight: 650; }
+.side button.nav[aria-current="page"] .icon { color: var(--amber-ink); }
+.side .count { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.main { min-width: 0; display: grid; align-content: start; }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: var(--bg); flex-wrap: wrap; }
+.topbar h1 { margin-right: auto; }
+.content { padding: 20px 24px 40px; display: grid; gap: 16px; min-width: 0; }
+.cmdk { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 10px; color: var(--muted); background: var(--bg); min-width: 220px; }
+.cmdk kbd { margin-left: auto; font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.g-lead { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
+.stat { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; background: var(--bg); display: grid; gap: 6px; align-content: start; }
+.stat b { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 600; letter-spacing: -.01em; }
+.delta { font-size: 12px; font-weight: 600; }
+.delta.up { color: var(--green); }
+.delta.down { color: var(--red); }
+.readonly-flag { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+svg.chart text { fill: var(--muted); font-family: var(--mono); font-size: 10px; }
+svg.chart .gridl { stroke: var(--line); stroke-width: 1; }
+.funnel-row { display: grid; grid-template-columns: 170px 1fr 70px; gap: 10px; align-items: center; font-size: 13px; }
+.funnel-row .bar-track { height: 18px; border-radius: 5px; }
+.funnel-row .bar-fill { border-radius: 5px; }
+
+/* journey canvas */
+.canvas { background-color: var(--surface); background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 16px 16px; border: 1px solid var(--line); border-radius: var(--r); padding: 24px; display: grid; justify-items: center; gap: 0; overflow-x: auto; }
+.node { width: min(360px, 100%); border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg); padding: 10px 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; align-items: center; }
+.node .k { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--primary-soft); grid-row: span 2; }
+.node.trigger .k { background: var(--amber); color: var(--on-amber); }
+.node.exit .k { background: var(--surface-2); }
+.node .t { font-weight: 600; font-size: 13px; }
+.node .s { grid-column: 2; font-size: 12px; color: var(--muted); }
+.node .n { grid-row: 1 / 3; grid-column: 3; font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; }
+.edge { width: 1px; height: 22px; background: var(--line-strong); }
+.calendar { display: grid; grid-template-columns: 120px repeat(7, minmax(0, 1fr)); font-size: 12px; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--bg); }
+.calendar > div { padding: 7px 8px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); min-height: 34px; }
+.calendar .h { background: var(--surface); font-weight: 650; color: var(--muted); }
+.shift { background: var(--primary-soft); border-radius: 5px; padding: 2px 6px; font-weight: 600; font-family: var(--mono); font-size: 11px; display: inline-block; }
+.shift.off { background: transparent; color: var(--muted); border: 1px dashed var(--line-strong); }
+.shift.leave { background: var(--amber-soft); color: var(--amber-ink); font-family: var(--font); }
+
+/* Sales desktop: same app, sidebar layout */
+.sales-desk .s-body { padding: 20px 24px 40px; }
+
+/* narrow screens: the review page itself on a phone */
+@media (max-width: 900px) {
+  .desk-shell { grid-template-columns: 1fr; }
+  .side { position: static; height: auto; display: flex; overflow-x: auto; padding: 8px; gap: 4px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .side .who, .side .group, .side .count { display: none; }
+  .side button.nav { width: auto; white-space: nowrap; }
+  .g2, .g3, .g-lead { grid-template-columns: 1fr; }
+  .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .content, .topbar { padding-left: 16px; padding-right: 16px; }
+  .cmdk { min-width: 0; }
+}
+@media (max-width: 440px) {
+  .stage:not(.desk) { padding: 0; }
+  .phone { border: 0; border-radius: 0; height: calc(100vh - 96px); max-height: none; box-shadow: none; }
+  .phone .statusbar { display: none; }
+  .funnel-row { grid-template-columns: 110px 1fr 56px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sheet { animation: rise .18s ease-out; }
+  @keyframes rise { from { transform: translateY(16px); opacity: .6; } to { transform: none; opacity: 1; } }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>/* Sample data for the clickable design. Every person, number and amount here is invented.
+   Phones use the test range 91 90000 000NN, which Eduwit never messages. */
+const D = (() => {
+  const now = new Date('2026-10-14T11:20:00+05:30');
+  const counsellors = [
+    { id: 'u1', name: 'Priya Sharma', first: 'Priya', initials: 'PS', role: 'Counsellor', langs: ['English', 'Hindi'], skills: ['MBA', 'Executive MBA'], status: 'Working', open: 38, month: 61, cap: 200, enrol: 4, target: 6, calls: 23, connected: 11 },
+    { id: 'u2', name: 'Rohan Mehta', first: 'Rohan', initials: 'RM', role: 'Counsellor', langs: ['English', 'Hindi', 'Marathi'], skills: ['MCA', 'BCA'], status: 'Working', open: 31, month: 54, cap: 200, enrol: 3, target: 6, calls: 19, connected: 8 },
+    { id: 'u3', name: 'Ankit Verma', first: 'Ankit', initials: 'AV', role: 'Counsellor', langs: ['English', 'Hindi'], skills: ['BBA', 'B.Com'], status: 'Away 30 min', open: 27, month: 47, cap: 200, enrol: 2, target: 5, calls: 14, connected: 5 },
+    { id: 'u4', name: 'Fatima Khan', first: 'Fatima', initials: 'FK', role: 'Counsellor', langs: ['English', 'Urdu', 'Hindi'], skills: ['M.Com', 'MBA'], status: 'On leave till 16 Oct', open: 0, month: 22, cap: 200, enrol: 1, target: 5, calls: 0, connected: 0 },
+  ];
+  const me = counsellors[0];
+
+  // stage index into STAGES
+  const leads = [
+    { id: 4812, name: 'Asha Verma', phone: '+91 90000 00012', email: 'asha.v@example.in', city: 'Pune', lang: 'Hindi', course: 'Online MBA', spec: 'Finance', uni: 'NMIMS CDOE', level: 'PG', mode: 'Online', stage: 0, sub: 'Fresh assignment', temp: 'hot', score: 72, lane: 'sales', reason: 'duplicate_cascade', reasonText: 'Duplicate at UpGrad and Sunstone', barred: 'duplicate', providers: [['UpGrad', '28 Aug 2026'], ['Sunstone', 'date not given']], owner: 'u1', sla: { kind: 'due', mins: 6 }, next: 'First call', nextAt: 'Now', assigned: '11:14', source: 'Meta lead form', campaign: 'Oct MBA · Lead form', qual: 'B.Com, 68%', exp: '3 years, accounts executive', budget: '₹1.2–1.6 lakh a year', timeline: 'Jan 2027 intake', script: 'neutral' },
+    { id: 4807, name: 'Rahul Kulkarni', phone: '+91 90000 00014', email: 'rahul.k@example.in', city: 'Nagpur', lang: 'Marathi', course: 'Online MCA', spec: 'Data Science', uni: 'Manipal Online', level: 'PG', mode: 'Online', stage: 1, sub: 'No answer', temp: 'warm', score: 48, lane: 'sales', reason: 'no_partner_offers_programme', reasonText: 'No partner offers this programme', owner: 'u1', sla: { kind: 'met' }, next: 'Call back', nextAt: '12:30', assigned: 'Yesterday', source: 'Witty (WhatsApp)', campaign: '—', qual: 'B.Sc IT, 61%', exp: 'Fresher', budget: 'Up to ₹1 lakh a year', timeline: 'Within 3 months', script: 'standard', attempts: 2 },
+    { id: 4799, name: 'Sneha Iyer', phone: '+91 90000 00015', email: 'sneha.iyer@example.in', city: 'Chennai', lang: 'English', course: 'Executive MBA', spec: 'Marketing', uni: 'IIM Kozhikode (EP)', level: 'PG', mode: 'Blended', stage: 4, sub: 'Awaiting parent decision', temp: 'hot', score: 81, lane: 'sales', reason: 'no_partner_consent', reasonText: 'Said no to partner sharing', owner: 'u1', sla: { kind: 'met' }, next: 'Follow-up call', nextAt: 'Overdue 25 min', overdue: true, assigned: '9 Oct', source: 'Website form', campaign: 'Google · Exec MBA', qual: 'B.E., 74%', exp: '7 years, brand manager', budget: '₹3–4 lakh total', timeline: 'Next intake', script: 'standard' },
+    { id: 4790, name: 'Mohit Bansal', phone: '+91 90000 00016', email: 'mohit.b@example.in', city: 'Jaipur', lang: 'Hindi', course: 'Online BBA', spec: 'General', uni: 'Amity Online', level: 'UG', mode: 'Online', stage: 2, sub: 'Spoke briefly', temp: 'warm', score: 55, lane: 'sales', reason: 'partners_unreachable', reasonText: '3 partners tried, none reachable', owner: 'u1', sla: { kind: 'met' }, next: 'WhatsApp brochure', nextAt: '14:00', assigned: '12 Oct', source: 'Google search ad', campaign: 'BBA · Search', qual: '12th, 71%', exp: 'Fresher', budget: '₹60k a year', timeline: 'This year', script: 'standard' },
+    { id: 4786, name: 'Kavya Reddy', phone: '+91 90000 00017', email: 'kavya.r@example.in', city: 'Hyderabad', lang: 'English', course: 'Online M.Com', spec: 'Accounting', uni: 'Jain Online', level: 'PG', mode: 'Online', stage: 6, sub: 'Application submitted', temp: 'hot', score: 77, lane: 'sales', reason: 'b2c_created', reasonText: 'Created by Priya (walk-in)', owner: 'u1', sla: { kind: 'met' }, next: 'Document chase', nextAt: '16:00', assigned: '2 Oct', source: 'Walk-in', campaign: '—', qual: 'B.Com, 66%', exp: '1 year', budget: '₹80k total', timeline: 'Oct 2026 intake', script: 'standard', appId: 'JAIN-OL-24-55871' },
+    { id: 4771, name: 'Imran Qureshi', phone: '+91 90000 00018', email: 'imran.q@example.in', city: 'Lucknow', lang: 'Urdu', course: 'Online MBA', spec: 'HR', uni: 'Amity Online', level: 'PG', mode: 'Online', stage: 8, sub: 'Fee paid (full)', temp: 'hot', score: 90, lane: 'sales', reason: 'duplicate_cascade', reasonText: 'Duplicate at UpGrad', barred: 'duplicate', owner: 'u1', sla: { kind: 'met' }, next: 'Upload fee receipt', nextAt: 'Tomorrow 11:00', assigned: '24 Sep', source: 'Meta lead form', campaign: 'Sep MBA', qual: 'BBA, 63%', exp: '4 years', budget: '₹1.8 lakh total', timeline: 'Oct 2026', script: 'neutral' },
+    { id: 4766, name: 'Neha Gupta', phone: '+91 90000 00019', email: 'neha.g@example.in', city: 'Delhi', lang: 'Hindi', course: 'Online MBA', spec: 'Operations', uni: 'Any', level: 'PG', mode: 'Online', stage: 0, sub: 'Re-engaged from nurture', temp: 'hot', score: 64, lane: 'sales', reason: 'reengaged', reasonText: 'Lost by Sunstone: over budget · re-engaged (tapped "Yes, call me")', barred: 'lost', owner: 'u1', sla: { kind: 'breach', mins: 12 }, next: 'First call', nextAt: 'Breached', assigned: '10:53', source: 'Meta lead form', campaign: 'Aug MBA', qual: 'B.A., 58%', exp: '2 years, retail', budget: 'Under ₹1 lakh', timeline: 'Undecided', script: 'standard' },
+    { id: 4752, name: 'Arjun Nair', phone: '+91 90000 00020', email: 'arjun.n@example.in', city: 'Kochi', lang: 'English', course: 'Online MCA', spec: 'Cloud', uni: 'LPU Online', level: 'PG', mode: 'Online', stage: 5, sub: 'Fee and EMI explained', temp: 'warm', score: 59, lane: 'sales', reason: 'no_capacity', reasonText: 'Partners at capacity', owner: 'u1', sla: { kind: 'met' }, next: 'Comparison follow-up', nextAt: 'Tomorrow 10:30', assigned: '7 Oct', source: 'Witty (WhatsApp)', campaign: '—', qual: 'BCA, 70%', exp: '2 years, support', budget: '₹1.5 lakh total', timeline: 'Jan 2027', script: 'standard' },
+    { id: 4733, name: 'Pooja Singh', phone: '+91 90000 00021', email: 'pooja.s@example.in', city: 'Patna', lang: 'Hindi', course: 'Online BCA', spec: 'General', uni: 'Manipal Online', level: 'UG', mode: 'Online', stage: 9, sub: "Can't afford fee or EMI", temp: 'cold', score: 22, lane: 'sales', reason: 'no_partner_offers_programme', reasonText: 'No partner offers this programme', owner: 'u1', sla: { kind: 'met' }, next: '—', nextAt: '—', assigned: '20 Sep', source: 'Website form', campaign: '—', qual: '12th, 55%', exp: 'Fresher', budget: 'Under ₹40k', timeline: 'Later', script: 'standard' },
+    // Pool (nurture) leads, seen by Admin and Marketing
+    { id: 4840, name: 'Vikram Joshi', phone: '+91 90000 00022', email: '', city: 'Indore', lang: 'Hindi', course: '—', spec: '', uni: '', level: '', mode: '', stage: -1, sub: 'Qualifying', temp: 'cold', score: 18, lane: 'nurture', reason: 'not_qualified', reasonText: 'Missing course and email', missing: ['Course', 'Email'], owner: null, journey: 'Qualify: missing details · step 2 of 5', lastMsg: 'explore_programmes · Read', lastAct: 'Witty chat, 2 days ago', source: 'Witty (WhatsApp)', pool: '2 days' },
+    { id: 4828, name: 'Ritika Das', phone: '+91 90000 00023', email: 'ritika.d@example.in', city: 'Kolkata', lang: 'English', course: 'Online MBA', spec: 'Finance', uni: '', level: 'PG', mode: 'Online', stage: -1, sub: 'Partner-lost', temp: 'warm', score: 41, lane: 'nurture', reason: 'partner_lost', reasonText: 'Lost by UpGrad: over budget', barred: 'lost', owner: null, journey: 'Fee concern · waits until 21 Oct', lastMsg: '—', lastAct: 'UpGrad call, 9 Oct', source: 'Meta lead form', pool: '6 days' },
+    { id: 4815, name: 'Sanjay Patil', phone: '+91 90000 00024', email: 'sanjay.p@example.in', city: 'Nashik', lang: 'Marathi', course: 'Online BBA', spec: '', uni: '', level: 'UG', mode: 'Online', stage: -1, sub: 'Consent pending', temp: 'warm', score: 52, lane: 'nurture', reason: 'consent_no_answer', reasonText: 'No answer to partner-sharing request in 48 h', missing: ['Partner consent'], owner: null, journey: 'Consent repeat · step 1 of 3', lastMsg: 'wa_partner_consent_v1 · Delivered', lastAct: 'Form, 4 days ago', source: 'Google lead form', pool: '2 days' },
+    { id: 4802, name: 'Meera Pillai', phone: '+91 90000 00025', email: 'meera.p@example.in', city: 'Thrissur', lang: 'English', course: 'Online M.Com', spec: '', uni: '', level: 'PG', mode: 'Online', stage: -1, sub: 'Counsellor-lost', temp: 'cold', score: 33, lane: 'nurture', reason: 'counsellor_lost', reasonText: 'Lost by Rohan: not now, later', owner: null, journey: 'Not now · monthly update · waits until 4 Nov', lastMsg: '—', lastAct: 'Call with Rohan, 5 Oct', source: 'Website form', pool: '9 days' },
+    { id: 4781, name: 'Deepak Yadav', phone: '+91 90000 00026', email: 'deepak.y@example.in', city: 'Gurugram', lang: 'Hindi', course: 'Executive MBA', spec: '', uni: '', level: 'PG', mode: 'Blended', stage: -1, sub: 'Partner-lost', temp: 'warm', score: 57, lane: 'nurture', reason: 'partner_lost', reasonText: 'Lost by Sunstone: uncontactable', barred: 'lost', owner: null, journey: 'We tried to reach you · step 3 of 4', lastMsg: 'reach_you_2 · Read', lastAct: 'Email opened, today 09:12', source: 'Meta lead form', pool: '14 days' },
+  ];
+
+  leads.forEach(l => Object.assign(l, { qual: 'Not known yet', exp: 'Not known yet', budget: 'Not known yet', timeline: 'Not known yet', next: '—', nextAt: '—', assigned: '—', script: 'standard', campaign: '—', ...l }));
+
+  const STAGES = [
+    { name: 'New Lead', canon: 'assigned', subs: ['Fresh assignment', 'Re-engaged from nurture', 'Re-enquiry', 'Created by me', 'Returned from partners'] },
+    { name: 'Could Not Connect', canon: 'contacted', subs: ['No answer', 'Busy', 'Switched off', 'Wrong number', 'Call back requested', 'Invalid number'] },
+    { name: 'Contacted', canon: 'contacted', subs: ['Spoke briefly', 'Asked to call later', 'Parent or guardian spoke', 'WhatsApp reply only'] },
+    { name: 'Qualified', canon: 'counselled', subs: ['Eligible and interested', 'Eligible, undecided', 'Budget confirmed', 'Timeline confirmed'] },
+    { name: 'Follow Up', canon: 'counselled', subs: ['Call back on date', 'Awaiting parent decision', 'Comparing options', 'Awaiting documents', 'Awaiting fee arrangement or loan'] },
+    { name: 'Program Details Explained', canon: 'counselled', subs: ['Brochure shared', 'Fee and EMI explained', 'Comparison shared', 'University call arranged'] },
+    { name: 'Applicant', canon: 'applied', subs: ['Application started', 'Application submitted', 'Application fee paid'] },
+    { name: 'Docs Submitted', canon: 'applied', subs: ['Partial', 'Complete', 'Verification pending', 'Verification query'] },
+    { name: 'Enrolled', canon: 'enrolled', subs: ['Fee paid (partial)', 'Fee paid (full)', 'Enrollment confirmed by university', 'Verified by Admin'] },
+    { name: 'Lost', canon: 'lost', subs: ['Uncontactable', 'Not eligible', 'Not interested', "Can't afford fee or EMI", 'Loan not approved', 'Document verification failed', 'Lost to competitor', 'Chose another provider', 'Not now, later', 'Wrong number', 'Junk or test', 'Enrolled elsewhere', 'Opted out', 'Other'] },
+  ];
+
+  const timeline = {
+    4812: [
+      { t: '11:14', kind: 'assign', text: 'Assigned to Priya by rule "Duplicate cascade → senior pool" (round robin, turn 3 of 2 eligible).' },
+      { t: '11:14', kind: 'wa', dir: 'out', text: 'Template counsellor_intro_hours: "Hi Asha, I\'m Priya from Eduwit. I\'ll call you shortly about the Online MBA." · Delivered' },
+      { t: '11:13', kind: 'handoff', text: 'Handed to B2C: duplicate cascade. UpGrad (had her since 28 Aug) and Sunstone both reported her as an existing lead. Partner-barred.' },
+      { t: '10:58', kind: 'witty', text: 'Witty chat (14 messages): asked about NMIMS fees and EMI; works in accounts; wants a weekend batch.' },
+      { t: '10:41', kind: 'source', text: 'Meta lead form "Oct MBA · Lead form", campaign 120210001.' },
+    ],
+  };
+
+  const followups = [
+    { id: 1, lead: 4766, type: 'Call', note: 'First call · re-engaged lead, hot', when: 'Due now', bucket: 'notworked', sla: 'Breached 12 min' },
+    { id: 2, lead: 4812, type: 'Call', note: 'First call · neutral-adviser opening', when: 'Due now', bucket: 'notworked', sla: '6 min left' },
+    { id: 3, lead: 4799, type: 'Call', note: 'Parent decision on IIM K EP fee', when: '10:55', bucket: 'overdue', sla: 'Overdue 25 min' },
+    { id: 4, lead: 4807, type: 'Call', note: 'Retry, 2 no-answers so far', when: '12:30', bucket: 'today' },
+    { id: 5, lead: 4790, type: 'WhatsApp', note: 'Send Amity BBA brochure', when: '14:00', bucket: 'today' },
+    { id: 6, lead: 4786, type: 'Document', note: 'Chase 12th marksheet and photo', when: '16:00', bucket: 'today' },
+    { id: 7, lead: 4752, type: 'Call', note: 'Walk through LPU vs Manipal comparison', when: 'Tomorrow 10:30', bucket: 'upcoming', day: 'Thu 15 Oct' },
+    { id: 8, lead: 4771, type: 'Document', note: 'Fee receipt for verification', when: 'Tomorrow 11:00', bucket: 'upcoming', day: 'Thu 15 Oct' },
+    { id: 9, lead: 4790, type: 'Call', note: 'Check if parents agreed', when: 'Fri 16 Oct 18:00', bucket: 'upcoming', day: 'Fri 16 Oct' },
+  ];
+
+  const conversations = [
+    { lead: 4799, last: 'Papa wants to know if the EMI has no-cost option?', at: '10:31', unread: 1, window: { open: true, left: '23 h 12 min' }, msgs: [
+      { dir: 'out', tpl: 'sales_followup_programme', text: 'Hi Sneha, this is Priya from Eduwit. As promised, here are the IIM Kozhikode Executive MBA details. Shall we speak today?', at: 'Yesterday 17:02', status: 'Read' },
+      { dir: 'in', text: 'Thanks Priya. Discussing with my father tonight.', at: 'Yesterday 21:40' },
+      { dir: 'in', text: 'Papa wants to know if the EMI has no-cost option?', at: '10:31' },
+    ] },
+    { lead: 4812, last: 'Hi Asha, I\'m Priya from Eduwit. I\'ll call you shortly…', at: '11:14', unread: 0, window: { open: false }, msgs: [
+      { dir: 'out', tpl: 'counsellor_intro_hours', text: 'Hi Asha, I\'m Priya from Eduwit. I\'ll call you shortly about the Online MBA.', at: '11:14', status: 'Delivered' },
+    ] },
+    { lead: 4790, last: 'ok send details', at: 'Yesterday', unread: 0, window: { open: false }, msgs: [
+      { dir: 'out', tpl: 'sales_opener_v2', text: 'Hi Mohit, Priya from Eduwit here about the Online BBA you asked for. Can I share the fee details?', at: 'Mon 12:10', status: 'Read' },
+      { dir: 'in', text: 'ok send details', at: 'Mon 12:44' },
+    ] },
+    { lead: 4786, last: 'Sent: Document checklist (Jain Online)', at: 'Mon', unread: 0, window: { open: false }, msgs: [
+      { dir: 'out', tpl: 'docs_reminder', text: 'Hi Kavya, a reminder to share your 12th marksheet and a photo for your Jain Online application.', at: 'Mon 16:00', status: 'Delivered' },
+    ] },
+  ];
+
+  const salesTemplates = [
+    { name: 'sales_opener_v2', cat: 'Opener', text: 'Hi {{first_name}}, {{counsellor}} from Eduwit here about the {{programme}} you asked for. Can I share the fee details?', lang: 'English' },
+    { name: 'sales_followup_programme', cat: 'Follow-up', text: 'Hi {{first_name}}, this is {{counsellor}} from Eduwit. As promised, here are the {{programme}} details. Shall we speak {{when}}?', lang: 'English' },
+    { name: 'sales_opener_hi', cat: 'Opener', text: 'नमस्ते {{first_name}}, मैं Eduwit से {{counsellor}}। आपने {{programme}} के बारे में पूछा था, क्या मैं फीस की जानकारी भेजूँ?', lang: 'Hindi' },
+    { name: 'docs_reminder', cat: 'Documents', text: 'Hi {{first_name}}, a reminder to share {{documents}} for your {{university}} application.', lang: 'English' },
+    { name: 'fee_emi', cat: 'Fee and EMI', text: 'Hi {{first_name}}, {{programme}} at {{university}} is {{fee}} with EMI from {{emi}} a month. Want me to explain?', lang: 'English' },
+  ];
+
+  const emailTemplates = [
+    { name: 'After first call', author: 'Priya Sharma', mine: true, uses: 42, reply: 31, cat: 'After call', rec: true },
+    { name: 'MBA comparison (3 universities)', author: 'Rohan Mehta', mine: false, uses: 37, reply: 28, cat: 'Brochure' },
+    { name: 'Fee and EMI options', author: 'Priya Sharma', mine: true, uses: 25, reply: 24, cat: 'Fee and EMI' },
+    { name: 'Documents checklist', author: 'Ankit Verma', mine: false, uses: 19, reply: 47, cat: 'Documents checklist' },
+    { name: 'MBA comparison (Priya\'s version)', author: 'Priya Sharma', mine: true, uses: 6, reply: 33, cat: 'Brochure', parent: 'MBA comparison (3 universities)' },
+  ];
+
+  const programmes = [
+    { uni: 'NMIMS CDOE', name: 'Online MBA', spec: 'Finance, Marketing, HR, Operations', level: 'PG', mode: 'Online', dur: '2 years', elig: 'Graduate, 50%', fee: 196000, emi: 8166, intake: 'Jan 2027 · closes 20 Dec', acc: 'UGC-DEB, NAAC A++', partners: 2, rate: '18% (UpGrad) · 16% (Sunstone)', owed: 35280 },
+    { uni: 'Amity Online', name: 'Online MBA', spec: 'HR, Marketing, Finance, IB', level: 'PG', mode: 'Online', dur: '2 years', elig: 'Graduate, 40%', fee: 179000, emi: 7458, intake: 'Oct 2026 · closes 31 Oct', acc: 'UGC-DEB, NAAC A+', partners: 3, rate: '20% (UpGrad) · 18% (Collegedunia)', owed: 35800 },
+    { uni: 'Manipal Online', name: 'Online MCA', spec: 'Data Science, Cloud, Cyber Security', level: 'PG', mode: 'Online', dur: '2 years', elig: 'BCA/B.Sc, 50%', fee: 158000, emi: 6583, intake: 'Jan 2027', acc: 'UGC-DEB, NAAC A+', partners: 0, rate: 'No partner · university rate 15% (flagged)', owed: 23700 },
+    { uni: 'LPU Online', name: 'Online MCA', spec: 'Cloud, AI/ML', level: 'PG', mode: 'Online', dur: '2 years', elig: 'Graduate with maths, 50%', fee: 132000, emi: 5500, intake: 'Jan 2027', acc: 'UGC-DEB, NAAC A++', partners: 1, rate: '15% (Sunstone)', owed: 19800 },
+    { uni: 'Jain Online', name: 'Online M.Com', spec: 'Accounting, Finance', level: 'PG', mode: 'Online', dur: '2 years', elig: 'B.Com, 45%', fee: 110000, emi: 4583, intake: 'Oct 2026 · closes 25 Oct', acc: 'UGC-DEB, NAAC A++', partners: 1, rate: '17% (Collegedunia)', owed: 18700 },
+    { uni: 'Amity Online', name: 'Online BBA', spec: 'General', level: 'UG', mode: 'Online', dur: '3 years', elig: '12th pass, 40%', fee: 165000, emi: 4583, intake: 'Oct 2026', acc: 'UGC-DEB, NAAC A+', partners: 2, rate: '15% (UpGrad) · 14% (Sunstone)', owed: 24750 },
+    { uni: 'IIM Kozhikode', name: 'Executive Programme in Marketing', spec: 'Marketing', level: 'PG cert.', mode: 'Blended', dur: '12 months', elig: 'Graduate, 5 years exp.', fee: 375000, emi: 15625, intake: 'Feb 2027', acc: 'IIM', partners: 0, rate: 'University has no partner: needs rate', owed: null },
+  ];
+
+  const journeys = [
+    { name: 'Qualify: missing details', trigger: 'Enters pool · not qualified', status: 'Live', v: 'v3', inFlow: 412, entered: 1880, reeng: 9.8, steps: [
+      { k: 'trigger', t: 'Enters the pool', s: 'reason = not_qualified' },
+      { k: 'send', t: 'WhatsApp: explore_programmes', s: 'Utility · English / Hindi', n: 1880 },
+      { k: 'wait', t: 'Wait 1 day', s: 'until 10:00', n: 1702 },
+      { k: 'branch', t: 'Still missing course?', s: 'yes 71% · no 29%', n: 1702 },
+      { k: 'send', t: 'WhatsApp: missing_details', s: 'Quick replies: MBA · MCA · BBA · Other', n: 1208 },
+      { k: 'wait', t: 'Wait 2 days', s: '', n: 1013 },
+      { k: 'send', t: 'Email: tell_us_more', s: 'From connect@eduwit.in', n: 640 },
+      { k: 'exit', t: 'Exit', s: 'qualified → back to partner routing · opted out · dormant', n: 0 },
+    ] },
+    { name: 'Partner-lost: over budget', trigger: 'Enters pool · partner lost · over budget', status: 'Live', v: 'v2', inFlow: 188, entered: 640, reeng: 12.4 },
+    { name: 'We tried to reach you', trigger: 'Lost · uncontactable (3 days)', status: 'Live', v: 'v1', inFlow: 96, entered: 311, reeng: 7.1 },
+    { name: 'Consent repeat', trigger: 'Enters pool · consent no answer', status: 'Live', v: 'v1', inFlow: 54, entered: 120, reeng: 0 },
+    { name: 'Not now: monthly update', trigger: 'Lost · not now, later (30 days)', status: 'Live', v: 'v2', inFlow: 230, entered: 455, reeng: 4.2 },
+    { name: 'Admission deadline countdown', trigger: 'Date · 7 days before deadline', status: 'Draft', v: 'v1', inFlow: 0, entered: 0, reeng: 0 },
+  ];
+
+  const replies = [
+    { lead: 4781, ch: 'WhatsApp', text: 'yes pls call after 6pm', cls: 'Positive', conf: 0.97, method: 'Button', at: '11:02' },
+    { lead: 4828, ch: 'WhatsApp', text: 'kitna fees hai total aur emi milega kya', cls: 'Question', conf: 0.74, method: 'AI', at: '10:47' },
+    { lead: 4802, ch: 'Email', text: 'Not right now, maybe next year. Thanks', cls: 'Negative', conf: 0.91, method: 'AI', at: '09:30' },
+    { lead: 4815, ch: 'WhatsApp', text: 'STOP', cls: 'Opt-out', conf: 1, method: 'Rule', at: '08:55' },
+  ];
+
+  const rules = [
+    { on: true, name: 'Test leads', cond: 'Lead is a test lead', logic: 'Manual queue', pool: 'Admin only', fb: '—' },
+    { on: true, name: 'Duplicate cascade → senior pool', cond: 'Reason is duplicate cascade', logic: 'Round robin', pool: 'Seniors (Priya, Rohan)', fb: 'Next rule' },
+    { on: true, name: 'Re-engaged lost leads', cond: 'Trigger is re-engagement and lost by a B2C counsellor', logic: 'Returning student', pool: 'Everyone', fb: 'Next rule' },
+    { on: true, name: 'Hindi-speaking leads', cond: 'Language is Hindi', logic: 'Skill or language match', pool: 'Hindi speakers', fb: 'Next rule' },
+    { on: false, name: 'Executive programmes', cond: 'Programme level is Executive', logic: 'Skill match', pool: 'Exec MBA', fb: 'Next rule' },
+    { on: true, name: 'Everyone else (catch-all)', cond: 'Any lead', logic: 'Round robin', pool: 'Everyone', fb: 'Unassigned queue + alert' },
+  ];
+
+  const lead = id => leads.find(l => l.id === +id);
+  return { now, counsellors, me, leads, STAGES, timeline, followups, conversations, salesTemplates, emailTemplates, programmes, journeys, replies, rules, lead };
+})();
+
+/* Core: state, icons, helpers, shell and events. Screens live in sales.js and workspace.js. */
+const S = {
+  iface: 'sales', device: 'phone', theme: 'system',
+  sales: { route: 'today', lead: null, back: null, fu: 'notworked', convo: null, tplPick: null, leadsView: 'Due now', leadTab: 'overview', meTab: 'commission' },
+  ws: { marketing: 'nurture', admin: 'home', journey: null, lead: null, tab: {} },
+  sheet: null, toast: null,
+};
+const IFACES = { sales: 'Sales app', marketing: 'Marketing workspace', admin: 'Admin console' };
+
+const ICON = {
+  home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3.2 3.2 0 0 1 0 6.4M18 14.5c2 .8 3 3 3 5.5"/>',
+  cal: '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  inbox: '<path d="M4 13l2.5-8h11L20 13v6H4z"/><path d="M4 13h4.5l1 2h5l1-2H20"/>',
+  user: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/>',
+  phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+  wa: '<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 9.5c.5 2.5 2.5 4.5 5 5"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6l8.5 7 8.5-7"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  next: '<path d="M9 5l7 7-7 7"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  alert: '<path d="M12 3.5L2.5 20h19z"/><path d="M12 10v4.5M12 17.5v.01"/>',
+  kanban: '<rect x="3.5" y="4" width="5" height="16" rx="1.2"/><rect x="10" y="4" width="5" height="10" rx="1.2"/><rect x="16.5" y="4" width="4" height="13" rx="1.2"/>',
+  book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/>',
+  spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>',
+  sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3.6 15H3.5a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V3.5a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7h.1a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.4.8z"/>',
+  rupee: '<path d="M7 4h11M7 9h11M7 4c6 0 6 9 0 9h-.5L15 21"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  plug: '<path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"/>',
+  flow: '<circle cx="6" cy="5" r="2.2"/><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="12" r="2.2"/><path d="M6 7.2v9.6M8 6c6 0 8 2 8 4M8 18c6 0 8-2 8-4"/>',
+  doc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+  mega: '<path d="M3 10v4h3l7 4V6L6 10z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8"/>',
+  shuffle: '<path d="M3 7h3.5c5 0 6 10 11 10H21M3 17h3.5c2 0 3.3-1.6 4.3-3.6M15 7h6M18 4l3 3-3 3M18 14l3 3-3 3"/>',
+  leaf: '<path d="M5 19c0-8 6-14 15-14 0 9-6 15-14 15"/><path d="M5 19l7-7"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  lock: '<rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  star: '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
+  pin: '<path d="M12 21s-6.5-5.4-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.6 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+  fork: '<circle cx="6" cy="5" r="2"/><circle cx="18" cy="5" r="2"/><circle cx="12" cy="19" r="2"/><path d="M6 7v2a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V7M12 12v5"/>',
+  send: '<path d="M21 3L10 14M21 3l-7 18-4-7-7-4z"/>',
+  more: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+  moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  mobile: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+};
+const ic = (n, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n] || ''}</svg>`;
+const LOGO = `<svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4a8 8 0 0 0-5 14.2V22h5z" fill="#072E5A"/><path d="M16 4a8 8 0 0 1 5 14.2V22h-5z" fill="#F4A504"/><path d="M5 17l5 4h6v6l-6-2.5L5 26z" fill="#072E5A"/><path d="M27 17l-5 4h-6v6l6-2.5 5 1.5z" fill="#F4A504"/></svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const inr = n => n == null ? '—' : '₹' + Math.round(n).toLocaleString('en-IN');
+const initials = n => n.split(' ').map(x => x[0]).slice(0, 2).join('');
+const tempChip = t => t ? `<span class="chip ${t}">${t === 'hot' ? 'Hot' : t === 'warm' ? 'Warm' : 'Cold'}</span>` : '';
+const slaChip = s => !s ? '' : s.kind === 'breach' ? `<span class="chip breach">${ic('alert', 's')}SLA breached ${s.mins} min</span>` : s.kind === 'due' ? `<span class="chip risk">${ic('clock', 's')}${s.mins} min left</span>` : `<span class="chip ok">${ic('check', 's')}SLA met</span>`;
+const stageName = l => l.stage < 0 ? 'Nurture' : D.STAGES[l.stage].name;
+const barChip = l => l.barred ? `<span class="chip bar" title="Never routed to a partner again">${ic('lock', 's')}Partner-barred</span>` : '';
+
+function toast(msg) { S.toast = msg; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; render(); }, 2600); }
+
+function protoBar() {
+  const segs = Object.entries(IFACES).map(([k, v]) => `<button data-a="iface" data-v="${k}" aria-pressed="${S.iface === k}">${v}</button>`).join('');
+  const device = S.iface === 'sales' ? `<div class="seg" role="group" aria-label="Width"><button data-a="device" data-v="phone" aria-pressed="${S.device === 'phone'}">${ic('mobile', 's')} Phone</button><button data-a="device" data-v="desktop" aria-pressed="${S.device === 'desktop'}">${ic('monitor', 's')} Desktop</button></div>` : '';
+  const theme = `<div class="seg" role="group" aria-label="Theme"><button data-a="theme" data-v="light" aria-pressed="${S.theme === 'light'}" title="Light">${ic('sun', 's')}</button><button data-a="theme" data-v="system" aria-pressed="${S.theme === 'system'}" title="System">Auto</button><button data-a="theme" data-v="dark" aria-pressed="${S.theme === 'dark'}" title="Dark">${ic('moon', 's')}</button></div>`;
+  return `<div class="proto"><div class="brand">${LOGO}<span>Eduwit B2C CRM <small>· clickable design</small></span></div>
+    <div class="seg" role="group" aria-label="Interface">${segs}</div>${device}${theme}<span class="sample">Sample data</span></div>`;
+}
+
+function render() {
+  const root = document.documentElement;
+  if (S.theme === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', S.theme);
+  let body;
+  if (S.iface === 'sales') body = S.device === 'phone' ? `<div class="stage"><div class="phone">${phoneStatus()}${salesApp()}</div></div>` : `<div class="stage desk">${salesDesk()}</div>`;
+  else body = `<div class="stage desk">${workspace(S.iface)}</div>`;
+  document.getElementById('app').innerHTML = protoBar() + body + (S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : '');
+}
+const phoneStatus = () => `<div class="statusbar"><span>11:20</span><span>4G ▮▮▮</span></div>`;
+
+/* ---------- events ---------- */
+const A = {};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]');
+  if (!el) return;
+  const fn = A[el.dataset.a];
+  if (fn) { e.preventDefault(); fn(el.dataset.v, el, e); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && S.sheet) { S.sheet = null; render(); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && S.iface === 'admin') { e.preventDefault(); S.sheet = { kind: 'cmdk' }; render(); }
+});
+A.iface = v => { S.iface = v; S.sheet = null; render(); };
+A.device = v => { S.device = v; render(); };
+A.theme = v => { S.theme = v; try { localStorage.setItem('b2c-proto-theme', v); } catch (_) {} render(); };
+A.close = () => { S.sheet = null; render(); };
+A.toast = v => toast(v);
+A.noop = () => {};
+try { const t = localStorage.getItem('b2c-proto-theme'); if (t) S.theme = t; } catch (_) {}
+
+/* tiny charts, drawn to scale */
+function lineChart(series, { w = 520, h = 160, labels = [], max } = {}) {
+  const pad = { l: 30, r: 10, t: 10, b: 22 };
+  const all = series.flatMap(s => s.data); const top = max ?? (Math.ceil(Math.max(...all) / 10) * 10 || 10);
+  const x = i => pad.l + i * (w - pad.l - pad.r) / (series[0].data.length - 1);
+  const y = v => pad.t + (h - pad.t - pad.b) * (1 - v / top);
+  const ticks = [0, top / 2, top];
+  let g = ticks.map(t => `<line class="gridl" x1="${pad.l}" x2="${w - pad.r}" y1="${y(t)}" y2="${y(t)}"/><text x="${pad.l - 6}" y="${y(t) + 3}" text-anchor="end">${t}</text>`).join('');
+  g += labels.map((l, i) => l ? `<text x="${x(i)}" y="${h - 6}" text-anchor="middle">${l}</text>` : '').join('');
+  const paths = series.map(s => {
+    const pts = s.data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const last = s.data.length - 1;
+    const area = s.area ? `<polygon points="${x(0)},${y(0)} ${pts} ${x(last)},${y(0)}" fill="${s.color}" opacity=".10"/>` : '';
+    return `${area}<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/><circle cx="${x(last)}" cy="${y(s.data[last])}" r="3.2" fill="${s.color}"/>`;
+  }).join('');
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" width="100%" role="img">${g}${paths}</svg>`;
+}
+function barsChart(rows, { w = 520, h = 170, color = 'var(--primary)' } = {}) {
+  const pad = { l: 30, r: 8, t: 10, b: 22 }; const top = Math.ceil(Math.max(...rows.map(r => r[1])) / 10) * 10 || 10;
+  const bw = (w - pad.l - pad.r) / rows.length; const y = v => pad.t + (h - pad.t - pad.b) * (1 - v / top);
+  let g = [0, top / 2, top].map(t => `<line class="gridl" x1="${pad.l}" x2="${w - pad.r}" y1="${y(t)}" y2="${y(t)}"/><text x="${pad.l - 6}" y="${y(t) + 3}" text-anchor="end">${t}</text>`).join('');
+  g += rows.map((r, i) => `<rect x="${pad.l + i * bw + bw * .18}" y="${y(r[1])}" width="${bw * .64}" height="${y(0) - y(r[1])}" rx="3" fill="${r[2] || color}"/><text x="${pad.l + i * bw + bw / 2}" y="${h - 6}" text-anchor="middle">${r[0]}</text>`).join('');
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" width="100%" role="img">${g}</svg>`;
+}
+
+/* Sales app: counsellors. Phone-first; the desktop layout reuses the same screens with a sidebar. */
+const SN = [
+  ['today', 'Today', 'home'], ['leads', 'Leads', 'users'], ['followups', 'Follow-ups', 'cal'], ['inbox', 'Inbox', 'inbox'], ['me', 'Me', 'user'],
+];
+const myLeads = () => D.leads.filter(l => l.owner === D.me.id);
+const go = (route, extra = {}) => { Object.assign(S.sales, { route }, extra); S.sheet = null; render(); };
+A.go = v => go(v);
+A.lead = v => { S.sales.back = S.sales.route === 'lead' ? S.sales.back : S.sales.route; go('lead', { lead: +v, leadTab: 'overview' }); };
+A.back = () => go(S.sales.back || 'today');
+A.fu = v => { S.sales.fu = v; render(); };
+A.view = v => { S.sales.leadsView = v; render(); };
+A.leadTab = v => { S.sales.leadTab = v; render(); };
+A.meTab = v => { S.sales.meTab = v; render(); };
+A.convo = v => { S.sales.convo = +v; S.sales.tplPick = null; if (S.sales.route !== 'inbox') S.sales.route = 'inbox'; render(); };
+A.convoBack = () => { S.sales.convo = null; render(); };
+A.tpl = v => { S.sales.tplPick = v; render(); };
+A.sendTpl = () => { const c = D.conversations.find(c => c.lead === S.sales.convo); const t = D.salesTemplates.find(t => t.name === S.sales.tplPick); if (c && t) { c.msgs.push({ dir: 'out', tpl: t.name, text: fillTpl(t.text, D.lead(c.lead)), at: 'now', status: 'Sent' }); c.last = 'Sent: ' + t.name; } S.sales.tplPick = null; toast('Template sent from the Eduwit B2C number'); };
+A.sendFree = () => { const box = document.getElementById('free-text'); const c = D.conversations.find(c => c.lead === S.sales.convo); if (c && box && box.value.trim()) { c.msgs.push({ dir: 'out', text: box.value.trim(), at: 'now', status: 'Sent' }); c.last = box.value.trim(); render(); } };
+A.call = v => { S.sheet = { kind: 'dial', lead: +v }; render(); };
+A.logCall = v => { S.sheet = { kind: 'log', lead: +v, outcome: null, next: null }; render(); };
+A.outcome = v => { S.sheet.outcome = v; S.sheet.next = S.sheet.next || ({ 'No answer': 'In 3 hours', Busy: 'In 3 hours', 'Switched off': 'In 3 hours', 'Call back': 'Today 18:00', Connected: 'Tomorrow 10:00', 'Wrong number': null })[v]; render(); };
+A.nextFu = v => { S.sheet.next = v; render(); };
+A.saveLog = () => {
+  const l = D.lead(S.sheet.lead); const o = S.sheet.outcome;
+  if (['No answer', 'Busy', 'Switched off'].includes(o) && l.stage === 0) { l.stage = 1; l.sub = o; }
+  if (o === 'Connected' && l.stage <= 1) { l.stage = 2; l.sub = 'Spoke briefly'; }
+  l.sla = { kind: 'met' }; l.next = 'Follow-up call'; l.nextAt = S.sheet.next;
+  (D.timeline[l.id] = D.timeline[l.id] || []).unshift({ t: '11:26', kind: 'call', text: `Call logged: ${o}, about 4 min. Next: ${S.sheet.next}.` });
+  S.sheet = null; toast('Call logged. Syncs to the master lead table within 15 minutes');
+};
+A.stage = v => { const l = D.lead(v); S.sheet = { kind: 'stage', lead: +v, stage: l.stage < 0 ? 0 : l.stage, sub: null }; render(); };
+A.pickStage = v => { S.sheet.stage = +v; S.sheet.sub = null; render(); };
+A.pickSub = v => { S.sheet.sub = v; render(); };
+A.saveStage = () => { const l = D.lead(S.sheet.lead); l.stage = S.sheet.stage; l.sub = S.sheet.sub; S.sheet = null; toast(`Stage saved: ${D.STAGES[l.stage].name} · ${l.sub}`); };
+A.addContact = v => { S.sheet = { kind: 'contact', lead: +v }; render(); };
+A.crossSell = v => { S.sheet = { kind: 'cross', lead: +v }; render(); };
+A.filters = () => { S.sheet = { kind: 'viewbuilder' }; render(); };
+A.newLead = () => { S.sheet = { kind: 'newlead' }; render(); };
+A.lookup = () => { S.sheet.found = true; render(); };
+
+const fillTpl = (t, l) => t.replace('{{first_name}}', l.name.split(' ')[0]).replace('{{counsellor}}', D.me.first).replace('{{programme}}', l.course).replace('{{university}}', l.uni || 'the university').replace('{{when}}', 'today at 4 pm').replace('{{documents}}', 'your 12th marksheet and a photo').replace('{{fee}}', '₹1,96,000').replace('{{emi}}', '₹8,166');
+
+/* ---------- shells ---------- */
+function salesApp() {
+  const r = S.sales.route;
+  if (r === 'lead') return `<div class="sales">${leadScreen(D.lead(S.sales.lead), 'phone')}</div>${sheet('phone')}`;
+  if (r === 'inbox' && S.sales.convo) return `<div class="sales">${threadScreen('phone')}</div>${sheet('phone')}`;
+  const [title, body, action] = salesScreen(r, 'phone');
+  const nav = SN.map(([k, label, icn]) => `<button data-a="go" data-v="${k}" aria-current="${r === k || (k === 'leads' && ['pipeline', 'programmes'].includes(r)) || (k === 'me' && r === 'templates') ? 'page' : 'false'}">${ic(icn)}${label}${k === 'inbox' ? '<span class="badge-dot">1</span>' : k === 'followups' ? '<span class="badge-dot">3</span>' : ''}</button>`).join('');
+  return `<div class="sales"><div class="s-head"><h1 class="grow">${title}</h1>${action || ''}</div><div class="s-body">${body}</div><nav class="bottom-nav" aria-label="Sales app">${nav}</nav></div>${sheet('phone')}`;
+}
+function salesDesk() {
+  const r = S.sales.route;
+  const items = [['today', 'Today', 'home'], ['leads', 'Leads', 'users'], ['pipeline', 'Pipeline', 'kanban'], ['followups', 'Follow-ups', 'cal'], ['inbox', 'Inbox', 'inbox'], ['programmes', 'Programmes', 'book'], ['me', 'Me', 'user']];
+  const nav = items.map(([k, label, icn]) => `<button class="nav" data-a="go" data-v="${k}" aria-current="${r === k ? 'page' : 'false'}">${ic(icn)}${label}${k === 'followups' ? '<span class="count">3</span>' : k === 'inbox' ? '<span class="count">1</span>' : ''}</button>`).join('');
+  let main;
+  if (r === 'lead') main = `<div class="content">${leadScreen(D.lead(S.sales.lead), 'desk')}</div>`;
+  else if (r === 'inbox') main = `<div class="topbar"><h1>Inbox</h1><span class="note">Your leads' WhatsApp on the Eduwit B2C number</span></div><div class="content">${inboxDesk()}</div>`;
+  else { const [title, body, action] = salesScreen(r, 'desk'); main = `<div class="topbar"><h1>${title}</h1>${action || ''}</div><div class="content sales-desk">${body}</div>`; }
+  return `<div class="desk-shell"><aside class="side"><div class="who"><span class="avatar">${D.me.initials}</span><div><b>${D.me.name}</b><div class="small muted">Counsellor · Working till 19:00</div></div></div>${nav}</aside><main class="main" style="position:relative">${main}</main></div>${sheet('desk')}`;
+}
+
+function salesScreen(r, mode) {
+  switch (r) {
+    case 'today': return ['Today', todayScreen(mode), `<span class="chip ok">${ic('check', 's')}Working</span>`];
+    case 'leads': return ['Leads', leadsScreen(mode), `<button class="btn ghost sm" data-a="newLead">${ic('plus', 's')}New lead</button>`];
+    case 'pipeline': return ['Pipeline', pipelineScreen(), ''];
+    case 'followups': return ['Follow-ups', followupsScreen(mode), `<button class="btn quiet sm" data-a="toast" data-v="Calendar view: day and week">${ic('cal', 's')}Calendar</button>`];
+    case 'inbox': return ['Inbox', inboxList(), ''];
+    case 'programmes': return ['Programmes', programmesScreen(mode, false), ''];
+    case 'me': return ['Me', meScreen(mode), ''];
+    default: return ['Today', todayScreen(mode), ''];
+  }
+}
+
+/* ---------- Today ---------- */
+function todayScreen(mode) {
+  const queue = [
+    ['Overdue follow-up', 4799], ['New, not worked', 4766], ['New, not worked', 4812], ['Due today', 4807], ['Due today', 4790],
+  ];
+  const cards = queue.map(([why, id]) => {
+    const l = D.lead(id);
+    const breach = l.sla && l.sla.kind === 'breach';
+    return `<div class="qcard ${breach ? 'breach' : ''}"><span class="avatar">${initials(l.name)}</span>
+      <button class="grow plain" data-a="lead" data-v="${l.id}"><span class="name">${l.name}</span> ${tempChip(l.temp)}<div class="small muted ellipsis">${why} · ${l.course}</div></button>
+      <button class="btn call sm" data-a="call" data-v="${l.id}" aria-label="Call ${l.name}">${ic('phone', 's')}Call</button>
+      <div class="sub">${l.sla && l.sla.kind !== 'met' ? slaChip(l.sla) + ' ' : ''}${l.next} · ${l.nextAt}</div></div>`;
+  }).join('');
+  const k = [['Calls logged', 23, 40], ['Connected', 11, 20], ['Counselled', 4, 6]];
+  const kpis = k.map(([n, v, t]) => `<div class="kpi"><span class="small muted">${n}</span><b>${v}<span class="muted" style="font-size:13px">/${t}</span></b><div class="bar-track"><div class="bar-fill ${v / t >= .5 ? '' : 'amber'}" style="width:${Math.min(100, v / t * 100)}%"></div></div></div>`).join('');
+  const k2 = `<div class="kpis"><div class="kpi"><span class="small muted">Applications</span><b>1<span class="muted" style="font-size:13px">/2</span></b><div class="bar-track"><div class="bar-fill" style="width:50%"></div></div></div><div class="kpi"><span class="small muted">Enrolled (Oct)</span><b>4<span class="muted" style="font-size:13px">/6</span></b><div class="bar-track"><div class="bar-fill" style="width:66%"></div></div></div><div class="kpi"><span class="small muted">Owed to Eduwit</span><b style="font-size:15px">${inr(141300)}</b><span class="small muted">Oct, provisional</span></div></div>`;
+  const fu = fuCards();
+  const inner = `<div class="banner danger">${ic('alert')}<div><b>Neha Gupta re-engaged 27 min ago and has not been called.</b> First-contact SLA breached; the Admin has been alerted.</div></div>
+    <div class="sec-title"><h2>Work next</h2><span class="note">In queue order</span></div><div class="stack" style="gap:8px">${cards}</div>
+    <div class="sec-title"><h2>Follow-ups</h2><button class="btn quiet sm" data-a="go" data-v="followups">Open ${ic('next', 's')}</button></div>${fu}
+    <div class="sec-title"><h2>Today against target</h2><span class="note">Wed 14 Oct</span></div><div class="kpis">${kpis}</div>${k2}`;
+  if (mode === 'desk') return `<div class="grid g-lead"><div class="stack">${inner.split('<div class="sec-title"><h2>Follow-ups')[0]}</div><div class="stack"><div class="sec-title"><h2>Follow-ups</h2><button class="btn quiet sm" data-a="go" data-v="followups">Open ${ic('next', 's')}</button></div>${fu}<div class="sec-title"><h2>Today against target</h2></div><div class="kpis">${kpis}</div>${k2}</div></div>`;
+  return `<p class="muted">Good morning, Priya. 2 new leads, 1 overdue follow-up.</p>${inner}`;
+}
+function fuCards(active) {
+  const b = [['notworked', 'Not worked yet', 2], ['overdue', 'Overdue', 1], ['today', 'Due today', 3], ['upcoming', 'Upcoming', 3]];
+  return `<div class="fu-cards">${b.map(([k, n, c]) => `<button class="fu-card ${k === 'overdue' || k === 'notworked' ? 'alert' : ''}" data-a="${active ? 'fu' : 'go'}" data-v="${active ? k : 'followups'}" ${active ? `aria-pressed="${active === k}"` : ''}><b>${c}</b><span>${n}</span></button>`).join('')}</div>`;
+}
+
+/* ---------- Leads ---------- */
+function leadsScreen(mode) {
+  const views = ['Due now', 'New for me', 'Hot', 'Applicants', 'Waiting for documents', 'All mine', 'Not worked yet'];
+  const pick = S.sales.leadsView;
+  let rows = myLeads();
+  if (pick === 'Hot') rows = rows.filter(l => l.temp === 'hot');
+  if (pick === 'Applicants') rows = rows.filter(l => l.stage === 6 || l.stage === 7);
+  if (pick === 'New for me' || pick === 'Not worked yet') rows = rows.filter(l => l.stage === 0);
+  if (pick === 'Due now') rows = rows.filter(l => l.sla.kind !== 'met' || l.overdue || l.id === 4807);
+  if (pick === 'Waiting for documents') rows = rows.filter(l => l.id === 4786 || l.id === 4771);
+  const pills = views.map(v => `<button class="pill" data-a="view" data-v="${v}" aria-pressed="${v === pick}">${v}</button>`).join('') + `<button class="pill" data-a="view" data-v="MBA hot from Meta" aria-pressed="${pick === 'MBA hot from Meta'}">★ MBA hot from Meta</button>`;
+  const head = `<div class="row"><label class="search grow">${ic('search', 's')}<input id="lead-search" placeholder="Name, any phone, email, application ID" aria-label="Search leads"></label><button class="btn ghost sm" data-a="filters">${ic('sliders', 's')}Filters</button>${mode === 'phone' ? `<button class="btn ghost sm" data-a="go" data-v="pipeline" aria-label="Pipeline">${ic('kanban', 's')}</button>` : ''}</div><div class="hscroll">${pills}</div>`;
+  if (mode === 'desk') {
+    return `${head}<div class="table-wrap"><table><thead><tr><th>Student</th><th>Programme</th><th>Stage · sub-stage</th><th>Why with us</th><th>Next follow-up</th><th>SLA</th><th>Score</th><th></th></tr></thead><tbody>${rows.map(l => `<tr class="click" data-a="lead" data-v="${l.id}"><td><b>${l.name}</b><div class="small muted mono">${l.phone}</div></td><td>${l.course}<div class="small muted">${l.uni}</div></td><td>${stageName(l)}<div class="small muted">${l.sub}</div></td><td class="small">${l.reasonText} ${barChip(l)}</td><td class="small">${l.next}<div class="${l.overdue ? '' : 'muted'}">${l.nextAt}</div></td><td>${slaChip(l.sla)}</td><td class="num">${l.score} ${tempChip(l.temp)}</td><td><button class="btn call sm" data-a="call" data-v="${l.id}">${ic('phone', 's')}</button></td></tr>`).join('')}</tbody></table></div><p class="note">${rows.length} leads in "${pick}". Columns, sort, group-by and kanban come from the view; save it as your own or (Admin) publish it to everyone.</p>`;
+  }
+  return `${head}<div class="list">${rows.map(l => `<button class="li" data-a="lead" data-v="${l.id}"><span class="avatar">${initials(l.name)}</span><span class="t ellipsis">${l.name}</span><span>${tempChip(l.temp)}</span><span class="s">${stageName(l)} · ${l.sub} · next: ${l.nextAt}</span></button>`).join('') || '<p class="muted" style="padding:16px">No leads in this view.</p>'}</div><p class="note">${rows.length} of your ${myLeads().length} leads · swipe a row to call, WhatsApp or snooze</p>`;
+}
+function pipelineScreen() {
+  const cols = D.STAGES.map((s, i) => {
+    const ls = myLeads().filter(l => l.stage === i);
+    const value = ls.reduce((a, l) => a + (D.programmes.find(p => p.name === l.course)?.owed || 0), 0);
+    return `<section class="kcol"><header><span>${s.name}</span><span class="muted num">${ls.length}${value ? ' · ' + inr(value) : ''}</span></header>${ls.map(l => `<button class="kcard" data-a="lead" data-v="${l.id}"><b>${l.name}</b><span class="muted">${l.sub}</span><span class="row wrap" style="gap:4px">${tempChip(l.temp)}${l.sla.kind !== 'met' ? slaChip(l.sla) : ''}</span></button>`).join('')}</section>`;
+  }).join('');
+  return `<p class="note">Drag a card to change its stage; you are asked for the sub-stage, an optional comment and the next follow-up. Column value is the commission at stake.</p><div class="kanban">${cols}</div>`;
+}
+
+/* ---------- Follow-ups ---------- */
+function followupsScreen(mode) {
+  const k = S.sales.fu;
+  const rows = D.followups.filter(f => f.bucket === k);
+  const list = rows.map(f => { const l = D.lead(f.lead); return `<div class="li" style="grid-template-columns:auto 1fr auto"><span class="avatar">${ic(f.type === 'Call' ? 'phone' : f.type === 'WhatsApp' ? 'wa' : 'doc', 's')}</span><button class="plain" data-a="lead" data-v="${l.id}"><span class="t">${l.name}</span> <span class="small muted">· ${l.course}</span><div class="small muted">${f.note}</div></button><span class="num small ${k === 'overdue' || f.sla?.startsWith('Breached') ? '' : 'muted'}" style="${k === 'overdue' || f.sla?.startsWith('Breached') ? 'color:var(--red);font-weight:600' : ''}">${f.sla || f.when}</span><span class="s row" style="gap:6px;margin-top:6px"><button class="btn call sm" data-a="call" data-v="${l.id}">${ic('phone', 's')}Call</button><button class="btn ghost sm" data-a="convo" data-v="${l.id}">${ic('wa', 's')}</button><button class="btn ghost sm" data-a="logCall" data-v="${l.id}">${ic('check', 's')}Done</button><button class="btn quiet sm" data-a="toast" data-v="Snoozed 1 hour">Snooze</button></span></div>`; }).join('');
+  const grouped = k === 'upcoming' ? `<p class="eyebrow">Thu 15 Oct and later</p>` : '';
+  return `${fuCards(k)}${grouped}<div class="list">${list || '<p class="muted" style="padding:16px">Nothing here.</p>'}</div><div class="banner info">${ic('clock')}<div>Reminders arrive 10 minutes before each follow-up, with a link straight to the lead. Missed follow-ups go to the Admin after 2 hours.</div></div>`;
+}
+
+/* ---------- Inbox ---------- */
+function inboxList() {
+  return `<label class="search">${ic('search', 's')}<input placeholder="Name, number, text or template" aria-label="Search conversations"></label><div class="hscroll"><button class="pill" aria-pressed="true">All mine</button><button class="pill">Unread</button><button class="pill">Window open</button><button class="pill">Awaiting reply</button></div>
+  <div class="list">${D.conversations.map(c => { const l = D.lead(c.lead); return `<button class="li" data-a="convo" data-v="${c.lead}"><span class="avatar">${initials(l.name)}</span><span class="t ellipsis">${l.name}</span><span class="small muted num">${c.at}</span><span class="s ellipsis">${c.unread ? '<b style="color:var(--ink)">● </b>' : ''}${esc(c.last)}</span><span class="s">${c.window.open ? `<span class="chip ok">Window open · ${c.window.left}</span>` : '<span class="chip soft">Template needed</span>'}</span></button>`; }).join('')}</div>`;
+}
+function threadBody() {
+  const c = D.conversations.find(c => c.lead === S.sales.convo); const l = D.lead(c.lead);
+  const msgs = c.msgs.map(m => `<div class="msg ${m.dir}">${m.tpl ? `<span class="tpl">Template · ${m.tpl}</span>` : ''}<span>${esc(m.text)}</span><span class="meta">${m.at}${m.status ? ' · ' + m.status : ''}</span></div>`).join('');
+  let composer;
+  if (c.window.open) composer = `<div class="window" style="color:var(--green)">${ic('clock', 's')}Free text allowed for ${c.window.left} (Sneha replied at 10:31)</div><div class="row"><input class="input grow" id="free-text" placeholder="Type a message" aria-label="Message"><button class="btn primary" data-a="sendFree" aria-label="Send">${ic('send', 's')}</button></div><div class="hscroll"><button class="pill" data-a="toast" data-v="Brochure attached from the Programme page">Brochure</button><button class="pill" data-a="toast" data-v="Comparison of 3 programmes attached">Comparison</button><button class="pill" data-a="toast" data-v="Snippet inserted">No-cost EMI snippet</button></div>`;
+  else {
+    const t = D.salesTemplates.map(t => `<button class="tpl-card" data-a="tpl" data-v="${t.name}" aria-pressed="${S.sales.tplPick === t.name}"><span class="row between"><b>${t.cat}</b><code>${t.name} · ${t.lang}</code></span><span class="small">${esc(fillTpl(t.text, l))}</span></button>`).join('');
+    composer = `<div class="window" style="color:var(--amber-ink)">${ic('lock', 's')}The 24-hour window is closed. Start with an approved sales template.</div><div class="stack" style="gap:6px;max-height:230px;overflow-y:auto">${t}</div><button class="btn primary block" data-a="sendTpl" ${S.sales.tplPick ? '' : 'disabled'}>${ic('send', 's')}Send template</button>`;
+  }
+  return { c, l, msgs, composer };
+}
+function threadScreen() {
+  const { l, msgs, composer } = threadBody();
+  return `<div class="s-head"><button class="btn quiet sm" data-a="convoBack" aria-label="Back">${ic('back')}</button><div class="grow"><b>${l.name}</b><div class="small muted">${l.course} · ${stageName(l)}</div></div><button class="btn ghost sm" data-a="lead" data-v="${l.id}">Lead</button></div><div class="s-body"><div class="thread">${msgs}</div></div><div class="composer">${composer}</div>`;
+}
+function inboxDesk() {
+  if (!S.sales.convo) S.sales.convo = D.conversations[0].lead;
+  const { l, msgs, composer } = threadBody();
+  return `<div class="grid" style="grid-template-columns:minmax(260px,340px) minmax(0,1fr);align-items:start"><div class="stack">${inboxList()}</div><div class="card" style="display:flex;flex-direction:column;min-height:520px"><div class="s-head"><div class="grow"><b>${l.name}</b><div class="small muted">${l.phone} · ${l.course} · ${stageName(l)}</div></div><button class="btn ghost sm" data-a="lead" data-v="${l.id}">Open lead</button></div><div class="s-body" style="flex:1"><div class="thread">${msgs}</div></div><div class="composer">${composer}</div></div></div>`;
+}
+
+/* ---------- Lead screen ---------- */
+function leadScreen(l, mode) {
+  const head = `<div class="lead-head">
+    <div class="row"><span class="avatar lg">${initials(l.name)}</span><div class="grow"><h1 style="font-size:20px">${l.name}</h1><div class="small muted"><span class="mono">${l.phone}</span> · ${l.city} · ${l.lang}</div></div>${tempChip(l.temp)}<span class="chip line num">Score ${l.score}</span></div>
+    <div class="row wrap" style="gap:6px"><button class="chip soft" style="border:0" data-a="stage" data-v="${l.id}">${stageName(l)} · ${l.sub} ▾</button>${slaChip(l.sla)}${barChip(l)}</div>
+    <p class="small"><span class="muted">Why with us:</span> ${l.reasonText}</p>
+    ${l.providers ? `<div class="banner">${ic('users')}<div><b>Already with other providers.</b> ${l.providers.map(p => `${p[0]} (since ${p[1]})`).join(' · ')}. Open with the neutral-adviser line: "Eduwit can help you compare options."</div></div>` : ''}
+    <div class="lead-actions"><button class="btn call" data-a="call" data-v="${l.id}">${ic('phone')}Call</button><button class="btn ghost" data-a="convo" data-v="${l.id}">${ic('wa')}WhatsApp</button><button class="btn ghost" data-a="toast" data-v="Email opens from your own Gmail (priya@eduwit.in)">${ic('mail')}Email</button></div>
+    <div class="row small"><span class="muted">Next:</span><b>${l.next}</b><span class="${l.overdue ? '' : 'muted'}" style="${l.overdue ? 'color:var(--red);font-weight:600' : ''}">${l.nextAt}</span></div></div>`;
+  const brief = `<section class="brief"><div class="row between"><span class="eyebrow">Brief before you call</span><span class="small muted">${ic('spark', 's')} written by Claude · no phone or email sent</span></div><ul>
+    <li>${l.exp.includes('years') ? 'Working professional' : 'Student'} (${l.exp}); ${l.qual}.</li>
+    <li>Wants ${l.course}${l.spec ? ' (' + l.spec + ')' : ''}${l.uni && l.uni !== 'Any' ? ', looked at ' + l.uni : ''}; budget ${l.budget}; ${l.timeline}.</li>
+    <li>${l.id === 4812 ? 'Told Witty she needs a weekend batch and asked about EMI twice.' : 'Asked about fees and EMI in the last chat.'}</li>
+    ${l.providers ? '<li>Two partners already called her: do not pitch one university; compare options.</li>' : ''}</ul></section>`;
+  const contacts = `<section class="panel"><header><h3>Contact details</h3><button class="btn quiet sm" data-a="addContact" data-v="${l.id}">${ic('plus', 's')}Add</button></header><div class="body">
+    <div class="contact">${ic('phone', 's')}<span class="mono">${l.phone}</span><span class="row" style="gap:4px"><span class="chip ok">Primary call · WA</span>${ic('lock', 's')}</span><span class="lbl">WhatsApp number from intake · locked</span></div>
+    ${l.email ? `<div class="contact">${ic('mail', 's')}<span class="ellipsis">${l.email}</span><span class="row" style="gap:4px"><span class="chip ok">Primary email</span>${ic('lock', 's')}</span><span class="lbl">From intake · locked</span></div>` : ''}
+    ${l.id === 4812 ? `<div class="contact">${ic('phone', 's')}<span class="mono">+91 90000 00031</span><button class="btn quiet sm" data-a="toast" data-v="Set as primary for calls">Make primary</button><span class="lbl">Parent · added by Priya, 11:18</span></div>` : ''}
+    <p class="note">You can add numbers and emails and choose the primary. Only the Admin can edit or delete one that exists.</p></div></section>`;
+  const interest = `<section class="panel"><header><h3>Interest</h3><button class="btn quiet sm" data-a="crossSell" data-v="${l.id}">Change</button></header><div class="body"><dl class="kv"><dt>Programme</dt><dd>${l.course}${l.spec ? ' · ' + l.spec : ''}</dd><dt>University</dt><dd>${l.uni || '—'}</dd><dt>Level · mode</dt><dd>${l.level} · ${l.mode}</dd></dl></div></section>`;
+  const profile = `<section class="panel"><header><h3>Profile</h3><button class="btn quiet sm" data-a="toast" data-v="Edits are kept in field history">Edit</button></header><div class="body"><dl class="kv"><dt>Education</dt><dd>${l.qual}</dd><dt>Experience</dt><dd>${l.exp}</dd><dt>Budget</dt><dd>${l.budget}</dd><dt>Timeline</dt><dd>${l.timeline}</dd><dt>Source</dt><dd>${l.source}${l.campaign && l.campaign !== '—' ? ' · ' + l.campaign : ''}</dd><dt>Assigned</dt><dd>${l.assigned}</dd></dl></div></section>`;
+  const fit = D.programmes.filter(p => p.name === l.course || (l.course.includes('MBA') && p.name.includes('MBA'))).slice(0, 3);
+  const fitP = `<section class="panel"><header><h3>Programme fit</h3><button class="btn quiet sm" data-a="toast" data-v="Comparison of ${fit.length} programmes sent on WhatsApp">Share comparison</button></header><div class="body">${fit.map(p => `<div class="row between small"><div class="grow"><b>${p.uni}</b> · ${p.name}<div class="muted">${p.elig} · ${p.dur} · ${p.intake}</div></div><div class="num" style="text-align:right">${inr(p.fee)}<div class="muted">EMI ${inr(p.emi)}/mo</div></div></div>`).join('<div class="divider"></div>') || '<p class="muted small">No programme matches yet.</p>'}</div></section>`;
+  const tl = (D.timeline[l.id] || [{ t: 'Mon', kind: 'call', text: 'Call logged: no answer.' }, { t: 'Mon', kind: 'assign', text: 'Assigned to Priya by the catch-all rule (round robin).' }, { t: 'Mon', kind: 'handoff', text: 'Handed to B2C: ' + l.reasonText + '.' }]);
+  const timeline = `<section class="panel"><header><h3>Timeline</h3><span class="small muted">All · calls · WhatsApp · email · Witty</span></header><div class="body"><div class="tl">${tl.map(t => `<div class="tl-item"><time>${t.t}</time><div><div class="tl-kind">${({ assign: 'Assignment', wa: 'WhatsApp', handoff: 'Hand-off', witty: 'Witty chat', source: 'Source', call: 'Call' })[t.kind] || t.kind}</div>${esc(t.text)}</div></div>`).join('')}</div></div></section>`;
+  const apps = `<section class="panel"><header><h3>Applications</h3><button class="btn quiet sm" data-a="toast" data-v="Application form opened">${ic('plus', 's')}Add</button></header><div class="body">${l.appId ? `<div class="small"><b>${l.uni}</b> · ${l.course} · <span class="mono">${l.appId}</span></div><div class="pills"><span class="chip ok">${ic('check', 's')}Graduation marksheet</span><span class="chip ok">${ic('check', 's')}ID proof</span><span class="chip risk">12th marksheet</span><span class="chip risk">Photo</span></div>` : '<p class="muted small">No application yet. Recording one moves the lead to Applicant.</p>'}</div></section>`;
+  const tasks = `<section class="panel"><header><h3>Tasks</h3><button class="btn quiet sm" data-a="toast" data-v="Follow-up added">${ic('plus', 's')}Add</button></header><div class="body small"><div class="row between"><span>${ic('phone', 's')} ${l.next}</span><span class="${l.overdue ? '' : 'muted'}">${l.nextAt}</span></div></div></section>`;
+  const back = mode === 'phone' ? `<div class="s-head"><button class="btn quiet sm" data-a="back" aria-label="Back">${ic('back')}</button><span class="grow small muted">Lead #${l.id}</span><button class="btn quiet sm" data-a="toast" data-v="Hand back to the rules, with a reason">Hand back</button></div>` : `<div class="row"><button class="btn quiet sm" data-a="back">${ic('back', 's')}Back</button><span class="small muted">Lead #${l.id}</span></div>`;
+  if (mode === 'desk') return `${back}<div class="grid g-lead"><div class="stack">${head}${brief}${l.script === 'neutral' ? '' : ''}<div class="grid g2">${contacts}${interest}</div>${fitP}${profile}${apps}</div><div class="stack">${tasks}${timeline}</div></div>`;
+  const tabs = ['overview', 'timeline', 'applications', 'tasks'];
+  const t = S.sales.leadTab;
+  const body = t === 'timeline' ? timeline : t === 'applications' ? apps : t === 'tasks' ? tasks : `${brief}${contacts}${interest}${fitP}${profile}`;
+  return `${back}<div class="s-body">${head}<div class="tabs" role="tablist">${tabs.map(x => `<button role="tab" aria-selected="${t === x}" data-a="leadTab" data-v="${x}">${x[0].toUpperCase() + x.slice(1)}</button>`).join('')}</div>${body}</div>`;
+}
+
+/* ---------- Programmes ---------- */
+function programmesScreen(mode, admin) {
+  const rows = D.programmes;
+  const filters = `<div class="row wrap"><label class="search grow">${ic('search', 's')}<input placeholder="Programme, university, specialization" aria-label="Search programmes"></label></div><div class="hscroll"><button class="pill" aria-pressed="true">All levels</button><button class="pill">PG</button><button class="pill">UG</button><button class="pill">Online</button><button class="pill">Fee under ₹1.5 lakh</button><button class="pill">Intake this month</button><button class="pill">NAAC A++</button></div>`;
+  if (mode === 'phone') return `${filters}<div class="list">${rows.map(p => `<div class="li"><span class="avatar">${ic('book', 's')}</span><span class="t ellipsis">${p.name}</span><span class="num small">${inr(p.fee)}</span><span class="s">${p.uni} · ${p.mode} · ${p.dur} · ${p.elig}</span></div>`).join('')}</div><p class="note">Read-only. From the shared catalogue maintained by the B2B CRM. "Suggest a correction" sends a note to the Admin.</p>`;
+  return `${filters}<div class="table-wrap"><table><thead><tr><th></th><th>Programme</th><th>University</th><th>Mode · duration</th><th>Eligibility</th><th>Fee (total)</th><th>EMI</th><th>Intake</th>${admin ? '<th>Partners and rate</th><th>Counsellor owes</th>' : ''}</tr></thead><tbody>${rows.map((p, i) => `<tr><td><input type="checkbox" id="cmp-${i}" aria-label="Compare ${p.name}" ${i < 2 ? 'checked' : ''}></td><td><b>${p.name}</b><div class="small muted">${p.spec}</div></td><td>${p.uni}<div class="small muted">${p.acc}</div></td><td>${p.mode} · ${p.dur}</td><td class="small">${p.elig}</td><td class="num">${inr(p.fee)}</td><td class="num small">${inr(p.emi)}/mo</td><td class="small">${p.intake}</td>${admin ? `<td class="small">${p.rate}</td><td class="num">${p.owed == null ? '<span class="chip breach">Needs rate</span>' : inr(p.owed)}</td>` : ''}</tr>`).join('')}</tbody></table></div><div class="row"><button class="btn primary sm">Compare 2 selected</button><span class="note">Send the comparison or a brochure on WhatsApp or email in one tap. ${admin ? 'Partner rates and the counsellor commission are shown to Admin and Marketing only.' : 'Read-only, from the shared catalogue.'}</span></div>`;
+}
+
+/* ---------- Me ---------- */
+function meScreen(mode) {
+  const t = S.sales.meTab;
+  const tabs = `<div class="tabs" role="tablist">${[['commission', 'Commission'], ['templates', 'Email templates'], ['guide', 'Guide'], ['settings', 'Settings']].map(([k, n]) => `<button role="tab" aria-selected="${t === k}" data-a="meTab" data-v="${k}">${n}</button>`).join('')}</div>`;
+  let body;
+  if (t === 'commission') {
+    const tiles = [['Provisional', 141300, 'risk'], ['Confirmed', 35800, 'soft'], ['Due', 35280, 'warm'], ['Settled', 70560, 'ok']];
+    body = `<p class="note">What you owe Eduwit for each enrolment you closed: the highest partner commission for that programme. Eduwit moves no money from here.</p><div class="grid g2" style="grid-template-columns:repeat(2,minmax(0,1fr))">${tiles.map(([n, v, c]) => `<div class="stat"><span class="chip ${c}" style="justify-self:start">${n}</span><b>${inr(v)}</b></div>`).join('')}</div>
+    <div class="list">${[['Imran Qureshi', 'Amity Online · Online MBA', 35800, 'Highest of UpGrad 20%, Collegedunia 18% → 20% of ₹1,79,000', 'Confirmed'], ['Kavya Reddy', 'Jain Online · Online M.Com', 18700, 'Collegedunia 17% of ₹1,10,000', 'Provisional'], ['A. Banerjee', 'NMIMS CDOE · Online MBA', 35280, 'Highest of UpGrad 18%, Sunstone 16% → 18% of ₹1,96,000', 'Due 30 Oct'], ['R. Saxena', 'Manipal Online · Online MCA', 23700, 'No partner for the programme: highest university rate 15% (flagged)', 'Provisional']].map(r => `<div class="li"><span class="avatar">${initials(r[0])}</span><span class="t ellipsis">${r[0]}</span><span class="num">${inr(r[2])}</span><span class="s">${r[1]} · ${r[4]}</span><span class="s small">${r[3]}</span></div>`).join('')}</div><button class="btn ghost sm" data-a="toast" data-v="Statement for September downloaded">Download September statement</button>`;
+  } else if (t === 'templates') {
+    body = `<p class="note">Everyone's sales email templates are shared. Edit someone else's and you save your own copy; theirs never changes.</p><div class="list">${D.emailTemplates.map(e => `<div class="li"><span class="avatar">${ic(e.parent ? 'fork' : 'doc', 's')}</span><span class="t ellipsis">${e.name} ${e.rec ? '<span class="chip warm">Recommended</span>' : ''}</span><span class="num small muted">${e.reply}% reply</span><span class="s">${e.author}${e.parent ? ' · copy of "' + e.parent + '"' : ''} · ${e.cat} · used ${e.uses}×</span><span class="s row" style="gap:6px;margin-top:4px"><button class="btn ghost sm" data-a="toast" data-v="Template inserted into a new email">Use</button><button class="btn quiet sm" data-a="toast" data-v="${e.mine ? 'Editing your template' : 'Saved as your own copy; the original is unchanged'}">${e.mine ? 'Edit' : 'Edit as my copy'}</button></span></div>`).join('')}</div><button class="btn primary sm" data-a="toast" data-v="New template">${ic('plus', 's')}New template</button>`;
+  } else if (t === 'guide') {
+    body = `<div class="list">${['A day in the app', 'Today and Follow-ups', 'Calling and logging', 'WhatsApp templates and the 24-hour window', 'Email and sales templates', 'Stages and sub-stages', 'Cross-sell', 'Applications and documents', 'Recording an enrolment', 'Your commission'].map((g, i) => `<div class="li"><span class="avatar">${i < 3 ? ic('check', 's') : ic('book', 's')}</span><span class="t">${g}</span><span class="small muted">${i < 3 ? 'Read' : ''}</span></div>`).join('')}</div>`;
+  } else {
+    body = `<div class="panel"><header><h3>Availability</h3></header><div class="body"><div class="pills"><button class="pill" aria-pressed="true">Working</button><button class="pill">Away 30 min</button><button class="pill">Away rest of day</button></div><p class="note">Mon–Sat 10:00–19:00 IST · set by the Admin</p></div></div><div class="panel"><header><h3>Connections</h3></header><div class="body small"><div class="row between"><span>${ic('mail', 's')} Gmail priya@eduwit.in</span><span class="chip ok">Connected (company-wide)</span></div><div class="row between"><span>${ic('phone', 's')} Reminders on my WhatsApp</span><span class="chip soft">Off</span></div><div class="row between"><span>Push notifications</span><span class="chip ok">On</span></div></div></div>`;
+  }
+  return `<div class="row"><span class="avatar lg">${D.me.initials}</span><div><b>${D.me.name}</b><div class="small muted">priya@eduwit.in · Counsellor</div></div></div>${tabs}${body}`;
+}
+
+/* ---------- sheets ---------- */
+function sheet(mode) {
+  const sh = S.sheet; if (!sh) return '';
+  const fixed = mode === 'desk' ? ' style="position:fixed"' : '';
+  const center = mode === 'desk' ? ' center' : '';
+  const wrap = inner => `<div class="scrim${center}"${fixed} data-a="scrim"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${inner}</div></div>`;
+  const l = sh.lead ? D.lead(sh.lead) : null;
+  if (sh.kind === 'dial') {
+    if (mode === 'phone') return wrap(`<div class="dialer"><span class="eyebrow">Opening your phone's dialler</span><span class="bignum">${l.phone}</span><span class="muted small">${l.name} · ${l.script === 'neutral' ? 'Opening line: "Eduwit can help you compare options."' : 'Standard opening'}</span><p class="note">Every tap on Call is logged. When you come back, the call log opens on its own.</p></div><button class="btn primary block" data-a="logCall" data-v="${l.id}">I'm back: log the call</button><button class="btn quiet block" data-a="close">Cancel</button>`);
+    return wrap(`<div class="row between"><h2>Call ${l.name}</h2><button class="btn quiet sm" data-a="close" aria-label="Close">${ic('x')}</button></div><div class="row" style="gap:20px;align-items:center"><div class="grow dialer" style="justify-items:start;text-align:left"><span class="bignum">${l.phone}</span><button class="btn ghost sm" data-a="toast" data-v="Number copied">${ic('copy', 's')}Copy</button><p class="note">Scan to open the dialler on your phone. Counsellors call from their own phones; telephony comes later.</p></div>${qr()}</div><button class="btn primary block" data-a="logCall" data-v="${l.id}">Log the call</button>`);
+  }
+  if (sh.kind === 'log') {
+    const outs = ['Connected', 'No answer', 'Busy', 'Switched off', 'Wrong number', 'Call back'];
+    const auto = sh.outcome && ['No answer', 'Busy', 'Switched off'].includes(sh.outcome) && l.stage === 0 ? 'Stage moves New Lead → Could Not Connect' : sh.outcome === 'Connected' && l.stage <= 1 ? `Stage moves ${stageName(l)} → Contacted` : '';
+    const nexts = ['In 3 hours', 'Today 18:00', 'Tomorrow 10:00', 'Pick date and time'];
+    return wrap(`<div class="row between"><h2>Log call · ${l.name}</h2><button class="btn quiet sm" data-a="close" aria-label="Close">${ic('x')}</button></div>
+      <div class="field"><span>Outcome</span><div class="pills">${outs.map(o => `<button class="pill" data-a="outcome" data-v="${o}" aria-pressed="${sh.outcome === o}">${o}</button>`).join('')}</div></div>
+      <div class="field"><span>Talk time</span><div class="row"><input class="input num" id="talk" value="4 min" style="max-width:110px" aria-label="Talk time"><span class="note">Estimated from your time away (11:20 to 11:25)</span></div></div>
+      <label class="field"><span>Notes</span><textarea class="input" id="call-notes" placeholder="What did you learn?">${l.id === 4812 ? 'Weekend batch confirmed. Comparing NMIMS and Amity; wants EMI under ₹8k.' : ''}</textarea></label>
+      ${auto ? `<div class="banner info">${ic('next')}<div>${auto}</div></div>` : ''}
+      <div class="field"><span>Next follow-up (required)</span><div class="pills">${nexts.map(n => `<button class="pill" data-a="nextFu" data-v="${n}" aria-pressed="${sh.next === n}">${n}</button>`).join('')}</div>${sh.outcome === 'No answer' ? '<p class="note">Suggested: retry in 3 hours. After 3 no-answers in 48 hours you will be offered a WhatsApp template.</p>' : ''}</div>
+      <button class="btn primary block" data-a="saveLog" ${sh.outcome && sh.next ? '' : 'disabled'}>Save call log</button><p class="note">A tapped call with no log after 10 minutes shows "Call not logged" on the lead.</p>`);
+  }
+  if (sh.kind === 'stage') {
+    const st = D.STAGES[sh.stage];
+    return wrap(`<div class="row between"><h2>Change stage</h2><button class="btn quiet sm" data-a="close" aria-label="Close">${ic('x')}</button></div>
+      <div class="field"><span>Stage</span><div class="pills">${D.STAGES.map((s, i) => `<button class="pill" data-a="pickStage" data-v="${i}" aria-pressed="${sh.stage === i}" ${i < l.stage && ![1, 4, 9].includes(i) ? 'disabled title="Backward moves need the Admin"' : ''}>${s.name}</button>`).join('')}</div></div>
+      <div class="field"><span>Sub-stage (required)</span><div class="pills">${st.subs.map(s => `<button class="pill" data-a="pickSub" data-v="${esc(s)}" aria-pressed="${sh.sub === s}">${s}</button>`).join('')}</div></div>
+      <label class="field"><span>Comment ${sh.stage === 9 && sh.sub === 'Other' ? '(required)' : '(optional)'}</span><textarea class="input" id="stage-comment" placeholder="Shown on the timeline"></textarea></label>
+      ${sh.stage !== 8 && sh.stage !== 9 ? `<label class="field"><span>Next follow-up (required)</span><input class="input" id="stage-next" type="datetime-local" value="2026-10-15T10:30"></label>` : ''}
+      ${sh.stage === 9 && sh.sub ? `<div class="banner info">${ic('flow')}<div>${['Wrong number', 'Junk or test', 'Enrolled elsewhere', 'Opted out'].includes(sh.sub) ? 'This lead closes and never returns to nurture.' : 'The lead returns to the Nurture Pool; its first nurture message goes out after the delay set for "' + sh.sub + '".'}</div></div>` : ''}
+      <button class="btn primary block" data-a="saveStage" ${sh.sub ? '' : 'disabled'}>Save stage</button><p class="note">Counsellors see Eduwit's stages; the master lead table gets the matching canonical stage (${st.canon}).</p>`);
+  }
+  if (sh.kind === 'contact') return wrap(`<div class="row between"><h2>Add a contact detail</h2><button class="btn quiet sm" data-a="close" aria-label="Close">${ic('x')}</button></div><div class="pills"><button class="pill" aria-pressed="true">Phone</button><button class="pill">Email</button></div><label class="field"><span>Number</span><input class="input mono" id="new-phone" value="+91 90000 00031"></label><div class="field"><span>Label</span><div class="pills"><button class="pill">Alternate</button><button class="pill" aria-pressed="true">Parent</button><button class="pill">Office</button><button class="pill">WhatsApp only</button></div></div><div class="field"><span>Make primary for</span><div class="pills"><button class="pill">Calls</button><button class="pill">WhatsApp</button></div></div><div class="banner info">${ic('check')}<div>Checked against existing leads: no other student uses this number.</div></div><button class="btn primary block" data-a="close">Add number</button>`);
+  if (sh.kind === 'cross') return wrap(`<div class="row between"><h2>Change interest</h2><button class="btn quiet sm" data-a="close" aria-label="Close">${ic('x')}</button></div><label class="field"><span>Programme</span><select class="input" id="x-prog"><option>${l.course}</option><option>Executive MBA</option><option>Online MBA (dual specialization)</option></select></label><label class="field"><span>University</span><select class="input" id="x-uni"><option>${l.uni || 'Any'}</option><option>Amity Online</option><option>NMIMS CDOE</option></select></label><label class="field"><span>Reason (required)</span><input class="input" id="x-reason" placeholder="e.g. 7 years' experience, Executive MBA fits better"></label><div class="banner info">${ic('lock')}<div>Recorded as a human correction. It never sends the lead to partners and reaches the master lead table in the next 15-minute sync.</div></div><button class="btn primary block" data-a="close">Save change</button>`);
+  if (sh.kind === 'viewbuilder') return wrap(`<div class="row between"><h2>Build a view</h2><button class="btn quiet sm" data-a="close" aria-label="Close">${ic('x')}</button></div>
+    <div class="card pad stack" style="gap:8px"><span class="eyebrow">All of</span>
+    ${[['Programme', 'contains', 'MBA'], ['Source', 'is', 'Meta lead form'], ['Temperature', 'is', 'Hot']].map(r => `<div class="row wrap" style="gap:6px"><span class="chip soft">${r[0]}</span><span class="small muted">${r[1]}</span><span class="chip line">${r[2]}</span></div>`).join('')}
+    <span class="eyebrow">Any of</span><div class="row wrap" style="gap:6px"><span class="chip soft">Last contacted</span><span class="small muted">more than</span><span class="chip line">2 days ago</span></div><div class="row wrap" style="gap:6px"><span class="chip soft">Follow-up</span><span class="small muted">is</span><span class="chip line">Overdue</span></div>
+    <button class="btn quiet sm" style="justify-self:start">${ic('plus', 's')}Add condition</button></div>
+    <div class="field"><span>Show as</span><div class="pills"><button class="pill" aria-pressed="true">List</button><button class="pill">Kanban</button></div></div>
+    <label class="field"><span>Name</span><input class="input" id="view-name" value="MBA hot from Meta"></label><div class="row"><button class="btn primary grow" data-a="close">Save view</button><button class="btn ghost" data-a="close">Apply once</button></div>`);
+  if (sh.kind === 'newlead') return wrap(`<div class="row between"><h2>New lead</h2><button class="btn quiet sm" data-a="close" aria-label="Close">${ic('x')}</button></div><p class="note">Phone first: we check it isn't already someone's lead.</p><div class="row"><input class="input mono grow" id="nl-phone" value="+91 90000 00044" aria-label="Phone"><button class="btn primary" data-a="lookup">Check</button></div>${sh.found ? `<div class="banner">${ic('users')}<div><b>Already with UpGrad since 2 Sep 2026.</b> Nothing is created. Only the Admin can act on it, through the B2B CRM.</div></div>` : ''}`);
+  if (sh.kind === 'cmdk') return wrap(`<label class="search">${ic('search', 's')}<input id="cmdk" placeholder="Search leads, people, settings…" autofocus></label><div class="list">${['Go to Lead Allocation', 'Open lead: Asha Verma', 'View as Sales', 'Create journey', 'Export current view', 'Settings › Stages and sub-stages'].map(x => `<button class="li" data-a="close"><span class="avatar">${ic('next', 's')}</span><span class="t">${x}</span></button>`).join('')}</div>`);
+  return '';
+}
+A.scrim = (v, el, e) => { if (e.target === el) { S.sheet = null; render(); } };
+function qr() {
+  // stand-in for the real code, which encodes tel:+919000000012
+  const finder = (x, y) => { const m = Math.max(Math.abs(x - 3), Math.abs(y - 3)); return m === 3 || m <= 1; };
+  let s = ''; let seed = 7;
+  for (let y = 0; y < 21; y++) for (let x = 0; x < 21; x++) {
+    seed = (seed * 9301 + 49297) % 233280;
+    let on;
+    if (x < 7 && y < 7) on = finder(x, y); else if (x > 13 && y < 7) on = finder(x - 14, y); else if (x < 7 && y > 13) on = finder(x, y - 14);
+    else if (x < 8 && y < 8 || x > 12 && y < 8 || x < 8 && y > 12) on = false; else on = seed / 233280 > .5;
+    if (on) s += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+  }
+  return `<svg class="qr" viewBox="0 0 21 21" fill="#072E5A" aria-label="QR code to dial on your phone">${s}</svg>`;
+}
+
+/* Marketing workspace and Admin console: one desktop layout; Marketing sees everything, acts only on marketing. */
+const WS_NAV = {
+  admin: [
+    ['', [['home', 'Home', 'home']]],
+    ['Sales', [['leads', 'Leads', 'users', '1,486'], ['pipeline', 'Pipeline', 'kanban'], ['allocation', 'Lead Allocation', 'shuffle'], ['teams', 'Teams', 'users']]],
+    ['Marketing', [['nurture', 'Nurture', 'leaf', '1,340'], ['journeys', 'Journeys', 'flow'], ['campaigns', 'Campaigns', 'mega'], ['segments', 'Segments', 'target'], ['templates', 'Templates', 'doc'], ['inbox', 'Inbox', 'inbox', '4']]],
+    ['Company', [['money', 'Money', 'rupee'], ['analytics', 'Analytics', 'chart'], ['programmes', 'Programmes', 'book'], ['connectors', 'Connectors', 'plug'], ['settings', 'Settings', 'gear'], ['guide', 'Guide', 'book']]],
+  ],
+  marketing: [
+    ['Marketing', [['nurture', 'Nurture', 'leaf', '1,340'], ['journeys', 'Journeys', 'flow'], ['campaigns', 'Campaigns', 'mega'], ['segments', 'Segments', 'target'], ['templates', 'Templates', 'doc'], ['inbox', 'Inbox', 'inbox', '4']]],
+    ['Read-only', [['leads', 'Leads', 'users'], ['money', 'Money', 'rupee'], ['programmes', 'Programmes', 'book']]],
+    ['', [['analytics', 'Analytics', 'chart'], ['connectors', 'Connectors', 'plug'], ['guide', 'Guide', 'book']]],
+  ],
+};
+const MKT_READONLY = ['leads', 'money', 'programmes'];
+A.ws = v => { S.ws[S.iface] = v; S.ws.journey = null; S.sheet = null; render(); window.scrollTo(0, 0); };
+A.wtab = v => { const [k, t] = v.split(':'); S.ws.tab[k] = t; render(); };
+A.journey = v => { S.ws.journey = v; render(); };
+A.viewAsSales = () => { S.iface = 'sales'; S.sales.route = 'today'; toast('Viewing as Priya Sharma (logged)'); };
+A.cmdk = () => { S.sheet = { kind: 'cmdk' }; render(); };
+const tabOf = (k, d) => S.ws.tab[k] || d;
+const tabs = (k, list, d) => `<div class="tabs" role="tablist">${list.map(([v, n]) => `<button role="tab" aria-selected="${tabOf(k, d) === v}" data-a="wtab" data-v="${k}:${v}">${n}</button>`).join('')}</div>`;
+const stat = (label, value, sub = '', cls = '') => `<div class="stat"><span class="small muted">${label}</span><b>${value}</b>${sub ? `<span class="delta ${cls}">${sub}</span>` : ''}</div>`;
+
+function workspace(kind) {
+  const route = S.ws[kind];
+  const nav = WS_NAV[kind].map(([g, items]) => `${g ? `<div class="group">${g}</div>` : ''}${items.map(([k, n, icn, c]) => `<button class="nav" data-a="ws" data-v="${k}" aria-current="${route === k ? 'page' : 'false'}">${ic(icn)}${n}${c ? `<span class="count">${c}</span>` : ''}</button>`).join('')}`).join('');
+  const who = kind === 'admin' ? ['VJ', 'Vikas Jha', 'Admin'] : ['SK', 'Sneha Kapoor', 'Marketing'];
+  const [title, body, actions] = wsScreen(kind, route);
+  const ro = kind === 'marketing' && MKT_READONLY.includes(route) ? `<span class="readonly-flag">${ic('eye', 's')}Read-only for Marketing</span>` : '';
+  const top = kind === 'admin' ? `<button class="cmdk" data-a="cmdk">${ic('search', 's')}Search or jump to…<kbd>⌘K</kbd></button><button class="btn ghost sm" data-a="viewAsSales">${ic('eye', 's')}View as Sales</button>` : '';
+  return `<div class="desk-shell"><aside class="side"><div class="who"><span class="avatar">${who[0]}</span><div><b>${who[1]}</b><div class="small muted">${who[2]}</div></div></div>${nav}</aside>
+    <main class="main"><div class="topbar"><h1>${title}</h1>${ro}${actions || ''}${top}</div><div class="content">${body}</div></main></div>${sheet('desk')}`;
+}
+
+function wsScreen(kind, r) {
+  const admin = kind === 'admin';
+  switch (r) {
+    case 'home': return ['Home', adminHome(), ''];
+    case 'leads': return ['Leads', wsLeads(admin), admin ? `<button class="btn ghost sm" data-a="toast" data-v="Export started: 1,486 rows, link by email">Export</button>` : ''];
+    case 'pipeline': return ['Pipeline', `<div class="row wrap"><div class="hscroll"><button class="pill" aria-pressed="true">Whole team</button>${D.counsellors.map(c => `<button class="pill">${c.first}</button>`).join('')}</div></div>${pipelineScreen()}`, ''];
+    case 'allocation': return ['Lead Allocation', allocation(), `<button class="btn primary sm" data-a="toast" data-v="New rule">${ic('plus', 's')}New rule</button>`];
+    case 'teams': return ['Teams', teams(), `<button class="btn ghost sm" data-a="toast" data-v="Synced with Google Workspace">Sync now</button>`];
+    case 'nurture': return ['Nurture', nurture(), ''];
+    case 'journeys': return S.ws.journey ? journeyDetail() : ['Journeys', journeysList(), `<button class="btn primary sm" data-a="toast" data-v="New journey (draft)">${ic('plus', 's')}New journey</button>`];
+    case 'campaigns': return ['Campaigns', campaigns(), `<button class="btn primary sm" data-a="toast" data-v="New campaign">${ic('plus', 's')}New campaign</button>`];
+    case 'segments': return ['Segments', segments(), `<button class="btn primary sm" data-a="toast" data-v="New segment">${ic('plus', 's')}New segment</button>`];
+    case 'templates': return ['Templates', templates(admin), `<button class="btn primary sm" data-a="toast" data-v="New template, submitted to Meta from here">${ic('plus', 's')}New template</button>`];
+    case 'inbox': return ['Inbox', wsInbox(admin), ''];
+    case 'money': return ['Money', money(admin), ''];
+    case 'analytics': return ['Analytics', analytics(admin), `<button class="btn ghost sm" data-a="toast" data-v="Dashboard copied to My dashboards">Duplicate</button>`];
+    case 'programmes': return ['Programmes', programmesScreen('desk', true), ''];
+    case 'connectors': return ['Connectors', connectors(admin), ''];
+    case 'settings': return ['Settings', settings(), ''];
+    case 'guide': return ['Guide', guide(admin), ''];
+    default: return ['Home', adminHome(), ''];
+  }
+}
+
+/* ---------- Admin home ---------- */
+function adminHome() {
+  const funnel = [['New Lead', 214], ['Could Not Connect', 168], ['Contacted', 141], ['Qualified', 96], ['Follow Up', 81], ['Program Details Explained', 64], ['Applicant', 31], ['Docs Submitted', 24], ['Enrolled', 10]];
+  const max = funnel[0][1];
+  const days = ['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '14'];
+  return `<div class="banner danger">${ic('alert')}<div><b>1 sales lead waiting unassigned for 7 minutes.</b> Fatima is on leave and Ankit is away; the rule's fallback is the Unassigned queue. <button class="btn quiet sm" data-a="ws" data-v="allocation">Allocate now</button></div></div>
+  <div class="grid g4">${stat('Hand-offs today', '38', '26 nurture · 12 sales')}${stat('Unassigned now', '1', 'Oldest 7 min', 'down')}${stat('First-contact SLA (Oct)', '91%', '+4 pts vs Sep', 'up')}${stat('Enrolled in October', '10', 'Target 22 · day 14 of 31')}</div>
+  <div class="grid g4">${stat('University commission, Oct', inr(624800), 'Expected · ' + inr(212400) + ' realised')}${stat('Owed by counsellors, Oct', inr(281960), '2 lines need a rate', 'down')}${stat('Nurture pool', '1,340', '+58 today · 9.1% re-engaged (30 d)')}${stat('Email allowance today', '1,180 / 2,000', 'connect@eduwit.in')}</div>
+  <div class="grid g-lead">
+    <section class="card pad stack"><div class="row between"><h2>Sales funnel, October</h2><span class="note">Eduwit stages · canonical view in Analytics</span></div>${funnel.map(([n, v]) => `<div class="funnel-row"><span class="ellipsis">${n}</span><div class="bar-track"><div class="bar-fill" style="width:${v / max * 100}%"></div></div><span class="num" style="text-align:right">${v}</span></div>`).join('')}<p class="note">Lost this month: 61 (top sub-stages: uncontactable 19, can't afford 14, not now 11).</p></section>
+    <section class="card pad stack"><h2>Hand-offs, last 14 days</h2>${lineChart([{ data: [18, 22, 19, 25, 31, 12, 9, 24, 27, 29, 33, 14, 11, 26], color: 'var(--primary)', area: true }, { data: [6, 9, 7, 8, 12, 4, 3, 10, 11, 9, 13, 5, 4, 12], color: 'var(--amber)' }], { w: 420, h: 170, labels: days, max: 40 })}<div class="row small"><span class="row" style="gap:4px"><i style="width:10px;height:3px;background:var(--primary);display:inline-block"></i>Nurture lane</span><span class="row" style="gap:4px"><i style="width:10px;height:3px;background:var(--amber);display:inline-block"></i>Sales lane</span></div>
+    <div class="divider"></div><h3>Alerts</h3><div class="stack small" style="gap:8px"><div class="row">${ic('users', 's')}<span class="grow">Priya reached 4 enrolments; hiring trigger at 10 per counsellor.</span></div><div class="row">${ic('rupee', 's')}<span class="grow">IIM Kozhikode has no partner: 1 commission line needs a rate.</span></div><div class="row">${ic('plug', 's')}<span class="grow">B2B link healthy: last batch sent 11:15, next 11:30.</span></div></div></section>
+  </div>
+  <section class="stack"><h2>Team today</h2><div class="table-wrap"><table><thead><tr><th>Counsellor</th><th>Status</th><th>Open leads</th><th>This month / cap</th><th>Calls · connected</th><th>Enrolled / target</th><th>SLA breaches</th></tr></thead><tbody>${D.counsellors.map(c => `<tr><td><b>${c.name}</b></td><td>${c.status.startsWith('Working') ? `<span class="chip ok">${c.status}</span>` : c.status.startsWith('On leave') ? `<span class="chip warm">${c.status}</span>` : `<span class="chip soft">${c.status}</span>`}</td><td class="num">${c.open}</td><td><div class="row"><div class="bar-track grow" style="max-width:120px"><div class="bar-fill" style="width:${c.month / c.cap * 100}%"></div></div><span class="num small">${c.month}/${c.cap}</span></div></td><td class="num">${c.calls} · ${c.connected}</td><td class="num">${c.enrol}/${c.target}</td><td class="num">${c.id === 'u1' ? '<span class="chip breach">1</span>' : '0'}</td></tr>`).join('')}</tbody></table></div></section>`;
+}
+
+/* ---------- Leads (workspace) ---------- */
+function wsLeads(admin) {
+  const rows = D.leads;
+  const owner = id => D.counsellors.find(c => c.id === id)?.first || '—';
+  const bulk = admin ? ['Reassign', 'Add to journey', 'Tag', 'Change stage', 'Send to partner routing', 'Export', 'Delete'] : ['Add to journey', 'Tag'];
+  return `<div class="row wrap"><label class="search grow">${ic('search', 's')}<input placeholder="Name, any phone, email, application ID" aria-label="Search all leads"></label><button class="btn ghost sm" data-a="filters">${ic('sliders', 's')}Filters</button><button class="btn ghost sm" data-a="toast" data-v="Columns">Columns</button></div>
+  <div class="hscroll"><button class="pill" aria-pressed="true">All B2C leads</button><button class="pill">Sales lane</button><button class="pill">Nurture pool</button><button class="pill">Partner-barred</button><button class="pill">Unassigned</button><button class="pill">SLA breaches</button><button class="pill">Enrolled</button><button class="pill">Recycle Bin</button></div>
+  <div class="banner info" style="align-items:center">${ic('check')}<div class="grow"><b>3 selected</b> (or all 1,486 in this view)</div>${bulk.map(b => `<button class="btn ${b === 'Delete' ? 'danger' : 'ghost'} sm" data-a="toast" data-v="${b}: ${b === 'Delete' ? 'type DELETE 3 to confirm; undo for 30 days' : 'applied to 3 leads'}">${b}</button>`).join('')}</div>
+  <div class="table-wrap"><table><thead><tr><th></th><th>Student</th><th>Lane · why</th><th>Programme</th><th>Stage · sub-stage</th><th>Counsellor</th><th>Journey</th><th>Score</th><th>SLA</th></tr></thead><tbody>${rows.map((l, i) => `<tr><td><input type="checkbox" id="sel-${l.id}" aria-label="Select ${l.name}" ${i < 3 ? 'checked' : ''}></td><td><b>${l.name}</b><div class="small muted mono">${l.phone}</div></td><td class="small"><span class="chip ${l.lane === 'sales' ? 'soft' : 'line'}">${l.lane}</span> ${l.reasonText} ${barChip(l)}</td><td class="small">${l.course}<div class="muted">${l.uni || ''}</div></td><td class="small">${stageName(l)}<div class="muted">${l.sub}</div></td><td>${owner(l.owner)}</td><td class="small muted">${l.journey || '—'}</td><td class="num">${l.score} ${tempChip(l.temp)}</td><td>${l.sla ? slaChip(l.sla) : ''}</td></tr>`).join('')}</tbody></table></div>
+  <p class="note">${admin ? 'Admin edits any field inline (history kept), including existing contact details; deletes are soft with a 30-day Recycle Bin. Leads with money lines cannot be deleted, only closed.' : 'Marketing can add to journeys and tag. Everything else on this page is read-only and refused by the API.'}</p>`;
+}
+
+/* ---------- Lead Allocation ---------- */
+function allocation() {
+  const t = tabOf('alloc', 'rules');
+  const head = tabs('alloc', [['rules', 'Rules'], ['pools', 'Pools'], ['calendar', 'Calendar'], ['capacity', 'Capacity'], ['simulation', 'Simulation'], ['queues', 'Queues'], ['audit', 'Audit']], 'rules');
+  let body = '';
+  if (t === 'rules') body = `<p class="note">The first rule whose condition matches decides. Every rule picks from its pool among counsellors who are working now, not on leave or away, and under their cap.</p><div class="list">${D.rules.map((r, i) => `<div class="li" style="grid-template-columns:auto auto 1fr auto auto"><span class="muted" title="Drag to reorder">⋮⋮</span><span class="num muted">${i + 1}</span><div><b>${r.name}</b><div class="small muted">When: ${r.cond} · How: ${r.logic} · Pool: ${r.pool} · If nobody: ${r.fb}</div></div><span class="chip ${r.on ? 'ok' : 'soft'}">${r.on ? 'On' : 'Off'}</span><button class="btn quiet sm" data-a="toast" data-v="Rule editor: condition builder, logic, pool, fallbacks, applies from">Edit</button></div>`).join('')}</div><div class="banner info">${ic('users')}<div>"Admin takes leads" is <b>on</b>: while nobody else is eligible, leads go to Vikas.</div></div>`;
+  if (t === 'pools') body = `<div class="grid g3">${[['Seniors', 'Priya ×2 · Rohan ×2', 'Duplicate cascade'], ['Hindi speakers', 'Priya · Ankit · Fatima', 'Language match'], ['Everyone', 'All 4 counsellors, weight 1', 'Catch-all']].map(p => `<div class="card pad stack" style="gap:6px"><b>${p[0]}</b><span class="small">${p[1]}</span><span class="note">Used by: ${p[2]}</span></div>`).join('')}</div>`;
+  if (t === 'calendar') {
+    const days = ['Mon 12', 'Tue 13', 'Wed 14', 'Thu 15', 'Fri 16', 'Sat 17', 'Sun 18'];
+    const cell = (c, d) => c.id === 'u4' && d < 5 ? '<span class="shift leave">Leave · reassign after 4 h</span>' : d === 6 ? '<span class="shift off">Off</span>' : c.id === 'u3' && d === 2 ? '<span class="shift">10:00–19:00</span> <span class="chip soft">Away 30 min</span>' : '<span class="shift">10:00–19:00</span>';
+    body = `<div style="overflow-x:auto"><div class="calendar" style="min-width:820px"><div class="h">Counsellor</div>${days.map(d => `<div class="h">${d}${d.startsWith('Wed') ? ' · today' : ''}</div>`).join('')}${D.counsellors.map(c => `<div><b>${c.first}</b></div>${days.map((_, i) => `<div>${cell(c, i)}</div>`).join('')}`).join('')}<div class="h">Holidays</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="small muted">—</div></div></div><div class="banner">${ic('alert')}<div>Sunday 18 has nobody on duty and no on-call counsellor: hot leads wait until Monday 10:00 with the SLA paused.</div></div>`;
+  }
+  if (t === 'capacity') body = `<div class="table-wrap"><table><thead><tr><th>Counsellor</th><th>This month / cap</th><th>Open leads</th><th>Today's intake</th><th>Enrolments (hiring trigger 10)</th></tr></thead><tbody>${D.counsellors.map(c => `<tr><td><b>${c.name}</b></td><td><div class="row"><div class="bar-track grow" style="max-width:200px"><div class="bar-fill" style="width:${c.month / c.cap * 100}%"></div></div><span class="num">${c.month}/${c.cap}</span></div></td><td class="num">${c.open}</td><td class="num">${c.id === 'u4' ? 0 : 3 + c.id.charCodeAt(1) % 3}</td><td class="num">${c.enrol}/10</td></tr>`).join('')}</tbody></table></div><p class="note">Team at 23% of total monthly capacity. Alerts: 90% of capacity, a sales lead unassigned over 5 minutes, 10 enrolments per counsellor.</p>`;
+  if (t === 'simulation') body = `<div class="row wrap"><label class="field"><span>From</span><input class="input" id="sim-from" type="date" value="2026-10-01"></label><label class="field"><span>To</span><input class="input" id="sim-to" type="date" value="2026-10-13"></label><button class="btn primary sm" style="align-self:end">Replay 412 leads</button></div><div class="table-wrap"><table><thead><tr><th>Counsellor</th><th>Actual</th><th>With current rules</th><th>Change</th><th>Hot leads</th></tr></thead><tbody>${[['Priya', 118, 131, 14], ['Rohan', 104, 109, 11], ['Ankit', 96, 101, 8], ['Fatima', 62, 41, 3], ['Admin (Vikas)', 32, 30, 2]].map(r => `<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td class="num ${r[2] - r[1] >= 0 ? '' : ''}">${r[2] - r[1] > 0 ? '+' : ''}${r[2] - r[1]}</td><td class="num">${r[3]}</td></tr>`).join('')}</tbody></table></div><p class="note">Fatima's leave from 12 Oct moves 21 leads to the others. Switch the rules on when the split looks right.</p>`;
+  if (t === 'queues') body = `<div class="grid g3">${[['Unassigned', 1, 'Neha Gupta · re-engaged · 7 min'], ['Waiting for working hours', 4, 'Non-hot, arrived after 19:00'], ['Manual: walk-ins', 0, 'Picked by the Admin']].map(q => `<div class="card pad stack" style="gap:6px"><div class="row between"><b>${q[0]}</b><span class="num">${q[1]}</span></div><span class="small muted">${q[2]}</span>${q[1] ? '<button class="btn primary sm" style="justify-self:start" data-a="toast" data-v="Allocated by the rules to Rohan">Allocate by rules</button>' : ''}</div>`).join('')}</div>`;
+  if (t === 'audit') body = `<section class="card pad stack"><div class="row between"><b>Asha Verma · 11:14:02</b><span class="chip soft">Decision #20931</span></div><dl class="kv"><dt>Trigger</dt><dd>Hand-off, sales lane, duplicate cascade</dd><dt>Rule</dt><dd>2 · Duplicate cascade → senior pool (round robin, turn 3)</dd><dt>Chosen</dt><dd>Priya Sharma</dd><dt>Eligible</dt><dd>Priya, Rohan</dd><dt>Skipped</dt><dd>Ankit: not in pool · Fatima: on leave until 16 Oct</dd><dt>Message</dt><dd>counsellor_intro_hours sent 11:14:05, delivered</dd></dl></section>`;
+  return head + body;
+}
+
+/* ---------- Teams ---------- */
+function teams() {
+  const users = [['Vikas Jha', 'connect@eduwit.in', 'Admin', 'Active'], ['Priya Sharma', 'priya@eduwit.in', 'Counsellor', 'Active'], ['Rohan Mehta', 'rohan@eduwit.in', 'Counsellor', 'Active'], ['Ankit Verma', 'ankit@eduwit.in', 'Counsellor', 'Active'], ['Fatima Khan', 'fatima@eduwit.in', 'Counsellor', 'On leave'], ['Sneha Kapoor', 'sneha@eduwit.in', 'Marketing', 'Active'], ['Karan Malhotra', 'karan@eduwit.in', 'No access', 'In Workspace'], ['Accounts', 'accounts@eduwit.in', 'No access', 'In Workspace']];
+  return `<div class="banner info">${ic('check')}<div>Connected to Google Workspace (eduwit.in). Last sync 11:05; suspended Workspace users are deactivated here within 15 minutes.</div></div>
+  <div class="table-wrap"><table><thead><tr><th>Person</th><th>Role</th><th>Status</th><th>Working pattern</th><th>Skills and languages</th><th>Cap</th><th></th></tr></thead><tbody>${users.map(u => `<tr><td><b>${u[0]}</b><div class="small muted">${u[1]}</div></td><td><select class="input" style="padding:4px 8px;width:auto" aria-label="Role for ${u[0]}" id="role-${u[1]}">${['No access', 'Counsellor', 'Sales head', 'Marketing', 'Admin'].map(r => `<option ${r === u[2] ? 'selected' : ''}>${r}</option>`).join('')}</select></td><td>${u[3] === 'Active' ? '<span class="chip ok">Active</span>' : u[3] === 'On leave' ? '<span class="chip warm">On leave</span>' : '<span class="chip soft">Not set up</span>'}</td><td class="small">${u[2] === 'Counsellor' ? 'Mon–Sat 10:00–19:00' : '—'}</td><td class="small">${({ 'Priya Sharma': 'MBA, Exec MBA · EN, HI', 'Rohan Mehta': 'MCA, BCA · EN, HI, MR', 'Ankit Verma': 'BBA, B.Com · EN, HI', 'Fatima Khan': 'M.Com, MBA · EN, UR, HI' })[u[0]] || '—'}</td><td class="num">${u[2] === 'Counsellor' ? 200 : '—'}</td><td><button class="btn quiet sm" data-a="toast" data-v="Calendar, shifts, leave, weight and skills">Edit</button></td></tr>`).join('')}</tbody></table></div>
+  <p class="note">Only @eduwit.in accounts. Every sign-in needs a 6-digit code sent to the company inbox on a new device (trusted for 30 days). The 3 Gmail sign-ups from July stay inactive.</p>`;
+}
+
+/* ---------- Nurture ---------- */
+function nurture() {
+  const t = tabOf('nurture', 'overview');
+  const head = tabs('nurture', [['overview', 'Overview'], ['pool', 'Pool'], ['replies', 'Replies inbox']], 'overview');
+  if (t === 'pool') {
+    const pool = D.leads.filter(l => l.lane === 'nurture');
+    return head + `<div class="hscroll"><button class="pill" aria-pressed="true">All reasons</button><button class="pill">Not qualified</button><button class="pill">Partner lost</button><button class="pill">Counsellor lost</button><button class="pill">Consent pending</button><button class="pill">0–30 days</button><button class="pill">31–90 days</button></div><div class="table-wrap"><table><thead><tr><th>Student</th><th>Why in the pool</th><th>Missing</th><th>Score</th><th>Journey and step</th><th>Last message</th><th>Last activity</th><th></th></tr></thead><tbody>${pool.map(l => `<tr><td><b>${l.name}</b><div class="small muted">${l.course} · ${l.pool}</div></td><td class="small">${l.reasonText} ${barChip(l)}</td><td>${(l.missing || []).map(m => `<span class="chip line">${m}</span>`).join(' ') || '<span class="muted small">—</span>'}</td><td class="num">${l.score}</td><td class="small">${l.journey}</td><td class="small">${l.lastMsg}</td><td class="small muted">${l.lastAct}</td><td><button class="btn quiet sm" data-a="toast" data-v="Pause, move journey, send one-off or hand to a counsellor">${ic('more', 's')}</button></td></tr>`).join('')}</tbody></table></div>`;
+  }
+  if (t === 'replies') return head + replies();
+  const reasons = [['Partner lost: over budget', 212, 140, 72], ['Partner lost: uncontactable', 168, 120, 48], ['Not qualified: course missing', 401, 380, 21], ['Not qualified: consent no answer', 96, 96, 0], ['Counsellor lost: not now', 230, 60, 170], ['Counsellor lost: can\'t afford', 233, 150, 83]];
+  return head + `<div class="grid g4">${stat('Pool size', '1,340', '+58 in · 21 out today')}${stat('Re-engaged, 30 days', '9.1%', '+1.4 pts', 'up')}${stat('Time to re-engage', '11 days', 'median')}${stat('Cost per re-engaged lead', inr(46), 'WhatsApp spend ' + inr(5720))}</div>
+  <div class="banner">${ic('sliders')}<div><b>412 leads held back today:</b> 300 by the frequency cap, 96 without marketing consent, 16 in an active Witty chat. Quiet hours 09:00–20:00 IST.</div></div>
+  <div class="grid g-lead"><section class="card pad stack"><h2>Pool by reason and age</h2><div class="table-wrap" style="border:0"><table><thead><tr><th>Segment</th><th>Leads</th><th>0–30 d</th><th>31+ d</th></tr></thead><tbody>${reasons.map(r => `<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td class="num">${r[3]}</td></tr>`).join('')}</tbody></table></div></section>
+  <section class="card pad stack"><h2>Sending today</h2><div class="stack small" style="gap:10px"><div><div class="row between"><span>Email allowance (connect@eduwit.in)</span><span class="num">1,180 / 2,000</span></div><div class="bar-track"><div class="bar-fill amber" style="width:59%"></div></div></div><div><div class="row between"><span>WhatsApp, B2C number (tier 1K)</span><span class="num">624 / 1,000</span></div><div class="bar-track"><div class="bar-fill" style="width:62%"></div></div></div><div class="row between"><span>WhatsApp quality rating</span><span class="chip ok">High</span></div><div class="row between"><span>Replies today</span><span>14 positive · 22 questions · 9 negative · 3 opt-out</span></div></div></section></div>`;
+}
+function replies() {
+  return `<div class="list">${D.replies.map(r => { const l = D.lead(r.lead); const low = r.conf < 0.8; return `<div class="li" style="grid-template-columns:auto 1fr auto"><span class="avatar">${ic(r.ch === 'Email' ? 'mail' : 'wa', 's')}</span><div><b>${l.name}</b> <span class="small muted">· ${l.reasonText} · ${r.at}</span><div>"${esc(r.text)}"</div></div><span class="chip ${r.cls === 'Positive' ? 'ok' : r.cls === 'Negative' || r.cls === 'Opt-out' ? 'breach' : 'risk'}">${r.cls} · ${Math.round(r.conf * 100)}% · ${r.method}</span><span class="s row wrap" style="gap:6px;margin-top:6px">${r.cls === 'Positive' ? '<span class="small" style="color:var(--green);font-weight:600">Assigned to Rohan as hot, 11:02</span>' : low ? '<span class="small muted">Below 0.8: waiting for a person</span><button class="btn primary sm" data-a="toast" data-v="Assigned to a counsellor by the rules">Assign</button><button class="btn ghost sm" data-a="toast" data-v="Reply sent from the B2C number">Answer</button>' : ''}<button class="btn quiet sm" data-a="toast" data-v="Class corrected; kept to measure accuracy">Correct class</button></span></div>`; }).join('')}</div><p class="note">Keyword rules in English, Hindi and Hinglish first; Claude only for text the rules cannot decide, with no name, phone or email sent.</p>`;
+}
+
+/* ---------- Journeys ---------- */
+function journeysList() {
+  return `<div class="table-wrap"><table><thead><tr><th>Journey</th><th>Trigger</th><th>Status</th><th>In flow</th><th>Entered</th><th>Re-engaged</th><th></th></tr></thead><tbody>${D.journeys.map(j => `<tr class="click" data-a="journey" data-v="${j.name}"><td><b>${j.name}</b> <span class="small muted">${j.v}</span></td><td class="small">${j.trigger}</td><td><span class="chip ${j.status === 'Live' ? 'ok' : 'soft'}">${j.status}</span></td><td class="num">${j.inFlow}</td><td class="num">${j.entered}</td><td class="num">${j.reeng ? j.reeng + '%' : '—'}</td><td>${ic('next', 's')}</td></tr>`).join('')}</tbody></table></div><p class="note">Starter set adapted from the 6 journeys already in the database, plus partner-lost by reason, not eligible, we tried to reach you, consent repeat and fix-and-reapply.</p>`;
+}
+function journeyDetail() {
+  const j = D.journeys.find(x => x.name === S.ws.journey) || D.journeys[0];
+  const steps = j.steps || D.journeys[0].steps;
+  const ico = { trigger: 'target', send: 'wa', wait: 'clock', branch: 'flow', exit: 'check' };
+  const canvas = steps.map((s, i) => `${i ? '<div class="edge"></div>' : ''}<div class="node ${s.k}"><span class="k">${ic(s.t.startsWith('Email') ? 'mail' : ico[s.k], 's')}</span><span class="t">${s.t}</span><span class="n">${s.n != null && s.k !== 'exit' && s.k !== 'trigger' ? s.n.toLocaleString('en-IN') : ''}</span><span class="s">${s.s}</span></div>`).join('');
+  return [j.name, `<div class="row wrap"><button class="btn quiet sm" data-a="journey" data-v="">${ic('back', 's')}All journeys</button><span class="chip ok">${j.status} · ${j.v}</span><span class="note">Running leads stay on their version when you publish v4.</span></div>
+    <div class="grid g-lead"><div class="canvas">${canvas}<div class="edge"></div><button class="btn ghost sm">${ic('plus', 's')}Add step</button></div>
+    <div class="stack"><section class="card pad stack"><h2>Funnel</h2>${[['Entered', j.entered], ['In progress', j.inFlow], ['Re-engaged', Math.round(j.entered * j.reeng / 100)], ['Qualified → partner routing', 506], ['Opted out', 41]].map(([n, v]) => `<div class="funnel-row" style="grid-template-columns:150px 1fr 60px"><span>${n}</span><div class="bar-track"><div class="bar-fill" style="width:${v / j.entered * 100}%"></div></div><span class="num" style="text-align:right">${v.toLocaleString('en-IN')}</span></div>`).join('')}</section>
+    <section class="card pad stack"><h2>Guardrails</h2><div class="small stack" style="gap:6px"><span>${ic('check', 's')} One journey per lead at a time</span><span>${ic('check', 's')} Max 1 marketing WhatsApp a day, 6 per 30 days</span><span>${ic('check', 's')} Nothing during a Witty chat (30 min)</span><span>${ic('x', 's')} Leads in active sales: not reached (Admin can allow)</span></div></section>
+    <div class="row"><button class="btn ghost sm grow" data-a="toast" data-v="Test run started on 3 test leads">Test on test leads</button><button class="btn ghost sm" data-a="toast" data-v="Cloned as draft">Clone</button></div></div></div>`, ''];
+}
+
+/* ---------- Campaigns, segments, templates ---------- */
+function campaigns() {
+  const rows = [['Oct admissions: last week', 'Partner lost, 0–90 days', 'WhatsApp', 'Sent 12 Oct', 1840, 1702, 1310, 96, 21, 4, inr(2208)], ['MBA fee options (A/B subject)', 'Can\'t afford fee, MBA', 'Email', 'Sending · paced to 21 Oct', 3200, 1180, 412, 38, 9, 1, '—'], ['Diwali scholarship', 'All pool, consent given', 'WhatsApp', 'Scheduled 25 Oct 11:00', 0, 0, 0, 0, 0, 0, '—']];
+  return `<div class="table-wrap"><table><thead><tr><th>Campaign</th><th>Segment</th><th>Channel</th><th>Status</th><th>Sent</th><th>Delivered</th><th>Read/open</th><th>Replied</th><th>Re-engaged</th><th>Enrolled</th><th>Cost</th></tr></thead><tbody>${rows.map(r => `<tr><td><b>${r[0]}</b></td><td class="small">${r[1]}</td><td>${r[2]}</td><td class="small">${r[3]}</td>${r.slice(4, 10).map(n => `<td class="num">${n.toLocaleString('en-IN')}</td>`).join('')}<td class="num">${r[10]}</td></tr>`).join('')}</tbody></table></div><div class="banner">${ic('mail')}<div>"MBA fee options" needs 3,200 emails; today's allowance has 820 left, so it is spread over 4 days.</div></div>`;
+}
+function segments() {
+  return `<div class="grid g-lead"><div class="table-wrap"><table><thead><tr><th>Segment</th><th>Type</th><th>Leads now</th><th>Used by</th></tr></thead><tbody>${[['Partner lost, over budget, MBA, no reply 14 d', 'Dynamic', 186, '1 journey'], ['Not qualified, Witty, 7+ days', 'Dynamic', 402, '1 campaign'], ['Can\'t afford fee, MBA', 'Dynamic', 3200, '1 campaign'], ['Walk-ins, Pune event', 'Static (CSV)', 58, '—']].map(r => `<tr><td><b>${r[0]}</b></td><td class="small">${r[1]}</td><td class="num">${r[2].toLocaleString('en-IN')}</td><td class="small">${r[3]}</td></tr>`).join('')}</tbody></table></div>
+  <section class="card pad stack"><h2>Overlap</h2><p class="small">"Partner lost, over budget, MBA" and "Can't afford fee, MBA" share <b class="num">71</b> leads. One journey at a time per lead: they stay in the first they entered.</p><div class="divider"></div><h3>Rule preview</h3><div class="small stack" style="gap:6px"><span><span class="chip soft">Pool reason</span> is <span class="chip line">partner lost</span></span><span><span class="chip soft">Lost reason</span> maps to <span class="chip line">Can't afford fee or EMI</span></span><span><span class="chip soft">Interest</span> contains <span class="chip line">MBA</span></span><span><span class="chip soft">Last reply</span> more than <span class="chip line">14 days</span> ago</span></div><b class="num">186 leads match</b></section></div>`;
+}
+function templates(admin) {
+  const t = tabOf('tpl', 'wam');
+  const head = tabs('tpl', [['wam', 'WhatsApp · marketing'], ['was', 'WhatsApp · sales'], ['em', 'Email · marketing'], ['es', 'Email · sales']], 'wam');
+  const wa = t === 'was' ? D.salesTemplates.map(x => [x.name, 'Utility', x.lang, 'Approved', x.cat]) : [['explore_programmes', 'Utility', 'English, Hindi', 'Approved', 'Welcome'], ['missing_details', 'Marketing', 'English, Hindi', 'Approved', 'Quick replies: MBA · MCA · BBA · Other'], ['wa_partner_consent_v1', 'Utility', 'English, Hindi', 'Approved', 'YES / NO buttons, registered text'], ['reach_you_2', 'Marketing', 'English', 'Approved', 'Yes, call me · Not now'], ['fee_options_wa', 'Marketing', 'Hinglish', 'In review', 'URL button: EMI calculator'], ['diwali_scholarship', 'Marketing', 'English', 'Rejected: promotional in utility', '—']];
+  if (t === 'em' || t === 'es') {
+    const rows = t === 'em' ? [['tell_us_more', 'Qualification', 'v3', '41% open · 6% click'], ['fee_options_email', 'Fee concern', 'v2', '38% open · 9% click'], ['monthly_update', 'Long-term', 'v5', '29% open · 3% click']] : D.emailTemplates.map(e => [e.name, e.author, e.parent ? 'copy' : 'original', e.reply + '% reply']);
+    return head + `<div class="table-wrap"><table><thead><tr><th>Template</th><th>${t === 'em' ? 'Used for' : 'Author'}</th><th>Version</th><th>Performance</th></tr></thead><tbody>${rows.map(r => `<tr><td><b>${r[0]}</b></td><td class="small">${r[1]}</td><td class="small">${r[2]}</td><td class="small">${r[3]}</td></tr>`).join('')}</tbody></table></div>${t === 'es' ? `<p class="note">Written by counsellors and shared with fork-on-edit. ${admin ? 'You can mark one recommended or hide it.' : 'Marketing cannot edit sales templates.'}</p>` : ''}`;
+  }
+  return head + `${t === 'was' && !admin ? `<div class="banner info">${ic('lock')}<div>Sales WhatsApp templates are created by the Admin only. You can see them here.</div></div>` : ''}<div class="table-wrap"><table><thead><tr><th>Name</th><th>Category</th><th>Languages</th><th>Meta status</th><th>${t === 'was' ? 'Purpose' : 'Buttons and notes'}</th>${t === 'was' ? '<th>Usable by Sales</th>' : ''}</tr></thead><tbody>${wa.map(r => `<tr><td class="mono small">${r[0]}</td><td>${r[1]}</td><td class="small">${r[2]}</td><td>${r[3] === 'Approved' ? '<span class="chip ok">Approved</span>' : r[3] === 'In review' ? '<span class="chip risk">In review</span>' : `<span class="chip breach">${r[3]}</span>`}</td><td class="small">${r[4]}</td>${t === 'was' ? '<td><span class="chip ok">Yes</span></td>' : ''}</tr>`).join('')}</tbody></table></div><p class="note">Synced from the B2C number's WhatsApp account; new templates are submitted to Meta from here.</p>`;
+}
+
+/* ---------- Inbox ---------- */
+function wsInbox(admin) {
+  const t = tabOf('winbox', 'replies');
+  return tabs('winbox', [['replies', 'Replies (pool)'], ['all', 'All conversations']], 'replies') + (t === 'replies' ? replies() : `<div class="list">${D.conversations.map(c => { const l = D.lead(c.lead); return `<div class="li"><span class="avatar">${initials(l.name)}</span><span class="t">${l.name} <span class="small muted">· Priya</span></span><span class="small muted">${c.at}</span><span class="s ellipsis">${esc(c.last)}</span></div>`; }).join('')}</div><p class="note">${admin ? 'You can open and reply to any conversation.' : 'Marketing reads every conversation; replying is for counsellors and the Admin.'}</p>`);
+}
+
+/* ---------- Money ---------- */
+function money(admin) {
+  const t = tabOf('money', 'verify');
+  const head = tabs('money', [['verify', 'Enrolments to verify'], ['uni', 'University commission'], ['coun', 'Counsellor commission'], ['inv', 'Invoices and receipts'], ['rates', 'Partner rates']], 'verify');
+  if (t === 'verify') return head + `<div class="grid g2"><section class="card pad stack"><div class="row between"><h2>Imran Qureshi</h2><span class="chip risk">Waiting for verification</span></div><dl class="kv"><dt>Programme</dt><dd>Amity Online · Online MBA (HR)</dd><dt>Fee</dt><dd class="num">${inr(179000)} · paid in full</dd><dt>Enrolled on</dt><dd>9 Oct 2026</dd><dt>Counsellor</dt><dd>Priya Sharma</dd><dt>University commission</dt><dd class="num">${inr(32220)} expected (18% of fee, GST-inclusive: net ${inr(27305)} + GST ${inr(4915)})</dd><dt>Counsellor owes</dt><dd class="num">${inr(35800)} (highest partner rate: UpGrad 20%)</dd></dl>${admin ? '<div class="row"><button class="btn primary" data-a="toast" data-v="Verified: commission realised, counsellor line confirmed">Verify</button><button class="btn ghost" data-a="toast" data-v="Sent back to Priya with a note">Send back</button></div>' : ''}</section>
+  <section class="card pad stack"><div class="row between"><h3>Proof: fee receipt</h3><span class="small muted">receipt-amity-55871.pdf</span></div><div style="border:1px dashed var(--line-strong);border-radius:8px;padding:18px;display:grid;gap:8px;font-size:13px;background:var(--surface)"><b>AMITY ONLINE · FEE RECEIPT</b><span class="mono">Receipt no. AO/26/55871</span><span>Student: Imran Qureshi · MBA (HR) · Batch Oct 2026</span><span class="mono">Amount received: ₹1,79,000.00</span><span class="mono">Date: 09-10-2026</span><span class="muted">Sample document</span></div></section></div>`;
+  if (t === 'coun') return head + `<div class="grid g4">${stat('Provisional', inr(141300))}${stat('Confirmed', inr(71600))}${stat('Due', inr(35280))}${stat('Settled (Sep run)', inr(105840))}</div><div class="table-wrap"><table><thead><tr><th>Enrolment</th><th>Counsellor</th><th>Rate source</th><th>Partners considered</th><th>Amount</th><th>Status</th></tr></thead><tbody>${[['Imran Qureshi · Amity MBA', 'Priya', 'Programme, highest', 'UpGrad 20% · Collegedunia 18%', 35800, 'Confirmed'], ['R. Saxena · Manipal MCA', 'Priya', 'University, highest (flagged)', 'Sunstone 15% (university-wide)', 23700, 'Provisional'], ['P. Menon · IIM K EP', 'Rohan', 'Needs rate', 'No partner for this university', null, 'Needs rate']].map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="small">${r[2]}</td><td class="small">${r[3]}</td><td class="num">${r[4] == null ? '—' : inr(r[4])}</td><td>${r[5] === 'Needs rate' ? '<span class="chip breach">Needs rate</span>' : `<span class="chip ${r[5] === 'Confirmed' ? 'ok' : 'risk'}">${r[5]}</span>`}</td></tr>`).join('')}</tbody></table></div><p class="note">The counsellor owes Eduwit the highest partner commission for the programme. Rates are read from the shared catalogue and snapshotted on each line. ${admin ? 'Monthly run: review, clawbacks, approve, CSV for finance, PDF statement per counsellor.' : 'Read-only for Marketing.'}</p>`;
+  if (t === 'uni') return head + `<div class="grid g3">${stat('Expected, Oct', inr(624800), 'Gross, GST-inclusive')}${stat('Realised, Oct', inr(212400))}${stat('Receivables over 60 days', inr(88500), '2 invoices', 'down')}</div><section class="card pad">${barsChart([['May', 210], ['Jun', 260], ['Jul', 340], ['Aug', 410], ['Sep', 520], ['Oct', 625, 'var(--amber)']], { h: 170 })}<p class="note">₹ thousands, expected commission by month; October in progress.</p></section>`;
+  if (t === 'inv') return head + `<div class="table-wrap"><table><thead><tr><th>Invoice</th><th>University</th><th>Enrolments</th><th>Amount</th><th>Status</th><th>Age</th></tr></thead><tbody>${[['EDW/26-27/014', 'Amity Online', 6, 193320, 'Paid (TDS ₹3,866)', '—'], ['EDW/26-27/015', 'NMIMS CDOE', 4, 141120, 'Sent', '18 days'], ['EDW/26-27/012', 'Jain Online', 3, 56100, 'Overdue', '64 days']].map(r => `<tr><td class="mono small">${r[0]}</td><td>${r[1]}</td><td class="num">${r[2]}</td><td class="num">${inr(r[3])}</td><td>${r[4].startsWith('Overdue') ? `<span class="chip breach">${r[4]}</span>` : r[4].startsWith('Paid') ? `<span class="chip ok">${r[4]}</span>` : `<span class="chip soft">${r[4]}</span>`}</td><td class="num">${r[5]}</td></tr>`).join('')}</tbody></table></div>`;
+  return head + programmesScreen('desk', true);
+}
+
+/* ---------- Analytics ---------- */
+function analytics(admin) {
+  return `<div class="hscroll">${(admin ? ['Admin overview', 'Nurture and re-engagement', 'Sales funnel', 'Fallback value', 'Team and capacity', 'Money and margin', 'Speed and effort', 'Quality'] : ['Nurture and re-engagement', 'Campaigns and journeys', 'Segments', 'Deliverability and WhatsApp cost', 'Sales funnel (read)', 'Lead sources', 'Money (read-only)']).map((d, i) => `<button class="pill" aria-pressed="${i === 0}">${d}</button>`).join('')}<button class="pill">+ My dashboard</button></div>
+  <section class="card pad stack"><div class="row">${ic('spark')}<input class="input grow" id="ask" value="Which lost sub-stage grew most this month?" aria-label="Ask a question about your data"><button class="btn primary sm" data-a="toast" data-v="Answer drawn as a chart; the query is shown and can be saved as a widget">Ask</button></div><p class="note">Claude answers from aggregated, permitted metrics only; every query is logged with its SQL. Daily spend cap ₹500.</p></section>
+  <div class="grid g-lead"><section class="card pad stack"><div class="row between"><h2>Re-engagement rate by pool reason</h2><span class="note">Last 30 days</span></div>${barsChart([['Over budget', 12], ['Uncontactable', 7], ['Not qualified', 10], ['Not now', 4], ['Can\'t afford', 9]], { h: 180, color: 'var(--primary)' })}<p class="note">% of pooled leads assigned to a counsellor after a trigger.</p></section>
+  <section class="card pad stack"><h2>This morning's insights</h2><div class="stack small" style="gap:10px"><div><b>"Can't afford fee or EMI" lost leads up 38%</b><div class="muted">Mostly MBA from Meta; 11 of 14 named EMI as the blocker.</div></div><div class="divider"></div><div><b>Re-engagement on "We tried to reach you" fell from 9% to 7%</b><div class="muted">After template reach_you_2 replaced reach_you_1 on 8 Oct.</div></div><div class="divider"></div><div><b>Rohan's connect rate dropped to 42%</b><div class="muted">Calls moved to 10:00–11:00; students answer more after 17:00.</div></div></div></section></div>`;
+}
+
+/* ---------- Connectors, settings, guide ---------- */
+function connectors(admin) {
+  const c = [['Google Workspace', 'Directory sync and Gmail for every @eduwit.in user (domain-wide delegation)', 'Connected', 'Last sync 11:05'], ['WhatsApp: Eduwit B2C number', '+91 90000 00099 · Meta Cloud API · quality High · tier 1K a day', 'Connected', '27 templates synced'], ['B2B CRM', 'Leads arrive in real time; B2C activity goes back every 15 minutes', 'Connected', 'Last hand-off 11:13 · last batch 11:15 (42 changes) · next 11:30'], ['Gmail sending allowance', 'connect@eduwit.in for marketing; system mail from crm@eduwit.in', 'Connected', '1,180 of 2,000 used today'], ['Anthropic (Claude)', 'Reply classification, briefs, analytics questions', 'Connected', 'Spend today ₹212 of ₹500'], ['Telephony', 'Exotel, MyOperator, Knowlarity or Ozonetel, later', 'Not connected', 'Phase 4']];
+  return `<div class="grid g2">${c.map(x => `<section class="card pad stack" style="gap:6px"><div class="row between"><h3>${x[0]}</h3><span class="chip ${x[2] === 'Connected' ? 'ok' : 'soft'}">${x[2]}</span></div><span class="small">${x[1]}</span><span class="note">${x[3]}</span>${admin && x[0] === 'B2B CRM' ? '<button class="btn ghost sm" style="justify-self:start" data-a="toast" data-v="Ping sent and verified both ways">Test connection</button>' : ''}</section>`).join('')}</div>${admin ? '' : '<p class="note">Organisation connectors are managed by the Admin. Your own: Gmail (connected through the company), notifications.</p>'}`;
+}
+function settings() {
+  const t = tabOf('set', 'stages');
+  const head = tabs('set', [['stages', 'Stages and sub-stages'], ['sla', 'SLAs'], ['msg', 'Messaging rules'], ['live', 'Live switches'], ['bin', 'Recycle Bin'], ['audit', 'Audit log']], 'stages');
+  if (t === 'stages') return head + `<div class="table-wrap"><table><thead><tr><th>#</th><th>Eduwit stage</th><th>Sub-stages</th><th>Canonical stage</th><th>Required to enter</th></tr></thead><tbody>${D.STAGES.map((s, i) => `<tr><td class="num">${i + 1}</td><td><b>${s.name}</b></td><td class="small">${s.subs.slice(0, 4).join(' · ')}${s.subs.length > 4 ? ` · +${s.subs.length - 4}` : ''}</td><td class="mono small">${s.canon}</td><td class="small">${['—', 'A logged call attempt', 'A logged call or reply', 'Course, qualification, timeline', 'A scheduled follow-up', 'A programme shared', 'Application ID', 'Checklist updated', 'Fee, date and proof', 'Sub-stage and comment'][i]}</td></tr>`).join('')}</tbody></table></div><p class="note">Renaming a stage never changes its canonical mapping unless you change it here. Every change is versioned.</p>`;
+  if (t === 'sla') return head + `<div class="table-wrap"><table><thead><tr><th>Lead</th><th>First contact within</th><th>Counted in</th></tr></thead><tbody><tr><td>Hot, and every duplicate cascade</td><td class="num">15 min</td><td>Working hours of the counsellor</td></tr><tr><td>Warm</td><td class="num">4 h</td><td>Working hours</td></tr><tr><td>Cold</td><td class="num">24 h</td><td>Working hours</td></tr></tbody></table></div>`;
+  if (t === 'live') return head + `<div class="list">${[['WhatsApp (B2C number)', 'Off: test leads only'], ['Email', 'Off: test leads only'], ['Reply classification by Claude', 'On']].map(x => `<div class="li"><span class="avatar">${ic('plug', 's')}</span><span class="t">${x[0]}</span><span class="chip ${x[1] === 'On' ? 'ok' : 'soft'}">${x[1]}</span></div>`).join('')}</div>`;
+  return head + `<p class="muted">Quiet hours 09:00–20:00 IST · 1 marketing WhatsApp a day, 6 per 30 days · 2 emails a day · reply confidence threshold 0.8.</p>`;
+}
+function guide(admin) {
+  const items = admin ? ['First-time setup, in order', 'Connect Google Workspace', 'Create accounts in Teams', 'Connect the WhatsApp number and the B2B CRM', 'Working calendars and allocation rules', 'Stages and sub-stages', 'Templates', 'Commission settings', 'Go live'] : ['Nurture', 'Segments', 'Templates and WhatsApp approval', 'Campaigns', 'Journeys', 'Consent and guardrails', 'Replies', 'Analytics'];
+  return `<div class="list">${items.map((g, i) => `<div class="li"><span class="avatar">${i < 2 ? ic('check', 's') : ic('book', 's')}</span><span class="t">${g}</span><span class="small muted">${i < 2 ? 'Read' : ''}</span></div>`).join('')}</div><p class="note">Each screen has a "?" that opens its page of the guide in a side panel. The Admin edits guides in the app.</p>`;
+}
+
+render();</script>
+</body>
+</html>

@@ -19,21 +19,26 @@ by the spec and this audit.
 
 ---
 
-## 1. Decisions needed before Phase 1 (conflicts found)
+## 1. Decisions (settled 14 October)
 
-The spec and what is already built disagree in six places. Each needs one answer from you; the B2B CRM's code is not
-changed from here (A3).
+Vikas decided the sync direction and the palette, and asked me to settle the rest by judgement. The B2B CRM's side is
+written up as `../../docs/B2B_CRM_ADDENDUM_4.md` (the modification prompt for the B2B CRM; contract version 4).
 
-| # | Conflict | Spec says | Already built (B2B contract v3) | My recommendation |
-| --- | --- | --- | --- | --- |
-| **K1** | **How the B2C CRM reads leads** | A3: "never keep a copy of lead records"; read `student_leads` through views and `SECURITY DEFINER` functions; B16: same Supabase project | §5: "the B2C CRM reads no `public.student_leads` and no `b2b.*` table"; it keeps its own copy, rebuilt from webhooks and the change feed `GET /v1/b2c/leads?after=` | **Read through a read-only view in the shared project** (`b2c.leads_v` over `student_leads`, exposing only the leads B2C holds, with the B2B allocation facts joined from a B2B-published view). No copy, nothing to drift, real-time by construction. Writes still go only through the B2B write API (B21 #11). This needs the B2B developer to amend contract §5 to allow a read view, and to publish `b2b.b2c_holds_v` (§5.2). Fallback if they refuse: the contract's cache, rebuilt from the feed, treated as a cache (never edited) |
-| **K2** | **Sync speed** | B21 #11: events both ways within 2 seconds, always | Contract "Sync cadence": real time while testing; **every 15 minutes in production** once the Admin switches it; B2C asked to batch its writes every 15 minutes | Keep the B2C link in **Real time** permanently (a B2B Admin setting, no code change), and send B2C writes immediately (they apply at once on the B2B side). The cost is one Vercel call per change on the B2B side; at your volume that is small |
-| **K3** | **Hand-off reasons and assignment** | B4.1 lists 11 reasons; every sales-lane lead is assigned now | v3 adds `partner_barred`, `partner_attempts_exhausted`, `b2c_held`, `rule`, `test_handoff`, `consent_no_answer`, a `cause`, and `handling.assignment` (`round_robin_now`, `counsellor_choice`, `previous_counsellor`, `unassigned`, `unassigned_until_interest`) | Follow the spec: **every sales-lane hand-off goes through the allocation engine (B7) at once**; `handling.assignment` becomes an input to the rule conditions (e.g. "duplicate cascade → senior pool"). `previous_counsellor` maps to the "Returning student" logic for `manual_route_failed`. `consent_no_answer` joins `not_qualified` as qualification nurture |
-| **K4** | **Partner-sharing consent requests** | Not mentioned; B4.1 says the qualification journey collects "partner-sharing consent" | v3 §1.3: B2B sends `b2c.consent_requested`; B2C must send the one-tap template from the B2C number, report the send and the answer (`b2ccrm.consent_request_sent`, `b2ccrm.partner_consent` with the student's `message_id`). **Routing cannot go live until B2C subscribes to it** | Build it in Phase 1 (it gates B2B go-live): template `wa_partner_consent_v1` with YES/NO buttons, answer capture, report |
-| **K5** | **Hosting** | B16: Google Cloud Run, asia-south1, separate staging and production | B2B runs on Vercel (`bom1`); B2B's design D14 says Cloud Run "costs money, so I'll ask first" | **Your call.** Cloud Run (a few dollars a month at this volume, plus a worker) matches the spec and suits a long-running queue worker; Vercel matches B2B and needs `pg_cron` + `pg_net` ticks instead of a worker. I recommend Cloud Run as specified |
-| **K6** | **New leads made in B2C** | B4.3: through `lead_intake()` with `source_system = 'crm'`, `lead_source = 'b2c_created'` | §3.6: through the B2B Intake API `POST /v1/leads` (scope `intake`); A3 also says every write goes through B2B | **Use the Intake API.** `lead_intake()` is never called from B2C. Verified on staging: `lead_intake` is not executable by `authenticated`, so the B2C app could not call it directly anyway |
-
----
+| # | Point | Decision | Why |
+| --- | --- | --- | --- |
+| **K1** | How B2C reads leads | **The contract's model.** B2B pushes each record in real time; B2C keeps it as a **read-only cache** (`b2c.lead_records`: id, version, record), never edited locally, overwritten by every higher version, rebuildable from the feed. `student_leads` stays the master. B2C's own pipeline state lives in `b2c` tables. Witty transcripts and the `catalog` views are read in the same project through B2C's own functions | Matches Vikas's rule that B2B sends leads to B2C in real time, needs no change to the read side of the built contract, and keeps B2C off `student_leads`. The spec's "no copy" concern (a second editable master that drifts) does not arise: the cache is read-only and versioned |
+| **K2** | Sync speed | **B2B → B2C real time; B2C → B2B one batch every 15 minutes** (Vikas). The batch carries assignments, stages, field and cross-sell changes, calls, messages, notes, applications, enrolments and scores, merged to one update per lead. **Sent at once:** consent request sent, consent answer, opt-out, erasure request, route-to-partners, and new students (Intake API) | Those six would break a rule if delayed (the 48-hour consent clock, opt-out "at once" in A3, the Admin waiting on a routing answer, a counsellor waiting for a new lead's id). Consequences: `student_leads` and the B2B Master Lead Table trail the B2C CRM by up to 15 minutes; a nurture lead a counsellor qualifies returns to partner routing within about 16 minutes |
+| **K3** | Hand-off reasons | Every sales-lane hand-off goes through the B2C allocation engine at once; `handling` and `reason` are rule conditions; `manual_route_failed` returns to the previous counsellor; `consent_no_answer` is qualification nurture | Spec B7, with contract v3's extra reasons covered |
+| **K4** | Partner-consent requests | Built in Phase 1 (template `wa_partner_consent_v1`, YES/NO buttons, send and answer reported at once) | B2B routing cannot go live without it |
+| **K5** | Hosting | **Vercel** (`bom1`), like the B2B CRM; timers and queues in Postgres (`pg_cron`, `pgmq`) calling the app's internal endpoints, the pattern B2B already runs | No new paid infrastructure (B2B D14); the 15-minute batch and the jobs fit in serverless functions. Cloud Run stays an option if a long-running worker is ever needed |
+| **K6** | New students | Through the B2B Intake API, never `lead_intake()` directly | A3: every write goes through B2B |
+| K7 | Database | Shared Supabase project, schema `b2c` (spec B16); development on the staging project or a branch | Spec |
+| K8 | Repository | `b2c-crm/` in this repository, deployed separately from `b2b-crm/` | One place for both CRMs and their contract; can move to its own repository at any time |
+| K9 | Old B2C tables | Moved into `b2c` (or retired) only at cut-over, when the old CRM is switched off | §3: the old CRM reads them by name |
+| K10 | Re-engagement | Decided by the B2C CRM on its own triggers (B6.3); B2B's `reactivation` flag is a hint | B2C computes the score and sees the replies |
+| K11 | Roles | Admin, Marketing, Counsellor, Sales head (off). Old `finance`, `revenue`, `viewer` are retired; money actions are Admin-only | Spec B3.1 |
+| K12 | Palette | Sampled navy and amber, plus a red and a green for status only; no black in light mode (`brand/palette.md`) | Vikas: best judgement, no black except in dark mode |
+| K13 | Production counts | Not run (your hard limit: staging only). The read-only queries are in §7 for you to run | |
 
 ## 2. Inventory of existing objects, with verdicts
 
@@ -53,15 +58,15 @@ Row counts are staging's (synthetic). On production the spec (A4) says almost ev
 | `crm_activities`, `crm_tasks` | **refactor → move to `b2c`** | Timeline and tasks (B14 keeps them). Change the FK to `student_leads` from **ON DELETE CASCADE to RESTRICT** (audit rows must outlive a delete). Add `kind`s for follow-up types, reminder and escalation columns |
 | `calls` | **refactor → move to `b2c`** | Add `provider = 'manual'`, `tapped_at`, `logged_at`, approximate duration (B8.4). CASCADE → RESTRICT |
 | `message_templates` | **refactor → move to `b2c`** | Add `audience` (marketing, sales), `usable_by_sales`, Meta `category`, `status`, language variants, buttons, versions. Sales **email** templates get their own table (`b2c.sales_email_templates`, fork-on-edit) |
-| `segments`, `segment_members`, `campaigns`, `campaign_sends` | **refactor → move to `b2c`** | Rules read `b2c.leads_v` (K1). `campaign_sends` gains reply class, re-engagement, cost. CASCADE → RESTRICT on `student_leads` |
+| `segments`, `segment_members`, `campaigns`, `campaign_sends` | **refactor → move to `b2c`** | Rules read `b2c.leads_v`. `campaign_sends` gains reply class, re-engagement, cost. CASCADE → RESTRICT on `student_leads` |
 | `journeys`, `journey_runs` | **refactor → move to `b2c`** | Add versions, `lane`/trigger reason, test mode, exits (`requalified`, `routed_to_partner`, `assigned`, `opted_out`, `dormant`). The **6 starter journeys** on production are reviewed in §4.6 |
 | `payout_rates`, `payouts`, `payout_runs` | **refactor → `b2c.commission_lines` + runs** | They model a payout *to* the counsellor; the rule is now a commission *owed to* Eduwit at the highest partner rate (B11.2). New lines go to `b2c.commission_lines`; keep the old tables empty and drop them later with your yes. `payouts.enrollment_id` → `b2c.enrollments` |
 | `crm_university_settings` | **refactor → `b2c.university_settings`** | Refund window, invoicing details |
 | `enrollments`, `earnings`, `earning_rates`, `invoices` (public) | **not ours** | Empty legacy tables. B2B built its own `b2b.earnings`, `b2b.invoices`, `b2b.receipts`; B2B design D9 keeps `public.enrollments` as a shared outcome table. B2C creates `b2c.enrollments`, `b2c.earnings`, `b2c.university_rates`, `b2c.invoices`, `b2c.receipts` (B14) and never writes these. Who drops the public ones is a B2B decision |
 | `crm_notifications`, `crm_alerts`, `crm_saved_views`, `crm_api_keys` | **refactor → `b2c`** | Notifications gain push; saved views become `b2c.saved_views` (filters, columns, layout, standard, default, shared with role). API keys: B2C needs none inbound except webhook secrets (Vault) |
 | `verifications` | **not ours** | Website agent's OTP. Stays where it is |
-| `crm_leads_v` | **refactor → `b2c.leads_v`** | Becomes the K1 read view, filtered to B2C-held leads and role |
-| `student_leads`, `student_leads_v`, `touchpoints` | **not ours (shared)** | Read through `b2c.leads_v` (K1). Never written by B2C (A3) |
+| `crm_leads_v` | **not used** | Replaced by `b2c.leads_v` over the record cache (K1) |
+| `student_leads`, `student_leads_v`, `touchpoints` | **not ours (shared)** | Never read or written by B2C directly; records arrive from B2B (K1) |
 | `catalog_programs`, `catalog_universities`, `catalog_synonyms`, `catalog_stage`, `course_directory` | **not ours** | Read through the `catalog` views the B2B CRM publishes (§5.3). Staging holds 3 programmes and 1 university; production 715 and 29 (A4) |
 | `w2_*` (25 tables, 2 views), `n8n_chat_histories`, `conversation_locks`, `processed_whatsapp_messages`, `eduwit_knowledge_base` | **not ours** | Witty's. B2C reads `w2_messages` (transcripts) through a read-only `SECURITY DEFINER` function, never directly by a role grant, and never writes (A3) |
 | `allocations`, `engine_decisions`, `partner_events`, `partner_mapping_profiles`, `routing_rules`, `partners_v` (public) | **not ours** | Old combined-engine tables; B2B has its own in `b2b`. B2C reads none |
@@ -149,8 +154,8 @@ tested with pgTAP inside `begin … rollback`, and promoted only with your appro
 | # | Block | Tables and functions |
 | --- | --- | --- |
 | C1 | Access | `b2c.me()`, `b2c.can()`, `crm_users` columns, `b2c.trusted_devices`, `b2c.email_codes` (hashed, 10 min, 5 tries), `b2c.sign_in_log`, `b2c.audit_log` |
-| C2 | Read model | `b2c.leads_v` (K1), `b2c.leads_state` (lane, reason, hand-off event, pool dates, re-engagement, `eduwit_stage`, `eduwit_sub_stage`, `stage_comment`, dormant, closed), `b2c.lead_contacts` (intake rows locked by trigger; one primary per kind), `b2c.field_history` |
-| C3 | Contract plumbing | `b2c.handoff_inbox` (raw, unique event id), `b2c.outbox` (every B2B write and event, idempotency key, attempts, answer), `b2c.sync_cursors` |
+| C2 | Read model | `b2c.lead_records` (the read-only cache, K1), `b2c.leads_v`, `b2c.leads_state` (lane, reason, hand-off event, pool dates, re-engagement, `eduwit_stage`, `eduwit_sub_stage`, `stage_comment`, dormant, closed), `b2c.lead_contacts` (intake rows locked by trigger; one primary per kind), `b2c.field_history` |
+| C3 | Contract plumbing | `b2c.handoff_inbox` (raw, unique event id), `b2c.outbox` (every B2B write: merged per lead into the 15-minute batch, or sent at once for the six urgent kinds; idempotency key, attempts, answer), `b2c.sync_cursors` |
 | C4 | Stages | `b2c.stage_definitions`, `b2c.sub_stage_definitions` (seeded from B5.1, canonical mapping, required fields, lost journey and delay), `b2c.set_stage()` |
 | C5 | Allocation | `b2c.work_schedules`, `b2c.shift_rosters`, `b2c.holidays`, `b2c.leaves`, `b2c.allocation_rules`, `b2c.allocation_pools`, `b2c.allocation_decisions`, `b2c.assignments`, `b2c.allocate()`, `b2c.working_now()`, `b2c.simulate()` |
 | C6 | Work | `b2c.tasks` (from `crm_tasks`), `b2c.activities`, `b2c.calls`, `b2c.sla_clocks`, `b2c.saved_views`, `b2c.notifications` |
@@ -180,12 +185,13 @@ The Eduwit stage, sub-stage and comment are written as `sub_stage` (≤ 80 chara
 `custom_fields.b2c_stage`, `custom_fields.b2c_sub_stage` and `custom_fields.b2c_stage_comment` until B2B adds proper
 fields (§5.1 gap G3).
 
-### 4.4 Lead read path (K1, recommended)
+### 4.4 Lead read path (K1)
 
-`b2c.leads_v` = `student_leads` rows whose open B2B allocation is `in_house` (from `b2b.b2c_holds_v`), joined to
-`b2c.leads_state`, with the allocation facts B2C must show (lane, reason, cause, partner bar, already-with-providers,
-handling, consent state). Granted to the B2C app's role; RLS-equivalent filtering by role inside the view's
-`SECURITY DEFINER` function (`b2c.leads_for_me()`), because RLS on `student_leads` must not change (A3).
+`b2c.lead_records` holds the latest record B2B pushed for each lead B2C can see (`id`, `version`, `seq`, `record jsonb`,
+`held_by_b2c`, `received_at`), written only by `b2c.apply_record()` when the version is higher. `b2c.leads_v` joins it to
+`b2c.leads_state` and exposes typed columns (name, phone, course, stage, lane, reason, partner bar, consent state, …)
+for screens, segments and allocation rules; `b2c.leads_for_me()` filters by role. B2C's own pending changes (not yet in
+the 15-minute batch) are overlaid from `b2c.outbox`, so a counsellor always sees their own latest edit.
 
 ### 4.5 The 6 starter journeys (production)
 
@@ -213,7 +219,7 @@ specialization, university, level, mode, field of interest, timeline, budget, co
 contact timestamps and attempts, next task due), application, enrolment (incl. expected and realised net revenue), lost,
 `custom_fields`.
 
-**Gaps:**
+**Gaps** (all requested in `../../docs/B2B_CRM_ADDENDUM_4.md`):
 
 | # | Needed by the spec | Today | Ask |
 | --- | --- | --- | --- |
@@ -223,15 +229,12 @@ contact timestamps and attempts, next task due), application, enrolment (incl. e
 | G4 | Marketing consent and opt-out per channel, recorded by B2C (B9.6) | Consent is B2B-only; `b2ccrm.opted_out` exists (all channels) | A signed `b2ccrm.marketing_consent` event (channel, text, source, time) and channel-level opt-out |
 | G5 | Extra contact numbers and emails (B8.3) | Only `alternate_phone`, read-only for B2C | Accept `b2ccrm.contact_added` (kind, value, label, primary) so B2B's duplicate check sees them; originals stay B2B/Admin-only |
 | G6 | `b2ccrm.lead_updated`, `b2ccrm.commission_booked` (B17) | Unknown types are stored and ignored | Either accept them, or agree that field changes travel as `PATCH` (B2B emits its own events) and drop these two names from the spec. I recommend the latter |
-| G7 | Real-time both ways (K2) | 15-minute production cadence available | Keep the B2C link in Real time |
+| G7 | B2B → B2C real time, B2C → B2B every 15 minutes (K2) | B2B offers a 15-minute delivery mode | Lock B2B → B2C to real time; accept the 15-minute batch with `occurred_at`, order-safe contact roll-ups, and no echo webhooks |
 
-### 5.2 Reads (K1)
+### 5.2 Reads
 
-| # | Ask |
-| --- | --- |
-| R1 | Amend contract §5 to allow a read-only view, or confirm the copy-from-feed model |
-| R2 | Publish `b2b.b2c_holds_v` (lead id, allocation id, lane, reason, cause, hold, handling, partner bar, already-with-providers, consent state and request, interests tried, lost details), `security_invoker` off, granted to the B2C role only |
-| R3 | A read function for a lead's partner history (calls, last outcome, raw status) for the "Lost by partner" timeline (B6.4) |
+No change to the read model (K1). Two small additions, in Addendum 4 §5: a lookup answer that names the partner holding
+a student outside B2C's scope, and a partner-history read for partner-lost leads.
 
 ### 5.3 Shared `catalog` schema (B8.9, B11.2, B21 #3)
 
@@ -343,26 +346,16 @@ consent capture by Witty, the website agent and every form is a Witty/website ch
 
 ---
 
-## 10. Open questions for you
+## 10. Still open
 
-1. **K1** read path: a read-only view in the shared project (recommended) or the contract's copy?
-2. **K2** keep the B2C link in Real time permanently?
-3. **K5** Cloud Run (spec) or Vercel?
-4. A separate repository `eduwit-b2c-crm` now, or keep `b2c-crm/` here until Phase 1?
-5. Moving the old B2C tables into `b2c`: only at cut-over (recommended), or in Phase 1?
-6. May I run the read-only production counts in §7 and §9 (no writes)?
-7. The B2B asks in §5 (G1–G7, R1–R3, catalog views): will you pass them to the B2B developer, or should I draft them as an
-   addendum to `docs/b2c-contract.md` for their review?
-8. Witty: the interest signal (§6) and "keep talking until a counsellor is assigned" both need Witty's developer.
-9. Marketing consent capture on Witty, the website agent and forms: who, and by when?
-10. Retired roles (`revenue`, `finance`, `viewer`): fold `finance` into Admin (money actions are Admin-only in the spec)?
-11. Still open from B21: rows 1, 2 (a–d), 5, 7, 8, 10, 13, 16 as listed there; the defaults in B20 apply until you answer.
-12. Status colours: the logo has only navy and amber, so the palette has no red or green (see `brand/palette.md`).
-
----
+1. Production counts in §7 and §9 (read-only; for you to run, or allow me to).
+2. The B2B changes in `../../docs/B2B_CRM_ADDENDUM_4.md`: hand to the B2B CRM's Claude Code session.
+3. Witty: the interest signal and "keep talking until a counsellor is assigned" (§6) need Witty's developer.
+4. Marketing-consent capture on Witty, the website agent and forms: who, and by when.
+5. From B21: rows 1, 2 (a–d), 5, 7, 8, 10, 13, 16; the B20 defaults apply until you answer.
 
 ## 11. Next step
 
-The brand palette is proposed in `brand/palette.md` and waits for your confirmation. Once confirmed I build the clickable
-design of the three interfaces (Sales app at phone and desktop widths, Marketing workspace, Admin console) on sample data,
-then stop for your review. No migration and no database change until you approve.
+The clickable design of the three interfaces is in `../design/` (`prototype.html`, sample data only). After your review
+of this audit, the palette, Addendum 4 and the design, Phase 1 starts with its plan. No migration and no database change
+until you approve.

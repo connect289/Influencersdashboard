@@ -1,4 +1,7 @@
-# Eduwit B2C CRM: brand palette (proposed, awaiting Vikas's confirmation)
+# Eduwit B2C CRM: brand palette
+
+Status: **settled 14 October** (Vikas: "use the best palette as per your judgement; no black except in dark mode").
+Chosen: the sampled navy and amber, plus option B (a red and a green for status only).
 
 ## Source
 
@@ -84,4 +87,10 @@ Under option B, red and green appear only on status chips, timers, toasts and de
 so the product still looks navy and amber. Every status also carries an icon and a word, so it never depends on colour
 alone (WCAG 1.4.1).
 
-Please confirm: the sampled navy and amber (or the B2B values), and option A or B.
+**Chosen: option B.** The spec needs a red SLA breach, and red and green on status chips only keep the product navy and amber.
+
+## No black in light mode
+
+Light mode uses no black and no grey made from black: the darkest colour is the navy text `#052244`, borders and
+muted text are navy tints, and shadows (where used at all) are navy at low opacity. Only dark mode, which a user turns
+on, uses the navy-black ground `#020D19`.
