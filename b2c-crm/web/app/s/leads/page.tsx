@@ -16,32 +16,34 @@ export const metadata: Metadata = { title: "Leads" };
 const PAGE = 50;
 
 /** My leads (spec B8.4): saved views as pills, search by name, any phone, email or application ID. */
-export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ v?: string; q?: string; page?: string }> }) {
+export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ v?: string; q?: string; page?: string; drill?: string; dl?: string }> }) {
   const me = await requireUser("sales", "/s/leads");
   const sp = await searchParams;
   const [views, { stages }] = await Promise.all([viewsFor("sales"), stagesAndSubs()]);
   const view = views.find((v) => String(v.id) === sp.v) ?? views.find((v) => v.name === "Due now") ?? views[0];
   const page = Math.max(0, Number(sp.page ?? 0) || 0);
+  const drill = sp.drill && /^[0-9a-f-]{36}$/i.test(sp.drill) ? sp.drill : undefined;
   let res: { total: number; rows: LeadRow[] };
   try {
-    res = await rpc("lead_list", { p: { filters: sp.q ? {} : view?.filters ?? {}, sort: view?.sort, search: sp.q ?? "", limit: PAGE, offset: page * PAGE } });
+    res = await rpc("lead_list", { p: { filters: sp.q || drill ? {} : view?.filters ?? {}, sort: view?.sort, search: sp.q ?? "", limit: PAGE, offset: page * PAGE, drill } });
   } catch (e) {
     return <Page title="Leads"><SetupError error={e} /></Page>;
   }
   const link = (o: Record<string, string | number | undefined>) => {
     const q = new URLSearchParams();
-    for (const [k, v] of Object.entries({ v: view ? String(view.id) : undefined, q: sp.q, ...o })) if (v !== undefined && v !== "") q.set(k, String(v));
+    for (const [k, v] of Object.entries({ v: view && !drill ? String(view.id) : undefined, q: sp.q, drill, dl: drill ? sp.dl : undefined, ...o })) if (v !== undefined && v !== "") q.set(k, String(v));
     return `/s/leads?${q}`;
   };
   return (
-    <Page title="Leads" sub={`${res.total} ${sp.q ? "found" : view?.name ?? ""}`} actions={<NewLeadButton />}>
+    <Page title="Leads" sub={`${res.total} ${sp.q ? "found" : drill ? `behind “${(sp.dl ?? "a number").slice(0, 80)}”` : view?.name ?? ""}`} actions={<NewLeadButton />}>
+      {drill && <div className="banner info"><div className="grow">These are the {res.total} leads behind the number you opened in Analytics.</div><Link className="btn ghost sm" href="/s/leads">All my leads</Link></div>}
       <form className="search" action="/s/leads" role="search">
         <Search className="icon s" aria-hidden />
         <input name="q" defaultValue={sp.q ?? ""} placeholder="Name, any phone, email, application ID" aria-label="Search leads" />
       </form>
       <div className="hscroll" role="tablist" aria-label="Views">
         {views.map((v) => (
-          <Link key={v.id} className="pill" href={`/s/leads?v=${v.id}`} aria-pressed={!sp.q && view?.id === v.id} style={{ textDecoration: "none", color: "inherit" }}>
+          <Link key={v.id} className="pill" href={`/s/leads?v=${v.id}`} aria-pressed={!sp.q && !drill && view?.id === v.id} style={{ textDecoration: "none", color: "inherit" }}>
             {v.name}
           </Link>
         ))}

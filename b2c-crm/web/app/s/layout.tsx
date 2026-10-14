@@ -19,6 +19,9 @@ export default async function SalesLayout({ children }: { children: React.ReactN
     { href: "/s/followups", label: "Follow-ups", icon: "followups", phone: true, count: urgent || undefined },
     { href: "/s/inbox", label: "Inbox", icon: "inbox", phone: true },
     { href: "/s/programmes", label: "Programmes", icon: "programmes" },
+    { href: "/s/money", label: "My money", icon: "money" },
+    { href: "/s/analytics", label: "Analytics", icon: "analytics" },
+    ...(me.role === "sales_head" || me.role === "admin" ? [{ href: "/s/team", label: "My team", icon: "team" } as NavItem] : []),
     { href: "/s/me", label: "Me", icon: "me", phone: true },
   ];
   return (

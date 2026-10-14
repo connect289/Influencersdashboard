@@ -14,10 +14,13 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     { href: "/w/allocation", label: "Lead Allocation", icon: "allocation", group: "Sales", phone: admin },
     { href: "/w/teams", label: "Teams", icon: "teams", group: "Sales" },
     { href: "/w/enrollments", label: "Enrolments", icon: "enrollments", group: "Sales", phone: true },
+    { href: "/w/team", label: "Team performance", icon: "team", group: "Sales" },
     ...(admin || me.role === "marketing" ? [
       { href: "/w/nurture", label: "Nurture", icon: "nurture", group: "Marketing", phone: me.role === "marketing" } as NavItem,
       { href: "/w/templates", label: "Templates", icon: "templates", group: "Marketing" } as NavItem,
     ] : []),
+    { href: "/w/analytics", label: "Analytics", icon: "analytics", group: "Numbers" },
+    { href: "/w/money", label: "Money", icon: "money", group: "Numbers" },
     { href: "/w/connectors", label: "Connectors", icon: "connectors", group: "Company" },
     ...(admin ? [{ href: "/w/settings", label: "Settings", icon: "settings", group: "Company" } as NavItem] : []),
     { href: "/w/guide", label: "Guide", icon: "guide", group: "Company", phone: true },

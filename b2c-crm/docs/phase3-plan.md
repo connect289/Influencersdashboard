@@ -113,3 +113,22 @@ Unit tests cover:
    amount is collected (deduction, invoice or payment) stays your decision.
 6. **The Anthropic API key** (the same one as Phase 2) and a **daily AI spend cap**. The default is ₹500 a day across
    brief, Ask and insights.
+
+## As built (14 Oct 2026)
+
+Built as planned, with these differences:
+
+- Dashboards keep their widgets as a JSON list on `b2c.dashboards` (no separate widgets table). Facts are one table,
+  `fact_leads`; daily counts are computed from `b2c.events` and the facts at query time.
+- The drill-down is `analytics_drill(spec, metric, cell)`: it saves the lead IDs behind a number for the person and the
+  Leads page opens them with `?drill=<id>`; `lead_list` reads that list and still applies the person's scope.
+- b24 was added: the corrected per-token prices for the AI cost log (Sonnet 5.5 $2/$10, Opus 5.5 $4/$20, Haiku 5.5
+  $0.10/$0.50, Haiku 4.5 $1/$5 per million tokens), `ai_call_attach` (records the spec and SQL of an Ask),
+  `money_universities` and `money_rules` for the Money page, and 9 guide articles.
+- Approving a commission run settles its lines (there is no separate "mark settled" step); hold back a doubtful line
+  before approving.
+- The money ledger's delete guards are in `supabase/manual/staging_phase3_ledger_guards.sql`, to be run by hand on
+  staging (the automated apply path cannot send them).
+- Exit test: `supabase/tests/test_phase3.sql`, 91 checks, run on a local database built from the migrations (it books
+  money for test universities and rolls back). Phase 1 (99) and Phase 2 (45) still pass. App: typecheck, 79 unit tests
+  (including every chart type and the commission line showing each partner and the rate) and the production build.

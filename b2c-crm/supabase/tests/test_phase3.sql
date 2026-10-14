@@ -432,7 +432,7 @@ do $x$
 declare j jsonb;
 begin
   perform b2c.ai_log('{"purpose": "ask", "model": "claude-sonnet-5-5", "input_tokens": 1000, "output_tokens": 1000, "question": "Which lost sub-stage grew most?"}');
-  insert into r (name, ok, detail) values ('ai_cost_logged', (select cost_inr from b2c.ai_calls order by id desc limit 1) = 1.53, (select cost_inr::text from b2c.ai_calls order by id desc limit 1));
+  insert into r (name, ok, detail) values ('ai_cost_logged', (select cost_inr from b2c.ai_calls order by id desc limit 1) = 1.02, (select cost_inr::text from b2c.ai_calls order by id desc limit 1));
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000d002');
   insert into r (name, ok, detail) values ('ai_budget_allows', (b2c.ai_budget('ask') ->> 'allowed')::boolean, null);
   perform pg_temp.as_system();
@@ -498,6 +498,24 @@ select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege
   from unnest(array['b2c.earning_book(bigint,text)', 'b2c.commission_book(bigint,text)', 'b2c.partner_rates_for(bigint)', 'b2c.money_tick()', 'b2c.analytics_exec(uuid,text,jsonb)',
     'b2c.analytics_run_for(uuid,jsonb)', 'b2c.facts_refresh(integer)', 'b2c.brief_input(bigint)', 'b2c.brief_save(jsonb)', 'b2c.ai_log(jsonb)', 'b2c.schedules_take(integer)',
     'b2c.alerts_tick()', 'b2c.scrub_pii(text,text[])', 'b2c.insights_save(jsonb)']) f;
+do $x$
+declare j jsonb; ok_sales boolean := false;
+begin
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000d001');
+  j := b2c.money_universities();
+  insert into r (name, ok, detail) values ('money_universities', jsonb_array_length(j) >= 2 and exists (select 1 from jsonb_array_elements(j) x where x ->> 'name' = 'Jain Online' and x -> 'rate' ->> 'rate_type' = 'tiered'), left(j::text, 300));
+  j := b2c.money_rules();
+  insert into r (name, ok, detail) values ('money_rules', jsonb_typeof(j -> 'overrides') = 'array' and jsonb_array_length(j -> 'counsellors') >= 2, left(j::text, 300));
+  perform b2c.ai_log('{"purpose": "ask", "model": "claude-sonnet-5-5", "input_tokens": 10, "output_tokens": 10}');
+  perform pg_temp.as_system();
+  perform b2c.ai_call_attach((select max(id) from b2c.ai_calls), '{"metrics": ["leads_new"]}', '{"text": "select 1"}');
+  insert into r (name, ok, detail) values ('ai_call_attach', (select spec ->> 'metrics' from b2c.ai_calls order by id desc limit 1) is not null, null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000d002');
+  begin perform b2c.money_universities(); exception when others then ok_sales := true; end;
+  insert into r (name, ok, detail) values ('money_universities_not_sales', ok_sales, null);
+  insert into r (name, ok, detail) values ('ai_attach_not_authenticated', not has_function_privilege('authenticated', 'b2c.ai_call_attach(bigint,jsonb,jsonb)', 'execute'), null);
+end $x$;
+
 insert into r (name, ok, detail)
 select 'nothing_for_anon', not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'b2c' and has_function_privilege('anon', p.oid, 'execute')), null;
 

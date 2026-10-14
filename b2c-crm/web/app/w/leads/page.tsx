@@ -16,11 +16,12 @@ export const metadata: Metadata = { title: "Leads" };
 const PAGE = 100;
 
 /** Every B2C lead (spec B12.2): standard views, search, bulk tools, the Recycle bin. Marketing reads; the Admin acts. */
-export default async function WorkspaceLeads({ searchParams }: { searchParams: Promise<{ v?: string; q?: string; page?: string; bin?: string; test?: string }> }) {
+export default async function WorkspaceLeads({ searchParams }: { searchParams: Promise<{ v?: string; q?: string; page?: string; bin?: string; test?: string; drill?: string; dl?: string }> }) {
   const me = await requireUser("workspace", "/w/leads");
   const sp = await searchParams;
   const admin = me.role === "admin";
   const bin = sp.bin === "1" && admin;
+  const drill = sp.drill && /^[0-9a-f-]{36}$/i.test(sp.drill) ? sp.drill : undefined;
   const [views, { stages }] = await Promise.all([viewsFor("workspace"), stagesAndSubs()]);
   const view = bin ? undefined : views.find((v) => String(v.id) === sp.v) ?? views[0];
   const page = Math.max(0, Number(sp.page ?? 0) || 0);
@@ -29,8 +30,8 @@ export default async function WorkspaceLeads({ searchParams }: { searchParams: P
   try {
     [res, members] = await Promise.all([
       rpc<{ total: number; rows: LeadRow[] }>("lead_list", {
-        p: { filters: sp.q ? {} : view?.filters ?? {}, sort: view?.sort ?? { field: "updated_at", dir: "desc" }, search: sp.q ?? "", limit: PAGE, offset: page * PAGE,
-             deleted: bin, include_test: sp.test === "1" },
+        p: { filters: sp.q || drill ? {} : view?.filters ?? {}, sort: view?.sort ?? { field: "updated_at", dir: "desc" }, search: sp.q ?? "", limit: PAGE, offset: page * PAGE,
+             deleted: bin, include_test: drill ? undefined : sp.test === "1", drill },
       }),
       admin ? team() : Promise.resolve([]),
     ]);
@@ -40,12 +41,13 @@ export default async function WorkspaceLeads({ searchParams }: { searchParams: P
   const people = assignable(members);
   const qs = (o: Record<string, string | number | undefined>) => {
     const q = new URLSearchParams();
-    for (const [k, v] of Object.entries({ v: view ? String(view.id) : undefined, q: sp.q, bin: bin ? "1" : undefined, test: sp.test, ...o })) if (v !== undefined && v !== "") q.set(k, String(v));
+    for (const [k, v] of Object.entries({ v: view && !drill ? String(view.id) : undefined, q: sp.q, bin: bin ? "1" : undefined, test: sp.test, drill, dl: drill ? sp.dl : undefined, ...o })) if (v !== undefined && v !== "") q.set(k, String(v));
     return `/w/leads?${q}`;
   };
   return (
-    <Page title={bin ? "Recycle bin" : "Leads"} sub={`${res.total} ${bin ? "deleted in the last 30 days can be restored" : view?.name ?? ""}`}
+    <Page title={bin ? "Recycle bin" : "Leads"} sub={`${res.total} ${bin ? "deleted in the last 30 days can be restored" : drill ? `behind “${(sp.dl ?? "a number").slice(0, 80)}”` : view?.name ?? ""}`}
       actions={!admin ? <span className="readonly-flag"><Eye className="icon s" aria-hidden />Read-only for Marketing</span> : undefined}>
+      {drill && <div className="banner info"><div className="grow">These are the {res.total} leads behind the number you opened in Analytics.</div><Link className="btn ghost sm" href="/w/leads">All leads</Link></div>}
       <form className="row wrap" action="/w/leads" role="search">
         <label className="search grow"><Search className="icon s" aria-hidden /><input name="q" defaultValue={sp.q ?? ""} placeholder="Name, any phone, email, application ID" aria-label="Search all leads" /></label>
         {admin && <label className="checkbox"><input type="checkbox" name="test" value="1" defaultChecked={sp.test === "1"} /> Include test leads</label>}
@@ -53,7 +55,7 @@ export default async function WorkspaceLeads({ searchParams }: { searchParams: P
       </form>
       <div className="hscroll">
         {views.map((v) => (
-          <Link key={v.id} className="pill" href={`/w/leads?v=${v.id}`} aria-pressed={!bin && !sp.q && view?.id === v.id} style={{ color: "inherit", textDecoration: "none" }}>{v.name}</Link>
+          <Link key={v.id} className="pill" href={`/w/leads?v=${v.id}`} aria-pressed={!bin && !sp.q && !drill && view?.id === v.id} style={{ color: "inherit", textDecoration: "none" }}>{v.name}</Link>
         ))}
         {admin && <Link className="pill" href="/w/leads?bin=1" aria-pressed={bin} style={{ color: "inherit", textDecoration: "none" }}>Recycle bin</Link>}
       </div>

@@ -1,4 +1,5 @@
 import "server-only";
+import { ZodError } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -32,6 +33,7 @@ export async function act<T>(run: () => Promise<T>, notice?: string): Promise<Ac
 }
 
 export function friendly(e: unknown): string {
+  if (e instanceof ZodError) return e.issues[0]?.message ?? "Check what you entered.";
   const msg = e instanceof Error ? e.message : String(e);
   if (/not allowed|permission denied|42501/i.test(msg)) return "You are not allowed to do that.";
   if (/PGRST106/.test(msg)) return "The app cannot reach its data yet (the b2c schema is not exposed).";

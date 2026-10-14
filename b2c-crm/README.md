@@ -2,8 +2,9 @@
 
 In-house sales and nurture CRM for Eduwit Learning Services. Spec: `docs/B2C_CRM_PROMPT.md` (final, 14 Oct 2026).
 
-Status: **Phase 1** ("Sell") and **Phase 2** ("Nurture") built and on staging; waiting for the staging setup and the
-end-to-end test. Phase 3 (Money and analytics) planned in `docs/phase3-plan.md`, waiting for approval.
+Status: **Phase 1** ("Sell"), **Phase 2** ("Nurture") and **Phase 3** ("Money and analytics", `docs/phase3-plan.md`)
+built and on staging; waiting for the staging setup and the end-to-end test. Phase 4 (telephony, ad spend, performance
+allocation, Calendar, Hindi) needs its own plan and approval.
 
 - Database: migrations b1 to b18 (`supabase/migrations/`) are applied to the **staging** project `mplbspysxmtohnlwpbti`
   (eduwit-b2b-staging) (b4 to b7, b11 and b12 in parts). Production is untouched.
@@ -22,10 +23,22 @@ end-to-end test. Phase 3 (Money and analytics) planned in `docs/phase3-plan.md`,
   Staging matches a local build of the same files: 62 tables, 44 policies, all 215 functions with identical bodies,
   identical guide articles, nothing executable by `anon`, cron jobs `b2c-minute`, `b2c-nurture` (every minute),
   `b2c-sync-urgent`, `b2c-sync-batch` (every 15 min), `b2c-reconcile` (every 5 min), `b2c-directory` and `b2c-nightly` (daily).
+- Phase 3: b19 university commission (rates by date, GST, tiers settled at period close, gapless invoices and credit
+  notes, receipts with TDS, statement reconciliation into four piles); b20 counsellor commission at the highest partner
+  rate (rate snapshot with every partner considered, needs-rate queue, fallbacks, overrides, clawbacks, monthly runs,
+  `public.b2c_enrollment_money_v` for the B2B CRM); b21 targets, leaderboard (opt-in names), activity monitor, capacity;
+  b22 analytics (facts refreshed every minute, 62 metrics and 37 dimensions with role scoping in the query layer,
+  drill-down, 17 standard dashboards, schedules, alerts, the AI log and daily cap, insights); b23 Brief before you call
+  (PII scrubbed in the database, sources checked); b24 the corrected AI prices, `ai_call_attach`, `money_universities`,
+  `money_rules` and 9 Phase 3 guide articles (45 in all). Staging matches the local build: 93 tables, 331 functions with
+  identical bodies, identical guides, nothing executable by `anon`; crons add `b2c-money`, `b2c-facts`, `b2c-alerts`,
+  `b2c-anomalies`. **To run by hand on staging:** `supabase/manual/staging_phase3_ledger_guards.sql` (stops anyone
+  deleting a money ledger row; the automated path cannot send it).
 - `supabase/manual/staging_b4_pool_calendar.sql` (`pool_save`, `calendar_save`) was run by hand on staging on 14 Oct (the
   automated apply path stalls on any SQL containing DELETE). Staging's copies match the local build.
-- Checks: `supabase/tests/test_phase1.sql` (99 checks) and `supabase/tests/test_phase2.sql` (45 checks, the Phase 2 exit
-  test), all rolled back, all pass on a fresh local database with the migrations applied twice. On staging, run it in the SQL editor after the manual file (it clears holidays inside its own rolled-back transaction).
+- Checks: `supabase/tests/test_phase1.sql` (99 checks), `test_phase2.sql` (45, the Phase 2 exit test) and
+  `test_phase3.sql` (91, the Phase 3 exit test; it runs only on the local `b2c_fresh` database because it books money
+  for test universities), all rolled back, all pass on a fresh local database with the migrations applied twice. On staging, run it in the SQL editor after the manual file (it clears holidays inside its own rolled-back transaction).
 - The HTTP timers do nothing until the app is deployed and `settings.app.base_url` plus the Vault secret `b2c_internal_key` are set.
 - App (`web/`): built. Sign-in (Google or password, emailed code, trusted device), the Sales app, the Workspace, the
   B2B and WhatsApp webhooks, and the sync jobs. Since then: the email composer, Programme fit and sharing, Witty's
@@ -33,7 +46,9 @@ end-to-end test. Phase 3 (Money and analytics) planned in `docs/phase3-plan.md`,
   views, Admin CSV export, editable guides with a "?" on every screen, phone alerts (web push) and the Workspace
   directory sync. Phase 2: the Nurture page (`/w/nurture`: overview, pool, journeys, campaigns, segments, replies,
   scoring), the journey editor, `/w/templates` with Meta submission, nurture on the lead screen, tracked marketing email
-  with one-click unsubscribe, and reply classification with Claude. Typecheck, 57 unit tests and the production build pass; the sign-in
+  with one-click unsubscribe, and reply classification with Claude. Phase 3: Money (`/w/money`), My money (`/s/money`), Team performance, Analytics
+(`/w/analytics`, `/s/analytics`) with Ask, Explain, drill-down to the Leads page, schedules and alerts, the Brief on the
+lead screen, the month's progress and leaderboard on Today. Typecheck, 79 unit tests and the production build pass; the sign-in
   screen was checked in light and dark mode against staging. Setup steps (expose `b2c`, Vercel, Google, first Admin,
   timers, B2B keys) are in `web/README.md`. Not yet run end to end: needs those steps and Addendum 4 deployed in B2B.
 
@@ -46,7 +61,7 @@ end-to-end test. Phase 3 (Money and analytics) planned in `docs/phase3-plan.md`,
 | `docs/phase2-plan.md` | Phase 2 plan (Nurture): built as b14–b18, Marketing workspace, exit test, what is needed to go live |
 | `docs/phase3-plan.md` | Phase 3 plan (Money and analytics): b19–b23, money and analytics screens, Brief before you call, exit test, what is needed to go live |
 | `docs/WITTY_CHANGES_B2C.md` | Witty release W2: the changes Witty needs for the B2C CRM |
-| `supabase/` | Migrations, the manual staging file, local test stubs and the Phase 1 and 2 checks |
+| `supabase/` | Migrations, the manual staging files, local test stubs and the Phase 1, 2 and 3 checks |
 | `design/` | Clickable design of the three interfaces (sample data) |
 | `web/` | The app (see `web/README.md`) |
 

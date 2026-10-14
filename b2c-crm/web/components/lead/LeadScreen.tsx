@@ -8,6 +8,7 @@ import type { LeadDetail, Stage, SubStage } from "@/lib/types";
 import { ApplicationsPanel } from "./Applications";
 import { CallButton } from "./CallButton";
 import { EmailButton } from "./EmailButton";
+import { BriefPanel } from "./BriefPanel";
 import { NurturePanel } from "./NurturePanel";
 import { BarChip, SlaChip, TempChip, TestChip } from "./Chips";
 import { AddTaskButton, ContactsPanel, EditablePanel, NoteBox, type FieldDef } from "./Panels";
@@ -118,6 +119,7 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
             )}
             <div className="row small"><span className="muted">Next:</span><b>{d.tasks[0]?.title ?? "—"}</b><span className="muted">{when(d.tasks[0]?.due_at)}</span></div>
           </div>
+          <BriefPanel leadId={l.lead_id} autoWrite={canWork} />
           {adminTools}
           <div className="grid g2">
             <ContactsPanel leadId={l.lead_id} contacts={d.contacts} canEdit={canWork} />
