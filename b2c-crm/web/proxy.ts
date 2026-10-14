@@ -11,8 +11,8 @@ import { buildCsp, IDLE_LIMIT_SECONDS, isIdleExpired, safeNext, SEEN_COOKIE } fr
  * This is an early, cheap check. The real gate is requireUser() on the server and the b2c.* functions in the database.
  */
 
-const PUBLIC = ["/login"];
-const isPublic = (path: string) => PUBLIC.includes(path) || path.startsWith("/auth/");
+const PUBLIC = ["/login", "/thanks"];
+const isPublic = (path: string) => PUBLIC.includes(path) || ["/auth/", "/u/", "/e/"].some((p) => path.startsWith(p));
 
 type Cookie = { name: string; value: string; options?: Parameters<NextResponse["cookies"]["set"]>[2] };
 

@@ -24,12 +24,16 @@ export function signedJwt(sa: GoogleSa, subject: string, scope: string, now = Ma
   return `${head}.${claims}.${b64url(sig)}`;
 }
 
+/** The bare address of "Name <a@b>" (the mailbox the service account acts as). */
+export const mailbox = (from: string) => (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase();
+
 /** RFC 5322 message, base64url as the Gmail API wants it. Header values are stripped of line breaks (header injection). */
-export function rawMessage(m: { from: string; to: string; subject: string; text: string; html?: string | null }): string {
+export function rawMessage(m: { from: string; to: string; subject: string; text: string; html?: string | null; headers?: Record<string, string>; replyTo?: string | null }): string {
   const clean = (s: string) => s.replace(/[\r\n]+/g, " ").trim();
   const boundary = "b2c-" + randomUUID();
   const subject = `=?UTF-8?B?${Buffer.from(clean(m.subject)).toString("base64")}?=`;
-  const head = [`From: ${clean(m.from)}`, `To: ${clean(m.to)}`, `Subject: ${subject}`, "MIME-Version: 1.0"];
+  const extra = Object.entries(m.headers ?? {}).filter(([k]) => /^[A-Za-z][A-Za-z0-9-]{0,60}$/.test(k)).map(([k, v]) => `${k}: ${clean(v)}`);
+  const head = [`From: ${clean(m.from)}`, `To: ${clean(m.to)}`, ...(m.replyTo ? [`Reply-To: ${clean(m.replyTo)}`] : []), `Subject: ${subject}`, "MIME-Version: 1.0", ...extra];
   const body = m.html
     ? [`Content-Type: multipart/alternative; boundary="${boundary}"`, "", `--${boundary}`, "Content-Type: text/plain; charset=UTF-8", "", m.text,
        `--${boundary}`, "Content-Type: text/html; charset=UTF-8", "", m.html, `--${boundary}--`]
@@ -37,14 +41,14 @@ export function rawMessage(m: { from: string; to: string; subject: string; text:
   return b64url([...head, ...body].join("\r\n"));
 }
 
-export async function sendGmail(sa: GoogleSa | null, m: { from: string; to: string; subject: string; text: string; html?: string | null }, live: boolean): Promise<{ ok: boolean; dry_run?: boolean; id?: string; error?: string }> {
+export async function sendGmail(sa: GoogleSa | null, m: { from: string; to: string; subject: string; text: string; html?: string | null; headers?: Record<string, string>; replyTo?: string | null }, live: boolean): Promise<{ ok: boolean; dry_run?: boolean; id?: string; error?: string }> {
   if (!live) return { ok: true, dry_run: true };
   if (!sa) return { ok: false, error: "Gmail is not configured (GOOGLE_SA_EMAIL, GOOGLE_SA_PRIVATE_KEY)." };
   try {
     const tok = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: signedJwt(sa, m.from, "https://www.googleapis.com/auth/gmail.send") }),
+      body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: signedJwt(sa, mailbox(m.from), "https://www.googleapis.com/auth/gmail.send") }),
       signal: AbortSignal.timeout(15_000),
     });
     const t = (await tok.json()) as { access_token?: string; error_description?: string };

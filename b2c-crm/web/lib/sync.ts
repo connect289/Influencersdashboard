@@ -1,7 +1,8 @@
 import "server-only";
 import * as b2b from "@/lib/b2b";
 import { batchDone, chunks, feedEnvelope, intakeBody, singleDone, toBatchItem, type DoneResult, type OutboxItem } from "@/lib/b2b-map";
-import { liveMode } from "@/lib/env";
+import { liveMode, siteUrl } from "@/lib/env";
+import { marketingEmail } from "@/lib/marketing-email";
 import { googleSa, sendGmail } from "@/lib/gmail";
 import { adminClient } from "@/lib/supabase/admin";
 import { sendWhatsApp, waConfig, type WaPayload } from "@/lib/whatsapp";
@@ -68,7 +69,7 @@ export async function runSync(mode: "urgent" | "batch"): Promise<Record<string, 
     const live = liveMode() && s.live;
     const r = s.channel === "whatsapp"
       ? await sendWhatsApp(wa, s.to, s.payload as unknown as WaPayload, live)
-      : await sendGmail(sa, { from: String(s.payload.from), to: s.to, subject: String(s.payload.subject ?? ""), text: String(s.payload.text ?? ""), html: (s.payload.html as string | null) ?? null }, live);
+      : await sendGmail(sa, emailOf(s), live);
     sendResults.push({ id: s.id, ok: r.ok, dry_run: r.dry_run ?? false, wamid: "wamid" in r ? r.wamid : undefined, error: r.error });
     if (!r.ok) out.send_failed!++;
     else if (r.dry_run) out.dry_run!++;
@@ -128,4 +129,13 @@ export async function runReconcile(): Promise<Record<string, number>> {
   }
   await db.rpc("sync_set", { p_key: "last_reconcile_at", p_value: new Date().toISOString() });
   return out;
+}
+
+/** A queued email as sent: a counsellor's as written; a marketing one with tracked links, footer and unsubscribe header. */
+function emailOf(s: { to: string; payload: Record<string, unknown> }) {
+  const p = s.payload;
+  const base = { from: String(p.from), to: s.to, subject: String(p.subject ?? ""), replyTo: (p.reply_to as string | null) ?? null };
+  if (!p.marketing) return { ...base, text: String(p.text ?? ""), html: (p.html as string | null) ?? null };
+  const m = marketingEmail({ emailId: Number(p.email_id), leadId: Number(p.lead_id), text: String(p.text ?? ""), site: siteUrl() });
+  return { ...base, text: m.text, html: m.html, headers: m.headers };
 }

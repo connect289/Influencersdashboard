@@ -44,7 +44,7 @@ create index if not exists emails_marketing on b2c.emails (lead_id, created_at d
 insert into b2c.settings (key, value) values
   ('marketing_email', '{"from": "Eduwit <connect@eduwit.in>", "reply_to": null}'),
   ('wa_rates', '{"marketing": 0.88, "utility": 0.13, "authentication": 0.13, "service": 0, "currency": "INR", "note": "Meta India rate card estimate per delivered template; edit when Meta changes it"}'),
-  ('nurture', '{"witty_quiet_minutes": 30, "dormant_after_months": 12, "reply_confidence": 0.8, "ab_wait_hours": 4, "classify_model": "claude-haiku-4-5-20251001"}')
+  ('nurture', '{"witty_quiet_minutes": 30, "dormant_after_months": 12, "reply_confidence": 0.8, "ab_wait_hours": 4, "classify_model": "claude-haiku-4-5"}')
 on conflict (key) do nothing;
 
 /* The current marketing consent for a channel: B2C's own latest record, else the master record's consent_marketing_at

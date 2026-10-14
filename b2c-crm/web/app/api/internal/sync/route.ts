@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { internalKeyOk } from "@/lib/internal";
+import { runClassify } from "@/lib/classify";
 import { runPush } from "@/lib/push";
 import { runSync } from "@/lib/sync";
 
@@ -15,7 +16,8 @@ export async function POST(request: NextRequest) {
   try {
     const sync = await runSync(mode);
     const push = mode === "urgent" ? await runPush().catch((e) => ({ push_error: e instanceof Error ? e.message : String(e) })) : {};
-    return NextResponse.json({ ok: true, mode, ...sync, push });
+    const classify = mode === "urgent" ? await runClassify().catch((e) => ({ classify_error: e instanceof Error ? e.message : String(e) })) : {};
+    return NextResponse.json({ ok: true, mode, ...sync, push, classify });
   } catch (e) {
     console.error("sync failed", e);
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
