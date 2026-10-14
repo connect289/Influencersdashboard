@@ -57,3 +57,16 @@ export function fromFilter(c: Condition): Condition {
   if (c.field === "owner_id") return { field: "owner_id", op: c.op === "is_null" ? "is_true" : "is_false" };
   return c;
 }
+
+/** Segments (spec B9.1) can also use the nurture fields. */
+export const SEGMENT_FIELDS: FieldDef[] = [
+  { field: "status", label: "Status", type: "choice", choices: [["pool", "Nurture pool"], ["active", "Active"], ["closed", "Closed"]] },
+  { field: "pool_reason", label: "Pool reason", type: "choice", choices: [["partner_lost", "Partner lost"], ["counsellor_lost", "Counsellor lost"], ["not_qualified", "Not qualified"]] },
+  { field: "lost_by", label: "Lost by", type: "choice", choices: [["partner", "Partner"], ["counsellor", "Counsellor"]] },
+  { field: "pool_entered_at", label: "Entered the pool", type: "date" },
+  { field: "marketing_consent", label: "Marketing consent", type: "bool" },
+  { field: "journey", label: "Journey (key)", type: "text" },
+  { field: "reengaged_at", label: "Re-engaged", type: "date" },
+  { field: "lane", label: "Lane", type: "choice", choices: [["sales", "Sales"], ["nurture", "Nurture"]] },
+  ...VIEW_FIELDS.filter((f) => !["status", "lane"].includes(f.field)),
+];

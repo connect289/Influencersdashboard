@@ -17,7 +17,7 @@ Witty signals arrive only as B2B events (`b2c.lead_interest`, `b2c.lead_reenquir
 
 ## Database, in migration order
 
-Built as four files: `b14_consent_templates`, `b15_segments_campaigns`, `b16_journeys`, `b17_scoring_replies` (the rows below map onto them: b18 and b19 went into b17).
+Built as four files: `b14_consent_templates`, `b15_segments_campaigns`, `b16_journeys`, `b17_scoring_replies` (the rows below map onto them: b18 and b19 went into b17), plus `b18_marketing_guide` (the guide articles). The timers became two cron jobs, `b2c-nurture` (every minute: journeys, campaigns) and `b2c-nightly` (decay, dormancy).
 
 | File | Contents |
 | --- | --- |
@@ -39,7 +39,7 @@ Everything that would need a DELETE is a soft flag (`archived_at`, `removed_at`)
 | Lead level | On the lead: nurture history, pause or resume, move to another journey, one-off message, hand to a counsellor |
 | Unsubscribe | `/u/[token]`: public, signed token, one-click opt-out per channel (List-Unsubscribe header on every marketing email) |
 | Email events | Open pixel and click redirect (`/e/o/[id]`, `/e/c/[id]`), signed. Gmail reply threading through the reconcile job. |
-| Classification | `/api/internal/classify`: keyword misses go to Claude Haiku (`claude-haiku-4-5-20251001`, configurable). Only the reply text and the course interest are sent: no name, phone or email (B6.6, A3). |
+| Classification | Inside the every-minute sync job (`/api/internal/sync`): keyword misses go to Claude Haiku (`claude-haiku-4-5`, Settings → nurture → `classify_model`). Only the reply text and the course interest are sent: no name, phone or email (B6.6, A3). |
 | Marketing guide | The marketing articles in `user_guides`, completed for these screens |
 
 ## Tests (`tests/test_phase2.sql`, plus unit tests)

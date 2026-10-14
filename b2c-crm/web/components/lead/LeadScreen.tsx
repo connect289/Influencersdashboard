@@ -8,6 +8,7 @@ import type { LeadDetail, Stage, SubStage } from "@/lib/types";
 import { ApplicationsPanel } from "./Applications";
 import { CallButton } from "./CallButton";
 import { EmailButton } from "./EmailButton";
+import { NurturePanel } from "./NurturePanel";
 import { BarChip, SlaChip, TempChip, TestChip } from "./Chips";
 import { AddTaskButton, ContactsPanel, EditablePanel, NoteBox, type FieldDef } from "./Panels";
 import { ProgrammeFit } from "./ProgrammeFit";
@@ -141,6 +142,7 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
               </dl>
             </div>
           </section>
+          <NurturePanel leadId={l.lead_id} marketing={me.role === "admin" || me.role === "marketing"} canWork={canWork} inPool={l.status === "pool"} />
           <WittyTranscript leadId={l.lead_id} />
           {timeline}
         </div>
