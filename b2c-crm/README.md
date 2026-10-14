@@ -33,6 +33,7 @@ Status: **Phase 1** ("Sell") built; waiting for the staging setup and the end-to
 | `docs/phase0-audit.md` | Phase 0 audit: existing objects with verdicts, `b2c` schema plan, what the B2B CRM must expose, Google Workspace setup, open questions |
 | `docs/brand/` | Logo and the settled palette (`palette.md`, `palette-preview.html`) |
 | `docs/phase1-plan.md` | Phase 1 plan: migration order, app scope, exit test |
+| `docs/phase2-plan.md` | Phase 2 plan (Nurture): migrations b14–b19, Marketing workspace, exit test, what is needed to go live |
 | `docs/WITTY_CHANGES_B2C.md` | Witty release W2: the changes Witty needs for the B2C CRM |
 | `supabase/` | Migrations, the manual staging file, local test stubs and the Phase 1 checks |
 | `design/` | Clickable design of the three interfaces (sample data) |
