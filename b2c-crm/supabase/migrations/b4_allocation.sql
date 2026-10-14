@@ -577,10 +577,11 @@ language plpgsql security definer set search_path = '' as $f$
 declare r record; d jsonb; v_rows jsonb;
 begin
   perform b2c.require('settings');
-  create temp table if not exists sim_load (user_id uuid, m date, d date, n int) on commit drop;
-  create temp table if not exists sim_turns (rule_id bigint primary key, turn int) on commit drop;
-  create temp table if not exists sim_out (lead_id bigint, actual uuid, simulated uuid, outcome text, rule text) on commit drop;
-  truncate pg_temp.sim_load, pg_temp.sim_turns, pg_temp.sim_out;
+  -- fresh scratch tables, dropped at commit: one simulation per transaction (each RPC call is its own transaction)
+  if to_regclass('pg_temp.sim_out') is not null then raise exception 'a simulation already ran in this transaction'; end if;
+  create temp table sim_load (user_id uuid, m date, d date, n int) on commit drop;
+  create temp table sim_turns (rule_id bigint primary key, turn int) on commit drop;
+  create temp table sim_out (lead_id bigint, actual uuid, simulated uuid, outcome text, rule text) on commit drop;
   for r in select s.lead_id, coalesce(a.at, s.handed_off_at) at, a.user_id actual, a.trigger
              from b2c.leads_state s
              left join lateral (select x.at, x.user_id, x.trigger from b2c.assignments x where x.lead_id = s.lead_id order by x.at limit 1) a on true
@@ -610,7 +611,7 @@ create or replace function b2c.rule_save(p jsonb) returns bigint language plpgsq
 declare v_id bigint := nullif(p ->> 'id', '')::bigint; me uuid := b2c.require('settings');
 begin
   if coalesce(p ->> 'name', '') = '' then raise exception 'name the rule'; end if;
-  if p ? 'condition' and jsonb_typeof(p -> 'condition') <> 'object' then raise exception 'a rule condition is an object: {"all": […], "any": […]}'; end if;
+  if p ? 'condition' and jsonb_typeof(p -> 'condition') <> 'object' then raise exception 'a rule condition is an object: {"all": [...], "any": [...]}'; end if;
   if p ? 'fallbacks' and jsonb_typeof(p -> 'fallbacks') <> 'array' then raise exception 'fallbacks are a list'; end if;
   if v_id is null then
     insert into b2c.allocation_rules (position, name, enabled, condition, logic, params, pool_id, fallbacks, applies_from, actor_id)
