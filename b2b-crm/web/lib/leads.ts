@@ -87,6 +87,11 @@ export type LeadRow = {
   consent_state: ConsentState | null;
   /** Set while the partner has marked the lead lost and the 7-day grace runs (PART 6.1). */
   lost_grace_until: string | null;
+  /** Addendum 4 §3: for leads the B2C CRM holds, its own (Eduwit) stage and counsellor; §7: its money once it publishes it. */
+  b2c_stage?: string | null;
+  b2c_sub_stage?: string | null;
+  b2c_owner_name?: string | null;
+  b2c_money?: Record<string, unknown> | null;
 };
 
 export type LeadPage = { rows: LeadRow[]; next: Cursor | null; total: number | null };

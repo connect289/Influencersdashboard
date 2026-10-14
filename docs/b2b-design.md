@@ -693,3 +693,34 @@ Source: `docs/B2B_CRM_ADDENDUM_3.md` and its Amendment 1. Migrations `m31a0` to 
 - **Deliberately unchanged**: Witty's tables and `lead_intake()`, and no triggers on `student_leads`.
 - **Go-live gate**: `routing_golive_check` refuses to switch routing on until partners, an approved consent text, a reachable B2C endpoint and the Witty W1 line are in place.
 - **Verification**: five new SQL suites (503 assertions) pass in the local full-schema harness; older suites need their fixtures reviewed against these rules (listed in `docs/go-live-setup.md` section 1.2).
+
+## Addendum 4 (the B2C CRM link, final shape): what was built
+
+Source: `docs/B2B_CRM_ADDENDUM_4.md` (14 Oct). Migrations `m32a`–`m32c`; contract `docs/b2c-contract.md` version 4.
+
+- **Real time only to B2C.** `b2c_link_cfg` always answers `delivery: realtime`; the settings save refuses batched;
+  `b2c.leads_batch` is kept for other products and never sent to the B2C endpoint. The B2C link screen no longer offers it.
+- **Echo suppression.** A version whose origin is the B2C CRM's own write (`b2c:…`) is not delivered, unless an older
+  version is still on its way to that endpoint (then the newest follows, so nobody else's change is lost). Every B2C write
+  first syncs any pending outside change, so suppression never hides it. The change feed lists every version.
+- **The 15-minute batch.** Items applied in the order given; `occurred_at` sets `stage_changed_at` and the timeline time
+  (`b2b.log_event_at`); contact roll-ups take the min/max of activity times and never move backwards; one delivery kick
+  per batch call. No rate limit exists on the batch endpoint, so 20 calls a minute pass.
+- **New fields** without new columns: the marketing group, `enrollment_verified_at`, and `b2c_stage`, `b2c_sub_stage`,
+  `b2c_stage_comment`, `owner_name` in `custom_fields.b2c` (dotted columns in `b2c_fields`). A generic `custom_fields`
+  write keeps `b2c` and refuses it as a key.
+- **Events:** marketing consent per channel (ledger rows, `consent_marketing_at`), per-channel opt-out
+  (`opted_out_channels`; fully opted out only when every channel is), `contact_added` into the new `b2b.lead_contacts`
+  (lookup and intake duplicate detection), timeline-only `lead_updated` / `commission_booked`.
+- **Reads:** lookup `holder` for students the B2C CRM does not hold; `GET /v1/b2c/leads/{id}/partner-history`; the schema
+  lists consent texts, batch rules and groups.
+- **Catalogue:** schema `catalog` (views joining tables directly, so the reader needs nothing on `b2b`), `catalog.changes`
+  fed by triggers on `b2b.rates` and published programme versions, role `b2c_app`.
+- **Phase 3 hooks:** `b2c_money_of` / `b2c_status_of` read the B2C CRM's views only when they exist; the Master Lead Table
+  shows the Eduwit stage, counsellor and B2C money for B2C-held leads, and the lead drawer shows the comment and marketing
+  consent. The referral view `b2b_referral_outcomes` is still not built; when it is, it reads `b2c_status_of`.
+- **Not changed:** Witty (`w2_*`, `lead_intake()`, n8n), hand-off reasons, lanes, holds, the partner bar and consent flow.
+  Forwarding Witty's interest signal and `w2_crm_owned` for B2C nurture stay Witty changes for later.
+- **Verification:** `tests/test_m32_b2c_v4.sql` (41 checks, the ten tests of §10) and the B2C link, cadence and Addendum 3
+  suites pass in the local full-schema harness; web type check, 437 unit tests and the production build pass.
+

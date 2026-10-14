@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Applies the B2B CRM migrations M24–M31p to a Supabase database, in order.
+# Applies the B2B CRM migrations M24–M32c to a Supabase database, in order (files already applied are skipped).
 # Usage: DATABASE_URL='postgresql://postgres:...@db.<project>.supabase.co:5432/postgres' ./deploy.sh
 # Run on STAGING first (mplbspysxmtohnlwpbti), then PRODUCTION (xlseqwgyjuqhktrguhyc). Routing stays off; nothing is sent.
 set -euo pipefail
@@ -19,8 +19,11 @@ FILES=(
  migrations/m31g_a3_attribution.sql migrations/m31h_a3_intake.sql migrations/m31i_a3_after_push.sql pending/m31i_dispute_index.sql
  migrations/m31j_a3_b2c_contract.sql migrations/m31k_a3_redecide.sql migrations/m31l_a3_admin_reads.sql migrations/m31m_a3_ai_ml.sql
  pending/m31n_facts.sql migrations/m31o_a3_metrics.sql migrations/m31p_partner_agreement.sql
+ migrations/m32a_a4_b2c_realtime_batch.sql migrations/m32b_a4_b2c_events_reads.sql migrations/m32c_a4_catalog.sql
 )
 for f in "${FILES[@]}"; do
+  name=$(basename "$f" .sql)
+  if [ -n "$($P -tAc "select 1 from supabase_migrations.schema_migrations where name = '$name'")" ]; then echo "== skip (already applied) $f"; continue; fi
   echo "== $f"
   $P --single-transaction -f "$f"
   name=$(basename "$f" .sql)

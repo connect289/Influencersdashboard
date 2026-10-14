@@ -1,9 +1,33 @@
-# Eduwit B2B CRM ↔ B2C CRM: integration contract (version 3)
+# Eduwit B2B CRM ↔ B2C CRM: integration contract (version 4)
 
 The B2B CRM is Eduwit's lead allocation engine. Every lead enters through it, and it decides where the lead goes: to a
 partner university's CRM, or to Eduwit's own B2C CRM (in-house counsellors). The rules behind it are in
 `B2B_CRM_ADDENDUM_3.md` (the final routing rules R1–R9, the partner bar, consent, the lost grace) on top of
 `B2B_CRM_ADDENDUM_1.md` §1–4.
+
+**What changed in version 4 (14 Oct 2026, `B2B_CRM_ADDENDUM_4.md`): `contract_version: 4` on every `b2c.*` / `b2b.*`
+envelope and on the record.**
+- **B2B → B2C is always real time.** Every hand-off, re-enquiry, consent request and change to a lead you hold reaches you
+  within seconds (target 5 s at p95). The 15-minute batched delivery and `b2c.leads_batch` are no longer sent to you.
+- **Your own writes are not echoed back.** A version caused only by your write (origin `b2c:…`) is not sent as
+  `b2c.lead_upserted`; you learn the new version from the answer. The change feed (§2.3) still lists it. A change by anyone
+  else (Witty, intake, the engine, the Admin, a partner) still reaches you at once.
+- **B2C → B2B is every 15 minutes**, through `POST /v1/b2c/leads/batch` (§3.8): at most one `update` per lead per batch,
+  any number of `activity` items, ordered by `occurred_at`. Five things still go at once: the consent request send, the
+  consent answer, an opt-out, an erasure request and route-to-partners. New students still go through `POST /v1/leads`.
+- **`occurred_at`** on each update: the time the counsellor made the change. It sets `stage_changed_at` and the timeline.
+- **Contact roll-ups** come from the activities' own time: `first_contacted_at` is the earliest, `last_contacted_at` the
+  latest, whatever order your batches arrive in; `contact_attempts` counts each activity `request_id` once.
+- **New writable fields** (§2.1): `marketing` group (`active_journey_id`, `last_campaign_id`, `last_marketing_message_at`,
+  `email_bounced_at`), `enrolment.enrollment_verified_at`, and your own pipeline: `b2c_stage`, `b2c_sub_stage`,
+  `b2c_stage_comment`, `owner_name`. They live in `custom_fields.b2c`, which you write only through these names.
+- **New events you send** (§4): `b2ccrm.marketing_consent`, `b2ccrm.contact_added`, `b2ccrm.opted_out` with `channels`,
+  and `b2ccrm.lead_updated` / `b2ccrm.commission_booked` (timeline only).
+- **New reads** (§3.3): the lookup answers who holds a student you do not hold (`holder`), finds numbers and emails you
+  added, and `GET /v1/b2c/leads/{id}/partner-history` shows what partners did with a lead now yours.
+- **`GET /v1/b2c/schema`** lists the registered consent texts (send only an exact sentence), the batch rules and the groups.
+- **The shared catalogue** (§7): read-only views in schema `catalog` for your Programme page and the counsellor-commission
+  rule, read with the database role `b2c_app`.
 
 **Version 2 (7 Oct 2026): the B2B CRM is the only gateway to the lead table.** The B2C CRM never reads or writes
 `public.student_leads` (or any `b2b.*` table) directly. Instead:
@@ -225,25 +249,16 @@ by Witty; every other lead is asked through you:
 The Admin can also record an answer given on a call (with written evidence); you then see `b2c.consent_closed` with
 `source: admin`. Requests are rate-limited per hour; a request may stay `queued` for a few minutes before you receive it.
 
-### Sync cadence
+### Sync cadence (version 4)
 
-To keep paid API calls down, a connection runs in real time only while it is being integrated and tested:
-
-| Mode | When | What you receive |
+| Direction | How often | How |
 | --- | --- | --- |
-| **Real time** (default) | Integration and testing | One `b2c.lead_upserted` / `b2c.lead_released` per change, within seconds |
-| **Every 15 minutes** (production) | After the Admin switches it on B2C CRM link, once you have tested end to end | One `b2c.leads_batch` per interval, with every changed lead at its newest version. Test leads still come one by one in real time, so you can keep testing |
+| **B2B → B2C** | **Real time, always** | One `b2c.lead_upserted` / `b2c.lead_released` per change, plus the hand-off, re-enquiry, consent and requalification events, within seconds |
+| **B2C → B2B** | **Every 15 minutes** | `POST /v1/b2c/leads/batch` (§3.8), in as many calls as needed |
+| **B2C → B2B, at once** | Immediately | `b2ccrm.consent_request_sent`, `b2ccrm.partner_consent`, `b2ccrm.opted_out`, `b2ccrm.erasure_requested` (§4), `POST /v1/leads/{id}/route-to-partners` (§3.2), `POST /v1/leads` (§3.6) |
 
-The interval is 15 minutes by default; the Admin can set 5 to 60. `GET /v1/b2c/schema` tells you the current `delivery` and
-`interval_minutes`. Hand-offs, re-enquiries, consent and requalification events (§1) are never batched.
-
-**Unchanged in production:**
-- the change feed (§2.3);
-- reads (§3.3);
-- writes (§3.4–3.5), which take effect at once.
-
-On your side, send your writes in batches too: queue them and post them every 15 minutes with
-`POST /v1/b2c/leads/batch` (§3.8). A counsellor's urgent change can still go at once.
+`GET /v1/b2c/schema` answers `delivery: "realtime"` and the batch rules. The Admin cannot switch the B2C CRM to batches.
+Versions your own write caused are not sent back to you (echo suppression); keep the version from the write's answer.
 
 ## 2. Your copy of the leads
 
@@ -396,8 +411,14 @@ Errors: `{ "ok": false, "status": 422, "error": "partner_barred: partner-barred 
 
 `GET /v1/b2c/leads/{id}` answers `{ "version": 7, "record": { … } }` for a lead in your scope (404 otherwise).
 `GET /v1/b2c/leads?phone=9876543210` or `?email=…` finds leads (10-digit numbers are taken as Indian). Each match has
-`lead_id`, `version` and `held_by_b2c`, plus `record` when it is in your scope. Use the lookup before creating a
-student, to avoid a duplicate.
+`lead_id`, `version`, `held_by_b2c` and `matched_on` (`phone`, `email`, `contact`: a number or email you added with
+`b2ccrm.contact_added`), plus `record` when it is in your scope. A student you do not hold comes with
+`holder: { destination: "partner" | "unrouted" | "not_passed", partner_name, since }` and no personal data: show
+"Already with {partner_name} since {since}". Use the lookup before creating a student, to avoid a duplicate.
+
+`GET /v1/b2c/leads/{id}/partner-history` (leads you hold, usually partner-lost ones) answers
+`{ lead_id, last_partner_status, last_partner_sub_status, history: [{ partner_name, kind, outcome, at, note? }] }`, newest
+first, never a partner counsellor's name. 404 for a lead you do not hold.
 
 ### 3.4 `PATCH /v1/b2c/leads/{id}`: write your fields
 
@@ -475,6 +496,15 @@ Up to 200 items (1 MB), each an update (§3.4) or an activity (§3.5) with `op` 
 - **Items are independent.** Each item is applied on its own, so a refused item does not stop the others.
 - **Answer.** `200` with `{ "applied": n, "items": [ { "lead_id", "request_id", "op", "ok", "status", "error"?, "fields"?, "version"?, "changed"? } ] }`, in the same order as the request.
 - **Retries.** `request_id` makes each item safe to retry, as in the single calls.
+- **Version 4: the 15-minute batch.** Send it every 15 minutes, in as many calls as you need (each ≤ 200 items, ≤ 1 MB;
+  at least 20 calls a minute are accepted, so a backlog clears quickly). Merge a lead's changes first: **at most one
+  `update` per lead per batch**, plus any number of `activity` items. Order the items by `occurred_at`; they are applied
+  in the order given.
+- **`occurred_at`** (ISO 8601) on each `update`: when the counsellor made the change. It becomes `stage_changed_at` (when
+  the item changes `stage` and does not send `stage_changed_at`) and the timeline time. Activities keep using `at`.
+- **No `if_version` needed.** Fields are last-write-wins per field, and you send only the fields you changed. Items that
+  do send `if_version` are still checked.
+- **Answer:** each item has the lead's new `version` (activities too).
 
 ## 4. Events: B2C → B2B (signed)
 
@@ -504,6 +534,16 @@ freely. Body limit 100 KB.
 | `b2ccrm.enrolled` | Timeline only (use `PATCH` §3.4 for the enrolment fields) | `lead_id`, programme, `enrolled_at` |
 | `b2ccrm.opted_out` | Marks the student opted out, cancels any B2B message still scheduled, alerts the Admin to tell every partner that ever received the lead | `lead_id` |
 | `b2ccrm.erasure_requested` | Opens an erasure request for the Admin, who carries it out across B2B, Witty and partners | `lead_id`, `note` |
+
+**Version 4 events:**
+
+| `type` | What B2B does | Put in `data` |
+| --- | --- | --- |
+| `b2ccrm.marketing_consent` | Records the student's marketing consent for one channel: any channel given → `consent_marketing_at` set; none given → cleared. The per-channel state is in the record (`consent.marketing_consent`); the consent ledger keeps the audit | `lead_id`, `channel` (`whatsapp`, `email`), `given` (true/false), `text`, `text_version`, `source` (`wa_button`, `web_form`, `counsellor_call`…), `at` |
+| `b2ccrm.opted_out` + `channels` | `channels: ["email"]` (or `["whatsapp"]`) records that channel only (`opted_out_channels`); the student is fully opted out (`is_opted_out`, partner alert) only when every channel is out. Without `channels`: all channels, as before | `lead_id`, `channels` (optional) |
+| `b2ccrm.contact_added` | Records another number or email of the student. It counts in the lookup and in duplicate detection: a new intake with it is the same student. Fills `alternate_phone` if empty; never changes `whatsapp_number` or `email_id` | `lead_id`, `kind` (`phone`, `email`), `value`, `label` (`alternate`, `parent`, `office`, `whatsapp_only`), `primary_for` ([]), `actor` |
+| `b2ccrm.stage_changed` | Timeline only; also send `b2c_stage`, `b2c_sub_stage`, `comment`, `canonical_stage` (the fields themselves come in the batch) | as listed |
+| `b2ccrm.lead_updated`, `b2ccrm.commission_booked` | Timeline only (the data travels in the batch) | anything you want shown |
 
 Answers: `200` applied (or already received, or an unknown type, which is stored and ignored); `400` not JSON or no
 `event_id`/`type`; `401` bad signature or timestamp; `404` unknown `lead_id` / `request_id`; `413` too large; `422` the
@@ -555,3 +595,22 @@ lead to you with **Test hand-off** on the lead's page (`reason: test_handoff`, s
     consent `422` `no_consent`; on a lead you do not hold `422` `not_held`.
 
 The Admin can follow every step on B2C CRM link → Inspect a lead.
+
+## 7. The shared catalogue (version 4)
+
+Your Programme page and the counsellor-commission rule (the counsellor owes Eduwit the **highest partner commission** for
+the programme) read the catalogue the B2B CRM keeps, in the same Supabase project, through read-only views in schema
+`catalog`. Connect server-side with the database role **`b2c_app`** (it has no login of its own; the Admin grants it to
+your server's database user). It can read these views and nothing in `student_leads`, `b2b` or `w2_*`.
+
+| View | One row per | Notes |
+| --- | --- | --- |
+| `catalog.programmes_v` | live programme | university, name, specialization, level, mode, duration, eligibility, fees (per year, per semester, total, exam, registration), EMI, scholarship notes, intakes and deadlines, accreditation, brochure, `offered_by_partner_count`, `updated_at` |
+| `catalog.universities_v`, `catalog.synonyms_v` | university, course alias | |
+| `catalog.partner_rates_v` | partner offer (and partner + university rate, programme null) | rate type, value, fee base, tier table and current tier, valid from/to, `effective_pct`, `effective_inr`, `is_highest_for_programme`, `is_highest_for_university`. For Admin and Marketing screens and commission only: never show it to counsellors |
+| `catalog.changes` | change | append-only `(id, at, kind, ref_id)`: a published programme version or a rate change. Poll it to refresh your cache |
+
+Duration, EMI and scholarship notes are filled when the university's sheet had them; otherwise they are null.
+
+When you publish `public.b2c_enrollment_money_v` and `public.b2c_lead_status_v` (your Phase 3), the B2B CRM reads them for
+the Master Lead Table's money and stage columns of the leads you hold. Nothing breaks before they exist.

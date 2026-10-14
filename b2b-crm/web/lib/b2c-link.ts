@@ -7,7 +7,7 @@ import {
 } from "@/lib/routing";
 
 /** The contract the record and every b2c.* envelope carry (b2b.api_b2c_schema result.contract_version). */
-export const CONTRACT_VERSION = 3;
+export const CONTRACT_VERSION = 4;
 export const CONTRACT_DOC = "docs/b2c-contract.md";
 
 export type FieldKind = "text" | "email" | "phone" | "int" | "numeric" | "pct" | "ts" | "date" | "uuid" | "stage" | "temperature" | "bool" | "json" | "list";
@@ -108,6 +108,8 @@ export const EVENT_SHORT: Record<string, string> = {
   "b2c.lead_flagged": "Flagged", "b2c.lead_close_agreed": "Close agreed", "b2b.lead_routed_to_partner": "Accepted by a partner", ping: "Test ping",
   "b2ccrm.partner_consent": "Consent answer", "b2ccrm.consent_request_sent": "Consent request sent", "b2ccrm.lead_assigned": "Counsellor assigned",
   "b2ccrm.stage_changed": "Stage changed", "b2ccrm.enrolled": "Enrolled", "b2ccrm.opted_out": "Opted out", "b2ccrm.erasure_requested": "Erasure requested",
+  "b2ccrm.marketing_consent": "Marketing consent", "b2ccrm.contact_added": "Contact added", "b2ccrm.lead_updated": "Lead updated (timeline)",
+  "b2ccrm.commission_booked": "Commission booked",
 };
 export function eventLabel(type: string): string {
   return EVENT_SHORT[type] ?? type;
@@ -137,12 +139,11 @@ export const CHECK_STEPS: { key: keyof LinkChecks; label: string; hint: string; 
   { key: "key_used", label: "The B2C CRM has called the API", hint: "Usually the first feed call that builds its copy.", where: "" },
   { key: "first_delivery", label: "First lead change delivered", hint: "A lead handed to B2C arrives within seconds.", where: "" },
   { key: "first_write", label: "First update written back", hint: "A counsellor's change reached the lead through the API.", where: "" },
-  { key: "production", label: "Switched to the production cadence", hint: "After full testing: changes go in one batch every sync interval, to save API calls.", where: "/b2c#cadence" },
 ];
 
 export const GROUP_LABEL: Record<string, string> = {
   student: "Student", education: "Education", interest: "Interest", consent: "Consent", source: "Source and campaign",
-  qualification: "Qualification", pipeline: "Pipeline", application: "Application", enrolment: "Enrolment", lost: "Lost", other: "Other",
+  qualification: "Qualification", pipeline: "Pipeline", application: "Application", enrolment: "Enrolment", lost: "Lost", marketing: "Marketing", other: "Other",
   allocation: "Allocation (B2B only)", campaign: "Paid attribution (B2B only)",
 };
 
@@ -166,15 +167,16 @@ export function contractVersion(o: Pick<LinkOverview, "contract_version">): numb
   return o.contract_version ?? CONTRACT_VERSION;
 }
 
-/** D46 step 7: after the Addendum 3 deploy every shared lead is re-sent once (origin 'resync') with the link in batched
- *  delivery, so the B2C CRM's copies gain the version-3 fields in one batch instead of one webhook per lead. Due while no
- *  resend is on record and there is something to resend; null once done. b2c_link_overview does not report resends yet, so
- *  the activity log's 'resync' origin stands in until last_resync_at is returned. */
+/** After a contract-version deploy every shared lead is re-sent once (origin 'resync'), so the B2C CRM's copies gain the
+ *  new fields. Addendum 4: delivery is always real time, so the resend is one webhook per lead (batched is kept in the
+ *  signature for older callers and reports false). Due while no resend is on record and there is something to resend;
+ *  null once done. b2c_link_overview does not report resends yet, so the activity log's 'resync' origin stands in. */
 export function resyncNote(o: Pick<LinkOverview, "log" | "sync" | "last_resync_at">, delivery: "realtime" | "batched"): { batched: boolean } | null {
   if (o.last_resync_at) return null;
   if (o.last_resync_at === undefined && o.log.some((r) => r.dir === "out" && r.origin === "resync")) return null;
   if (o.sync.in_scope === 0 && o.sync.held_now === 0) return null;
-  return { batched: delivery === "batched" };
+  void delivery;
+  return { batched: false };
 }
 
 /** One badge for the whole link. */

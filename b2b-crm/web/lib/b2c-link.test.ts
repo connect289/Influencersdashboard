@@ -139,8 +139,8 @@ describe("contract version 3", () => {
     expect(describeProvider({ partner_id: 9, partner_name: "", first_had_at: null, existing_record_id: null, claimed_at: null }, () => "x")).toBe("partner #9 · date not given");
   });
   it("knows the contract version, the always-writable field and the new events", () => {
-    expect(CONTRACT_VERSION).toBe(3);
-    expect(contractVersion({})).toBe(3);
+    expect(CONTRACT_VERSION).toBe(4);
+    expect(contractVersion({})).toBe(4);
     expect(contractVersion({ contract_version: 4 })).toBe(4);
     expect(ALWAYS_WRITABLE_FIELDS).toContain("other_courses");
     expect(isWritable({ writable: ["stage"] }, "other_courses")).toBe(true);
@@ -156,12 +156,12 @@ describe("contract version 3", () => {
   it("asks for the version-3 resend until one is on record", () => {
     const sync = { in_scope: 120, held_now: 40, changes_24h: 3, last_change_at: null, last_seq: 9, tick: null };
     const out = (origin: string | null) => ({ dir: "out" as const, at: "2026-10-08T00:00:00Z", lead_id: 1, name: null, type: "upserted" as const, version: 2, origin, delivery: null });
-    expect(resyncNote({ log: [out(null)], sync }, "batched")).toEqual({ batched: true });
+    expect(resyncNote({ log: [out(null)], sync }, "batched")).toEqual({ batched: false });
     expect(resyncNote({ log: [out("b2c:abc")], sync }, "realtime")).toEqual({ batched: false });
     expect(resyncNote({ log: [out(null), out("resync")], sync }, "batched")).toBeNull();
     expect(resyncNote({ log: [], sync: { ...sync, in_scope: 0, held_now: 0 } }, "batched")).toBeNull();
     // once b2c_link_overview reports the last resend, it decides
-    expect(resyncNote({ log: [out("resync")], sync, last_resync_at: null }, "batched")).toEqual({ batched: true });
+    expect(resyncNote({ log: [out("resync")], sync, last_resync_at: null }, "batched")).toEqual({ batched: false });
     expect(resyncNote({ log: [], sync, last_resync_at: "2026-10-08T01:00:00Z" }, "realtime")).toBeNull();
   });
 });

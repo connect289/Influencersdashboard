@@ -83,7 +83,6 @@ function Stat({ label, value, tone, hint }: { label: string; value: React.ReactN
 function Overview({ o, c }: { o: LinkOverview; c: SyncCadence }) {
   const checks = {
     ...o.checks,
-    production: c.b2c.delivery === "batched",
     golive_events: Boolean(o.endpoint) && B2C_REQUIRED_EVENTS.every((t) => eventSubscribed(o.endpoint?.events ?? [], t)),
   };
   const done = CHECK_STEPS.filter((s) => checks[s.key]).length;
@@ -94,18 +93,13 @@ function Overview({ o, c }: { o: LinkOverview; c: SyncCadence }) {
   const version = contractVersion(o);
   return (
     <div className="space-y-6">
-      {note && (note.batched ? (
+      {note && (
         <Notice tone="info">
-          <span className="font-medium">After the Addendum 3 deploy, run <em>Resend every lead</em> once, now, while the link delivers in batches.</span>{" "}
-          Every shared lead then reaches the B2C CRM at contract version {version} in one batch (origin <code className="font-mono">resync</code>), and its copies gain the new
-          fields (partner bar, providers, hold, handling, consent state, other courses) with no action on its side.
+          <span className="font-medium">After the Addendum 4 deploy, run <em>Resend every lead</em> once.</span>{" "}
+          Every shared lead then reaches the B2C CRM at contract version {version} (origin <code className="font-mono">resync</code>, one webhook per lead), and its copies
+          gain the new fields (Eduwit stage, counsellor, marketing, per-channel consent) with no action on its side.
         </Notice>
-      ) : (
-        <Notice tone="warning">
-          <span className="font-medium">After the Addendum 3 deploy, every shared lead must be re-sent once at contract version {version}.</span>{" "}
-          Switch the sync cadence to batched first (below), then run <em>Resend every lead</em>: in real time a resend sends one webhook per lead.
-        </Notice>
-      ))}
+      )}
       <div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
         <Card className="min-w-0 xl:self-start">
           <CardHeader title={`Connection checklist · ${done} of ${CHECK_STEPS.length}`}
@@ -128,9 +122,7 @@ function Overview({ o, c }: { o: LinkOverview; c: SyncCadence }) {
         </Card>
         <div className="min-w-0 space-y-6">
           <Card className="min-w-0">
-            <CardHeader title="Sync" description={c.b2c.delivery === "batched"
-              ? `Lead changes are picked up every 5 seconds inside the database and delivered in one signed batch every ${c.interval_minutes} minutes. The B2C CRM keeps the highest version of each lead.`
-              : "Lead changes are picked up every 5 seconds and delivered at once, signed. The B2C CRM keeps the highest version of each lead."} />
+            <CardHeader title="Sync" description="Lead changes are picked up every 5 seconds and delivered at once, signed (Addendum 4: always real time). The B2C CRM's own writes are not echoed back; it keeps the highest version of each lead." />
             <dl className="grid grid-cols-2 gap-px border-t border-border bg-border sm:grid-cols-4">
               <Stat label="Leads in B2C's copy" value={o.sync.in_scope}
                 hint={`${o.sync.held_now} held by B2C now${o.settings.scope === "all" ? "; scope: every lead except Not passed and test leads" : ""}`} />
@@ -200,7 +192,7 @@ function Overview({ o, c }: { o: LinkOverview; c: SyncCadence }) {
                     </td>
                     <td className="px-5 py-2">
                       {r.dir === "out"
-                        ? r.delivery ? <Badge tone={OUT_TONE[r.delivery.status] ?? "neutral"}>{r.delivery.status}</Badge> : <span className="text-subtle">{c.b2c.delivery === "batched" ? "in the next batch" : "feed only"}</span>
+                        ? r.delivery ? <Badge tone={OUT_TONE[r.delivery.status] ?? "neutral"}>{r.delivery.status}</Badge> : <span className="text-subtle">{r.origin?.startsWith("b2c:") ? "its own write: feed only" : "feed only"}</span>
                         : <Badge tone={IN_TONE[r.status] ?? "neutral"}>{r.status} · {r.http_status}</Badge>}
                     </td>
                   </tr>

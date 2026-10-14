@@ -276,6 +276,11 @@ export function LeadsTable({ search, query, initial, openId }: { search: string;
                   <td className="whitespace-nowrap px-3 py-2.5 text-muted">
                     {humanize(r.stage)}
                     {r.sub_stage && <span className="block text-[12px] text-subtle">{humanize(r.sub_stage)}</span>}
+                    {r.b2c_stage && (
+                      <span className="block max-w-[220px] truncate text-[12px] text-subtle" title={[r.b2c_stage, r.b2c_sub_stage, r.b2c_owner_name].filter(Boolean).join(" · ")}>
+                        B2C: {r.b2c_stage}{r.b2c_sub_stage ? ` · ${r.b2c_sub_stage}` : ""}{r.b2c_owner_name ? ` · ${r.b2c_owner_name}` : ""}
+                      </span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-muted">{humanize(r.lead_source)}</td>
                   <td className="max-w-[360px] px-3 py-2.5"><Routing row={r} /></td>

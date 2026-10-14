@@ -53,6 +53,13 @@ function Overview({ l, r }: { l: Lead; r: LeadRouting | null }) {
     ? `${consentState}${r?.consent && consentAt ? ` · ${formatDateTime(consentAt)}` : ""}${r?.consent_detail?.partner_consent?.version ? ` · ${r.consent_detail.partner_consent.version}` : ""}`
     : s("consent_partner_share_at") ? `Stamped ${formatDateTime(s("consent_partner_share_at"))} (coverage not checked)` : "Not given";
   const hold = r ? holdText(r) : null;
+  // Addendum 4 §3: the B2C CRM's own stage, counsellor and comment, and its per-channel marketing consent
+  const cf = l.custom_fields && typeof l.custom_fields === "object" ? (l.custom_fields as Record<string, unknown>) : {};
+  const b2c = cf.b2c && typeof cf.b2c === "object" ? (cf.b2c as Record<string, unknown>) : {};
+  const b = (k: string) => (typeof b2c[k] === "string" && b2c[k] ? (b2c[k] as string) : null);
+  const mc = b2c.marketing_consent && typeof b2c.marketing_consent === "object" ? (b2c.marketing_consent as Record<string, { given?: boolean; at?: string }>) : {};
+  const marketing = Object.entries(mc).map(([ch, v]) => `${humanize(ch)}: ${v?.given ? "yes" : "no"}${v?.at ? ` (${formatDateTime(v.at)})` : ""}`).join(" · ") || null;
+  const outCh = Array.isArray(l.opted_out_channels) ? (l.opted_out_channels as string[]).map(humanize).join(", ") : null;
   return (
     <div className="divide-y divide-border">
       <Section title="Contact" rows={[
@@ -102,6 +109,16 @@ function Overview({ l, r }: { l: Lead; r: LeadRouting | null }) {
         ["Opted out", s("opted_out_at") ? formatDateTime(s("opted_out_at")) : yes(s("is_opted_out"))],
         ["Enrollment", s("enrollment_status") && humanize(s("enrollment_status"))],
       ]} />
+      {routing === "in_house" && (
+        <Section title="B2C CRM" rows={[
+          ["Eduwit stage", [b("stage"), b("sub_stage")].filter(Boolean).join(" · ") || null],
+          ["Counsellor", b("owner_name")],
+          ["Comment", b("stage_comment")],
+          ["Marketing consent", marketing],
+          ["Opted out of", outCh],
+          ["Enrolment verified", when(s("enrollment_verified_at"))],
+        ]} />
+      )}
       <Section title="Witty" rows={[
         ["Conversation stage", s("lead_stage") && humanize(s("lead_stage"))],
         ["Intent", s("intent_type") && humanize(s("intent_type"))],
