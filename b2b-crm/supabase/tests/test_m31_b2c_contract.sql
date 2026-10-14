@@ -1,4 +1,5 @@
 -- M31 B2C contract version 3 (Addendum 3) in PGlite or on STAGING, rolled back. The version-3 b2c.lead_handed_off payload
+-- Addendum 4: published envelopes and records carry contract_version 4; stored event payloads keep 3.
 -- for each reason (handling, hold, bar, "Already with other providers", missing, the explore-programmes welcome request,
 -- consent, lost and nurture timing), the fan-out of b2c.lead_requalified / lead_reengaged / lead_reenquired /
 -- consent_requested / consent_closed with contract_version 3 and the test flag, b2b.lead_routed_to_partner for a
@@ -111,12 +112,12 @@ insert into r select 'a_handling_sell_counsellor_choice', p -> 'handling' ->> 'j
                        and (p ->> 'consent') is null and (p ->> 'lost') is null and (p ->> 'nurture_first_message_after_days') is null
                        and jsonb_typeof(p -> 'attribution') = 'object' and (p -> 'attribution') ? 'paid' and (p ->> 'paid') is null and not (p ->> 'test')::boolean, left(p::text, 300)
   from (select pg_temp.payload(pg_temp.v('A')::bigint) p) y;
-insert into r select 'a_envelope_contract_3', o ->> 'type' = 'b2c.lead_handed_off' and (o ->> 'contract_version')::int = 3 and not (o ->> 'test')::boolean
-                       and o -> 'data' ->> 'reason' = 'b2c_created' and (o -> 'data' ->> 'contract_version')::int = 3 and o -> 'data' ->> 'reference' like 'EDW-%', left(o::text, 200)
+insert into r select 'a_envelope_contract_3', o ->> 'type' = 'b2c.lead_handed_off' and (o ->> 'contract_version')::int = 4 and not (o ->> 'test')::boolean
+                       and o -> 'data' ->> 'reason' = 'b2c_created' and (o -> 'data' ->> 'contract_version')::int = 4 and o -> 'data' ->> 'reference' like 'EDW-%', left(o::text, 200)
   from (select pg_temp.outbox('b2c.lead_handed_off', pg_temp.v('A')::bigint) o) y;
 -- the record of the held lead
 select b2b.lead_interest_add(pg_temp.v('A')::bigint, '"BBA"', 'b2c');
-insert into r select 'a_record_v3', (x ->> 'contract_version')::int = 3 and (x ->> 'held_by_b2c')::boolean
+insert into r select 'a_record_v3', (x ->> 'contract_version')::int = 4 and (x ->> 'held_by_b2c')::boolean
                        and x -> 'allocation' ->> 'reason' = 'b2c_created' and x -> 'allocation' ->> 'b2c_lane' = 'sales'
                        and x -> 'allocation' ->> 'job' = 'sell' and x -> 'allocation' ->> 'assignment' = 'counsellor_choice' and x -> 'allocation' ->> 'first_contact_script' = 'standard'
                        and x -> 'allocation' -> 'hold' ->> 'kind' = 'selling' and (x -> 'allocation' ->> 'partner_bar_reason') is null and (x -> 'allocation' ->> 'partner_barred_at') is null
@@ -170,7 +171,7 @@ insert into r select 'c_consent_requested', x ->> 'destination' = 'consent_reque
                        and (x -> 'consent_request' ->> 'created')::boolean and x -> 'consent_request' ->> 'channel' = 'b2c_crm' and x -> 'consent_request' ->> 'status' = 'requested', left(x::text, 300)
   from (select pg_temp.v('XC')::jsonb x) y;
 select pg_temp.set('CR', (pg_temp.v('XC')::jsonb -> 'consent_request' ->> 'request_id'));
-insert into r select 'c_consent_requested_envelope', o ->> 'type' = 'b2c.consent_requested' and (o ->> 'contract_version')::int = 3 and not (o ->> 'test')::boolean
+insert into r select 'c_consent_requested_envelope', o ->> 'type' = 'b2c.consent_requested' and (o ->> 'contract_version')::int = 4 and not (o ->> 'test')::boolean
                        and o -> 'data' ->> 'request_id' = pg_temp.v('CR') and o -> 'data' ->> 'text_version' = 'wa_partner_consent:v1' and length(o -> 'data' ->> 'text') > 20
                        and o -> 'data' -> 'student' ->> 'phone' = '919876560004', left(o::text, 300)
   from (select pg_temp.outbox('b2c.consent_requested', pg_temp.v('C')::bigint) o) y;
@@ -184,7 +185,7 @@ select pg_temp.set('XCN', b2b.consent_answer(pg_temp.v('C')::bigint, pg_temp.v('
 insert into r select 'c_no_recorded_and_routed', (x ->> 'recorded')::boolean and x ->> 'state' = 'refused' and x ->> 'effect' = 'routed'
                        and x -> 'route' ->> 'reason' = 'no_partner_consent' and x -> 'route' ->> 'b2c_lane' = 'sales', left(x::text, 300)
   from (select pg_temp.v('XCN')::jsonb x) y;
-insert into r select 'c_consent_closed_envelope', o ->> 'type' = 'b2c.consent_closed' and (o ->> 'contract_version')::int = 3 and not (o ->> 'test')::boolean
+insert into r select 'c_consent_closed_envelope', o ->> 'type' = 'b2c.consent_closed' and (o ->> 'contract_version')::int = 4 and not (o ->> 'test')::boolean
                        and o -> 'data' ->> 'request_id' = pg_temp.v('CR') and o -> 'data' ->> 'status' = 'answered' and o -> 'data' ->> 'answer' = 'no', left(o::text, 300)
   from (select pg_temp.outbox('b2c.consent_closed', pg_temp.v('C')::bigint) o) y;
 insert into r select 'c_payload_no_partner_consent', p ->> 'reason' = 'no_partner_consent' and p ->> 'b2c_lane' = 'sales'
@@ -243,7 +244,7 @@ do $x$ begin
     'what', jsonb_build_object('source_system', 'meta', 'source', 'meta_lead_ad', 'event_type', 'lead.created', 'campaign', 'Oct MBA', 'attribution', '{}'::jsonb, 'at', now(), 'ref', 1),
     'interest', true, 'reactivation', false, 'contract_version', 3));
 end $x$;
-insert into r select 'd_reenquired_envelope', o ->> 'type' = 'b2c.lead_reenquired' and (o ->> 'contract_version')::int = 3 and not (o ->> 'test')::boolean
+insert into r select 'd_reenquired_envelope', o ->> 'type' = 'b2c.lead_reenquired' and (o ->> 'contract_version')::int = 4 and not (o ->> 'test')::boolean
                        and o -> 'data' -> 'partner_bar' ->> 'reason' = 'duplicate' and o -> 'data' -> 'hold' ->> 'kind' = 'barred' and o -> 'data' ->> 'b2c_lane' = 'sales'
                        and o -> 'data' ->> 'reference' = 'EDW-' || pg_temp.v('HD'), left(o::text, 300)
   from (select pg_temp.outbox('b2c.lead_reenquired', pg_temp.v('D')::bigint) o) y;
@@ -349,10 +350,10 @@ do $x$ begin
   perform b2b.log_event('b2c.lead_reengaged', pg_temp.v('T')::bigint, null, null, jsonb_build_object(
     'lead_id', pg_temp.v('T')::bigint, 'allocation_id', null, 'engaged_at', now(), 'source', 'witty', 'missing', '["no_email"]'::jsonb, 'contract_version', 3));
 end $x$;
-insert into r select 'g_requalified_envelope', o ->> 'type' = 'b2c.lead_requalified' and (o ->> 'contract_version')::int = 3 and (o ->> 'test')::boolean
+insert into r select 'g_requalified_envelope', o ->> 'type' = 'b2c.lead_requalified' and (o ->> 'contract_version')::int = 4 and (o ->> 'test')::boolean
                        and o -> 'data' ->> 'destination' = 'partner' and (o ->> 'lead_id')::bigint = pg_temp.v('T')::bigint and o ->> 'id' like 'evt_%', left(o::text, 300)
   from (select pg_temp.outbox('b2c.lead_requalified', pg_temp.v('T')::bigint) o) y;
-insert into r select 'g_reengaged_envelope', o ->> 'type' = 'b2c.lead_reengaged' and (o ->> 'contract_version')::int = 3 and (o ->> 'test')::boolean
+insert into r select 'g_reengaged_envelope', o ->> 'type' = 'b2c.lead_reengaged' and (o ->> 'contract_version')::int = 4 and (o ->> 'test')::boolean
                        and o -> 'data' -> 'missing' = '["no_email"]' and o -> 'data' ->> 'source' = 'witty', left(o::text, 300)
   from (select pg_temp.outbox('b2c.lead_reengaged', pg_temp.v('T')::bigint) o) y;
 
@@ -371,7 +372,7 @@ begin
   perform b2b.log_event('lead.accepted', pg_temp.v('H')::bigint, v_a, 21, '{}');
   perform pg_temp.set('HA', v_a::text);
 end $x$;
-insert into r select 'h_routed_to_partner_envelope', o ->> 'type' = 'b2b.lead_routed_to_partner' and (o ->> 'contract_version')::int = 3 and not (o ->> 'test')::boolean
+insert into r select 'h_routed_to_partner_envelope', o ->> 'type' = 'b2b.lead_routed_to_partner' and (o ->> 'contract_version')::int = 4 and not (o ->> 'test')::boolean
                        and o -> 'data' ->> 'origin' = 'requalify' and o -> 'data' ->> 'partner_id' = '21' and o -> 'data' ->> 'reference' = 'EDW-' || pg_temp.v('HA'), left(o::text, 300)
   from (select pg_temp.outbox('b2b.lead_routed_to_partner', pg_temp.v('H')::bigint) o) y;
 insert into r select 'h_lead_accepted_not_for_b2c', count(*) = 0, count(*)::text
@@ -382,7 +383,7 @@ insert into r select 'h_lead_accepted_not_for_b2c', count(*) = 0, count(*)::text
 -- I. GET /v1/b2c/schema, contract version 3
 -- ========================================================================================================
 insert into r select 'i_schema_bad_key', (pg_temp.api('api_b2c_schema', '{"p_key":"nope"}') ->> 'status')::int = 401, null;
-insert into r select 'i_schema_v3', (x ->> 'ok')::boolean and (x -> 'result' ->> 'contract_version')::int = 3
+insert into r select 'i_schema_v3', (x ->> 'ok')::boolean and (x -> 'result' ->> 'contract_version')::int = 4
                        and x -> 'result' -> 'reasons' -> 'sales' @> '["b2c_created","import_choice","rule","manual","manual_route_failed","no_partner_offers_programme","no_capacity","partners_unreachable","partner_attempts_exhausted","duplicate_cascade","no_partner_consent","partner_barred","b2c_held"]'
                        and not x -> 'result' -> 'reasons' -> 'sales' @> '["paid_campaign"]' and x -> 'result' -> 'reasons' -> 'retired' @> '["paid_campaign"]'
                        and x -> 'result' -> 'reasons' -> 'nurture' = '["not_qualified","consent_no_answer","partner_lost"]'
@@ -497,7 +498,7 @@ reset role;
 insert into r select 'm_handoffs_feed', (x ->> 'ok')::boolean and jsonb_array_length(x -> 'result' -> 'events') >= 8
                        and (x -> 'result' ->> 'next_after')::bigint >= (select max(id) from b2b.events where type = 'b2c.lead_handed_off')
                        and exists (select 1 from jsonb_array_elements(x -> 'result' -> 'events') e where e ->> 'type' = 'b2c.lead_handed_off' and (e ->> 'lead_id')::bigint = pg_temp.v('D')::bigint
-                                     and (e ->> 'contract_version')::int = 3 and e -> 'data' -> 'partner_bar' ->> 'reason' = 'duplicate')
+                                     and (e ->> 'contract_version')::int = 4 and e -> 'data' -> 'partner_bar' ->> 'reason' = 'duplicate')
                        and exists (select 1 from jsonb_array_elements(x -> 'result' -> 'events') e where e ->> 'type' = 'b2c.consent_requested')
                        and exists (select 1 from jsonb_array_elements(x -> 'result' -> 'events') e where e ->> 'type' = 'b2c.consent_closed')
                        and exists (select 1 from jsonb_array_elements(x -> 'result' -> 'events') e where e ->> 'type' = 'b2c.lead_requalified' and (e ->> 'test')::boolean)
@@ -535,7 +536,7 @@ insert into r select 'n_test_handoff_in_scope', (x ->> 'changed')::boolean and x
 -- an unrouted real lead is in scope under 'all' (read-only), and leaves it when it becomes Not passed
 select pg_temp.set('SN1', b2b.b2c_sync_lead(pg_temp.v('N')::bigint)::text);
 insert into r select 'n_unrouted_in_scope_all', (x ->> 'changed')::boolean and x ->> 'type' = 'b2c.lead_upserted' and (x ->> 'version')::int = 1
-                       and (select o.payload -> 'data' -> 'record' ->> 'held_by_b2c' = 'false' and (o.payload -> 'data' -> 'record' ->> 'contract_version')::int = 3
+                       and (select o.payload -> 'data' -> 'record' ->> 'held_by_b2c' = 'false' and (o.payload -> 'data' -> 'record' ->> 'contract_version')::int = 4
                               from b2b.integration_outbox o where o.event_type = 'b2c.lead_upserted' and (o.payload ->> 'lead_id')::bigint = pg_temp.v('N')::bigint order by o.id desc limit 1), x::text
   from (select pg_temp.v('SN1')::jsonb x) y;
 insert into b2b.not_passed (lead_id, reason, lead_status, requested_course, lead_source, fingerprint, detail)
@@ -559,7 +560,7 @@ select pg_temp.set('SA1', b2b.b2c_sync_lead(pg_temp.v('A')::bigint)::text);
 insert into r select 'n_held_sync_then_unchanged', (x ->> 'changed')::boolean and x ->> 'type' = 'b2c.lead_upserted' and (x ->> 'version')::int = 1
                        and not (b2b.b2c_sync_lead(pg_temp.v('A')::bigint) ->> 'changed')::boolean, x::text
   from (select pg_temp.v('SA1')::jsonb x) y;
-insert into r select 'n_held_record_v3_in_outbox', (o.payload -> 'data' -> 'record' ->> 'contract_version')::int = 3 and o.payload -> 'data' -> 'record' ->> 'held_by_b2c' = 'true'
+insert into r select 'n_held_record_v3_in_outbox', (o.payload -> 'data' -> 'record' ->> 'contract_version')::int = 4 and o.payload -> 'data' -> 'record' ->> 'held_by_b2c' = 'true'
                        and o.payload -> 'data' -> 'record' -> 'allocation' ->> 'job' = 'sell' and o.payload -> 'data' -> 'record' -> 'interest' -> 'other_courses' = '["BBA"]'
                        and not (o.payload ->> 'test')::boolean, left(o.payload::text, 200)
   from b2b.integration_outbox o where o.event_type = 'b2c.lead_upserted' and (o.payload ->> 'lead_id')::bigint = pg_temp.v('A')::bigint order by o.id desc limit 1;
