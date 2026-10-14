@@ -4,7 +4,9 @@ import { Page, SetupError } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { b2bReady } from "@/lib/b2b";
 import { rpc } from "@/lib/data";
+import { directoryConfig } from "@/lib/directory";
 import { liveMode } from "@/lib/env";
+import { pushConfig } from "@/lib/push";
 import { when } from "@/lib/format";
 import { adminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -70,6 +72,14 @@ export default async function ConnectorsPage() {
         <section className="card pad stack" style={{ gap: 8 }}>
           <div className="row between"><h2>Email</h2><Status ok={!!process.env.SMTP_HOST}>{process.env.SMTP_HOST ? "Sign-in codes ready" : "SMTP not set"}</Status></div>
           <p className="note">Sign-in codes and alerts go by SMTP through Google Workspace. Counsellors&apos; own emails to students go out from their mailbox (Gmail, domain-wide delegation) once Google is set up.</p>
+        </section>
+        <section className="card pad stack" style={{ gap: 8 }}>
+          <div className="row between"><h2>Google Workspace</h2><Status ok={!!directoryConfig()}>{directoryConfig() ? "Teams sync on" : "Not set up"}</Status></div>
+          <p className="note">Every night names, photos and job titles are read from Workspace; an account suspended there is deactivated here and its open leads are reassigned.</p>
+        </section>
+        <section className="card pad stack" style={{ gap: 8 }}>
+          <div className="row between"><h2>Phone alerts</h2><Status ok={!!pushConfig()}>{pushConfig() ? "Ready" : "Push keys not set"}</Status></div>
+          <p className="note">Each person turns alerts on per device under Me → Availability and alerts. Reminders arrive 10 minutes before a follow-up.</p>
         </section>
       </div>
       <section className="stack">

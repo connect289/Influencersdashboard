@@ -324,3 +324,8 @@ pre.json { font-family: var(--mono); font-size: 12px; background: var(--surface)
 .cal-hour { display: grid; grid-template-columns: 52px 1fr; gap: 8px; align-items: start; min-height: 28px; border-bottom: 1px dashed var(--line); padding: 3px 0; font-size: 12px; }
 .cal-item { display: grid; grid-template-columns: auto 1fr; gap: 6px; font-size: 12px; padding: 4px 6px; border-radius: var(--r-sm); background: var(--primary-soft); color: inherit; text-decoration: none; min-width: 0; }
 .cal-item.late { background: var(--red-soft); color: var(--red); }
+
+/* guides */
+.md { display: grid; gap: 8px; font-size: 14px; line-height: 1.55; }
+.md h3 { font-size: 15px; margin: 4px 0 0; }
+.md-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }

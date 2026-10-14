@@ -1,3 +1,5 @@
+import { HelpButton } from "@/components/guide/HelpButton";
+
 /** A screen's title bar and body. On a phone the title bar is compact; the body scrolls with the page. */
 export function Page({ title, actions, sub, children, back }: { title: React.ReactNode; actions?: React.ReactNode; sub?: React.ReactNode; children: React.ReactNode; back?: React.ReactNode }) {
   return (
@@ -9,6 +11,7 @@ export function Page({ title, actions, sub, children, back }: { title: React.Rea
           {sub ? <div className="small muted">{sub}</div> : null}
         </div>
         {actions}
+        <HelpButton />
       </header>
       <div className="content">{children}</div>
     </>

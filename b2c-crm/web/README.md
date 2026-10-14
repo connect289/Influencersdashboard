@@ -2,7 +2,7 @@
 
 Next.js 16 (App Router, Turbopack), React 19, `@supabase/ssr`, zod, sonner, lucide, Geist. The styles are the approved
 design's stylesheet (`app/globals.css`, from `../design`), not Tailwind. The database is the `b2c` schema
-(`../supabase/migrations`, b1–b10); every action calls a `b2c.*` function that checks the person's permission itself.
+(`../supabase/migrations`, b1–b13); every action calls a `b2c.*` function that checks the person's permission itself.
 
 ```
 npm install
@@ -20,7 +20,8 @@ npm run typecheck && npm test && npm run build
 | Workspace (Admin; Marketing reads) | `/w` Home, `/w/leads` (bulk tools, Recycle bin), `/w/leads/[id]`, `/w/pipeline`, `/w/allocation` (rules, pools, hours and leave, simulation, queues, decisions), `/w/teams`, `/w/enrollments`, `/w/connectors`, `/w/settings`, `/w/guide` |
 | From the B2B CRM | `POST /v1/handoffs`: signed webhooks (HMAC over the raw body, 5-minute window), stored and applied once per envelope id |
 | From Meta | `GET/POST /v1/webhooks/whatsapp`: signed with the app secret; messages to `b2c.wa_inbound`, statuses to `b2c.wa_status` |
-| Jobs (pg_cron → here, `x-internal-key`) | `POST /api/internal/sync?mode=urgent` (every minute), `?mode=batch` (every 15 minutes), `POST /api/internal/reconcile` (every 5 minutes) |
+| Jobs (pg_cron → here, `x-internal-key`) | `POST /api/internal/sync?mode=urgent` (every minute, also sends phone alerts), `?mode=batch` (every 15 minutes), `POST /api/internal/reconcile` (every 5 minutes), `POST /api/internal/directory` (daily, 02:10 IST) |
+| Export (Admin) | `GET /w/leads/export?v=<view>&q=<search>`: the view or search as CSV, up to 10,000 rows, logged in the audit log |
 
 **Sync with the B2B CRM** (decisions K2 and K14): the B2B CRM sends hand-offs and lead changes in real time. The B2C CRM
 sends its activity back in one batch every 15 minutes (merged to one update per lead), except what must go at once:
@@ -52,13 +53,18 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
    (`B2B_API_KEY`). Send the test ping; then switch the endpoint on. Run `npm run mock-b2b` against the deployment to
    play the signature checks (test leads only; delete them afterwards).
 7. **Email codes**: SMTP settings (Google Workspace SMTP relay, or a mailbox with an app password).
-8. **Later, for live channels**: WhatsApp Cloud API number and templates (audit §9), Gmail delegation (audit §8). Keep
+8. **Phone alerts**: `npx web-push generate-vapid-keys`; set `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`.
+   Each person turns alerts on per device under Me → Availability and alerts.
+9. **Teams sync**: add the scope `https://www.googleapis.com/auth/admin.directory.user.readonly` to the service account's
+   domain-wide delegation and set `GOOGLE_ADMIN_EMAIL` (a Workspace admin it acts as).
+10. **Later, for live channels**: WhatsApp Cloud API number and templates (audit §9), Gmail delegation (audit §8). Keep
    `LIVE_MODE=off` until the end-to-end test with test leads passes.
 
 ## Checks
 
 - `npm test`: signing (contract reference code), batch and answer mapping, Intake API body, WhatsApp body and webhook
-  parsing, Meta signatures, Gmail JWT and header injection, IST dates, the internal key.
+  parsing, Meta signatures, Gmail JWT and header injection, IST dates, the internal key, email and share text (HTML
+  escaping, placeholders), CSV (formula injection), the guides' Markdown, directory mapping.
 - `../supabase/tests/test_phase1.sql`: 95 rolled-back database checks (run in the SQL editor).
 - `npm run mock-b2b`: the B2B webhook checks against a running deployment.
 

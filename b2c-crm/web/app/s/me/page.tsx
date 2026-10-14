@@ -1,6 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Page } from "@/components/shell/Page";
+import { Guide } from "@/components/guide/Guide";
+import { PushToggle } from "@/components/shell/PushToggle";
+import { Page, SetupError } from "@/components/shell/Page";
+import { rpc } from "@/lib/data";
+import type { Article } from "@/app/guide-actions";
 import { requireUser } from "@/lib/auth";
 import { date, inr, when } from "@/lib/format";
 import { ROLE_LABEL } from "@/lib/labels";
@@ -8,11 +12,10 @@ import { createClient } from "@/lib/supabase/server";
 import type { Enrollment } from "@/lib/types";
 import { Availability } from "./Availability";
 import { EmailTemplates, type EmailTemplate } from "./EmailTemplates";
-import { GUIDE } from "./guide";
 
 export const metadata: Metadata = { title: "Me" };
 
-const TABS = [["enrolments", "My enrolments"], ["templates", "Email templates"], ["availability", "Availability"], ["guide", "Guide"]] as const;
+const TABS = [["enrolments", "My enrolments"], ["templates", "Email templates"], ["availability", "Availability and alerts"], ["guide", "Guide"]] as const;
 
 /** Me (spec B8.7): my enrolments, shared sales email templates, availability, and the guide. */
 export default async function MePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
@@ -55,18 +58,18 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
   } else if (tab === "availability") {
     const { data } = await supabase.from("users").select("away_until").eq("user_id", me.user_id!).maybeSingle();
     const away = data?.away_until && new Date(data.away_until) > new Date() ? data.away_until : null;
-    body = <Availability awayUntil={away} label={away ? `Away until ${when(away)}` : "Working"} />;
-  } else {
     body = (
       <div className="stack">
-        {GUIDE.map((s) => (
-          <details key={s.title} className="panel more" style={{ padding: 12 }}>
-            <summary>{s.title}</summary>
-            <div className="stack" style={{ marginTop: 8 }}>{s.body.map((p, i) => <p key={i}>{p}</p>)}</div>
-          </details>
-        ))}
+        <Availability awayUntil={away} label={away ? `Away until ${when(away)}` : "Working"} />
+        <PushToggle vapidKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
       </div>
     );
+  } else {
+    try {
+      body = <Guide articles={await rpc<Article[]>("guides", { p_role: "sales", p_archived: false })} />;
+    } catch (e) {
+      body = <SetupError error={e} />;
+    }
   }
 
   return (

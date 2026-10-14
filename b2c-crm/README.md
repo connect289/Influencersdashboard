@@ -2,21 +2,28 @@
 
 In-house sales and nurture CRM for Eduwit Learning Services. Spec: `docs/B2C_CRM_PROMPT.md` (final, 14 Oct 2026).
 
-Status: **Phase 1** ("Sell") in progress.
+Status: **Phase 1** ("Sell") built; waiting for the staging setup and the end-to-end test. Phase 2 (Nurture) next.
 
-- Database: migrations b1 to b10 (`supabase/migrations/`) are applied to the **staging** project `mplbspysxmtohnlwpbti`
-  (eduwit-b2b-staging) as `b2c_b1_access` … `b2c_b10_storage` (b4 to b7 in parts). Production is untouched.
+- Database: migrations b1 to b13 (`supabase/migrations/`) are applied to the **staging** project `mplbspysxmtohnlwpbti`
+  (eduwit-b2b-staging) (b4 to b7, b11 and b12 in parts). Production is untouched.
+  b11: Witty's transcript (read-only from `w2_messages`), Programme fit and sharing, editable guides with read tracking,
+  web push subscriptions, directory sync that reassigns suspended accounts, daily `b2c-directory` job. b12: the first
+  sales, admin and marketing guides (28 articles). b13: custom views. Every function added since b10 was checked
+  identical on staging and in the local build.
   b9 (decision K14): every counsellor assignment and its end goes to the B2B CRM at once, to be recorded like a partner
   hand-off (Addendum 4 §4a).
   Staging matches a local build of the same files: 44 tables, 31 policies, 132 of 134 functions with identical bodies,
   nothing executable by `anon`, cron jobs `b2c-minute`, `b2c-sync-urgent`, `b2c-sync-batch` (every 15 min), `b2c-reconcile`.
 - `supabase/manual/staging_b4_pool_calendar.sql` (`pool_save`, `calendar_save`) was run by hand on staging on 14 Oct (the
   automated apply path stalls on any SQL containing DELETE). Staging's copies match the local build.
-- Checks: `supabase/tests/test_phase1.sql`, 80 rolled-back checks, all pass on a fresh local database with the migrations applied
+- Checks: `supabase/tests/test_phase1.sql`, 99 rolled-back checks, all pass on a fresh local database with the migrations applied
   twice. On staging, run it in the SQL editor after the manual file (it clears holidays inside its own rolled-back transaction).
 - The HTTP timers do nothing until the app is deployed and `settings.app.base_url` plus the Vault secret `b2c_internal_key` are set.
 - App (`web/`): built. Sign-in (Google or password, emailed code, trusted device), the Sales app, the Workspace, the
-  B2B and WhatsApp webhooks, and the sync jobs. Typecheck, 39 unit tests and the production build pass; the sign-in
+  B2B and WhatsApp webhooks, and the sync jobs. Since then: the email composer, Programme fit and sharing, Witty's
+  conversation, timeline filter, laptop call view (copy and QR), pipeline drag-and-drop, follow-ups calendar, custom
+  views, Admin CSV export, editable guides with a "?" on every screen, phone alerts (web push) and the Workspace
+  directory sync. Typecheck, 51 unit tests and the production build pass; the sign-in
   screen was checked in light and dark mode against staging. Setup steps (expose `b2c`, Vercel, Google, first Admin,
   timers, B2B keys) are in `web/README.md`. Not yet run end to end: needs those steps and Addendum 4 deployed in B2B.
 
