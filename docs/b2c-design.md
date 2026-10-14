@@ -1,6 +1,7 @@
 # Eduwit B2C CRM: design
 
-Version 0.1 · 14 October 2026 · Status: **draft, for review (nothing built or applied)**
+Version 0.1 · 14 October 2026 · Status: **superseded** by the final spec `b2c-crm/docs/B2C_CRM_PROMPT.md` and the Phase 0
+audit `b2c-crm/docs/phase0-audit.md` (14 Oct). Kept for reference only; where they differ, they win.
 
 Inputs: `docs/b2c-contract.md` (the integration contract, version 3: **the B2C CRM's hard boundary**),
 `docs/B2B_CRM_ADDENDUM_1.md` and `_3.md` (why leads reach B2C and what B2C must do with them), `docs/b2b-design.md`
