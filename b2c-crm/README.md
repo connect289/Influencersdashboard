@@ -3,7 +3,7 @@
 In-house sales and nurture CRM for Eduwit Learning Services. Spec: `docs/B2C_CRM_PROMPT.md` (final, 14 Oct 2026).
 
 Status: **Phase 1** ("Sell") and **Phase 2** ("Nurture") built and on staging; waiting for the staging setup and the
-end-to-end test. Phase 3 (Money and analytics) next.
+end-to-end test. Phase 3 (Money and analytics) planned in `docs/phase3-plan.md`, waiting for approval.
 
 - Database: migrations b1 to b18 (`supabase/migrations/`) are applied to the **staging** project `mplbspysxmtohnlwpbti`
   (eduwit-b2b-staging) (b4 to b7, b11 and b12 in parts). Production is untouched.
@@ -44,6 +44,7 @@ end-to-end test. Phase 3 (Money and analytics) next.
 | `docs/brand/` | Logo and the settled palette (`palette.md`, `palette-preview.html`) |
 | `docs/phase1-plan.md` | Phase 1 plan: migration order, app scope, exit test |
 | `docs/phase2-plan.md` | Phase 2 plan (Nurture): built as b14–b18, Marketing workspace, exit test, what is needed to go live |
+| `docs/phase3-plan.md` | Phase 3 plan (Money and analytics): b19–b23, money and analytics screens, Brief before you call, exit test, what is needed to go live |
 | `docs/WITTY_CHANGES_B2C.md` | Witty release W2: the changes Witty needs for the B2C CRM |
 | `supabase/` | Migrations, the manual staging file, local test stubs and the Phase 1 and 2 checks |
 | `design/` | Clickable design of the three interfaces (sample data) |
