@@ -20,8 +20,8 @@ Version 14 October 2026 · Owner: Vikas Jha · Applies to `docs/B2B_CRM_PROMPT.m
 2. **B2C → B2B is every 15 minutes.** The B2C CRM's activity (assignments, stages, field changes, calls, messages,
    notes, applications, enrolments, scores) reaches the B2B CRM, and through it `student_leads`, in one batch every
    15 minutes. Five things are sent at once because a delay would break a rule: the consent request send, the consent
-   answer, an opt-out, an erasure request, and the Admin's route-to-partners. New students go through the Intake API at
-   once.
+   answer, an opt-out, an erasure request, the Admin's route-to-partners, and **every counsellor assignment and its end**
+   (decision 6). New students go through the Intake API at once.
 3. **The B2C CRM keeps the records B2B pushes as a read-only cache** (contract §2, unchanged). It never reads
    `student_leads` or `b2b.*` directly. It does read, in the same Supabase project, Witty's transcripts (through its own
    `SECURITY DEFINER` function) and the shared `catalog` views (section 6).
@@ -30,6 +30,11 @@ Version 14 October 2026 · Owner: Vikas Jha · Applies to `docs/B2B_CRM_PROMPT.m
    `b2c.lead_reenquired` stays as a hint.
 5. **Counsellors work in Eduwit's own stages** (New Lead … Enrolled, Lost, ten in all, each with sub-stages and a comment), mapped to
    the canonical `stage`. The Master Lead Table shows both.
+6. **Every hand-off is recorded in the B2B CRM, whoever made it** (Vikas, 14 October: "every lead passed to the partner or
+   the internal sales team in the B2C CRM is recorded in the B2B CRM, the same as leads passed to partners via the B2B
+   CRM"). A lead reaches a partner only through the B2B engine (`route-to-partners`), so that half is already true and
+   must stay true. A lead the B2C CRM gives to one of its counsellors is now recorded too, as an allocation in the same
+   ledger as partner allocations (section 4a).
 
 ## 1. Real-time delivery to the B2C CRM
 
@@ -105,6 +110,37 @@ is not refused; the data itself travels in the batch.
 
 All are idempotent on `event_id`, signed as today, and listed on **System health**.
 
+## 4a. B2C counsellor assignments are allocations (decision 6)
+
+The B2C CRM sends, signed, urgent (within a minute of the assignment):
+
+| Type | `data` |
+| --- | --- |
+| `b2ccrm.lead_assigned` | `lead_id`, `assignment_id` (B2C's id, unique), `assigned_at`, `trigger` (`handoff`, `retry`, `reengaged`, `re_enquiry`, `created`, `reassign`, `hand_back`, `leave`, `deactivated`, `returned_from_partners`), `reason`, `counsellor` {`id`, `email`, `name`, `role`, `is_test_user`}, `assigned_by` {`id`, `email`, `name`} (manual reassignment only), `decision` {`id`, `rule`, `logic`, `pool`, `outcome`, `why`, `hot`, `skipped`}, `replaces_assignment_id`, `b2b_allocation_id` and `reference` (the B2B allocation that handed the lead to B2C, from the record), `lane`, `handoff_reason`, `is_test` |
+| `b2ccrm.assignment_ended` | `lead_id`, `assignment_id`, `ended_at`, `end_reason` (`lost`, `released`, `routed_to_partner`, `reassign`, `hand_back`, a rule name, …), `counsellor` |
+
+What B2B does:
+
+1. **Record it in the allocation ledger**, next to partner allocations: a row per `assignment_id` (idempotent on it), with
+   destination `b2c_sales`, the counsellor as the assignee (id, email, name; no partner), `allocated_at = assigned_at`,
+   the B2C decision (rule, logic, pool, why, skipped) as the decision trail, a link to the B2B allocation that handed the
+   lead to B2C (`b2b_allocation_id`), and its own `EDW-…` reference. `assignment_ended` closes it with `ended_at` and
+   `end_reason`; `replaces_assignment_id` closes the previous one if its end has not arrived yet.
+2. **Show it wherever partner allocations show:** the lead's Routing tab (one timeline: engine → B2C hand-off →
+   counsellor A → counsellor B → partner, if routed later), the allocation lists and filters ("Destination: B2C sales";
+   "Counsellor"), Analytics and dashboards (allocations by destination and by counsellor, time from hand-off to
+   assignment, reassignment rate), exports, and the Master Lead Table's owner columns.
+3. **Write the owner fields at once** from the event: `owner_user_id`, `owner_name`, `assigned_at` (and clear them on an
+   end without a replacement). The same values still arrive in the 15-minute batch; the later write is a no-op. This also
+   shortens the Witty pause (section 8: `w2_crm_owned` sees the owner within a minute instead of 15).
+4. **Partner routes requested by the B2C CRM** (`route-to-partners`) are recorded as today, with origin `b2c` and the B2C
+   Admin as the actor, and close the open B2C assignment when `b2b.lead_routed_to_partner` is emitted (the B2C CRM also
+   sends `assignment_ended` with `end_reason: routed_to_partner`).
+5. **Test leads** (`is_test`, or a test counsellor) are recorded and marked test, and kept out of reports as for partner
+   allocations.
+6. Until this is deployed, both events are stored and ignored as unknown types (contract §4), so the B2C CRM can send them
+   from day one; after deployment, rebuild the ledger rows from the stored events once.
+
 ## 5. Reads the B2C CRM needs
 
 1. **Lookup of a lead outside B2C's scope** (`GET /v1/b2c/leads?phone=` / `?email=`): for a match with
@@ -160,6 +196,8 @@ Build the read side behind a check that the views exist, so nothing breaks befor
 - Hand-off reasons, lanes, holds, the partner bar, consent requests and their flow (contract v3 §1) are unchanged.
   The B2C CRM routes every sales-lane hand-off through its own allocation engine and uses `handling` as a hint.
 - `POST /v1/leads/{id}/route-to-partners` and its error codes are unchanged.
+- `b2ccrm.lead_assigned` is no longer timeline-only: it is an allocation record (section 4a). Its old compatibility meaning
+  (a timeline entry) is kept as part of the new one.
 - The B2C CRM never writes `whatsapp_number`, `email_id`, consent columns, source columns or allocation columns.
 
 ## 10. Tests (staging, with the mock B2C endpoint)
@@ -183,3 +221,10 @@ Build the read side behind a check that the views exist, so nothing breaks befor
    cannot read `student_leads`.
 10. Every new envelope and record carries `contract_version: 4`; `GET /v1/b2c/schema` lists the new fields, groups and
     event types.
+11. A `b2ccrm.lead_assigned` creates one ledger row (sent twice: still one), with destination `b2c_sales`, the counsellor,
+    the B2C decision and a link to the B2C hand-off allocation; it shows on the lead's Routing tab and in the allocation
+    list filtered by destination, and `owner_user_id` is set within a minute.
+12. A reassignment (`assignment_ended` then a new `lead_assigned` with `replaces_assignment_id`) closes the first row and
+    opens the second; analytics count one hand-off and one reassignment.
+13. A B2C route-to-partners that a partner accepts shows, on one timeline: B2B hand-off to B2C → counsellor → partner,
+    with the B2C assignment closed as `routed_to_partner`.

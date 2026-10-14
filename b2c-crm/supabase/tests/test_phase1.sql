@@ -100,6 +100,10 @@ begin
   insert into r (name, ok, detail) values ('sla_hot_15_min', s.sla_due_at between now() + interval '14 minutes' and now() + interval '16 minutes', s.sla_due_at::text);
   insert into r (name, ok, detail) values ('assignment_message_queued', exists (select 1 from b2c.send_queue q where q.lead_id = 900001 and q.purpose = 'assignment'), null);
   insert into r (name, ok, detail) values ('owner_queued_for_b2b', exists (select 1 from b2c.outbox o where o.lead_id = 900001 and o.kind = 'update' and not o.urgent and o.body -> 'set' ? 'owner_user_id'), null);
+  -- b9: the hand-off to a counsellor is recorded in the B2B CRM at once, like a partner allocation
+  insert into r (name, ok, detail) values ('assignment_sent_to_b2b_at_once', exists (select 1 from b2c.outbox o where o.lead_id = 900001 and o.kind = 'event' and o.urgent
+    and o.body ->> 'type' = 'b2ccrm.lead_assigned' and (o.body -> 'data' -> 'counsellor' ->> 'id')::uuid = s.owner_id
+    and o.body -> 'data' -> 'decision' ->> 'rule' = 'Duplicate cascade to seniors' and o.body -> 'data' ? 'assignment_id'), null);
   -- the same envelope again
   v := b2c.handoff_receive(pg_temp.env('t-evt-2', 'b2c.lead_handed_off', 900001, '{}'));
   insert into r (name, ok, detail) values ('duplicate_envelope_once', v ->> 'status' = 'duplicate' and (select count(*) from b2c.assignments where lead_id = 900001) = 1, v::text);
@@ -218,6 +222,10 @@ do $x$
 begin
   insert into r (name, ok, detail) values ('hand_back_moves_lead',
     (select owner_id from b2c.leads_state where lead_id = 900003) is distinct from (select user_id from b2c.assignments where lead_id = 900003 order by id limit 1), null);
+  insert into r (name, ok, detail) values ('reassignment_recorded_in_b2b',
+    exists (select 1 from b2c.outbox where lead_id = 900003 and kind = 'event' and urgent and body ->> 'type' = 'b2ccrm.assignment_ended')
+    and exists (select 1 from b2c.outbox where lead_id = 900003 and kind = 'event' and urgent and body ->> 'type' = 'b2ccrm.lead_assigned'
+                and (body -> 'data' ->> 'replaces_assignment_id') is not null and body -> 'data' ->> 'trigger' = 'hand_back'), null);
 end $x$;
 
 -- ---------- Lost → pool ----------
@@ -231,6 +239,8 @@ begin
   insert into r (name, ok, detail) values ('lost_returns_to_pool', s.status = 'pool' and s.owner_id is null and s.pool_reason = 'counsellor_lost'
     and s.first_message_due_at between now() + interval '29 days' and now() + interval '31 days' and s.journey = 'monthly_update', to_jsonb(s)::text);
   insert into r (name, ok, detail) values ('lost_tasks_cancelled', not exists (select 1 from b2c.tasks where lead_id = 900002 and status = 'open'), null);
+  insert into r (name, ok, detail) values ('lost_ends_assignment_in_b2b', exists (select 1 from b2c.outbox where lead_id = 900002 and kind = 'event' and urgent
+    and body ->> 'type' = 'b2ccrm.assignment_ended' and body -> 'data' ->> 'end_reason' = 'lost'), null);
 end $x$;
 
 -- ---------- consent round trip (contract §1.3) and opt-out ----------
@@ -294,6 +304,8 @@ begin
   perform b2c.handoff_receive(pg_temp.env('t-evt-30', 'b2b.lead_routed_to_partner', 900003, '{"origin":"to_partners"}'));
   insert into r (name, ok, detail) values ('routed_closes_pipeline', (select status = 'closed' and closed_reason = 'routed_to_partner' from b2c.leads_state where lead_id = 900003)
     and not exists (select 1 from b2c.tasks where lead_id = 900003 and status = 'open'), null);
+  insert into r (name, ok, detail) values ('routed_ends_assignment_in_b2b', not exists (select 1 from b2c.assignments where lead_id = 900003 and ended_at is null)
+    and exists (select 1 from b2c.outbox where lead_id = 900003 and kind = 'event' and body ->> 'type' = 'b2ccrm.assignment_ended' and body -> 'data' ->> 'end_reason' = 'routed_to_partner'), null);
 end $x$;
 
 -- ---------- roles ----------
@@ -378,7 +390,8 @@ select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege
     'b2c.outbox_take(text,integer)', 'b2c.outbox_done(jsonb)', 'b2c.allocate(bigint,text,uuid)', 'b2c.assign(bigint,uuid,bigint,text,text)',
     'b2c.queue_update(bigint,jsonb,boolean)', 'b2c.send_take(integer)', 'b2c.send_done(jsonb)', 'b2c.wa_inbound(jsonb)', 'b2c.minute_tick()',
     'b2c.job_call(text)', 'b2c.directory_sync(jsonb)', 'b2c.notify(uuid,text,text,text,text,bigint,text)', 'b2c.close_lead(bigint,text,text)',
-    'b2c.reengage(bigint,text)', 'b2c.working_window(uuid,date)', 'b2c.decide(bigint,text,timestamptz,uuid,boolean)']) f;
+    'b2c.reengage(bigint,text)', 'b2c.working_window(uuid,date)', 'b2c.decide(bigint,text,timestamptz,uuid,boolean)',
+    'b2c.assignment_payload(b2c.assignments)', 'b2c.assignment_to_b2b()']) f;
 insert into r (name, ok, detail) values ('anon_has_nothing', not has_schema_privilege('anon', 'b2c', 'usage'), null);
 
 select n, name, ok, case when ok then null else detail end as detail from r order by n;
