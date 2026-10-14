@@ -373,6 +373,24 @@ begin
   insert into r (name, ok, detail) values ('minute_tick_clean', not exists (select 1 from jsonb_object_keys(v) k where k like '%error'), v::text);
 end $x$;
 
+-- ---------- b13: custom views ----------
+do $x$
+declare v bigint; e text;
+begin
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000b002');
+  v := b2c.view_save('{"name":"My hot MBA","role":"sales","filters":{"all":[{"field":"temperature","op":"eq","value":"hot"},{"field":"course","op":"contains","value":"MBA"}]},"sort":{"field":"score","dir":"desc"}}');
+  insert into r (name, ok, detail) values ('view_saved', exists (select 1 from b2c.saved_views where id = v and owner_id = 'aaaaaaaa-0000-0000-0000-00000000b002' and not is_standard), null);
+  begin perform b2c.view_save('{"name":"Bad","filters":{"all":[{"field":"pg_catalog.secret","op":"eq","value":"x"}]}}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('view_bad_field_refused', e like 'cannot filter on%', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000b003');
+  begin perform b2c.view_save(jsonb_build_object('id', v, 'hidden', true)); e := 'hidden'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('view_others_untouchable', e = 'only your own views can be changed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000b002');
+  perform b2c.view_save(jsonb_build_object('id', v, 'hidden', true));
+  insert into r (name, ok, detail) values ('view_hidden', (select hidden_at is not null from b2c.saved_views where id = v), null);
+  perform pg_temp.as_system();
+end $x$;
+
 -- ---------- b11: Witty transcript, programme fit and sharing, guides, push, directory ----------
 do $x$
 declare v jsonb; e text; v_lead bigint; v_owner uuid; v_prog bigint; v_course text; n int; v_g bigint;
@@ -448,7 +466,7 @@ select 'authenticated_can_call', bool_and(has_function_privilege('authenticated'
     'b2c.new_lead(jsonb,jsonb)', 'b2c.route_to_partners(bigint[],text)', 'b2c.reassign(bigint[],uuid,text)', 'b2c.hand_back(bigint,text)',
     'b2c.rule_save(jsonb)', 'b2c.simulate(date,date)', 'b2c.team()', 'b2c.user_save(jsonb)', 'b2c.programme_search(jsonb)', 'b2c.admin_home()',
     'b2c.notifications_mine(integer)', 'b2c.set_away(integer)', 'b2c.witty_transcript(bigint,integer)', 'b2c.programme_fit(bigint,integer)',
-    'b2c.programme_share(bigint,bigint[],text,text)', 'b2c.guides(text,boolean)', 'b2c.guide_read(bigint)', 'b2c.guide_save(jsonb)', 'b2c.push_subscribe(jsonb,boolean)', 'b2c.is_staff()', 'b2c.can_see(bigint)', 'b2c.uid()']) f;
+    'b2c.programme_share(bigint,bigint[],text,text)', 'b2c.guides(text,boolean)', 'b2c.guide_read(bigint)', 'b2c.guide_save(jsonb)', 'b2c.push_subscribe(jsonb,boolean)', 'b2c.view_save(jsonb)', 'b2c.is_staff()', 'b2c.can_see(bigint)', 'b2c.uid()']) f;
 insert into r (name, ok, detail)
 select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where has_function_privilege('authenticated', f, 'execute'))
   from unnest(array['b2c.mfa_issue(uuid,uuid)', 'b2c.handoff_receive(jsonb,text)', 'b2c.apply_envelope(text)', 'b2c.apply_record(bigint,integer,bigint,jsonb,text)',

@@ -342,3 +342,22 @@ export async function numberCopied(leadId: number): Promise<void> {
   await assertUser();
   await rpc("audit", { p_action: "contact_copy", p_lead: id.parse(leadId), p_detail: { via: "call_sheet" } }).catch(() => undefined);
 }
+
+// ---------- custom lead views (B8.4) ----------
+
+const viewSchema = z.object({
+  id: id.optional(), name: z.string().trim().min(1).max(60).optional(), role: z.enum(["sales", "workspace"]),
+  filters: z.object({ all: z.array(z.object({ field: z.string().max(40), op: z.string().max(20), value: z.unknown().optional() })).max(12) }).optional(),
+  sort: z.object({ field: z.string().max(40), dir: z.enum(["asc", "desc"]) }).optional(),
+  is_standard: z.boolean().optional(), hidden: z.boolean().optional(),
+});
+
+/** Saves (or hides) one of the person's views; the database runs it once first, so a broken view is never saved. */
+export async function viewSave(input: z.input<typeof viewSchema>): Promise<ActionResult<number>> {
+  await assertUser();
+  const p = viewSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: "Name the view and check its conditions." };
+  const r = await act(() => rpc<number>("view_save", { p: p.data }), p.data.hidden ? "View removed." : "View saved.");
+  revalidatePath(p.data.role === "sales" ? "/s/leads" : "/w/leads");
+  return r;
+}

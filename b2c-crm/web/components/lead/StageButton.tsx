@@ -27,9 +27,9 @@ export function StageButton({ leadId, current, sub, stages, subs, canMoveBack, d
   );
 }
 
-function StageSheet({ leadId, cur, stages, subs, canMoveBack, onClose }: { leadId: number; cur?: Stage; stages: Stage[]; subs: SubStage[]; canMoveBack: boolean; onClose: () => void }) {
+export function StageSheet({ leadId, cur, stages, subs, canMoveBack, onClose, initial }: { leadId: number; cur?: Stage; stages: Stage[]; subs: SubStage[]; canMoveBack: boolean; onClose: () => void; initial?: number }) {
   const router = useRouter();
-  const [stage, setStageId] = useState<number>(cur?.id ?? 1);
+  const [stage, setStageId] = useState<number>(initial ?? cur?.id ?? 1);
   const [sub, setSub] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [next, setNext] = useState<string | null>(null);

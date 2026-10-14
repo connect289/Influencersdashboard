@@ -8,12 +8,12 @@ import { TASK_KIND_LABEL } from "@/lib/labels";
 import { NextPicker } from "./NextPicker";
 
 /** Done (outcome + the next follow-up, unless the lead is closed) and Move (a new time) for one follow-up. */
-export function TaskActions({ taskId, title, leadId, needsNext = true }: { taskId: number; title: string; leadId: number; needsNext?: boolean }) {
+export function TaskActions({ taskId, title, leadId, needsNext = true, moveLabel = "Move" }: { taskId: number; title: string; leadId: number; needsNext?: boolean; moveLabel?: string }) {
   const [mode, setMode] = useState<"done" | "move" | null>(null);
   return (
     <span className="row" style={{ gap: 4 }}>
       <button type="button" className="btn ghost sm" onClick={() => setMode("done")}>Done</button>
-      <button type="button" className="btn quiet sm" onClick={() => setMode("move")}>Move</button>
+      <button type="button" className="btn quiet sm" onClick={() => setMode("move")}>{moveLabel}</button>
       {mode === "done" && <DoneSheet taskId={taskId} title={title} leadId={leadId} needsNext={needsNext} onClose={() => setMode(null)} />}
       {mode === "move" && <MoveSheet taskId={taskId} title={title} leadId={leadId} onClose={() => setMode(null)} />}
     </span>

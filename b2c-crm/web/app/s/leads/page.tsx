@@ -2,10 +2,12 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Search } from "lucide-react";
 import { LeadTable } from "@/components/lead/LeadTable";
+import { ViewBuilder } from "@/components/lead/ViewBuilder";
 import { Empty, Page, SetupError } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
 import type { LeadRow } from "@/lib/types";
+import { stagesAndSubs } from "@/lib/stages";
 import { viewsFor } from "@/lib/views";
 import { NewLeadButton } from "./NewLead";
 
@@ -15,9 +17,9 @@ const PAGE = 50;
 
 /** My leads (spec B8.4): saved views as pills, search by name, any phone, email or application ID. */
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ v?: string; q?: string; page?: string }> }) {
-  await requireUser("sales", "/s/leads");
+  const me = await requireUser("sales", "/s/leads");
   const sp = await searchParams;
-  const views = await viewsFor("sales");
+  const [views, { stages }] = await Promise.all([viewsFor("sales"), stagesAndSubs()]);
   const view = views.find((v) => String(v.id) === sp.v) ?? views.find((v) => v.name === "Due now") ?? views[0];
   const page = Math.max(0, Number(sp.page ?? 0) || 0);
   let res: { total: number; rows: LeadRow[] };
@@ -43,6 +45,10 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
             {v.name}
           </Link>
         ))}
+      </div>
+      <div className="row" style={{ gap: 6 }}>
+        <ViewBuilder role="sales" base="/s/leads" stages={stages} />
+        {view && !view.is_standard && view.owner_id === me.user_id && !sp.q && <ViewBuilder key={view.id} role="sales" base="/s/leads" stages={stages} view={view} />}
       </div>
       {res.rows.length === 0 ? <Empty>No leads here.</Empty> : <LeadTable rows={res.rows} base="/s/leads" />}
       {res.total > PAGE && (

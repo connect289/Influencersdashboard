@@ -2,11 +2,13 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Eye, Search } from "lucide-react";
 import { LeadTable } from "@/components/lead/LeadTable";
+import { ViewBuilder } from "@/components/lead/ViewBuilder";
 import { Empty, Page, SetupError } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
 import { assignable, team, type TeamMember } from "@/lib/team";
 import type { LeadRow } from "@/lib/types";
+import { stagesAndSubs } from "@/lib/stages";
 import { viewsFor } from "@/lib/views";
 import { BulkBar } from "./BulkBar";
 
@@ -19,7 +21,7 @@ export default async function WorkspaceLeads({ searchParams }: { searchParams: P
   const sp = await searchParams;
   const admin = me.role === "admin";
   const bin = sp.bin === "1" && admin;
-  const views = await viewsFor("workspace");
+  const [views, { stages }] = await Promise.all([viewsFor("workspace"), stagesAndSubs()]);
   const view = bin ? undefined : views.find((v) => String(v.id) === sp.v) ?? views[0];
   const page = Math.max(0, Number(sp.page ?? 0) || 0);
   let res: { total: number; rows: LeadRow[] };
@@ -55,6 +57,14 @@ export default async function WorkspaceLeads({ searchParams }: { searchParams: P
         ))}
         {admin && <Link className="pill" href="/w/leads?bin=1" aria-pressed={bin} style={{ color: "inherit", textDecoration: "none" }}>Recycle bin</Link>}
       </div>
+      {!bin && (
+        <div className="row wrap" style={{ gap: 6 }}>
+          <ViewBuilder role="workspace" base="/w/leads" stages={stages} admin={admin} />
+          {view && !sp.q && ((!view.is_standard && view.owner_id === me.user_id) || (view.is_standard && admin)) &&
+            <ViewBuilder key={view.id} role="workspace" base="/w/leads" stages={stages} view={view} admin={admin} />}
+          {admin && <a className="btn ghost sm" href={`/w/leads/export?${new URLSearchParams({ ...(view ? { v: String(view.id) } : {}), ...(sp.q ? { q: sp.q } : {}), ...(sp.test ? { test: sp.test } : {}) })}`}>Export CSV</a>}
+        </div>
+      )}
       {res.rows.length === 0 ? <Empty>No leads here.</Empty> : <LeadTable rows={res.rows} base="/w/leads" showOwner select />}
       {res.total > PAGE && (
         <div className="pager">
