@@ -721,6 +721,7 @@ Source: `docs/B2B_CRM_ADDENDUM_4.md` (14 Oct). Migrations `m32a`–`m32c`; contr
   consent. The referral view `b2b_referral_outcomes` is still not built; when it is, it reads `b2c_status_of`.
 - **Not changed:** Witty (`w2_*`, `lead_intake()`, n8n), hand-off reasons, lanes, holds, the partner bar and consent flow.
   Forwarding Witty's interest signal and `w2_crm_owned` for B2C nurture stay Witty changes for later.
+- **Delivery target:** B2C CRM link shows the p95 delivery time of the last hour against the 5-second target.
 - **Verification:** `tests/test_m32_b2c_v4.sql` (41 checks, the ten tests of §10) and the B2C link, cadence and Addendum 3
   suites pass in the local full-schema harness; web type check, 437 unit tests and the production build pass.
 

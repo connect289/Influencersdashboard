@@ -18,6 +18,7 @@
 --   (3) b2c_money_of / b2c_status_of  NEW: read public.b2c_enrollment_money_v / b2c_lead_status_v when the B2C CRM has
 --                              published them (its Phase 3), null before (§7). The referral view b2b_referral_outcomes is
 --                              not built yet (design §6); when it is, it reads b2c_status_of for B2C-held leads.
+--   (5) b2c_link_overview      REPLACED (m22c): contract_version 4 and deliveries.lag_seconds_p95 against a 5-second target.
 --   (4) lead_a3_columns_sql    REPLACED (m31l): the Master Lead Table shows b2c_stage, b2c_sub_stage, b2c_owner_name and
 --                              b2c_money for B2C-held leads.
 -- Triggers only on b2b.rates and b2b.partner_programme_versions (never on student_leads). Re-appliable.
@@ -214,6 +215,74 @@ returns text language sql immutable set search_path = '' as $fn$
                case when l.destination_type = 'in_house' then b2b.b2c_money_of(l.id) end as b2c_money
   $c$;
 $fn$;
+
+-- ---------- B2C CRM link overview: the p95 delivery lag against the 5-second target (Addendum 4 §1) ----------
+create or replace function b2b.b2c_link_overview()
+returns jsonb language plpgsql stable security definer set search_path = '' as $fn$
+declare
+  cfg jsonb := b2b.b2c_link_cfg();
+  w b2b.webhook_endpoints;
+  v_keys jsonb;
+  v_snap text[] := array['b2c.lead_upserted', 'b2c.lead_released'];
+begin
+  if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
+  select * into w from b2b.webhook_endpoints where consumer = 'b2c_crm';
+  select coalesce(jsonb_agg(jsonb_build_object('id', id, 'name', name, 'prefix', key_prefix, 'scopes', scopes, 'last_used_at', last_used_at) order by id), '[]')
+    into v_keys from b2b.api_keys where revoked_at is null and 'b2c' = any (scopes);
+  return jsonb_build_object(
+    'contract_version', 4,
+    'settings', cfg,
+    'fields', b2b.b2c_fields(),
+    'endpoint', case when w.id is not null then jsonb_build_object('id', w.id, 'name', w.name, 'url', w.url, 'active', w.active, 'events', w.events,
+                       'has_secret', w.secret_id is not null, 'last_success_at', w.last_success_at, 'last_failure_at', w.last_failure_at, 'last_error', w.last_error,
+                       'subscribed', b2b.event_subscribed(w.events, 'b2c.lead_upserted') and b2b.event_subscribed(w.events, 'b2c.lead_released')) end,
+    'keys', v_keys,
+    'checks', jsonb_build_object(
+      'endpoint', w.id is not null,
+      'secret', w.secret_id is not null,
+      'subscribed', coalesce(b2b.event_subscribed(w.events, 'b2c.lead_upserted'), false),
+      'ping', exists (select 1 from b2b.integration_outbox o where o.endpoint_id = w.id and o.event_type = 'ping' and o.status = 'delivered'),
+      'active', coalesce(w.active, false),
+      'key', jsonb_array_length(v_keys) > 0,
+      'key_used', exists (select 1 from b2b.api_keys where revoked_at is null and 'b2c' = any (scopes) and last_used_at is not null),
+      'first_delivery', exists (select 1 from b2b.integration_outbox o where o.endpoint_id = w.id and o.event_type = any (v_snap) and o.status = 'delivered'),
+      'first_write', exists (select 1 from b2b.b2c_writes where status in ('applied', 'unchanged'))),
+    'sync', jsonb_build_object(
+      'in_scope', (select count(*) from b2b.b2c_sync where in_scope),
+      'held_now', (select count(*) from public.student_leads l where b2b.b2c_holds(l)),
+      'changes_24h', (select count(*) from b2b.b2c_sync where changed_at > now() - interval '24 hours'),
+      'last_change_at', (select max(changed_at) from b2b.b2c_sync),
+      'last_seq', (select max(seq) from b2b.b2c_sync),
+      'tick', (select value from b2b.b2c_link_state where key = 'cursor')),
+    'deliveries', jsonb_build_object(
+      'by_status', coalesce((select jsonb_object_agg(status, n) from (select o.status, count(*) n from b2b.integration_outbox o
+                               where o.endpoint_id = w.id and o.event_type = any (v_snap) and o.created_at > now() - interval '24 hours' group by 1) x), '{}'),
+      'waiting', (select count(*) from b2b.integration_outbox o where o.endpoint_id = w.id and o.status in ('pending', 'failed', 'sending')),
+      'lag_seconds_avg', (select round(avg(extract(epoch from o.delivered_at - o.created_at))::numeric, 1) from b2b.integration_outbox o
+                            where o.endpoint_id = w.id and o.event_type = any (v_snap) and o.delivered_at > now() - interval '1 hour'),
+      'lag_seconds_max', (select round(max(extract(epoch from o.delivered_at - o.created_at))::numeric, 1) from b2b.integration_outbox o
+                            where o.endpoint_id = w.id and o.event_type = any (v_snap) and o.delivered_at > now() - interval '1 hour'),
+      -- Addendum 4 §1: a change to a B2C-held lead is delivered within 5 seconds at p95
+      'lag_seconds_p95', (select round((percentile_cont(0.95) within group (order by extract(epoch from o.delivered_at - o.created_at)))::numeric, 1)
+                            from b2b.integration_outbox o
+                           where o.endpoint_id = w.id and o.event_type = any (v_snap) and o.delivered_at > now() - interval '1 hour'),
+      'lag_target_seconds', 5),
+    'writes', jsonb_build_object(
+      'by_status', coalesce((select jsonb_object_agg(kind || '.' || status, n) from (select kind, status, count(*) n from b2b.b2c_writes
+                               where created_at > now() - interval '24 hours' group by 1, 2) x), '{}'),
+      'last_at', (select max(created_at) from b2b.b2c_writes)),
+    'log', coalesce((select jsonb_agg(x order by x ->> 'at' desc) from (
+      (select jsonb_build_object('dir', 'out', 'at', s.changed_at, 'lead_id', s.lead_id, 'name', l.student_name, 'type', case when s.in_scope then 'upserted' else 'released' end,
+                                 'version', s.version, 'origin', s.origin,
+                                 'delivery', (select jsonb_build_object('status', o.status, 'error', o.last_error, 'attempts', o.attempts) from b2b.integration_outbox o
+                                               where o.endpoint_id = w.id and o.idempotency_key = w.id || ':lead_' || s.lead_id || '_v' || s.version)) x
+         from b2b.b2c_sync s left join public.student_leads l on l.id = s.lead_id order by s.changed_at desc limit 40)
+      union all
+      (select jsonb_build_object('dir', 'in', 'at', b.created_at, 'lead_id', b.lead_id, 'name', l.student_name, 'type', b.kind, 'status', b.status,
+                                 'http_status', b.http_status, 'error', b.error, 'actor', b.actor, 'changes', b.changes, 'request_id', b.request_id,
+                                 'version', b.version_after) x
+         from b2b.b2c_writes b left join public.student_leads l on l.id = b.lead_id order by b.created_at desc limit 40)) y), '[]'));
+end $fn$;
 
 revoke execute on function b2b.catalog_change_log(), b2b.b2c_money_of(bigint), b2b.b2c_status_of(bigint) from public, anon, authenticated;
 grant execute on function b2b.b2c_money_of(bigint), b2b.b2c_status_of(bigint) to authenticated, service_role;

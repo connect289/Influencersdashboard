@@ -127,7 +127,10 @@ function Overview({ o, c }: { o: LinkOverview; c: SyncCadence }) {
               <Stat label="Leads in B2C's copy" value={o.sync.in_scope}
                 hint={`${o.sync.held_now} held by B2C now${o.settings.scope === "all" ? "; scope: every lead except Not passed and test leads" : ""}`} />
               <Stat label="Changes sent, 24 h" value={o.sync.changes_24h} />
-              <Stat label="Delivery time (1 h)" value={lagText(o.deliveries.lag_seconds_avg)} hint={`slowest ${lagText(o.deliveries.lag_seconds_max)}`} />
+              <Stat label="Delivery time (1 h)" value={lagText(o.deliveries.lag_seconds_p95 ?? o.deliveries.lag_seconds_avg)}
+                hint={o.deliveries.lag_seconds_p95 != null
+                  ? `p95, target ${o.deliveries.lag_target_seconds ?? 5} s · average ${lagText(o.deliveries.lag_seconds_avg)} · slowest ${lagText(o.deliveries.lag_seconds_max)}`
+                  : `slowest ${lagText(o.deliveries.lag_seconds_max)}`} />
               <Stat label="Waiting or retrying" value={o.deliveries.waiting} tone={o.deliveries.waiting > 20 ? "text-warning" : undefined} />
               <Stat label="Gave up, 24 h" value={o.deliveries.by_status.dead ?? 0} tone={(o.deliveries.by_status.dead ?? 0) > 0 ? "text-danger" : undefined} />
               <Stat label="B2C writes, 24 h" value={writesOk} />

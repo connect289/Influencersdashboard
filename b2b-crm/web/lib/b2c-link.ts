@@ -43,7 +43,9 @@ export type LinkOverview = {
   checks: LinkChecks;
   sync: { in_scope: number; held_now: number; changes_24h: number; last_change_at: string | null; last_seq: number | null;
           tick: { at?: string; last_run?: string; scanned?: number; changed?: number } | null };
-  deliveries: { by_status: Record<string, number>; waiting: number; lag_seconds_avg: number | null; lag_seconds_max: number | null };
+  deliveries: { by_status: Record<string, number>; waiting: number; lag_seconds_avg: number | null; lag_seconds_max: number | null;
+    /** Addendum 4 §1: p95 over the last hour, against lag_target_seconds (5). */
+    lag_seconds_p95?: number | null; lag_target_seconds?: number };
   writes: { by_status: Record<string, number>; last_at: string | null };
   log: LinkLogRow[];
   /** The contract version the link publishes. b2c_link_overview (m22c) does not return it yet: contractVersion() falls back to CONTRACT_VERSION. */
