@@ -22,3 +22,7 @@ create table public.catalog_programs (id bigint primary key, university_id bigin
   program_name text, mode text, fee_yearly numeric, fee_semester numeric, fee_total numeric, fee_exam numeric, fee_registration numeric, fee_other jsonb,
   min_qualification text, min_pct_general numeric, min_pct_reserved numeric, eligibility_text text, brochure_url text, source_row int, flags text[], active boolean,
   updated_at timestamptz, program_key text, search_doc tsvector, source_file text);
+
+-- storage (Supabase Storage's bucket table, for b10)
+create schema if not exists storage;
+create table if not exists storage.buckets (id text primary key, name text not null, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);

@@ -4,8 +4,8 @@ In-house sales and nurture CRM for Eduwit Learning Services. Spec: `docs/B2C_CRM
 
 Status: **Phase 1** ("Sell") in progress.
 
-- Database: migrations b1 to b9 (`supabase/migrations/`) are applied to the **staging** project `mplbspysxmtohnlwpbti`
-  (eduwit-b2b-staging) as `b2c_b1_access` … `b2c_b9_assignment_ledger` (b4 to b7 in parts). Production is untouched.
+- Database: migrations b1 to b10 (`supabase/migrations/`) are applied to the **staging** project `mplbspysxmtohnlwpbti`
+  (eduwit-b2b-staging) as `b2c_b1_access` … `b2c_b10_storage` (b4 to b7 in parts). Production is untouched.
   b9 (decision K14): every counsellor assignment and its end goes to the B2B CRM at once, to be recorded like a partner
   hand-off (Addendum 4 §4a).
   Staging matches a local build of the same files: 44 tables, 31 policies, 132 of 134 functions with identical bodies,
@@ -15,7 +15,10 @@ Status: **Phase 1** ("Sell") in progress.
 - Checks: `supabase/tests/test_phase1.sql`, 80 rolled-back checks, all pass on a fresh local database with the migrations applied
   twice. On staging, run it in the SQL editor after the manual file (it clears holidays inside its own rolled-back transaction).
 - The HTTP timers do nothing until the app is deployed and `settings.app.base_url` plus the Vault secret `b2c_internal_key` are set.
-- App (`web/`): next.
+- App (`web/`): built. Sign-in (Google or password, emailed code, trusted device), the Sales app, the Workspace, the
+  B2B and WhatsApp webhooks, and the sync jobs. Typecheck, 39 unit tests and the production build pass; the sign-in
+  screen was checked in light and dark mode against staging. Setup steps (expose `b2c`, Vercel, Google, first Admin,
+  timers, B2B keys) are in `web/README.md`. Not yet run end to end: needs those steps and Addendum 4 deployed in B2B.
 
 | File | What |
 | --- | --- |
@@ -26,6 +29,7 @@ Status: **Phase 1** ("Sell") in progress.
 | `docs/WITTY_CHANGES_B2C.md` | Witty release W2: the changes Witty needs for the B2C CRM |
 | `supabase/` | Migrations, the manual staging file, local test stubs and the Phase 1 checks |
 | `design/` | Clickable design of the three interfaces (sample data) |
+| `web/` | The Phase 1 app (see `web/README.md`) |
 
 Hard limits while building: staging or a Supabase branch only; never run `student_leads_v2_rename.sql`; never change
 Witty's `w2_*` objects, `lead_intake()`, the n8n workflows or the B2B CRM (`../b2b-crm`); test leads only.
