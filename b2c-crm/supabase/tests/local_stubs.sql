@@ -32,3 +32,11 @@ insert into public.catalog_programs (id, university_id, level, course, specializ
 -- storage (Supabase Storage's bucket table, for b10)
 create schema if not exists storage;
 create table if not exists storage.buckets (id text primary key, name text not null, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);
+
+-- the B2B CRM's partner tables (read-only for B2C; shapes as on staging), for b20's partner rates
+create schema if not exists b2b;
+create table if not exists b2b.partners (id bigint primary key, slug text, name text, display_name text, status text);
+create table if not exists b2b.partner_programmes (id bigserial primary key, partner_id bigint references b2b.partners (id), programme_id bigint, commission jsonb not null default '{}',
+  active boolean not null default true, valid_from timestamptz, valid_to timestamptz);
+create table if not exists b2b.rates (id bigserial primary key, scope text, partner_id bigint, programme_id bigint, university_id bigint, rate_type text, fee_base text,
+  value numeric, tiers jsonb, gst_inclusive boolean default false, valid_from date, valid_to date, source text default 'manual');
