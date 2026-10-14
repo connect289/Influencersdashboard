@@ -1,0 +1,300 @@
+-- Phase 2 (Nurture) checks, rolled back. Run on staging (or a local copy with tests/local_stubs.sql). Every row of the
+-- final select must say ok = true. Test phones 9190000000NN only. The exit test of Phase 2 (spec B19.2 row 2).
+begin;
+create temp table r (n serial, name text, ok boolean, detail text);
+grant all on r to authenticated, service_role;
+grant usage, select on sequence r_n_seq to authenticated, service_role;
+
+-- ---------- people (as in Phase 1) ----------
+insert into auth.users (id, email, aud, role) values
+  ('aaaaaaaa-0000-0000-0000-00000000c001', 'admin.p2@eduwit.in', 'authenticated', 'authenticated'),
+  ('aaaaaaaa-0000-0000-0000-00000000c002', 'priya.p2@eduwit.in', 'authenticated', 'authenticated'),
+  ('aaaaaaaa-0000-0000-0000-00000000c003', 'rohan.p2@eduwit.in', 'authenticated', 'authenticated'),
+  ('aaaaaaaa-0000-0000-0000-00000000c005', 'sneha.p2@eduwit.in', 'authenticated', 'authenticated');
+insert into b2c.users (user_id, email, full_name, role, is_active, is_test_user, languages, takes_leads) values
+  ('aaaaaaaa-0000-0000-0000-00000000c001', 'admin.p2@eduwit.in', 'P2 Admin', 'admin', true, false, '{English}', false),
+  ('aaaaaaaa-0000-0000-0000-00000000c002', 'priya.p2@eduwit.in', 'Priya P2', 'counsellor', true, true, '{English,Hindi}', true),
+  ('aaaaaaaa-0000-0000-0000-00000000c003', 'rohan.p2@eduwit.in', 'Rohan P2', 'counsellor', true, true, '{English}', true),
+  ('aaaaaaaa-0000-0000-0000-00000000c005', 'sneha.p2@eduwit.in', 'Sneha P2', 'marketing', true, false, '{English}', true);
+delete from b2c.holidays;
+insert into b2c.work_patterns (user_id, isodow, start_t, end_t)
+select u.user_id, d, '00:00', '23:59' from b2c.users u, generate_series(1, 7) d where u.email like '%.p2@eduwit.in';
+-- the whole day is a send window in this test (quiet hours are checked with an explicit time below)
+update b2c.settings set value = value || '{"quiet_start": "00:00", "quiet_end": "23:59"}' where key = 'messaging';
+
+create function pg_temp.as_user(p uuid) returns void language plpgsql as $f$
+begin
+  perform set_config('request.jwt.claims', json_build_object('sub', p, 'role', 'authenticated', 'session_id', ('bbbbbbbb-0000-0000-0000-' || right(p::text, 12))::uuid)::text, true);
+end $f$;
+create function pg_temp.as_system() returns void language plpgsql as $f$ begin perform set_config('request.jwt.claims', '', true); end $f$;
+insert into b2c.session_checks (session_id, user_id, method)
+select ('bbbbbbbb-0000-0000-0000-' || right(user_id::text, 12))::uuid, user_id, 'email_code' from b2c.users where email like '%.p2@eduwit.in'
+on conflict do nothing;
+create function pg_temp.env(p_id text, p_type text, p_lead bigint, p_data jsonb) returns jsonb language sql as $f$
+  select jsonb_build_object('id', p_id, 'type', p_type, 'lead_id', p_lead, 'occurred_at', now(), 'test', true, 'contract_version', 3, 'data', p_data)
+$f$;
+create function pg_temp.lead(p_lead bigint, p_name text, p_course text, p_handoff jsonb, p_extra jsonb default '{}') returns void language plpgsql as $f$
+begin
+  perform b2c.handoff_receive(pg_temp.env('p2-rec-' || p_lead, 'b2c.lead_upserted', p_lead, jsonb_build_object('version', 1, 'record',
+    jsonb_build_object('id', p_lead, 'is_test', true, 'held_by_b2c', true, 'contract_version', 3,
+      'student', jsonb_build_object('name', p_name, 'phone', '91900000' || right(p_lead::text, 4), 'email', lower(replace(p_name, ' ', '.')) || '@example.in', 'city', 'Pune'),
+      'education', jsonb_build_object('highest_qualification', 'B.Com'), 'interest', jsonb_build_object('course', p_course, 'enrollment_timeline', 'some day'),
+      'consent', jsonb_build_object('state', 'given', 'opted_out', false), 'source', jsonb_build_object('lead_source', 'meta_lead_ad')) || p_extra)));
+  perform b2c.handoff_receive(pg_temp.env('p2-ho-' || p_lead, 'b2c.lead_handed_off', p_lead, p_handoff));
+end $f$;
+create function pg_temp.consent(p_lead bigint) returns void language plpgsql as $f$
+begin
+  perform b2c.marketing_consent(p_lead, 'whatsapp', true, 'test');
+  perform b2c.marketing_consent(p_lead, 'email', true, 'test');
+end $f$;
+
+-- ---------- Marketing turns the starter journeys on ----------
+do $x$
+declare v int; e text;
+begin
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000c005');
+  perform b2c.journey_set(id, 'active') from b2c.journeys where created_by is null and current_version > 0;
+  insert into r (name, ok, detail) values ('starter_journeys_published', (select count(*) from b2c.journeys where status = 'active' and current_version >= 1) >= 12, null);
+  begin perform b2c.wa_template_save('{"name":"sales_opener_x","audience":"sales","body":"Hi {{1}}","variables":["first_name"]}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('marketing_cannot_make_sales_templates', e = 'only the Admin creates sales and system templates', e);
+  v := b2c.wa_template_save('{"name":"p2_test_offer","body":"Hi {{1}}, new offer on {{2}}","variables":["first_name","programme"],"buttons":[{"type":"quick_reply","text":"Yes, call me"}]}')::int;
+  insert into r (name, ok, detail) values ('marketing_makes_marketing_templates', (select audience = 'marketing' and status = 'draft' from b2c.wa_templates where id = v), null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000c002');
+  begin perform b2c.segment_save('{"name":"x"}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('counsellor_has_no_nurture', e = 'not allowed', e);
+  perform pg_temp.as_system();
+end $x$;
+
+-- ---------- 1. A partner-lost lead waits for the sub-stage's delay, then gets its journey ----------
+do $x$
+declare s b2c.leads_state; v jsonb;
+begin
+  perform pg_temp.lead(900021, 'Kavya Test', 'MBA', jsonb_build_object('b2c_lane', 'nurture', 'reason', 'partner_lost', 'partner_bar', '{"reason":"lost"}'::jsonb,
+                       'nurture_first_message_at', now() + interval '7 days', 'lost', '{"partner_name":"Up Edu","lost_reason":"Over budget"}'::jsonb));
+  perform pg_temp.consent(900021);
+  v := b2c.nurture_tick();
+  insert into r (name, ok, detail) values ('journey_waits_for_delay', not exists (select 1 from b2c.journey_runs where lead_id = 900021), v::text);
+  update b2c.leads_state set first_message_due_at = now() - interval '1 minute' where lead_id = 900021;
+  v := b2c.nurture_tick();
+  select * into s from b2c.leads_state where lead_id = 900021;
+  insert into r (name, ok, detail) values ('partner_lost_gets_journey_by_reason', s.journey = 'lower_fee_emi'
+    and exists (select 1 from b2c.journey_runs x join b2c.journeys j on j.id = x.journey_id where x.lead_id = 900021 and j.key = 'lower_fee_emi' and x.status = 'running'), v::text);
+  insert into r (name, ok, detail) values ('first_nurture_message_queued', exists (select 1 from b2c.wa_messages m where m.lead_id = 900021 and m.purpose = 'journey' and m.template_name = 'nurture_lower_fee')
+    and exists (select 1 from b2c.send_queue q where q.lead_id = 900021 and q.purpose = 'journey'), null);
+  insert into r (name, ok, detail) values ('journey_waits_after_send', (select step_idx = 2 and next_at > now() + interval '3 days' from b2c.journey_runs where lead_id = 900021 and status = 'running'), null);
+  insert into r (name, ok, detail) values ('journey_reported_to_b2b', exists (select 1 from b2c.outbox o where o.lead_id = 900021 and o.kind = 'update' and o.body -> 'set' ->> 'active_journey_id' = 'lower_fee_emi'), null);
+end $x$;
+
+-- ---------- 2. Guardrails ----------
+do $x$
+declare v text; v_run bigint;
+begin
+  -- daily cap: the journey message went today
+  insert into r (name, ok, detail) values ('daily_cap', b2c.may_market(900021, 'whatsapp') = 'wait: daily cap', b2c.may_market(900021, 'whatsapp'));
+  -- quiet hours (default 09:00–20:00 IST)
+  update b2c.settings set value = value || '{"quiet_start": "09:00", "quiet_end": "20:00"}' where key = 'messaging';
+  perform pg_temp.lead(900022, 'Meera Test', 'MCA', '{"b2c_lane":"nurture","reason":"not_qualified","missing":["no_qualification"]}');
+  perform pg_temp.consent(900022);
+  v := b2c.may_market(900022, 'whatsapp', false, ((now() at time zone 'Asia/Kolkata')::date + time '22:30') at time zone 'Asia/Kolkata');
+  insert into r (name, ok, detail) values ('quiet_hours', v = 'wait: quiet hours', v);
+  insert into r (name, ok, detail) values ('send_window_reopens_9am', to_char(b2c.next_send_window(((now() at time zone 'Asia/Kolkata')::date + time '22:30') at time zone 'Asia/Kolkata') at time zone 'Asia/Kolkata', 'HH24:MI') = '09:00', null);
+  update b2c.settings set value = value || '{"quiet_start": "00:00", "quiet_end": "23:59"}' where key = 'messaging';
+  -- 30-day cap: six marketing messages already this month
+  insert into b2c.wa_messages (phone, lead_id, direction, kind, body, status, purpose, created_at)
+  select '919000000022', 900022, 'out', 'template', 'old', 'delivered', 'campaign', now() - make_interval(days => g) from generate_series(2, 7) g;
+  insert into r (name, ok, detail) values ('thirty_day_cap', b2c.may_market(900022, 'whatsapp') = 'wait: 30-day cap', b2c.may_market(900022, 'whatsapp'));
+  -- no consent, no marketing
+  perform pg_temp.lead(900023, 'Nikhil Test', 'BBA', '{"b2c_lane":"nurture","reason":"not_qualified"}');
+  insert into r (name, ok, detail) values ('needs_marketing_consent', b2c.may_market(900023, 'whatsapp') = 'no marketing consent', b2c.may_market(900023, 'whatsapp'));
+  -- a lead in active sales gets nothing automated, unless the journey allows it
+  perform pg_temp.lead(900024, 'Omkar Test', 'MBA', '{"b2c_lane":"sales","reason":"no_partner_offers_programme"}');
+  perform pg_temp.consent(900024);
+  insert into r (name, ok, detail) values ('no_marketing_in_active_sales', b2c.may_market(900024, 'whatsapp') = 'in active sales' and b2c.may_market(900024, 'whatsapp', true) is null,
+    coalesce(b2c.may_market(900024, 'whatsapp'), 'null'));
+  -- a live Witty chat (only the local copy writes w2_messages: staging's belongs to Witty)
+  if current_database() = 'b2c_fresh' then
+    perform pg_temp.lead(900025, 'Pooja Test', 'MBA', '{"b2c_lane":"nurture","reason":"not_qualified"}');
+    perform pg_temp.consent(900025);
+    insert into public.w2_messages (phone, direction, kind, content, sent) values ('919000000025', 'in', 'text', 'hi', true);
+    insert into r (name, ok, detail) values ('no_marketing_during_witty_chat', b2c.may_market(900025, 'whatsapp') = 'wait: in a Witty chat', b2c.may_market(900025, 'whatsapp'));
+  end if;
+  -- one journey at a time
+  perform b2c.journey_start(900022, (select id from b2c.journeys where key = 'monthly_update'), 'manual');
+  perform b2c.journey_start(900022, (select id from b2c.journeys where key = 'eligibility_unknown'), 'manual');
+  insert into r (name, ok, detail) values ('one_journey_at_a_time', (select count(*) from b2c.journey_runs where lead_id = 900022 and status in ('running', 'paused')) = 1
+    and (select j.key from b2c.journey_runs x join b2c.journeys j on j.id = x.journey_id where x.lead_id = 900022 and x.status = 'running') = 'eligibility_unknown', null);
+  -- a capped send waits instead of being lost
+  v := (b2c.journey_tick(500)) ::text;
+  insert into r (name, ok, detail) values ('capped_step_waits', (select step_idx = 0 and next_at > now() from b2c.journey_runs where lead_id = 900022 and status = 'running')
+    and exists (select 1 from b2c.journey_log l join b2c.journey_runs x on x.id = l.run_id where x.lead_id = 900022 and l.outcome = 'waiting' and l.detail ->> 'blocked' = 'wait: 30-day cap'), v);
+end $x$;
+
+-- ---------- 3. Each re-engagement trigger allocates at once ----------
+do $x$
+declare v jsonb; s b2c.leads_state;
+begin
+  -- Witty interest (B2B forwards it as a re-enquiry with interest)
+  perform pg_temp.lead(900026, 'Rhea Test', 'MBA', jsonb_build_object('b2c_lane', 'nurture', 'reason', 'partner_lost', 'partner_bar', '{"reason":"lost"}'::jsonb, 'lost', '{"lost_reason":"no answer"}'::jsonb));
+  perform pg_temp.consent(900026);
+  perform b2c.nurture_tick();
+  perform b2c.handoff_receive(pg_temp.env('p2-int-26', 'b2c.lead_reenquired', 900026, '{"interest":true,"what":{"source_system":"witty","event_type":"lead.interest"}}'));
+  select * into s from b2c.leads_state where lead_id = 900026;
+  insert into r (name, ok, detail) values ('reengage_witty_interest', s.status = 'active' and s.owner_id is not null and s.hot and s.reengage_trigger = 'witty_interest'
+    and not exists (select 1 from b2c.journey_runs where lead_id = 900026 and status = 'running'), to_jsonb(s)::text);
+  -- a new paid enquiry
+  perform pg_temp.lead(900027, 'Sahil Test', 'MBA', jsonb_build_object('b2c_lane', 'nurture', 'reason', 'partner_lost', 'partner_bar', '{"reason":"lost"}'::jsonb, 'lost', '{"lost_reason":"later"}'::jsonb));
+  perform b2c.handoff_receive(pg_temp.env('p2-enq-27', 'b2c.lead_reenquired', 900027, '{"what":{"source_system":"meta","event_type":"form.submitted"}}'));
+  insert into r (name, ok, detail) values ('reengage_new_enquiry', (select status = 'active' and owner_id is not null and reengage_trigger = 'new_enquiry' from b2c.leads_state where lead_id = 900027), null);
+  -- a positive WhatsApp button
+  perform pg_temp.lead(900028, 'Tara Test', 'MBA', jsonb_build_object('b2c_lane', 'nurture', 'reason', 'partner_lost', 'partner_bar', '{"reason":"lost"}'::jsonb, 'lost', '{"lost_reason":"over budget"}'::jsonb));
+  perform pg_temp.consent(900028);
+  perform b2c.nurture_tick();
+  v := b2c.wa_inbound('{"from":"919000000028","button":"Yes, call me","kind":"button","wamid":"wamid.p2.28"}');
+  select * into s from b2c.leads_state where lead_id = 900028;
+  insert into r (name, ok, detail) values ('reengage_whatsapp_button', s.status = 'active' and s.owner_id is not null and s.reengage_trigger = 'whatsapp_reply'
+    and exists (select 1 from b2c.replies x where x.lead_id = 900028 and x.class = 'positive' and x.method = 'button' and x.status = 'done'), v::text);
+  -- a positive email reply
+  perform pg_temp.lead(900029, 'Uma Test', 'MBA', jsonb_build_object('b2c_lane', 'nurture', 'reason', 'partner_lost', 'partner_bar', '{"reason":"lost"}'::jsonb, 'lost', '{"lost_reason":"later"}'::jsonb));
+  v := b2c.email_inbound('Uma Test <uma.test@example.in>', 'Re: options', 'Yes please call me, I am interested in the MBA', 'gmail-p2-29');
+  insert into r (name, ok, detail) values ('reengage_email_reply', (select status = 'active' and owner_id is not null and reengage_trigger = 'email_reply' from b2c.leads_state where lead_id = 900029), v::text);
+  -- engagement lifting the score to 60 after pool entry
+  perform pg_temp.lead(900030, 'Varun Test', 'MBA', jsonb_build_object('b2c_lane', 'nurture', 'reason', 'partner_lost', 'partner_bar', '{"reason":"lost"}'::jsonb, 'lost', '{"lost_reason":"later"}'::jsonb));
+  perform b2c.score_add(900030, 'witty_resumed'); perform b2c.score_add(900030, 'form_filled');
+  insert into r (name, ok, detail) values ('below_60_stays_in_pool', (select status = 'pool' from b2c.leads_state where lead_id = 900030), (select score::text from b2c.leads_state where lead_id = 900030));
+  perform b2c.score_add(900030, 'witty_resumed');
+  select * into s from b2c.leads_state where lead_id = 900030;
+  insert into r (name, ok, detail) values ('reengage_score_60', s.status = 'active' and s.owner_id is not null and s.reengage_trigger = 'score' and s.score >= 60, s.score::text);
+end $x$;
+
+-- ---------- 4. Already 60 from fit alone on entry: not allocated ----------
+do $x$
+declare s b2c.leads_state;
+begin
+  update b2c.score_rules set points = 60 where key = 'qualification_known';
+  perform pg_temp.lead(900031, 'Wasim Test', 'MBA', jsonb_build_object('b2c_lane', 'nurture', 'reason', 'partner_lost', 'partner_bar', '{"reason":"lost"}'::jsonb, 'lost', '{"lost_reason":"later"}'::jsonb));
+  perform b2c.score_add(900031, 'wa_read');
+  perform b2c.nurture_tick();
+  select * into s from b2c.leads_state where lead_id = 900031;
+  insert into r (name, ok, detail) values ('fit_alone_never_allocates', s.status = 'pool' and s.owner_id is null and s.score >= 60, s.score::text);
+  update b2c.score_rules set points = 10 where key = 'qualification_known';
+end $x$;
+
+-- ---------- 5. Opt-out stops everything at once ----------
+do $x$
+declare v jsonb;
+begin
+  perform pg_temp.lead(900032, 'Yash Test', 'MBA', jsonb_build_object('b2c_lane', 'nurture', 'reason', 'partner_lost', 'partner_bar', '{"reason":"lost"}'::jsonb, 'lost', '{"lost_reason":"over budget"}'::jsonb));
+  perform pg_temp.consent(900032);
+  perform b2c.nurture_tick();
+  insert into b2c.send_queue (channel, lead_id, to_address, payload, purpose, not_before) values ('whatsapp', 900032, '919000000032', '{"type":"text","text":"later"}', 'journey', now() + interval '1 day');
+  v := b2c.wa_inbound('{"from":"919000000032","text":"STOP","wamid":"wamid.p2.32"}');
+  insert into r (name, ok, detail) values ('opt_out_stops_everything', v ->> 'status' = 'opted_out'
+    and not exists (select 1 from b2c.send_queue where lead_id = 900032 and status = 'queued')
+    and not exists (select 1 from b2c.journey_runs where lead_id = 900032 and status in ('running', 'paused'))
+    and b2c.may_market(900032, 'email') = 'opted out'
+    and exists (select 1 from b2c.outbox o where o.lead_id = 900032 and o.kind = 'event' and o.urgent and o.body ->> 'type' = 'b2ccrm.opted_out'), v::text);
+  -- one channel only
+  perform b2c.opt_out(900021, array['email'], 'unsubscribe_link');
+  insert into r (name, ok, detail) values ('email_only_opt_out', b2c.may_market(900021, 'email') = 'no marketing consent' and b2c.may_message(900021) is null
+    and exists (select 1 from b2c.outbox o where o.lead_id = 900021 and o.body ->> 'type' = 'b2ccrm.opted_out' and o.body -> 'data' -> 'channels' ? 'email'), null);
+end $x$;
+
+-- ---------- 6. Replies: negative, question, unclassified, corrections ----------
+do $x$
+declare v jsonb; v_id bigint;
+begin
+  perform pg_temp.lead(900033, 'Zoya Test', 'MBA', jsonb_build_object('b2c_lane', 'nurture', 'reason', 'partner_lost', 'partner_bar', '{"reason":"lost"}'::jsonb, 'lost', '{"lost_reason":"over budget"}'::jsonb));
+  perform pg_temp.consent(900033);
+  perform b2c.nurture_tick();
+  v := b2c.wa_inbound('{"from":"919000000033","text":"not interested right now","wamid":"wamid.p2.33"}');
+  insert into r (name, ok, detail) values ('negative_moves_to_long_gap', v ->> 'status' = 'long_gap'
+    and (select j.key from b2c.journey_runs x join b2c.journeys j on j.id = x.journey_id where x.lead_id = 900033 and x.status = 'running') = 'long_term_update'
+    and (select status from b2c.leads_state where lead_id = 900033) = 'pool', v::text);
+  v := b2c.wa_inbound('{"from":"919000000033","text":"Do you have weekend classes?","wamid":"wamid.p2.33b"}');
+  insert into r (name, ok, detail) values ('question_goes_to_inbox', v ->> 'status' = 'inbox' and (select status = 'pool' from b2c.leads_state where lead_id = 900033), v::text);
+  v := b2c.wa_inbound('{"from":"919000000033","text":"hmm ok","wamid":"wamid.p2.33c"}');
+  v_id := (v ->> 'reply_id')::bigint;
+  insert into r (name, ok, detail) values ('unclear_waits_for_claude', v ->> 'status' = 'classifying', v::text);
+  v := b2c.reply_classify_take(50);
+  insert into r (name, ok, detail) values ('claude_gets_no_contact_details', exists (select 1 from jsonb_array_elements(v) x where (x ->> 'id')::bigint = v_id)
+    and not exists (select 1 from jsonb_array_elements(v) x, jsonb_object_keys(x) k where k not in ('id', 'text', 'course')), v::text);
+  perform b2c.reply_classify_done(jsonb_build_array(jsonb_build_object('id', v_id, 'class', 'positive', 'confidence', 0.6, 'model', 'test')));
+  insert into r (name, ok, detail) values ('low_confidence_to_inbox', (select status = 'inbox' from b2c.replies where id = v_id) and (select status = 'pool' from b2c.leads_state where lead_id = 900033), null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000c005');
+  v := to_jsonb(b2c.reply_handle(v_id, 'correct', 'positive'));
+  perform pg_temp.as_system();
+  insert into r (name, ok, detail) values ('correction_kept_and_acted', (select corrected_class = 'positive' and status = 'done' from b2c.replies where id = v_id)
+    and (select status = 'active' and owner_id is not null from b2c.leads_state where lead_id = 900033), v::text);
+  update b2c.replies set status = 'pending_ai', created_at = now() - interval '11 minutes' where id = (select id from b2c.replies where lead_id = 900033 and class = 'question' limit 1);
+  perform b2c.nurture_tick();
+  insert into r (name, ok, detail) values ('unclassified_after_10_min_to_inbox', not exists (select 1 from b2c.replies where status = 'pending_ai' and created_at < now() - interval '10 minutes'), null);
+end $x$;
+
+-- ---------- 7. Segments and a test-mode campaign ----------
+do $x$
+declare v_seg bigint; v_c bigint; v jsonb; v_tpl bigint := (select id from b2c.wa_templates where name = 'nurture_monthly_update');
+begin
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000c005');
+  v_seg := b2c.segment_save('{"name":"P2 pool","filters":{"all":[{"field":"status","op":"eq","value":"pool"},{"field":"lead_id","op":"gte","value":900021}]}}');
+  begin perform b2c.segment_save('{"name":"Bad","filters":{"all":[{"field":"password","op":"eq","value":"x"}]}}'); v := '"saved"'; exception when others then v := to_jsonb(sqlerrm); end;
+  insert into r (name, ok, detail) values ('segment_refuses_unknown_field', v #>> '{}' like 'cannot filter on%', v::text);
+  perform pg_temp.as_system();
+  perform pg_temp.lead(900035, 'Bina Test', 'MBA', '{"b2c_lane":"nurture","reason":"not_qualified"}');
+  perform pg_temp.consent(900035);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000c005');
+  v_c := b2c.campaign_save(jsonb_build_object('name', 'P2 test campaign', 'channel', 'whatsapp', 'segment_id', v_seg, 'template_id', v_tpl, 'test_only', true, 'throttle_per_min', 500));
+  perform b2c.campaign_set(v_c, 'schedule');
+  perform pg_temp.as_system();
+  update b2c.campaigns set schedule_at = now() - interval '1 minute' where id = v_c;
+  v := b2c.campaign_tick();
+  insert into r (name, ok, detail) values ('campaign_sends_and_blocks', exists (select 1 from b2c.campaign_sends where campaign_id = v_c and status = 'queued')
+    and exists (select 1 from b2c.campaign_sends where campaign_id = v_c and status = 'blocked' and reason = 'no marketing consent')
+    and not exists (select 1 from b2c.campaign_sends x join b2c.leads_state s on s.lead_id = x.lead_id where x.campaign_id = v_c and not s.is_test), v::text);
+  insert into r (name, ok, detail) values ('campaign_respects_daily_cap', exists (select 1 from b2c.campaign_sends where campaign_id = v_c and lead_id = 900021 and status = 'skipped' and reason = 'wait: daily cap'), null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000c005');
+  v := b2c.campaign_stats(v_c);
+  perform pg_temp.as_system();
+  insert into r (name, ok, detail) values ('campaign_results', (v ->> 'queued')::int >= 1 and v -> 'blocked_by' ? 'no marketing consent'
+    and ((select status = 'done' from b2c.campaigns where id = v_c)
+         or not exists (select 1 from b2c.campaign_sends where campaign_id = v_c and status = 'pending' and coalesce(reason, '') <> 'wait: in a Witty chat')), v::text);
+end $x$;
+
+-- ---------- 8. Decay, dormancy, the Nurture page ----------
+do $x$
+declare v jsonb; v_before numeric;
+begin
+  perform pg_temp.lead(900034, 'Ali Test', 'MBA', jsonb_build_object('b2c_lane', 'nurture', 'reason', 'partner_lost', 'partner_bar', '{"reason":"lost"}'::jsonb, 'lost', '{"lost_reason":"later"}'::jsonb));
+  perform b2c.score_add(900034, 'email_click');
+  update b2c.leads_state set engagement_at = now() - interval '15 days' where lead_id = 900034;
+  select engagement_points into v_before from b2c.leads_state where lead_id = 900034;
+  perform b2c.score_decay_tick(5000);
+  insert into r (name, ok, detail) values ('engagement_halves_after_14_days', (select engagement_points = v_before / 2 from b2c.leads_state where lead_id = 900034), v_before::text);
+  update b2c.leads_state set pool_entered_at = now() - interval '13 months' where lead_id = 900034;
+  perform b2c.dormancy_tick(5000);
+  insert into r (name, ok, detail) values ('dormant_after_12_months', (select dormant_at is not null from b2c.leads_state where lead_id = 900034) and b2c.may_market(900034, 'whatsapp') = 'dormant', null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000c005');
+  v := b2c.nurture_overview();
+  insert into r (name, ok, detail) values ('nurture_overview', v ? 'pool' and v ? 'suppressed_today' and v ? 'email_allowance', left(v::text, 300));
+  v := b2c.pool_list('{"test": true}');
+  insert into r (name, ok, detail) values ('pool_list', (v ->> 'total')::int >= 1, left(v::text, 300));
+  v := b2c.lead_nurture(900021);
+  insert into r (name, ok, detail) values ('lead_nurture_history', jsonb_array_length(v -> 'runs') >= 1 and jsonb_array_length(v -> 'consent' -> 'history') >= 2, null);
+  perform pg_temp.as_system();
+end $x$;
+
+-- ---------- grants ----------
+insert into r (name, ok, detail)
+select 'authenticated_can_call', bool_and(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where not has_function_privilege('authenticated', f, 'execute'))
+  from unnest(array['b2c.segment_save(jsonb)', 'b2c.segment_count(bigint,jsonb)', 'b2c.campaign_save(jsonb)', 'b2c.campaign_set(bigint,text)', 'b2c.campaign_stats(bigint)',
+    'b2c.journey_save(jsonb)', 'b2c.journey_publish(bigint,boolean)', 'b2c.journey_lead(bigint,text,bigint)', 'b2c.journey_stats(bigint)', 'b2c.replies_list(jsonb)',
+    'b2c.reply_handle(bigint,text,text)', 'b2c.nurture_overview()', 'b2c.pool_list(jsonb)', 'b2c.lead_nurture(bigint)', 'b2c.opt_out(bigint,text[],text,text)',
+    'b2c.wa_template_save(jsonb)', 'b2c.email_template_m_save(jsonb)', 'b2c.score_rule_save(text,integer,boolean)']) f;
+insert into r (name, ok, detail)
+select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where has_function_privilege('authenticated', f, 'execute'))
+  from unnest(array['b2c.may_market(bigint,text,boolean,timestamp with time zone)', 'b2c.journey_tick(integer)', 'b2c.journey_step(bigint)', 'b2c.campaign_tick()',
+    'b2c.score_add(bigint,text,numeric,jsonb)', 'b2c.reply_receive(bigint,text,text,text,jsonb)', 'b2c.reply_classify_take(integer)', 'b2c.reply_classify_done(jsonb)',
+    'b2c.email_event(bigint,text,text)', 'b2c.email_inbound(text,text,text,text,text)', 'b2c.nurture_tick()', 'b2c.nightly_tick()', 'b2c.segment_leads(bigint,jsonb,boolean)',
+    'b2c.wa_template_status(text,text,text,text,text)']) f;
+
+select n, name, ok, case when ok then null else detail end as detail from r order by n;
+rollback;

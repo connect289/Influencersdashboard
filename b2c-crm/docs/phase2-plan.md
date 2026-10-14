@@ -17,6 +17,8 @@ Witty signals arrive only as B2B events (`b2c.lead_interest`, `b2c.lead_reenquir
 
 ## Database, in migration order
 
+Built as four files: `b14_consent_templates`, `b15_segments_campaigns`, `b16_journeys`, `b17_scoring_replies` (the rows below map onto them: b18 and b19 went into b17).
+
 | File | Contents |
 | --- | --- |
 | `b14_marketing_templates` | `message_templates`: marketing WhatsApp and email. Columns: versions, language variants, buttons, Meta category and status, tags, usage. Sales WhatsApp templates stay in `wa_templates`, Admin only. Functions: `template_save()` (Marketing and Admin; a sales template stays Admin only), `template_render()` (merge fields from `leads_v`, preview with a test lead), and the unsubscribe token (secret in Vault, B9.6). |
