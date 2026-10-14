@@ -373,6 +373,70 @@ begin
   insert into r (name, ok, detail) values ('minute_tick_clean', not exists (select 1 from jsonb_object_keys(v) k where k like '%error'), v::text);
 end $x$;
 
+-- ---------- b11: Witty transcript, programme fit and sharing, guides, push, directory ----------
+do $x$
+declare v jsonb; e text; v_lead bigint; v_owner uuid; v_prog bigint; v_course text; n int; v_g bigint;
+begin
+  select s.lead_id, s.owner_id into v_lead, v_owner from b2c.leads_state s where s.lead_id between 900001 and 900099 and s.status = 'active' and s.owner_id is not null order by s.lead_id limit 1;
+  -- Witty's transcript (only the local copy gets a sample message: staging's w2_messages is Witty's and is never written)
+  if current_database() = 'b2c_fresh' then
+    insert into public.w2_messages (phone, direction, kind, content, sent)
+    select b2c.norm_phone(r.record -> 'student' ->> 'phone'), 'in', 'text', 'Is the MBA online valid?', true from b2c.lead_records r where r.lead_id = v_lead;
+  end if;
+  perform pg_temp.as_user(v_owner);
+  v := b2c.witty_transcript(v_lead);
+  insert into r (name, ok, detail) values ('witty_transcript_reads', jsonb_typeof(v) = 'array' and (current_database() <> 'b2c_fresh' or jsonb_array_length(v) = 1), v::text);
+  perform pg_temp.as_user(case when v_owner = 'aaaaaaaa-0000-0000-0000-00000000b002' then 'aaaaaaaa-0000-0000-0000-00000000b003'::uuid else 'aaaaaaaa-0000-0000-0000-00000000b002'::uuid end);
+  begin perform b2c.witty_transcript(v_lead); e := 'read'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('witty_transcript_not_others', e = 'not allowed', e);
+  -- Programme fit ranks the catalogue against the interest; a share is recorded for stage 6
+  perform pg_temp.as_system();
+  select p.id, p.course into v_prog, v_course from public.catalog_programs p where p.active and p.course is not null order by p.id limit 1;
+  update b2c.lead_records set record = jsonb_set(record, '{interest}', coalesce(record -> 'interest', '{}') || jsonb_build_object('course', v_course, 'programme_level', null)) where lead_id = v_lead;
+  perform pg_temp.as_user(v_owner);
+  v := b2c.programme_fit(v_lead);
+  insert into r (name, ok, detail) values ('programme_fit_matches_interest', v_prog is null or exists (select 1 from jsonb_array_elements(v -> 'rows') x where (x ->> 'id')::bigint = v_prog and x -> 'matched' ? 'course'), left(v::text, 300));
+  if v_prog is not null then
+    perform b2c.programme_share(v_lead, array[v_prog], 'call', 'Fees and EMI explained');
+    insert into r (name, ok, detail) values ('programme_share_recorded', exists (select 1 from b2c.activities a where a.lead_id = v_lead and a.kind = 'programme_shared' and a.meta ->> 'channel' = 'call'), null);
+  end if;
+  begin perform b2c.programme_share(v_lead, array[v_prog], 'fax'); e := 'shared'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('programme_share_needs_channel', e = 'say how the programme was shared', e);
+  -- Guides: role sees their own; the Admin edits; an edit is unread again
+  v := b2c.guides();
+  insert into r (name, ok, detail) values ('guides_sales_only', jsonb_array_length(v) > 5 and not exists (select 1 from jsonb_array_elements(v) x where x ->> 'role' <> 'sales'), null);
+  v_g := (v -> 0 ->> 'id')::bigint;
+  perform b2c.guide_read(v_g);
+  insert into r (name, ok, detail) values ('guide_read_tracked', (select (x ->> 'read')::boolean from jsonb_array_elements(b2c.guides()) x where (x ->> 'id')::bigint = v_g), null);
+  begin perform b2c.guide_save(jsonb_build_object('id', v_g, 'title', 'Mine now', 'body', 'x')); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('guide_edit_admin_only', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000b001');
+  perform b2c.guide_save(jsonb_build_object('id', v_g, 'title', 'A day in the app (new)', 'body', 'Start on Today.'));
+  perform pg_temp.as_user(v_owner);
+  insert into r (name, ok, detail) values ('guide_edit_unread_again', not (select (x ->> 'read')::boolean from jsonb_array_elements(b2c.guides()) x where (x ->> 'id')::bigint = v_g), null);
+  -- Push: only browser push services; at most 5 devices
+  begin perform b2c.push_subscribe('{"endpoint":"https://169.254.169.254/latest","keys":{"p256dh":"x","auth":"y"}}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('push_refuses_other_hosts', e = 'not a browser push subscription', e);
+  for n in 1..6 loop
+    perform b2c.push_subscribe(jsonb_build_object('endpoint', 'https://fcm.googleapis.com/fcm/send/t' || n, 'keys', jsonb_build_object('p256dh', 'k' || n, 'auth', 'a' || n)));
+  end loop;
+  insert into r (name, ok, detail) values ('push_keeps_5_newest', (select jsonb_array_length(push_subscription) = 5 and push_subscription -> 0 ->> 'endpoint' like '%/t6' from b2c.users where user_id = v_owner), null);
+  perform pg_temp.as_system();
+  perform b2c.notify(v_owner, 'reminder', 'Call Test lead in 10 minutes', null, '/s/leads/' || v_lead, v_lead, 'push-test-' || v_lead);
+  v := b2c.push_take(500);
+  insert into r (name, ok, detail) values ('push_take_once', exists (select 1 from jsonb_array_elements(v) x where x ->> 'title' = 'Call Test lead in 10 minutes' and jsonb_array_length(x -> 'subscriptions') = 5)
+    and not exists (select 1 from jsonb_array_elements(b2c.push_take(500)) x where x ->> 'title' = 'Call Test lead in 10 minutes'), null);
+  perform b2c.push_gone(v_owner, 'https://fcm.googleapis.com/fcm/send/t6');
+  insert into r (name, ok, detail) values ('push_gone_removes', (select jsonb_array_length(push_subscription) = 4 from b2c.users where user_id = v_owner), null);
+  -- Directory: a suspended account is deactivated and its open leads go back to the rules
+  v := b2c.directory_sync(jsonb_build_array(jsonb_build_object('email', (select email from b2c.users where user_id = v_owner), 'name', 'Renamed By Workspace', 'suspended', true)));
+  insert into r (name, ok, detail) values ('directory_suspends_and_reassigns', (select not is_active and full_name = 'Renamed By Workspace' from b2c.users where user_id = v_owner)
+    and not exists (select 1 from b2c.leads_state where owner_id = v_owner and status = 'active') and (v ->> 'deactivated')::int = 1, v::text);
+  v := b2c.directory_sync('[{"email":"admin.test@eduwit.in","suspended":true}]');
+  insert into r (name, ok, detail) values ('directory_keeps_last_admin', (select is_active from b2c.users where email = 'admin.test@eduwit.in')
+    or (select count(*) from b2c.users where role = 'admin' and is_active) >= 1, v::text);
+end $x$;
+
 -- ---------- grants: what the app's signed-in role may call, and what it may not ----------
 insert into r (name, ok, detail)
 select 'authenticated_can_call', bool_and(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where not has_function_privilege('authenticated', f, 'execute'))
@@ -383,7 +447,8 @@ select 'authenticated_can_call', bool_and(has_function_privilege('authenticated'
     'b2c.email_template_save(jsonb)', 'b2c.application_save(jsonb)', 'b2c.enrollment_record(jsonb)', 'b2c.enrollment_verify(bigint,boolean,text)',
     'b2c.new_lead(jsonb,jsonb)', 'b2c.route_to_partners(bigint[],text)', 'b2c.reassign(bigint[],uuid,text)', 'b2c.hand_back(bigint,text)',
     'b2c.rule_save(jsonb)', 'b2c.simulate(date,date)', 'b2c.team()', 'b2c.user_save(jsonb)', 'b2c.programme_search(jsonb)', 'b2c.admin_home()',
-    'b2c.notifications_mine(integer)', 'b2c.set_away(integer)', 'b2c.is_staff()', 'b2c.can_see(bigint)', 'b2c.uid()']) f;
+    'b2c.notifications_mine(integer)', 'b2c.set_away(integer)', 'b2c.witty_transcript(bigint,integer)', 'b2c.programme_fit(bigint,integer)',
+    'b2c.programme_share(bigint,bigint[],text,text)', 'b2c.guides(text,boolean)', 'b2c.guide_read(bigint)', 'b2c.guide_save(jsonb)', 'b2c.push_subscribe(jsonb,boolean)', 'b2c.is_staff()', 'b2c.can_see(bigint)', 'b2c.uid()']) f;
 insert into r (name, ok, detail)
 select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where has_function_privilege('authenticated', f, 'execute'))
   from unnest(array['b2c.mfa_issue(uuid,uuid)', 'b2c.handoff_receive(jsonb,text)', 'b2c.apply_envelope(text)', 'b2c.apply_record(bigint,integer,bigint,jsonb,text)',
@@ -391,7 +456,7 @@ select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege
     'b2c.queue_update(bigint,jsonb,boolean)', 'b2c.send_take(integer)', 'b2c.send_done(jsonb)', 'b2c.wa_inbound(jsonb)', 'b2c.minute_tick()',
     'b2c.job_call(text)', 'b2c.directory_sync(jsonb)', 'b2c.notify(uuid,text,text,text,text,bigint,text)', 'b2c.close_lead(bigint,text,text)',
     'b2c.reengage(bigint,text)', 'b2c.working_window(uuid,date)', 'b2c.decide(bigint,text,timestamptz,uuid,boolean)',
-    'b2c.assignment_payload(b2c.assignments)', 'b2c.assignment_to_b2b()']) f;
+    'b2c.assignment_payload(b2c.assignments)', 'b2c.assignment_to_b2b()', 'b2c.push_take(integer)', 'b2c.push_gone(uuid,text)']) f;
 insert into r (name, ok, detail) values ('anon_has_nothing', not has_schema_privilege('anon', 'b2c', 'usage'), null);
 
 select n, name, ok, case when ok then null else detail end as detail from r order by n;

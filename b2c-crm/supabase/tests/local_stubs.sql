@@ -23,6 +23,12 @@ create table public.catalog_programs (id bigint primary key, university_id bigin
   min_qualification text, min_pct_general numeric, min_pct_reserved numeric, eligibility_text text, brochure_url text, source_row int, flags text[], active boolean,
   updated_at timestamptz, program_key text, search_doc tsvector, source_file text);
 
+insert into public.catalog_universities (id, name, short_name) values (1, 'Amity University Online', 'Amity'), (2, 'Jain Online', 'Jain');
+insert into public.catalog_programs (id, university_id, level, course, specialization, program_name, mode, fee_total, active) values
+  (11, 1, 'PG', 'MBA', 'Marketing', 'Online MBA', 'Online', 179000, true),
+  (12, 2, 'PG', 'MBA', 'Finance', 'Online MBA', 'Online', 160000, true),
+  (13, 2, 'UG', 'BBA', null, 'Online BBA', 'Online', 120000, true);
+
 -- storage (Supabase Storage's bucket table, for b10)
 create schema if not exists storage;
 create table if not exists storage.buckets (id text primary key, name text not null, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);

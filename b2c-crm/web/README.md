@@ -59,7 +59,7 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
 
 - `npm test`: signing (contract reference code), batch and answer mapping, Intake API body, WhatsApp body and webhook
   parsing, Meta signatures, Gmail JWT and header injection, IST dates, the internal key.
-- `../supabase/tests/test_phase1.sql`: 80 rolled-back database checks (run in the SQL editor).
+- `../supabase/tests/test_phase1.sql`: 95 rolled-back database checks (run in the SQL editor).
 - `npm run mock-b2b`: the B2B webhook checks against a running deployment.
 
 Not yet verified end to end: sign-in with real accounts, the B2B link (needs Addendum 4 deployed and the keys), live
