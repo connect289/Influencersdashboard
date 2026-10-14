@@ -4,7 +4,7 @@ In-house sales and nurture CRM for Eduwit Learning Services. Spec: `docs/B2C_CRM
 
 Status: **Phase 1** ("Sell"), **Phase 2** ("Nurture") and **Phase 3** ("Money and analytics", `docs/phase3-plan.md`)
 built and on staging; waiting for the staging setup and the end-to-end test. Phase 4 (telephony, ad spend, performance
-allocation, Calendar, Hindi) needs its own plan and approval.
+allocation, Calendar, Hindi) is planned in `docs/phase4-plan.md`, waiting for approval.
 
 - Database: migrations b1 to b18 (`supabase/migrations/`) are applied to the **staging** project `mplbspysxmtohnlwpbti`
   (eduwit-b2b-staging) (b4 to b7, b11 and b12 in parts). Production is untouched.
@@ -60,6 +60,7 @@ lead screen, the month's progress and leaderboard on Today. Typecheck, 79 unit t
 | `docs/phase1-plan.md` | Phase 1 plan: migration order, app scope, exit test |
 | `docs/phase2-plan.md` | Phase 2 plan (Nurture): built as b14–b18, Marketing workspace, exit test, what is needed to go live |
 | `docs/phase3-plan.md` | Phase 3 plan (Money and analytics): b19–b23, money and analytics screens, Brief before you call, exit test, what is needed to go live |
+| `docs/phase4-plan.md` | Phase 4 plan (Telephony and depth): b25–b29, telephony adapter with a mock provider, ad spend and ROAS, performance-weighted allocation, Google Calendar, Hindi; exit test; what is needed. Waiting for approval |
 | `docs/WITTY_CHANGES_B2C.md` | Witty release W2: the changes Witty needs for the B2C CRM |
 | `supabase/` | Migrations, the manual staging files, local test stubs and the Phase 1, 2 and 3 checks |
 | `design/` | Clickable design of the three interfaces (sample data) |
