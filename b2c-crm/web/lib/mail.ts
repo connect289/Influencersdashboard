@@ -1,5 +1,5 @@
 import "server-only";
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 
 /**
  * Outgoing system email (sign-in codes, alerts). SMTP through Google Workspace (smtp-relay.gmail.com, or a Workspace
@@ -8,9 +8,9 @@ import nodemailer from "nodemailer";
  */
 export type Mail = { to: string; subject: string; text: string; html?: string };
 
-let transport: nodemailer.Transporter | null = null;
+let transport: Transporter | null = null;
 
-function smtp(): nodemailer.Transporter | null {
+function smtp(): Transporter | null {
   const host = process.env.SMTP_HOST;
   if (!host) return null;
   transport ??= nodemailer.createTransport({

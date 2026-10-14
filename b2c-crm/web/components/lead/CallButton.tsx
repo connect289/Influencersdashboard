@@ -1,10 +1,11 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Phone } from "lucide-react";
+import { Copy, Phone } from "lucide-react";
+import QRCode from "qrcode";
 import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
-import { callLog, callTap } from "@/app/s/actions";
+import { callLog, callTap, numberCopied } from "@/app/s/actions";
 import { maskPhone } from "@/lib/format";
 import { OUTCOME_LABEL, OUTCOMES } from "@/lib/labels";
 import { NextPicker } from "./NextPicker";
@@ -51,6 +52,7 @@ function CallLogSheet({ leadId, name, call, onClose }: { leadId: number; name: s
   const [next, setNext] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
+  const [desk] = useState(() => typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches);
 
   function save() {
     if (!outcome || !next) return;
@@ -66,11 +68,12 @@ function CallLogSheet({ leadId, name, call, onClose }: { leadId: number; name: s
 
   return (
     <Sheet title={`Call ${name}`} onClose={onClose}>
-      <div className="dialer">
-        <span className="eyebrow">Dial from your phone</span>
-        <a className="bignum" href={call.tel}>{maskPhone(call.number)}</a>
-        <span className="note">On a computer, dial this number on your work phone, then log the call here.</span>
-      </div>
+      {desk ? <DeskDialer leadId={leadId} call={call} /> : (
+        <div className="dialer">
+          <span className="eyebrow">Dial from your phone</span>
+          <a className="bignum" href={call.tel}>{maskPhone(call.number)}</a>
+        </div>
+      )}
       <div className="field">
         <span>Outcome</span>
         <div className="pills">
@@ -93,5 +96,34 @@ function CallLogSheet({ leadId, name, call, onClose }: { leadId: number; name: s
       {error && <p className="error" role="alert">{error}</p>}
       <button type="button" className="btn primary block" onClick={save} disabled={!outcome || !next || busy}>{busy ? "Saving…" : "Save call log"}</button>
     </Sheet>
+  );
+}
+
+/** On a laptop (spec B8.2): the number in full, a copy button (logged) and a QR code to scan with the work phone. */
+function DeskDialer({ leadId, call }: { leadId: number; call: Open }) {
+  const [svg, setSvg] = useState<string | null>(null);
+  const display = "+" + call.number.replace(/\D/g, "");
+  useEffect(() => {
+    let live = true;
+    QRCode.toString(call.tel, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#052244", light: "#FFFFFF" } }).then((s) => live && setSvg(s)).catch(() => undefined);
+    return () => { live = false; };
+  }, [call.tel]);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(display);
+      toast.success("Number copied.");
+      void numberCopied(leadId);
+    } catch {
+      toast.error("Copy did not work; type the number instead.");
+    }
+  }
+  return (
+    <div className="dialer">
+      <span className="eyebrow">Dial on your work phone</span>
+      <span className="bignum">{display}</span>
+      <button type="button" className="btn ghost sm" onClick={copy}><Copy className="icon s" aria-hidden />Copy number</button>
+      {svg && <div className="qr" role="img" aria-label="QR code: scan with your phone to dial" dangerouslySetInnerHTML={{ __html: svg }} />}
+      <span className="note">Scan with your phone's camera to dial, then log the call here.</span>
+    </div>
   );
 }

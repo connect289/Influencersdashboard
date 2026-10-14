@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertUser } from "@/lib/auth";
 import { lookupByPhone, b2bReady } from "@/lib/b2b";
+import { textToHtml } from "@/lib/compose";
 import { act, rpc, type ActionResult } from "@/lib/data";
+import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 
 const SALES = ["counsellor", "sales_head", "admin"] as const;
@@ -259,4 +261,84 @@ export async function notificationsRead(ids?: number[]): Promise<void> {
   await assertUser();
   await rpc("notifications_read", { p_ids: ids ?? null }).catch(() => undefined);
   revalidatePath("/s", "layout");
+}
+
+// ---------- email (spec B8.6: from the counsellor's own mailbox) ----------
+
+export type ComposeTemplate = { id: number; name: string; category: string; subject: string; body: string; recommended: boolean; mine: boolean };
+
+/** The sales templates the composer offers: recommended first, then the most used. Hidden ones only to their author. */
+export async function emailTemplatesList(): Promise<ActionResult<ComposeTemplate[]>> {
+  const me = await assertUser([...SALES]);
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("sales_email_templates").select("id, owner_id, name, category, subject, body, recommended, hidden")
+    .is("deleted_at", null).order("recommended", { ascending: false }).order("uses", { ascending: false }).limit(200);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: (data ?? []).filter((t) => !t.hidden || t.owner_id === me.user_id)
+    .map((t) => ({ id: t.id, name: t.name, category: t.category, subject: t.subject, body: t.body, recommended: t.recommended, mine: t.owner_id === me.user_id })) };
+}
+
+const emailSchema = z.object({ lead: id, subject: z.string().trim().min(1).max(300), text: z.string().trim().min(1).max(20000), template: id.nullable().optional() });
+
+/** Queues the email (b2c.email_queue); the sync job sends it through Gmail, or records "test mode, not sent". */
+export async function emailSend(input: z.input<typeof emailSchema>): Promise<ActionResult<number>> {
+  await assertUser([...SALES]);
+  const p = emailSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: "Write a subject and a message." };
+  if (/\{\{\s*[a-z_]+\s*\}\}/.test(p.data.subject + p.data.text)) return { ok: false, error: "Fill in or remove the {{…}} placeholders first." };
+  const r = await act(() => rpc<number>("email_queue", { p_lead: p.data.lead, p_subject: p.data.subject, p_html: textToHtml(p.data.text), p_text: p.data.text, p_template: p.data.template ?? null }),
+    "Email queued. It goes from your mailbox within a minute.");
+  done(p.data.lead);
+  return r;
+}
+
+// ---------- programme fit and sharing (B8.3) ----------
+
+export type FitRow = {
+  id: number; name: string; course: string | null; specialization: string | null; level: string | null; mode: string | null; university: string;
+  university_short: string | null; fee_yearly: number | null; fee_semester: number | null; fee_total: number | null; min_qualification: string | null;
+  min_pct: number | null; eligibility: string | null; brochure_url: string | null; fit: number; matched: string[];
+};
+export type Fit = { interest: Record<string, string | null>; rows: FitRow[] };
+
+export async function programmeFit(leadId: number): Promise<ActionResult<Fit>> {
+  await assertUser();
+  return act(() => rpc<Fit>("programme_fit", { p_lead: id.parse(leadId), p_limit: 12 }));
+}
+
+const shareSchema = z.object({
+  lead: id, programmes: z.array(id).min(1).max(3), channel: z.enum(["whatsapp", "email", "call", "meeting"]),
+  text: z.string().trim().max(4000).optional(), subject: z.string().trim().max(300).optional(), note: z.string().trim().max(500).optional(),
+});
+
+/** WhatsApp (inside the 24-hour window) or email first, then the share is recorded; a call or meeting is only recorded. */
+export async function programmeShare(input: z.input<typeof shareSchema>): Promise<ActionResult> {
+  await assertUser([...SALES]);
+  const p = shareSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: "Choose one to three programmes and how you shared them." };
+  const { lead, programmes, channel, text, subject, note } = p.data;
+  if ((channel === "whatsapp" || channel === "email") && !text) return { ok: false, error: "Write the message." };
+  const r = await act(async () => {
+    if (channel === "whatsapp") await rpc("wa_queue_text", { p_lead: lead, p_text: text });
+    if (channel === "email") await rpc("email_queue", { p_lead: lead, p_subject: subject || "Programme details", p_html: textToHtml(text!), p_text: text, p_template: null });
+    return rpc("programme_share", { p_lead: lead, p_programmes: programmes, p_channel: channel, p_note: note || null });
+  }, channel === "whatsapp" ? "Shared on WhatsApp." : channel === "email" ? "Email queued." : "Recorded on the timeline.");
+  done(lead);
+  return r;
+}
+
+// ---------- Witty's conversation (read-only) ----------
+
+export type WittyMessage = { id: number; phone: string; direction: string; kind: string | null; content: string | null; at: string; sent: boolean | null };
+
+export async function wittyTranscript(leadId: number): Promise<ActionResult<WittyMessage[]>> {
+  await assertUser();
+  return act(() => rpc<WittyMessage[]>("witty_transcript", { p_lead: id.parse(leadId), p_limit: 300 }));
+}
+
+// ---------- the laptop call view: a copied number is logged like a reveal ----------
+
+export async function numberCopied(leadId: number): Promise<void> {
+  await assertUser();
+  await rpc("audit", { p_action: "contact_copy", p_lead: id.parse(leadId), p_detail: { via: "call_sheet" } }).catch(() => undefined);
 }

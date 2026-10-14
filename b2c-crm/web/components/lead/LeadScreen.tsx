@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { ArrowLeft, MessageCircle, Users } from "lucide-react";
 import type { Me } from "@/lib/auth";
+import { firstName } from "@/lib/compose";
 import { maskPhone, when } from "@/lib/format";
-import { CONSENT_LABEL, reasonLabel, STATUS_LABEL, TASK_KIND_LABEL, TIMELINE_KIND_LABEL } from "@/lib/labels";
+import { CONSENT_LABEL, reasonLabel, STATUS_LABEL, TASK_KIND_LABEL } from "@/lib/labels";
 import type { LeadDetail, Stage, SubStage } from "@/lib/types";
 import { ApplicationsPanel } from "./Applications";
 import { CallButton } from "./CallButton";
+import { EmailButton } from "./EmailButton";
 import { BarChip, SlaChip, TempChip, TestChip } from "./Chips";
 import { AddTaskButton, ContactsPanel, EditablePanel, NoteBox, type FieldDef } from "./Panels";
+import { ProgrammeFit } from "./ProgrammeFit";
 import { StageButton } from "./StageButton";
 import { TaskActions } from "./TaskActions";
+import { Timeline } from "./Timeline";
+import { WittyTranscript } from "./WittyTranscript";
 
 const g = (rec: LeadDetail["record"], group: string, key: string): string | null => {
   const grp = rec?.[group] as Record<string, unknown> | undefined;
@@ -53,27 +58,9 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
     { key: "preferred_counseling_time", label: "Best time to call", value: val("interest", "preferred_counseling_time") },
   ];
 
-  const timeline = (
-    <section className="panel">
-      <header><h3>Timeline</h3><span className="small muted">Calls, WhatsApp, email, Witty, changes</span></header>
-      <div className="body">
-        {canWork && <NoteBox leadId={l.lead_id} />}
-        <div className="tl">
-          {d.timeline.length === 0 && <p className="note">Nothing yet.</p>}
-          {d.timeline.map((t) => (
-            <div key={t.id} className="tl-item">
-              <time dateTime={t.at}>{when(t.at).replace(/^Today /, "")}</time>
-              <div>
-                <div className="tl-kind">{TIMELINE_KIND_LABEL[t.kind] ?? t.kind}{t.direction === "in" ? " · in" : ""}{t.internal ? " · coaching (Admin only)" : ""}</div>
-                <div style={{ whiteSpace: "pre-wrap" }}>{t.body}</div>
-                {t.actor && <div className="small muted">{t.actor}</div>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+  const email = d.contacts.filter((c) => c.kind === "email").sort((a, b) => Number(b.primary_email) - Number(a.primary_email))[0]?.value ?? null;
+  const first = firstName(val("student", "name"));
+  const timeline = <Timeline items={d.timeline}>{canWork && <NoteBox leadId={l.lead_id} />}</Timeline>;
 
   const tasks = (
     <section className="panel">
@@ -123,6 +110,8 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
               <div className="lead-actions">
                 <CallButton leadId={l.lead_id} name={l.name ?? "the student"} pending={d.unlogged_call} />
                 <Link className="btn ghost" href={`/s/inbox?lead=${l.lead_id}`}><MessageCircle className="icon s" aria-hidden />WhatsApp</Link>
+                <EmailButton leadId={l.lead_id} to={email} blocked={l.opted_out ? "This student opted out: do not message." : null}
+                  vars={{ first_name: first, programme: val("interest", "course"), university: val("interest", "university"), counsellor: me.full_name }} />
                 <Link className="btn ghost" href={`#tasks`}>Follow-up</Link>
               </div>
             )}
@@ -133,6 +122,7 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
             <ContactsPanel leadId={l.lead_id} contacts={d.contacts} canEdit={canWork} />
             <EditablePanel leadId={l.lead_id} title="Interest" fields={interest} reasonRequired canEdit={canWork} note={others ? `Also interested in: ${others}` : undefined} />
           </div>
+          <ProgrammeFit leadId={l.lead_id} canShare={canWork && !l.opted_out} firstName={first} counsellor={me.full_name} hasEmail={!!email} />
           <EditablePanel leadId={l.lead_id} title="Profile" fields={profile} canEdit={canWork} />
           <ApplicationsPanel leadId={l.lead_id} apps={d.applications} enrollments={d.enrollments} canEdit={canWork}
             defaultProgramme={val("interest", "course")} defaultUniversity={val("interest", "university")} />
@@ -151,6 +141,7 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
               </dl>
             </div>
           </section>
+          <WittyTranscript leadId={l.lead_id} />
           {timeline}
         </div>
       </div>
