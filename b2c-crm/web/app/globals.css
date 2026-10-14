@@ -309,3 +309,5 @@ pre.json { font-family: var(--mono); font-size: 12px; background: var(--surface)
   .sheet { animation: rise .18s ease-out; }
   @keyframes rise { from { transform: translateY(16px); opacity: .6; } to { transform: none; opacity: 1; } }
 }
+.only-desk { display: block; }
+@media (max-width: 900px) { .only-desk { display: none; } }
