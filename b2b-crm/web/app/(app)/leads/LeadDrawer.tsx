@@ -4,13 +4,15 @@ import { formatDateTime, relativeTime } from "@/lib/format";
 import { barText, drawerBadges, holdText, outlookText, providersSentence } from "@/lib/lead-routing-ui";
 import { DESTINATION_LABEL, formatPhone, humanize, statusTone, whatsappLink } from "@/lib/leads";
 import type { EditHistory } from "@/lib/lead-edit";
-import type { LeadDetail } from "@/lib/leads-data";
+import type { LeadDetail, LeadNote, LeadTag } from "@/lib/leads-data";
 import { CONSENT_STATE_LABEL } from "@/lib/routing";
 import type { LeadRouting } from "@/lib/routing-data";
 import type { LeadPartnerSync } from "@/lib/sync";
 import { DrawerShell } from "./DrawerShell";
 import { EditTab } from "./EditTab";
 import { LeadActions } from "./LeadMutations";
+import { NotesTab } from "./NotesTab";
+import { TagEditor } from "./TagEditor";
 import { PartnerSyncTab } from "./PartnerSyncTab";
 import { RoutingTab } from "./RoutingTab";
 
@@ -204,9 +206,9 @@ function Activity({ d }: { d: LeadDetail }) {
 }
 
 /** Lead drawer: who the student is, their Witty chat, what happened to the lead, and corrections with their history. */
-export function LeadDrawer({ id, detail, routing, history, sync, closeHref, initialTab }: {
+export function LeadDrawer({ id, detail, routing, history, sync, closeHref, initialTab, notes = [], tags = [], knownTags = [] }: {
   id: number; detail: LeadDetail | null; routing: LeadRouting | null; history: EditHistory | null; sync: LeadPartnerSync | null;
-  closeHref: string; initialTab?: string;
+  closeHref: string; initialTab?: string; notes?: LeadNote[]; tags?: LeadTag[]; knownTags?: LeadTag[];
 }) {
   if (!detail) {
     return (
@@ -248,6 +250,8 @@ export function LeadDrawer({ id, detail, routing, history, sync, closeHref, init
           <Badge key={b.key} tone={b.tone} className={b.title ? "cursor-help" : undefined}><span title={b.title}>{b.text}</span></Badge>
         ))}
       </div>
+      {/* M33b: tags */}
+      <div className="mt-2"><TagEditor leadId={l.id} tags={tags} known={knownTags} /></div>
     </div>
   );
 
@@ -263,6 +267,7 @@ export function LeadDrawer({ id, detail, routing, history, sync, closeHref, init
         { id: "routing", label: "Routing", count: routing?.decisions.length, content: <RoutingTab leadId={l.id} r={routing} /> },
         ...(sync && (sync.activities.length || sync.events.length || sync.slas.length)
           ? [{ id: "partner", label: "Partner sync", count: sync.activities.length, content: <PartnerSyncTab s={sync} /> }] : []),
+        { id: "notes", label: "Notes", count: notes.length || undefined, content: <NotesTab leadId={l.id} notes={notes} /> },
         { id: "activity", label: "Activity", count: detail.touchpoints.length + detail.events.length + 1, content: <Activity d={detail} /> },
         { id: "edit", label: "Edit", count: history?.length || undefined, content: <EditTab id={l.id} lead={l} history={history} deleted={Boolean(l.deleted_at)} /> },
       ]}

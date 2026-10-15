@@ -2,7 +2,7 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ArrowUpDown, BellOff, FlaskConical, Forward, LoaderCircle, Repeat, RotateCcw, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, BellOff, FlaskConical, Forward, LoaderCircle, Repeat, RotateCcw, Send, Tag, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -14,7 +14,8 @@ import {
   type LeadPage, type LeadQuery, type LeadRow, type Sort,
 } from "@/lib/leads";
 import type { Lane } from "@/lib/routing";
-import { loadMoreLeads, rerouteMany, routeToPartnersMany } from "./actions";
+import { loadMoreLeads, rerouteMany, routeToPartnersMany, tagLeads } from "./actions";
+import { TagChip } from "./TagChip";
 import { DeleteDialog, useRestore } from "./LeadMutations";
 import { PassToCrmDialog } from "./PassToCrm";
 
@@ -49,6 +50,23 @@ function Routing({ row }: { row: LeadRow }) {
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** M33b: tag or untag the selected leads with one tag (a new name creates the tag). */
+function TagDialog({ ids, open, onClose, onDone }: { ids: number[]; open: boolean; onClose: () => void; onDone: () => void }) {
+  const [remove, setRemove] = useState(false);
+  return (
+    <ConfirmDialog open={open} onClose={onClose} title={`${remove ? "Remove a tag from" : "Tag"} ${plural(ids.length, "lead")}`} confirmLabel={remove ? "Remove tag" : "Add tag"}
+      reason={{ label: "Tag", placeholder: "e.g. Priority, Call back, Diwali campaign" }}
+      onConfirm={async (tag) => {
+        const r = await tagLeads(ids, tag, !remove);
+        if (!r.ok) return r.error;
+        toast.success(`${r.tag}: ${r.changed} ${r.changed === 1 ? "lead" : "leads"} ${remove ? "untagged" : "tagged"}`);
+        onDone();
+      }}>
+      <label className="flex items-center gap-2 text-[13px] text-muted"><input type="checkbox" checked={remove} onChange={(e) => setRemove(e.target.checked)} className="accent-[var(--primary)]" /> Remove this tag instead of adding it</label>
+    </ConfirmDialog>
+  );
+}
 
 /**
  * Bulk 'Send to partners' (PART 6.3): every selected lead is offered to b2b.route_to_partners_many, which skips
@@ -155,6 +173,7 @@ export function LeadsTable({ search, query, initial, openId }: { search: string;
   const [rows, setRows] = useState(initial.rows);
   const [next, setNext] = useState(initial.next);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [tagging, setTagging] = useState(false);
   const [loading, startLoad] = useTransition();
   const [deleting, setDeleting] = useState(false);
   const [passing, setPassing] = useState(false);
@@ -263,6 +282,9 @@ export function LeadsTable({ search, query, initial, openId }: { search: string;
                       {r.is_test && <FlaskConical className="size-3 text-amber" aria-label="Test lead" />}
                       {r.is_opted_out && <BellOff className="size-3 text-danger" aria-label="Opted out" />}
                     </span>
+                    {r.tags && r.tags.length > 0 && (
+                      <span className="mt-0.5 flex flex-wrap gap-1">{r.tags.slice(0, 3).map((t) => <TagChip key={t} name={t} />)}{r.tags.length > 3 && <span className="text-[11px] text-subtle">+{r.tags.length - 3}</span>}</span>
+                    )}
                   </td>
                   <td className="max-w-[220px] px-3 py-2.5">
                     <span className="block truncate text-fg">{r.interested_course || <span className="text-subtle">—</span>}</span>
@@ -323,6 +345,9 @@ export function LeadsTable({ search, query, initial, openId }: { search: string;
               <Repeat className="size-3.5" /> Re-route
             </Button>
           )}
+          {!query.bin && (
+            <Button size="sm" variant="secondary" onClick={() => setTagging(true)}><Tag className="size-3.5" /> Tag</Button>
+          )}
           {query.bin ? (
             <Button size="sm" onClick={() => restore(ids)} disabled={restoring}>
               {restoring ? <LoaderCircle className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />} Restore
@@ -339,6 +364,7 @@ export function LeadsTable({ search, query, initial, openId }: { search: string;
       )}
 
       <DeleteDialog ids={ids} partnerCount={partnerCount} open={deleting} onClose={() => setDeleting(false)} onDone={removeRows} />
+      <TagDialog ids={ids} open={tagging} onClose={() => setTagging(false)} onDone={() => { setSelected(new Set()); router.refresh(); }} />
       <PassToCrmDialog ids={ids} open={passing} onClose={() => setPassing(false)} onDone={removeRows} />
       <SendToPartnersDialog rows={sel} open={sending} onClose={() => setSending(false)} onDone={routed} />
       <RerouteDialog rows={sel} open={rerouting} onClose={() => setRerouting(false)} onDone={routed} />

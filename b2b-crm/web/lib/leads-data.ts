@@ -46,9 +46,42 @@ export async function leadFacets(q: LeadQuery): Promise<Facets> {
     status: f.status ?? {},
     destination: f.destination ?? {},
     paid: { meta: f.paid?.meta ?? 0, google: f.paid?.google ?? 0, any: f.paid?.any ?? 0 },
+    tags: f.tags ?? {},
     bin: f.bin ?? 0,
     tests: f.tests ?? 0,
   };
+}
+
+export type LeadNote = { id: number; body: string; pinned: boolean; author: string; mine: boolean; created_at: string; updated_at: string };
+export type LeadTag = { id: number; name: string; color: string };
+export type DuplicatePair = { why: string; a: DuplicateLead; b: DuplicateLead };
+export type DuplicateLead = { id: number; name: string | null; phone: string | null; email: string | null; city: string | null; course: string | null; source: string | null;
+  created_at: string; destination: string | null; partner_id: number | null; has_enrollment: boolean };
+
+/** M33b: the lead's internal notes (pinned first) and tags. */
+export async function leadNotes(id: number): Promise<LeadNote[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.schema("b2b").rpc("lead_notes_list", { p_lead_id: id });
+  if (error) return [];
+  return (data ?? []) as LeadNote[];
+}
+export async function leadTags(id: number): Promise<LeadTag[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.schema("b2b").rpc("lead_tags_of", { p_lead_id: id });
+  if (error) return [];
+  return (data ?? []) as LeadTag[];
+}
+export async function allTags(): Promise<LeadTag[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.schema("b2b").rpc("tags_list", { p_include_retired: false });
+  if (error) return [];
+  return (data ?? []) as LeadTag[];
+}
+export async function leadDuplicates(): Promise<DuplicatePair[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.schema("b2b").rpc("lead_duplicates", { p_limit: 200 });
+  if (error) throw new Error(`lead_duplicates failed (${error.code ?? "unknown"})`);
+  return (data ?? []) as DuplicatePair[];
 }
 
 export async function leadDetail(id: number): Promise<LeadDetail | null> {

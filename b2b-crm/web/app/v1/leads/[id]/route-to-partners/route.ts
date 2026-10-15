@@ -1,3 +1,4 @@
+import { dbFailure } from "@/lib/b2c-api";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { apiKeyFrom } from "@/lib/integrations";
@@ -31,7 +32,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false } });
   const { data, error } = await supabase.schema("b2b").rpc("api_route_to_partners", { p_key: key, p_lead_id: Number(id), p_reason: b.data.reason });
-  if (error) return Response.json({ ok: false, error: "could not route the lead, try again" }, { status: 503 });
+  if (error) return dbFailure(error, "could not route the lead, try again");
   const r = data as RouteAnswer;
   if (r.ok) return Response.json({ ok: true, result: r.result }, { status: r.status ?? 200 });
   const body: { ok: false; error: string; error_code?: string } = { ok: false, error: r.error ?? "could not route the lead" };

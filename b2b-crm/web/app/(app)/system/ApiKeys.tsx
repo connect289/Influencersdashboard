@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/components/ui/cn";
 import { formatDateTime, relativeTime } from "@/lib/format";
-import { SCOPE_LABEL, SCOPES, type ApiKeyRow, type Scope } from "@/lib/integrations";
+import { DEFAULT_RATE, SCOPE_LABEL, SCOPES, type ApiKeyRow, type Scope } from "@/lib/integrations";
 import { createApiKey, revokeApiKey } from "./actions";
 import { SecretBox } from "./SecretBox";
 
@@ -17,6 +17,8 @@ function CreateKeyDialog({ open, onClose }: { open: boolean; onClose: () => void
   const ref = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState("");
   const [scopes, setScopes] = useState<Scope[]>(["events"]);
+  const [expires, setExpires] = useState("365");
+  const [rate, setRate] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
@@ -25,14 +27,14 @@ function CreateKeyDialog({ open, onClose }: { open: boolean; onClose: () => void
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) { setName(""); setScopes(["events"]); setErrors({}); setError(null); setSecret(null); d.showModal(); }
+    if (open && !d.open) { setName(""); setScopes(["events"]); setExpires("365"); setRate(""); setErrors({}); setError(null); setSecret(null); d.showModal(); }
     if (!open && d.open) d.close();
   }, [open]);
 
   const create = async () => {
     setPending(true);
     try {
-      const r = await createApiKey(name, scopes);
+      const r = await createApiKey(name, scopes, Number(expires), rate.trim() === "" ? null : Number(rate));
       if (r.ok) { setSecret(r.secret); toast.success("API key created"); } else { setError(r.error); setErrors(r.errors ?? {}); }
     } catch { setError("Something went wrong. Try again."); } finally { setPending(false); }
   };
@@ -65,6 +67,21 @@ function CreateKeyDialog({ open, onClose }: { open: boolean; onClose: () => void
               ))}
               {errors.scopes && <span className="text-xs text-danger">{errors.scopes}</span>}
             </fieldset>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1">
+                <span className="text-[13px] font-medium">Expires</span>
+                <select value={expires} onChange={(x) => setExpires(x.target.value)} className={field}>
+                  <option value="30">In 30 days</option><option value="90">In 90 days</option><option value="365">In 1 year</option><option value="730">In 2 years</option><option value="0">Never (not recommended)</option>
+                </select>
+              </label>
+              <label className="block space-y-1">
+                <span className="text-[13px] font-medium">Requests per minute</span>
+                <input value={rate} onChange={(x) => setRate(x.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" className={field}
+                  placeholder={`default ${Math.max(...scopes.map((s) => DEFAULT_RATE[s] ?? 300), 0) || 300}`} aria-invalid={Boolean(errors.rate_per_minute)} />
+                {errors.rate_per_minute && <span className="text-xs text-danger">{errors.rate_per_minute}</span>}
+              </label>
+            </div>
+            <p className="text-[12px] text-subtle">Over the limit, calls get HTTP 429 with Retry-After. An alert fires 7 days before expiry.</p>
             {error && <p role="alert" className="text-[13px] text-danger">{error}</p>}
           </>
         )}
@@ -101,6 +118,8 @@ export function ApiKeys({ keys }: { keys: ApiKeyRow[] }) {
                 <th scope="col" className="px-3 py-2 font-medium">Key</th>
                 <th scope="col" className="px-3 py-2 font-medium">Scopes</th>
                 <th scope="col" className="px-3 py-2 font-medium">Last used</th>
+                <th scope="col" className="px-3 py-2 font-medium">Use (24 h)</th>
+                <th scope="col" className="px-3 py-2 font-medium">Expires</th>
                 <th scope="col" className="px-5 py-2"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
@@ -111,6 +130,13 @@ export function ApiKeys({ keys }: { keys: ApiKeyRow[] }) {
                   <td className="px-3 py-2 font-mono text-[12px] text-muted">{k.prefix}…</td>
                   <td className="px-3 py-2"><span className="flex flex-wrap gap-1">{k.scopes.map((s) => <Badge key={s}>{SCOPE_LABEL[s] ?? s}</Badge>)}</span></td>
                   <td className="px-3 py-2 text-muted" title={formatDateTime(k.last_used_at)}>{k.last_used_at ? relativeTime(k.last_used_at) : "Never"}</td>
+                  <td className="tabular px-3 py-2 text-muted" title={k.rate_per_minute ? `limit ${k.rate_per_minute} per minute` : "default limit"}>{k.requests_24h ?? 0}{k.rate_per_minute ? <span className="block text-[11px] text-subtle">max {k.rate_per_minute}/min</span> : null}</td>
+                  <td className="px-3 py-2 text-muted" title={formatDateTime(k.expires_at ?? null)}>
+                    {!k.expires_at ? <span className="text-subtle">Never</span>
+                      : Date.parse(k.expires_at) < Date.now() ? <Badge tone="danger">Expired</Badge>
+                      : Date.parse(k.expires_at) < Date.now() + 7 * 86400000 ? <Badge tone="warning">{relativeTime(k.expires_at)}</Badge>
+                      : relativeTime(k.expires_at)}
+                  </td>
                   <td className="px-5 py-2 text-right">
                     {k.revoked_at ? <Badge tone="danger">Revoked {formatDateTime(k.revoked_at)}</Badge>
                       : <Button size="sm" variant="ghost" onClick={() => setRevoke(k)}>Revoke</Button>}

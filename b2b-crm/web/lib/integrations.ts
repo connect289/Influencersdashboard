@@ -10,6 +10,12 @@ export type ApiKeyRow = {
   created_at: string;
   last_used_at: string | null;
   revoked_at: string | null;
+  /** M33a */
+  expires_at?: string | null;
+  rate_per_minute?: number | null;
+  note?: string | null;
+  requests_1h?: number;
+  requests_24h?: number;
 };
 
 export type Consumer = "b2c_crm" | "influencer_dashboard" | "website" | "other";
@@ -75,6 +81,7 @@ export type SystemOverview = {
   product_events: ProductEventRow[];
   erasure_open: number;
   jobs: JobRow[];
+  api_limits?: { per_minute?: Record<string, number>; default?: number };
 };
 
 export type ErasureRow = { id: number; lead_id: number; source: string; requested_at: string; note: string | null; name: string | null };
@@ -166,7 +173,13 @@ export const JOB_LABEL: Record<string, string> = {
 export const ApiKeySchema = z.object({
   name: z.string().trim().min(2, "Give the key a name (2 to 80 characters).").max(80, "Give the key a name (2 to 80 characters)."),
   scopes: z.array(z.enum(SCOPES)).min(1, "Choose at least one scope."),
+  /** M33a: days until the key expires (0 = never), and an optional per-minute limit. */
+  expires_days: z.number().int().min(0).max(730).default(0),
+  rate_per_minute: z.number().int().min(1).max(100000).nullable().default(null),
 });
+
+/** The per-minute defaults per scope (setting api_limits), for the key form's hint. */
+export const DEFAULT_RATE: Record<Scope, number> = { intake: 120, referrals: 60, events: 300, b2c: 600, ai_worker: 600 };
 
 export const EndpointSchema = z.object({
   name: z.string().trim().min(2, "2 to 80 characters.").max(80, "2 to 80 characters."),

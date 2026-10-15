@@ -13,6 +13,17 @@ const LEAD_ID = /^\d{1,18}$/;
 
 export const fail = (status: number, error: string, extra?: Record<string, unknown>) => Response.json({ ok: false, error, ...extra }, { status });
 
+/** M33a: a database error from a /v1 call. SQLSTATE P0429 (b2b.api_key_check) is the key's per-minute limit: HTTP 429 with
+ *  Retry-After (seconds to the next minute, from the hint). Anything else is a 503 with the given message. */
+export function dbFailure(error: { code?: string; message?: string; hint?: string | null } | null, fallback: string): Response {
+  if (error?.code === "P0429") {
+    const secs = Number(/retry after (\d+)/.exec(error.hint ?? "")?.[1] ?? 60);
+    return Response.json({ ok: false, error: "rate limited: too many requests for this key", error_code: "rate_limited", retry_after: secs },
+      { status: 429, headers: { "Retry-After": String(secs) } });
+  }
+  return fail(503, fallback);
+}
+
 /** The key from the headers, or a 401 answer. */
 export function requireKey(request: Request): string | Response {
   const key = apiKeyFrom(request.headers);
@@ -39,7 +50,7 @@ type DbAnswer = { ok: boolean; status?: number; result?: unknown; error?: string
 export async function callB2c(fn: string, args: Record<string, unknown>): Promise<Response> {
   const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false } });
   const { data, error } = await supabase.schema("b2b").rpc(fn, args);
-  if (error) return fail(503, "the B2B CRM could not answer, try again shortly");
+  if (error) return dbFailure(error, "the B2B CRM could not answer, try again shortly");
   const r = data as DbAnswer;
   const status = r.status ?? (r.ok ? 200 : 400);
   if (r.ok) return Response.json({ ok: true, ...(r.replayed ? { replayed: true } : {}), result: r.result }, { status });

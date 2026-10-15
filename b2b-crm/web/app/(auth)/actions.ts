@@ -2,7 +2,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { fetchMe, isAllowlistedEmail, isLocked, recordSignIn } from "@/lib/auth";
+import { acceptTeamInvite, fetchMe, isAllowlistedEmail, isLocked, recordSignIn } from "@/lib/auth";
 import { siteUrl } from "@/lib/env";
 import { clientIp, passwordProblem, safeNext } from "@/lib/security";
 import { createClient } from "@/lib/supabase/server";
@@ -53,10 +53,14 @@ export async function signInWithPassword(_: FormState, form: FormData): Promise<
     return { error: "Email or password is incorrect." }; // same message whether or not the account exists
   }
 
-  const result = await fetchMe(supabase);
+  let result = await fetchMe(supabase);
   if ("setupError" in result) {
     await supabase.auth.signOut({ scope: "local" });
     return { error: SETUP };
+  }
+  if (!result.me.allowlisted && (await acceptTeamInvite(data.user.id, email))) {
+    result = await fetchMe(supabase);
+    if ("setupError" in result) return { error: SETUP };
   }
   if (!result.me.allowlisted) {
     await supabase.auth.signOut({ scope: "local" });

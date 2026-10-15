@@ -25,11 +25,12 @@ const refresh = () => revalidatePath("/system");
 export type SecretResult = { ok: true; secret: string } | { ok: false; error: string; errors?: Record<string, string> };
 
 /** Creates an API key and returns it once; only its hash is stored. */
-export async function createApiKey(name: string, scopes: string[]): Promise<SecretResult> {
+export async function createApiKey(name: string, scopes: string[], expiresDays?: number, ratePerMinute?: number | null): Promise<SecretResult> {
   await assertAdmin();
-  const p = ApiKeySchema.safeParse({ name, scopes });
+  const p = ApiKeySchema.safeParse({ name, scopes, expires_days: expiresDays ?? 0, rate_per_minute: ratePerMinute ?? null });
   if (!p.success) return { ok: false, error: "Check the highlighted fields.", errors: zodErrors(p.error.issues) };
-  const { data, error } = await rpc("create_api_key", { p_name: p.data.name, p_scopes: p.data.scopes });
+  const expiresAt = p.data.expires_days > 0 ? new Date(Date.now() + p.data.expires_days * 86400000).toISOString() : null;
+  const { data, error } = await rpc("api_key_create", { p: { name: p.data.name, scopes: p.data.scopes, expires_at: expiresAt, rate_per_minute: p.data.rate_per_minute } });
   if (error || !data) return { ok: false, error: error ? dbMessage(error, "Could not create the key. Try again.") : "Could not create the key. Try again." };
   refresh();
   return { ok: true, secret: (data as { key: string }).key };

@@ -9,7 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if ("setupError" in result) return <SetupNotice />;
   const switches = await liveSwitches();
   return (
-    <AppShell email={result.me.email ?? ""} anyLive={switches.some((s) => s.live)}>
+    <AppShell email={result.me.email ?? ""} anyLive={switches.some((s) => s.live)} readOnly={Boolean(result.me.read_only)}>
       {children}
     </AppShell>
   );

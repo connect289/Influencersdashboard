@@ -236,3 +236,69 @@ export async function routeTestLead(leadId: number, target: "partner_sandbox" | 
   refresh();
   return { ok: true, ...(data as TestRouteResult) };
 }
+
+
+// ---------- M33b: tags, notes, duplicates, merge ----------
+const dbMsg = (e: { code?: string; message: string }, fallback: string) => (e.code === "22023" || e.code === "P0002" ? e.message : fallback);
+
+export async function tagLeads(ids: number[], tag: string, add: boolean): Promise<{ ok: true; changed: number; tag: string } | { ok: false; error: string }> {
+  await assertAdmin();
+  const p = z.object({ ids: Ids, tag: z.string().trim().min(1, "Give a tag.").max(40) }).safeParse({ ids, tag });
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? "Check the tag." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.schema("b2b").rpc("leads_tag", { p_ids: p.data.ids, p_tag: p.data.tag, p_add: add });
+  if (error) return { ok: false, error: dbMsg(error, "Could not change the tags. Try again.") };
+  revalidatePath("/leads");
+  const r = data as { changed: number; tag: string };
+  return { ok: true, changed: r.changed ?? 0, tag: r.tag ?? p.data.tag };
+}
+
+export async function addNote(leadId: number, body: string, pinned: boolean): Promise<string | void> {
+  await assertAdmin();
+  const p = z.object({ leadId: z.number().int().positive(), body: z.string().trim().min(1, "Write something.").max(4000) }).safeParse({ leadId, body });
+  if (!p.success) return p.error.issues[0]?.message ?? "Check the note.";
+  const supabase = await createClient();
+  const { error } = await supabase.schema("b2b").rpc("lead_note_add", { p_lead_id: p.data.leadId, p_body: p.data.body, p_pinned: pinned });
+  if (error) return dbMsg(error, "Could not save the note. Try again.");
+  revalidatePath("/leads");
+}
+
+export async function updateNote(id: number, changes: { body?: string; pinned?: boolean }): Promise<string | void> {
+  await assertAdmin();
+  const p = z.object({ id: z.number().int().positive(), changes: z.object({ body: z.string().trim().min(1).max(4000).optional(), pinned: z.boolean().optional() }) }).safeParse({ id, changes });
+  if (!p.success) return "Check the note.";
+  const supabase = await createClient();
+  const { error } = await supabase.schema("b2b").rpc("lead_note_update", { p_id: p.data.id, p: p.data.changes });
+  if (error) return dbMsg(error, "Could not change the note. Try again.");
+  revalidatePath("/leads");
+}
+
+export async function removeNote(id: number): Promise<string | void> {
+  await assertAdmin();
+  if (!z.number().int().positive().safeParse(id).success) return "Invalid note.";
+  const supabase = await createClient();
+  const { error } = await supabase.schema("b2b").rpc("lead_note_remove", { p_id: id });
+  if (error) return "Could not remove the note. Try again.";
+  revalidatePath("/leads");
+}
+
+export async function mergeLeads(keep: number, merge: number, reason: string): Promise<{ ok: true; result: Record<string, unknown> } | { ok: false; error: string }> {
+  await assertAdmin();
+  const p = z.object({ keep: z.number().int().positive(), merge: z.number().int().positive(), reason: z.string().trim().min(3, "Give a reason (3 to 300 characters).").max(300) }).safeParse({ keep, merge, reason });
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? "Check the fields." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.schema("b2b").rpc("lead_merge", { p_keep: p.data.keep, p_merge: p.data.merge, p_reason: p.data.reason });
+  if (error) return { ok: false, error: dbMsg(error, "Could not merge. Try again.") };
+  revalidatePath("/leads"); revalidatePath("/leads/duplicates");
+  return { ok: true, result: (data ?? {}) as Record<string, unknown> };
+}
+
+export async function dismissDuplicate(a: number, b: number, note: string): Promise<string | void> {
+  await assertAdmin();
+  const p = z.object({ a: z.number().int().positive(), b: z.number().int().positive(), note: z.string().trim().max(300) }).safeParse({ a, b, note });
+  if (!p.success) return "Check the fields.";
+  const supabase = await createClient();
+  const { error } = await supabase.schema("b2b").rpc("lead_duplicate_dismiss", { p_a: p.data.a, p_b: p.data.b, p_note: p.data.note || null });
+  if (error) return dbMsg(error, "Could not dismiss. Try again.");
+  revalidatePath("/leads/duplicates");
+}

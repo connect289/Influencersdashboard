@@ -13,7 +13,7 @@ import { useShortcuts } from "./useShortcuts";
 
 const COLLAPSE_KEY = "b2b.sidebar.collapsed";
 
-export function AppShell({ email, anyLive, children }: { email: string; anyLive: boolean; children: React.ReactNode }) {
+export function AppShell({ email, anyLive, readOnly = false, children }: { email: string; anyLive: boolean; readOnly?: boolean; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -105,6 +105,11 @@ export function AppShell({ email, anyLive, children }: { email: string; anyLive:
           </div>
         </header>
 
+        {readOnly && (
+          <div role="status" className="border-b border-amber/30 bg-amber/10 px-4 py-1.5 text-center text-[12.5px] text-navy dark:text-amber sm:px-6">
+            Read-only access: you can see everything, and every change is refused. Ask an admin to change your role.
+          </div>
+        )}
         <main id="main" className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}
         </main>
