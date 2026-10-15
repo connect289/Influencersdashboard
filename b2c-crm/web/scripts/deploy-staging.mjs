@@ -10,6 +10,7 @@
 import { randomBytes } from "node:crypto";
 import { execSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
+import webpush from "web-push";
 import { assertStagingKey, STAGING_REF } from "../e2e/fixtures.mjs";
 
 const NAME = "eduwit-b2c-crm";
@@ -82,6 +83,10 @@ const vars = [
   ["SMTP_FROM", process.env.SMTP_FROM, "plain"],
 ];
 if (!existing.has("LINK_SECRET")) vars.push(["LINK_SECRET", randomBytes(32).toString("hex"), "sensitive"]); // signed links must survive redeploys
+if (!existing.has("VAPID_PRIVATE_KEY")) { // phone alerts: a key pair made once; devices stay subscribed across deploys
+  const vapid = webpush.generateVAPIDKeys();
+  vars.push(["NEXT_PUBLIC_VAPID_PUBLIC_KEY", vapid.publicKey, "plain"], ["VAPID_PRIVATE_KEY", vapid.privateKey, "sensitive"], ["VAPID_SUBJECT", "mailto:connect@eduwit.in", "plain"]);
+}
 const body = vars.filter(([, v]) => v).map(([key, value, type]) => ({ key, value, type, target: ["production", "preview"] }));
 await api("POST", `/v10/projects/${project.id}/env?upsert=true`, body);
 console.log(`env      ${body.map((v) => v.key).join(", ")}`);
