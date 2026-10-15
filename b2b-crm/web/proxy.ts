@@ -89,8 +89,9 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      // /v1/* is the machine API (partner events): no session, no redirects; each route authenticates its caller
-      source: "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|brand/|v1/).*)",
+      // /v1/* is the machine API (partner events): no session, no redirects; each route authenticates its caller.
+      // /api/health is for uptime monitors (M33a): public, no session, answers JSON and never redirects to /login.
+      source: "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|brand/|v1/|api/health).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },
