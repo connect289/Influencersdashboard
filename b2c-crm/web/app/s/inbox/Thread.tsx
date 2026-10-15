@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { relative, when } from "@/lib/format";
 import { waRead, waTemplate, waText } from "../actions";
 import { snippetUsed, type Snippet } from "../snippet-actions";
+import { MediaComposer, MediaLine, type AppChoice, type Media } from "./Media";
 
 export type Compose = {
   phone: string | null;
@@ -15,16 +16,22 @@ export type Compose = {
   window_open: boolean | null;
   window_closes_at: string | null;
   templates: { id: number; name: string; language: string; purpose: string | null; status: string; preview: string }[];
-  messages: { id: number; direction: "in" | "out"; kind: string; template_name: string | null; body: string | null; status: string; created_at: string }[];
+  messages: { id: number; direction: "in" | "out"; kind: string; template_name: string | null; body: string | null; status: string; created_at: string; media?: Media; media_path?: string | null }[];
 };
 
-/** One conversation. Free text only inside the 24-hour window; otherwise an approved sales template (Meta's rule). */
-export function Thread({ leadId, name, compose, snippets = [], vars = {} }: { leadId: number; name: string | null; compose: Compose; snippets?: Snippet[]; vars?: Record<string, string | null | undefined> }) {
+/**
+ * One conversation. Free text, images, documents and brochures only inside the 24-hour window; otherwise an approved sales
+ * template (Meta's rule). Files the student sends open by a short signed link and go onto the checklist in one tap.
+ * Marketing reads it without a composer.
+ */
+export function Thread({ leadId, name, compose, snippets = [], vars = {}, readOnly, base = "/s/inbox", leadBase = "/s/leads", apps = [] }: {
+  leadId: number; name: string | null; compose: Compose; snippets?: Snippet[]; vars?: Record<string, string | null | undefined>; readOnly?: boolean; base?: string; leadBase?: string; apps?: AppChoice[];
+}) {
   const router = useRouter();
   const [pick, setPick] = useState<number | null>(null);
   const [text, setText] = useState("");
   const [busy, start] = useTransition();
-  useEffect(() => { void waRead(leadId); }, [leadId]);
+  useEffect(() => { if (!readOnly) void waRead(leadId); }, [leadId, readOnly]);
   function insert(s: Snippet) {
     const filled = s.body.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k: string) => vars[k] ?? m);
     setText((t) => (t.trim() ? `${t.trimEnd()} ${filled}` : filled));
@@ -43,22 +50,25 @@ export function Thread({ leadId, name, compose, snippets = [], vars = {} }: { le
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", minHeight: 480 }}>
       <div className="s-head">
-        <Link href="/s/inbox" className="btn quiet sm only-phone" aria-label="Back"><ArrowLeft className="icon s" aria-hidden /></Link>
+        <Link href={base} className="btn quiet sm only-phone" aria-label="Back"><ArrowLeft className="icon s" aria-hidden /></Link>
         <div className="grow"><b>{name ?? compose.phone}</b><div className="small muted mono">{compose.phone}</div></div>
-        <Link className="btn quiet sm" href={`/s/leads/${leadId}`}>Open lead</Link>
+        <Link className="btn quiet sm" href={`${leadBase}/${leadId}`}>Open lead</Link>
       </div>
       <div className="s-body thread" style={{ flex: 1 }}>
         {compose.messages.length === 0 && <p className="note">No messages yet.</p>}
         {compose.messages.map((m) => (
           <div key={m.id} className={`msg ${m.direction}`}>
             {m.template_name && <span className="tpl">Template · {m.template_name}</span>}
-            <span style={{ whiteSpace: "pre-wrap" }}>{m.body}</span>
+            {(m.kind === "media" || (m.media && (m.media.kind || m.media.id))) && <MediaLine messageId={m.id} direction={m.direction} media={m.media ?? null} stored={!!m.media_path} leadId={leadId} apps={apps} canWork={!readOnly} />}
+            {m.body && <span style={{ whiteSpace: "pre-wrap" }}>{m.body}</span>}
             <span className="meta">{when(m.created_at)}{m.direction === "out" ? ` · ${m.status === "dry_run" ? "test mode, not sent" : m.status}` : ""}</span>
           </div>
         ))}
       </div>
       <div className="composer">
-        {compose.blocked ? (
+        {readOnly ? (
+          <div className="window"><Lock className="icon s" aria-hidden />Read-only: the counsellor answers this conversation.</div>
+        ) : compose.blocked ? (
           <div className="banner danger">Cannot message this student: {compose.blocked}.</div>
         ) : compose.window_open ? (
           <>
@@ -70,6 +80,7 @@ export function Thread({ leadId, name, compose, snippets = [], vars = {} }: { le
               </div>
             )}
             <form className="row" action={() => send(() => waText(leadId, text), () => setText(""))}>
+              <MediaComposer leadId={leadId} disabled={busy} />
               <input className="input grow" value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message" maxLength={4096} aria-label="Message" />
               <button className="btn primary" type="submit" disabled={busy || !text.trim()} aria-label="Send"><Send className="icon s" aria-hidden /></button>
             </form>

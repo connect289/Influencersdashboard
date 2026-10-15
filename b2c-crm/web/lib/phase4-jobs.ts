@@ -1,5 +1,6 @@
 import "server-only";
 import { CalendarClient, eventBody, type CalendarRow } from "@/lib/calendar";
+import { ConnectorTally } from "@/lib/connector-status";
 import { siteUrl } from "@/lib/env";
 import { googleSa } from "@/lib/gmail";
 import { adminClient } from "@/lib/supabase/admin";
@@ -25,10 +26,19 @@ async function recordings(): Promise<number> {
   const { data, error } = await db.rpc("recordings_take", { p_limit: 5 });
   if (error) throw new Error(error.message);
   const cfg = exotelConfig();
+  const tally = new ConnectorTally();
   let n = 0;
   for (const r of (data ?? []) as { id: number; lead_id: number; provider: string; recording_url: string }[]) {
+    const external = r.provider !== "mock" && !r.recording_url.startsWith("mock://");
     try {
-      const f = await fetchRecording(r.provider, r.recording_url, cfg);
+      let f: Awaited<ReturnType<typeof fetchRecording>>;
+      try {
+        f = await fetchRecording(r.provider, r.recording_url, cfg);
+        if (external) tally.add("telephony", true, null, { recordings_fetched_at: new Date().toISOString() });
+      } catch (e) {
+        if (external) tally.add("telephony", false, `recording download: ${e instanceof Error ? e.message : String(e)}`);
+        throw e;
+      }
       const path = `calls/${r.lead_id}/${r.id}.${f.ext}`;
       const up = await db.storage.from("b2c-recordings").upload(path, f.bytes, { contentType: f.contentType, upsert: true });
       if (up.error) throw new Error(up.error.message);
@@ -38,6 +48,7 @@ async function recordings(): Promise<number> {
       await db.rpc("recording_saved", { p_call: r.id, p_path: null, p_error: e instanceof Error ? e.message : String(e) });
     }
   }
+  await tally.report();
   return n;
 }
 
@@ -60,6 +71,7 @@ async function calendar(): Promise<number | string> {
   const { data, error } = await db.rpc("calendar_take", { p_limit: 25 });
   if (error) throw new Error(error.message);
   const client = new CalendarClient(sa);
+  const tally = new ConnectorTally();
   let n = 0;
   for (const r of (data ?? []) as CalendarRow[]) {
     try {
@@ -72,10 +84,14 @@ async function calendar(): Promise<number | string> {
         const e = await client.upsert(r.email, r.event_id, eventBody(r, siteUrl()));
         await db.rpc("calendar_done", { p_task: r.task_id, p_event_id: e.id, p_etag: e.etag, p_error: null });
       }
+      tally.add("calendar", true);
       n++;
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/has no owner/.test(msg)) tally.add("calendar", false, msg);
       await db.rpc("calendar_done", { p_task: r.task_id, p_event_id: null, p_etag: null, p_error: e instanceof Error ? e.message : String(e) });
     }
   }
+  await tally.report();
   return n;
 }

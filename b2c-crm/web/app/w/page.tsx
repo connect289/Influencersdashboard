@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { AlertTriangle } from "lucide-react";
 import { Page, SetupError } from "@/components/shell/Page";
+import { StageApprovals, type StageRequest } from "@/components/lead/StageApprovals";
 import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
 import { b2bConfig, liveMode } from "@/lib/env";
@@ -38,6 +39,7 @@ export default async function WorkspaceHome() {
   } catch (e) {
     return <Page title="Home"><SetupError error={e} /></Page>;
   }
+  const requests = me.role === "admin" ? await rpc<StageRequest[]>("stage_requests_list").catch(() => [] as StageRequest[]) : [];
   const slaTotal = h.sla_month.met + h.sla_month.breached;
   const slaPct = slaTotal ? Math.round((h.sla_month.met / slaTotal) * 100) : null;
   const max = Math.max(1, ...h.funnel.map((f) => f.n));
@@ -87,6 +89,7 @@ export default async function WorkspaceHome() {
           ))}
         </div>
       )}
+      <StageApprovals requests={requests} canDecide leadBase="/w/leads" />
       <div className="grid g4">
         <div className="stat">
           <span>Hand-offs today</span>

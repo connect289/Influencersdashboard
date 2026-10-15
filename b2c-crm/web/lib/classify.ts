@@ -2,6 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { reportConnector } from "@/lib/connector-status";
 import { adminClient } from "@/lib/supabase/admin";
 
 /**
@@ -35,6 +36,7 @@ export async function runClassify(): Promise<{ classified: number; skipped?: str
   const model = (setting?.value as { classify_model?: string } | null)?.classify_model || "claude-haiku-4-5";
   const client = new Anthropic({ maxRetries: 1, timeout: 20_000 });
   const results: { id: number; class: string; confidence: number; model: string }[] = [];
+  let answered = 0, apiError = "";
   for (const it of items) {
     try {
       const res = await client.messages.parse({
@@ -44,15 +46,19 @@ export async function runClassify(): Promise<{ classified: number; skipped?: str
         messages: [{ role: "user", content: `Course interest: ${it.course ?? "unknown"}\nReply: ${it.text}` }],
         output_config: { format: zodOutputFormat(Result) },
       });
+      answered++;
       const out = res.stop_reason === "refusal" ? null : res.parsed_output;
       results.push(out ? { id: it.id, class: out.class, confidence: Math.max(0, Math.min(1, out.confidence)), model }
                        : { id: it.id, class: "other", confidence: 0, model });
     } catch (e) {
+      apiError = e instanceof Error ? e.message : String(e);
       if (e instanceof Anthropic.RateLimitError || e instanceof Anthropic.APIConnectionError) break; // try again next minute
       console.error("classify failed", e instanceof Error ? e.message : e);
       results.push({ id: it.id, class: "other", confidence: 0, model });
     }
   }
+  if (answered) await reportConnector("claude", true, { classify: { model, answered, at: new Date().toISOString() } });
+  if (apiError) await reportConnector("claude", false, null, `classify: ${apiError}`);
   if (results.length) {
     const { error: doneError } = await db.rpc("reply_classify_done", { p_results: results });
     if (doneError) throw new Error(`reply_classify_done: ${doneError.message}`);

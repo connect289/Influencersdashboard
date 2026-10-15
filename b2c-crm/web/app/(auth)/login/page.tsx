@@ -10,10 +10,12 @@ const ERRORS: Record<string, string> = {
   oauth: "Google sign-in was cancelled or failed. Try again.",
   link: "That sign-in link is invalid or has expired.",
   locked: "Too many failed attempts. Sign-in is locked for 15 minutes.",
+  invite: "Your invitation has expired: ask the Admin to send a new one",
 };
 const NOTICES: Record<string, string> = {
   idle: "You were signed out after 12 hours without activity.",
   signed_out: "You are signed out.",
+  revoked: "This browser was signed out from another device. Sign in again.",
 };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {

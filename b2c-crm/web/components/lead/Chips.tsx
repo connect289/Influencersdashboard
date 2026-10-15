@@ -1,7 +1,8 @@
-import { AlertTriangle, Check, Clock, Flag, Flame, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Check, Clock, Flag, Flame, Hourglass, ShieldAlert } from "lucide-react";
 import { relative } from "@/lib/format";
 import { BAR_LABEL } from "@/lib/labels";
 import type { LeadRow } from "@/lib/types";
+import { daysUntouched } from "@/lib/workspace";
 
 export function TempChip({ t }: { t: LeadRow["temperature"] }) {
   if (!t) return null;
@@ -36,4 +37,12 @@ export function TestChip({ on }: { on: boolean }) {
 export function FlagChip({ flag }: { flag: string | null | undefined }) {
   if (!flag) return null;
   return <span className="chip breach" title={`Flagged: ${flag.replace(/_/g, " ")}. Waiting for the Admin's review.`}><Flag className="icon s" aria-hidden />Flagged</span>;
+}
+
+/** Neglect (B8.7): an open lead nobody has worked for two days or more. */
+export function UntouchedChip({ lead, now }: { lead: Partial<Pick<LeadRow, "status" | "owner_id" | "last_activity_at" | "assigned_at" | "handed_off_at" | "days_untouched">>; now?: Date }) {
+  if (lead.status && lead.status !== "active") return null;
+  const d = daysUntouched(lead, now);
+  if (d === null || d < 2) return null;
+  return <span className="chip risk" title="Nobody has worked this lead for two days or more"><Hourglass className="icon s" aria-hidden />Untouched {d} days</span>;
 }

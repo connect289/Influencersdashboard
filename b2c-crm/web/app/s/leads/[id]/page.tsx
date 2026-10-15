@@ -4,6 +4,7 @@ import { LeadScreen } from "@/components/lead/LeadScreen";
 import { Page, SetupError } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
+import { salesPeople, type Person } from "@/lib/people";
 import { stagesAndSubs } from "@/lib/stages";
 import type { LeadDetail, LeadRow } from "@/lib/types";
 
@@ -26,9 +27,10 @@ export default async function SalesLeadPage({ params }: { params: Promise<{ id: 
     return <Page title="Lead"><SetupError error={e} /></Page>;
   }
   if (!d?.lead) notFound();
-  const { stages, subs } = await stagesAndSubs();
+  const [{ stages, subs }, people] = await Promise.all([stagesAndSubs(),
+    me.role === "sales_head" || me.role === "admin" ? salesPeople(me).catch(() => [] as Person[]) : Promise.resolve([] as Person[])]);
   const queue = today?.queue.map((q) => q.lead) ?? [];
   const at = queue.findIndex((l) => l.lead_id === leadId);
   const next = at >= 0 ? queue.slice(at + 1).find((l) => l.lead_id !== leadId) ?? null : null;
-  return <LeadScreen d={d} stages={stages} subs={subs} me={me} base="/s/leads" next={next ? { id: next.lead_id, name: next.name, left: queue.length - at - 1 } : null} />;
+  return <LeadScreen d={d} stages={stages} subs={subs} me={me} base="/s/leads" people={people} next={next ? { id: next.lead_id, name: next.name, left: queue.length - at - 1 } : null} />;
 }

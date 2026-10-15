@@ -39,7 +39,7 @@ export type SharedProgramme = { name: string; university: string; fee_total?: nu
 
 const rupees = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 
-/** The message that shares 1–3 programmes, on WhatsApp or by email. */
+/** The message that shares 1–4 programmes, on WhatsApp or by email. */
 export function shareText(ps: SharedProgramme[], name: string | null, counsellor: string | null): string {
   const hi = name ? `Hi ${name},` : "Hi,";
   const lines = ps.map((p, i) => {

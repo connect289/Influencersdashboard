@@ -12,4 +12,10 @@ describe("Meta template body", () => {
                    { type: "BUTTONS", buttons: [{ type: "QUICK_REPLY", text: "Yes, call me" }] }],
     });
   });
+  it("puts a text or media header first", () => {
+    const base = { id: 1, name: "t", language: "en", category: "utility", body: "Hi", variables: [], buttons: [] };
+    expect(templateBody({ ...base, header: { type: "text", text: "Fees" } }).components).toEqual([{ type: "HEADER", format: "TEXT", text: "Fees" }, { type: "BODY", text: "Hi" }]);
+    expect((templateBody({ ...base, header: { type: "image", example_url: "https://x.in/a.png" } }, "4::h") as { components: unknown[] }).components[0])
+      .toEqual({ type: "HEADER", format: "IMAGE", example: { header_handle: ["4::h"] } });
+  });
 });

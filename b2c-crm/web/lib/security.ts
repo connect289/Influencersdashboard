@@ -1,4 +1,5 @@
 // Pure helpers shared by proxy.ts, route handlers and server actions. Unit-tested in security.test.ts.
+import { createHash } from "node:crypto";
 
 /** Seconds of inactivity after which a session is signed out (spec B3: 12 hours). */
 export const IDLE_LIMIT_SECONDS = 12 * 60 * 60;
@@ -67,4 +68,94 @@ export function passwordProblem(password: string, confirm?: string): string | nu
   if (password.length > PASSWORD_MAX) return `Use at most ${PASSWORD_MAX} characters.`;
   if (confirm !== undefined && password !== confirm) return "The two passwords do not match.";
   return null;
+}
+
+// ---------- rate limits on the public endpoints (D14, b2c.rate_check) ----------
+
+/** Per-IP limits as [hits, seconds]: the B2B and WhatsApp machine endpoints get more room than pages people open. */
+export const RATE_LIMITS = {
+  v1: [120, 60],
+  webhook: [600, 60],
+  page: [60, 60],
+  tracking: [600, 60],
+  qualify_submit: [10, 60],
+} as const satisfies Record<string, readonly [number, number]>;
+export type RateScope = keyof typeof RATE_LIMITS;
+
+/** Full eight-group form of an IPv6 address, or null when it is not one. */
+function expandIpv6(ip: string): string[] | null {
+  if (!/^[0-9a-f:]+$/i.test(ip) || (ip.match(/::/g) ?? []).length > 1) return null;
+  const [head, tail] = ip.includes("::") ? ip.split("::") : [ip, null];
+  const h = head ? head.split(":") : [];
+  const t = tail ? tail.split(":") : [];
+  const fill = tail === null ? 0 : 8 - h.length - t.length;
+  if (fill < 0 || (tail === null && h.length !== 8)) return null;
+  const groups = [...h, ...Array<string>(fill).fill("0"), ...t];
+  if (groups.length !== 8 || groups.some((g) => !/^[0-9a-f]{1,4}$/i.test(g))) return null;
+  return groups.map((g) => g.toLowerCase().replace(/^0+(?=.)/, ""));
+}
+
+/**
+ * The caller's address for rate limiting. The platform's own header first (Vercel sets x-vercel-forwarded-for and
+ * x-real-ip and overwrites x-forwarded-for, so a client cannot choose its key). IPv6 is cut to its /64, because one
+ * connection usually owns a whole /64 and could otherwise rotate addresses. Anything unreadable is "unknown".
+ */
+export function rateIp(headers: Headers): string {
+  const first = (v: string | null) => v?.split(",")[0]?.trim() || null;
+  let ip = first(headers.get("x-vercel-forwarded-for")) ?? first(headers.get("x-real-ip")) ?? first(headers.get("x-forwarded-for")) ?? "";
+  ip = ip.replace(/^\[|\]$/g, "").replace(/%.*$/, "");
+  const mapped = ip.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i);
+  if (mapped) ip = mapped[1]!;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip) && ip.split(".").every((o) => Number(o) <= 255)) return ip;
+  const v6 = ip.includes(":") ? expandIpv6(ip) : null;
+  return v6 ? `${v6.slice(0, 4).join(":")}::/64` : "unknown";
+}
+
+/** The b2c.rate_check key: scope (e.g. "v1:handoffs"), then the address. At most 200 characters, like the column. */
+export function rateKey(scope: string, ip: string): string {
+  return `${scope.replace(/[^a-z0-9:_-]/gi, "_")}:${ip}`.slice(0, 200);
+}
+
+/** Seconds until the fixed window b2c.rate_check counts in ends (it starts at floor(epoch / seconds) * seconds). */
+export function retryAfter(seconds: number, nowMs = Date.now()): number {
+  const s = Math.floor(nowMs / 1000);
+  return seconds - (s % seconds);
+}
+
+// ---------- breached passwords (E11): Have I Been Pwned, k-anonymity ----------
+
+/** SHA-1 of the password, upper-case hex, split into the 5 characters sent and the 35 kept here. */
+export function pwnedParts(password: string): { prefix: string; suffix: string } {
+  const hex = createHash("sha1").update(password, "utf8").digest("hex").toUpperCase();
+  return { prefix: hex.slice(0, 5), suffix: hex.slice(5) };
+}
+
+/** How often the suffix appears in a range answer ("SUFFIX:COUNT" per line). Padding lines have a count of 0. */
+export function pwnedCount(rangeBody: string, suffix: string): number {
+  const want = suffix.toUpperCase();
+  for (const line of rangeBody.split(/\r?\n/)) {
+    const [s, n] = line.trim().split(":");
+    if (s?.toUpperCase() === want) return Number(n) || 0;
+  }
+  return 0;
+}
+
+/**
+ * Whether a password is in a known breach. Only the first 5 hex characters of its SHA-1 leave the server, with padding
+ * asked for so the answer's size says nothing either. Fails open (checked: false) when the service cannot be reached:
+ * the length rule still holds, and a sign-in must not depend on a third party being up.
+ */
+export async function breachedPassword(password: string, fetchImpl: typeof fetch = fetch): Promise<{ checked: boolean; breached: boolean; count: number }> {
+  const { prefix, suffix } = pwnedParts(password);
+  try {
+    const res = await fetchImpl(`https://api.pwnedpasswords.com/range/${prefix}`, {
+      headers: { "Add-Padding": "true", "user-agent": "Eduwit-Spark" }, signal: AbortSignal.timeout(4000), cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const count = pwnedCount(await res.text(), suffix);
+    return { checked: true, breached: count > 0, count };
+  } catch (e) {
+    console.warn("[password] breach check unavailable, allowed without it:", e instanceof Error ? e.message : String(e));
+    return { checked: false, breached: false, count: 0 };
+  }
 }

@@ -9,6 +9,7 @@ import {
   billingSave, commissionAdjust, enrollmentLink, enrollmentRefund, fallbackSave, invoiceAct, invoiceCancel, invoiceDraft, moneyRebook, overrideRetire, overrideSave,
   periodClose, rateRetire, rateSave, receiptRecord, runAct, runPrepare, runRelease, statementUpload,
 } from "../money-actions";
+import { invoiceEmail, runStatementsEmail } from "../admin-actions";
 
 type Res<T> = { ok: true; data?: T; notice?: string } | { ok: false; error: string };
 function useAct() {
@@ -226,11 +227,28 @@ export function InvoiceActions({ invoice, status, kind }: { invoice: number; sta
         <button type="button" className="btn quiet sm" disabled={busy} onClick={() => run(() => invoiceAct(invoice, "discard"))}>Discard</button>
       </>}
       {status === "approved" && <button type="button" className="btn ghost sm" disabled={busy} onClick={() => run(() => invoiceAct(invoice, "sent"))}>Mark sent</button>}
+      {["approved", "sent", "part_paid"].includes(status) && <InvoiceEmailButton invoice={invoice} again={status !== "approved"} />}
       {kind === "invoice" && ["approved", "sent", "part_paid"].includes(status) && (
         <ReasonAction label="Cancel" title="Cancel this invoice" confirm="Cancel and raise a credit note" onConfirm={(why) => invoiceCancel(invoice, why)}
           extra={<p className="note">The number is never reused: a credit note for the full amount is raised and its lines can be invoiced again.</p>} />
       )}
     </span>
+  );
+}
+/** The approved invoice to the university's billing email with the PDF (b2c.invoice_send); it is marked sent too. */
+function InvoiceEmailButton({ invoice, again }: { invoice: number; again: boolean }) {
+  const { busy, run } = useAct();
+  const [note, setNote] = useState("");
+  return (
+    <Opener label={again ? "Email again" : "Email to university"} title="Email this invoice to the university">
+      {(close) => (
+        <div className="stack">
+          <p className="note">It goes to the billing email under the university&apos;s billing details, with the invoice PDF attached, from the system mailbox.</p>
+          <label className="field"><span>A line to add (optional)</span><textarea className="input" rows={3} value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} /></label>
+          <button type="button" className="btn primary block" disabled={busy} onClick={() => run(() => invoiceEmail(invoice, note), close)}>Send</button>
+        </div>
+      )}
+    </Opener>
   );
 }
 export function ReceiptButton({ university, invoices }: { university: number; invoices: { id: number; number: string | null; open: number }[] }) {
@@ -377,6 +395,9 @@ export function RunActions({ run: runId, status }: { run: number; status: string
         <button type="button" className="btn primary sm" disabled={busy} onClick={() => run(() => runAct(runId, "approve"))}>Approve</button>
         <ReasonAction label="Cancel" title="Cancel this run" confirm="Cancel run" onConfirm={(why) => runAct(runId, "cancel", why)} />
       </>}
+      {(status === "approved" || status === "paid") && (
+        <button type="button" className="btn ghost sm" disabled={busy} onClick={() => confirm("Email each counsellor their statement for this run, with the PDF?") && run(() => runStatementsEmail(runId))}>Email statements</button>
+      )}
     </span>
   );
 }

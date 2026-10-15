@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, History, MessageCircle, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Gauge, History, MessageCircle, Route, Users } from "lucide-react";
 import type { Me } from "@/lib/auth";
 import { firstName } from "@/lib/compose";
-import { maskPhone, when } from "@/lib/format";
+import { date, maskPhone, when } from "@/lib/format";
 import { CONSENT_LABEL, reasonLabel, STATUS_LABEL, TASK_KIND_LABEL } from "@/lib/labels";
-import type { LeadDetail, Stage, SubStage } from "@/lib/types";
+import type { LeadDetail, PartnerLost, PartnerTried, Stage, SubStage } from "@/lib/types";
 import { ApplicationsPanel } from "./Applications";
 import { CallButton } from "./CallButton";
 import { EmailButton } from "./EmailButton";
 import { BriefPanel } from "./BriefPanel";
 import { LeadTabs } from "./LeadTabs";
 import { NurturePanel } from "./NurturePanel";
-import { BarChip, FlagChip, SlaChip, TempChip, TestChip } from "./Chips";
+import { BarChip, FlagChip, SlaChip, TempChip, TestChip, UntouchedChip } from "./Chips";
+import { CustomFieldsPanel, DocumentsPanel, DoneTasks, HandBackButton, ReassignButton } from "./LeadExtras";
 import { AddTaskButton, ContactsPanel, EditablePanel, NoteBox, type FieldDef } from "./Panels";
 import { ProgrammeFit } from "./ProgrammeFit";
 import { QualifyPanel } from "./QualifyPanel";
@@ -32,7 +33,7 @@ const g = (rec: LeadDetail["record"], group: string, key: string): string | null
  * Overview (brief, contacts, interest, programme fit), Profile, Applications; follow-ups, nurture and the timeline in the
  * activity rail. Values still waiting to reach the master lead table (pending) are shown as the counsellor typed them.
  */
-export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d: LeadDetail; stages: Stage[]; subs: SubStage[]; me: Me; base: string; adminTools?: React.ReactNode; next?: { id: number; name: string | null; left: number } | null }) {
+export function LeadScreen({ d, stages, subs, me, base, adminTools, next, people }: { d: LeadDetail; stages: Stage[]; subs: SubStage[]; me: Me; base: string; adminTools?: React.ReactNode; next?: { id: number; name: string | null; left: number } | null; people?: { user_id: string; name: string }[] }) {
   const l = d.lead!;
   const pend = d.pending as Record<string, unknown>;
   const val = (group: string, key: string) => (key in pend ? (pend[key] === null ? null : String(pend[key])) : g(d.record, group, key));
@@ -41,7 +42,8 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
   // B10.2: the Admin edits any lead, pooled and closed included; calling and messaging stay with active leads
   const canEdit = canWork || me.role === "admin";
   const qualifyTask = d.tasks.some((t) => t.kind === "qualify" && t.owner_id === me.user_id) || (me.role === "admin" && (l.tags ?? []).includes("to_qualify"));
-  const partner = partnerHistory(d.timeline);
+  const partner = partnerHistory(d);
+  const routing = d.partner?.routing_requested_at ?? l.routing_requested_at;
   const handling = (l.handling ?? {}) as Record<string, string | null>;
   const providers = (l.providers ?? []) as { partner_name: string; first_had_at: string | null }[];
   const others = g(d.record, "interest", "other_courses");
@@ -94,6 +96,8 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
         <Link className="btn quiet sm icon-only" href={base} aria-label="Back to leads"><ArrowLeft className="icon s" aria-hidden /></Link>
         <span className="small muted grow ellipsis">Lead #{l.lead_id} · {STATUS_LABEL[l.status] ?? l.status}{l.owner_name ? ` · ${l.owner_name}` : ""}</span>
         <TestChip on={l.is_test} />
+        {base === "/s/leads" && mine && l.status === "active" && me.role === "counsellor" && <HandBackButton leadId={l.lead_id} />}
+        {base === "/s/leads" && l.status === "active" && (me.role === "sales_head" || me.role === "admin") && people && people.length > 0 && <ReassignButton leadIds={[l.lead_id]} people={people} />}
         {next && <Link className="btn ghost sm" data-hotkey="]" href={`${base}/${next.id}`} title={`${next.left} more in your queue`}>Next: {(next.name ?? "lead").split(" ")[0]} <ArrowRight className="icon s" aria-hidden /></Link>}
       </div>
 
@@ -108,16 +112,18 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
           <span data-hotkey="s" className="contents"><StageButton leadId={l.lead_id} current={l.stage_id} sub={l.sub_stage} stages={stages} subs={subs} canMoveBack={me.role === "admin" || me.role === "sales_head"} disabled={!canEdit} /></span>
           <SlaChip lead={l} />
           <BarChip reason={l.partner_bar_reason} />
-          <FlagChip flag={l.flagged} />
+          <FlagChip flag={d.partner?.flagged ?? l.flagged} />
+          {l.score !== null && l.score !== undefined && <span className="chip soft" title="Lead score: fit and engagement points"><Gauge className="icon s" aria-hidden />Score {l.score}</span>}
+          <UntouchedChip lead={l} />
           {l.opted_out && <span className="chip breach">Opted out: do not message</span>}
           <span className="chip line">{reasonLabel(l.handoff_reason)}{l.reengage_trigger ? ` · re-engaged` : ""}</span>
         </div>
         {providers.length > 0 && (
-          <div className="banner"><Users className="icon" aria-hidden /><div><b>Already with other providers.</b> {providers.map((p) => `${p.partner_name}${p.first_had_at ? ` (since ${when(p.first_had_at)})` : ""}`).join(" · ")}. Open as a neutral adviser: &ldquo;Eduwit can help you compare your options.&rdquo;</div></div>
+          <div className="banner"><Users className="icon" aria-hidden /><div>{providers.map((p, i) => <b key={i} style={{ display: "block" }}>Already with {p.partner_name}{p.first_had_at ? ` since ${date(p.first_had_at)}` : ""}</b>)} Open as a neutral adviser: &ldquo;Eduwit can help you compare your options.&rdquo;</div></div>
         )}
         {partner && (
           <div className="banner"><History className="icon" aria-hidden /><div>
-            <b>Lost by {partner.lost?.partner_name ?? "a partner"}</b>{partner.lost?.lost_reason ? `: ${partner.lost.lost_reason}` : ""}{partner.mapped ? ` (${partner.mapped})` : ""}
+            {partner.lost ? <><b>Lost by {partner.lost.partner_name ?? "a partner"}</b>{partner.lost.lost_reason ? `: ${partner.lost.lost_reason}` : ""}{partner.mapped ? ` (${partner.mapped})` : ""}</> : <b>Partners tried before</b>}
             {partner.lost?.partner_status ? ` · their status ${[partner.lost.partner_status, partner.lost.partner_sub_status].filter(Boolean).join(" / ")}` : ""}
             {partner.lost?.calls_made !== undefined ? ` · ${partner.lost.calls_made} calls made` : ""}
             {partner.tried.length > 0 && <div className="small">Partners tried ({partner.tried.length}): {partner.tried.map((t) => `${t.partner_name ?? "?"}${t.outcome ?? t.status ? ` (${t.outcome ?? t.status})` : ""}`).join(", ")}</div>}
@@ -125,6 +131,9 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
         )}
         {handling.first_contact_script === "neutral_adviser" && providers.length === 0 && (
           <div className="banner info">Open as a neutral adviser: &ldquo;Eduwit can help you compare your options.&rdquo;</div>
+        )}
+        {routing && l.status !== "closed" && (
+          <div className="banner info"><Route className="icon" aria-hidden /><div><b>Routing to partners…</b> Sent {when(routing)}. The B2B CRM answers with the partner that takes it; no second request is needed.</div></div>
         )}
         {canWork && (
           <div className="lead-actions">
@@ -151,15 +160,17 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
               <BriefPanel leadId={l.lead_id} autoWrite={canWork} />
               {adminTools}
               <div className="grid g2">
-                <ContactsPanel leadId={l.lead_id} contacts={d.contacts} canEdit={canEdit} />
+                <ContactsPanel leadId={l.lead_id} contacts={d.contacts} canEdit={canEdit} canCall={canWork} name={l.name ?? "the student"} />
                 <EditablePanel leadId={l.lead_id} title="Interest" fields={interest} reasonRequired canEdit={canEdit} note={others ? `Also interested in: ${others}` : undefined} />
               </div>
-              <ProgrammeFit leadId={l.lead_id} canShare={canWork && !l.opted_out} firstName={first} counsellor={me.full_name} hasEmail={!!email} />
+              <ProgrammeFit leadId={l.lead_id} canShare={canWork && !l.opted_out} firstName={first} counsellor={me.full_name} hasEmail={!!email}
+                programmes={base === "/w/leads" ? "/w/programmes" : "/s/programmes"} />
             </>
           ) },
           { id: "profile", label: "Profile", content: (
             <>
               <EditablePanel leadId={l.lead_id} title="Profile" fields={profile} canEdit={canEdit} />
+              <CustomFieldsPanel leadId={l.lead_id} fields={d.custom_fields ?? []} values={(d.custom ?? {}) as Record<string, unknown>} canEdit={canEdit} />
               <section className="panel">
                 <header><h3>Consent and source</h3></header>
                 <div className="body">
@@ -178,10 +189,12 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
             <ApplicationsPanel leadId={l.lead_id} apps={d.applications} enrollments={d.enrollments} canEdit={canEdit}
               defaultProgramme={val("interest", "course")} defaultUniversity={val("interest", "university")} />
           ) },
+          { id: "documents", label: "Documents", content: <DocumentsPanel docs={d.documents ?? []} /> },
         ]}
         aside={
           <>
             {followups}
+            <DoneTasks tasks={d.done_tasks ?? []} />
             <Timeline items={d.timeline}>{canEdit && <span data-hotkey="n" className="contents"><NoteBox leadId={l.lead_id} /></span>}</Timeline>
             <NurturePanel leadId={l.lead_id} marketing={me.role === "admin" || me.role === "marketing"} canWork={canWork} inPool={l.status === "pool"} optedOut={l.opted_out} />
             <WittyTranscript leadId={l.lead_id} />
@@ -192,13 +205,12 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
   );
 }
 
-type PartnerLost = { partner_name?: string; lost_reason?: string; partner_status?: string; partner_sub_status?: string; calls_made?: number | string };
-
-/** The partner's history (b39 activity "partner_history"): who lost the lead and why, the mapped lost sub-stage, the partners tried. */
-function partnerHistory(timeline: LeadDetail["timeline"]): { lost: PartnerLost | null; mapped: string | null; tried: { partner_name?: string; outcome?: string; status?: string }[] } | null {
-  const a = timeline.find((t) => t.kind === "partner_history");
-  if (!a) return null;
-  const m = a.meta ?? {};
-  return { lost: (m.lost as PartnerLost | undefined) ?? null, mapped: typeof m.mapped_sub_stage === "string" ? m.mapped_sub_stage : null,
-    tried: Array.isArray(m.partners_tried) ? (m.partners_tried as { partner_name?: string; outcome?: string; status?: string }[]) : [] };
+/** The partner's history: who lost the lead and why, the partners tried (lead_detail.partner, b41), else the b39 timeline entry. */
+function partnerHistory(d: LeadDetail): { lost: PartnerLost | null; mapped: string | null; tried: PartnerTried[] } | null {
+  const a = d.timeline.find((t) => t.kind === "partner_history");
+  const m = a?.meta ?? {};
+  const lost = d.partner?.lost && Object.keys(d.partner.lost).length > 0 ? d.partner.lost : ((m.lost as PartnerLost | undefined) ?? null);
+  const tried = Array.isArray(d.partner?.tried) && d.partner!.tried!.length > 0 ? d.partner!.tried! : Array.isArray(m.partners_tried) ? (m.partners_tried as PartnerTried[]) : [];
+  if (!lost && tried.length === 0) return null;
+  return { lost, mapped: typeof m.mapped_sub_stage === "string" ? m.mapped_sub_stage : null, tried };
 }

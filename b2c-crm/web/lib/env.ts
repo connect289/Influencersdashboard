@@ -43,3 +43,24 @@ export function b2bConfig(): { url: string; key: string; secret: string } | null
 export function signingSecret(): string | null {
   return process.env.B2B_SIGNING_SECRET || null;
 }
+
+/** Google OAuth client (Web application) for "Connect my Gmail" (D6). Redirect URI: <site>/auth/google/gmail/callback. */
+export function googleOAuthClient(): { clientId: string; clientSecret: string } | null {
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
+
+/**
+ * The AES-256-GCM key that seals each person's Gmail refresh token before it is stored (b2c.user_connections). 32 bytes,
+ * as 64 hex characters or base64 (openssl rand -base64 32). Null when unset; throws when set but not 32 bytes. Changing
+ * it makes every stored connection unreadable: everyone reconnects.
+ */
+export function gmailTokenKey(value = process.env.GMAIL_TOKEN_KEY): Buffer | null {
+  if (!value) return null;
+  const v = value.trim();
+  const key = /^[0-9a-f]{64}$/i.test(v) ? Buffer.from(v, "hex") : Buffer.from(v.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  if (key.length !== 32) throw new Error("GMAIL_TOKEN_KEY must be 32 bytes: 64 hex characters or base64 (openssl rand -base64 32).");
+  return key;
+}

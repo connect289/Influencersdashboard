@@ -1,15 +1,19 @@
 "use client";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Star } from "lucide-react";
+import { BookOpen, Mail, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
-import { emailSend, emailTemplatesList, type ComposeTemplate } from "@/app/s/actions";
-import { fill, unfilled, type Vars } from "@/lib/compose";
+import { emailSend } from "@/app/s/actions";
+import { emailLibrary, mergeValues, programmeFitRows, type LibraryTemplate } from "@/app/s/workspace-actions";
+import { unfilled, type Vars } from "@/lib/compose";
+import type { Programme } from "@/lib/programmes";
+import { attachmentLines, renderMerge, type MergeValues } from "@/lib/workspace";
 
 /**
- * The email composer (spec B8.6): a sales template or a blank email, placeholders filled from the lead, edited, then sent
- * from the counsellor's own mailbox. Nothing reaches a student in test mode.
+ * The email composer (spec B8.6): a template from the shared library (recommended first, with its author, uses and reply
+ * rate) or a blank email, every merge field filled from the lead (b2c.merge_values), brochure links added from Programme
+ * fit, edited, then sent from the counsellor's own mailbox. Nothing reaches a student in test mode.
  */
 export function EmailButton({ leadId, to, vars, blocked }: { leadId: number; to: string | null; vars: Vars; blocked?: string | null }) {
   const [open, setOpen] = useState(false);
@@ -26,23 +30,30 @@ export function EmailButton({ leadId, to, vars, blocked }: { leadId: number; to:
 
 function Composer({ leadId, to, vars, onClose }: { leadId: number; to: string; vars: Vars; onClose: () => void }) {
   const router = useRouter();
-  const [templates, setTemplates] = useState<ComposeTemplate[] | null>(null);
+  const [templates, setTemplates] = useState<LibraryTemplate[] | null>(null);
+  const [mv, setMv] = useState<MergeValues>({ first_name: vars.first_name, programme: vars.programme, university: vars.university, counsellor_name: vars.counsellor });
   const [templateId, setTemplateId] = useState<number | null>(null);
   const [subject, setSubject] = useState("");
   const [text, setText] = useState("");
+  const [brochures, setBrochures] = useState<Programme[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
 
   useEffect(() => {
     let live = true;
-    emailTemplatesList().then((r) => live && (r.ok ? setTemplates(r.data ?? []) : setError(r.error)));
+    emailLibrary().then((r) => live && (r.ok ? setTemplates((r.data ?? []).filter((t) => !t.hidden || t.mine)) : setError(r.error)));
+    mergeValues(leadId).then((r) => live && r.ok && r.data && setMv((m) => ({ ...m, ...r.data })));
     return () => { live = false; };
-  }, []);
+  }, [leadId]);
 
-  function pick(t: ComposeTemplate | null) {
+  function pick(t: LibraryTemplate | null) {
     setTemplateId(t?.id ?? null);
-    setSubject(t ? fill(t.subject, vars) : "");
-    setText(t ? fill(t.body, vars) : `Hi ${vars.first_name ?? ""},\n\n\n\n${vars.counsellor ?? ""}\nEduwit`);
+    setSubject(t ? renderMerge(t.subject, mv) : "");
+    setText(t ? renderMerge(t.body, mv) + attachmentLines(t.attachments) : `Hi ${mv.first_name ?? ""},\n\n\n\n${mv.counsellor_name ?? ""}\nEduwit`);
+  }
+
+  function loadBrochures() {
+    programmeFitRows(leadId).then((r) => (r.ok ? setBrochures((r.data?.rows ?? []).filter((p) => p.brochure_url && /^https:\/\//.test(p.brochure_url))) : toast.error(r.error)));
   }
 
   const left = useMemo(() => unfilled(subject + " " + text), [subject, text]);
@@ -65,7 +76,11 @@ function Composer({ leadId, to, vars, onClose }: { leadId: number; to: string; v
         <span>Template</span>
         <select className="input" value={templateId ?? ""} onChange={(e) => pick(templates?.find((t) => t.id === Number(e.target.value)) ?? null)} disabled={!templates}>
           <option value="">{templates ? "Blank email" : "Loading templates…"}</option>
-          {templates?.map((t) => <option key={t.id} value={t.id}>{t.recommended ? "★ " : ""}{t.name}{t.mine ? " (yours)" : ""}</option>)}
+          {templates?.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.recommended ? "★ " : ""}{t.name} · {t.mine ? "yours" : t.author ?? "a colleague"} · {t.uses} sent{t.reply_rate !== null ? `, ${t.reply_rate}% replied` : ""}
+            </option>
+          ))}
         </select>
       </label>
       {templates && templates.length === 0 && <p className="note">No templates yet. Write your own under Me → Email templates.</p>}
@@ -77,6 +92,13 @@ function Composer({ leadId, to, vars, onClose }: { leadId: number; to: string; v
         <span>Message</span>
         <textarea className="input" rows={10} value={text} onChange={(e) => setText(e.target.value)} maxLength={20000} />
       </label>
+      <div className="row wrap" style={{ gap: 6 }}>
+        <button type="button" className="btn quiet sm" onClick={loadBrochures}><BookOpen className="icon s" aria-hidden />Add a brochure</button>
+        {brochures?.length === 0 && <span className="note">No programme that fits has a brochure.</span>}
+        {brochures?.map((p) => (
+          <button key={p.id} type="button" className="pill" onClick={() => setText((x) => `${x.trimEnd()}\n\n${p.name}, ${p.university}: ${p.brochure_url}`)}>{p.name} · {p.university_short ?? p.university}</button>
+        ))}
+      </div>
       {left.length > 0 && <p className="banner small">Fill in or remove: {left.map((k) => `{{${k}}}`).join(", ")}</p>}
       {templateId && <p className="note"><Star className="icon s" aria-hidden /> Your changes here are for this email only; the template stays as it is.</p>}
       {error && <p className="error" role="alert">{error}</p>}

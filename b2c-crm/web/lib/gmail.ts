@@ -65,14 +65,23 @@ export async function sendGmail(sa: GoogleSa | null, m: GmailMessage, live: bool
     });
     const t = (await tok.json()) as { access_token?: string; error_description?: string };
     if (!t.access_token) return { ok: false, error: `Google refused the token: ${t.error_description ?? tok.status}` };
-    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    return await sendWithToken(t.access_token, m);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** users.messages.send with an access token: the service account's (above) or a person's own OAuth connection. */
+export async function sendWithToken(accessToken: string, m: GmailMessage, fetchImpl: typeof fetch = fetch): Promise<{ ok: boolean; id?: string; error?: string; status?: number }> {
+  try {
+    const res = await fetchImpl("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
       method: "POST",
-      headers: { authorization: `Bearer ${t.access_token}`, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
       body: JSON.stringify({ raw: rawMessage(m) }),
       signal: AbortSignal.timeout(15_000),
     });
-    const b = (await res.json()) as { id?: string; error?: { message?: string } };
-    return res.ok ? { ok: true, id: b.id } : { ok: false, error: b.error?.message ?? `HTTP ${res.status}` };
+    const b = (await res.json().catch(() => ({}))) as { id?: string; error?: { message?: string } };
+    return res.ok ? { ok: true, id: b.id } : { ok: false, status: res.status, error: b.error?.message ?? `HTTP ${res.status}` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { rateCheck, tooMany } from "@/lib/rate-limit";
 import { buildCsp, IDLE_LIMIT_SECONDS, isIdleExpired, safeNext, SEEN_COOKIE } from "@/lib/security";
 
 /**
@@ -7,7 +8,9 @@ import { buildCsp, IDLE_LIMIT_SECONDS, isIdleExpired, safeNext, SEEN_COOKIE } fr
  *  1. refreshes the Supabase session cookie (JWT verified by getClaims);
  *  2. signs out sessions idle for 12 hours (spec B3);
  *  3. sends signed-out visitors to /login;
- *  4. sets a strict Content-Security-Policy with a fresh nonce.
+ *  4. sets a strict Content-Security-Policy with a fresh nonce;
+ *  5. rate-limits the public token pages and email tracking links per address (b2c.rate_check, spec B18): 429 with
+ *     Retry-After. The /v1 machine endpoints check their own limits (they are outside this matcher).
  * This is an early, cheap check. The real gate is requireUser() on the server and the b2c.* functions in the database.
  */
 
@@ -16,7 +19,21 @@ const isPublic = (path: string) => PUBLIC.includes(path) || ["/auth/", "/u/", "/
 
 type Cookie = { name: string; value: string; options?: Parameters<NextResponse["cookies"]["set"]>[2] };
 
+/** The public pages a link opens without signing in, and their rate-limit scope. */
+function publicScope(path: string): { scope: string; kind: "page" | "tracking" } | null {
+  if (path.startsWith("/e/")) return { scope: `e:${path.split("/")[2] ?? ""}`, kind: "tracking" };
+  if (path.startsWith("/q/")) return { scope: "q", kind: "page" };
+  if (path.startsWith("/u/")) return { scope: "u", kind: "page" };
+  if (path.startsWith("/support/r/")) return { scope: "support-r", kind: "page" };
+  return null;
+}
+
 export async function proxy(request: NextRequest) {
+  const limited = publicScope(request.nextUrl.pathname);
+  if (limited) {
+    const r = await rateCheck(limited.scope, request.headers, limited.kind);
+    if (!r.ok) return tooMany(r.retryAfter, false);
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
   const isDev = process.env.NODE_ENV === "development";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChip, FlagChip, SlaChip, TempChip, TestChip } from "@/components/lead/Chips";
+import { BarChip, FlagChip, SlaChip, TempChip, TestChip, UntouchedChip } from "@/components/lead/Chips";
 import { initials, when } from "@/lib/format";
 import { LANE_LABEL, OUTCOME_LABEL, reasonLabel } from "@/lib/labels";
 import type { LeadRow } from "@/lib/types";
@@ -15,7 +15,7 @@ function Cell({ c, l, base }: { c: string; l: LeadRow; base: string }) {
       return (
         <td>
           <Link href={`${base}/${l.lead_id}`} style={{ fontWeight: 600 }}>{l.name ?? `Lead #${l.lead_id}`}</Link>{" "}
-          <TempChip t={l.temperature} /> <TestChip on={l.is_test} /> <FlagChip flag={l.flagged} />
+          <TempChip t={l.temperature} /> <TestChip on={l.is_test} /> <FlagChip flag={l.flagged} /> <UntouchedChip lead={l} />
           <div className="small muted">{l.city ?? ""}{l.city && l.language ? " · " : ""}{l.language ?? ""}</div>
         </td>
       );
@@ -75,7 +75,7 @@ export function LeadTable({ rows, base, showOwner, select, columns, money }: { r
           <Link key={l.lead_id} href={`${base}/${l.lead_id}`} className="li">
             <span className="avatar">{initials(l.name)}</span>
             <span className="t ellipsis">{l.name ?? `Lead #${l.lead_id}`}</span>
-            <span><TempChip t={l.temperature} /> <FlagChip flag={l.flagged} /></span>
+            <span><TempChip t={l.temperature} /> <FlagChip flag={l.flagged} /> <UntouchedChip lead={l} /></span>
             <span className="s ellipsis">{l.course ?? "—"} · {l.stage ?? ""}{l.sub_stage ? " · " + l.sub_stage : ""} · next {when(l.next_task_due_at)}</span>
           </Link>
         ))}

@@ -12,8 +12,9 @@ import { FlagActions } from "../flagged/FlagActions";
 type Person = { user_id: string; name: string };
 
 /** Why the lead went to whom (the allocation decision) and the Admin's actions on one lead. */
-export function AdminTools({ leadId, admin, decision, contacts, people, barred, consent, status, flagged }: {
+export function AdminTools({ leadId, admin, decision, contacts, people, barred, consent, status, flagged, routingRequestedAt }: {
   leadId: number; admin: boolean; decision: Record<string, unknown> | null; contacts: Contact[]; people: Person[]; barred: boolean; consent: string | null; status: string; flagged?: string | null;
+  routingRequestedAt?: string | null;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -49,7 +50,8 @@ export function AdminTools({ leadId, admin, decision, contacts, people, barred, 
         {admin && (
           <div className="row wrap" style={{ gap: 6 }}>
             {status === "active" && <button type="button" className="btn ghost sm" onClick={() => setSheet("reassign")}>Reassign</button>}
-            {status !== "closed" && !barred && <button type="button" className="btn ghost sm" onClick={() => setSheet("route")} disabled={consent !== "given"} title={consent !== "given" ? "Needs the student's partner-sharing consent" : undefined}>Send to partner routing</button>}
+            {status !== "closed" && !barred && <button type="button" className="btn ghost sm" onClick={() => setSheet("route")} disabled={consent !== "given" || !!routingRequestedAt}
+              title={routingRequestedAt ? `Already sent to partner routing ${when(routingRequestedAt)}` : consent !== "given" ? "Needs the student's partner-sharing consent" : undefined}>{routingRequestedAt ? "Routing to partners…" : "Send to partner routing"}</button>}
             <button type="button" className="btn ghost sm" onClick={() => setSheet("coach")}>Coaching note</button>
             <button type="button" className="btn ghost sm" onClick={() => setSheet("contacts")}>Edit contact details</button>
             <button type="button" className="btn quiet sm" onClick={() => setSheet("erase")}>Erase on the student&apos;s request</button>

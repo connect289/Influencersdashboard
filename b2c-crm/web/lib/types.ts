@@ -161,7 +161,18 @@ export type LeadDetail = {
   decision: Record<string, unknown> | null;
   consent_request: Record<string, unknown> | null;
   history: { field: string; old_value: unknown; new_value: unknown; kind: string; reason: string | null; at: string }[];
+  /** b41: done tasks, custom profile fields, the partner's history and the lead's documents. */
+  done_tasks?: (Task & { done_at: string | null; outcome?: string | null })[];
+  custom_fields?: CustomField[] | null;
+  custom?: Record<string, unknown> | null;
+  partner?: { lost: PartnerLost | null; tried: PartnerTried[] | null; flagged: string | null; routing_requested_at: string | null } | null;
+  documents?: LeadDocument[];
 };
+
+export type CustomField = { key: string; label: string; type: "text" | "number" | "date" | "select" | "yes_no"; options?: string[] };
+export type PartnerLost = { partner_name?: string; lost_reason?: string; partner_status?: string; partner_sub_status?: string; calls_made?: number | string; partner_last_activity?: string };
+export type PartnerTried = { partner_name?: string; outcome?: string; status?: string };
+export type LeadDocument = { id: number; application_id: number | null; kind: string; file_name: string | null; source: string | null; created_at: string };
 
 export type Stage = { id: number; name: string; rank: number; canon: string; reachable_from_any: boolean; is_closed: boolean };
 export type SubStage = { stage_id: number; name: string; rank: number; returns_to_pool: boolean; comment_required: boolean };

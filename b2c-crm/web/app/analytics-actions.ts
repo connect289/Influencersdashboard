@@ -95,7 +95,7 @@ export async function alertSave(p: { id?: number; name: string; metric: string; 
   await assertUser();
   const v = z.object({ id: id.optional(), name: z.string().trim().min(2).max(150), metric: z.string().regex(/^[a-z_]+$/), kind: z.enum(["threshold", "anomaly"]),
     op: z.enum(["above", "below"]).nullable().optional(), threshold: z.coerce.number().nullable().optional(), win: z.enum(["today", "7d"]),
-    channels: z.array(z.enum(["push", "email"])).min(1, "Choose how to be told."), filters: z.array(FilterSchema).max(10).optional(), active: z.boolean().optional() })
+    channels: z.array(z.enum(["push", "email", "whatsapp"])).min(1, "Choose how to be told."), filters: z.array(FilterSchema).max(10).optional(), active: z.boolean().optional() })
     .refine((x) => x.kind === "anomaly" || (x.op && x.threshold !== null && x.threshold !== undefined), "A threshold alert needs above or below and a number.").safeParse(p);
   if (!v.success) return { ok: false, error: v.error.issues[0]?.message ?? "Check the alert." };
   const r = await act(() => rpc<number>("alert_save", { p: v.data }), v.data.active === false ? "Alert stopped." : "Alert saved. It is checked every 15 minutes.");

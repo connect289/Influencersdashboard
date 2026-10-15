@@ -11,6 +11,7 @@ import {
   ReceiptButton, ReleaseLine, RunActions, RunPrepareButton, StatementUpload,
 } from "./parts";
 import { AdImportButton, AdMapButton } from "./AdSpend";
+import { CommissionDashboard, type CommissionDash } from "./CommissionDashboard";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Money" };
@@ -68,7 +69,7 @@ type RunView = { id: number; period: string; status: string; is_test: boolean; t
 const PILES: [string, string, string][] = [["matched", "Matched", "ok"], ["mismatch", "Amount differs", "warm"], ["university_only", "Only in their statement", "breach"], ["eduwit_only", "Only in ours", "breach"]];
 
 /** Money (spec B11): what universities owe Eduwit and what counsellors owe, side by side. Admin changes; Marketing reads. */
-export default async function MoneyPage({ searchParams }: { searchParams: Promise<{ tab?: string; u?: string; run?: string; imp?: string }> }) {
+export default async function MoneyPage({ searchParams }: { searchParams: Promise<{ tab?: string; u?: string; run?: string; imp?: string; test?: string }> }) {
   const me = await requireUser("workspace", "/w/money");
   if (me.role !== "admin" && me.role !== "marketing") return <Page title="Money"><Empty>Money is for the Admin.</Empty></Page>;
   const admin = me.role === "admin";
@@ -94,8 +95,10 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
         </div>
       );
     } else if (tab === "commission") {
-      const [rules, partners] = await Promise.all([rpc<Rules>("money_rules"), rpc<PartnerTable>("partner_rate_table", { p_university: null })]);
-      body = <Commission m={m} rules={rules} partners={partners} unis={uniList} admin={admin} />;
+      const test = sp.test === "1";
+      const [rules, partners, dash] = await Promise.all([rpc<Rules>("money_rules"), rpc<PartnerTable>("partner_rate_table", { p_university: null }),
+        rpc<CommissionDash>("commission_dashboard", { p: { test } })]);
+      body = <div className="stack"><CommissionDashboard d={dash} test={test} /><Commission m={m} rules={rules} partners={partners} unis={uniList} admin={admin} /></div>;
     } else if (tab === "ads") {
       const [ads, dash] = await Promise.all([rpc<AdOverview>("ad_spend_overview", { p_from: null, p_to: null }),
         (await createClient()).from("dashboards").select("id").eq("key", "ad_spend").maybeSingle()]);

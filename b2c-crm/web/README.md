@@ -137,6 +137,25 @@ mode) until everything is connected; each line opens the screen that needs it. P
    `caller_id`, `retention_days`), add the recording announcement in Exotel's call flow, point the Passthru applet of
    the incoming-call flow at the webhook, and turn LIVE_MODE on. Calendar: add the scope
    `https://www.googleapis.com/auth/calendar.events` to the service account's delegation. Ad spend needs no setup.
+9e. **Platform (b43, docs/completion-gaps.md C1, D5, D6, D14, E10, E11)**:
+   - **Each person's own Gmail** (Me → Availability and alerts → My Gmail): in Google Cloud create an OAuth client of
+     type *Web application* with the authorised redirect URI `https://<site>/auth/google/gmail/callback`, on the
+     internal consent screen with the scopes `gmail.send`, `gmail.readonly` and `gmail.metadata`; set
+     `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`. Set `GMAIL_TOKEN_KEY` to 32 random bytes
+     (`openssl rand -base64 32`): it seals each refresh token (AES-256-GCM) before it is stored. Without the key the
+     Connect button refuses with a clear message. Changing the key makes every stored connection unreadable (everyone
+     reconnects). A counsellor's email goes from their own connection; without one (or if it fails) it goes by the
+     service account's delegation as before. A revocation in Google is noticed at the next send and shown on Me.
+   - **Rate limits** on `/v1/*` (120 a minute per address, webhooks 600), the token pages `/q`, `/u`, `/support/r`
+     (60), the email tracking links `/e/*` (600) and the qualification form's submit (10): `b2c.rate_check`, 429 with
+     Retry-After. Nothing to set.
+   - **Breached passwords**: a new password is checked against Have I Been Pwned's range API (only 5 characters of its
+     SHA-1 leave the server); if the service cannot be reached the password is allowed and the server logs it.
+   - **WhatsApp files**: files students send (PDF and images up to 4 MB, the `b2c-documents` bucket's limits) are fetched
+     by the every-minute job into `leads/<lead>/wa/`; other types keep an error in the inbox.
+   - **Connectors**: the jobs report each connector's last success and last error (`b2c.connector_report`).
+   - Breach runbook: `../docs/breach-runbook.md`. CI: `.github/workflows/b2c-crm-ci.yml` (typecheck, tests,
+     `npm audit --omit=dev --audit-level=high`, dependency review on pull requests) and Dependabot (weekly).
 10. **Later, for live channels**: WhatsApp Cloud API number and templates (audit §9), Gmail delegation (audit §8). Keep
    `LIVE_MODE=off` until the end-to-end test with test leads passes.
 

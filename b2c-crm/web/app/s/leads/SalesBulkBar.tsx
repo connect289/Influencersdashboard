@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { tagOwn, tasksBulk, waBulk } from "../bulk-actions";
+import { reassignLeads } from "../workspace-actions";
 
 type Tpl = { id: number; name: string; language: string; purpose: string | null; status: string };
 
@@ -17,10 +18,11 @@ function inTwoHours() {
  * A counsellor's bulk tools over the ticked rows (spec B8.2): a tag, one follow-up for all, or a sales template to several
  * leads at once. The database applies the single-lead rules to each and names what it skipped.
  */
-export function SalesBulkBar({ templates }: { templates: Tpl[] }) {
+export function SalesBulkBar({ templates, people = [] }: { templates: Tpl[]; people?: { user_id: string; name: string }[] }) {
   const router = useRouter();
   const [busy, start] = useTransition();
-  const [op, setOp] = useState<"tag" | "untag" | "task" | "wa">("task");
+  const [op, setOp] = useState<"tag" | "untag" | "task" | "wa" | "reassign">("task");
+  const [to, setTo] = useState("");
   const [text, setText] = useState("");
   const [due, setDue] = useState(inTwoHours);
   const [kind, setKind] = useState("call");
@@ -41,6 +43,11 @@ export function SalesBulkBar({ templates }: { templates: Tpl[] }) {
         const r = await tasksBulk(leads, { kind: kind as "call", title: text, due: new Date(due).toISOString() });
         if (!r.ok) return void toast.error(r.error);
         toast.success(`${r.data?.created ?? 0} follow-ups added.${r.data?.skipped.length ? ` Skipped: ${r.data.skipped.map((x) => `#${x.lead_id} (${x.why})`).join(", ")}.` : ""}`);
+      } else if (op === "reassign") {
+        if (text.trim().length < 3) return void toast.error("Give a reason.");
+        const r = await reassignLeads(leads, to || null, text);
+        if (!r.ok) return void toast.error(r.error);
+        toast.success(`${r.data ?? 0} reassigned.`);
       } else {
         if (!tpl) return void toast.error("Choose a template.");
         if (leads.length > 50) return void toast.error("At most 50 leads at a time.");
@@ -60,6 +67,7 @@ export function SalesBulkBar({ templates }: { templates: Tpl[] }) {
         <option value="wa">Send a WhatsApp template</option>
         <option value="tag">Add a tag</option>
         <option value="untag">Remove a tag</option>
+        {people.length > 0 && <option value="reassign">Reassign</option>}
       </select>
       {op === "task" && (
         <>
@@ -75,6 +83,15 @@ export function SalesBulkBar({ templates }: { templates: Tpl[] }) {
           {templates.length === 0 && <option value={0}>No sales templates yet</option>}
           {templates.map((t) => <option key={t.id} value={t.id}>{t.purpose ?? t.name} · {t.name} ({t.language}){t.status !== "approved" ? " · not approved yet" : ""}</option>)}
         </select>
+      )}
+      {op === "reassign" && (
+        <>
+          <select className="input" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To">
+            <option value="">Through the allocation rules</option>
+            {people.map((p) => <option key={p.user_id} value={p.user_id}>{p.name}</option>)}
+          </select>
+          <input className="input" value={text} onChange={(e) => setText(e.target.value)} required minLength={3} maxLength={300} placeholder="Reason" aria-label="Reason" />
+        </>
       )}
       {(op === "tag" || op === "untag") && (
         <input className="input" value={text} onChange={(e) => setText(e.target.value)} required minLength={1} maxLength={40} placeholder="Tag" aria-label="Tag" />

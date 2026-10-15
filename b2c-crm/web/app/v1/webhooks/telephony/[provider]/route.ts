@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { internalKeyOk } from "@/lib/internal";
+import { limit } from "@/lib/rate-limit";
 import { adminClient } from "@/lib/supabase/admin";
 import { exotelConfig, parseExotel } from "@/lib/telephony";
 
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
  * key (EXOTEL_WEBHOOK_KEY), compared in constant time. Each event goes to b2c.call_event(), which ignores repeats.
  */
 async function handle(request: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
+  const limited = await limit(request, "v1:telephony", "webhook");
+  if (limited) return limited;
   const provider = (await params).provider;
   if (provider !== "exotel") return NextResponse.json({ error: "unknown provider" }, { status: 404 });
   const cfg = exotelConfig();

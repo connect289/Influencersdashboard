@@ -14,6 +14,7 @@ import {
   segmentOverlap, segmentSave, segmentSnapshot, suppress,
 } from "../nurture-actions";
 import { repliesDelegatesSet } from "../actions";
+import { CampaignRepliesTable } from "./CampaignRepliesTable";
 
 type Run<T> = () => Promise<{ ok: true; data?: T; notice?: string } | { ok: false; error: string }>;
 function useAct() {
@@ -209,6 +210,7 @@ export function CampaignActions({ c }: { c: Campaign }) {
           {Object.entries((stats.blocked_by ?? {}) as Record<string, number>).length > 0 && (
             <div className="small"><b>Not sent, by reason:</b> {Object.entries(stats.blocked_by as Record<string, number>).map(([k, v]) => `${k}: ${v}`).join(" · ")}</div>
           )}
+          <CampaignRepliesTable campaign={c.id} />
         </Sheet>
       )}
     </span>

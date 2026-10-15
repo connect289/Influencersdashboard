@@ -13,6 +13,8 @@ import { googleSa } from "@/lib/gmail";
 import { exotelConfig } from "@/lib/telephony";
 import { CalendarToggle, UnknownCallDone, type CalendarMine } from "@/components/connectors/CalendarToggle";
 import { createClient } from "@/lib/supabase/server";
+import { Overview, type ConnectorsOverview } from "./Overview";
+import { ImportTemplatesButton } from "./ImportTemplates";
 
 export const metadata: Metadata = { title: "Connectors" };
 
@@ -35,11 +37,12 @@ export default async function ConnectorsPage() {
   let inboxErrors: { envelope_id: string; type: string; lead_id: number | null; error: string | null; received_at: string }[] = [];
   let live: { whatsapp?: boolean; email?: boolean } = {};
   let tel: Telephony | null = null, cal: CalStatus = [], mine: CalendarMine | null = null, telProvider = "none";
+  let overview: ConnectorsOverview | null = null, overviewError: string | null = null;
   try {
     const supabase = await createClient();
     const db = admin ? adminClient() : null;
     // everything this screen shows is independent: one round trip
-    const [home, t, s, telSetting, calMine, telStatus, calStatus, o, i] = await Promise.all([
+    const [home, t, s, telSetting, calMine, telStatus, calStatus, o, i, ov] = await Promise.all([
       rpc<{ sync: Sync }>("admin_home"),
       supabase.from("wa_templates").select("name, language, audience, purpose, status").order("audience").order("name"),
       supabase.from("settings").select("value").eq("key", "live_mode").maybeSingle(),
@@ -49,7 +52,10 @@ export default async function ConnectorsPage() {
       admin ? rpc<CalStatus>("calendar_status") : Promise.resolve([] as CalStatus),
       db ? db.from("outbox").select("id, kind, lead_id, status, attempts, answer, done_at").in("status", ["refused", "failed", "conflict"]).order("id", { ascending: false }).limit(30) : Promise.resolve({ data: null }),
       db ? db.from("inbox").select("envelope_id, type, lead_id, error, received_at").eq("status", "error").order("received_at", { ascending: false }).limit(30) : Promise.resolve({ data: null }),
+      admin ? rpc<ConnectorsOverview>("connectors_overview").then((x) => ({ x, e: null }), (e: unknown) => ({ x: null, e: e instanceof Error ? e.message : String(e) })) : Promise.resolve({ x: null, e: null }),
     ]);
+    overview = ov.x;
+    overviewError = ov.e;
     sync = home.sync;
     templates = t.data ?? [];
     mine = calMine;
@@ -64,6 +70,8 @@ export default async function ConnectorsPage() {
   const waLive = liveMode() && !!live.whatsapp;
   return (
     <Page title="Connectors">
+      {admin && (overview ? <Overview o={overview} /> : overviewError ? <div className="banner">The connector overview could not load: {overviewError}</div> : null)}
+      {admin && <h2>Set-up</h2>}
       <div className="grid g3">
         <section className="card pad stack" style={{ gap: 8 }}>
           <div className="row between"><h2>B2B CRM link</h2><Status ok={b2bReady()}>{b2bReady() ? "Configured" : "Not configured"}</Status></div>
@@ -118,7 +126,7 @@ export default async function ConnectorsPage() {
         </section>
       </div>
       <section className="stack">
-        <h2>WhatsApp templates</h2>
+        <div className="row between wrap"><h2>WhatsApp templates</h2>{admin && !overview && <ImportTemplatesButton />}</div>
         <div className="table-wrap"><table>
           <thead><tr><th>Name</th><th>For</th><th>Purpose</th><th>Language</th><th>Meta status</th></tr></thead>
           <tbody>{templates.map((t) => <tr key={`${t.name}-${t.language}`}><td className="mono">{t.name}</td><td>{t.audience}</td><td>{t.purpose ?? "—"}</td><td>{t.language}</td><td>{t.status}</td></tr>)}</tbody>

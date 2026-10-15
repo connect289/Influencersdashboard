@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { directoryConfig, listDirectory } from "@/lib/directory";
+import { reportConnector } from "@/lib/connector-status";
 import { internalKeyOk } from "@/lib/internal";
 import { adminClient } from "@/lib/supabase/admin";
 
@@ -14,7 +15,14 @@ export async function POST(request: NextRequest) {
   const cfg = directoryConfig();
   if (!cfg) return NextResponse.json({ ok: true, skipped: "GOOGLE_SA_EMAIL, GOOGLE_SA_PRIVATE_KEY and GOOGLE_ADMIN_EMAIL are not set" });
   try {
-    const users = await listDirectory(cfg.sa, cfg.admin, cfg.domain);
+    let users: Awaited<ReturnType<typeof listDirectory>>;
+    try {
+      users = await listDirectory(cfg.sa, cfg.admin, cfg.domain);
+    } catch (e) {
+      await reportConnector("directory", false, null, e instanceof Error ? e.message : String(e));
+      throw e;
+    }
+    await reportConnector("directory", true, { users: users.length });
     const { data, error } = await adminClient().rpc("directory_sync", { p_users: users });
     if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true, read: users.length, ...(data as object) });

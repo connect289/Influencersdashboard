@@ -1,16 +1,19 @@
 "use client";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Pencil, Plus, Search } from "lucide-react";
+import { Check, ImagePlus, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
 import { guideRead, guideSave, type Article, type Reader } from "@/app/guide-actions";
-import { Markdown } from "@/lib/markdown";
+import { Markdown, type MdImage } from "@/lib/markdown";
+import { guideImageAdd, guideImageRemove } from "@/app/w/admin-actions";
+
+export type GuideImages = Record<number, (MdImage & { path: string })[]>;
 
 const GUIDE_LABEL: Record<string, string> = { sales: "Sales guide", marketing: "Marketing guide", admin: "Admin guide" };
 
 /** The in-app guide (spec B16): searchable, grouped by section, tracks what the person has read; the Admin edits it. */
-export function Guide({ articles, admin, readers }: { articles: Article[]; admin?: boolean; readers?: Reader[] }) {
+export function Guide({ articles, admin, readers, images }: { articles: Article[]; admin?: boolean; readers?: Reader[]; images?: GuideImages }) {
   const [q, setQ] = useState("");
   const [edit, setEdit] = useState<Article | "new" | null>(null);
   const [read, setRead] = useState<Set<number>>(() => new Set(articles.filter((a) => a.read).map((a) => a.id)));
@@ -45,7 +48,7 @@ export function Guide({ articles, admin, readers }: { articles: Article[]; admin
               <summary>
                 {a.title}{a.archived ? " (archived)" : ""} {read.has(a.id) ? <Check className="icon s" aria-label="Read" /> : <span className="chip warm">New</span>}
               </summary>
-              <div className="md" style={{ marginTop: 8 }}><Markdown text={a.body} /></div>
+              <div className="md" style={{ marginTop: 8 }}><Markdown text={a.body} images={images?.[a.id]} /></div>
               {admin && (
                 <div className="row" style={{ marginTop: 8, gap: 6 }}>
                   <button type="button" className="btn quiet sm" onClick={() => setEdit(a)}><Pencil className="icon s" aria-hidden />Edit</button>
@@ -67,12 +70,12 @@ export function Guide({ articles, admin, readers }: { articles: Article[]; admin
           </div>
         </section>
       )}
-      {edit && <Editor a={edit === "new" ? null : edit} onClose={() => setEdit(null)} />}
+      {edit && <Editor a={edit === "new" ? null : edit} images={edit === "new" ? [] : images?.[edit.id] ?? []} onClose={() => setEdit(null)} />}
     </div>
   );
 }
 
-function Editor({ a, onClose }: { a: Article | null; onClose: () => void }) {
+function Editor({ a, images, onClose }: { a: Article | null; images: (MdImage & { path: string })[]; onClose: () => void }) {
   const router = useRouter();
   const [role, setRole] = useState<Article["role"]>(a?.role ?? "sales");
   const [section, setSection] = useState(a?.section ?? "");
@@ -106,15 +109,61 @@ function Editor({ a, onClose }: { a: Article | null; onClose: () => void }) {
       )}
       <label className="field"><span>Section</span><input className="input" value={section} onChange={(e) => setSection(e.target.value)} maxLength={60} placeholder="For example: Working a lead" /></label>
       <label className="field"><span>Title</span><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} /></label>
-      <div className="row between"><span className="small muted">Blank line: new paragraph · "- " starts a bullet · **bold**</span>
+      <div className="row between"><span className="small muted">Blank line: new paragraph · &quot;- &quot; starts a bullet · **bold** · ![caption](image:1) shows screenshot 1</span>
         <button type="button" className="btn quiet sm" onClick={() => setPreview((p) => !p)}>{preview ? "Edit" : "Preview"}</button></div>
-      {preview ? <div className="panel md" style={{ padding: 12 }}><Markdown text={body} /></div>
+      {preview ? <div className="panel md" style={{ padding: 12 }}><Markdown text={body} images={images} /></div>
         : <textarea className="input" rows={12} value={body} onChange={(e) => setBody(e.target.value)} maxLength={20000} aria-label="Text" />}
       <label className="field"><span>Show the &ldquo;?&rdquo; on these screens</span>
         <input className="input" value={screens} onChange={(e) => setScreens(e.target.value)} placeholder="/s/followups, /s/leads/*" /></label>
+      {a ? <Screenshots article={a.id} images={images} onInsert={(code) => setBody((b) => `${b.trimEnd()}\n\n${code}`)} />
+        : <p className="note">Save the article first, then add screenshots.</p>}
       {error && <p className="error" role="alert">{error}</p>}
       <button type="button" className="btn primary block" onClick={() => save()} disabled={busy || !title.trim() || !body.trim()}>{busy ? "Saving…" : "Save"}</button>
       {a && <button type="button" className="btn quiet block" onClick={() => save(!a.archived)} disabled={busy}>{a.archived ? "Restore article" : "Archive article"}</button>}
     </Sheet>
+  );
+}
+
+/** Screenshots on an article (spec B15): stored privately; the reader sees them through short signed links. */
+function Screenshots({ article, images, onInsert }: { article: number; images: (MdImage & { path: string })[]; onInsert: (code: string) => void }) {
+  const router = useRouter();
+  const [busy, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const add = (f: FormData) => start(async () => {
+    const r = await guideImageAdd(article, f);
+    if (!r.ok) return setError(r.error);
+    setError(null);
+    toast.success(`Screenshot ${r.data?.length ?? ""} added. Put ![caption](image:${r.data?.length ?? 1}) where it belongs.`);
+    router.refresh();
+  });
+  const remove = (i: number) => start(async () => {
+    const r = await guideImageRemove(article, i);
+    if (!r.ok) return setError(r.error);
+    toast.success(r.notice ?? "Removed.");
+    router.refresh();
+  });
+  return (
+    <div className="field"><span>Screenshots ({images.length} of 12)</span>
+      <div className="stack" style={{ gap: 6 }}>
+        {images.map((im, i) => (
+          <div key={im.path} className="row" style={{ gap: 6 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {im.url ? <img src={im.url} alt="" width={64} height={40} style={{ objectFit: "cover", borderRadius: 4, border: "1px solid var(--line)" }} /> : <span className="chip line">missing</span>}
+            <span className="grow small"><span className="mono">image:{i + 1}</span> · {im.caption}</span>
+            <button type="button" className="btn quiet sm" onClick={() => onInsert(`![${im.caption ?? ""}](image:${i + 1})`)}>Insert</button>
+            <button type="button" className="btn quiet sm" disabled={busy} onClick={() => remove(i)} aria-label="Remove screenshot"><Trash2 className="icon s" aria-hidden /></button>
+          </div>
+        ))}
+        {images.length < 12 && (
+          <form className="row wrap" style={{ gap: 6 }} action={add}>
+            <input className="input" type="file" name="file" accept="image/png,image/jpeg,image/webp" required style={{ maxWidth: 240 }} aria-label="Screenshot file" />
+            <input className="input grow" name="caption" placeholder="Caption" maxLength={120} aria-label="Caption" />
+            <button className="btn ghost sm" type="submit" disabled={busy}><ImagePlus className="icon s" aria-hidden />{busy ? "Uploading…" : "Add"}</button>
+          </form>
+        )}
+        <span className="note">PNG, JPEG or WebP, up to 2 MB. Removing one renumbers those after it.</span>
+        {error && <p className="error" role="alert">{error}</p>}
+      </div>
+    </div>
   );
 }

@@ -2,11 +2,11 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { fetchMe, homeFor, isAllowedEmail, isLocked, issueCode, recordSignIn } from "@/lib/auth";
+import { fetchMe, homeFor, INVITE_EXPIRED, inviteOk, isAllowedEmail, isLocked, issueCode, noteSession, recordSignIn } from "@/lib/auth";
 import { codeEmail, passwordEmail, sendMail } from "@/lib/mail";
 import { siteUrl } from "@/lib/env";
 import { adminClient } from "@/lib/supabase/admin";
-import { clientIp, DEVICE_COOKIE, passwordProblem, safeNext } from "@/lib/security";
+import { breachedPassword, clientIp, DEVICE_COOKIE, passwordProblem, safeNext } from "@/lib/security";
 import { createClient } from "@/lib/supabase/server";
 
 export type FormState = { error?: string; notice?: string } | undefined;
@@ -59,6 +59,11 @@ export async function signInWithPassword(_: FormState, form: FormData): Promise<
     await supabase.auth.signOut({ scope: "local" });
     return { error: SETUP };
   }
+  if (!(await inviteOk(email))) {
+    await recordSignIn({ email, user_id: data.user.id, method: "password", outcome: "invite_expired", ...ctx });
+    await supabase.auth.signOut({ scope: "local" });
+    return { error: INVITE_EXPIRED };
+  }
   await recordSignIn({ email, user_id: data.user.id, method: "password", outcome: "success", ...ctx });
   if (!result.me.known || !result.me.active) redirect("/pending");
   redirect(`/verify?next=${encodeURIComponent(next === "/" ? homeFor(result.me) : next)}`);
@@ -107,6 +112,7 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
   if (error) return { error: error.message.replace(/^.*?: /, "") || "The code could not be checked." };
   const r = data as { ok: boolean; left?: number; device_token?: string | null };
   if (!r.ok) return { error: r.left && r.left > 0 ? `That code is not right. ${r.left} tries left.` : "Too many attempts: ask for a new code." };
+  await noteSession(supabase);
   if (r.device_token) {
     (await cookies()).set(DEVICE_COOKIE, r.device_token, {
       httpOnly: true,
@@ -159,6 +165,12 @@ export async function setPassword(_: FormState, form: FormData): Promise<FormSta
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   if (!claims?.claims?.sub) redirect("/password?error=expired");
+  // E11: a password seen in a known breach is refused (k-anonymity: only 5 characters of its SHA-1 leave the server)
+  const breach = await breachedPassword(password);
+  if (breach.breached) {
+    await recordSignIn({ email: (claims.claims as { email?: string }).email ?? null, user_id: claims.claims.sub, method: "password_link", outcome: "breached_password", ...(await requestContext()) });
+    return { error: "This password has appeared in a known data breach, so it is easy to guess. Choose a different one (a short sentence works well)." };
+  }
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) return { error: /same|different/i.test(error.message) ? "Choose a password you have not used here before." : /weak|short/i.test(error.message) ? "That password is too weak: make it longer." : "The password could not be saved. Try again." };
   const result = await fetchMe(supabase);

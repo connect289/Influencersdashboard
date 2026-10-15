@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyGet } from "@/lib/b2b-sign";
 import { signingSecret } from "@/lib/env";
+import { limit as rateLimit } from "@/lib/rate-limit";
 import { adminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ export const dynamic = "force-dynamic";
  * delivery }], next_after }; pass next_after as the next `since`.
  */
 export async function GET(request: NextRequest) {
+  const limited = await rateLimit(request, "v1:events", "v1");
+  if (limited) return limited;
   const secret = signingSecret();
   if (!secret) return NextResponse.json({ ok: false, error: "the B2C CRM is not set up yet" }, { status: 503 });
   const target = request.nextUrl.pathname + request.nextUrl.search;

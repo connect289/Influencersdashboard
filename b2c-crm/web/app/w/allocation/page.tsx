@@ -4,24 +4,30 @@ import { Page, SetupError } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
 import { when } from "@/lib/format";
-import { LOGIC_LABEL, reasonLabel } from "@/lib/labels";
+import { LOGIC_LABEL } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
 import { team, type TeamMember } from "@/lib/team";
-import type { LeadRow } from "@/lib/types";
 import { Calendar } from "./Calendar";
 import { Pools, type Pool } from "./Pools";
 import { Rules, type Rule } from "./Rules";
-import { Simulation } from "./Simulation";
+import { Simulation, type SimRule } from "./Simulation";
+import { QueuesView, type Queues } from "./Queues";
+import { Week, type CalendarWeek } from "./Week";
+import { Capacity, type CapacityData } from "./Capacity";
+import { assignable } from "@/lib/team";
+import { istDay } from "@/lib/format";
+import { weekOf } from "@/lib/holidays";
 
 export const metadata: Metadata = { title: "Lead Allocation" };
 
-const TABS = [["rules", "Rules"], ["pools", "Pools"], ["calendar", "Hours and leave"], ["simulation", "Simulation"], ["queues", "Queues"], ["audit", "Decisions"]] as const;
+const TABS = [["rules", "Rules"], ["pools", "Pools"], ["calendar", "Hours and leave"], ["capacity", "Capacity"], ["simulation", "Simulation"], ["queues", "Queues"], ["audit", "Decisions"]] as const;
 type Tab = (typeof TABS)[number][0];
 
 /** Lead Allocation (spec B7): who gets each sales lead, and why. Rules run top to bottom; the first match decides. */
-export default async function AllocationPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function AllocationPage({ searchParams }: { searchParams: Promise<{ tab?: string; week?: string }> }) {
   const me = await requireUser("workspace", "/w/allocation");
-  const asked = (await searchParams).tab;
+  const sp = await searchParams;
+  const asked = sp.tab;
   const tab: Tab = TABS.some(([k]) => k === asked) ? (asked as Tab) : "rules";
   const admin = me.role === "admin";
   const supabase = await createClient();
@@ -40,28 +46,27 @@ export default async function AllocationPage({ searchParams }: { searchParams: P
         ? <Rules rules={(rules.data ?? []) as Rule[]} pools={poolList} admin={admin} />
         : <Pools pools={poolList} people={persons} admin={admin} />;
     } else if (tab === "calendar") {
-      const [people, holidays] = await Promise.all([team(), supabase.from("holidays").select("day, name, kind").gte("day", new Date().toISOString().slice(0, 10)).order("day").limit(30)]);
-      body = <Calendar people={people.filter((p: TeamMember) => p.user.is_active && p.user.role !== "marketing")} holidays={holidays.data ?? []} admin={admin} />;
-    } else if (tab === "simulation") {
-      body = admin ? <Simulation /> : <p className="note">Only the Admin runs simulations.</p>;
-    } else if (tab === "queues") {
-      const res = await rpc<{ total: number; rows: LeadRow[] }>("lead_list", {
-        p: { filters: { all: [{ field: "status", op: "eq", value: "active" }, { field: "owner_id", op: "is_null" }] }, sort: { field: "handed_off_at", dir: "asc" }, limit: 200 },
-      });
+      const from = weekOf(/^\d{4}-\d{2}-\d{2}$/.test(sp.week ?? "") ? sp.week! : istDay(new Date())).from;
+      const [people, holidays, week] = await Promise.all([team(), supabase.from("holidays").select("day, name, kind").gte("day", istDay(new Date())).order("day").limit(30),
+        rpc<CalendarWeek>("calendar_week", { p_from: from })]);
+      const active = people.filter((p: TeamMember) => p.user.is_active && p.user.role !== "marketing");
       body = (
-        <section className="stack">
-          <p className="note">Sales leads nobody could take: off hours for a hot lead, everyone at their cap, on leave or away. The engine retries every minute; the Admin is alerted after 5 minutes in working hours.</p>
-          <div className="table-wrap"><table>
-            <thead><tr><th>Student</th><th>Why with us</th><th>Waiting since</th><th>Hot</th></tr></thead>
-            <tbody>
-              {res.rows.length === 0 && <tr><td colSpan={4} className="muted">Nobody is waiting.</td></tr>}
-              {res.rows.map((l) => (
-                <tr key={l.lead_id}><td><Link href={`/w/leads/${l.lead_id}`}>{l.name ?? `Lead #${l.lead_id}`}</Link></td><td>{reasonLabel(l.handoff_reason)}</td><td>{when(l.handed_off_at)}</td><td>{l.hot ? "Yes" : ""}</td></tr>
-              ))}
-            </tbody>
-          </table></div>
-        </section>
+        <div className="stack">
+          <Week w={week} admin={admin} people={assignable(people)} />
+          <h2>Usual hours and leave</h2>
+          <Calendar people={active} holidays={holidays.data ?? []} admin={admin} />
+        </div>
       );
+    } else if (tab === "capacity") {
+      body = <Capacity c={await rpc<CapacityData>("capacity")} />;
+    } else if (tab === "simulation") {
+      const { data } = await supabase.from("allocation_rules").select("id, name, enabled, applies_from, is_catch_all").order("position").order("id");
+      const now = new Date();
+      const later = ((data ?? []) as (SimRule & { is_catch_all: boolean })[]).filter((r) => !r.is_catch_all && (!r.enabled || new Date(r.applies_from) > now));
+      body = admin ? <Simulation rules={later} /> : <p className="note">Only the Admin runs simulations.</p>;
+    } else if (tab === "queues") {
+      const [queues, people] = await Promise.all([rpc<Queues>("queues"), team()]);
+      body = <QueuesView queues={queues} people={assignable(people)} canAct={admin} />;
     } else {
       const { data } = await supabase.from("allocation_decisions").select("id, lead_id, at, trigger, hot, rule_name, logic, pool, eligible, skipped, chosen, outcome, why")
         .eq("simulated", false).order("at", { ascending: false }).limit(100);

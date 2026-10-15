@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Bell, CalendarClock, Copy, Download, Home, Pencil, 
 import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
 import { Chart, type Defs } from "@/components/charts/Chart";
+import { Insights } from "@/components/charts/Insights";
 import { alertSave, ask, dashboardAct, dashboardPublish, dashboardSave, drill, explain, runSpec, scheduleSave } from "@/app/analytics-actions";
 import { toCsv } from "@/lib/csv";
 import { effectiveSpec, RANGES, resolveRange, resultTable, VIZ, type Catalog, type Dashboard, type DashFilters, type Result, type Spec, type Viz, type Widget } from "@/lib/analytics";
@@ -124,7 +125,7 @@ export function AnalyticsApp({ base, catalog, list, dash, insights, schedules, a
       {!editing && <AskBox catalog={catalog} defs={defs} dimLabels={dimLabels} onDrill={(spec, m, c) => openLeads(null, spec, m, c)}
         onAdd={(w) => save([...widgets, w])} scope={catalog.scope} />}
 
-      {!editing && insights.length > 0 && <Insights insights={insights} />}
+      {!editing && (insights.length > 0 || base === "/w") && <Insights insights={insights} defs={defs} dimLabels={dimLabels} canWrite={base === "/w"} />}
 
       {editing && (
         <div className="banner info">
@@ -256,18 +257,6 @@ function AskBox({ catalog, defs, dimLabels, onDrill, onAdd, scope }: {
   );
 }
 
-function Insights({ insights }: { insights: Insight[] }) {
-  const latest = insights[0]!;
-  return (
-    <details className="card pad" open>
-      <summary><b>What changed</b> <span className="small muted">insights for {latest.day}, written by Claude from last week's numbers</span></summary>
-      <ul className="stack small" style={{ margin: "8px 0 0", paddingLeft: 18, gap: 4 }}>
-        {insights.flatMap((i) => i.items.map((it, j) => <li key={`${i.id}-${j}`}><b>{it.title}</b> {it.body}{i.kind === "anomaly" ? <span className="chip warm" style={{ marginLeft: 4 }}>unusual</span> : null}</li>)).slice(0, 8)}
-      </ul>
-    </details>
-  );
-}
-
 function WidgetBuilder({ initial, catalog, onClose, onSave }: { initial: Widget; catalog: Catalog; onClose: () => void; onSave: (w: Widget) => void }) {
   const [w, setW] = useState<Widget>(initial);
   const [area, setArea] = useState("");
@@ -351,7 +340,7 @@ function ScheduleSheet({ dashboard, schedules, onClose }: { dashboard: Dashboard
 function AlertSheet({ catalog, alerts, onClose }: { catalog: Catalog; alerts: Alert[]; onClose: () => void }) {
   const router = useRouter();
   const [busy, start] = useTransition();
-  const [f, setF] = useState({ name: "", metric: catalog.metrics[0]?.key ?? "", kind: "threshold", op: "above", threshold: "", win: "today", push: true, email: false });
+  const [f, setF] = useState({ name: "", metric: catalog.metrics[0]?.key ?? "", kind: "threshold", op: "above", threshold: "", win: "today", push: true, email: false, whatsapp: false });
   const run = (p: Parameters<typeof alertSave>[0]) => start(async () => {
     const r = await alertSave(p);
     if (!r.ok) return void toast.error(r.error);
@@ -381,10 +370,12 @@ function AlertSheet({ catalog, alerts, onClose }: { catalog: Catalog; alerts: Al
         <div className="row small" style={{ gap: 12 }}>
           <label className="row"><input type="checkbox" checked={f.push} onChange={(e) => setF({ ...f, push: e.target.checked })} /> Phone alert</label>
           <label className="row"><input type="checkbox" checked={f.email} onChange={(e) => setF({ ...f, email: e.target.checked })} /> Email</label>
+          <label className="row"><input type="checkbox" checked={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.checked })} /> WhatsApp to my number</label>
         </div>
+        {f.whatsapp && <p className="note">Goes to your own mobile number in Teams, from the Eduwit B2C number, once the staff_alert template is approved by Meta.</p>}
         <p className="note">Checked every 15 minutes, in your own scope; at most one alert a day each.</p>
         <button type="button" className="btn primary block" disabled={busy} onClick={() => run({ name: f.name, metric: f.metric, kind: f.kind, op: f.kind === "threshold" ? f.op : null,
-          threshold: f.kind === "threshold" && f.threshold !== "" ? Number(f.threshold) : null, win: f.win, channels: [...(f.push ? ["push"] : []), ...(f.email ? ["email"] : [])] })}>Add alert</button>
+          threshold: f.kind === "threshold" && f.threshold !== "" ? Number(f.threshold) : null, win: f.win, channels: [...(f.push ? ["push"] : []), ...(f.email ? ["email"] : []), ...(f.whatsapp ? ["whatsapp"] : [])] })}>Add alert</button>
       </div>
     </Sheet>
   );

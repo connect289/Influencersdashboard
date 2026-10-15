@@ -1,12 +1,15 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
+import { limit } from "@/lib/rate-limit";
 import { adminClient } from "@/lib/supabase/admin";
 import { parseWebhook, verifyMetaSignature } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
 /** Meta's one-time check when the webhook is registered: echo hub.challenge when the verify token matches. */
-export function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const limited = await limit(request, "v1:whatsapp-verify", "v1");
+  if (limited) return limited;
   const p = request.nextUrl.searchParams;
   const expected = process.env.WHATSAPP_VERIFY_TOKEN ?? "";
   const given = p.get("hub.verify_token") ?? "";
@@ -21,6 +24,8 @@ export function GET(request: NextRequest) {
  * intake); each status to b2c.wa_status. Always 200 once stored, so Meta does not retry what was handled.
  */
 export async function POST(request: NextRequest) {
+  const limited = await limit(request, "v1:whatsapp", "webhook");
+  if (limited) return limited;
   const secret = process.env.WHATSAPP_APP_SECRET;
   if (!secret) return NextResponse.json({ ok: false }, { status: 503 });
   const raw = await request.text();

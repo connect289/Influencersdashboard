@@ -5,12 +5,14 @@ import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
 import { setStage } from "@/app/s/actions";
+import { stageOverrideRequest } from "@/app/s/workspace-actions";
+import { isMoveBackRefusal } from "@/lib/workspace";
 import type { Stage, SubStage } from "@/lib/types";
 import { NextPicker } from "./NextPicker";
 
 /**
  * Stage and sub-stage (spec B9): the sub-stage is required, Lost needs a comment, and work that continues needs the next
- * follow-up. Moving back is the Admin's (the database refuses it otherwise; the button is greyed for clarity).
+ * follow-up. Moving back is the sales head's or the Admin's: a counsellor asks for approval instead (b2c.stage_override_request).
  */
 export function StageButton({ leadId, current, sub, stages, subs, canMoveBack, disabled }: {
   leadId: number; current: number | null; sub: string | null; stages: Stage[]; subs: SubStage[]; canMoveBack: boolean; disabled?: boolean;
@@ -42,11 +44,24 @@ export function StageSheet({ leadId, cur, stages, subs, canMoveBack, onClose, in
   const needsComment = stage === 10 || subRow?.comment_required;
   const back = (s: Stage) => cur && s.rank < cur.rank && !s.reachable_from_any;
   const ready = !!sub && (closing || !!next) && (!needsComment || comment.trim().length >= 3) && (!st || !back(st) || comment.trim().length >= 3);
+  const [refused, setRefused] = useState(false);
+  const ask = (!!st && back(st) && !canMoveBack) || refused;
 
   const save = () =>
     start(async () => {
+      if (ask) {
+        const r = await stageOverrideRequest({ lead: leadId, stage, sub: sub!, comment, next: closing ? undefined : next ?? undefined });
+        if (!r.ok) return setError(r.error);
+        toast.success(r.notice ?? "Asked for approval.");
+        onClose();
+        router.refresh();
+        return;
+      }
       const r = await setStage({ lead: leadId, stage, sub: sub!, comment: comment || undefined, next: closing ? undefined : next ?? undefined });
-      if (!r.ok) return setError(r.error);
+      if (!r.ok) {
+        if (isMoveBackRefusal(r.error)) setRefused(true);
+        return setError(r.error);
+      }
       toast.success(`Stage saved: ${st?.name} · ${sub}`);
       onClose();
       router.refresh();
@@ -58,8 +73,8 @@ export function StageSheet({ leadId, cur, stages, subs, canMoveBack, onClose, in
         <span>Stage</span>
         <div className="pills">
           {stages.map((s) => (
-            <button key={s.id} type="button" className="pill" aria-pressed={stage === s.id} disabled={back(s) && !canMoveBack}
-              onClick={() => { setStageId(s.id); setSub(null); }} title={back(s) && !canMoveBack ? "Moving back needs the Admin" : undefined}>
+            <button key={s.id} type="button" className="pill" aria-pressed={stage === s.id}
+              onClick={() => { setStageId(s.id); setSub(null); setRefused(false); setError(null); }} title={back(s) && !canMoveBack ? "Moving back needs approval from your sales head or the Admin" : undefined}>
               {s.name}
             </button>
           ))}
@@ -80,8 +95,9 @@ export function StageSheet({ leadId, cur, stages, subs, canMoveBack, onClose, in
         <div className="banner info">{subRow.returns_to_pool ? "The lead goes to the nurture pool; a journey starts later and it can come back to you hot." : "The lead closes and never returns to nurture."}</div>
       )}
       {stage === 9 && <div className="banner info">Record the enrolment (fee, date and proof) under Applications first; the stage then moves by itself.</div>}
+      {ask && <div className="banner info">Moving back needs approval. Your sales head (or the Admin) gets the request with your reason and decides; the stage changes when they approve.</div>}
       {error && <p className="error" role="alert">{error}</p>}
-      <button type="button" className="btn primary block" onClick={save} disabled={!ready || busy}>{busy ? "Saving…" : "Save stage"}</button>
+      <button type="button" className="btn primary block" onClick={save} disabled={!ready || busy}>{busy ? "Saving…" : ask ? "Ask for approval" : "Save stage"}</button>
       <p className="note">You see Eduwit&apos;s stages; the master lead table gets the matching canonical stage ({st?.canon}).</p>
     </Sheet>
   );

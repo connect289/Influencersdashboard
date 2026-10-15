@@ -1,21 +1,22 @@
 "use client";
 import { useState, useTransition } from "react";
-import { istDay } from "@/lib/format";
-import { simulate } from "../actions";
+import { date, istDay } from "@/lib/format";
+import { simulateWith, type SimResult as Result } from "../admin-actions";
 
-type Result = { leads: number; unassigned: number; by_person: { user_id: string; name: string | null; actual: number; simulated: number }[] };
+export type SimRule = { id: number; name: string; enabled: boolean; applies_from: string };
 
 /** Replays past hand-offs through today's rules, without changing anything (spec B7.6). */
-export function Simulation() {
+export function Simulation({ rules = [] }: { rules?: SimRule[] }) {
   const today = istDay(new Date());
   const monthStart = today.slice(0, 8) + "01";
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(today);
   const [res, setRes] = useState<Result | null>(null);
+  const [include, setInclude] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
   const run = () => start(async () => {
-    const r = await simulate(from, to);
+    const r = await simulateWith(from, to, include);
     if (!r.ok) return setError(r.error);
     setError(null);
     setRes(r.data ?? null);
@@ -23,6 +24,14 @@ export function Simulation() {
   return (
     <div className="stack">
       <p className="note">Runs the leads handed over in a period through the current rules, calendars and caps, and compares with who actually got them. Test leads are left out. Nothing is changed.</p>
+      {rules.length > 0 && (
+        <div className="field"><span>Also try these as if they were live (switched off, or starting later)</span>
+          <div className="pills">{rules.map((r) => (
+            <button key={r.id} type="button" className="pill" aria-pressed={include.includes(r.id)} onClick={() => setInclude(include.includes(r.id) ? include.filter((x) => x !== r.id) : [...include, r.id])}>
+              {r.name}<span className="muted"> · {r.enabled ? `from ${date(r.applies_from)}` : "off"}</span></button>
+          ))}</div>
+        </div>
+      )}
       <div className="row wrap" style={{ alignItems: "flex-end" }}>
         <label className="field"><span>From</span><input className="input" type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></label>
         <label className="field"><span>To</span><input className="input" type="date" value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} /></label>

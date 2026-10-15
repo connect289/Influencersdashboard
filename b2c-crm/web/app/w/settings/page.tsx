@@ -8,6 +8,12 @@ import Link from "next/link";
 import { SettingEditor } from "./SettingEditor";
 import { HealthPanel } from "./Health";
 import { AuditPanel, SignInsPanel } from "./Logs";
+import { rpc } from "@/lib/data";
+import type { StageAdmin } from "../admin-actions";
+import { Stages } from "./Stages";
+import { Checklists, type ChecklistData } from "./Checklists";
+import { CustomFields, type CustomField } from "./CustomFields";
+import { B2bWrites, SlaBySource, type SlaSetting } from "./SlaBySource";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -30,7 +36,17 @@ const ABOUT: Record<string, string> = {
 };
 
 /** Settings (spec B14): every change needs a reason and is versioned. */
-const TABS = [["settings", "Settings"], ["health", "System health"], ["audit", "Audit log"], ["signins", "Sign-ins"]] as const;
+const TABS = [["settings", "Settings"], ["stages", "Stages"], ["checklists", "Document checklists"], ["fields", "Custom fields"], ["sla", "SLA and B2B writes"],
+  ["health", "System health"], ["audit", "Audit log"], ["signins", "Sign-ins"]] as const;
+const SUB: Record<string, string> = {
+  stages: "Stage names, requirements and sub-stages, with the change history.",
+  checklists: "The documents counsellors collect for each university.",
+  fields: "Extra profile fields on every lead.",
+  sla: "First-contact minutes by source, and what Spark writes to the master lead table.",
+  health: "Is everything running? The timers, the queues, the feeds, the app and Claude.",
+  audit: "Every phone reveal, Call tap, export, contact edit and delete, with who and when.",
+  signins: "Every sign-in attempt, newest first.",
+};
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const me = await requireUser("workspace", "/w/settings");
@@ -42,15 +58,37 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       {TABS.map(([k, n]) => <Link key={k} href={`/w/settings?tab=${k}`} role="tab" aria-selected={tab === k}>{n}</Link>)}
     </div>
   );
-  if (tab !== "settings") {
+  if (tab === "health" || tab === "audit" || tab === "signins") {
     return (
-      <Page title="Settings" sub={tab === "health" ? "Is everything running? The timers, the queues, the feeds, the app and Claude." : tab === "audit" ? "Every phone reveal, Call tap, export, contact edit and delete, with who and when." : "Every sign-in attempt, newest first."}>
+      <Page title="Settings" sub={SUB[tab]}>
         {tabs}
         {tab === "health" ? <HealthPanel /> : tab === "audit" ? <AuditPanel sp={sp} /> : <SignInsPanel sp={sp} />}
       </Page>
     );
   }
   const supabase = await createClient();
+  if (tab !== "settings") {
+    let body: React.ReactNode;
+    try {
+      if (tab === "stages") {
+        const [data, journeys] = await Promise.all([rpc<StageAdmin>("stages_admin"), supabase.from("journeys").select("key, name").neq("status", "archived").order("name")]);
+        body = <Stages data={data} journeys={(journeys.data ?? []) as { key: string; name: string }[]} />;
+      } else if (tab === "checklists") {
+        const [data, unis] = await Promise.all([rpc<ChecklistData>("checklists"), rpc<{ name: string }[]>("money_universities").catch(() => [])]);
+        body = <Checklists data={data} universities={unis.map((u) => u.name)} />;
+      } else {
+        const { data, error } = await supabase.from("settings").select("key, value").in("key", ["custom_fields", "sla_minutes", "b2b_writes"]);
+        if (error) throw new Error(error.message);
+        const v = (k: string) => (data ?? []).find((r) => r.key === k)?.value as Record<string, unknown> | undefined;
+        body = tab === "fields"
+          ? <CustomFields fields={((v("custom_fields")?.fields ?? []) as CustomField[])} />
+          : <div className="stack"><SlaBySource value={(v("sla_minutes") ?? {}) as SlaSetting} /><B2bWrites value={(v("b2b_writes") ?? {}) as { team_and_revenue?: boolean }} /></div>;
+      }
+    } catch (e) {
+      body = <SetupError error={e} />;
+    }
+    return <Page title="Settings" sub={SUB[tab]}>{tabs}{body}</Page>;
+  }
   const { data, error } = await supabase.from("settings").select("key, value, version, updated_at").order("key");
   if (error) return <Page title="Settings"><SetupError error={error.message} /></Page>;
   return (

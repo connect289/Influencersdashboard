@@ -16,6 +16,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     { href: "/w", label: "Home", icon: "dashboard", phone: true },
     { href: "/w/leads", label: "Leads", icon: "leads", group: "Sales", phone: true },
     { href: "/w/pipeline", label: "Pipeline", icon: "pipeline", group: "Sales" },
+    { href: "/w/inbox", label: "Inbox", icon: "inbox", group: "Sales" },
     { href: "/w/allocation", label: "Lead Allocation", icon: "allocation", group: "Sales", phone: admin },
     { href: "/w/teams", label: "Teams", icon: "teams", group: "Sales" },
     { href: "/w/enrollments", label: "Enrolments", icon: "enrollments", group: "Sales", phone: true },
@@ -23,6 +24,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     ...(admin || me.role === "marketing" ? [
       { href: "/w/nurture", label: "Nurture", icon: "nurture", group: "Marketing", phone: me.role === "marketing", count: c.unread_inbox || undefined } as NavItem,
       { href: "/w/templates", label: "Templates", icon: "templates", group: "Marketing" } as NavItem,
+      { href: "/w/programmes", label: "Programmes", icon: "programmes", group: "Marketing" } as NavItem,
     ] : []),
     { href: "/w/analytics", label: "Analytics", icon: "analytics", group: "Numbers" },
     { href: "/w/money", label: "Money", icon: "money", group: "Numbers" },
@@ -42,6 +44,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     { href: "/w/teams", label: "Phone numbers", hint: "Teams" }, { href: "/w/leads/duplicates", label: "Duplicate suspects", hint: "Leads" },
     ...(admin ? [{ href: "/w/qualify", label: "To qualify", hint: "Leads" }, { href: "/w/leads/flagged", label: "Flagged leads", hint: "Leads" },
       { href: "/w/leads?exports=1", label: "Exports", hint: "Leads" }, { href: "/w/leads?deleted=1", label: "Background jobs", hint: "Leads" }] : []),
+    { href: "/w/allocation?tab=capacity", label: "Capacity", hint: "Lead Allocation" },
+    ...(admin ? [{ href: "/w/settings?tab=stages", label: "Stages and sub-stages", hint: "Settings" }, { href: "/w/settings?tab=checklists", label: "Document checklists", hint: "Settings" },
+      { href: "/w/settings?tab=fields", label: "Custom fields", hint: "Settings" }, { href: "/w/settings?tab=sla", label: "SLA by source", hint: "Settings" }] : []),
     ...(admin ? [{ href: "/w/settings?tab=health", label: "System health", hint: "Settings" }, { href: "/w/settings?tab=audit", label: "Audit log", hint: "Settings" }, { href: "/w/settings?tab=signins", label: "Sign-ins", hint: "Settings" }] : []),
   ];
   return (

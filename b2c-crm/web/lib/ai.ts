@@ -2,6 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
+import { reportConnector } from "@/lib/connector-status";
 import { adminClient } from "@/lib/supabase/admin";
 
 /**
@@ -65,6 +66,7 @@ export async function callClaude<S extends z.ZodType>(opts: {
       ...(FALLBACK_MODELS.has(model) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
     });
     const usage = { input_tokens: res.usage.input_tokens, output_tokens: res.usage.output_tokens };
+    await reportConnector("claude", true, { last_call: { purpose: opts.purpose, model: res.model, at: new Date().toISOString() } }); // Claude answered (D5)
     if (res.stop_reason === "refusal" || !res.parsed_output) {
       await log({ ...usage, ok: false, error: res.stop_reason === "refusal" ? "refusal" : `no output (${res.stop_reason})` });
       throw new AiUnavailable(res.stop_reason === "refusal" ? "Claude declined this request." : "Claude did not finish an answer. Try again.");
@@ -74,6 +76,7 @@ export async function callClaude<S extends z.ZodType>(opts: {
   } catch (e) {
     if (e instanceof AiUnavailable) throw e;
     await log({ ok: false, error: e instanceof Error ? e.message : String(e) }).catch(() => null);
+    await reportConnector("claude", false, null, e instanceof Error ? e.message : String(e));
     if (e instanceof Anthropic.RateLimitError) throw new AiUnavailable("Claude is busy. Try again in a minute.");
     if (e instanceof Anthropic.AuthenticationError) throw new AiUnavailable("The Claude API key is not valid.");
     if (e instanceof Anthropic.APIConnectionError) throw new AiUnavailable("Could not reach Claude. Try again.");

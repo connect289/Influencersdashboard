@@ -7,8 +7,10 @@ import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
 import { callLog, numberCopied } from "@/app/s/actions";
 import { callGet, callMock, callNote, callStart, type CallView } from "@/app/s/call-actions";
-import { maskPhone } from "@/lib/format";
-import { OUTCOME_LABEL, OUTCOMES } from "@/lib/labels";
+import { callSuggestion } from "@/app/s/workspace-actions";
+import { maskPhone, when } from "@/lib/format";
+import { OUTCOME_LABEL, OUTCOMES, TASK_KIND_LABEL } from "@/lib/labels";
+import { inWords, talkMinutes, type Suggestion } from "@/lib/workspace";
 import { NextPicker } from "./NextPicker";
 
 type Open = { callId: number; number: string; tel: string; tappedAt: number };
@@ -20,7 +22,7 @@ type Bridge = { callId: number; provider: string; agent: string; number: string 
  * is flagged after 10 minutes. With telephony on: the provider rings the counsellor's phone, then the student, and the
  * call logs itself (outcome, real talk time, recording) when it ends; the sheet only follows it and takes a note.
  */
-export function CallButton({ leadId, name, small, label = "Call", pending: unlogged }: { leadId: number; name: string; small?: boolean; label?: string; pending?: { id: number; number: string; tapped_at: string; provider?: string } | null }) {
+export function CallButton({ leadId, name, small, label = "Call", pending: unlogged, contactId }: { leadId: number; name: string; small?: boolean; label?: string; pending?: { id: number; number: string; tapped_at: string; provider?: string } | null; contactId?: number }) {
   const pending = unlogged && (unlogged.provider ?? "manual") === "manual" ? unlogged : null;
   const [open, setOpen] = useState<Open | null>(null);
   const [bridge, setBridge] = useState<Bridge | null>(null);
@@ -32,7 +34,7 @@ export function CallButton({ leadId, name, small, label = "Call", pending: unlog
       return;
     }
     start(async () => {
-      const r = await callStart(leadId);
+      const r = await callStart(leadId, contactId);
       if (!r.ok || !r.data) return void toast.error(r.ok ? "The call could not start." : r.error);
       const d = r.data;
       if (d.mode === "bridge") return void setBridge({ callId: d.call_id, provider: d.provider, agent: d.agent, number: d.number });
@@ -56,17 +58,45 @@ export function CallButton({ leadId, name, small, label = "Call", pending: unlog
 function CallLogSheet({ leadId, name, call, onClose }: { leadId: number; name: string; call: Open; onClose: () => void }) {
   const router = useRouter();
   const [outcome, setOutcome] = useState<string | null>(null);
-  const [minutes, setMinutes] = useState(() => Math.max(1, Math.round((Date.now() - call.tappedAt) / 60000)));
+  const [minutes, setMinutes] = useState(() => talkMinutes(call.tappedAt, Date.now()));
+  const [edited, setEdited] = useState(false);
   const [note, setNote] = useState("");
   const [next, setNext] = useState<string | null>(null);
+  const [nextKind, setNextKind] = useState<string>("call");
+  const [nextNote, setNextNote] = useState<string | undefined>(undefined);
+  const [hint, setHint] = useState<Suggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
   const [desk] = useState(() => typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches);
 
+  // talk time from the time away: the tap opened the dialler; when the counsellor comes back, the minutes since the tap
+  useEffect(() => {
+    let left = false;
+    const onVis = () => {
+      if (document.visibilityState === "hidden") left = true;
+      else if (left && !edited) setMinutes(talkMinutes(call.tappedAt, Date.now()));
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [call.tappedAt, edited]);
+
+  function pickOutcome(o: string) {
+    setOutcome(o);
+    setHint(null);
+    callSuggestion(leadId, o).then((r) => r.ok && r.data && setHint(r.data)).catch(() => undefined);
+  }
+
+  function applyHint(h: Suggestion) {
+    setNext(new Date(Date.now() + h.in_minutes * 60000).toISOString());
+    setNextKind(h.kind);
+    setNextNote(h.note);
+  }
+
   function save() {
     if (!outcome || !next) return;
     start(async () => {
-      const r = await callLog({ call: call.callId, outcome: outcome as never, duration: outcome === "connected" ? minutes * 60 : 0, note: note || undefined, next }, leadId);
+      const r = await callLog({ call: call.callId, outcome: outcome as never, duration: outcome === "connected" ? minutes * 60 : 0, note: note || undefined, next,
+        nextKind: nextKind as never, nextNote }, leadId);
       if (!r.ok) return setError(r.error);
       const moved = r.data?.moved_to ? ` Stage: ${r.data.moved_to} · ${r.data.sub_stage}.` : "";
       toast.success((r.notice ?? "Call logged.") + moved);
@@ -87,21 +117,28 @@ function CallLogSheet({ leadId, name, call, onClose }: { leadId: number; name: s
         <span>Outcome</span>
         <div className="pills">
           {OUTCOMES.map((o) => (
-            <button key={o} type="button" className="pill" aria-pressed={outcome === o} onClick={() => setOutcome(o)}>{OUTCOME_LABEL[o]}</button>
+            <button key={o} type="button" className="pill" aria-pressed={outcome === o} onClick={() => pickOutcome(o)}>{OUTCOME_LABEL[o]}</button>
           ))}
         </div>
       </div>
       {outcome === "connected" && (
         <label className="field">
-          <span>Talk time (minutes)</span>
-          <input className="input num" type="number" min={0} max={600} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} style={{ maxWidth: 120 }} />
+          <span>Talk time (minutes, from your time away)</span>
+          <input className="input num" type="number" min={0} max={600} value={minutes} onChange={(e) => { setEdited(true); setMinutes(Number(e.target.value)); }} style={{ maxWidth: 120 }} />
         </label>
+      )}
+      {hint && (
+        <div className="banner info">
+          <div className="grow">Suggested next: <b>{TASK_KIND_LABEL[hint.kind] ?? hint.kind}</b> {inWords(hint.in_minutes)} · {hint.note}</div>
+          <button type="button" className="btn ghost sm" onClick={() => applyHint(hint)}>Use this</button>
+        </div>
       )}
       <label className="field">
         <span>Notes</span>
         <textarea className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What did you learn?" maxLength={2000} />
       </label>
-      <NextPicker value={next} onChange={setNext} />
+      <NextPicker value={next} onChange={(v) => { setNext(v); setNextKind("call"); setNextNote(undefined); }} />
+      {next && <p className="note">Next: {TASK_KIND_LABEL[nextKind] ?? nextKind} {when(next)}{nextNote ? ` · ${nextNote}` : ""}</p>}
       {error && <p className="error" role="alert">{error}</p>}
       <button type="button" className="btn primary block" onClick={save} disabled={!outcome || !next || busy}>{busy ? "Saving…" : "Save call log"}</button>
     </Sheet>

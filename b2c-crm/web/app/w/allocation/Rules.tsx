@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
+import { date, fromLocalInput, toLocalInput } from "@/lib/format";
 import { FACT_FIELDS, FALLBACK_LABEL, LOGIC_LABEL, OP_LABEL } from "@/lib/labels";
 import { perfPreview, ruleSave, rulesReorder } from "../actions";
 import type { Pool } from "./Pools";
@@ -56,7 +57,7 @@ export function Rules({ rules, pools, admin }: { rules: Rule[]; pools: Pool[]; a
           return (
             <div key={r.id} className="li" style={{ gridTemplateColumns: "auto 1fr auto" }}>
               <span className="avatar">{r.is_catch_all ? "∞" : i + 1}</span>
-              <span className="t ellipsis">{r.name}{!r.enabled && <span className="chip line"> Off</span>}</span>
+              <span className="t ellipsis">{r.name}{!r.enabled && <span className="chip line"> Off</span>}{r.applies_from && new Date(r.applies_from) > new Date() && <span className="chip soft"> From {date(r.applies_from)}</span>}</span>
               <span className="row" style={{ gap: 4 }}>
                 {admin && !r.is_catch_all && (
                   <>
@@ -88,6 +89,8 @@ function RuleSheet({ rule, pools, onClose }: { rule: Rule | null; pools: Pool[];
   const [logic, setLogic] = useState(rule?.logic ?? "round_robin");
   const [pool, setPool] = useState<string>(rule?.pool_id ? String(rule.pool_id) : "");
   const [conds, setConds] = useState<Cond[]>(rule?.condition.all ?? []);
+  const [anyConds, setAnyConds] = useState<Cond[]>(rule?.condition.any ?? []);
+  const [from, setFrom] = useState(rule?.applies_from ? toLocalInput(new Date(rule.applies_from)) : "");
   const [fallbacks, setFallbacks] = useState<string[]>(rule?.fallbacks ?? ["next_rule"]);
   const [match, setMatch] = useState<string[]>((rule?.params?.match as string[] | undefined) ?? ["language"]);
   const [perf, setPerf] = useState({ window_days: Number(rule?.params?.window_days ?? 90), floor: Number(rule?.params?.floor ?? 0.5), cap: Number(rule?.params?.cap ?? 2) });
@@ -95,13 +98,14 @@ function RuleSheet({ rule, pools, onClose }: { rule: Rule | null; pools: Pool[];
   const [busy, start] = useTransition();
   const catchAll = !!rule?.is_catch_all;
 
-  const setCond = (i: number, c: Partial<Cond>) => setConds(conds.map((x, j) => (j === i ? { ...x, ...c } : x)));
   const parseValue = (op: string, v: unknown) => (NO_VALUE.has(op) ? undefined : op === "in" || op === "not_in" ? String(v ?? "").split(",").map((s) => s.trim()).filter(Boolean) : op === "gte" || op === "lte" ? Number(v) : v);
 
+  const clean = (c: Cond) => ({ field: c.field, op: c.op, ...(NO_VALUE.has(c.op) ? {} : { value: parseValue(c.op, c.value) }) });
   const save = () => start(async () => {
     const r = await ruleSave({
       id: rule?.id ?? null, name, logic, pool_id: pool ? Number(pool) : null, fallbacks,
-      condition: catchAll ? {} : { all: conds.map((c) => ({ field: c.field, op: c.op, ...(NO_VALUE.has(c.op) ? {} : { value: parseValue(c.op, c.value) }) })) },
+      condition: catchAll ? {} : { all: conds.map(clean), ...(anyConds.length ? { any: anyConds.map(clean) } : {}) },
+      applies_from: fromLocalInput(from),
       params: logic === "skill_match" ? { match } : logic === "performance" ? perf : {},
     });
     if (!r.ok) return setError(r.error);
@@ -113,30 +117,10 @@ function RuleSheet({ rule, pools, onClose }: { rule: Rule | null; pools: Pool[];
   return (
     <Sheet title={rule ? `Edit rule: ${rule.name}` : "New rule"} onClose={onClose}>
       <label className="field"><span>Name</span><input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} /></label>
-      {!catchAll && (
-        <div className="field">
-          <span>When (all of these)</span>
-          <div className="stack" style={{ gap: 6 }}>
-            {conds.length === 0 && <p className="note">No condition: every lead matches.</p>}
-            {conds.map((c, i) => (
-              <div key={i} className="row wrap" style={{ gap: 6 }}>
-                <select className="input" style={{ width: "auto" }} value={c.field} onChange={(e) => setCond(i, { field: e.target.value })} aria-label="Field">
-                  {FACT_FIELDS.map((f) => <option key={f.field} value={f.field}>{f.label}</option>)}
-                </select>
-                <select className="input" style={{ width: "auto" }} value={c.op} onChange={(e) => setCond(i, { op: e.target.value })} aria-label="Test">
-                  {OPS.map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
-                </select>
-                {!NO_VALUE.has(c.op) && (
-                  <input className="input grow" value={Array.isArray(c.value) ? c.value.join(", ") : String(c.value ?? "")} onChange={(e) => setCond(i, { value: e.target.value })}
-                    placeholder={c.op === "in" || c.op === "not_in" ? "Comma-separated" : "Value"} aria-label="Value" />
-                )}
-                <button type="button" className="btn quiet sm" onClick={() => setConds(conds.filter((_, j) => j !== i))} aria-label="Remove"><Trash2 className="icon s" aria-hidden /></button>
-              </div>
-            ))}
-            <button type="button" className="btn quiet sm" style={{ justifySelf: "start" }} onClick={() => setConds([...conds, { field: "source", op: "eq", value: "" }])}><Plus className="icon s" aria-hidden />Add condition</button>
-          </div>
-        </div>
-      )}
+      {!catchAll && <>
+        <CondList title="When (all of these)" empty="No condition: every lead matches." conds={conds} setConds={setConds} />
+        <CondList title="And at least one of these (optional)" empty="None: the conditions above decide." conds={anyConds} setConds={setAnyConds} />
+      </>}
       <label className="field"><span>Then give it by</span><select className="input" value={logic} onChange={(e) => setLogic(e.target.value)}>
         {Object.entries(LOGIC_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
       </select></label>
@@ -165,6 +149,9 @@ function RuleSheet({ rule, pools, onClose }: { rule: Rule | null; pools: Pool[];
         <option value="">Everyone who takes leads</option>
         {pools.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select></label>
+      <label className="field"><span>Applies from (IST; empty keeps {rule ? "the saved date" : "now"})</span>
+        <input className="input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+      {from && fromLocalInput(from) && new Date(fromLocalInput(from)!) > new Date() && <p className="note">It starts on {date(fromLocalInput(from))}; until then leads skip it. Try it now under Simulation.</p>}
       <div className="field"><span>If nobody can take it (in order)</span><div className="pills">
         {Object.entries(FALLBACK_LABEL).map(([k, v]) => {
           const at = fallbacks.indexOf(k);
@@ -175,6 +162,35 @@ function RuleSheet({ rule, pools, onClose }: { rule: Rule | null; pools: Pool[];
       <button type="button" className="btn primary block" disabled={busy || name.trim().length < 2 || fallbacks.length === 0} onClick={save}>{busy ? "Saving…" : "Save rule"}</button>
       <p className="note">A change applies to the next lead; past decisions keep the rule they used. Run a simulation first if you are unsure.</p>
     </Sheet>
+  );
+}
+
+/** One list of conditions (all of them, or any of them). */
+function CondList({ title, empty, conds, setConds }: { title: string; empty: string; conds: Cond[]; setConds: (c: Cond[]) => void }) {
+  const setCond = (i: number, c: Partial<Cond>) => setConds(conds.map((x, j) => (j === i ? { ...x, ...c } : x)));
+  return (
+    <div className="field">
+      <span>{title}</span>
+      <div className="stack" style={{ gap: 6 }}>
+        {conds.length === 0 && <p className="note">{empty}</p>}
+        {conds.map((c, i) => (
+          <div key={i} className="row wrap" style={{ gap: 6 }}>
+            <select className="input" style={{ width: "auto" }} value={c.field} onChange={(e) => setCond(i, { field: e.target.value })} aria-label="Field">
+              {FACT_FIELDS.map((f) => <option key={f.field} value={f.field}>{f.label}</option>)}
+            </select>
+            <select className="input" style={{ width: "auto" }} value={c.op} onChange={(e) => setCond(i, { op: e.target.value })} aria-label="Test">
+              {OPS.map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
+            </select>
+            {!NO_VALUE.has(c.op) && (
+              <input className="input grow" value={Array.isArray(c.value) ? c.value.join(", ") : String(c.value ?? "")} onChange={(e) => setCond(i, { value: e.target.value })}
+                placeholder={c.op === "in" || c.op === "not_in" ? "Comma-separated" : "Value"} aria-label="Value" />
+            )}
+            <button type="button" className="btn quiet sm" onClick={() => setConds(conds.filter((_, j) => j !== i))} aria-label="Remove"><Trash2 className="icon s" aria-hidden /></button>
+          </div>
+        ))}
+        <button type="button" className="btn quiet sm" style={{ justifySelf: "start" }} onClick={() => setConds([...conds, { field: "source", op: "eq", value: "" }])}><Plus className="icon s" aria-hidden />Add condition</button>
+      </div>
+    </div>
   );
 }
 

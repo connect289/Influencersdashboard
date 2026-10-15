@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { Lock, Mail, Phone, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
-import { addContact, addNote, correctLead, setPrimary, taskAdd } from "@/app/s/actions";
+import { addContact, addNote, correctLead, taskAdd } from "@/app/s/actions";
+import { setPrimaryFor } from "@/app/s/workspace-actions";
 import { maskPhone } from "@/lib/format";
 import { TASK_KIND_LABEL } from "@/lib/labels";
 import type { Contact } from "@/lib/types";
+import { CallButton } from "./CallButton";
 import { NextPicker } from "./NextPicker";
 
 function useAction() {
@@ -28,10 +30,16 @@ function useAction() {
 
 // ---------- contacts ----------
 
-/** Contact details (spec B5.3): counsellors add numbers and emails and choose the primary; only the Admin edits or removes one. */
-export function ContactsPanel({ leadId, contacts, canEdit }: { leadId: number; contacts: Contact[]; canEdit: boolean }) {
+const LABEL: Record<string, string> = { intake: "From the enquiry", alternate: "Student (another number)", parent: "Parent or guardian", office: "Office", whatsapp_only: "WhatsApp only" };
+
+/**
+ * Contact details (spec B5.3, B8.3): every number and email with its primary for calls, WhatsApp and email; any number can
+ * be called from its row. Counsellors add details and choose the primaries; only the Admin edits or removes one.
+ */
+export function ContactsPanel({ leadId, contacts, canEdit, canCall, name }: { leadId: number; contacts: Contact[]; canEdit: boolean; canCall?: boolean; name?: string }) {
   const [adding, setAdding] = useState(false);
   const { busy, run } = useAction();
+  const make = (c: Contact, f: "call" | "whatsapp" | "email") => run(() => setPrimaryFor(c.id, [f], leadId));
   return (
     <section className="panel">
       <header><h3>Contact details</h3>{canEdit && <button type="button" className="btn quiet sm" onClick={() => setAdding(true)}><Plus className="icon s" aria-hidden />Add</button>}</header>
@@ -39,23 +47,31 @@ export function ContactsPanel({ leadId, contacts, canEdit }: { leadId: number; c
         {contacts.length === 0 && <p className="note">No contact details yet.</p>}
         {contacts.map((c) => {
           const Icon = c.kind === "phone" ? Phone : Mail;
-          const prim = [c.primary_call && "Primary call", c.primary_wa && "WhatsApp", c.primary_email && "Primary email"].filter(Boolean).join(" · ");
+          const waOnly = c.label === "whatsapp_only";
           return (
             <div key={c.id} className="contact">
               <Icon className="icon s" aria-hidden />
               <span className={c.kind === "phone" ? "mono" : "ellipsis"}>{c.kind === "phone" ? maskPhone(c.value) : c.value}</span>
-              <span className="row" style={{ gap: 4 }}>
-                {prim ? <span className="chip ok">{prim}</span> : canEdit && (
-                  <button type="button" className="btn quiet sm" disabled={busy}
-                    onClick={() => run(() => setPrimary(c.id, c.kind === "phone" ? ["call", "whatsapp"] : ["email"], leadId))}>Make primary</button>
-                )}
+              <span className="row wrap" style={{ gap: 4 }}>
+                {c.primary_call && <span className="chip ok">Primary for calls</span>}
+                {c.primary_wa && <span className="chip ok">Primary for WhatsApp</span>}
+                {c.primary_email && <span className="chip ok">Primary email</span>}
+                {waOnly && <span className="chip line">WhatsApp only</span>}
                 {c.origin === "intake" && <Lock className="icon s" aria-label="From the master lead table" />}
               </span>
-              <span className="lbl">{c.label ?? (c.origin === "intake" ? "From the enquiry" : "Added")}</span>
+              <span className="lbl">{waOnly ? "WhatsApp only: do not call" : LABEL[c.label ?? ""] ?? c.label ?? (c.origin === "intake" ? "From the enquiry" : "Added")}</span>
+              {(canEdit || canCall) && (
+                <span className="row wrap" style={{ gap: 4, gridColumn: 2 }}>
+                  {canCall && c.kind === "phone" && !waOnly && <CallButton leadId={leadId} contactId={c.id} name={name ?? "the student"} small label="Call" />}
+                  {canEdit && c.kind === "phone" && !c.primary_call && !waOnly && <button type="button" className="btn quiet sm" disabled={busy} onClick={() => make(c, "call")}>Primary for calls</button>}
+                  {canEdit && c.kind === "phone" && !c.primary_wa && <button type="button" className="btn quiet sm" disabled={busy} onClick={() => make(c, "whatsapp")}>Primary for WhatsApp</button>}
+                  {canEdit && c.kind === "email" && !c.primary_email && <button type="button" className="btn quiet sm" disabled={busy} onClick={() => make(c, "email")}>Make primary</button>}
+                </span>
+              )}
             </div>
           );
         })}
-        <p className="note">You can add numbers and emails and choose the primary. Only the Admin can edit or delete one that exists.</p>
+        <p className="note">You can add numbers and emails and choose the primary for each. Only the Admin can edit or delete one that exists.</p>
       </div>
       {adding && <AddContactSheet leadId={leadId} onClose={() => setAdding(false)} />}
     </section>
@@ -79,7 +95,8 @@ function AddContactSheet({ leadId, onClose }: { leadId: number; onClose: () => v
       }, onClose)}>
         <label className="field"><span>{kind === "phone" ? "Number" : "Email"}</span><input className="input" name="value" required inputMode={kind === "phone" ? "tel" : "email"} /></label>
         <label className="field"><span>Whose</span><select className="input" name="label" defaultValue="alternate">
-          <option value="alternate">Student (another number)</option><option value="parent">Parent or guardian</option><option value="work">Work</option><option value="other">Other</option>
+          <option value="alternate">Student (another number)</option><option value="parent">Parent or guardian</option><option value="office">Office</option>
+          {kind === "phone" && <option value="whatsapp_only">WhatsApp only (not for calls)</option>}
         </select></label>
         <label className="checkbox"><input type="checkbox" checked={primary} onChange={(e) => setPrim(e.target.checked)} /> Make it the primary {kind === "phone" ? "number for calls and WhatsApp" : "email"}</label>
         {error && <p className="error" role="alert">{error}</p>}

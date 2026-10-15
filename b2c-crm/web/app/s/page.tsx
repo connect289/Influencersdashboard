@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { AlertTriangle, Check, ClipboardCheck, Moon } from "lucide-react";
 import { CallButton } from "@/components/lead/CallButton";
-import { SlaChip, TempChip } from "@/components/lead/Chips";
+import { SlaChip, TempChip, UntouchedChip } from "@/components/lead/Chips";
+import { StageApprovals, type StageRequest } from "@/components/lead/StageApprovals";
 import { Page, SetupError } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
@@ -39,9 +40,10 @@ export default async function TodayPage() {
   let t: Today;
   let progress: Progress | null, board: Board | null;
   let qualify: QualifyTask[];
+  let requests: StageRequest[];
   try {
-    [t, progress, board, qualify] = await Promise.all([rpc<Today>("today"), rpc<Progress>("my_progress").catch(() => null), rpc<Board>("leaderboard", { p_month: null }).catch(() => null),
-      qualifyTasks(me.user_id)]);
+    [t, progress, board, qualify, requests] = await Promise.all([rpc<Today>("today"), rpc<Progress>("my_progress").catch(() => null), rpc<Board>("leaderboard", { p_month: null }).catch(() => null),
+      qualifyTasks(me.user_id), rpc<StageRequest[]>("stage_requests_list").catch(() => [] as StageRequest[])]);
   } catch (e) {
     return <Page title="Today"><SetupError error={e} /></Page>;
   }
@@ -60,6 +62,7 @@ export default async function TodayPage() {
               <div><b>{breached.length === 1 ? `${breached[0]!.lead.name ?? "A lead"} has` : `${breached.length} leads have`} not been called in time.</b> The first-contact SLA is breached; the Admin has been alerted. Call now.</div>
             </div>
           )}
+          <StageApprovals requests={requests} canDecide={me.role === "sales_head" || me.role === "admin"} leadBase="/s/leads" />
           {qualify.length > 0 && (
             <section className="panel">
               <header><h3><ClipboardCheck className="icon s" aria-hidden /> Collect missing details</h3><span className="small muted">{qualify.length}</span></header>
@@ -94,6 +97,7 @@ export default async function TodayPage() {
                     <CallButton leadId={l.lead_id} name={l.name ?? "the student"} small />
                     <div className="sub row wrap" style={{ gap: 6 }}>
                       <SlaChip lead={l} />
+                      <UntouchedChip lead={l} />
                       <span>{q.task ?? l.sub_stage ?? l.stage ?? ""}{q.due_at ? ` · ${when(q.due_at)}` : ""}</span>
                     </div>
                   </div>

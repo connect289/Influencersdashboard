@@ -6,16 +6,23 @@ import { waConfig } from "@/lib/whatsapp";
  * WhatsApp templates on the B2C number's Business account (spec B9.2): submit for Meta approval, and sync statuses and the
  * number's quality rating (hourly, from the reconcile job). Needs WHATSAPP_WABA_ID besides the sending config.
  */
-export type TemplateRow = { id: number; name: string; language: string; category: string; body: string; variables: string[]; buttons: { type: string; text: string; url?: string }[] };
+export type TemplateRow = { id: number; name: string; language: string; category: string; body: string; variables: string[]; buttons: { type: string; text: string; url?: string }[];
+  header?: WaHeader | null };
+/** A template header: text, or an image, document or video whose sample Meta reviews (b2c.wa_header_ok). */
+export type WaHeader = { type: "text"; text: string } | { type: "image" | "document" | "video"; example_url: string };
 
 const SAMPLE: Record<string, string> = { first_name: "Asha", programme: "Online MBA", university: "Amity Online", counsellor: "Priya", counsellor_first_name: "Priya", next_working_time: "10:00 am on Mon 20 Oct" };
 
 /** Meta's create-template body. Variables {{1}}… get example values (Meta requires them). */
-export function templateBody(t: TemplateRow): Record<string, unknown> {
-  const components: Record<string, unknown>[] = [{
+export function templateBody(t: TemplateRow, headerHandle?: string): Record<string, unknown> {
+  const components: Record<string, unknown>[] = [];
+  const h = t.header;
+  if (h?.type === "text") components.push({ type: "HEADER", format: "TEXT", text: h.text });
+  else if (h) components.push({ type: "HEADER", format: h.type.toUpperCase(), example: { header_handle: [headerHandle ?? h.example_url] } });
+  components.push({
     type: "BODY", text: t.body,
     ...(t.variables.length ? { example: { body_text: [t.variables.map((v) => SAMPLE[v] ?? "example")] } } : {}),
-  }];
+  });
   const buttons = t.buttons.filter((b) => b.text).map((b) => (b.type === "url" ? { type: "URL", text: b.text.slice(0, 25), url: b.url } : { type: "QUICK_REPLY", text: b.text.slice(0, 25) }));
   if (buttons.length) components.push({ type: "BUTTONS", buttons });
   return { name: t.name, language: t.language, category: t.category.toUpperCase(), components };
@@ -24,13 +31,47 @@ export function templateBody(t: TemplateRow): Record<string, unknown> {
 export async function submitTemplate(t: TemplateRow): Promise<{ ok: boolean; error?: string }> {
   const cfg = waConfig(); const waba = process.env.WHATSAPP_WABA_ID;
   if (!cfg || !waba) return { ok: false, error: "WhatsApp is not connected (WHATSAPP_WABA_ID, WHATSAPP_TOKEN)." };
+  let handle: string | undefined;
+  if (t.header && t.header.type !== "text") {
+    const up = await uploadHeaderSample(t.header.example_url, cfg.token, cfg.apiVersion);
+    if (!up.ok) return { ok: false, error: up.error };
+    handle = up.handle;
+  }
   const res = await fetch(`https://graph.facebook.com/${cfg.apiVersion}/${waba}/message_templates`, {
-    method: "POST", headers: { authorization: `Bearer ${cfg.token}`, "content-type": "application/json" }, body: JSON.stringify(templateBody(t)), signal: AbortSignal.timeout(20_000),
+    method: "POST", headers: { authorization: `Bearer ${cfg.token}`, "content-type": "application/json" }, body: JSON.stringify(templateBody(t, handle)), signal: AbortSignal.timeout(20_000),
   });
   const b = (await res.json()) as { id?: string; status?: string; error?: { message?: string; error_user_msg?: string } };
   if (!res.ok) return { ok: false, error: b.error?.error_user_msg ?? b.error?.message ?? `HTTP ${res.status}` };
   await adminClient().rpc("wa_template_status", { p_name: t.name, p_language: t.language, p_status: b.status ?? "pending", p_meta_id: b.id ?? null, p_reason: null });
   return { ok: true };
+}
+
+/**
+ * Meta reviews a media header from an uploaded sample: the sample link is fetched and sent through the Resumable Upload
+ * API (needs WHATSAPP_APP_ID), which answers with the handle the template refers to.
+ */
+async function uploadHeaderSample(url: string, token: string, apiVersion = "v21.0"): Promise<{ ok: true; handle: string } | { ok: false; error: string }> {
+  const app = process.env.WHATSAPP_APP_ID;
+  if (!app) return { ok: false, error: "A media header needs WHATSAPP_APP_ID on the server, to upload the sample to Meta." };
+  try {
+    const file = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+    if (!file.ok) return { ok: false, error: `The sample link answered ${file.status}.` };
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const type = (file.headers.get("content-type") ?? "application/octet-stream").split(";")[0]!;
+    const start = await fetch(`https://graph.facebook.com/${apiVersion}/${app}/uploads?file_length=${bytes.length}&file_type=${encodeURIComponent(type)}`, {
+      method: "POST", headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000),
+    });
+    const s = (await start.json().catch(() => ({}))) as { id?: string; error?: { message?: string } };
+    if (!start.ok || !s.id) return { ok: false, error: s.error?.message ?? `Upload refused (${start.status}).` };
+    const put = await fetch(`https://graph.facebook.com/${apiVersion}/${s.id}`, {
+      method: "POST", headers: { authorization: `OAuth ${token}`, file_offset: "0" }, body: bytes, signal: AbortSignal.timeout(60_000),
+    });
+    const h = (await put.json().catch(() => ({}))) as { h?: string; error?: { message?: string } };
+    if (!put.ok || !h.h) return { ok: false, error: h.error?.message ?? `Upload refused (${put.status}).` };
+    return { ok: true, handle: h.h };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }
 
 /** Hourly: every template's status, and the number's quality rating (shown on the Nurture page). */

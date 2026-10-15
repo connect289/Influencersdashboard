@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verify } from "@/lib/b2b-sign";
 import { signingSecret } from "@/lib/env";
+import { limit } from "@/lib/rate-limit";
 import { adminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,8 @@ const MAX_BODY = 1024 * 1024;
  * answer goes back well inside B2B's 10-second budget. A failure answers 500 so B2B retries the same envelope.
  */
 export async function POST(request: NextRequest) {
+  const limited = await limit(request, "v1:handoffs", "webhook");
+  if (limited) return limited;
   const secret = signingSecret();
   if (!secret) return NextResponse.json({ ok: false, error: "the B2C CRM is not set up yet" }, { status: 503 });
   const raw = await request.text();

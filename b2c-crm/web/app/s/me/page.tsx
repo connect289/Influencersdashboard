@@ -16,7 +16,12 @@ import { Availability } from "./Availability";
 import { CalendarToggle, type CalendarMine } from "@/components/connectors/CalendarToggle";
 import { googleSa } from "@/lib/gmail";
 import { NewTicketButton } from "@/components/support/SupportParts";
-import { EmailTemplates, type EmailTemplate } from "./EmailTemplates";
+import { EmailTemplates } from "./EmailTemplates";
+import { WaAlerts } from "./WaAlerts";
+import type { LibraryTemplate } from "../workspace-actions";
+import { WA_ALERT_DEFAULT } from "@/lib/workspace";
+import { GmailConnection } from "@/components/me/GmailConnection";
+import { Devices } from "@/components/me/Devices";
 
 export const metadata: Metadata = { title: "Me" };
 
@@ -57,17 +62,21 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
       </>
     );
   } else if (tab === "templates") {
-    const { data } = await supabase.from("sales_email_templates").select("id, owner_id, name, category, subject, body, parent_id, version, recommended, hidden, uses, updated_at")
-      .is("deleted_at", null).order("recommended", { ascending: false }).order("uses", { ascending: false });
-    body = <EmailTemplates templates={(data ?? []) as EmailTemplate[]} me={me.user_id!} />;
+    try {
+      body = <EmailTemplates templates={await rpc<LibraryTemplate[]>("email_library", { p: {} })} admin={me.role === "admin"} />;
+    } catch (e) {
+      body = <SetupError error={e} />;
+    }
   } else if (tab === "snippets") {
     body = <Snippets snippets={await rpc<Snippet[]>("snippets_mine")} />;
   } else if (tab === "availability") {
-    const [{ data }, phones, calMine] = await Promise.all([
-      supabase.from("users").select("away_until").eq("user_id", me.user_id!).maybeSingle(),
+    const [{ data }, phones, calMine, { data: alertSetting }] = await Promise.all([
+      supabase.from("users").select("away_until, wa_alerts, phone").eq("user_id", me.user_id!).maybeSingle(),
       rpc<{ mobile: string | null; caller_id: string | null; own_caller_id: boolean }>("phone_mine").catch(() => null),
       rpc<CalendarMine>("calendar_mine").catch(() => null),
+      supabase.from("settings").select("value").eq("key", "staff_alerts").maybeSingle(),
     ]);
+    const kinds = ((alertSetting?.value as { kinds?: string[] } | null)?.kinds ?? WA_ALERT_DEFAULT).filter((k) => typeof k === "string");
     const away = data?.away_until && new Date(data.away_until) > new Date() ? data.away_until : null;
     body = (
       <div className="stack">
@@ -84,8 +93,12 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
             </dl>
           ) : "—"}
             <p className="note">Only the Admin changes these. Ask for a change with a support ticket.</p></div></section>
+        <section className="panel"><header><h3>Alerts on WhatsApp</h3></header>
+          <div className="body"><WaAlerts kinds={kinds} chosen={(data?.wa_alerts as string[] | null) ?? []} phone={(data?.phone as string | null) ?? phones?.mobile ?? null} /></div></section>
         <section className="panel"><header><h3>Google Calendar</h3></header>
           <div className="body"><CalendarToggle mine={calMine} ready={!!googleSa()} /></div></section>
+        <GmailConnection />
+        <Devices />
       </div>
     );
   } else {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { MoveRight } from "lucide-react";
 import { when } from "@/lib/format";
 import type { LeadRow, Stage, SubStage } from "@/lib/types";
-import { TempChip } from "./Chips";
+import { TempChip, UntouchedChip } from "./Chips";
 import { StageSheet } from "./StageButton";
 
 type Move = { lead: LeadRow; to?: number };
@@ -42,6 +42,7 @@ export function Kanban({ rows, stages, subs, base, canWork, canMoveBack, showOwn
                   <Link href={`${base}/${l.lead_id}`} draggable={false}><b>{l.name ?? `Lead #${l.lead_id}`}</b></Link>
                   <span className="muted">{l.course ?? "—"}{showOwner ? ` · ${l.owner_name ?? "Unassigned"}` : ""}</span>
                   <span className="row between"><span>{l.sub_stage ?? ""}</span><TempChip t={l.temperature} /></span>
+                  <UntouchedChip lead={l} />
                   <span className="row between">
                     <span className="muted">Next {when(l.next_task_due_at)}</span>
                     {canWork && (

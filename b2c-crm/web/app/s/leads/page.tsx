@@ -19,6 +19,7 @@ import { NewLeadButton } from "./NewLead";
 import { SalesBulkBar } from "./SalesBulkBar";
 import { Hotkeys } from "@/components/shell/Hotkeys";
 import { createClient } from "@/lib/supabase/server";
+import { salesPeople } from "@/lib/people";
 
 export const metadata: Metadata = { title: "Leads" };
 
@@ -93,7 +94,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       ) : kanban ? (
         <Kanban rows={res.rows} stages={stages} subs={subs} base="/s/leads" canWork canMoveBack={me.role === "admin" || me.role === "sales_head"} showOwner={me.role !== "counsellor"} />
       ) : <LeadTable rows={res.rows} base="/s/leads" select columns={view?.columns} money={money} showOwner={me.role !== "counsellor"} />}
-      {!kanban && res.rows.length > 0 && <SalesBulkBar templates={(tpls ?? []) as { id: number; name: string; language: string; purpose: string | null; status: string }[]} />}
+      {!kanban && res.rows.length > 0 && <SalesBulkBar templates={(tpls ?? []) as { id: number; name: string; language: string; purpose: string | null; status: string }[]}
+        people={me.role === "sales_head" || me.role === "admin" ? await salesPeople(me).catch(() => []) : []} />}
       <Hotkeys keys={[{ key: "n", label: "New lead" }]} />
       {!kanban && res.total > PAGE && (
         <div className="pager">
