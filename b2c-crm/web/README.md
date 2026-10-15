@@ -82,7 +82,8 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
    they exist the partner-wide rate is used. Claude: `ANTHROPIC_API_KEY`; model, daily cap (₹500) and prices are
    Settings → ai (default `claude-sonnet-5-5`, with the server-side refusal fallback on). Schedules and alert emails
    use the SMTP settings of step 7.
-9d. **Support tickets**: in Settings → support set `developer_emails` (the developer's address). For answers by plain
+9d. **Support tickets**: Settings → support → `developer_emails` starts as `["vikas@eduwit.in"]` (a stand-in); replace it
+   with the developer's address. For answers by plain
    email reply, set `mailbox` to a Workspace mailbox (e.g. support@eduwit.in) covered by the service account's
    delegation (gmail.send and gmail.readonly); without it the developer answers through the link in each email, and
    tickets go out by SMTP.

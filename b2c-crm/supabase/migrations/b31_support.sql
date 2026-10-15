@@ -8,9 +8,12 @@
 --                                       the Admin, the developer, or by itself 7 days after "fixed")
 --   who sees what                       each person their own tickets; the Admin every ticket
 
-insert into b2c.settings (key, value) values
-  ('support', '{"developer_emails": [], "mailbox": null, "auto_close_days": 7}')
-on conflict (key) do nothing;
+-- vikas@eduwit.in stands in as the developer until the Admin changes it in Settings → support; filled in only while
+-- the list is still empty, so an address the Admin set is never overwritten.
+insert into b2c.settings as s (key, value) values
+  ('support', '{"developer_emails": ["vikas@eduwit.in"], "mailbox": null, "auto_close_days": 7}')
+on conflict (key) do update set value = jsonb_set(s.value, '{developer_emails}', '["vikas@eduwit.in"]'), updated_at = now()
+ where coalesce(jsonb_array_length(s.value -> 'developer_emails'), 0) = 0;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('b2c-support', 'b2c-support', false, 4194304, array['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf'])
