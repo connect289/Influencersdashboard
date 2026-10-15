@@ -23,7 +23,7 @@ type Home = {
 type TeamRow = { user: { user_id: string; full_name: string | null; role: string; is_active: boolean; monthly_cap: number; away_until: string | null; is_test_user: boolean };
   load: { month: number; open: number; day: number }; working_now: boolean; enrolled_month: number; calls_today: number; leave: { from_day: string; to_day: string }[] };
 
-/** The Admin's home (spec B12.1): what needs attention now, then the month. */
+/** The Admin's home (spec B12.1): what needs attention, four numbers, then the funnel and the team. */
 export default async function WorkspaceHome() {
   await requireUser("workspace", "/w");
   let h: Home;
@@ -38,81 +38,74 @@ export default async function WorkspaceHome() {
   const max = Math.max(1, ...h.funnel.map((f) => f.n));
   const dayMax = Math.max(1, ...h.handoffs_14d.map((d) => d.sales + d.nurture));
   const counsellors = team.filter((t) => ["counsellor", "sales_head"].includes(t.user.role) && t.user.is_active);
+  const attention = [
+    h.unassigned.count > 0 && { tone: "danger", text: <><b>{h.unassigned.count} sales {h.unassigned.count === 1 ? "lead is" : "leads are"} waiting unassigned</b>, the oldest since {when(h.unassigned.oldest)}.</>, href: "/w/allocation?tab=queues", cta: "Open queues" },
+    (h.sync.failed > 0 || h.sync.inbox_errors > 0) && { tone: "", text: <>The link with the master lead table needs attention: {h.sync.failed} changes refused or failed this week, {h.sync.inbox_errors} incoming events with errors.</>, href: "/w/connectors", cta: "Connectors" },
+    h.to_verify > 0 && { tone: "info", text: <><b>{h.to_verify} {h.to_verify === 1 ? "enrolment waits" : "enrolments wait"} for your verification.</b></>, href: "/w/enrollments", cta: "Verify" },
+  ].filter(Boolean) as { tone: string; text: React.ReactNode; href: string; cta: string }[];
+
   return (
-    <Page title="Home">
-      {h.unassigned.count > 0 && (
-        <div className="banner danger" role="alert">
-          <AlertTriangle className="icon" aria-hidden />
-          <div className="grow"><b>{h.unassigned.count} sales {h.unassigned.count === 1 ? "lead is" : "leads are"} waiting unassigned</b>, the oldest since {when(h.unassigned.oldest)}.</div>
-          <Link className="btn ghost sm" href="/w/allocation?tab=queues">Open queues</Link>
-        </div>
-      )}
-      {h.sync.failed > 0 || h.sync.inbox_errors > 0 ? (
-        <div className="banner">
-          <AlertTriangle className="icon" aria-hidden />
-          <div className="grow">The link with the master lead table needs attention: {h.sync.failed} changes refused or failed this week, {h.sync.inbox_errors} incoming events with errors.</div>
-          <Link className="btn ghost sm" href="/w/connectors">Connectors</Link>
-        </div>
-      ) : null}
-      <div className="grid g4">
-        <div className="stat"><span className="small muted">Hand-offs today</span><b>{h.handoffs_today.sales + h.handoffs_today.nurture}</b><span className="delta">{h.handoffs_today.sales} sales · {h.handoffs_today.nurture} nurture</span></div>
-        <div className="stat"><span className="small muted">Unassigned now</span><b>{h.unassigned.count}</b>{h.unassigned.oldest && <span className="delta down">Oldest {relative(h.unassigned.oldest)}</span>}</div>
-        <div className="stat"><span className="small muted">First-contact SLA this month</span><b>{slaPct === null ? "—" : `${slaPct}%`}</b><span className="delta">{h.sla_month.breached} breached</span></div>
-        <div className="stat"><span className="small muted">Enrolled this month</span><b>{h.enrolled_month}</b><span className="delta">{h.to_verify} to verify</span></div>
-      </div>
-      <div className="grid g-lead">
-        <section className="card pad stack">
-          <h2>Sales funnel</h2>
-          {h.funnel.map((f) => (
-            <div key={f.stage} className="funnel-row">
-              <span className="ellipsis">{f.stage}</span>
-              <div className="bar-track"><div className={`bar-fill${f.stage === "Lost" ? " amber" : ""}`} style={{ width: `${(f.n / max) * 100}%` }} /></div>
-              <span className="num right">{f.n}</span>
+    <Page title="Home" sub={`${h.handoffs_today.sales + h.handoffs_today.nurture} hand-offs today · ${h.pool} in the nurture pool`}>
+      {attention.length > 0 && (
+        <div className="attention">
+          {attention.map((a) => (
+            <div key={a.href} className={`banner ${a.tone}`} role={a.tone === "danger" ? "alert" : undefined}>
+              <AlertTriangle className="icon" aria-hidden />
+              <div className="grow">{a.text}</div>
+              <Link className="btn ghost sm" href={a.href}>{a.cta}</Link>
             </div>
           ))}
+        </div>
+      )}
+      <div className="grid g4">
+        <div className="stat">
+          <span>Hand-offs today</span>
+          <b>{h.handoffs_today.sales + h.handoffs_today.nurture}</b>
+          <span className="delta">{h.handoffs_today.sales} sales · {h.handoffs_today.nurture} nurture</span>
+          <div className="spark" aria-label="Hand-offs per day, last 14 days" role="img">
+            {h.handoffs_14d.map((d, i) => <i key={d.day} className={i === h.handoffs_14d.length - 1 ? "today" : ""} style={{ height: `${Math.max(6, ((d.sales + d.nurture) / dayMax) * 100)}%` }} title={`${d.day}: ${d.sales} sales, ${d.nurture} nurture`} />)}
+          </div>
+        </div>
+        <div className="stat"><span>Unassigned now</span><b>{h.unassigned.count}</b>{h.unassigned.oldest ? <span className="delta down">Oldest {relative(h.unassigned.oldest)}</span> : <span className="delta">Everyone has their leads</span>}</div>
+        <div className="stat"><span>First-contact SLA this month</span><b>{slaPct === null ? "—" : `${slaPct}%`}</b><span className="delta">{h.sla_month.breached} breached</span></div>
+        <div className="stat"><span>Enrolled this month</span><b>{h.enrolled_month}</b><span className="delta">{h.to_verify} to verify</span></div>
+      </div>
+      <div className="grid g-lead">
+        <section className="panel">
+          <header><h3>Team today</h3><Link className="btn quiet sm" href="/w/team">Performance</Link></header>
+          <div className="table-wrap" style={{ boxShadow: "none" }}>
+            <table>
+              <thead><tr><th>Counsellor</th><th>Status</th><th className="right">Open</th><th className="right">Month / cap</th><th className="right">Calls today</th><th className="right">Enrolled</th></tr></thead>
+              <tbody>
+                {counsellors.length === 0 && <tr><td colSpan={6} className="muted">No counsellors yet. Add them under Teams.</td></tr>}
+                {counsellors.map((t) => (
+                  <tr key={t.user.user_id}>
+                    <td><b>{t.user.full_name}</b>{t.user.is_test_user && <span className="chip line" style={{ marginLeft: 6 }}>Test</span>}</td>
+                    <td>{t.leave.some((l) => l.from_day <= istDay(new Date())) ? <span className="chip risk">On leave</span> : t.user.away_until && new Date(t.user.away_until) > new Date() ? <span className="chip risk">Away</span> : t.working_now ? <span className="chip ok">Working</span> : <span className="chip line">Off</span>}</td>
+                    <td className="right num">{t.load.open}</td>
+                    <td className="right num">{t.load.month} / {t.user.monthly_cap}</td>
+                    <td className="right num">{t.calls_today}</td>
+                    <td className="right num">{t.enrolled_month}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
-        <section className="card pad stack">
-          <h2>Hand-offs, last 14 days</h2>
-          <svg className="chart" viewBox="0 0 280 120" role="img" aria-label="Hand-offs per day, sales and nurture">
-            {h.handoffs_14d.map((d, i) => {
-              const x = 6 + i * 19.5;
-              const hs = (d.sales / dayMax) * 96;
-              const hn = (d.nurture / dayMax) * 96;
-              return (
-                <g key={d.day}>
-                  <rect x={x} y={104 - hs - hn} width={13} height={hn} fill="var(--amber)" rx={2}><title>{`${d.day}: ${d.nurture} nurture`}</title></rect>
-                  <rect x={x} y={104 - hs} width={13} height={hs} fill="var(--primary)" rx={2}><title>{`${d.day}: ${d.sales} sales`}</title></rect>
-                  {i % 3 === 0 && <text x={x} y={117}>{d.day.slice(8)}</text>}
-                </g>
-              );
-            })}
-          </svg>
-          <div className="row small"><span className="chip soft">■ Sales</span><span className="chip warm">■ Nurture</span><span className="muted">Nurture pool now: {h.pool}</span></div>
-          <div className="divider" />
-          <div className="small muted">Last batch to the master lead table {when(h.sync.last_batch_at)} · {h.sync.queued} changes waiting · last event received {when(h.sync.last_received_at)}</div>
+        <section className="panel">
+          <header><h3>Sales funnel</h3><Link className="btn quiet sm" href="/w/pipeline">Pipeline</Link></header>
+          <div className="body">
+            {h.funnel.map((f) => (
+              <div key={f.stage} className="funnel-row">
+                <span className="ellipsis">{f.stage}</span>
+                <div className="bar-track"><div className={`bar-fill${f.stage === "Lost" ? " amber" : ""}`} style={{ width: `${(f.n / max) * 100}%` }} /></div>
+                <span className="num right">{f.n}</span>
+              </div>
+            ))}
+            <p className="note">Master lead table: last batch {when(h.sync.last_batch_at)} · {h.sync.queued} changes waiting · last event {when(h.sync.last_received_at)}.</p>
+          </div>
         </section>
       </div>
-      <section className="stack">
-        <h2>Team today</h2>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Counsellor</th><th>Status</th><th className="right">Open leads</th><th className="right">This month / cap</th><th className="right">Calls today</th><th className="right">Enrolled this month</th></tr></thead>
-            <tbody>
-              {counsellors.length === 0 && <tr><td colSpan={6} className="muted">No counsellors yet. Add them under Teams.</td></tr>}
-              {counsellors.map((t) => (
-                <tr key={t.user.user_id}>
-                  <td><b>{t.user.full_name}</b>{t.user.is_test_user && <span className="chip line"> Test</span>}</td>
-                  <td>{t.leave.some((l) => l.from_day <= istDay(new Date())) ? <span className="chip risk">On leave</span> : t.user.away_until && new Date(t.user.away_until) > new Date() ? <span className="chip risk">Away</span> : t.working_now ? <span className="chip ok">Working</span> : <span className="chip line">Off</span>}</td>
-                  <td className="right num">{t.load.open}</td>
-                  <td className="right num">{t.load.month} / {t.user.monthly_cap}</td>
-                  <td className="right num">{t.calls_today}</td>
-                  <td className="right num">{t.enrolled_month}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
     </Page>
   );
 }

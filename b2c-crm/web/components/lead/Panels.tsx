@@ -148,7 +148,7 @@ export function NoteBox({ leadId }: { leadId: number }) {
 
 // ---------- add follow-up ----------
 
-export function AddTaskButton({ leadId }: { leadId: number }) {
+export function AddTaskButton({ leadId, label = "Add", className = "btn quiet sm" }: { leadId: number; label?: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState("call");
   const [title, setTitle] = useState("");
@@ -156,7 +156,7 @@ export function AddTaskButton({ leadId }: { leadId: number }) {
   const { busy, error, run } = useAction();
   return (
     <>
-      <button type="button" className="btn quiet sm" onClick={() => setOpen(true)}><Plus className="icon s" aria-hidden />Add</button>
+      <button type="button" className={className} onClick={() => setOpen(true)}><Plus className="icon s" aria-hidden />{label}</button>
       {open && (
         <Sheet title="Add a follow-up" onClose={() => setOpen(false)}>
           <div className="field"><span>Kind</span><div className="pills">

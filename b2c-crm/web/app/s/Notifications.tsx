@@ -7,8 +7,8 @@ import type { Notification } from "@/lib/types";
 import { MarkRead } from "./MarkRead";
 
 /** In-app alerts: new assignment, re-engaged hot lead, SLA, reminders, replies, enrolment checks. */
-export async function Notifications() {
-  const n = await rpc<{ unread: number; items: Notification[] }>("notifications_mine", { p_limit: 15 }).catch(() => ({ unread: 0, items: [] as Notification[] }));
+export async function Notifications({ limit = 15 }: { limit?: number } = {}) {
+  const n = await rpc<{ unread: number; items: Notification[] }>("notifications_mine", { p_limit: limit }).catch(() => ({ unread: 0, items: [] as Notification[] }));
   return (
     <section className="panel">
       <header>

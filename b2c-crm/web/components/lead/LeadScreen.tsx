@@ -9,6 +9,7 @@ import { ApplicationsPanel } from "./Applications";
 import { CallButton } from "./CallButton";
 import { EmailButton } from "./EmailButton";
 import { BriefPanel } from "./BriefPanel";
+import { LeadTabs } from "./LeadTabs";
 import { NurturePanel } from "./NurturePanel";
 import { BarChip, SlaChip, TempChip, TestChip } from "./Chips";
 import { AddTaskButton, ContactsPanel, EditablePanel, NoteBox, type FieldDef } from "./Panels";
@@ -25,8 +26,9 @@ const g = (rec: LeadDetail["record"], group: string, key: string): string | null
 };
 
 /**
- * The lead (spec B8.5): who, why with us, what to do next; contacts, interest, profile, applications, follow-ups and the
- * timeline. Values still waiting to reach the master lead table (pending) are shown as the counsellor typed them.
+ * The lead (spec B8.3): who they are and what to do next at the top, the four actions, then one section at a time:
+ * Overview (brief, contacts, interest, programme fit), Profile, Applications; follow-ups, nurture and the timeline in the
+ * activity rail. Values still waiting to reach the master lead table (pending) are shown as the counsellor typed them.
  */
 export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadDetail; stages: Stage[]; subs: SubStage[]; me: Me; base: string; adminTools?: React.ReactNode }) {
   const l = d.lead!;
@@ -62,9 +64,9 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
 
   const email = d.contacts.filter((c) => c.kind === "email").sort((a, b) => Number(b.primary_email) - Number(a.primary_email))[0]?.value ?? null;
   const first = firstName(val("student", "name"));
-  const timeline = <Timeline items={d.timeline}>{canWork && <NoteBox leadId={l.lead_id} />}</Timeline>;
+  const next = d.tasks[0];
 
-  const tasks = (
+  const followups = (
     <section className="panel">
       <header><h3>Follow-ups</h3>{canWork && <AddTaskButton leadId={l.lead_id} />}</header>
       <div className="body small">
@@ -82,73 +84,90 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
   return (
     <div className="content">
       <div className="row">
-        <Link className="btn quiet sm" href={base} aria-label="Back to leads"><ArrowLeft className="icon s" aria-hidden /></Link>
-        <span className="small muted grow">Lead #{l.lead_id} · {STATUS_LABEL[l.status] ?? l.status}{l.owner_name ? ` · ${l.owner_name}` : ""}</span>
+        <Link className="btn quiet sm icon-only" href={base} aria-label="Back to leads"><ArrowLeft className="icon s" aria-hidden /></Link>
+        <span className="small muted grow ellipsis">Lead #{l.lead_id} · {STATUS_LABEL[l.status] ?? l.status}{l.owner_name ? ` · ${l.owner_name}` : ""}</span>
         <TestChip on={l.is_test} />
       </div>
-      <div className="grid g-lead">
-        <div className="stack">
-          <div className="lead-head card pad">
-            <div className="row">
-              <div className="grow">
-                <h1 style={{ fontSize: 20 }}>{l.name ?? "Name not given"} <TempChip t={l.temperature} /></h1>
-                <div className="small muted"><span className="mono">{maskPhone(l.phone)}</span>{l.city ? ` · ${l.city}` : ""}{l.language ? ` · ${l.language}` : ""}</div>
-              </div>
-            </div>
-            <div className="row wrap" style={{ gap: 6 }}>
-              <StageButton leadId={l.lead_id} current={l.stage_id} sub={l.sub_stage} stages={stages} subs={subs} canMoveBack={me.role === "admin" || me.role === "sales_head"} disabled={!canWork} />
-              <SlaChip lead={l} />
-              <BarChip reason={l.partner_bar_reason} />
-              {l.opted_out && <span className="chip breach">Opted out: do not message</span>}
-            </div>
-            <p className="small"><span className="muted">Why with us:</span> {reasonLabel(l.handoff_reason)}{l.reengage_trigger ? ` · re-engaged (${l.reengage_trigger})` : ""}</p>
-            {providers.length > 0 && (
-              <div className="banner"><Users className="icon" aria-hidden /><div><b>Already with other providers.</b> {providers.map((p) => `${p.partner_name}${p.first_had_at ? ` (since ${when(p.first_had_at)})` : ""}`).join(" · ")}. Open as a neutral adviser: &ldquo;Eduwit can help you compare your options.&rdquo;</div></div>
-            )}
-            {handling.first_contact_script === "neutral_adviser" && providers.length === 0 && (
-              <div className="banner info">Open as a neutral adviser: &ldquo;Eduwit can help you compare your options.&rdquo;</div>
-            )}
-            {canWork && (
-              <div className="lead-actions">
-                <CallButton leadId={l.lead_id} name={l.name ?? "the student"} pending={d.unlogged_call} />
-                <Link className="btn ghost" href={`/s/inbox?lead=${l.lead_id}`}><MessageCircle className="icon s" aria-hidden />WhatsApp</Link>
-                <EmailButton leadId={l.lead_id} to={email} blocked={l.opted_out ? "This student opted out: do not message." : null}
-                  vars={{ first_name: first, programme: val("interest", "course"), university: val("interest", "university"), counsellor: me.full_name }} />
-                <Link className="btn ghost" href={`#tasks`}>Follow-up</Link>
-              </div>
-            )}
-            <div className="row small"><span className="muted">Next:</span><b>{d.tasks[0]?.title ?? "—"}</b><span className="muted">{when(d.tasks[0]?.due_at)}</span></div>
+
+      <div className="lead-head card pad">
+        <div className="row" style={{ alignItems: "flex-start" }}>
+          <div className="grow">
+            <h1>{l.name ?? "Name not given"} <TempChip t={l.temperature} /></h1>
+            <div className="small muted" style={{ marginTop: 4 }}><span className="mono">{maskPhone(l.phone)}</span>{l.city ? ` · ${l.city}` : ""}{l.language ? ` · ${l.language}` : ""}</div>
           </div>
-          <BriefPanel leadId={l.lead_id} autoWrite={canWork} />
-          {adminTools}
-          <div className="grid g2">
-            <ContactsPanel leadId={l.lead_id} contacts={d.contacts} canEdit={canWork} />
-            <EditablePanel leadId={l.lead_id} title="Interest" fields={interest} reasonRequired canEdit={canWork} note={others ? `Also interested in: ${others}` : undefined} />
-          </div>
-          <ProgrammeFit leadId={l.lead_id} canShare={canWork && !l.opted_out} firstName={first} counsellor={me.full_name} hasEmail={!!email} />
-          <EditablePanel leadId={l.lead_id} title="Profile" fields={profile} canEdit={canWork} />
-          <ApplicationsPanel leadId={l.lead_id} apps={d.applications} enrollments={d.enrollments} canEdit={canWork}
-            defaultProgramme={val("interest", "course")} defaultUniversity={val("interest", "university")} />
         </div>
-        <div className="stack">
-          <div id="tasks">{tasks}</div>
-          <section className="panel">
-            <header><h3>Consent and source</h3></header>
-            <div className="body">
-              <dl className="kv">
-                <dt>Partner sharing</dt><dd>{CONSENT_LABEL[l.partner_consent_state ?? "none"] ?? l.partner_consent_state}</dd>
-                <dt>Marketing</dt><dd>{l.marketing_consent ? "Yes" : "No"}</dd>
-                <dt>Source</dt><dd>{l.source ?? "—"}{l.campaign ? ` · ${l.campaign}` : ""}</dd>
-                <dt>Handed to B2C</dt><dd>{when(l.handed_off_at)}</dd>
-                <dt>First contact</dt><dd>{when(l.first_contacted_at)} ({l.contact_attempts} attempts)</dd>
-              </dl>
-            </div>
-          </section>
-          <NurturePanel leadId={l.lead_id} marketing={me.role === "admin" || me.role === "marketing"} canWork={canWork} inPool={l.status === "pool"} />
-          <WittyTranscript leadId={l.lead_id} />
-          {timeline}
+        <div className="row wrap" style={{ gap: 6 }}>
+          <StageButton leadId={l.lead_id} current={l.stage_id} sub={l.sub_stage} stages={stages} subs={subs} canMoveBack={me.role === "admin" || me.role === "sales_head"} disabled={!canWork} />
+          <SlaChip lead={l} />
+          <BarChip reason={l.partner_bar_reason} />
+          {l.opted_out && <span className="chip breach">Opted out: do not message</span>}
+          <span className="chip line">{reasonLabel(l.handoff_reason)}{l.reengage_trigger ? ` · re-engaged` : ""}</span>
+        </div>
+        {providers.length > 0 && (
+          <div className="banner"><Users className="icon" aria-hidden /><div><b>Already with other providers.</b> {providers.map((p) => `${p.partner_name}${p.first_had_at ? ` (since ${when(p.first_had_at)})` : ""}`).join(" · ")}. Open as a neutral adviser: &ldquo;Eduwit can help you compare your options.&rdquo;</div></div>
+        )}
+        {handling.first_contact_script === "neutral_adviser" && providers.length === 0 && (
+          <div className="banner info">Open as a neutral adviser: &ldquo;Eduwit can help you compare your options.&rdquo;</div>
+        )}
+        {canWork && (
+          <div className="lead-actions">
+            <CallButton leadId={l.lead_id} name={l.name ?? "the student"} pending={d.unlogged_call} />
+            <Link className="btn ghost" href={`/s/inbox?lead=${l.lead_id}`}><MessageCircle className="icon s" aria-hidden />WhatsApp</Link>
+            <EmailButton leadId={l.lead_id} to={email} blocked={l.opted_out ? "This student opted out: do not message." : null}
+              vars={{ first_name: first, programme: val("interest", "course"), university: val("interest", "university"), counsellor: me.full_name }} />
+            <AddTaskButton leadId={l.lead_id} label="Follow-up" className="btn ghost" />
+          </div>
+        )}
+        <div className="next-line">
+          <span>Next</span>
+          {next ? <><b>{next.title}</b><span>{when(next.due_at)}</span></> : <b>nothing planned</b>}
         </div>
       </div>
+
+      <LeadTabs
+        tabs={[
+          { id: "overview", label: "Overview", content: (
+            <>
+              <BriefPanel leadId={l.lead_id} autoWrite={canWork} />
+              {adminTools}
+              <div className="grid g2">
+                <ContactsPanel leadId={l.lead_id} contacts={d.contacts} canEdit={canWork} />
+                <EditablePanel leadId={l.lead_id} title="Interest" fields={interest} reasonRequired canEdit={canWork} note={others ? `Also interested in: ${others}` : undefined} />
+              </div>
+              <ProgrammeFit leadId={l.lead_id} canShare={canWork && !l.opted_out} firstName={first} counsellor={me.full_name} hasEmail={!!email} />
+            </>
+          ) },
+          { id: "profile", label: "Profile", content: (
+            <>
+              <EditablePanel leadId={l.lead_id} title="Profile" fields={profile} canEdit={canWork} />
+              <section className="panel">
+                <header><h3>Consent and source</h3></header>
+                <div className="body">
+                  <dl className="kv">
+                    <dt>Partner sharing</dt><dd>{CONSENT_LABEL[l.partner_consent_state ?? "none"] ?? l.partner_consent_state}</dd>
+                    <dt>Marketing</dt><dd>{l.marketing_consent ? "Yes" : "No"}</dd>
+                    <dt>Source</dt><dd>{l.source ?? "—"}{l.campaign ? ` · ${l.campaign}` : ""}</dd>
+                    <dt>Handed to Spark</dt><dd>{when(l.handed_off_at)}</dd>
+                    <dt>First contact</dt><dd>{when(l.first_contacted_at)} ({l.contact_attempts} attempts)</dd>
+                  </dl>
+                </div>
+              </section>
+            </>
+          ) },
+          { id: "applications", label: "Applications", content: (
+            <ApplicationsPanel leadId={l.lead_id} apps={d.applications} enrollments={d.enrollments} canEdit={canWork}
+              defaultProgramme={val("interest", "course")} defaultUniversity={val("interest", "university")} />
+          ) },
+        ]}
+        aside={
+          <>
+            {followups}
+            <Timeline items={d.timeline}>{canWork && <NoteBox leadId={l.lead_id} />}</Timeline>
+            <NurturePanel leadId={l.lead_id} marketing={me.role === "admin" || me.role === "marketing"} canWork={canWork} inPool={l.status === "pool"} />
+            <WittyTranscript leadId={l.lead_id} />
+          </>
+        }
+      />
     </div>
   );
 }

@@ -27,7 +27,7 @@ export default async function SalesLayout({ children }: { children: React.ReactN
   ];
   return (
     <div className="desk-shell">
-      <SideNav items={items} root="/s" who={<UserBox name={me.full_name} email={me.email} role={ROLE_LABEL[me.role ?? ""] ?? ""} />} />
+      <SideNav items={items} root="/s" product="Sales" who={<UserBox name={me.full_name} email={me.email} role={ROLE_LABEL[me.role ?? ""] ?? ""} />} />
       <div className="main" style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
         <BottomNav items={items} root="/s" />

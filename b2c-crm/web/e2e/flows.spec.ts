@@ -112,7 +112,7 @@ test.describe("password", () => {
     if (error) throw error;
     await page.goto(`/auth/confirm?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery`);
     await expect(page.getByRole("heading", { name: "New password" })).toBeVisible();
-    const fresh = `E2e-${Date.now()}-new-pass`;
+    const fresh = `E2e-${Date.now()}-new-password`;
     await page.locator("input[name='password']").fill(fresh);
     await page.locator("input[name='again']").fill(fresh);
     await page.getByRole("button", { name: "Save password" }).click();

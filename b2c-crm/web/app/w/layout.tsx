@@ -28,7 +28,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   ];
   return (
     <div className="desk-shell">
-      <SideNav items={items} root="/w" who={<UserBox name={me.full_name} email={me.email} role={ROLE_LABEL[me.role ?? ""] ?? ""} />} />
+      <SideNav items={items} root="/w" product={admin ? "Admin" : "Marketing"} who={<UserBox name={me.full_name} email={me.email} role={ROLE_LABEL[me.role ?? ""] ?? ""} />} />
       <div className="main" style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
         <BottomNav items={items} root="/w" />

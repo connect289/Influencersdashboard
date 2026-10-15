@@ -6,7 +6,7 @@ import { fetchMe, homeFor, isAllowedEmail, isLocked, issueCode, recordSignIn } f
 import { codeEmail, passwordEmail, sendMail } from "@/lib/mail";
 import { siteUrl } from "@/lib/env";
 import { adminClient } from "@/lib/supabase/admin";
-import { clientIp, DEVICE_COOKIE, safeNext } from "@/lib/security";
+import { clientIp, DEVICE_COOKIE, passwordProblem, safeNext } from "@/lib/security";
 import { createClient } from "@/lib/supabase/server";
 
 export type FormState = { error?: string; notice?: string } | undefined;
@@ -150,12 +150,12 @@ export async function requestPasswordLink(_: FormState, form: FormData): Promise
   return sent.sent ? done : { error: "Email is not set up yet (SMTP). Ask the Admin." };
 }
 
-const newPassword = z.object({ password: z.string().min(10).max(128), again: z.string() }).refine((v) => v.password === v.again, { path: ["again"] });
-
-/** Sets the password after the emailed link; the 6-digit code step still follows. */
+/** Sets the password after the emailed link (the app's one password rule, lib/security); the 6-digit code step still follows. */
 export async function setPassword(_: FormState, form: FormData): Promise<FormState> {
-  const parsed = newPassword.safeParse({ password: String(form.get("password") ?? ""), again: String(form.get("again") ?? "") });
-  if (!parsed.success) return { error: parsed.error.issues.some((i) => i.path[0] === "again") ? "The two passwords are not the same." : "Use at least 10 characters." };
+  const password = String(form.get("password") ?? "");
+  const problem = passwordProblem(password, String(form.get("again") ?? ""));
+  if (problem) return { error: problem };
+  const parsed = { data: { password } };
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   if (!claims?.claims?.sub) redirect("/password?error=expired");

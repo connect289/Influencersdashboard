@@ -30,7 +30,7 @@ function greeting(now = new Date()) {
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
-/** Today (spec B8.1): one queue in working order, follow-up buckets, and today against target. */
+/** Today (spec B8.1): the queue in working order; beside it the follow-up counts, the month in one card, and alerts. */
 export default async function TodayPage() {
   const me = await requireUser("sales", "/s");
   let t: Today;
@@ -41,11 +41,6 @@ export default async function TodayPage() {
     return <Page title="Today"><SetupError error={e} /></Page>;
   }
   const breached = t.queue.filter((q) => q.lead.sla_breached_at && !q.lead.first_contacted_at);
-  const target = t.numbers.target ?? {};
-  const kpis: [string, number, number | undefined][] = [
-    ["Calls logged", t.numbers.calls, target.calls], ["Connected", t.numbers.connected, target.connected], ["Counselled", t.numbers.counselled, target.counselled],
-    ["Applications", t.numbers.applications, target.applications], ["Enrolments", t.numbers.enrollments, target.enrollments],
-  ];
   const status = t.me.away_until && new Date(t.me.away_until) > new Date()
     ? <span className="chip risk"><Moon className="icon s" aria-hidden />Away till {when(t.me.away_until)}</span>
     : t.me.working_now ? <span className="chip ok"><Check className="icon s" aria-hidden />Working</span> : <span className="chip line">Outside your hours</span>;
@@ -62,9 +57,9 @@ export default async function TodayPage() {
           )}
           <div className="sec-title"><h2>Work next</h2><span className="note">In queue order</span></div>
           {t.queue.length === 0 ? (
-            <div className="card pad empty">Nothing waiting. New leads and follow-ups appear here as they come due.</div>
+            <div className="card empty">Nothing waiting. New leads and follow-ups appear here as they come due.</div>
           ) : (
-            <div className="stack" style={{ gap: 8 }}>
+            <div className="stack tight">
               {t.queue.map((q, i) => {
                 const l = q.lead;
                 const breach = !!l.sla_breached_at && !l.first_contacted_at;
@@ -89,56 +84,54 @@ export default async function TodayPage() {
         <div className="stack">
           <div className="sec-title"><h2>Follow-ups</h2><Link className="btn quiet sm" href="/s/followups">Open</Link></div>
           <FollowupCards counts={t.counts} />
-          <div className="sec-title"><h2>Today against target</h2></div>
-          <div className="kpis">
-            {kpis.slice(0, 3).map(([n, v, tg]) => <Kpi key={n} name={n} value={v} target={tg} />)}
-          </div>
           <div className="sec-title"><h2>This month</h2>{progress && <span className="note">day {progress.day_of_month} of {progress.days_in_month}</span>}</div>
-          {progress ? <MonthProgress p={progress} /> : (
-            <div className="kpis" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
-              {kpis.slice(3).map(([n, v, tg]) => <Kpi key={n} name={n} value={v} target={tg} />)}
-            </div>
+          <MonthCard today={t.numbers} progress={progress} />
+          <Notifications limit={6} />
+          {board && board.rows.length > 1 && (
+            <details className="panel">
+              <summary>Leaderboard</summary>
+              <div className="stack tight">
+                <Leaderboard rows={board.rows} visible={!!board.me_visible} />
+                <Link className="small" href="/s/money">My money</Link>
+              </div>
+            </details>
           )}
-          {board && board.rows.length > 1 && <>
-            <div className="sec-title"><h2>Leaderboard</h2><Link className="btn quiet sm" href="/s/money">My money</Link></div>
-            <Leaderboard rows={board.rows} visible={!!board.me_visible} />
-          </>}
-          <Notifications />
         </div>
       </div>
     </Page>
   );
 }
 
-function Kpi({ name, value, target }: { name: string; value: number; target?: number }) {
-  const pct = target ? Math.min(100, Math.round((value / target) * 100)) : null;
-  return (
-    <div className="kpi">
-      <span className="small muted">{name}</span>
-      <b>{value}{target ? <span className="muted" style={{ fontSize: 13 }}>/{target}</span> : null}</b>
-      {pct !== null && <div className="bar-track"><div className={`bar-fill${pct >= 50 ? "" : " amber"}`} style={{ width: `${pct}%` }} /></div>}
-    </div>
-  );
-}
-
-/** The month against target with a pace marker: where the bar should be by today if the month runs evenly. */
-function MonthProgress({ p }: { p: Progress }) {
-  const pace = p.day_of_month / p.days_in_month;
+/** One card for the month: the four targets with a pace marker (where the bar should be today), and today's calls in a line. */
+function MonthCard({ today, progress: p }: { today: Today["numbers"]; progress: Progress | null }) {
+  const target = today.target ?? {};
+  const line = [["calls", "calls"], ["connected", "connected"], ["counselled", "counselled"]] as const;
   const items: [keyof Six, string][] = [["enrollments", "Enrolments"], ["applications", "Applications"], ["counselled", "Counselled"], ["commission", "Commission"]];
+  const pace = p ? p.day_of_month / p.days_in_month : null;
   return (
-    <div className="kpis" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
-      {items.map(([k, label]) => {
-        const v = Number(p.actual[k] ?? 0), t = p.target[k] ? Number(p.target[k]) : null;
-        const share = t ? v / t : null;
-        return (
-          <div key={k} className="kpi">
-            <span className="small muted">{label}</span>
-            <b>{k === "commission" ? inr(v) : v}{t ? <span className="muted" style={{ fontSize: 13 }}>/{k === "commission" ? inr(t) : t}</span> : null}</b>
-            {share !== null && <div className="bar-track pace" style={{ ["--pace" as string]: `${pace * 100}%` }} title={share < pace ? "Behind pace" : "On pace"}>
-              <div className={`bar-fill${share < pace ? " amber" : ""}`} style={{ width: `${Math.min(100, share * 100)}%` }} /></div>}
-          </div>
-        );
-      })}
-    </div>
+    <section className="panel">
+      <div className="body">
+        <div className="kpis" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
+          {items.map(([k, label]) => {
+            const v = p ? Number(p.actual[k] ?? 0) : Number((today as unknown as Record<string, number>)[k] ?? 0);
+            const tg = p ? (p.target[k] ? Number(p.target[k]) : null) : (target[k] ? Number(target[k]) : null);
+            const share = tg ? v / tg : null;
+            const behind = share !== null && pace !== null && share < pace;
+            return (
+              <div key={k} className="kpi" style={{ boxShadow: "none", background: "var(--bg)" }}>
+                <span>{label}</span>
+                <b>{k === "commission" ? inr(v) : v}{tg ? <span className="muted" style={{ fontSize: 13, fontWeight: 500 }}> / {k === "commission" ? inr(tg) : tg}</span> : null}</b>
+                {share !== null && (
+                  <div className={`bar-track${pace !== null ? " pace" : ""}`} style={pace !== null ? { ["--pace" as string]: `${pace * 100}%` } : undefined} title={behind ? "Behind pace" : "On pace"}>
+                    <div className={`bar-fill${behind ? " amber" : ""}`} style={{ width: `${Math.min(100, share * 100)}%` }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="note">Today: {line.map(([k, w]) => `${today[k]}${target[k] ? `/${target[k]}` : ""} ${w}`).join(" · ")}.</p>
+      </div>
+    </section>
   );
 }
