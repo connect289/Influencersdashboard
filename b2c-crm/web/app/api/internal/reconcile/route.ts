@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { internalKeyOk } from "@/lib/internal";
 import { readMarketingInbox } from "@/lib/gmail-inbox";
+import { readSupportInbox } from "@/lib/support-jobs";
 import { runReconcile } from "@/lib/sync";
 import { syncTemplates } from "@/lib/wa-templates";
 
@@ -16,8 +17,8 @@ export async function POST(request: NextRequest) {
   try {
     const feeds = await runReconcile();
     const fail = (e: unknown) => ({ error: e instanceof Error ? e.message : String(e) });
-    const [inbox, templates] = await Promise.all([readMarketingInbox().catch(fail), syncTemplates().catch(fail)]);
-    return NextResponse.json({ ok: true, ...feeds, inbox, templates });
+    const [inbox, templates, support] = await Promise.all([readMarketingInbox().catch(fail), syncTemplates().catch(fail), readSupportInbox().catch(fail)]);
+    return NextResponse.json({ ok: true, ...feeds, inbox, templates, support });
   } catch (e) {
     console.error("reconcile failed", e);
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });

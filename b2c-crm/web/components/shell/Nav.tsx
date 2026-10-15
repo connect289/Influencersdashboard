@@ -3,13 +3,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Building2, CalendarClock, CheckCheck, Columns3, GraduationCap, Home, Inbox, LayoutDashboard, ListChecks, Plug, Settings,
-  Shuffle, UserRound, Users, BookOpen, Sprout, FileText, IndianRupee, BarChart3, Target, type LucideIcon,
+  Shuffle, UserRound, Users, BookOpen, Sprout, FileText, IndianRupee, BarChart3, Target, LifeBuoy, type LucideIcon,
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
   home: Home, leads: Users, pipeline: Columns3, followups: CalendarClock, inbox: Inbox, programmes: GraduationCap, me: UserRound,
   dashboard: LayoutDashboard, allocation: Shuffle, teams: Building2, enrollments: CheckCheck, connectors: Plug, settings: Settings,
-  guide: BookOpen, tasks: ListChecks, nurture: Sprout, templates: FileText, money: IndianRupee, analytics: BarChart3, team: Target,
+  guide: BookOpen, tasks: ListChecks, nurture: Sprout, templates: FileText, money: IndianRupee, analytics: BarChart3, team: Target, support: LifeBuoy,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; count?: number; group?: string; phone?: boolean };

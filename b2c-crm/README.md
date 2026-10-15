@@ -42,6 +42,12 @@ setup and the end-to-end test.
   performance-weighted allocation (smoothed conversion, floor and cap, explained in each decision), b28 Google Calendar
   sync of follow-ups (one way, no phone or email in events), b29 six guide articles (51 in all). Applied to staging; the
   local build has 99 tables, 359 functions, 71 policies.
+- After Phase 4 (15 Oct): b30 phone numbers (the Admin allocates, changes or moves each counsellor's and sales manager's
+  work mobile and own caller ID, with a reason and a history; counsellors ask for changes by support ticket) and b31
+  support tickets (everyone raises tickets with links and screenshots; each message is emailed to the developer, whose
+  answers come back by replying to the email or through a signed link and update the ticket; open, in progress and
+  closed; the Admin sees every ticket). Staging matches the local build: 102 tables, 377 functions, 71 policies, 54
+  guide articles. Checks: `supabase/tests/test_support_phones.sql` (28, safe to run on staging).
 - `supabase/manual/staging_b4_pool_calendar.sql` (`pool_save`, `calendar_save`) was run by hand on staging on 14 Oct (the
   automated apply path stalls on any SQL containing DELETE). Staging's copies match the local build.
 - Checks: `supabase/tests/test_phase1.sql` (99 checks), `test_phase2.sql` (45, the Phase 2 exit test) and

@@ -4,6 +4,8 @@ import { requireUser } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/labels";
 import { team, type TeamMember } from "@/lib/team";
 import { TeamEditor } from "./TeamEditor";
+import { PhoneNumbers, type Directory } from "./PhoneNumbers";
+import { rpc } from "@/lib/data";
 
 export const metadata: Metadata = { title: "Teams" };
 
@@ -11,8 +13,10 @@ export const metadata: Metadata = { title: "Teams" };
 export default async function TeamsPage() {
   const me = await requireUser("workspace", "/w/teams");
   let people: TeamMember[];
+  let phones: Directory | null = null;
   try {
     people = await team();
+    if (me.role === "admin") phones = await rpc<Directory>("phone_directory");
   } catch (e) {
     return <Page title="Teams"><SetupError error={e} /></Page>;
   }
@@ -38,6 +42,7 @@ export default async function TeamsPage() {
         </table>
       </div>
       {admin && <TeamEditor />}
+      {phones && <PhoneNumbers d={phones} />}
       <p className="note">Only @eduwit.in accounts can sign in. Every sign-in needs a 6-digit code sent to the company inbox on a new device (trusted for 30 days). Test users receive only test leads; real leads never go to them.</p>
     </Page>
   );

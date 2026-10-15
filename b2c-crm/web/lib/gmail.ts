@@ -28,20 +28,32 @@ export function signedJwt(sa: GoogleSa, subject: string, scope: string, now = Ma
 export const mailbox = (from: string) => (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase();
 
 /** RFC 5322 message, base64url as the Gmail API wants it. Header values are stripped of line breaks (header injection). */
-export function rawMessage(m: { from: string; to: string; subject: string; text: string; html?: string | null; headers?: Record<string, string>; replyTo?: string | null }): string {
+export type MailAttachment = { filename: string; content: Uint8Array | Buffer; contentType: string };
+export type GmailMessage = { from: string; to: string; subject: string; text: string; html?: string | null; headers?: Record<string, string>; replyTo?: string | null; attachments?: MailAttachment[] };
+
+export function rawMessage(m: GmailMessage): string {
   const clean = (s: string) => s.replace(/[\r\n]+/g, " ").trim();
   const boundary = "b2c-" + randomUUID();
   const subject = `=?UTF-8?B?${Buffer.from(clean(m.subject)).toString("base64")}?=`;
   const extra = Object.entries(m.headers ?? {}).filter(([k]) => /^[A-Za-z][A-Za-z0-9-]{0,60}$/.test(k)).map(([k, v]) => `${k}: ${clean(v)}`);
   const head = [`From: ${clean(m.from)}`, `To: ${clean(m.to)}`, ...(m.replyTo ? [`Reply-To: ${clean(m.replyTo)}`] : []), `Subject: ${subject}`, "MIME-Version: 1.0", ...extra];
-  const body = m.html
+  const content = m.html
     ? [`Content-Type: multipart/alternative; boundary="${boundary}"`, "", `--${boundary}`, "Content-Type: text/plain; charset=UTF-8", "", m.text,
        `--${boundary}`, "Content-Type: text/html; charset=UTF-8", "", m.html, `--${boundary}--`]
     : ["Content-Type: text/plain; charset=UTF-8", "", m.text];
-  return b64url([...head, ...body].join("\r\n"));
+  if (!m.attachments?.length) return b64url([...head, ...content].join("\r\n"));
+  // with files: multipart/mixed, the message first, then each file in base64 (names stripped of quotes and line breaks)
+  const mixed = "b2c-mixed-" + randomUUID();
+  const files = m.attachments.flatMap((a) => {
+    const name = a.filename.replace(/["\r\n\\]+/g, "_").slice(0, 120);
+    const type = /^[a-z]+\/[a-z0-9.+-]+$/i.test(a.contentType) ? a.contentType : "application/octet-stream";
+    return [`--${mixed}`, `Content-Type: ${type}; name="${name}"`, `Content-Disposition: attachment; filename="${name}"`, "Content-Transfer-Encoding: base64", "",
+            Buffer.from(a.content).toString("base64").replace(/.{76}/g, "$&\r\n")];
+  });
+  return b64url([...head, `Content-Type: multipart/mixed; boundary="${mixed}"`, "", `--${mixed}`, ...content, ...files, `--${mixed}--`].join("\r\n"));
 }
 
-export async function sendGmail(sa: GoogleSa | null, m: { from: string; to: string; subject: string; text: string; html?: string | null; headers?: Record<string, string>; replyTo?: string | null }, live: boolean): Promise<{ ok: boolean; dry_run?: boolean; id?: string; error?: string }> {
+export async function sendGmail(sa: GoogleSa | null, m: GmailMessage, live: boolean): Promise<{ ok: boolean; dry_run?: boolean; id?: string; error?: string }> {
   if (!live) return { ok: true, dry_run: true };
   if (!sa) return { ok: false, error: "Gmail is not configured (GOOGLE_SA_EMAIL, GOOGLE_SA_PRIVATE_KEY)." };
   try {

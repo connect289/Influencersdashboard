@@ -66,7 +66,8 @@ function EditorSheet({ member, onClose }: { member?: TeamMember; onClose: () => 
         <label className="field"><span>Role</span><select className="input" name="role" defaultValue={u?.role ?? "counsellor"}>
           {Object.entries(ROLE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select></label>
-        <label className="field"><span>Work phone</span><input className="input" name="phone" defaultValue={u?.phone ?? ""} /></label>
+        {u ? <p className="small">Work mobile: <b>{u.phone ?? "none"}</b> · change it under <b>Phone numbers</b> below (with a reason, kept in the history).</p>
+          : <label className="field"><span>Work mobile</span><input className="input" name="phone" placeholder="+91…" /></label>}
         <label className="field"><span>Languages (comma-separated)</span><input className="input" name="languages" defaultValue={u?.languages.join(", ") ?? "English, Hindi"} /></label>
         {SKILLS.map(([k, label]) => (
           <label key={k} className="field"><span>{label} (for skill and territory rules)</span><input className="input" name={`skill_${k}`} defaultValue={(u?.skills?.[k] ?? []).join(", ")} /></label>

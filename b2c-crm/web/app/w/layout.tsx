@@ -24,6 +24,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     { href: "/w/connectors", label: "Connectors", icon: "connectors", group: "Company" },
     ...(admin ? [{ href: "/w/settings", label: "Settings", icon: "settings", group: "Company" } as NavItem] : []),
     { href: "/w/guide", label: "Guide", icon: "guide", group: "Company", phone: true },
+    { href: "/w/support", label: "Support", icon: "support", group: "Company" },
   ];
   return (
     <div className="desk-shell">

@@ -66,7 +66,7 @@ begin
   perform pg_temp.tel('{"provider": "exotel", "caller_id": "+911140000000"}');
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e002');
   begin perform b2c.call_start(900064, null); e := 'started'; exception when others then e := sqlerrm; end;
-  insert into r (name, ok, detail) values ('needs_counsellor_phone', e like 'add your mobile number%', e);
+  insert into r (name, ok, detail) values ('needs_counsellor_phone', e like 'you have no work mobile%', e);
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e003');
   j := b2c.call_start(900062, null);
   v_call := (j ->> 'call_id')::bigint;

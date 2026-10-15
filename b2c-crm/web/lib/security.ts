@@ -36,6 +36,8 @@ export function buildCsp(nonce: string, supabaseOrigin: string, isDev: boolean):
     // Any https image: Workspace profile photos and university logos come from other hosts.
     "img-src": ["'self'", "data:", "blob:", "https:"],
     "font-src": ["'self'"],
+    // Call recordings play from short-lived signed links on the storage host.
+    "media-src": ["'self'", supabaseOrigin, "blob:"],
     "connect-src": ["'self'", supabaseOrigin, wsOrigin],
     "frame-src": ["'none'"],
     "frame-ancestors": ["'none'"],

@@ -25,6 +25,8 @@ npm run typecheck && npm test && npm run build
 | Analytics (every role, in its scope) | `/w/analytics`, `/s/analytics`: standard and personal dashboards, filters for every widget, the widget editor, **Ask** (Claude writes a query spec from the catalogue; the database runs it as the person), **Explain** on any chart, CSV, schedules (PDF or CSV by email), alerts, the morning insights. Every number opens its leads on `/w/leads?drill=…` or `/s/leads?drill=…` |
 | Telephony (Phase 4) | The Call button calls `b2c.call_start`: with Settings → telephony → provider `none` (today) it is the manual flow (dialler, log sheet); with `exotel` the call is bridged (counsellor's mobile first), recorded, and logged by itself; test leads always use the mock, played from the call sheet. `GET/POST /v1/webhooks/telephony/exotel?key=…` (status callbacks and the Passthru applet for incoming calls). Recordings play on the timeline through a 5-minute signed link (logged) |
 | Ad spend (Admin and Marketing) | `/w/money` → Ad spend: import the Meta Ads Manager and Google Ads CSV exports (by day, INR), match campaigns to leads, spend, leads, cost per lead and ROAS per campaign; the Ad spend dashboard in Analytics |
+| Support (everyone) | `/s/support`, `/w/support`: raise a ticket (what it is about, subject, description, links, up to 4 screenshots), follow it by number (SUP-0001) through Open, In progress (in progress, waiting for you, fixed) and Closed; reply, close, reopen. The Admin sees everyone's tickets and can set any status. Every message from the CRM side is emailed to Settings → support → `developer_emails` with the screenshots; the developer answers by replying (read from Settings → support → `mailbox` every 5 minutes; a `Status: fixed` line sets the status) or through `/support/r/<signed link>` in each email. Fixed tickets close by themselves after 7 days |
+| Phone numbers (Admin) | `/w/teams` → Phone numbers: each person's work mobile and own caller ID, changed or moved with a reason and kept in a history; Me shows a person their numbers with "Ask for a change" |
 | Calendar (everyone, personal) | Connectors and Me → Availability: "Show my follow-ups in my Google Calendar" |
 | Brief before you call | On the lead screen: 3–5 lines, each with its source; written by Claude from scrubbed input, refreshed when a key fact changes, and by the job for calls due within the hour |
 | Public (signed links in marketing email) | `/u/[token]` unsubscribe per channel, `POST /e/u/[token]` one-click (List-Unsubscribe), `/e/o/[token]` open pixel, `/e/c/[token]` tracked click and "I'm interested", `/thanks` |
@@ -80,6 +82,10 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
    they exist the partner-wide rate is used. Claude: `ANTHROPIC_API_KEY`; model, daily cap (₹500) and prices are
    Settings → ai (default `claude-sonnet-5-5`, with the server-side refusal fallback on). Schedules and alert emails
    use the SMTP settings of step 7.
+9d. **Support tickets**: in Settings → support set `developer_emails` (the developer's address). For answers by plain
+   email reply, set `mailbox` to a Workspace mailbox (e.g. support@eduwit.in) covered by the service account's
+   delegation (gmail.send and gmail.readonly); without it the developer answers through the link in each email, and
+   tickets go out by SMTP.
 9c. **Phase 4**: nothing is needed to keep today's way of calling. To switch Exotel on: set the `EXOTEL_*` variables
    (`.env.example`), give every counsellor a mobile number in Teams, set Settings → telephony (`provider: "exotel"`,
    `caller_id`, `retention_days`), add the recording announcement in Exotel's call flow, point the Passthru applet of
@@ -97,7 +103,8 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
   Phase 3: the PII scrubber, analytics specs, ranges and number formats, every chart type, commission lines (partners
   and rate shown), money words and tiers, invoice, statement and dashboard PDFs, statement CSV reading; Phase 4: Exotel
   callbacks (outbound, the counsellor's leg not answering, inbound Passthru), the mock's recording, calendar events
-  (no phone or email), Meta and Google ad CSVs. 90 tests.
+  (no phone or email), Meta and Google ad CSVs; support emails, status lines in answers, the developer's signed link,
+  screenshot limits, Gmail attachments. 95 tests.
 - `../supabase/tests/test_phase1.sql` (99) and `test_phase2.sql` (45): rolled-back database checks (run in the SQL editor).
   `test_phase3.sql` (91) and `test_phase4.sql` (47), the Phase 3 and 4 exit tests, run on a local database built from
   the migrations.

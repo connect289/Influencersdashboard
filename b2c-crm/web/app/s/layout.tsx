@@ -23,6 +23,7 @@ export default async function SalesLayout({ children }: { children: React.ReactN
     { href: "/s/analytics", label: "Analytics", icon: "analytics" },
     ...(me.role === "sales_head" || me.role === "admin" ? [{ href: "/s/team", label: "My team", icon: "team" } as NavItem] : []),
     { href: "/s/me", label: "Me", icon: "me", phone: true },
+    { href: "/s/support", label: "Support", icon: "support" },
   ];
   return (
     <div className="desk-shell">

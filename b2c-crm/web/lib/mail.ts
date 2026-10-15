@@ -6,7 +6,7 @@ import nodemailer, { type Transporter } from "nodemailer";
  * mailbox with an app password). Counsellors' own emails to students go through lib/gmail (domain-wide delegation),
  * not through here. Without SMTP settings the message is logged on the server instead (local development).
  */
-export type Mail = { to: string; subject: string; text: string; html?: string; attachments?: { filename: string; content: Buffer | string; contentType?: string }[] };
+export type Mail = { to: string; subject: string; text: string; html?: string; replyTo?: string; attachments?: { filename: string; content: Buffer | string; contentType?: string }[] };
 
 let transport: Transporter | null = null;
 

@@ -13,6 +13,7 @@ import type { Enrollment } from "@/lib/types";
 import { Availability } from "./Availability";
 import { CalendarToggle, type CalendarMine } from "@/components/connectors/CalendarToggle";
 import { googleSa } from "@/lib/gmail";
+import { NewTicketButton } from "@/components/support/SupportParts";
 import { EmailTemplates, type EmailTemplate } from "./EmailTemplates";
 
 export const metadata: Metadata = { title: "Me" };
@@ -59,11 +60,15 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
     body = <EmailTemplates templates={(data ?? []) as EmailTemplate[]} me={me.user_id!} />;
   } else if (tab === "availability") {
     const { data } = await supabase.from("users").select("away_until").eq("user_id", me.user_id!).maybeSingle();
+    const phones = await rpc<{ mobile: string | null; caller_id: string | null; own_caller_id: boolean }>("phone_mine").catch(() => null);
     const away = data?.away_until && new Date(data.away_until) > new Date() ? data.away_until : null;
     body = (
       <div className="stack">
         <Availability awayUntil={away} label={away ? `Away until ${when(away)}` : "Working"} />
         <PushToggle vapidKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
+        <section className="panel"><header><h3>My phone numbers</h3><NewTicketButton base="/s" kind="phone" label="Ask for a change" /></header>
+          <div className="body small">{phones ? <>Work mobile: <b className="mono">{phones.mobile ?? "none yet"}</b> · Students see: <b className="mono">{phones.caller_id ?? "your own number when you dial yourself"}</b>{phones.own_caller_id ? "" : " (company number)"}</> : "—"}
+            <p className="note">Only the Admin changes these. Ask for a change with a support ticket.</p></div></section>
         <section className="panel"><header><h3>Google Calendar</h3></header>
           <div className="body"><CalendarToggle mine={await rpc<CalendarMine>("calendar_mine").catch(() => null)} ready={!!googleSa()} /></div></section>
       </div>

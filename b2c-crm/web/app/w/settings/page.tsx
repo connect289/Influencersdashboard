@@ -22,6 +22,7 @@ const ABOUT: Record<string, string> = {
   telephony: "Calls through a provider. provider: none (counsellors dial from their own phones and log by hand), exotel, or mock (a rehearsal: nobody is dialled). With a provider every call is recorded; retention_days says how long recordings are kept; missed_call_minutes is when the call-back task falls due. caller_id is the Exotel virtual number.",
   money: "Eduwit's billing details, GST, SAC, invoice prefixes, payment terms, the refund window, the tier denominator and the commission run day. To be confirmed by the CA (then set ca_confirmed to true).",
   ai: "Claude: the model, the daily spend cap in rupees, the exchange rate and prices used for the cost log, and the hour the morning insights are written.",
+  support: "Support tickets: developer_emails (where every ticket and reply is emailed), mailbox (the Workspace mailbox tickets are sent from and answers are read back from; it needs the gmail.send and gmail.readonly delegation), auto_close_days (a ticket marked fixed closes by itself after this many days).",
   performance: "Targets and the leaderboard: whether counsellors see the leaderboard, and when a lead counts as untouched.",
 };
 

@@ -25,3 +25,14 @@ describe("Gmail as the counsellor", () => {
     expect(await sendGmail(null, { from: "a@eduwit.in", to: "b@example.com", subject: "s", text: "t" }, false)).toEqual({ ok: true, dry_run: true });
   });
 });
+
+describe("Gmail attachments", () => {
+  it("sends files as multipart/mixed after the message", () => {
+    const raw = decode(rawMessage({ from: "support@eduwit.in", to: "dev@example.com", subject: "[SUP-0001] x", text: "Hello",
+      attachments: [{ filename: "screen\"\r\nX: y.png", content: Buffer.from("PNGDATA"), contentType: "image/png" }] }));
+    expect(raw).toMatch(/Content-Type: multipart\/mixed; boundary="b2c-mixed-/);
+    expect(raw).toContain('Content-Disposition: attachment; filename="screen_X: y.png"');
+    expect(raw).toContain(Buffer.from("PNGDATA").toString("base64"));
+    expect(raw.indexOf("Hello")).toBeLessThan(raw.indexOf("Content-Disposition"));
+  });
+});
