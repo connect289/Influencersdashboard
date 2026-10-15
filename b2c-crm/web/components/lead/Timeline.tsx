@@ -1,5 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { Play } from "lucide-react";
+import { toast } from "sonner";
+import { recordingLink } from "@/app/s/call-actions";
 import { when } from "@/lib/format";
 import { TIMELINE_KIND_LABEL } from "@/lib/labels";
 import type { TimelineItem } from "@/lib/types";
@@ -36,6 +39,7 @@ export function Timeline({ items, children }: { items: TimelineItem[]; children?
               <div>
                 <div className="tl-kind">{TIMELINE_KIND_LABEL[t.kind] ?? t.kind}{t.direction === "in" ? " · in" : ""}{t.internal ? " · coaching (Admin only)" : ""}</div>
                 <div style={{ whiteSpace: "pre-wrap" }}>{t.body}</div>
+                {t.kind === "call" && t.meta?.bridged === true && typeof t.meta.call_id === "number" && <RecordingButton callId={t.meta.call_id} />}
                 {t.actor && <div className="small muted">{t.actor}</div>}
               </div>
             </div>
@@ -43,5 +47,19 @@ export function Timeline({ items, children }: { items: TimelineItem[]; children?
         </div>
       </div>
     </section>
+  );
+}
+
+/** Plays a bridged call's recording: a 5-minute signed link, opened only for someone who may see the lead (logged). */
+function RecordingButton({ callId }: { callId: number }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [busy, start] = useTransition();
+  if (src) return <audio controls autoPlay src={src} style={{ width: "100%", maxWidth: 360, marginTop: 4 }} />;
+  return (
+    <button type="button" className="btn quiet sm" disabled={busy} onClick={() => start(async () => {
+      const r = await recordingLink(callId);
+      if (!r.ok || !r.data) return void toast.error(r.ok ? "No recording." : r.error);
+      setSrc(r.data);
+    })}><Play className="icon s" aria-hidden />Recording</button>
   );
 }

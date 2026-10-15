@@ -4,6 +4,7 @@ import { runClassify } from "@/lib/classify";
 import { runPush } from "@/lib/push";
 import { runSync } from "@/lib/sync";
 import { runAnalyticsJobs } from "@/lib/analytics-jobs";
+import { runPhase4Jobs } from "@/lib/phase4-jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -19,7 +20,8 @@ export async function POST(request: NextRequest) {
     const push = mode === "urgent" ? await runPush().catch((e) => ({ push_error: e instanceof Error ? e.message : String(e) })) : {};
     const classify = mode === "urgent" ? await runClassify().catch((e) => ({ classify_error: e instanceof Error ? e.message : String(e) })) : {};
     const analytics = mode === "urgent" ? await runAnalyticsJobs().catch((e) => ({ analytics_error: e instanceof Error ? e.message : String(e) })) : {};
-    return NextResponse.json({ ok: true, mode, ...sync, push, classify, analytics });
+    const phase4 = mode === "urgent" ? await runPhase4Jobs().catch((e) => ({ phase4_error: e instanceof Error ? e.message : String(e) })) : {};
+    return NextResponse.json({ ok: true, mode, ...sync, push, classify, analytics, phase4 });
   } catch (e) {
     console.error("sync failed", e);
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });

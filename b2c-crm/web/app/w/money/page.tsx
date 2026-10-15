@@ -10,11 +10,13 @@ import {
   BillingButton, EnrollmentMoney, FallbackButton, InvoiceActions, InvoiceDraftButton, OverrideButton, OverrideRetire, PeriodCloseButton, RateButton, RateRetire,
   ReceiptButton, ReleaseLine, RunActions, RunPrepareButton, StatementUpload,
 } from "./parts";
+import { AdImportButton, AdMapButton } from "./AdSpend";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Money" };
 
 const TABS = [["overview", "Overview"], ["enrolments", "Enrolments"], ["universities", "Universities"], ["receivables", "Receivables"], ["statements", "Statements"],
-  ["commission", "Counsellor commission"], ["runs", "Runs"]] as const;
+  ["commission", "Counsellor commission"], ["runs", "Runs"], ["ads", "Ad spend"]] as const;
 type Tab = (typeof TABS)[number][0];
 
 type Admin = {
@@ -56,6 +58,11 @@ type Rules = { overrides: { id: number; counsellor: string | null; programme: st
   counsellors: { user_id: string; name: string | null }[] };
 type PartnerTable = { error?: string; rows: { programme_id: number; programme: string; university: string; fee_yearly: number | null; partners: { partner_id: number; name: string; rate: PartnerRate | null }[] | null }[];
   changes: { at: string; detail: Record<string, unknown> }[] };
+type AdOverview = { from: string; to: string;
+  imports: { id: number; platform: string; file_name: string | null; rows: number; from_day: string | null; to_day: string | null; spend: number; created_at: string; by: string | null }[];
+  campaigns: { platform: string; campaign_id: string; campaign: string | null; spend: number; clicks: number; platform_leads: number; map: { lead_source: string | null; lead_campaign: string | null } | null;
+    leads: number; enrolled: number; commission_net: number }[];
+  lead_values: { source: string | null; campaign: string | null; leads: number }[] };
 type RunView = { id: number; period: string; status: string; is_test: boolean; totals: RunTotals | null; counsellors: { counsellor_id: string; name: string; email: string; amount: number; tds: number; net: number; lines: CommissionLine[] }[] };
 
 const PILES: [string, string, string][] = [["matched", "Matched", "ok"], ["mismatch", "Amount differs", "warm"], ["university_only", "Only in their statement", "breach"], ["eduwit_only", "Only in ours", "breach"]];
@@ -89,6 +96,10 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
     } else if (tab === "commission") {
       const [rules, partners] = await Promise.all([rpc<Rules>("money_rules"), rpc<PartnerTable>("partner_rate_table", { p_university: null })]);
       body = <Commission m={m} rules={rules} partners={partners} unis={uniList} admin={admin} />;
+    } else if (tab === "ads") {
+      const [ads, dash] = await Promise.all([rpc<AdOverview>("ad_spend_overview", { p_from: null, p_to: null }),
+        (await createClient()).from("dashboards").select("id").eq("key", "ad_spend").maybeSingle()]);
+      body = <AdSpend o={ads} dashboardId={(dash.data as { id: number } | null)?.id ?? null} />;
     } else {
       const r = Number(sp.run);
       body = Number.isInteger(r) && r > 0 ? <RunDetail v={await rpc<RunView>("commission_run_view", { p_run: r })} admin={admin} /> : <Runs m={m} admin={admin} />;
@@ -445,6 +456,44 @@ function RunDetail({ v, admin }: { v: RunView; admin: boolean }) {
           <CommissionLines lines={c.lines} leadHref={(id) => `/w/leads/${id}`} actions={admin && v.status === "draft" ? (l) => <ReleaseLine run={v.id} line={l.id} /> : undefined} />
         </section>
       ))}
+    </div>
+  );
+}
+
+function AdSpend({ o, dashboardId }: { o: AdOverview; dashboardId: number | null }) {
+  const total = sum(o.campaigns, (c) => c.spend), leads = sum(o.campaigns, (c) => c.leads), net = sum(o.campaigns, (c) => c.commission_net);
+  return (
+    <div className="stack">
+      <div className="row wrap"><p className="grow small">Last 90 days ({date(o.from)} – {date(o.to)}): leads are those that arrived in the period; commission is the net university commission booked for them.</p>
+        {dashboardId && <Link className="btn ghost sm" href={`/w/analytics?d=${dashboardId}`}>Ad spend dashboard</Link>}<AdImportButton /></div>
+      <div className="grid g4">
+        <div className="stat"><span className="small muted">Spend</span><b>{inr(total)}</b></div>
+        <div className="stat"><span className="small muted">Leads from ads</span><b>{leads}</b><span className="delta">{leads ? `${inr(total / leads)} a lead` : "none matched yet"}</span></div>
+        <div className="stat"><span className="small muted">Commission from them (net)</span><b>{inr(net)}</b></div>
+        <div className="stat"><span className="small muted">Return on ad spend</span><b>{total ? (net / total).toFixed(2) : "–"}</b><span className="delta">rupees back per rupee spent</span></div>
+      </div>
+      {o.campaigns.length === 0 ? <Empty>No spend imported yet. Export a day-by-day campaign report from Meta or Google and import it.</Empty> : (
+        <div className="table-wrap"><table>
+          <thead><tr><th>Campaign</th><th className="right">Spend</th><th className="right">Clicks</th><th className="right">Platform leads</th><th className="right">Our leads</th>
+            <th className="right">Cost a lead</th><th className="right">Enrolled</th><th className="right">ROAS</th><th>Matched by</th><th /></tr></thead>
+          <tbody>{o.campaigns.map((c) => (
+            <tr key={c.platform + c.campaign_id}>
+              <td>{c.campaign ?? c.campaign_id}<div className="small muted">{c.platform === "meta" ? "Meta" : "Google"} · {c.campaign_id}</div></td>
+              <td className="right num">{inr(c.spend)}</td><td className="right num">{c.clicks}</td><td className="right num">{c.platform_leads}</td>
+              <td className="right num">{c.leads}</td><td className="right num">{c.leads ? inr(c.spend / c.leads) : "–"}</td><td className="right num">{c.enrolled}</td>
+              <td className="right num">{c.spend ? (c.commission_net / c.spend).toFixed(2) : "–"}</td>
+              <td className="small">{c.map ? (c.map.lead_campaign ? `campaign = ${c.map.lead_campaign}` : `source = ${c.map.lead_source}`) : c.leads ? "same campaign value" : <span className="chip risk">no leads matched</span>}</td>
+              <td><AdMapButton platform={c.platform} campaignId={c.campaign_id} campaign={c.campaign ?? c.campaign_id} current={c.map} values={o.lead_values} /></td>
+            </tr>
+          ))}</tbody>
+        </table></div>
+      )}
+      {o.imports.length > 0 && <details><summary className="small">Imports ({o.imports.length})</summary>
+        <div className="table-wrap"><table>
+          <thead><tr><th>When</th><th>Platform</th><th>File</th><th>Days</th><th className="right">Rows</th><th className="right">Spend</th><th>By</th></tr></thead>
+          <tbody>{o.imports.map((i) => <tr key={i.id}><td>{date(i.created_at)}</td><td>{i.platform}</td><td className="small">{i.file_name}</td><td className="small">{date(i.from_day)} – {date(i.to_day)}</td>
+            <td className="right num">{i.rows}</td><td className="right num">{inr(i.spend)}</td><td>{i.by ?? "—"}</td></tr>)}</tbody>
+        </table></div></details>}
     </div>
   );
 }

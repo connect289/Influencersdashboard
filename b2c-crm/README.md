@@ -2,9 +2,10 @@
 
 In-house sales and nurture CRM for Eduwit Learning Services. Spec: `docs/B2C_CRM_PROMPT.md` (final, 14 Oct 2026).
 
-Status: **Phase 1** ("Sell"), **Phase 2** ("Nurture") and **Phase 3** ("Money and analytics", `docs/phase3-plan.md`)
-built and on staging; waiting for the staging setup and the end-to-end test. Phase 4 (telephony, ad spend, performance
-allocation, Calendar, Hindi) is planned in `docs/phase4-plan.md`, waiting for approval.
+Status: all four phases built and on staging: **Phase 1** ("Sell"), **Phase 2** ("Nurture"), **Phase 3** ("Money and
+analytics") and **Phase 4** ("Telephony and depth", `docs/phase4-plan.md`: Exotel behind an adapter but switched off,
+ad spend and ROAS, performance-weighted allocation, Google Calendar; no Hindi, by decision). Waiting for the staging
+setup and the end-to-end test.
 
 - Database: migrations b1 to b18 (`supabase/migrations/`) are applied to the **staging** project `mplbspysxmtohnlwpbti`
   (eduwit-b2b-staging) (b4 to b7, b11 and b12 in parts). Production is untouched.
@@ -34,11 +35,18 @@ allocation, Calendar, Hindi) is planned in `docs/phase4-plan.md`, waiting for ap
   identical bodies, identical guides, nothing executable by `anon`; crons add `b2c-money`, `b2c-facts`, `b2c-alerts`,
   `b2c-anomalies`. **To run by hand on staging:** `supabase/manual/staging_phase3_ledger_guards.sql` (stops anyone
   deleting a money ledger row; the automated path cannot send it).
+- Phase 4: b25 telephony (provider none by default: counsellors keep dialling from their own phones; with Exotel a call
+  is bridged, recorded and logged by itself, missed calls become call-back tasks, recordings in a private bucket with a
+  retention period; test leads only ever reach the mock), b26 ad spend (Meta and Google CSV imports, campaign matching,
+  the `ads` analytics source with cost per lead, cost per enrolment and ROAS, the Ad spend dashboard), b27
+  performance-weighted allocation (smoothed conversion, floor and cap, explained in each decision), b28 Google Calendar
+  sync of follow-ups (one way, no phone or email in events), b29 six guide articles (51 in all). Applied to staging; the
+  local build has 99 tables, 359 functions, 71 policies.
 - `supabase/manual/staging_b4_pool_calendar.sql` (`pool_save`, `calendar_save`) was run by hand on staging on 14 Oct (the
   automated apply path stalls on any SQL containing DELETE). Staging's copies match the local build.
 - Checks: `supabase/tests/test_phase1.sql` (99 checks), `test_phase2.sql` (45, the Phase 2 exit test) and
-  `test_phase3.sql` (91, the Phase 3 exit test; it runs only on the local `b2c_fresh` database because it books money
-  for test universities), all rolled back, all pass on a fresh local database with the migrations applied twice. On staging, run it in the SQL editor after the manual file (it clears holidays inside its own rolled-back transaction).
+  `test_phase3.sql` (91, the Phase 3 exit test) and `test_phase4.sql` (47, the Phase 4 exit test); the last two run
+  only on the local `b2c_fresh` database because they write catalogue fixtures. All rolled back, all pass on a fresh local database with the migrations applied twice. On staging, run it in the SQL editor after the manual file (it clears holidays inside its own rolled-back transaction).
 - The HTTP timers do nothing until the app is deployed and `settings.app.base_url` plus the Vault secret `b2c_internal_key` are set.
 - App (`web/`): built. Sign-in (Google or password, emailed code, trusted device), the Sales app, the Workspace, the
   B2B and WhatsApp webhooks, and the sync jobs. Since then: the email composer, Programme fit and sharing, Witty's
@@ -48,7 +56,10 @@ allocation, Calendar, Hindi) is planned in `docs/phase4-plan.md`, waiting for ap
   scoring), the journey editor, `/w/templates` with Meta submission, nurture on the lead screen, tracked marketing email
   with one-click unsubscribe, and reply classification with Claude. Phase 3: Money (`/w/money`), My money (`/s/money`), Team performance, Analytics
 (`/w/analytics`, `/s/analytics`) with Ask, Explain, drill-down to the Leads page, schedules and alerts, the Brief on the
-lead screen, the month's progress and leaderboard on Today. Typecheck, 79 unit tests and the production build pass; the sign-in
+lead screen, the month's progress and leaderboard on Today. Phase 4: the Call button through `call_start` (the old
+flow while telephony is off; a bridged-call sheet with the mock for test leads), the Exotel webhook, recordings on the
+timeline, Money → Ad spend, performance settings and a share preview on rules, Calendar switches under Connectors and
+Me, telephony status and unknown callers under Connectors. Typecheck, 90 unit tests and the production build pass; the sign-in
   screen was checked in light and dark mode against staging. Setup steps (expose `b2c`, Vercel, Google, first Admin,
   timers, B2B keys) are in `web/README.md`. Not yet run end to end: needs those steps and Addendum 4 deployed in B2B.
 
@@ -60,9 +71,9 @@ lead screen, the month's progress and leaderboard on Today. Typecheck, 79 unit t
 | `docs/phase1-plan.md` | Phase 1 plan: migration order, app scope, exit test |
 | `docs/phase2-plan.md` | Phase 2 plan (Nurture): built as b14–b18, Marketing workspace, exit test, what is needed to go live |
 | `docs/phase3-plan.md` | Phase 3 plan (Money and analytics): b19–b23, money and analytics screens, Brief before you call, exit test, what is needed to go live |
-| `docs/phase4-plan.md` | Phase 4 plan (Telephony and depth): b25–b29, telephony adapter with a mock provider, ad spend and ROAS, performance-weighted allocation, Google Calendar, Hindi; exit test; what is needed. Waiting for approval |
+| `docs/phase4-plan.md` | Phase 4 plan (Telephony and depth) with the decisions of 15 Oct: built as b25–b29 (telephony adapter switched off, ad spend and ROAS, performance-weighted allocation, Google Calendar; no Hindi) |
 | `docs/WITTY_CHANGES_B2C.md` | Witty release W2: the changes Witty needs for the B2C CRM |
-| `supabase/` | Migrations, the manual staging files, local test stubs and the Phase 1, 2 and 3 checks |
+| `supabase/` | Migrations, the manual staging files, local test stubs and the Phase 1–4 checks |
 | `design/` | Clickable design of the three interfaces (sample data) |
 | `web/` | The app (see `web/README.md`) |
 

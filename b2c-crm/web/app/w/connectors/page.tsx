@@ -9,6 +9,9 @@ import { liveMode } from "@/lib/env";
 import { pushConfig } from "@/lib/push";
 import { when } from "@/lib/format";
 import { adminClient } from "@/lib/supabase/admin";
+import { googleSa } from "@/lib/gmail";
+import { exotelConfig } from "@/lib/telephony";
+import { CalendarToggle, UnknownCallDone, type CalendarMine } from "@/components/connectors/CalendarToggle";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Connectors" };
@@ -17,6 +20,9 @@ function Status({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return ok ? <span className="chip ok"><Check className="icon s" aria-hidden />{children}</span> : <span className="chip risk"><CircleAlert className="icon s" aria-hidden />{children}</span>;
 }
 
+type Telephony = { settings: { provider?: string; caller_id?: string | null; retention_days?: number }; last_event: string | null; events_24h: number; bridged_7d: number;
+  recordings: Record<string, number> | null; unknown_calls: { id: number; from_number: string; status: string; at: string }[]; agents_without_phone: string[] };
+type CalStatus = { user_id: string; name: string; on: boolean; error: string | null; synced_at: string | null; pending: number; failed: number }[];
 type Sync = { last_batch_at: string | null; queued: number; failed: number; inbox_errors: number; last_received_at: string | null };
 
 /** Connectors (spec B14): the B2B link, WhatsApp, email, and what is waiting or failed. Problems are shown to the Admin only in detail. */
@@ -28,6 +34,7 @@ export default async function ConnectorsPage() {
   let problems: { id: number; kind: string; lead_id: number | null; status: string; attempts: number; answer: { error?: string } | null; done_at: string | null }[] = [];
   let inboxErrors: { envelope_id: string; type: string; lead_id: number | null; error: string | null; received_at: string }[] = [];
   let live: { whatsapp?: boolean; email?: boolean } = {};
+  let tel: Telephony | null = null, cal: CalStatus = [], mine: CalendarMine | null = null, telProvider = "none";
   try {
     sync = (await rpc<{ sync: Sync }>("admin_home")).sync;
     const supabase = await createClient();
@@ -36,6 +43,10 @@ export default async function ConnectorsPage() {
       supabase.from("settings").select("value").eq("key", "live_mode").maybeSingle(),
     ]);
     templates = t.data ?? [];
+    mine = await rpc<CalendarMine>("calendar_mine").catch(() => null);
+    const telSetting = (await supabase.from("settings").select("value").eq("key", "telephony").maybeSingle()).data?.value as Telephony["settings"] | undefined;
+    telProvider = telSetting?.provider ?? "none";
+    if (admin) [tel, cal] = await Promise.all([rpc<Telephony>("telephony_status"), rpc<CalStatus>("calendar_status")]);
     live = (s.data?.value ?? {}) as typeof live;
     if (admin) {
       const db = adminClient();
@@ -78,6 +89,29 @@ export default async function ConnectorsPage() {
           <p className="note">Every night names, photos and job titles are read from Workspace; an account suspended there is deactivated here and its open leads are reassigned.</p>
         </section>
         <section className="card pad stack" style={{ gap: 8 }}>
+          {(() => {
+            const provider = tel?.settings.provider ?? telProvider;
+            const on = provider === "exotel" ? !!exotelConfig() && liveMode() : provider === "mock";
+            return <>
+              <div className="row between"><h2>Telephony</h2><Status ok={on || provider === "none"}>{provider === "none" ? "Off: own phones" : provider === "mock" ? "Mock (rehearsal)" : on ? "Exotel live" : "Exotel not ready"}</Status></div>
+              <p className="note">{provider === "none" ? "Counsellors dial from their own phones and log each call. Switch Settings → telephony → provider to exotel when the account is ready: calls are then bridged, recorded and logged by themselves."
+                : `Calls ring the counsellor's phone, then the student, and log themselves; every call is recorded and kept ${tel?.settings.retention_days ?? 180} days. Test leads always use the mock.`}</p>
+              {admin && tel && provider !== "none" && <dl className="kv small">
+                <dt>Last event</dt><dd>{when(tel.last_event)}</dd><dt>Events, 24 h</dt><dd>{tel.events_24h}</dd><dt>Bridged calls, 7 days</dt><dd>{tel.bridged_7d}</dd>
+                <dt>Recordings</dt><dd>{Object.entries(tel.recordings ?? {}).map(([k, v]) => `${v} ${k}`).join(" · ") || "none"}</dd>
+                {provider === "exotel" && !exotelConfig() && <><dt>Missing</dt><dd>EXOTEL_SID, EXOTEL_API_KEY, EXOTEL_API_TOKEN, EXOTEL_WEBHOOK_KEY</dd></>}
+                {provider === "exotel" && !liveMode() && <><dt>LIVE_MODE</dt><dd>off: no real call is placed</dd></>}
+              </dl>}
+              {admin && tel && tel.agents_without_phone.length > 0 && provider !== "none" && <p className="small">No mobile number in Teams: {tel.agents_without_phone.join(", ")}.</p>}
+            </>;
+          })()}
+        </section>
+        <section className="card pad stack" style={{ gap: 8 }}>
+          <div className="row between"><h2>Google Calendar</h2><Status ok={!!googleSa()}>{googleSa() ? "Ready" : "Service account not set"}</Status></div>
+          <CalendarToggle mine={mine} ready={!!googleSa()} />
+          {admin && cal.some((c) => c.on) && <p className="small">On for {cal.filter((c) => c.on).map((c) => c.name).join(", ")}{cal.some((c) => c.error) ? `. Errors: ${cal.filter((c) => c.error).map((c) => `${c.name} (${c.error})`).join("; ")}` : ""}.</p>}
+        </section>
+        <section className="card pad stack" style={{ gap: 8 }}>
           <div className="row between"><h2>Phone alerts</h2><Status ok={!!pushConfig()}>{pushConfig() ? "Ready" : "Push keys not set"}</Status></div>
           <p className="note">Each person turns alerts on per device under Me → Availability and alerts. Reminders arrive 10 minutes before a follow-up.</p>
         </section>
@@ -89,6 +123,15 @@ export default async function ConnectorsPage() {
           <tbody>{templates.map((t) => <tr key={`${t.name}-${t.language}`}><td className="mono">{t.name}</td><td>{t.audience}</td><td>{t.purpose ?? "—"}</td><td>{t.language}</td><td>{t.status}</td></tr>)}</tbody>
         </table></div>
       </section>
+      {admin && tel && tel.unknown_calls.length > 0 && (
+        <section className="stack">
+          <h2>Missed calls from unknown numbers</h2>
+          <div className="table-wrap"><table>
+            <thead><tr><th>From</th><th>Status</th><th>When</th><th /></tr></thead>
+            <tbody>{tel.unknown_calls.map((u) => <tr key={u.id}><td className="mono">{u.from_number}</td><td>{u.status}</td><td>{when(u.at)}</td><td><UnknownCallDone id={u.id} /></td></tr>)}</tbody>
+          </table></div>
+        </section>
+      )}
       {admin && (problems.length > 0 || inboxErrors.length > 0) && (
         <section className="stack">
           <h2>Needs attention</h2>

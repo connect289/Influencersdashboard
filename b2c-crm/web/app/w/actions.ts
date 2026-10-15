@@ -78,6 +78,12 @@ const condition = z.object({
   any: z.array(z.object({ field: z.string(), op: z.string(), value: z.unknown().optional() })).optional(),
 });
 
+/** The shares a performance rule would use now (b2c.perf_preview). */
+export async function perfPreview(rule: number): Promise<ActionResult<unknown>> {
+  await assertUser([...ADMIN]);
+  return act(() => rpc("perf_preview", { p_rule: z.coerce.number().int().positive().parse(rule) }));
+}
+
 export async function ruleSave(input: {
   id?: number | null; name: string; enabled?: boolean; condition?: z.infer<typeof condition>; logic?: string; params?: Record<string, unknown>;
   pool_id?: number | null; fallbacks?: string[]; applies_from?: string | null;

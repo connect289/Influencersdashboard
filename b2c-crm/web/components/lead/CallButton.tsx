@@ -1,23 +1,29 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Phone } from "lucide-react";
+import { Copy, PhoneCall, Phone } from "lucide-react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
-import { callLog, callTap, numberCopied } from "@/app/s/actions";
+import { callLog, numberCopied } from "@/app/s/actions";
+import { callGet, callMock, callNote, callStart, type CallView } from "@/app/s/call-actions";
 import { maskPhone } from "@/lib/format";
 import { OUTCOME_LABEL, OUTCOMES } from "@/lib/labels";
 import { NextPicker } from "./NextPicker";
 
 type Open = { callId: number; number: string; tel: string; tappedAt: number };
+type Bridge = { callId: number; provider: string; agent: string; number: string };
 
 /**
- * Call (spec B8.2): records the tap, opens the phone's dialler, then asks for the outcome. The log needs an outcome and the
- * next follow-up; talk time is estimated from the time away. An unlogged tap is flagged after 10 minutes by the database.
+ * Call (spec B8.2, B8.4). Without telephony (today): records the tap, opens the phone's dialler, then asks for the
+ * outcome; the log needs an outcome and the next follow-up, talk time is estimated from the time away, and an unlogged tap
+ * is flagged after 10 minutes. With telephony on: the provider rings the counsellor's phone, then the student, and the
+ * call logs itself (outcome, real talk time, recording) when it ends; the sheet only follows it and takes a note.
  */
-export function CallButton({ leadId, name, small, label = "Call", pending }: { leadId: number; name: string; small?: boolean; label?: string; pending?: { id: number; number: string; tapped_at: string } | null }) {
+export function CallButton({ leadId, name, small, label = "Call", pending: unlogged }: { leadId: number; name: string; small?: boolean; label?: string; pending?: { id: number; number: string; tapped_at: string; provider?: string } | null }) {
+  const pending = unlogged && (unlogged.provider ?? "manual") === "manual" ? unlogged : null;
   const [open, setOpen] = useState<Open | null>(null);
+  const [bridge, setBridge] = useState<Bridge | null>(null);
   const [busy, start] = useTransition();
 
   function tap() {
@@ -26,10 +32,12 @@ export function CallButton({ leadId, name, small, label = "Call", pending }: { l
       return;
     }
     start(async () => {
-      const r = await callTap(leadId);
+      const r = await callStart(leadId);
       if (!r.ok || !r.data) return void toast.error(r.ok ? "The call could not start." : r.error);
-      setOpen({ callId: r.data.call_id, number: r.data.number, tel: r.data.tel, tappedAt: Date.now() });
-      if (window.matchMedia("(pointer: coarse)").matches) window.location.href = r.data.tel;
+      const d = r.data;
+      if (d.mode === "bridge") return void setBridge({ callId: d.call_id, provider: d.provider, agent: d.agent, number: d.number });
+      setOpen({ callId: d.call_id, number: d.number, tel: d.tel, tappedAt: Date.now() });
+      if (window.matchMedia("(pointer: coarse)").matches) window.location.href = d.tel;
     });
   }
 
@@ -40,6 +48,7 @@ export function CallButton({ leadId, name, small, label = "Call", pending }: { l
         {pending ? "Log call" : label}
       </button>
       {open && <CallLogSheet leadId={leadId} name={name} call={open} onClose={() => setOpen(null)} />}
+      {bridge && <BridgeSheet leadId={leadId} name={name} call={bridge} onClose={() => setBridge(null)} />}
     </>
   );
 }
@@ -125,5 +134,79 @@ function DeskDialer({ leadId, call }: { leadId: number; call: Open }) {
       {svg && <div className="qr" role="img" aria-label="QR code: scan with your phone to dial" dangerouslySetInnerHTML={{ __html: svg }} />}
       <span className="note">Scan with your phone's camera to dial, then log the call here.</span>
     </div>
+  );
+}
+
+const STATUS_TEXT: Record<string, string> = {
+  initiated: "Calling your phone…", ringing: "Ringing…", answered: "Connected", completed: "Call ended", no_answer: "No answer", busy: "Busy",
+  failed: "Could not connect", agent_no_answer: "Your phone did not answer: the student was not called", missed: "Missed",
+};
+
+/** A bridged call: the provider rings the counsellor, then the student; the CRM logs it when it ends. */
+function BridgeSheet({ leadId, name, call, onClose }: { leadId: number; name: string; call: Bridge; onClose: () => void }) {
+  const router = useRouter();
+  const [view, setView] = useState<CallView | null>(null);
+  const [note, setNote] = useState("");
+  const [busy, start] = useTransition();
+  const mock = call.provider === "mock";
+  useEffect(() => {
+    let live = true;
+    const tick = async () => {
+      const r = await callGet(call.callId);
+      if (live && r.ok && r.data) {
+        setView(r.data);
+        if (r.data.ended) router.refresh();
+      }
+    };
+    void tick();
+    const t = setInterval(() => { if (!view?.ended) void tick(); }, 3000);
+    return () => { live = false; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [call.callId, view?.ended]);
+  const play = (status: "answered" | "completed" | "no_answer" | "busy" | "agent_no_answer", minutes = 0) => start(async () => {
+    const r = await callMock(call.callId, status, minutes, leadId);
+    if (!r.ok) return void toast.error(r.error);
+    const g = await callGet(call.callId);
+    if (g.ok && g.data) setView(g.data);
+    router.refresh();
+  });
+  const saveNote = () => start(async () => {
+    const r = await callNote(call.callId, note, leadId);
+    if (!r.ok) return void toast.error(r.error);
+    toast.success(r.notice ?? "Note added.");
+    onClose();
+    router.refresh();
+  });
+  const ended = !!view?.ended;
+  return (
+    <Sheet title={`Call ${name}`} onClose={onClose}>
+      <div className="dialer">
+        <span className="eyebrow">{mock ? "Test call (mock provider: nobody is dialled)" : `Through ${call.provider}: your phone ${call.agent} rings first`}</span>
+        <span className="bignum"><PhoneCall className="icon" aria-hidden /> {STATUS_TEXT[view?.status ?? "initiated"] ?? view?.status}</span>
+        {ended && view?.outcome && <span className="small">Logged: {OUTCOME_LABEL[view.outcome] ?? view.outcome}{view.duration_s ? ` · ${Math.floor(view.duration_s / 60)} min ${view.duration_s % 60} s` : ""}. The recording is attached when it arrives.</span>}
+        {!ended && <span className="note">Pick up your phone; the student is called when you answer. Nothing to log: the call records and logs itself.</span>}
+      </div>
+      {mock && !ended && (
+        <div className="field">
+          <span>Play what the provider would report</span>
+          <div className="pills">
+            <button type="button" className="pill" disabled={busy} onClick={() => play("answered")}>Answered</button>
+            <button type="button" className="pill" disabled={busy} onClick={() => play("completed", 3.5)}>Ended after 3½ min</button>
+            <button type="button" className="pill" disabled={busy} onClick={() => play("no_answer")}>Student did not answer</button>
+            <button type="button" className="pill" disabled={busy} onClick={() => play("busy")}>Busy</button>
+            <button type="button" className="pill" disabled={busy} onClick={() => play("agent_no_answer")}>My phone did not answer</button>
+          </div>
+        </div>
+      )}
+      {ended && view?.logged && view.outcome && (
+        <>
+          <label className="field"><span>Add a note (optional)</span>
+            <textarea className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What did you learn?" maxLength={2000} /></label>
+          <p className="note">A follow-up was suggested from the outcome; change it under Follow-ups if needed.</p>
+          <button type="button" className="btn primary block" disabled={busy || !note.trim()} onClick={saveNote}>Save note</button>
+        </>
+      )}
+      {ended && <button type="button" className="btn ghost block" onClick={onClose}>Close</button>}
+    </Sheet>
   );
 }

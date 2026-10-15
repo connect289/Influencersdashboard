@@ -11,6 +11,8 @@ import { ROLE_LABEL } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
 import type { Enrollment } from "@/lib/types";
 import { Availability } from "./Availability";
+import { CalendarToggle, type CalendarMine } from "@/components/connectors/CalendarToggle";
+import { googleSa } from "@/lib/gmail";
 import { EmailTemplates, type EmailTemplate } from "./EmailTemplates";
 
 export const metadata: Metadata = { title: "Me" };
@@ -62,6 +64,8 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
       <div className="stack">
         <Availability awayUntil={away} label={away ? `Away until ${when(away)}` : "Working"} />
         <PushToggle vapidKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
+        <section className="panel"><header><h3>Google Calendar</h3></header>
+          <div className="body"><CalendarToggle mine={await rpc<CalendarMine>("calendar_mine").catch(() => null)} ready={!!googleSa()} /></div></section>
       </div>
     );
   } else {

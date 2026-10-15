@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
 import { FACT_FIELDS, FALLBACK_LABEL, LOGIC_LABEL, OP_LABEL } from "@/lib/labels";
-import { ruleSave, rulesReorder } from "../actions";
+import { perfPreview, ruleSave, rulesReorder } from "../actions";
 import type { Pool } from "./Pools";
 
 type Cond = { field: string; op: string; value?: unknown };
@@ -90,6 +90,7 @@ function RuleSheet({ rule, pools, onClose }: { rule: Rule | null; pools: Pool[];
   const [conds, setConds] = useState<Cond[]>(rule?.condition.all ?? []);
   const [fallbacks, setFallbacks] = useState<string[]>(rule?.fallbacks ?? ["next_rule"]);
   const [match, setMatch] = useState<string[]>((rule?.params?.match as string[] | undefined) ?? ["language"]);
+  const [perf, setPerf] = useState({ window_days: Number(rule?.params?.window_days ?? 90), floor: Number(rule?.params?.floor ?? 0.5), cap: Number(rule?.params?.cap ?? 2) });
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
   const catchAll = !!rule?.is_catch_all;
@@ -101,7 +102,7 @@ function RuleSheet({ rule, pools, onClose }: { rule: Rule | null; pools: Pool[];
     const r = await ruleSave({
       id: rule?.id ?? null, name, logic, pool_id: pool ? Number(pool) : null, fallbacks,
       condition: catchAll ? {} : { all: conds.map((c) => ({ field: c.field, op: c.op, ...(NO_VALUE.has(c.op) ? {} : { value: parseValue(c.op, c.value) }) })) },
-      params: logic === "skill_match" ? { match } : {},
+      params: logic === "skill_match" ? { match } : logic === "performance" ? perf : {},
     });
     if (!r.ok) return setError(r.error);
     toast.success(r.notice ?? "Saved.");
@@ -146,6 +147,20 @@ function RuleSheet({ rule, pools, onClose }: { rule: Rule | null; pools: Pool[];
           ))}
         </div></div>
       )}
+      {logic === "performance" && (
+        <div className="field"><span>Performance</span>
+          <div className="grid g3">
+            <label className="field"><span>Conversion over</span><select className="input" value={perf.window_days} onChange={(e) => setPerf({ ...perf, window_days: Number(e.target.value) })}>
+              <option value={30}>30 days</option><option value={90}>90 days</option></select></label>
+            <label className="field"><span>At least (× an equal share)</span><select className="input" value={perf.floor} onChange={(e) => setPerf({ ...perf, floor: Number(e.target.value) })}>
+              {[0.25, 0.5, 0.75].map((v) => <option key={v} value={v}>{v}</option>)}</select></label>
+            <label className="field"><span>At most (× an equal share)</span><select className="input" value={perf.cap} onChange={(e) => setPerf({ ...perf, cap: Number(e.target.value) })}>
+              {[1.5, 2, 3].map((v) => <option key={v} value={v}>{v}</option>)}</select></label>
+          </div>
+          <p className="note">Better converters get more turns. A counsellor with fewer than 20 leads in the window counts at the team&apos;s rate, and small samples lean towards it, so one lucky enrolment does not swing the shares.</p>
+          {rule && <PerfPreview ruleId={rule.id} />}
+        </div>
+      )}
       <label className="field"><span>Among</span><select className="input" value={pool} onChange={(e) => setPool(e.target.value)}>
         <option value="">Everyone who takes leads</option>
         {pools.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -160,5 +175,28 @@ function RuleSheet({ rule, pools, onClose }: { rule: Rule | null; pools: Pool[];
       <button type="button" className="btn primary block" disabled={busy || name.trim().length < 2 || fallbacks.length === 0} onClick={save}>{busy ? "Saving…" : "Save rule"}</button>
       <p className="note">A change applies to the next lead; past decisions keep the rule they used. Run a simulation first if you are unsure.</p>
     </Sheet>
+  );
+}
+
+type Preview = { team_rate: number; window_days: number; floor: number; cap: number; rows: { user_id: string; name: string; assigned: number; enrolled: number; rate: number | null; new: boolean; share: number; weight: number }[] };
+
+/** The shares this rule would use now (as saved), for every active person in its pool. */
+function PerfPreview({ ruleId }: { ruleId: number }) {
+  const [p, setP] = useState<Preview | null>(null);
+  const [busy, start] = useTransition();
+  if (!p) return <button type="button" className="btn ghost sm" style={{ justifySelf: "start" }} disabled={busy} onClick={() => start(async () => {
+    const r = await perfPreview(ruleId);
+    if (!r.ok || !r.data) return void toast.error(r.ok ? "No preview." : r.error);
+    setP(r.data as Preview);
+  })}>Show current shares (as saved)</button>;
+  return (
+    <div className="stack" style={{ gap: 4 }}>
+      <span className="small">Team conversion {(p.team_rate * 100).toFixed(1)}% over {p.window_days} days; shares between {p.floor}× and {p.cap}× an equal share.</span>
+      <div className="table-wrap"><table>
+        <thead><tr><th>Counsellor</th><th className="right">Leads</th><th className="right">Enrolled</th><th className="right">Conversion</th><th className="right">Share of turns</th></tr></thead>
+        <tbody>{p.rows.map((r) => <tr key={r.user_id}><td>{r.name}{r.new ? <span className="chip line" style={{ marginLeft: 4 }}>team rate</span> : null}</td><td className="right num">{r.assigned}</td>
+          <td className="right num">{r.enrolled}</td><td className="right num">{r.rate === null ? "–" : `${(r.rate * 100).toFixed(1)}%`}</td><td className="right num">{(r.share * 100).toFixed(1)}%</td></tr>)}</tbody>
+      </table></div>
+    </div>
   );
 }
