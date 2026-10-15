@@ -571,6 +571,191 @@ begin
   insert into r (name, ok, detail) values ('c11_neglect_once_per_spell', b2c.neglect_tick() = 0, null);
 end $x$;
 
+-- ========== b42: access, stages and allocation ==========
+insert into auth.users (id, email, aud, role) values ('aaaaaaaa-0000-0000-0000-00000000e905', 'sona.cp@eduwit.in', 'authenticated', 'authenticated');
+insert into b2c.users (user_id, email, full_name, role, is_active, is_test_user, takes_leads, languages, team) values
+  ('aaaaaaaa-0000-0000-0000-00000000e905', 'sona.cp@eduwit.in', 'Sona CP', 'sales_head', true, true, false, '{English}', 'CP North');
+update b2c.users set team = 'CP North' where user_id = 'aaaaaaaa-0000-0000-0000-00000000e901';
+update b2c.users set team = 'CP South' where user_id = 'aaaaaaaa-0000-0000-0000-00000000e902';
+insert into b2c.session_checks (session_id, user_id, method) values ('bbbbbbbb-0000-0000-0000-00000000e905', 'aaaaaaaa-0000-0000-0000-00000000e905', 'email_code') on conflict do nothing;
+
+-- E15 the sales head's team; stage overrides asked by a counsellor, approved by the sales head
+do $x$
+declare j jsonb; e text; v bigint;
+begin
+  perform pg_temp.as_system();
+  perform pg_temp.lead(996640, '{"b2c_lane": "sales", "reason": "no_partner_offers_programme"}'::jsonb);
+  perform pg_temp.lead(996641, '{"b2c_lane": "sales", "reason": "no_partner_offers_programme"}'::jsonb);
+  update b2c.leads_state set status = 'active', owner_id = 'aaaaaaaa-0000-0000-0000-00000000e901', assigned_at = now(), stage_id = 4, sub_stage = 'Budget confirmed' where lead_id = 996640;
+  insert into b2c.calls (lead_id, number, direction, outcome, logged_at, user_id) values (996640, '910000999640', 'out', 'connected', now(), 'aaaaaaaa-0000-0000-0000-00000000e901');
+  update b2c.leads_state set status = 'active', owner_id = 'aaaaaaaa-0000-0000-0000-00000000e902', assigned_at = now(), stage_id = 3 where lead_id = 996641;
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e905');
+  insert into r (name, ok, detail) values ('e15_head_sees_own_team', b2c.can_see(996640) and not b2c.can_see(996641), null);
+  j := b2c.lead_list('{"ids": [996640, 996641], "include_test": true}');
+  insert into r (name, ok, detail) values ('e15_head_list_is_team', (j ->> 'total')::int = 1 and (j -> 'rows' -> 0 ->> 'lead_id')::bigint = 996640, j ->> 'total');
+  begin perform b2c.reassign(array[996641]::bigint[], 'aaaaaaaa-0000-0000-0000-00000000e901', 'move it'); e := 'moved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('e15_head_reassigns_in_team_only', e = 'not your team''s lead', e);
+  begin perform b2c.reassign(array[996640]::bigint[], 'aaaaaaaa-0000-0000-0000-00000000e902', 'move it'); e := 'moved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('e15_head_reassigns_to_team_only', e = 'choose someone in your team', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  begin perform b2c.set_stage(996640, 3::smallint, 'Spoke briefly', 'back', now() + interval '1 day'); e := 'moved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('e15_counsellor_cannot_move_back', e like 'moving back%', e);
+  v := b2c.stage_override_request(996640, 3::smallint, 'Spoke briefly', 'student wants to restart', now() + interval '1 day');
+  insert into r (name, ok, detail) values ('e15_request_notifies_head', exists (select 1 from b2c.notifications n where n.user_id = 'aaaaaaaa-0000-0000-0000-00000000e905' and n.kind = 'stage_request'), null);
+  begin perform b2c.stage_override_decide(v, true); e := 'decided'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('e15_counsellor_cannot_approve', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e905');
+  insert into r (name, ok, detail) values ('e15_head_sees_request', jsonb_array_length(b2c.stage_requests_list()) >= 1, null);
+  j := b2c.stage_override_decide(v, true, 'fine');
+  insert into r (name, ok, detail) values ('e15_approved_moves_back', (select stage_id from b2c.leads_state where lead_id = 996640) = 3
+    and (select status from b2c.stage_requests where id = v) = 'approved', j::text);
+  perform pg_temp.as_system();
+end $x$;
+
+-- E2/D4 stages and sub-stages
+do $x$
+declare j jsonb; e text; v bigint;
+begin
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e905');
+  begin perform b2c.stage_save('{"id": 3, "name": "x"}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('e2_stages_admin_only', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  begin perform b2c.stage_save('{"id": 3, "required": ["moon"]}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('e2_requirements_checked', e = 'unknown requirement', e);
+  perform b2c.stage_save('{"id": 3, "name": "Contacted (CP)", "reason": "test"}');
+  v := b2c.sub_stage_save('{"stage_id": 3, "name": "CP waiting for parents", "comment_required": true}');
+  begin perform b2c.sub_stage_save('{"stage_id": 3, "name": "cp WAITING for parents"}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('e2_no_duplicate_sub_stage', e = 'that sub-stage exists', e);
+  j := b2c.stages_admin();
+  insert into r (name, ok, detail) values ('e2_editor_with_history', exists (select 1 from jsonb_array_elements(j -> 'stages') x where (x ->> 'id')::int = 3 and x ->> 'name' = 'Contacted (CP)')
+    and jsonb_array_length(j -> 'history') >= 2, null);
+  perform pg_temp.as_system();
+end $x$;
+
+-- E4 assignment email fallback; E5 on-call; E7 breaks, holidays, week; E6 queues; E13 simulate future rules
+do $x$
+declare j jsonb; e text; v bigint; u b2c.users; q bigint;
+begin
+  perform pg_temp.as_system();
+  perform pg_temp.lead(996642, '{"b2c_lane": "sales", "reason": "no_partner_offers_programme"}'::jsonb);
+  update b2c.leads_state set status = 'active', owner_id = 'aaaaaaaa-0000-0000-0000-00000000e901', assigned_at = now() where lead_id = 996642;
+  insert into b2c.send_queue (channel, lead_id, to_address, payload, purpose, status, attempts) values ('whatsapp', 996642, '910000999642', '{"type": "text", "text": "x"}', 'assignment', 'sending', 5)
+  returning id into q;
+  perform b2c.send_done(jsonb_build_array(jsonb_build_object('id', q, 'ok', false, 'error', 'not on WhatsApp')));
+  insert into r (name, ok, detail) values ('e4_failed_whatsapp_falls_back_to_email', exists (select 1 from b2c.send_queue x where x.lead_id = 996642 and x.channel = 'email' and x.purpose = 'assignment'
+    and x.payload ->> 'subject' = 'Your Eduwit counsellor: Asha CP'), null);
+  insert into r (name, ok, detail) values ('e4_witty_idle_checked_at_send', not b2c.witty_busy(996642), null);
+
+  -- on call: a hot lead while everyone is off hours
+  perform pg_temp.lead(996643, '{"b2c_lane": "sales", "reason": "no_partner_offers_programme"}'::jsonb);
+  update b2c.leads_state set hot = true where lead_id = 996643;
+  insert into b2c.shift_overrides (user_id, day, off) select user_id, b2c.local_day(user_id, now()), true from b2c.users where email like '%.cp@eduwit.in'
+  on conflict do nothing;
+  update b2c.users set on_call = true where user_id = 'aaaaaaaa-0000-0000-0000-00000000e902';
+  j := b2c.decide(996643, 'handoff', now(), null, false);
+  insert into r (name, ok, detail) values ('e5_hot_outside_hours_to_on_call', j ->> 'outcome' = 'assigned' and j ->> 'chosen' = 'aaaaaaaa-0000-0000-0000-00000000e902' and j ->> 'logic' = 'on_call', j::text);
+  update b2c.users set on_call = false where user_id = 'aaaaaaaa-0000-0000-0000-00000000e902';
+  delete from b2c.shift_overrides where user_id in (select user_id from b2c.users where email like '%.cp@eduwit.in');
+
+  -- breaks: hot leads only
+  insert into b2c.work_breaks (user_id, start_t, end_t, label) values ('aaaaaaaa-0000-0000-0000-00000000e901', '00:00', '23:59', 'CP lunch');
+  select * into u from b2c.users where user_id = 'aaaaaaaa-0000-0000-0000-00000000e901';
+  insert into r (name, ok, detail) values ('e7_break_takes_hot_only', b2c.ineligible(u, b2c.lead_facts(996643, 'handoff'), now(), false, false) = 'on break'
+    and b2c.ineligible(u, b2c.lead_facts(996643, 'handoff'), now(), true, false) is null, null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  perform b2c.holidays_import('[{"day": "2099-01-26", "name": "CP Republic Day", "kind": "national"}, {"day": "2099-08-15", "name": "CP Independence Day"}]');
+  insert into r (name, ok, detail) values ('e7_holiday_import', (select count(*) from b2c.holidays where name like 'CP %') = 2, null);
+  j := b2c.calendar_week('2099-01-26');
+  insert into r (name, ok, detail) values ('e7_week_view', jsonb_array_length(j -> 'days') = 7 and j -> 'days' -> 0 ->> 'holiday' = 'CP Republic Day' and (j -> 'days' -> 0 -> 'nobody_on_duty')::boolean
+    and j -> 'breaks' -> 0 ->> 'label' = 'CP lunch', null);
+
+  -- queues: the manual queue is not decided again every minute
+  perform pg_temp.as_system();
+  perform pg_temp.lead(996644, '{"b2c_lane": "sales", "reason": "no_partner_offers_programme"}'::jsonb);
+  update b2c.leads_state set status = 'active', owner_id = null where lead_id = 996644;
+  insert into b2c.allocation_decisions (lead_id, trigger, outcome, why, at) values (996644, 'handoff', 'manual_queue', 'manual queue', now() + interval '1 minute');
+  perform b2c.allocation_tick();
+  insert into r (name, ok, detail) values ('e6_manual_queue_left_alone', (select outcome from b2c.allocation_decisions where lead_id = 996644 and not simulated order by at desc limit 1) = 'manual_queue'
+    and (select owner_id from b2c.leads_state where lead_id = 996644) is null, null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  j := b2c.queues();
+  insert into r (name, ok, detail) values ('e6_queues_apart', exists (select 1 from jsonb_array_elements(j -> 'manual') x where (x ->> 'lead_id')::bigint = 996644), null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  begin perform b2c.queue_allocate(996644); e := 'allocated'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('e6_allocate_needs_reassign', e = 'not allowed', e);
+
+  -- E13 a future rule can be simulated
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  v := b2c.rule_save(jsonb_build_object('name', 'CP future', 'logic', 'manual', 'applies_from', now() + interval '30 days', 'position', 1));
+  create temp table if not exists sim_load (user_id uuid, m date, d date, n int);
+  create temp table if not exists sim_turns (rule_id bigint primary key, turn int);
+  perform set_config('b2c.sim_rules', array[v]::text, true);
+  j := b2c.decide(996644, 'handoff', now(), null, true);
+  insert into r (name, ok, detail) values ('e13_simulate_future_rule', j ->> 'rule_name' = 'CP future' and j ->> 'outcome' = 'manual_queue', j::text);
+  perform set_config('b2c.sim_rules', '', true);
+  j := b2c.decide(996644, 'handoff', now(), null, true);
+  insert into r (name, ok, detail) values ('e13_future_rule_not_live', j ->> 'rule_name' is distinct from 'CP future', j::text);
+  perform pg_temp.as_system();
+end $x$;
+
+-- E8 capacity; E9 directory and invitations; E10 sessions; E14 writes; D13 view as Sales
+do $x$
+declare j jsonb; e text; n int;
+begin
+  perform pg_temp.as_system();
+  update b2c.users set monthly_cap = 1, is_test_user = false where user_id = 'aaaaaaaa-0000-0000-0000-00000000e901';
+  n := b2c.capacity_tick();
+  insert into r (name, ok, detail) values ('e8_capacity_alert', exists (select 1 from b2c.notifications x where x.kind = 'capacity' and x.title like 'Asha CP is at%'), n::text);
+  update b2c.users set monthly_cap = 200, is_test_user = true where user_id = 'aaaaaaaa-0000-0000-0000-00000000e901';
+  perform b2c.directory_sync('[{"email": "newperson.cp@eduwit.in", "name": "New Person CP"}, {"email": "asha.cp@eduwit.in", "name": "Asha CP"}]');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  j := b2c.directory_unadded();
+  insert into r (name, ok, detail) values ('e9_unadded_workspace_users', exists (select 1 from jsonb_array_elements(j) x where x ->> 'email' = 'newperson.cp@eduwit.in')
+    and not exists (select 1 from jsonb_array_elements(j) x where x ->> 'email' = 'asha.cp@eduwit.in'), j::text);
+  perform b2c.invite_sent('aaaaaaaa-0000-0000-0000-00000000e902');
+  insert into r (name, ok, detail) values ('e9_invite_valid_7_days', b2c.invite_ok('bala.cp@eduwit.in'), null);
+  perform pg_temp.as_system();
+  update b2c.users set invite_expires_at = now() - interval '1 minute' where user_id = 'aaaaaaaa-0000-0000-0000-00000000e902';
+  insert into r (name, ok, detail) values ('e9_invite_expires', not b2c.invite_ok('bala.cp@eduwit.in'), null);
+  update b2c.users set first_sign_in_at = now() where user_id = 'aaaaaaaa-0000-0000-0000-00000000e902';
+  insert into r (name, ok, detail) values ('e9_signed_in_users_unaffected', b2c.invite_ok('bala.cp@eduwit.in'), null);
+
+  insert into b2c.trusted_devices (token_hash, user_id, label, expires_at) values ('cp-device-hash-0000000001', 'aaaaaaaa-0000-0000-0000-00000000e902', 'CP phone', now() + interval '30 days');
+  insert into r (name, ok, detail) values ('e10_trusted_7_days', (select expires_at < now() + interval '7 days 1 minute' from b2c.trusted_devices where token_hash = 'cp-device-hash-0000000001'), null);
+  insert into b2c.session_checks (session_id, user_id, method) values ('cccccccc-0000-0000-0000-00000000e902', 'aaaaaaaa-0000-0000-0000-00000000e902', 'email_code');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e902');
+  perform b2c.session_note('CP browser', '127.0.0.1');
+  j := b2c.my_devices();
+  insert into r (name, ok, detail) values ('e10_device_list', jsonb_array_length(j -> 'sessions') = 2 and jsonb_array_length(j -> 'devices') = 1
+    and exists (select 1 from jsonb_array_elements(j -> 'sessions') x where (x ->> 'current')::boolean and x ->> 'user_agent' = 'CP browser'), j::text);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  n := b2c.session_revoke(null, null, 'aaaaaaaa-0000-0000-0000-00000000e902');
+  insert into r (name, ok, detail) values ('e10_admin_signs_out_everywhere', n = 3, n::text);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e902');
+  insert into r (name, ok, detail) values ('e10_revoked_session_has_no_role', b2c.my_role() is null, null);
+  perform pg_temp.as_system();
+  update b2c.session_checks set revoked_at = null where user_id = 'aaaaaaaa-0000-0000-0000-00000000e902';
+
+  perform pg_temp.lead(996645, '{"b2c_lane": "sales", "reason": "no_partner_offers_programme"}'::jsonb);
+  update b2c.assignments set ended_at = now() where lead_id = 996645 and ended_at is null;
+  insert into b2c.assignments (lead_id, user_id, trigger) values (996645, 'aaaaaaaa-0000-0000-0000-00000000e901', 'test');
+  insert into r (name, ok, detail) values ('e14_off_until_b2b_accepts', not exists (select 1 from b2c.outbox o where o.lead_id = 996645 and o.kind = 'update' and o.body -> 'set' ? 'team_id'), null);
+  update b2c.settings set value = '{"team_and_revenue": true}' where key = 'b2b_writes';
+  update b2c.assignments set ended_at = now() where lead_id = 996645 and ended_at is null;
+  insert into b2c.assignments (lead_id, user_id, trigger) values (996645, 'aaaaaaaa-0000-0000-0000-00000000e901', 'test');
+  insert into r (name, ok, detail) values ('e14_team_written', exists (select 1 from b2c.outbox o where o.lead_id = 996645 and o.kind = 'update' and o.body -> 'set' ->> 'team_id' = 'CP North'), null);
+  update b2c.settings set value = '{"team_and_revenue": false}' where key = 'b2b_writes';
+
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e905');
+  begin perform b2c.view_as_sales('aaaaaaaa-0000-0000-0000-00000000e901'); e := 'viewed'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('d13_view_as_admin_only', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  j := b2c.view_as_sales('aaaaaaaa-0000-0000-0000-00000000e901', '{"ids": [996640, 996641]}');
+  insert into r (name, ok, detail) values ('d13_view_as_counsellor_logged', (j -> 'leads' ->> 'total')::int = 1
+    and exists (select 1 from b2c.audit_log a where a.action = 'view_as_sales' and a.detail ->> 'as' = 'aaaaaaaa-0000-0000-0000-00000000e901'), j::text);
+  perform pg_temp.as_system();
+end $x$;
+
 -- ---------- grants ----------
 insert into r (name, ok, detail)
 select 'authenticated_can_call', bool_and(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where not has_function_privilege('authenticated', f, 'execute'))
@@ -581,14 +766,19 @@ select 'authenticated_can_call', bool_and(has_function_privilege('authenticated'
     'b2c.exports_mine()', 'b2c.export_open(bigint)', 'b2c.wa_queue_media(bigint,text,text,text,text,text)', 'b2c.wa_media_open(bigint)',
     'b2c.wa_media_attach(bigint,bigint,text)', 'b2c.programme_compare(bigint[],bigint)', 'b2c.programme_facets()', 'b2c.pipeline_board(jsonb)', 'b2c.email_library(jsonb)',
     'b2c.merge_values(bigint)', 'b2c.my_wa_alerts_set(text[])', 'b2c.custom_fields_save(jsonb,text)', 'b2c.custom_field_set(bigint,text,text)',
-    'b2c.checklist_save(text,text[],text)', 'b2c.checklists()', 'b2c.document_open(bigint)']) f;
+    'b2c.checklist_save(text,text[],text)', 'b2c.checklists()', 'b2c.document_open(bigint)',
+    'b2c.stage_override_request(bigint,smallint,text,text,timestamp with time zone)', 'b2c.stage_override_decide(bigint,boolean,text)', 'b2c.stage_requests_list()',
+    'b2c.stage_save(jsonb)', 'b2c.sub_stage_save(jsonb)', 'b2c.stages_admin()', 'b2c.queues()', 'b2c.queue_allocate(bigint)', 'b2c.breaks_save(jsonb)',
+    'b2c.holidays_import(jsonb)', 'b2c.calendar_week(date)', 'b2c.directory_unadded()', 'b2c.invite_sent(uuid)', 'b2c.session_note(text,text)', 'b2c.my_devices(uuid)',
+    'b2c.session_revoke(uuid,text,uuid)', 'b2c.view_as_sales(uuid,jsonb)', 'b2c.simulate(date,date,bigint[])']) f;
 insert into r (name, ok, detail)
 select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where has_function_privilege('authenticated', f, 'execute'))
   from unnest(array['b2c.qualify_form(text)', 'b2c.qualify_submit(text,jsonb)', 'b2c.qualify_apply(bigint,jsonb,text,uuid)', 'b2c.qualify_start(bigint,text)',
     'b2c.qualify_tick()', 'b2c.queue_system_email(bigint,text,text,text,text,timestamp with time zone)', 'b2c.queue_system_text(bigint,text,text,text)',
     'b2c.opted_out_now(bigint)', 'b2c.partner_lost_due(jsonb)', 'b2c.erase_files_take(integer)', 'b2c.export_take(integer)', 'b2c.export_page(bigint,integer,integer)',
     'b2c.events_feed(bigint,integer)', 'b2c.bulk_jobs_tick(integer)', 'b2c.wa_media_take(integer)', 'b2c.wa_media_stored(bigint,text,text)',
-    'b2c.programme_cache_refresh(boolean)', 'b2c.staff_wa_tick()', 'b2c.neglect_tick()', 'b2c.lead_expected_value(bigint)', 'b2c.lead_delete_job_part(bigint[],text,uuid,bigint)', 'b2c.filter_leads(jsonb,boolean)']) f;
+    'b2c.programme_cache_refresh(boolean)', 'b2c.staff_wa_tick()', 'b2c.neglect_tick()', 'b2c.lead_expected_value(bigint)',
+    'b2c.invite_ok(text)', 'b2c.capacity_tick()', 'b2c.witty_busy(bigint)', 'b2c.assignment_email(bigint,timestamp with time zone)', 'b2c.in_my_team(uuid)', 'b2c.lead_delete_job_part(bigint[],text,uuid,bigint)', 'b2c.filter_leads(jsonb,boolean)']) f;
 insert into r (name, ok, detail)
 select 'anon_calls_nothing', not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'b2c' and has_function_privilege('anon', p.oid, 'execute')), null;
 

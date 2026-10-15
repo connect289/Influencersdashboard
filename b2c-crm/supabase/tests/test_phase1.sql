@@ -464,7 +464,7 @@ select 'authenticated_can_call', bool_and(has_function_privilege('authenticated'
     'b2c.wa_compose(bigint)', 'b2c.wa_queue_template(bigint,bigint,jsonb)', 'b2c.wa_queue_text(bigint,text)', 'b2c.inbox_list(jsonb)',
     'b2c.email_template_save(jsonb)', 'b2c.application_save(jsonb)', 'b2c.enrollment_record(jsonb)', 'b2c.enrollment_verify(bigint,boolean,text)',
     'b2c.new_lead(jsonb,jsonb)', 'b2c.route_to_partners(bigint[],text)', 'b2c.reassign(bigint[],uuid,text)', 'b2c.hand_back(bigint,text)',
-    'b2c.rule_save(jsonb)', 'b2c.simulate(date,date)', 'b2c.team()', 'b2c.user_save(jsonb)', 'b2c.programme_search(jsonb)', 'b2c.admin_home()',
+    'b2c.rule_save(jsonb)', 'b2c.simulate(date,date,bigint[])', 'b2c.team()', 'b2c.user_save(jsonb)', 'b2c.programme_search(jsonb)', 'b2c.admin_home()',
     'b2c.notifications_mine(integer)', 'b2c.set_away(integer)', 'b2c.witty_transcript(bigint,integer)', 'b2c.programme_fit(bigint,integer)',
     'b2c.programme_share(bigint,bigint[],text,text)', 'b2c.guides(text,boolean)', 'b2c.guide_read(bigint)', 'b2c.guide_save(jsonb)', 'b2c.push_subscribe(jsonb,boolean)', 'b2c.view_save(jsonb)', 'b2c.is_staff()', 'b2c.can_see(bigint)', 'b2c.uid()']) f;
 insert into r (name, ok, detail)
