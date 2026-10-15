@@ -58,7 +58,7 @@ setup and the end-to-end test.
   screen and Workspace Home, search anywhere (⌘K), an Alerts page, "Next in queue" on a lead, Settings as forms, unread
   WhatsApp and alert counts in the navigation (b35 `nav_counts`). Audit: b34 scopes `followup_counts` to the caller,
   makes nine internal helpers uncallable by staff over the API and adds the 40 foreign-key indexes the advisor asked
-  for; b36 brings the guides up to date. Staging matches the local build after every migration (`b1`–`b36`).
+  for; b36 brings the guides up to date. Staging matches the local build after every migration (`b1`–`b38`). b37 adds snippets, counsellors' bulk actions, shortcuts and swipes, catalogue corrections, the campaign calendar, system health, the audit and sign-in viewers and duplicate suspects; b38 their guides.
 - `supabase/manual/staging_b4_pool_calendar.sql` (`pool_save`, `calendar_save`) was run by hand on staging on 14 Oct (the
   automated apply path stalls on any SQL containing DELETE). Staging's copies match the local build.
 - Checks: `supabase/tests/test_phase1.sql` (99 checks), `test_phase2.sql` (45, the Phase 2 exit test) and
