@@ -756,6 +756,126 @@ begin
   perform pg_temp.as_system();
 end $x$;
 
+-- ========== b43: platform, money, analytics, templates ==========
+do $x$
+declare j jsonb; e text; v bigint; ok boolean; i int;
+begin
+  -- D5 connectors
+  perform pg_temp.as_system();
+  perform b2c.connector_report('whatsapp', true, '{"quality": "GREEN"}');
+  perform b2c.connector_report('whatsapp', false, null, 'token expired');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
+  begin perform b2c.connectors_overview(); e := 'read'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('d5_connectors_admin_only', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  j := b2c.connectors_overview();
+  insert into r (name, ok, detail) values ('d5_last_success_and_error', j -> 'status' -> 'whatsapp' ->> 'last_error' = 'token expired' and j -> 'status' -> 'whatsapp' ->> 'last_ok_at' is not null
+    and j -> 'status' -> 'whatsapp' -> 'detail' ->> 'quality' = 'GREEN' and j ? 'gmail' and j ? 'b2b' and j ? 'claude', j::text);
+
+  -- D6 own Gmail
+  perform pg_temp.as_system();
+  begin perform b2c.connection_save('aaaaaaaa-0000-0000-0000-00000000e901', 'gmail', 'someone@gmail.com', array['https://www.googleapis.com/auth/gmail.send'], 'sealed'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('d6_own_mailbox_only', e = 'connect your own @eduwit.in mailbox', e);
+  perform b2c.connection_save('aaaaaaaa-0000-0000-0000-00000000e901', 'gmail', 'asha.cp@eduwit.in', array['https://www.googleapis.com/auth/gmail.send'], 'sealed-token');
+  perform b2c.connection_mark('aaaaaaaa-0000-0000-0000-00000000e901', 'gmail', false, 'invalid_grant: Token has been expired or revoked.');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  j := b2c.my_connections();
+  insert into r (name, ok, detail) values ('d6_revocation_shown', j -> 0 ->> 'status' = 'revoked' and not (j -> 0 ? 'token_sealed')
+    and exists (select 1 from b2c.notifications n where n.user_id = 'aaaaaaaa-0000-0000-0000-00000000e901' and n.kind = 'connection'), j::text);
+  insert into r (name, ok, detail) values ('d6_tokens_not_for_clients', not has_function_privilege('authenticated', 'b2c.connection_token(uuid,text)', 'execute')
+    and not has_table_privilege('authenticated', 'b2c.user_connections', 'select'), null);
+  perform b2c.connection_disconnect('gmail');
+  insert into r (name, ok, detail) values ('d6_disconnect_forgets_token', (select token_sealed is null and status = 'disconnected' from b2c.user_connections where user_id = 'aaaaaaaa-0000-0000-0000-00000000e901'), null);
+
+  -- D7 metrics run
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  begin
+    j := b2c.analytics_run(jsonb_build_object('metrics', '["b2c_created", "duplicate_cascades", "contact_rate", "days_to_counsel", "margin", "receivables"]'::jsonb,
+                                              'from', (current_date - 30)::text, 'to', current_date::text));
+    e := 'ran';
+  exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('d7_new_metrics_run', e = 'ran', e);
+  begin
+    j := b2c.analytics_run(jsonb_build_object('metrics', '["suppressions"]'::jsonb, 'dims', '["suppression_cause"]'::jsonb, 'from', (current_date - 30)::text, 'to', current_date::text));
+    e := 'ran';
+  exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('d7_suppression_by_cause', e = 'ran', e);
+
+  -- D9 alerts by WhatsApp
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
+  begin perform b2c.alert_save('{"metric": "handoffs", "op": "above", "threshold": 1, "channels": ["whatsapp"]}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('d9_whatsapp_needs_number', e = 'add your mobile number in Teams first', e);
+  perform pg_temp.as_system();
+  update b2c.users set phone = '919000099603' where user_id = 'aaaaaaaa-0000-0000-0000-00000000e903';
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
+  v := b2c.alert_save('{"metric": "handoffs", "op": "above", "threshold": 1, "channels": ["whatsapp", "push"]}');
+  insert into r (name, ok, detail) values ('d9_alert_by_whatsapp', (select 'whatsapp' = any (channels) from b2c.metric_alerts where id = v)
+    and (select 'alert' = any (wa_alerts) from b2c.users where user_id = 'aaaaaaaa-0000-0000-0000-00000000e903'), null);
+
+  -- D10 commission dashboard
+  j := b2c.commission_dashboard('{"test": true}');
+  insert into r (name, ok, detail) values ('d10_dashboard_for_money_readers', j ? 'by_counsellor' and j ? 'by_status' and j ? 'by_month' and j ? 'runs' and j ? 'next_run', j::text);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  begin perform b2c.commission_dashboard(); e := 'read'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('d10_not_for_counsellors', e = 'not allowed', e);
+
+  -- D11 invoices and statements
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  begin perform b2c.invoice_send(-1); e := 'sent'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('d11_invoice_must_be_approved', e = 'approve the invoice first', e);
+  begin perform b2c.run_statements_send(-1); e := 'sent'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('d11_run_must_be_approved', e = 'approve the run first', e);
+
+  -- D12 guide screenshots
+  select id into v from b2c.user_guides order by id limit 1;
+  begin perform b2c.guide_images_set(v, '[{"path": "../secrets.png"}]'); e := 'set'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('d12_screenshots_under_guides', e = 'screenshots are stored under guides/', e);
+  perform b2c.guide_images_set(v, '[{"path": "guides/today.png", "caption": "Today"}]');
+  insert into r (name, ok, detail) values ('d12_screenshots_saved', (select images -> 0 ->> 'path' from b2c.user_guides where id = v) = 'guides/today.png', null);
+
+  -- D14 rate limits
+  perform pg_temp.as_system();
+  ok := true;
+  for i in 1 .. 3 loop ok := b2c.rate_check('cp-test:1.2.3.4', 3, 60); end loop;
+  insert into r (name, ok, detail) values ('d14_rate_within_limit', ok, null);
+  insert into r (name, ok, detail) values ('d14_rate_over_limit', not b2c.rate_check('cp-test:1.2.3.4', 3, 60), null);
+
+  -- A12 templates
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
+  begin perform b2c.wa_template_save('{"name": "cp_header_bad", "body": "Hi {{1}}", "header": {"type": "image"}}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('a12_media_header_needs_sample', e like 'a header is text%', e);
+  v := b2c.wa_template_save('{"name": "cp_header_ok", "body": "Hi {{1}}, our brochure", "variables": ["first_name"], "header": {"type": "document", "example_url": "https://example.com/b.pdf"}}');
+  perform b2c.wa_template_save(jsonb_build_object('id', v, 'body', 'Hello {{1}}, our brochure'));
+  insert into r (name, ok, detail) values ('a12_version_history', jsonb_array_length(b2c.template_history('whatsapp', v)) = 2, null);
+  begin perform b2c.template_preview('whatsapp', v, 996630 + 1000000); e := 'shown'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('a12_preview_needs_test_lead', e = 'preview with a test lead', e);
+  j := b2c.template_preview('whatsapp', v, 996630);
+  insert into r (name, ok, detail) values ('a12_preview_on_test_lead', j ->> 'body' like 'Hello CP%' and j -> 'header' ->> 'type' = 'document', j::text);
+  insert into r (name, ok, detail) values ('a12_performance', jsonb_typeof(b2c.template_performance('whatsapp')) = 'object' and jsonb_typeof(b2c.template_performance('email')) = 'object', null);
+  begin perform b2c.email_template_m_save('{"name": "CP blocks", "subject": "Hi", "body": "<p>x</p>", "blocks": [{"type": "iframe"}]}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('a12_blocks_checked', e = 'unknown block', e);
+  v := b2c.email_template_m_save('{"name": "CP blocks", "subject": "Hi {{first_name}}", "body": "<p>Hi {{first_name}}</p>", "blocks": [{"type": "heading", "text": "Hi"}, {"type": "button", "text": "Apply", "url": "https://eduwit.in"}]}');
+  insert into r (name, ok, detail) values ('a12_block_editor_saved', (select jsonb_array_length(blocks) from b2c.email_templates where id = v) = 2
+    and b2c.template_preview('email', v, 996630) ->> 'subject' like 'Hi CP%', null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  j := b2c.wa_template_import('[{"name": "cp_imported", "language": "en", "category": "MARKETING", "status": "APPROVED", "id": "meta-1",
+        "components": [{"type": "HEADER", "format": "TEXT", "text": "Eduwit"}, {"type": "BODY", "text": "Hi {{1}}, new intake for {{2}}"}]},
+       {"name": "cp_header_ok", "language": "en", "status": "PENDING", "id": "meta-2", "components": [{"type": "BODY", "text": "Hello {{1}}, our brochure"}]}]');
+  insert into r (name, ok, detail) values ('a12_import_from_account', (j ->> 'added')::int = 1 and (j ->> 'updated')::int = 1
+    and (select status = 'approved' and variables = '["var_1", "var_2"]'::jsonb and header ->> 'text' = 'Eduwit' from b2c.wa_templates where name = 'cp_imported'), j::text);
+
+  -- fixes: yes/no filter on a text field; a stuck export retried; campaign replies list
+  j := b2c.lead_list('{"filters": {"all": [{"field": "flagged", "op": "is_true"}]}, "limit": 1}');
+  insert into r (name, ok, detail) values ('fix_flagged_is_true_on_text', j ? 'total', null);
+  perform pg_temp.as_system();
+  insert into b2c.exports (user_id, params, format, status, attempts, created_at) values ('aaaaaaaa-0000-0000-0000-00000000e904', '{}', 'csv', 'running', 1, now() - interval '1 hour') returning id into v;
+  j := b2c.export_take(5);
+  insert into r (name, ok, detail) values ('fix_stuck_export_retried', exists (select 1 from jsonb_array_elements(j) x where (x ->> 'id')::bigint = v), j::text);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
+  insert into r (name, ok, detail) values ('fix_campaign_replies_list', jsonb_typeof(b2c.campaign_replies(-1)) = 'array', null);
+  perform pg_temp.as_system();
+end $x$;
+
 -- ---------- grants ----------
 insert into r (name, ok, detail)
 select 'authenticated_can_call', bool_and(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where not has_function_privilege('authenticated', f, 'execute'))
@@ -770,7 +890,10 @@ select 'authenticated_can_call', bool_and(has_function_privilege('authenticated'
     'b2c.stage_override_request(bigint,smallint,text,text,timestamp with time zone)', 'b2c.stage_override_decide(bigint,boolean,text)', 'b2c.stage_requests_list()',
     'b2c.stage_save(jsonb)', 'b2c.sub_stage_save(jsonb)', 'b2c.stages_admin()', 'b2c.queues()', 'b2c.queue_allocate(bigint)', 'b2c.breaks_save(jsonb)',
     'b2c.holidays_import(jsonb)', 'b2c.calendar_week(date)', 'b2c.directory_unadded()', 'b2c.invite_sent(uuid)', 'b2c.session_note(text,text)', 'b2c.my_devices(uuid)',
-    'b2c.session_revoke(uuid,text,uuid)', 'b2c.view_as_sales(uuid,jsonb)', 'b2c.simulate(date,date,bigint[])']) f;
+    'b2c.session_revoke(uuid,text,uuid)', 'b2c.view_as_sales(uuid,jsonb)', 'b2c.simulate(date,date,bigint[])',
+    'b2c.connectors_overview()', 'b2c.my_connections()', 'b2c.connection_disconnect(text)', 'b2c.commission_dashboard(jsonb)', 'b2c.invoice_send(bigint,text)',
+    'b2c.run_statements_send(bigint)', 'b2c.guide_images_set(bigint,jsonb)', 'b2c.wa_template_import(jsonb)', 'b2c.template_history(text,bigint)',
+    'b2c.template_preview(text,bigint,bigint)', 'b2c.template_performance(text,integer)', 'b2c.campaign_replies(bigint,integer)']) f;
 insert into r (name, ok, detail)
 select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where has_function_privilege('authenticated', f, 'execute'))
   from unnest(array['b2c.qualify_form(text)', 'b2c.qualify_submit(text,jsonb)', 'b2c.qualify_apply(bigint,jsonb,text,uuid)', 'b2c.qualify_start(bigint,text)',
