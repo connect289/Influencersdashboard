@@ -49,14 +49,17 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
 
 1. **Supabase → Project Settings → Data API → Exposed schemas: add `b2c`** and save. Until then sign-in says the app
    cannot reach its data.
-2. **Vercel**: new project from this repo, root directory `b2c-crm/web`, region Mumbai (`bom1`, in `vercel.json`). Set
-   the variables in `.env.example`. Generate `B2C_INTERNAL_KEY` with `openssl rand -hex 32`.
+2. **Vercel** (staging is live at https://eduwit-b2c-crm.vercel.app, project `eduwit-b2c-crm` in the Eduwit team):
+   `NODE_USE_ENV_PROXY=1 node scripts/deploy-staging.mjs` with `VERCEL_TOKEN`, the staging `SUPABASE_SERVICE_ROLE_KEY`
+   and `SMTP_*` in the environment creates the project if needed (root `b2c-crm/web`, region Mumbai), sets its
+   variables straight from the environment, deploys the current branch and points the database timers at it (it also
+   does step 5). By hand instead: new project from this repo with root `b2c-crm/web` and the variables in `.env.example`.
 3. **Supabase → Authentication**: enable Google (OAuth client from Google Cloud, authorised redirect
    `https://mplbspysxmtohnlwpbti.supabase.co/auth/v1/callback`); under URL Configuration add the site URL and
    `https://<site>/auth/callback`. Turn off public sign-ups: the Admin adds people under Teams.
-4. **First Admin**: sign in once with Google as connect@eduwit.in (you land on "Waiting for access"), then in the SQL
-   editor: `insert into b2c.users (user_id, email, full_name, role, is_active) select id, email, 'Vikas Jha', 'admin', true from auth.users where email = 'connect@eduwit.in';`
-   After that, add everyone else from Teams.
+4. **First Admin**: connect@eduwit.in is the Admin on staging. Without Google: on the sign-in page, "First time, or
+   forgot your password?" emails a one-time link (1 hour) to set a password; the 6-digit code follows as usual.
+   After that, add everyone else from Teams; each person sets a password the same way (or uses Google).
 5. **Timers**: in the SQL editor, `select vault.create_secret('<B2C_INTERNAL_KEY>', 'b2c_internal_key');` and
    `update b2c.settings set value = '{"base_url": "https://<site>"}', updated_at = now() where key = 'app';`
    The four `b2c-*` cron jobs then start calling the app (until both exist they do nothing).

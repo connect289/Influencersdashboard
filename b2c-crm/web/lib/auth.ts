@@ -91,8 +91,8 @@ export async function trustDevice(): Promise<boolean> {
 export type SignInEntry = {
   email: string | null;
   user_id?: string | null;
-  method: "google" | "password" | "email_code" | "password_reset" | "sign_out";
-  outcome: "success" | "refused_domain" | "refused_unknown" | "failed_password" | "locked" | "code_sent" | "signed_out";
+  method: "google" | "password" | "email_code" | "password_reset" | "password_link" | "sign_out";
+  outcome: "success" | "refused_domain" | "refused_unknown" | "failed_password" | "locked" | "code_sent" | "signed_out" | "link_sent" | "mail_not_configured" | "password_set";
   ip?: string | null;
   user_agent?: string | null;
   detail?: Record<string, unknown>;

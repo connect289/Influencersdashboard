@@ -3,7 +3,9 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { fetchMe, homeFor, isAllowedEmail, isLocked, issueCode, recordSignIn } from "@/lib/auth";
-import { codeEmail, sendMail } from "@/lib/mail";
+import { codeEmail, passwordEmail, sendMail } from "@/lib/mail";
+import { siteUrl } from "@/lib/env";
+import { adminClient } from "@/lib/supabase/admin";
 import { clientIp, DEVICE_COOKIE, safeNext } from "@/lib/security";
 import { createClient } from "@/lib/supabase/server";
 
@@ -109,3 +111,48 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
   }
   redirect(next);
 }
+
+/**
+ * "First time, or forgot your password?": emails a one-time link (1 hour) to an active staff member, through the app's
+ * own mail, never Supabase's mailer. The answer is the same whether or not the account exists; at most 3 links an hour.
+ */
+export async function requestPasswordLink(_: FormState, form: FormData): Promise<FormState> {
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  if (!z.email().max(254).safeParse(email).success) return { error: "Enter your @eduwit.in email address." };
+  if (!isAllowedEmail(email)) return { error: DOMAIN };
+  const done = { notice: `If ${email} has an Eduwit CRM account, a link to set the password is on its way. It works once, for one hour.` };
+  const ctx = await requestContext();
+  const db = adminClient();
+  const recent = await db.schema("b2c").from("sign_in_log").select("id", { count: "exact", head: true })
+    .eq("email", email).eq("method", "password_link").gt("at", new Date(Date.now() - 3600e3).toISOString());
+  if ((recent.count ?? 0) >= 3) return done;
+  const { data: person } = await db.schema("b2c").from("users").select("user_id, full_name, is_active").eq("email", email).maybeSingle();
+  if (!person?.is_active) {
+    await recordSignIn({ email, method: "password_link", outcome: "refused_unknown", ...ctx });
+    return done;
+  }
+  const { data, error } = await db.auth.admin.generateLink({ type: "recovery", email });
+  if (error || !data.properties?.hashed_token) return { error: "The link could not be made. Try again in a minute." };
+  const link = `${siteUrl()}/auth/confirm?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery`;
+  const sent = await sendMail({ ...passwordEmail(link, person.full_name), to: email });
+  await recordSignIn({ email, user_id: person.user_id, method: "password_link", outcome: sent.sent ? "link_sent" : "mail_not_configured", ...ctx });
+  return sent.sent ? done : { error: "Email is not set up yet (SMTP). Ask the Admin." };
+}
+
+const newPassword = z.object({ password: z.string().min(10).max(128), again: z.string() }).refine((v) => v.password === v.again, { path: ["again"] });
+
+/** Sets the password after the emailed link; the 6-digit code step still follows. */
+export async function setPassword(_: FormState, form: FormData): Promise<FormState> {
+  const parsed = newPassword.safeParse({ password: String(form.get("password") ?? ""), again: String(form.get("again") ?? "") });
+  if (!parsed.success) return { error: parsed.error.issues.some((i) => i.path[0] === "again") ? "The two passwords are not the same." : "Use at least 10 characters." };
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims?.claims?.sub) redirect("/password?error=expired");
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) return { error: /same|different/i.test(error.message) ? "Choose a password you have not used here before." : /weak|short/i.test(error.message) ? "That password is too weak: make it longer." : "The password could not be saved. Try again." };
+  const result = await fetchMe(supabase);
+  if ("setupError" in result) return { error: SETUP };
+  await recordSignIn({ email: result.me.email ?? null, user_id: claims.claims.sub, method: "password_link", outcome: "password_set", ...(await requestContext()) });
+  redirect(`/verify?next=${encodeURIComponent(homeFor(result.me))}`);
+}
+

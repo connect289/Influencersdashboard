@@ -29,6 +29,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/login`,
     reuseExistingServer: true,
     timeout: 180_000,
-    env: { LIVE_MODE: "off", NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}` },
+    env: { LIVE_MODE: "off", NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`, SMTP_HOST: "" }, // no email ever leaves a local test run
   },
 });

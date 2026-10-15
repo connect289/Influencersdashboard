@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { people, service, stateFile, watch } from "./helpers";
 
@@ -91,3 +92,39 @@ test.describe("marketing", () => {
     await expect(page.getByRole("button", { name: /^Call / })).toHaveCount(0);
   });
 });
+
+test.describe("password", () => {
+  test("the link form answers the same for an unknown address", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByRole("link", { name: "First time, or forgot your password?" }).click();
+    await expect(page.getByRole("heading", { name: "Set your password" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await page.locator("input[name='email']").fill("e2e.nobody@eduwit.in");
+    await expect(page.locator("input[name='email']")).toHaveValue("e2e.nobody@eduwit.in");
+    await page.getByRole("button", { name: "Email me a link" }).click();
+    await expect(page.getByText(/If e2e\.nobody@eduwit\.in has an Eduwit CRM account/)).toBeVisible();
+  });
+
+  test("sets a new password through the emailed link, then the code step follows", async ({ page }) => {
+    const p = people();
+    // the link the email would carry (b2c sends it with the app's own mail; here no email leaves the test)
+    const { data, error } = await service().auth.admin.generateLink({ type: "recovery", email: p.ravi.email });
+    if (error) throw error;
+    await page.goto(`/auth/confirm?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery`);
+    await expect(page.getByRole("heading", { name: "New password" })).toBeVisible();
+    const fresh = `E2e-${Date.now()}-new-pass`;
+    await page.locator("input[name='password']").fill(fresh);
+    await page.locator("input[name='again']").fill(fresh);
+    await page.getByRole("button", { name: "Save password" }).click();
+    await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+    const file = new URL("./.auth/passwords.json", import.meta.url);
+    const all = JSON.parse(readFileSync(file, "utf8"));
+    all.ravi.password = fresh;
+    writeFileSync(file, JSON.stringify(all, null, 2), { mode: 0o600 });
+    // a used link does not work twice
+    await page.context().clearCookies();
+    await page.goto(`/auth/confirm?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery`);
+    await expect(page.getByText(/expired or was already used/)).toBeVisible();
+  });
+});
+

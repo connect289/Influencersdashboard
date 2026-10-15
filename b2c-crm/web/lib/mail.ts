@@ -42,3 +42,13 @@ export function codeEmail(code: string, name: string | null): Mail & { to: "" } 
     text: `${hi}\n\nYour sign-in code is ${code}. It expires in 10 minutes.\n\nIf you did not try to sign in, tell the Admin at once.\n\nEduwit CRM`,
   };
 }
+
+export function passwordEmail(link: string, name: string | null): Mail & { to: "" } {
+  const hi = name ? `Hi ${name.split(" ")[0]},` : "Hi,";
+  return {
+    to: "",
+    subject: "Set your Eduwit CRM password",
+    text: `${hi}\n\nOpen this link to set your Eduwit CRM password. It works once, for one hour:\n\n${link}\n\nAfter that you sign in with your email and the new password, and we email you a 6-digit code as usual.\n\nIf you did not ask for this, ignore this email and tell the Admin.\n\nEduwit CRM`,
+  };
+}
+

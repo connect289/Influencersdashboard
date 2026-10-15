@@ -165,7 +165,7 @@ const userSchema = z.object({
 });
 
 /**
- * Adds or updates a person. A new @eduwit.in address gets a sign-in account (no password: Google, or a reset link later);
+ * Adds or updates a person. A new @eduwit.in address gets a sign-in account (no password: they sign in with Google, or set one through "First time, or forgot your password?" on the sign-in page);
  * the person can sign in once active. Only the Admin.
  */
 export async function userSave(input: z.input<typeof userSchema>): Promise<ActionResult<string>> {

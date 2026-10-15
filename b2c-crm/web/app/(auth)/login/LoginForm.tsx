@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { createClient } from "@/lib/supabase/browser";
@@ -58,6 +59,7 @@ export function LoginForm({ next, error, notice }: { next: string; error: string
         </label>
         <SubmitButton className="btn primary block" pendingLabel="Signing in…">Sign in</SubmitButton>
       </form>
+      <Link href="/password" className="small">First time, or forgot your password?</Link>
       <p className="note">There is no sign-up: the Admin adds you. After signing in we email a code to your company inbox, unless this device is trusted.</p>
     </div>
   );
