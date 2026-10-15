@@ -7,6 +7,9 @@
  * deploys the given branch as the project's production deployment, then points the production database timers at it
  * (settings 'app'.base_url and Vault 'b2c_internal_key', through b2c.app_deploy_set). LIVE_MODE stays off until the
  * end-to-end test with test leads passes (go-live plan, step 9). Never touches any other Vercel project.
+ *
+ * Without the production service role key, DEPLOY_PREPARE=1 does everything it can: the project, every other variable
+ * and the deployment, and leaves SUPABASE_SERVICE_ROLE_KEY and the timers (step 5 below) for a later run with the key.
  */
 import { randomBytes } from "node:crypto";
 import { execSync } from "node:child_process";
@@ -23,9 +26,11 @@ const PUBLISHABLE = "sb_publishable_LYtUs8j2qqwnUJwiuljneg_KAGHdML9"; // product
 const token = process.env.VERCEL_TOKEN;
 if (!token) throw new Error("Set VERCEL_TOKEN.");
 const serviceKey = process.env.PRODUCTION_SERVICE_ROLE_KEY;
-if (!serviceKey) throw new Error("Set PRODUCTION_SERVICE_ROLE_KEY to the production project's service role key (Supabase → Project Settings → API keys).");
-const ref = keyProject(serviceKey);
+const prepare = !serviceKey && process.env.DEPLOY_PREPARE === "1";
+if (!serviceKey && !prepare) throw new Error("Set PRODUCTION_SERVICE_ROLE_KEY to the production project's service role key (Supabase → Project Settings → API keys), or DEPLOY_PREPARE=1 to deploy without it for now.");
+const ref = serviceKey ? keyProject(serviceKey) : null;
 if (ref && ref !== PRODUCTION_REF) throw new Error(`PRODUCTION_SERVICE_ROLE_KEY belongs to ${ref}, not production (${PRODUCTION_REF}). Nothing was sent.`);
+if (prepare) console.log("mode     prepare: no service role key; the key and the timers are left for a run with PRODUCTION_SERVICE_ROLE_KEY");
 const branch = process.env.DEPLOY_BRANCH ?? execSync("git rev-parse --abbrev-ref HEAD").toString().trim();
 
 async function api(method, path, body) {
@@ -74,7 +79,7 @@ const vars = [
   ["NEXT_PUBLIC_SUPABASE_URL", `https://${PRODUCTION_REF}.supabase.co`, "plain"],
   ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", PUBLISHABLE, "plain"],
   ["NEXT_PUBLIC_SITE_URL", site, "plain"],
-  ["SUPABASE_SERVICE_ROLE_KEY", serviceKey, "sensitive"],
+  ["SUPABASE_SERVICE_ROLE_KEY", serviceKey, "sensitive"], // skipped in prepare mode (undefined values are filtered out below)
   ["B2C_INTERNAL_KEY", internalKey, "sensitive"],
   ["LIVE_MODE", existing.has("LIVE_MODE") ? undefined : "off", "plain"], // never switched by a deploy once set
   ["SMTP_HOST", process.env.SMTP_HOST, "plain"],
@@ -106,10 +111,14 @@ console.log(`state    ${state}`);
 if (state !== "READY") throw new Error(`Deployment ended ${state}: see https://vercel.com/${TEAM_SLUG}/${NAME}`);
 
 // 5. the production database timers call the app at its address with the same key
-const db = createClient(`https://${PRODUCTION_REF}.supabase.co`, serviceKey, { auth: { persistSession: false } });
-const { error } = await db.schema("b2c").rpc("app_deploy_set", { p_base_url: site, p_internal_key: internalKey });
-if (error) throw new Error(`app_deploy_set: ${error.message} (is b2c exposed in the Data API and are the migrations applied?)`);
-console.log("timers   pointed at the site");
+if (prepare) {
+  console.log("timers   not pointed at the site yet: run again with PRODUCTION_SERVICE_ROLE_KEY (it sets the key on Vercel, redeploys and calls app_deploy_set)");
+} else {
+  const db = createClient(`https://${PRODUCTION_REF}.supabase.co`, serviceKey, { auth: { persistSession: false } });
+  const { error } = await db.schema("b2c").rpc("app_deploy_set", { p_base_url: site, p_internal_key: internalKey });
+  if (error) throw new Error(`app_deploy_set: ${error.message} (is b2c exposed in the Data API and are the migrations applied?)`);
+  console.log("timers   pointed at the site");
+}
 
 const login = await fetch(`${site}/login`);
 console.log(`check    /login ${login.status}`);

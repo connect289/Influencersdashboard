@@ -1,7 +1,9 @@
--- Run once in the Supabase SQL editor of STAGING (mplbspysxmtohnlwpbti), signed in as the project owner.
--- These two functions are part of b4_allocation.sql. The automated apply path stalls on any SQL that contains DELETE,
+-- Run once in the Supabase SQL editor of the project, signed in as the project owner: staging (mplbspysxmtohnlwpbti,
+-- done) and PRODUCTION (xlseqwgyjuqhktrguhyc, still to do on 15 Oct 2026: the connector cancelled it).
+-- These two functions are part of b4_allocation.sql. The automated apply path refuses any SQL that contains DELETE,
 -- so they were left for a person to run. Both delete only the one pool's members / one person's weekly pattern before
--- re-inserting the saved list. Safe to run more than once.
+-- re-inserting the saved list. Safe to run more than once. Until they exist, saving a pool's members or a person's
+-- weekly hours under Lead Allocation fails with "function b2c.pool_save does not exist".
 
 create or replace function b2c.pool_save(p jsonb) returns bigint language plpgsql security definer set search_path = '' as $f$
 declare v_id bigint := nullif(p ->> 'id', '')::bigint; m jsonb; i int := 0;
