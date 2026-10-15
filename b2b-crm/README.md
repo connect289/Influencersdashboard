@@ -23,6 +23,11 @@ This folder is the B2B CRM only. The influencer dashboard lives elsewhere in thi
 - `00000000000000_baseline.sql`: production's `public` schema on 6 Oct 2026, generated from the catalog. Reference only and the
   starting point for staging; never applied to production.
 - Every later file: applied to **staging first**, checked, then applied to production with Vikas's approval for that step.
+  `supabase/deploy.mjs` (or `deploy.sh`) applies every file from `m24a` to `m33e` that the database has not recorded yet,
+  in order, with the `b2b-*` cron jobs paused; `node deploy.mjs` with `DATABASE_URL` in the shell.
+- Handover and go-live order: `docs/HANDOVER.md`.
+- Feature notes: `docs/b2b-design.md` (what was built and why, per release), `docs/go-live-setup.md` (every manual step),
+  `docs/operations.md` (runbook), `docs/b2c-contract.md`, `docs/partner-api.md`, `docs/intake-api.md`, `docs/referral-api.md`.
 - `supabase/pending/`: changes waiting for a confirmed manual run (SQL editor), each with its own header:
   - `drop_tmp_transfer.sql` (production): removes the temporary objects used on 6 Oct 2026 to copy the baseline schema
     to staging.

@@ -22,7 +22,7 @@ Short names used below:
 
 Nothing in this section needs doing. Read it so you know the starting point.
 
-1. **The CRM is fully built through M31p (Addendum 3 included) and pushed to GitHub, but only migrations up to `20261007043511_m23b` plus `w1` are on production.** `m24a` to `m31p` are applied by one script, `b2b-crm/supabase/deploy.sh` (section 1.2 step 4). Staging holds older copies of `m24a` to `m30a`; re-apply everything there first.
+1. **Production holds every migration through `m32c` (Addendum 4); `m33a` to `m33e` (M33) are applied by `node deploy.mjs` from a shell (section 1.2 step 4; the Supabase connector refuses their `drop constraint` lines).** The web app on `main` is at Addendum 3 until the open pull request is merged. Staging holds `m24a` to `m30a` only; catch it up with the same script first. The ordered handover is `docs/HANDOVER.md`.
    Check: on the production DB, `select version from supabase_migrations.schema_migrations order by version desc limit 20;` and compare with the file names in `b2b-crm/supabase/migrations/`. Anything in the folder but not in that table is not live.
 2. **Routing is off.** Live switch `routing` is false, and `engine.enabled` gates the sweep. `pg_cron` job `b2b-route-ready-leads` runs every minute and does nothing while the switch is off. Leads collect in the pre-routing pool (`/pool`).
 3. **Every outbound channel is off.** Live switches `whatsapp`, `email`, `capi_meta`, `capi_google` are false (seeded by `m2d`). Each partner has its own switch `partner:<id>`, also false. The four student message templates in `b2b.message_templates` are drafts.
@@ -65,7 +65,7 @@ Nothing in this section needs doing. Read it so you know the starting point.
 1. **Extensions** `pgmq`, `pg_cron`, `pg_net`, `vault` are already on (M2). Check: Supabase → Database → Extensions.
 2. **Auth providers.** Supabase → Authentication → Providers: Google enabled (redirect `https://<crm host>/auth/callback`); Email enabled. Authentication → Multi-factor: TOTP enabled. Authentication → Settings: **leaked-password protection on** (`b2b-design.md` §3.1 says this must be done by hand in the dashboard).
    Check: Authentication → Providers shows Google and Email as enabled; MFA shows TOTP.
-3. **Cron jobs.** The jobs listed below should exist (`select jobname, schedule, active from cron.job where jobname like 'b2b-%' order by 1;`): `b2b-route-ready-leads` (every minute), `b2b-push-tick` (10 s), `b2b-notify-tick` (30 s), `b2b-outbox-tick` (15 s), `b2b-b2c-sync-tick` (5 s), `b2b-intake-tick` (10 s), `b2b-import-tick`, `b2b-capi-tick`, `b2b-partner-sync-tick`, `b2b-sla-tick` (5 min), `b2b-guard-tick` (5 min), `b2b-money-tick` (5 min), `b2b-money-daily` (09:05 IST), `b2b-reconcile-nightly` (02:37 IST), `b2b-stats-refresh` (hourly :07), `b2b-stats-ai-catchup`, `b2b-refresh-facts`, `b2b-admin-alerts`, `b2b-ml-tick`, `b2b-ai-schedule`, `b2b-ai-autopilot`. Jobs from migrations not yet on production will be missing; that is expected.
+3. **Cron jobs.** The jobs listed below should exist (`select jobname, schedule, active from cron.job where jobname like 'b2b-%' order by 1;`): `b2b-route-ready-leads` (every minute), `b2b-push-tick` (10 s), `b2b-notify-tick` (30 s), `b2b-outbox-tick` (15 s), `b2b-b2c-sync-tick` (5 s), `b2b-intake-tick` (10 s), `b2b-import-tick`, `b2b-capi-tick`, `b2b-partner-sync-tick`, `b2b-sla-tick` (5 min), `b2b-guard-tick` (5 min), `b2b-money-tick` (5 min), `b2b-money-daily` (09:05 IST), `b2b-reconcile-nightly` (02:37 IST), `b2b-stats-refresh` (hourly :07), `b2b-stats-ai-catchup`, `b2b-refresh-facts`, `b2b-admin-alerts`, `b2b-ml-tick`, `b2b-ai-schedule`, `b2b-ai-autopilot`, and after M33 `b2b-api-keys-expiry`, `b2b-retention`. Jobs from migrations not yet on production will be missing; that is expected.
    Check: System health (`/system`) → Background jobs shows each job with its last run and no failures. `select * from cron.job_run_details order by start_time desc limit 50;` has no `failed` rows.
 4. **Apply migrations M24 to M31p (the promotion window).** Use `b2b-crm/supabase/deploy.sh`. It pauses every `b2b-*` cron job, applies the 34 files in the right order (each in its own transaction, stops on the first error), records them in `supabase_migrations.schema_migrations`, and resumes the cron jobs. Routing stays off, nothing is sent.
    ```
@@ -112,7 +112,7 @@ Do this once per partner. Partners never log in.
 Without partner-sharing consent the engine sends every qualified lead away from partners (R8 asks for it; on "no" or no answer the lead goes to B2C). This is the hard prerequisite of Addendum 3 PART 7.
 
 1. **The wording.** Every consent line must cover sharing with "our admission partners (edtech companies)", not only universities: Witty's first-reply notice, the website agent's sign-up, every website and landing-page form, and the Meta and Google lead-form disclaimers. The lawyer must approve the wording **[Vikas]**. Also the one-tap request: "To connect you with the best admission counsellor for {{programme}}, may we share your details with our admission partner? Reply YES or NO."
-2. **Register each text** in `b2b.consent_texts` (`version`, `channel`, `purposes`, `body`, `covers_admission_partners`, `active`, `lawyer_approved_at`). `m31a` seeds `witty-notice-2026-10-v2`, `witty_partner_consent_v1` and `wa_partner_consent:v1` with `covers_admission_partners = true` but **no `lawyer_approved_at`**; it also copies every version already used by ad forms and leads with `covers_admission_partners = false`. The Admin function to edit them (`consent_text_save`) is planned in `m31l` and its screen is not shipped yet: check Routing → Hand-off rules (or wherever the Addendum 3 web step puts it) once `m31l` lands. Until then an approved text is recorded in the SQL editor by Vikas.
+2. **Register each text** in `b2b.consent_texts` (`version`, `channel`, `purposes`, `body`, `covers_admission_partners`, `active`, `lawyer_approved_at`). `m31a` seeds `witty-notice-2026-10-v2`, `witty_partner_consent_v1` and `wa_partner_consent:v1` with `covers_admission_partners = true` but **no `lawyer_approved_at`**; it also copies every version already used by ad forms and leads with `covers_admission_partners = false`. Edit them on Intake → Consent texts (`consent_text_save`, m31l).
    Check: `select version, channel, covers_admission_partners, active, lawyer_approved_at from b2b.consent_texts order by version;`. Every version your forms send (section 7) must be in this table with `covers_admission_partners = true` and a lawyer date, or its leads will not count as consented (`stamp_uncovered`).
 3. **Stamp consent at the source.** Each source writes `consent_partner_share_at` and `consent_text_version` on the lead through `lead_intake()`:
    - Witty: edits 3, 4 and 9 of the workflow half set `state.consent_partner_share_at` and `consent_text_version = 'witty-notice-2026-10-v2'` (section 6).
@@ -139,14 +139,18 @@ Without partner-sharing consent the engine sends every qualified lead away from 
 
 ## 5. B2C CRM connection
 
-The B2C CRM (in-house counsellors, nurture) is a separate product with its own developer. Give them `docs/b2c-contract.md` (version 2 today; version 3 adds `b2c.consent_requested`, `b2c.consent_closed`, `b2c.lead_requalified`, `b2c.lead_reengaged` and `contract_version: 3` in the envelope, per the Addendum 3 contract). Whether a B2C CRM exists yet to connect is not in the sources: check with Vikas **[Vikas]**.
+The B2C CRM (in-house counsellors, nurture) is a separate product with its own developer, specified in `b2c-crm/docs/B2C_CRM_PROMPT.md`. Give them `docs/b2c-contract.md` (**version 4**, Addendum 4): B2B → B2C is always real time, B2C → B2B comes in a 15-minute batch (plus five immediate calls), their own writes are not echoed back, and they read the shared catalogue through schema `catalog`.
 
 1. **Hand over credentials** (System health → Webhooks and API keys): the API key from section 1.4 (`b2c` + `events` + `intake`) and the endpoint's signing secret (next step). Once each, secure channel.
 2. **Register their webhook endpoint.** System health → Webhooks and API keys → Webhook endpoints → New: name, consumer `b2c_crm` (at most one), their HTTPS URL, events. Subscribe to **`b2c.*`** (covers `b2c.lead_handed_off`, `b2c.lead_upserted`, `b2c.lead_released`, `b2c.leads_batch`, `b2c.lead_reenquired`, `b2c.lead_flagged`, `b2c.lead_close_agreed`, and the v3 types `b2c.consent_requested`, `b2c.consent_closed`, `b2c.lead_requalified`, `b2c.lead_reengaged`) **plus `b2b.lead_routed_to_partner`**. Press **Generate secret** (shown once), **Send test** (a `ping` with `test: true`), and switch the endpoint **on** once they confirm the signature check passes. Nothing is delivered before that.
    Check: System health → Webhook deliveries shows the `ping` as delivered (HTTP 2xx); `select name, consumer, active, events from b2b.webhook_endpoints;`. The go-live item `b2c_endpoint_subscribed` passes only with `b2c.consent_requested` covered.
 3. **Their endpoints** (contract §3–4): `GET /v1/handoffs?after=` (reconciliation feed), `GET /v1/b2c/schema`, `GET /v1/b2c/leads?after=` (change feed), `GET /v1/b2c/leads/{id}`, `PATCH /v1/b2c/leads/{id}`, `POST /v1/b2c/leads/{id}/activities`, `POST /v1/b2c/leads/batch`, `POST /v1/leads/{id}/route-to-partners`, `POST /v1/leads` (new students, `lead_source` `b2c_created` / `b2c_whatsapp`), and signed `POST /v1/events/b2ccrm` (`b2ccrm.opted_out`, `b2ccrm.erasure_requested`; v3 adds `b2ccrm.partner_consent` and `b2ccrm.consent_request_sent`).
-4. **Link settings.** B2C CRM link (`/b2c`): `b2c_link.enabled`, `scope` (`held`: leads B2C holds; `all`: every lead read-only), `writable` (which fields B2C may write; default every B2C-owned field). Keep `delivery = realtime` until section 14.
-   Check: `/b2c` → Overview shows the checklist steps; `select value from b2b.settings where key = 'b2c_link';`.
+4. **Link settings.** B2C CRM link (`/b2c`): `b2c_link.enabled`, `scope` (`held`: leads B2C holds; `all`: every lead read-only), `writable` (which fields B2C may write; default every B2C-owned field). 
+   Check: `/b2c` → Overview shows the checklist steps; `select value from b2b.settings where key = 'b2c_link';`. Addendum 4: `delivery` is always `realtime` (batched is refused).
+   After the Addendum 4 deploy (`m32a`–`m32c`), press **Resend every lead** once on `/b2c` so the B2C CRM's copies gain the version-4 fields.
+   `m32a`–`m33e` are applied together by `node deploy.mjs` (section 1.2 step 4): staging first, then production, after a backup.
+4a. **The shared catalogue (Addendum 4 §6).** The B2C CRM reads `catalog.programmes_v`, `catalog.universities_v`, `catalog.synonyms_v`, `catalog.partner_rates_v` and `catalog.changes` through the role `b2c_app` (no login). Its server needs a database user that is a member of that role; create one in the Supabase SQL editor (pick the password there, never in chat): `create role b2c_server login password '…' in role b2c_app;`. It gets nothing on `student_leads`, `b2b` or `w2_*`.
+   Check: as `b2c_server`, `select count(*) from catalog.programmes_v;` works and `select count(*) from public.student_leads;` is refused.
 5. **The welcome message** (Addendum 3 Amendment 1). When an unqualified Witty lead is pushed to B2C qualification nurture after 18 idle hours, the hand-off event asks the B2C CRM to send a WhatsApp prompting the student to explore programmes. B2B sends nothing itself. The B2C developer needs a **Meta-approved template on the B2C number** (free-form is not allowed from a number the student never wrote to). Setting `engine.welcome_for_all_nurture` (default false) widens the ask to every nurture hand-off.
    Check: the `b2c.lead_handed_off` payload for a nurture test lead carries the welcome request (`b2b.handoff_payload`; check the exact key once `m31b`/`m31j` are on production).
 6. **Round robin** for duplicate-cascade leads (B2C sales lane, badge "Already with other providers") and for partner-lost nurture leads that show interest again is the **B2C CRM's** job (PART 5.4, PART 6.1). B2B only emits the events. Confirm with the B2C developer.
@@ -245,7 +249,7 @@ Reports how far each lead from a **paid** Meta or Google ad got, only to the pla
 
 Do this only after sections 3 to 8 are green for at least one partner and the B2C link. Rulebook: `docs/B2B_CRM_ADDENDUM_3.md` (PART 3 order R1–R9, PART 4 stages A/B/C, PART 5 after push, PART 6 later movements, Amendment 1).
 
-1. **Confirm the Addendum 3 engine is on production.** The engine (`m31f route_decide`), consent asks (`m31e`), re-decide (`m31k`) and admin reads (`m31l`) are planned, not yet in the migrations folder (section 0). Until they land, `route_decide` is the `m24b` version (Addenda 1–2 rules, paid → B2C, no 18-hour wait, no partner bar). **Do not switch routing on with the old engine** unless Vikas accepts those rules **[Vikas]**.
+1. **Confirm the Addendum 3 engine is on production** (`m31a0` to `m31p` were applied on 8 Oct; the engine is `m31f route_decide`, consent asks `m31e`, re-decide `m31k`, admin reads `m31l`).
    Check: `select proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'b2b' and proname in ('routing_golive_check', 'consent_request_create', 'requalify_lead', 'partner_bar');` returns all four.
 2. **Engine settings to review** (Routing → Engine settings; setting `engine`; saved as a new version with a reason by `engine_settings_save`). **Caution:** the shipped Engine settings form still shows pre-Addendum-3 fields (kill switch, fixed split, witty idle minutes, trusted sources, exploration share, attempt limits, require consent). After `m31a` the save **refuses** those keys (`retired by Addendum 3` / `fixed by Addendum 3`), and the Addendum 3 fields are not on the form yet. Until the web step ships, review them in SQL (`select value from b2b.settings where key = 'engine';`) and change them with `select b2b.set_setting('engine', <new json>, '<reason>');` as the Admin:
 
@@ -332,7 +336,24 @@ Real-time sync is for integration and testing (Vikas: real-time calls to partner
 
 ---
 
-## 15. Known limitations and not built
+## 15. Team, limits, health and data protection (M33, after the `m33a`–`m33e` deploy)
+
+1. **Team.** Settings → Team: invite each colleague as Admin or Viewer (viewers read everything, change nothing). The
+   first Admin is whoever is already in `b2b.app_users` (connect@eduwit.in). Check: `select email, role, active from b2b.app_users;`.
+2. **API limits.** Setting `api_limits` (`per_minute` by scope: intake 120, referrals 60, events 300, b2c 600, ai_worker 600;
+   `default` 300). Raise a scope only when a caller reports `429`. New keys default to a 90-day expiry; keys without one
+   are allowed but listed by the health check.
+3. **Health monitor.** Point an external monitor at `GET https://crm.eduwit.in/api/health` every 5 minutes (no key, no
+   personal data; `503` with `problems` when a job is stale or a queue stuck). Cron jobs added by M33: `b2b-api-keys-expiry`
+   (daily), `b2b-retention` (02:15 IST).
+4. **Retention.** System health → Data protection: decide the idle period (empty keeps every lead; 24 months is a
+   common DPDP choice) and the test-lead age (30 days). Record the reason; it goes to the audit log.
+5. **Email partners.** Needs the email provider of section 8 step 3 (the partner emails are sent from the same sender).
+6. **Referral outcomes.** For the influencer dashboard: a key with scope `referrals` only; `docs/referral-api.md`.
+7. **Runbook.** `docs/operations.md`: daily checks, access, key rotation, deploys, erasure steps (partners, Witty, backups),
+   restore test, incidents.
+
+## 16. Known limitations and not built
 
 From `docs/b2b-design.md` §7.2 (as-built notes), the addenda, the feature guides and the sources above.
 
@@ -342,13 +363,13 @@ From `docs/b2b-design.md` §7.2 (as-built notes), the addenda, the feature guide
 - Partner-sharing consent: no lead carries it today; Witty's workflow half is not applied; the lawyer has not approved the texts.
 
 **Partners and sync**
-- Partners **without an API** cannot be routed to automatically (no email or CSV push). Keep them paused; export leads from Leads and hand them over; reconcile their export on Sync & SLAs and their statement on Commission & Finance.
+- Partners **without an API** receive leads by **email** (CRM type `email`, m33e) through the Notifications email provider, so section 8 step 3 must be done first; their outcomes are recorded by hand from the lead's Routing tab. No CSV push.
 - No adapter (LeadSquared, Zoho, Salesforce, HubSpot, Meritto, in-house) has been run against a **real** account; all were tested on simulated replies. Salesforce's token call may need a server route (pg_net sends the grant as query parameters); Meritto's API shape varies by account; Zoho refresh tokens are per data centre.
 - Google Sheet programme sources are read only on **Sync now**; no scheduled read (needs a Vercel Cron secret).
 - `.xls` files are not supported (save as `.xlsx` or CSV); an import rollback does not undo merges into existing leads.
 - Pushes are not paused automatically on mapping drift of a required field (alert and queue item only). Events are applied as they arrive, not strictly in order per lead.
 - `describeSchema()` through partner APIs exists only for the five CRM adapters.
-- Opt-outs and erasure are **not** forwarded to partners automatically (an Admin alert tells you to do it).
+- Erasure removes the data from this CRM (m33c) but is **not** forwarded to partners or to Witty's chat history automatically: one alert per partner tells you to do it; `docs/operations.md` section 5 has the steps.
 - The 7-day "lost, in grace" period is planned as allocation status `accepted` so Witty stays quiet; today `allocation_partner_lost` hands the lead to B2C at once (Witty prompt §9).
 
 **B2C and Witty**

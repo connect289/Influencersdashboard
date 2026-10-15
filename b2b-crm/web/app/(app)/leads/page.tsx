@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, FlaskConical, Inbox, Trash2, Users } from "lucide-react";
+import { Download, FlaskConical, Inbox, Trash2, Users, GitMerge } from "lucide-react";
 import { buttonClass } from "@/components/ui/Button";
 import { Card, EmptyState, PageHeader } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
@@ -8,7 +8,7 @@ import { requireAdmin } from "@/lib/auth";
 import {
   CLEAR_FILTERS, DESTINATION_HINT, DESTINATION_LABEL, FLAG_DESTINATIONS, PAID_FILTER_LABEL, hasFilters, leadsHref, leadsSearch, parseLeadId, parseLeadQuery,
 } from "@/lib/leads";
-import { leadDetail, leadEditHistory, leadFacets, listLeads } from "@/lib/leads-data";
+import { allTags, leadDetail, leadEditHistory, leadFacets, leadNotes, leadTags, listLeads } from "@/lib/leads-data";
 import { leadRouting } from "@/lib/routing-data";
 import { leadPartnerSync } from "@/lib/sync-data";
 import { FilterBar } from "./FilterBar";
@@ -28,7 +28,7 @@ export default async function LeadsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const query = parseLeadQuery(sp);
   const leadId = parseLeadId(sp);
-  const [page, facets, detail, routing, history, sync] = await Promise.all([
+  const [page, facets, detail, routing, history, sync, notes, tags, knownTags] = await Promise.all([
     listLeads(query),
     leadFacets(query),
     leadId ? leadDetail(leadId) : Promise.resolve(null),
@@ -36,6 +36,9 @@ export default async function LeadsPage({ searchParams }: Props) {
     leadId ? leadRouting(leadId).catch(() => null) : Promise.resolve(null),
     leadId ? leadEditHistory(leadId).catch(() => null) : Promise.resolve(null),
     leadId ? leadPartnerSync(leadId).catch(() => null) : Promise.resolve(null),
+    leadId ? leadNotes(leadId) : Promise.resolve([]),
+    leadId ? leadTags(leadId) : Promise.resolve([]),
+    leadId ? allTags() : Promise.resolve([]),
   ]);
   const search = leadsSearch(query);
   const filtered = hasFilters(query);
@@ -56,6 +59,9 @@ export default async function LeadsPage({ searchParams }: Props) {
             <Link href={leadsHref(query, { bin: !query.bin })} className={buttonClass("secondary", "sm")}>
               {query.bin ? <><Users className="size-3.5" /> Back to leads</> : <><Trash2 className="size-3.5" /> Recycle bin{facets.bin > 0 && <span className="tabular text-subtle">{facets.bin}</span>}</>}
             </Link>
+            {!query.bin && (
+              <Link href="/leads/duplicates" className={buttonClass("secondary", "sm")} title="Leads that may be the same student"><GitMerge className="size-3.5" /> Duplicates</Link>
+            )}
             {!query.bin && (
               <details className="relative">
                 <summary className={cn(buttonClass("secondary", "sm"), "cursor-pointer list-none [&::-webkit-details-marker]:hidden")}>
@@ -116,7 +122,7 @@ export default async function LeadsPage({ searchParams }: Props) {
       </Card>
 
       {leadId && <LeadDrawer key={leadId} id={leadId} detail={detail} routing={routing} history={history} sync={sync} closeHref={leadsHref(query)}
-        initialTab={typeof sp.tab === "string" ? sp.tab : undefined} />}
+        initialTab={typeof sp.tab === "string" ? sp.tab : undefined} notes={notes} tags={tags} knownTags={knownTags} />}
     </>
   );
 }

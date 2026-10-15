@@ -1,4 +1,4 @@
-// Windows-friendly deploy for migrations M24 to M31p. Same steps as deploy.sh, written in Node.
+// Windows-friendly deploy for migrations M24 to M32c (files already applied are skipped). Same steps as deploy.sh, written in Node.
 // Usage (PowerShell), in this folder:
 //   npm install pg --no-save
 //   $env:DATABASE_URL = 'postgresql://postgres:PASSWORD@db.PROJECTREF.supabase.co:5432/postgres'
@@ -22,6 +22,10 @@ const files = [
   'migrations/m31g_a3_attribution.sql', 'migrations/m31h_a3_intake.sql', 'migrations/m31i_a3_after_push.sql', 'pending/m31i_dispute_index.sql',
   'migrations/m31j_a3_b2c_contract.sql', 'migrations/m31k_a3_redecide.sql', 'migrations/m31l_a3_admin_reads.sql', 'migrations/m31m_a3_ai_ml.sql',
   'pending/m31n_facts.sql', 'migrations/m31o_a3_metrics.sql', 'migrations/m31p_partner_agreement.sql',
+  // Addendum 4: the B2C CRM link, final shape
+  'migrations/m32a_a4_b2c_realtime_batch.sql', 'migrations/m32b_a4_b2c_events_reads.sql', 'migrations/m32c_a4_catalog.sql',
+  'migrations/m33a_access_api_hardening.sql', 'migrations/m33b_lead_workspace.sql', 'migrations/m33c_data_protection_audit.sql',
+  'migrations/m33d_referral_outcomes.sql', 'migrations/m33e_email_partner_adapter.sql',
 ];
 const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
 await client.connect();

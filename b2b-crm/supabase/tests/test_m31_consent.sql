@@ -526,7 +526,7 @@ begin
 end $x$;
 
 -- the B2C record carries the consent block (contract version 3)
-insert into r select 'b2c_record_consent', (rec -> 'consent' ->> 'partner_share_given')::boolean and rec -> 'consent' ->> 'state' = 'given' and (rec ->> 'contract_version')::int = 3
+insert into r select 'b2c_record_consent', (rec -> 'consent' ->> 'partner_share_given')::boolean and rec -> 'consent' ->> 'state' = 'given' and (rec ->> 'contract_version')::int = 4
                      and rec -> 'consent' -> 'partner_share_request' ->> 'status' = 'answered' and rec -> 'consent' -> 'partner_share_request' ->> 'answer' = 'yes', (rec -> 'consent')::text
   from (select b2b.b2c_record(pg_temp.lead('c')) rec) x;
 

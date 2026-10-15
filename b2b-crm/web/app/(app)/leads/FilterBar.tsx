@@ -60,7 +60,8 @@ export function FilterBar({ query, facets }: { query: LeadQuery; facets: Facets 
   const dest = ROUTING_DESTINATIONS.map((d) => [d, facets.destination[d] ?? 0] as const).filter(([d, n]) => n > 0 || query.dest === d);
   const flags = FLAG_DESTINATIONS.map((d) => [d, facets.destination[d] ?? 0] as const).filter(([d, n]) => n > 0 || query.dest === d);
   const paid = PAID_FILTERS.map((p) => [p, facets.paid?.[p] ?? 0] as const).filter(([p, n]) => n > 0 || query.paid === p);
-  if (status.length + stage.length + source.length + dest.length + flags.length + paid.length === 0) return null;
+  const tags = options(facets.tags ?? {}, query.tags);
+  if (status.length + stage.length + source.length + dest.length + flags.length + paid.length + tags.length === 0) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-2.5 border-b border-border bg-surface-2/50 px-4 py-3">
@@ -104,6 +105,13 @@ export function FilterBar({ query, facets }: { query: LeadQuery; facets: Facets 
           ))}
         </Group>
       )}
+      {tags.length > 0 && (
+        <Group label="Tags">
+          {tags.map(([k, n]) => (
+            <Chip key={k} href={leadsHref(query, { tags: toggle(query.tags, k) })} active={query.tags.includes(k)} count={n}>{k}</Chip>
+          ))}
+        </Group>
+      )}
       {paid.length > 0 && (
         <Group label="Paid">
           {paid.map(([k, n]) => (
@@ -114,7 +122,7 @@ export function FilterBar({ query, facets }: { query: LeadQuery; facets: Facets 
         </Group>
       )}
       {hasFilters({ ...query, q: "" }) && (
-        <Link href={leadsHref(query, { stage: [], source: [], status: [], dest: null, paid: null })} scroll={false} className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-[12.5px] text-muted hover:text-fg">
+        <Link href={leadsHref(query, { stage: [], source: [], status: [], dest: null, paid: null, tags: [] })} scroll={false} className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-[12.5px] text-muted hover:text-fg">
           <X className="size-3.5" /> Clear
         </Link>
       )}

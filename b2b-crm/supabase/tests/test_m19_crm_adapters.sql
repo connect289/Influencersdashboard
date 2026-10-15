@@ -1,11 +1,11 @@
--- A3 fixture: the consent wording the test leads carry
-insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 -- M19 partner CRM adapters on STAGING, rolled back. Response, schema and poll parsing for every CRM; then partner
 -- e2e-down (id 20) turned into a LeadSquared partner and then a Zoho partner: settings and secrets, the masked preview,
 -- pushes (request shape; created and duplicate answers), OAuth token renewal, polling into partner events, and schema
 -- discovery into a snapshot. pg_net requests are queued but never sent (rolled back); answers are simulated.
 -- Every row of the final select must say ok = true.
 begin;
+-- A3 fixture: the consent wording the test leads carry
+insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 create temp table r (name text, ok boolean, detail text);
 create temp table t (k text primary key, v text);
 grant all on r, t to authenticated;

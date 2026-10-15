@@ -54,7 +54,7 @@ export default async function SecurityPage() {
             <CardHeader title="Account" description="Google sign-in uses your Google account's own 2-step verification; keep it on." />
             <dl className="divide-y divide-border text-[13px]">
               <div className="flex items-center justify-between gap-4 px-5 py-3"><dt className="text-muted">Email</dt><dd className="truncate font-medium text-fg">{email}</dd></div>
-              <div className="flex items-center justify-between gap-4 px-5 py-3"><dt className="text-muted">Role</dt><dd><Badge tone="brand">Admin</Badge></dd></div>
+              <div className="flex items-center justify-between gap-4 px-5 py-3"><dt className="text-muted">Role</dt><dd><Badge tone={me?.role === "viewer" ? "neutral" : "brand"}>{me?.role === "viewer" ? "Viewer (read-only)" : "Admin"}</Badge></dd></div>
               <div className="flex items-center justify-between gap-4 px-5 py-3">
                 <dt className="text-muted">Two-step verification</dt>
                 <dd>

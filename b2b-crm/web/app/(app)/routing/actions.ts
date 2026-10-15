@@ -285,6 +285,22 @@ export async function markPartnerLost(allocationId: number, reason: string): Pro
   refresh();
 }
 
+/** M33e: what a partner without a CRM connection reported (email partners, phone calls). The engine applies it like a synced stage. */
+export async function recordPartnerOutcome(allocationId: number, stage: string, subStage: string, note: string, lostReason: string): Promise<string | void> {
+  await assertAdmin();
+  const p = z.object({
+    id: Id, stage: z.string().trim().regex(/^[a-z_]{2,40}$/, "Pick a stage."), subStage: z.string().trim().max(120), note: z.string().trim().max(1000),
+    lostReason: z.string().trim().max(300),
+  }).safeParse({ id: allocationId, stage, subStage, note, lostReason });
+  if (!p.success) return p.error.issues[0]?.message ?? "Check the fields.";
+  if (p.data.stage === "lost" && p.data.lostReason.length < 2) return "Say why the partner lost the lead.";
+  const { error } = await rpc("allocation_outcome_manual", {
+    p_allocation_id: p.data.id, p_stage: p.data.stage, p_sub_stage: p.data.subStage || null, p_note: p.data.note || null, p_lost_reason: p.data.lostReason || null,
+  });
+  if (error) return dbMessage(error, "Could not record the outcome. Try again.");
+  refresh();
+}
+
 export async function resolveFlag(id: number, resolution: "keep" | "close", note: string): Promise<string | void> {
   await assertAdmin();
   const p = z.object({ id: Id, resolution: z.enum(["keep", "close"]), note: z.string().trim().max(300) }).safeParse({ id, resolution, note });

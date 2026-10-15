@@ -4,7 +4,7 @@ import type { EffortDetail, Stage } from "@/lib/segments";
 
 /** Partners: types, labels and form parsing. Pure, so the server action and the tests share one definition. */
 
-export const ADAPTERS = ["leadsquared", "salesforce", "zoho", "meritto", "hubspot", "inhouse", "generic_rest", "webhook"] as const;
+export const ADAPTERS = ["leadsquared", "salesforce", "zoho", "meritto", "hubspot", "inhouse", "email", "generic_rest", "webhook"] as const;
 export const DEDUPE_MODES = ["async", "sync", "none"] as const;
 export const STATUSES = ["onboarding", "active", "paused", "closed"] as const;
 export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -168,6 +168,7 @@ export const ADAPTER_LABEL: Record<Adapter, string> = {
   meritto: "Meritto (NoPaperForms)",
   hubspot: "HubSpot",
   inhouse: "In-house CRM (partner's own API)",
+  email: "Email (no CRM API: each lead is e-mailed)",
   generic_rest: "Eduwit's API contract (partner builds it)",
   webhook: "Webhook",
 };

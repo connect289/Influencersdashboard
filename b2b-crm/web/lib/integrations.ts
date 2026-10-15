@@ -10,6 +10,12 @@ export type ApiKeyRow = {
   created_at: string;
   last_used_at: string | null;
   revoked_at: string | null;
+  /** M33a */
+  expires_at?: string | null;
+  rate_per_minute?: number | null;
+  note?: string | null;
+  requests_1h?: number;
+  requests_24h?: number;
 };
 
 export type Consumer = "b2c_crm" | "influencer_dashboard" | "website" | "other";
@@ -75,9 +81,21 @@ export type SystemOverview = {
   product_events: ProductEventRow[];
   erasure_open: number;
   jobs: JobRow[];
+  api_limits?: { per_minute?: Record<string, number>; default?: number };
 };
 
 export type ErasureRow = { id: number; lead_id: number; source: string; requested_at: string; note: string | null; name: string | null };
+
+/** M33c */
+export type AuditRow = { id: number; at: string; type: string; actor_type: string; actor_id: string | null; actor_email: string | null; lead_id: number | null;
+  allocation_id: number | null; partner_id: number | null; partner_name: string | null; payload: Record<string, unknown> };
+export type AuditPage = { rows: AuditRow[]; next_after: number | null };
+export type DataProtection = {
+  settings: { inactive_months: number | null; test_lead_days: number | null };
+  inactive_to_erase: number; test_leads_to_delete: number; anonymised_total: number;
+  last_run: { at: string; erased: number; test_deleted: number; errors: number; sign_in_pruned: number; deliveries_pruned: number } | null;
+  erasures: { open: number; done_30d: number }; partner_notices_open: number; consents_30d: number; opted_out_total: number;
+};
 
 export const SCOPES = ["intake", "referrals", "events", "b2c", "ai_worker"] as const;
 export type Scope = (typeof SCOPES)[number];
@@ -166,7 +184,13 @@ export const JOB_LABEL: Record<string, string> = {
 export const ApiKeySchema = z.object({
   name: z.string().trim().min(2, "Give the key a name (2 to 80 characters).").max(80, "Give the key a name (2 to 80 characters)."),
   scopes: z.array(z.enum(SCOPES)).min(1, "Choose at least one scope."),
+  /** M33a: days until the key expires (0 = never), and an optional per-minute limit. */
+  expires_days: z.number().int().min(0).max(730).default(0),
+  rate_per_minute: z.number().int().min(1).max(100000).nullable().default(null),
 });
+
+/** The per-minute defaults per scope (setting api_limits), for the key form's hint. */
+export const DEFAULT_RATE: Record<Scope, number> = { intake: 120, referrals: 60, events: 300, b2c: 600, ai_worker: 600 };
 
 export const EndpointSchema = z.object({
   name: z.string().trim().min(2, "2 to 80 characters.").max(80, "2 to 80 characters."),

@@ -1,3 +1,4 @@
+import { dbFailure } from "@/lib/b2c-api";
 import { createClient } from "@supabase/supabase-js";
 import { apiKeyFrom, parseHandoffsQuery } from "@/lib/integrations";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase.schema("b2b").rpc("api_b2c_handoffs", {
     p_key: key, p_since: p.q.since, p_after: p.q.after, p_limit: p.q.limit,
   });
-  if (error) return Response.json({ ok: false, error: "could not read the feed, try again" }, { status: 503 });
+  if (error) return dbFailure(error, "could not read the feed, try again");
   const r = data as { ok: boolean; status: number; result?: unknown; error?: string };
   return Response.json(r.ok ? { ok: true, ...(r.result as object) } : { ok: false, error: r.error }, { status: r.status ?? (r.ok ? 200 : 400) });
 }

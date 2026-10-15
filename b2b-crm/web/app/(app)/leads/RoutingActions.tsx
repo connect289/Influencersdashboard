@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRightLeft, CheckCheck, FlaskConical, MessageSquareReply, Pencil, Plus, Send, ShieldCheck, ShieldOff, UserX, Waypoints, X } from "lucide-react";
+import { ArrowRightLeft, CheckCheck, ClipboardPen, FlaskConical, MessageSquareReply, Pencil, Plus, Send, ShieldCheck, ShieldOff, UserX, Waypoints, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/components/ui/cn";
@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { field, Label, Modal } from "@/components/ui/Modal";
 import { friendlyRouteError, LOST_SUCCESS_TOAST, lostDialogCopy, type ConsentPanel, type RoutingActionState } from "@/lib/lead-routing-ui";
 import { LANE_LABEL, OUTCOME_LABEL, reasonLabel, type Interest } from "@/lib/routing";
-import { markPartnerLost, routeToPartners } from "../routing/actions";
+import { markPartnerLost, recordPartnerOutcome, routeToPartners } from "../routing/actions";
 import { consentRecord, consentRequest, interestsSave, reenquiryAck, rerouteLead, routeTestLead, type ConsentAnswerResult, type InterestInput } from "./actions";
 import { PassToCrmDialog } from "./PassToCrm";
 
@@ -21,7 +21,7 @@ const area = "w-full resize-none rounded-lg border border-border bg-surface px-3
  *  lost' for a pushed or accepted allocation (PART 6.1); the sandbox and B2C test hand-off for test leads (R1). */
 export function RoutingActions({ leadId, state: s }: { leadId: number; state: RoutingActionState }) {
   const router = useRouter();
-  const [dialog, setDialog] = useState<"pass" | "partners" | "reroute" | "lost" | "sandbox" | "b2c_test" | null>(null);
+  const [dialog, setDialog] = useState<"pass" | "partners" | "reroute" | "lost" | "outcome" | "sandbox" | "b2c_test" | null>(null);
   const close = () => setDialog(null);
   const done = () => router.refresh();
   const anything = s.passToCrm || s.sendToPartners.show || s.reroute.show || s.lost.show || s.test.sandbox || s.test.b2cTest || s.barred;
@@ -47,11 +47,13 @@ export function RoutingActions({ leadId, state: s }: { leadId: number; state: Ro
           {s.reroute.why && <span className={cn("text-[12px]", s.reroute.enabled ? "text-muted" : "text-warning")}>{s.reroute.why}</span>}
         </>
       )}
+      {s.lost.show && <Button size="sm" variant="ghost" onClick={() => setDialog("outcome")}><ClipboardPen className="size-3.5" /> Record partner&apos;s report</Button>}
       {s.lost.show && <Button size="sm" variant="ghost" onClick={() => setDialog("lost")}><UserX className="size-3.5" /> Partner reported lost</Button>}
       {s.test.sandbox && <Button size="sm" variant="secondary" onClick={() => setDialog("sandbox")}><FlaskConical className="size-3.5" /> Route to a partner sandbox</Button>}
       {s.test.b2cTest && <Button size="sm" variant="secondary" onClick={() => setDialog("b2c_test")}><FlaskConical className="size-3.5" /> Send a test hand-off to B2C</Button>}
 
       <PassToCrmDialog ids={[leadId]} open={dialog === "pass"} onClose={close} onDone={done} />
+      {s.lost.allocationId && <OutcomeDialog allocationId={s.lost.allocationId} partner={partner} open={dialog === "outcome"} onClose={close} onDone={done} />}
 
       <ConfirmDialog
         open={dialog === "partners"}
@@ -400,5 +402,50 @@ export function InterestsEditor({ leadId, interests }: { leadId: number; interes
         </Label>
       </Modal>
     </>
+  );
+}
+
+/** M33e: the stages a partner can report by phone or email, in pipeline order; the server checks them against the stage list. */
+const REPORTABLE_STAGES: { key: string; label: string }[] = [
+  { key: "contacted", label: "Contacted the student" }, { key: "counselled", label: "Counselled" }, { key: "applied", label: "Applied" },
+  { key: "enrolled", label: "Enrolled" }, { key: "duplicate_at_partner", label: "Already had the student (duplicate)" }, { key: "lost", label: "Lost" },
+];
+
+/** What a partner without a CRM connection reported about a lead. Recorded as a partner activity and applied like a synced stage. */
+function OutcomeDialog({ allocationId, partner, open, onClose, onDone }: { allocationId: number; partner: string | null; open: boolean; onClose: () => void; onDone: () => void }) {
+  const [stage, setStage] = useState("contacted");
+  const [subStage, setSubStage] = useState("");
+  const [note, setNote] = useState("");
+  const [lostReason, setLostReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  useEffect(() => { if (open) { setStage("contacted"); setSubStage(""); setNote(""); setLostReason(""); setError(null); } }, [open]);
+  return (
+    <Modal open={open} onClose={onClose} title={`What did ${partner ?? "the partner"} report?`} error={error} pending={pending} submitLabel="Record"
+      onSubmit={() => start(async () => {
+        const err = await recordPartnerOutcome(allocationId, stage, subStage, note, lostReason);
+        if (err) { setError(err); return; }
+        toast.success(stage === "lost" ? LOST_SUCCESS_TOAST : "Recorded; the lead's stage follows the report");
+        onDone();
+      })}>
+      <p className="text-[12.5px] text-muted">For partners that receive leads by email or report on the phone. Connected CRMs sync this on their own.</p>
+      <Label text="Stage">
+        <select className={field} value={stage} onChange={(e) => setStage(e.target.value)}>
+          {REPORTABLE_STAGES.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+        </select>
+      </Label>
+      {stage === "lost" ? (
+        <Label text="Why the partner lost the lead" hint="Shown on the lead and used when B2C picks it up for nurture.">
+          <input className={field} value={lostReason} onChange={(e) => setLostReason(e.target.value)} placeholder="e.g. joined another university" maxLength={300} />
+        </Label>
+      ) : (
+        <Label text="Sub-stage (optional)" hint="The partner's own wording, e.g. 'connected, interested' or 'fee paid'.">
+          <input className={field} value={subStage} onChange={(e) => setSubStage(e.target.value)} maxLength={120} />
+        </Label>
+      )}
+      <Label text="Note (optional)">
+        <input className={field} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. counsellor Meera called on 14 Oct" maxLength={1000} />
+      </Label>
+    </Modal>
   );
 }

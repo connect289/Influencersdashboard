@@ -4,13 +4,15 @@ import { formatDateTime, relativeTime } from "@/lib/format";
 import { barText, drawerBadges, holdText, outlookText, providersSentence } from "@/lib/lead-routing-ui";
 import { DESTINATION_LABEL, formatPhone, humanize, statusTone, whatsappLink } from "@/lib/leads";
 import type { EditHistory } from "@/lib/lead-edit";
-import type { LeadDetail } from "@/lib/leads-data";
+import type { LeadDetail, LeadNote, LeadTag } from "@/lib/leads-data";
 import { CONSENT_STATE_LABEL } from "@/lib/routing";
 import type { LeadRouting } from "@/lib/routing-data";
 import type { LeadPartnerSync } from "@/lib/sync";
 import { DrawerShell } from "./DrawerShell";
 import { EditTab } from "./EditTab";
 import { LeadActions } from "./LeadMutations";
+import { NotesTab } from "./NotesTab";
+import { TagEditor } from "./TagEditor";
 import { PartnerSyncTab } from "./PartnerSyncTab";
 import { RoutingTab } from "./RoutingTab";
 
@@ -53,6 +55,13 @@ function Overview({ l, r }: { l: Lead; r: LeadRouting | null }) {
     ? `${consentState}${r?.consent && consentAt ? ` · ${formatDateTime(consentAt)}` : ""}${r?.consent_detail?.partner_consent?.version ? ` · ${r.consent_detail.partner_consent.version}` : ""}`
     : s("consent_partner_share_at") ? `Stamped ${formatDateTime(s("consent_partner_share_at"))} (coverage not checked)` : "Not given";
   const hold = r ? holdText(r) : null;
+  // Addendum 4 §3: the B2C CRM's own stage, counsellor and comment, and its per-channel marketing consent
+  const cf = l.custom_fields && typeof l.custom_fields === "object" ? (l.custom_fields as Record<string, unknown>) : {};
+  const b2c = cf.b2c && typeof cf.b2c === "object" ? (cf.b2c as Record<string, unknown>) : {};
+  const b = (k: string) => (typeof b2c[k] === "string" && b2c[k] ? (b2c[k] as string) : null);
+  const mc = b2c.marketing_consent && typeof b2c.marketing_consent === "object" ? (b2c.marketing_consent as Record<string, { given?: boolean; at?: string }>) : {};
+  const marketing = Object.entries(mc).map(([ch, v]) => `${humanize(ch)}: ${v?.given ? "yes" : "no"}${v?.at ? ` (${formatDateTime(v.at)})` : ""}`).join(" · ") || null;
+  const outCh = Array.isArray(l.opted_out_channels) ? (l.opted_out_channels as string[]).map(humanize).join(", ") : null;
   return (
     <div className="divide-y divide-border">
       <Section title="Contact" rows={[
@@ -102,6 +111,16 @@ function Overview({ l, r }: { l: Lead; r: LeadRouting | null }) {
         ["Opted out", s("opted_out_at") ? formatDateTime(s("opted_out_at")) : yes(s("is_opted_out"))],
         ["Enrollment", s("enrollment_status") && humanize(s("enrollment_status"))],
       ]} />
+      {routing === "in_house" && (
+        <Section title="B2C CRM" rows={[
+          ["Eduwit stage", [b("stage"), b("sub_stage")].filter(Boolean).join(" · ") || null],
+          ["Counsellor", b("owner_name")],
+          ["Comment", b("stage_comment")],
+          ["Marketing consent", marketing],
+          ["Opted out of", outCh],
+          ["Enrolment verified", when(s("enrollment_verified_at"))],
+        ]} />
+      )}
       <Section title="Witty" rows={[
         ["Conversation stage", s("lead_stage") && humanize(s("lead_stage"))],
         ["Intent", s("intent_type") && humanize(s("intent_type"))],
@@ -187,9 +206,9 @@ function Activity({ d }: { d: LeadDetail }) {
 }
 
 /** Lead drawer: who the student is, their Witty chat, what happened to the lead, and corrections with their history. */
-export function LeadDrawer({ id, detail, routing, history, sync, closeHref, initialTab }: {
+export function LeadDrawer({ id, detail, routing, history, sync, closeHref, initialTab, notes = [], tags = [], knownTags = [] }: {
   id: number; detail: LeadDetail | null; routing: LeadRouting | null; history: EditHistory | null; sync: LeadPartnerSync | null;
-  closeHref: string; initialTab?: string;
+  closeHref: string; initialTab?: string; notes?: LeadNote[]; tags?: LeadTag[]; knownTags?: LeadTag[];
 }) {
   if (!detail) {
     return (
@@ -231,6 +250,8 @@ export function LeadDrawer({ id, detail, routing, history, sync, closeHref, init
           <Badge key={b.key} tone={b.tone} className={b.title ? "cursor-help" : undefined}><span title={b.title}>{b.text}</span></Badge>
         ))}
       </div>
+      {/* M33b: tags */}
+      <div className="mt-2"><TagEditor leadId={l.id} tags={tags} known={knownTags} /></div>
     </div>
   );
 
@@ -246,6 +267,7 @@ export function LeadDrawer({ id, detail, routing, history, sync, closeHref, init
         { id: "routing", label: "Routing", count: routing?.decisions.length, content: <RoutingTab leadId={l.id} r={routing} /> },
         ...(sync && (sync.activities.length || sync.events.length || sync.slas.length)
           ? [{ id: "partner", label: "Partner sync", count: sync.activities.length, content: <PartnerSyncTab s={sync} /> }] : []),
+        { id: "notes", label: "Notes", count: notes.length || undefined, content: <NotesTab leadId={l.id} notes={notes} /> },
         { id: "activity", label: "Activity", count: detail.touchpoints.length + detail.events.length + 1, content: <Activity d={detail} /> },
         { id: "edit", label: "Edit", count: history?.length || undefined, content: <EditTab id={l.id} lead={l} history={history} deleted={Boolean(l.deleted_at)} /> },
       ]}

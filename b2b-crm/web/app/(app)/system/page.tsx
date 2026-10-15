@@ -6,7 +6,9 @@ import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { JOB_LABEL, PRODUCT_EVENT_TONE, type SystemOverview } from "@/lib/integrations";
-import { openErasureRequests, systemOverview } from "@/lib/system-data";
+import { auditLog, dataProtection, openErasureRequests, systemOverview } from "@/lib/system-data";
+import { AuditLog } from "./AuditLog";
+import { DataProtection } from "./DataProtection";
 import { ApiKeys } from "./ApiKeys";
 import { Deliveries } from "./Deliveries";
 import { Endpoints } from "./Endpoints";
@@ -18,6 +20,8 @@ const TABS = [
   { id: "health", label: "Health" },
   { id: "integrations", label: "Webhooks and API keys" },
   { id: "deliveries", label: "Deliveries" },
+  { id: "audit", label: "Audit log" },
+  { id: "data", label: "Data protection" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
@@ -90,7 +94,13 @@ export default async function SystemPage({ searchParams }: Props) {
   await requireAdmin();
   const sp = await searchParams;
   const tab: Tab = TABS.find((t) => t.id === sp.tab)?.id ?? "health";
-  const [s, erasures] = await Promise.all([systemOverview(), openErasureRequests()]);
+  const auditFilters = { actor_type: typeof sp.actor === "string" && /^[a-z_]{1,20}$/.test(sp.actor) ? sp.actor : "admin", q: typeof sp.q === "string" ? sp.q.slice(0, 80) : "" };
+  const auditAfter = typeof sp.after === "string" && /^\d{1,18}$/.test(sp.after) ? Number(sp.after) : undefined;
+  const [s, erasures, audit, dp] = await Promise.all([
+    systemOverview(), openErasureRequests(),
+    tab === "audit" ? auditLog({ ...auditFilters, after: auditAfter, limit: 100 }) : Promise.resolve(null),
+    tab === "data" ? dataProtection() : Promise.resolve(null),
+  ]);
   const deadDeliveries = s.endpoints.reduce((n, e) => n + e.dead, 0);
   const waiting = s.endpoints.reduce((n, e) => n + e.pending, 0);
   const jobsFailing = s.jobs.filter((j) => !j.active || j.last_status === "failed").length;
@@ -98,7 +108,7 @@ export default async function SystemPage({ searchParams }: Props) {
 
   return (
     <>
-      <PageHeader title="System health" description="Background jobs, connections to other Eduwit products (the B2C CRM first), webhook deliveries and API keys." />
+      <PageHeader title="System health" description="Background jobs, connections to other Eduwit products (the B2C CRM first), webhook deliveries, API keys, the audit log and data protection." />
       <nav className="mb-6 flex gap-5 overflow-x-auto border-b border-border" aria-label="System sections">
         {TABS.map((t) => (
           <Link key={t.id} href={`/system?tab=${t.id}`} aria-current={tab === t.id ? "page" : undefined}
@@ -150,6 +160,28 @@ export default async function SystemPage({ searchParams }: Props) {
               <li>Webhooks to them: <span className="font-mono">b2c.lead_handed_off</span>, <span className="font-mono">b2c.lead_reenquired</span>, <span className="font-mono">b2c.lead_flagged</span>, <span className="font-mono">b2c.lead_close_agreed</span>, <span className="font-mono">b2b.lead_routed_to_partner</span>.</li>
               <li>Calls to us: <span className="font-mono">GET /v1/handoffs</span>, <span className="font-mono">POST /v1/leads/&#123;id&#125;/route-to-partners</span>, <span className="font-mono">POST /v1/events/b2ccrm</span>.</li>
             </ul>
+          </Card>
+        </div>
+      )}
+
+      {tab === "audit" && audit && (
+        <Card className="min-w-0">
+          <CardHeader title="Audit log" description="Every change, append-only: who did what, when, on which lead or partner. Settings changes, live switches, routes, merges, erasures, team and API key changes." />
+          <AuditLog page={audit} filters={auditFilters} />
+        </Card>
+      )}
+
+      {tab === "data" && dp && (
+        <div className="space-y-6">
+          {erasures.length > 0 && (
+            <Card className="min-w-0 border-warning/40">
+              <CardHeader title="Erasure requests" description="Students who asked, through the B2C CRM, for their data to be deleted. Marking a request done erases the lead in this CRM at once." />
+              <Erasures rows={erasures} />
+            </Card>
+          )}
+          <Card className="min-w-0">
+            <CardHeader title="Retention and erasure" description="What the nightly job erases or deletes, and the counts behind it." />
+            <DataProtection d={dp} />
           </Card>
         </div>
       )}

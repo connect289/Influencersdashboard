@@ -38,7 +38,9 @@ export async function ConnectionTab({ id, c, adapter, partner }: { id: number; c
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Card className="min-w-0 xl:self-start">
-        <CardHeader title="Setup" description={s?.adapter === "inhouse"
+        <CardHeader title="Setup" description={s?.adapter === "email"
+          ? "No CRM API: Eduwit e-mails each allocated lead to the partner's address through Eduwit's own email provider (Notifications → Email). The provider's acceptance is the push; outcomes are recorded by hand from the lead's Routing tab. Nothing to map, no signing secret."
+          : s?.adapter === "inhouse"
           ? "The partner's own CRM: Eduwit sends each lead to its create-lead address, reads the answer for the record ID or a duplicate, and reads status back from its changed-leads address, a webhook to the events address, or its export. See docs/partner-adapters.md."
           : s
           ? `${s.spec.label} adapter: Eduwit creates the lead through ${s.spec.label}'s own API${s.spec.poll ? " and reads stage changes back by polling or webhook" : ""}. See docs/partner-adapters.md.`
@@ -57,7 +59,7 @@ export async function ConnectionTab({ id, c, adapter, partner }: { id: number; c
           <Step done={c.has_token || c.auth_type === "none"}>API credential stored</Step>
           {p && <Step done={dedupeSettled}>Duplicate handling settled: hold window {holdText}{!dedupeSettled && <> · <Link href="?tab=settings" className="text-info hover:underline">confirm it in Settings</Link></>}</Step>}
           </>)}
-          <Step done={c.has_inbound_secret}>Signing secret shared with the partner</Step>
+          {s?.adapter !== "email" && <Step done={c.has_inbound_secret}>Signing secret shared with the partner</Step>}
           <Step done={c.test_accepted}>A test lead accepted by the partner&apos;s sandbox</Step>
         </ul>
         <div className="border-t border-border px-5 py-3 text-[12.5px] text-muted">

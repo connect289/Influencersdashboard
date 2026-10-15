@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
+import { LoaderCircle, RotateCcw, ShieldOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/components/ui/cn";
 import { DELETE_REASONS, humanize, PARTNER_DELETE_REASONS, type DeleteReason } from "@/lib/leads";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { anonymiseLead } from "@/app/(app)/system/actions";
 import { deleteLeads, restoreLeads } from "./actions";
 
 type Blocked = { id: number; why: string }[];
@@ -115,6 +117,7 @@ export function useRestore(onDone: (restored: number[]) => void) {
 export function LeadActions({ id, deleted, withPartner, hasEnrollment }: { id: number; deleted: boolean; withPartner: boolean; hasEnrollment: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [erasing, setErasing] = useState(false);
   const { restore, pending } = useRestore(() => router.refresh());
 
   if (deleted) {
@@ -136,7 +139,20 @@ export function LeadActions({ id, deleted, withPartner, hasEnrollment }: { id: n
       >
         <Trash2 className="size-3.5" /> Delete
       </Button>
+      <Button variant="ghost" size="sm" onClick={() => setErasing(true)} title="Remove the student's personal data (DPDP erasure)" className="hover:text-danger">
+        <ShieldOff className="size-3.5" /> Erase
+      </Button>
       <DeleteDialog ids={[id]} partnerCount={withPartner ? 1 : 0} open={open} onClose={() => setOpen(false)} onDone={() => router.refresh()} />
+      <ConfirmDialog open={erasing} onClose={() => setErasing(false)} title="Erase this student's personal data?" confirmLabel="Erase" tone="danger"
+        reason={{ label: "Reason (kept in the audit log)", placeholder: "e.g. student asked on the phone on 14 Oct" }}
+        onConfirm={async (reason) => {
+          const r = await anonymiseLead(id, reason);
+          if (!r.ok) return r.error;
+          toast.success(r.partners.length ? `Erased here. ${r.partners.length} partner${r.partners.length === 1 ? "" : "s"} to tell (see the alert).` : "Erased");
+          setErasing(false); router.refresh();
+        }}>
+        <p className="text-[13px] text-muted">Name, numbers, email, notes, contacts and message copies are removed from this CRM; the lead keeps its course, city and outcomes without identity, leaves the B2C CRM&rsquo;s copy and is opted out. Partner copies and Witty&rsquo;s chat history are removed by the runbook steps. This cannot be undone.</p>
+      </ConfirmDialog>
     </>
   );
 }

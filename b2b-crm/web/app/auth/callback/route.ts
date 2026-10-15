@@ -1,7 +1,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest } from "next/server";
 import { redirect } from "next/navigation";
-import { fetchMe, recordSignIn } from "@/lib/auth";
+import { acceptTeamInvite, fetchMe, recordSignIn } from "@/lib/auth";
 import { clientIp, safeNext } from "@/lib/security";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,12 +24,16 @@ export async function GET(request: NextRequest) {
   const recovery = type === "recovery" || next === "/reset";
   const method = recovery ? "password_reset" : "google";
   const ctx = { ip: clientIp(request.headers), user_agent: request.headers.get("user-agent")?.slice(0, 500) ?? null };
-  const result = await fetchMe(supabase);
+  let result = await fetchMe(supabase);
 
   if ("setupError" in result) {
     // The database is not reachable through the API yet: a configuration problem, not a refusal.
     await supabase.auth.signOut({ scope: "local" });
     redirect("/login?error=setup");
+  }
+  if (!result.me.allowlisted && (await acceptTeamInvite(result.me.user_id, result.me.email))) {
+    result = await fetchMe(supabase);
+    if ("setupError" in result) redirect("/login?error=setup");
   }
   if (!result.me.allowlisted) {
     await supabase.auth.signOut({ scope: "local" });

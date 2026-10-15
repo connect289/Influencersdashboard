@@ -1,9 +1,9 @@
--- A3 fixture: the consent wording the test leads carry
-insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 -- M17 intake on STAGING, rolled back: the import wizard (stage, preview, courses, commit, hold, release, B2C choice,
 -- rollback), the Intake API (idempotency, refusals), Google lead forms, Meta Lead Ads (verify, signature, apply) and
 -- manual entry. Every row of the final select must say ok = true.
 begin;
+-- A3 fixture: the consent wording the test leads carry
+insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 create temp table r (name text, ok boolean, detail text);
 create temp table t (k text primary key, v text);
 grant all on r, t to authenticated;

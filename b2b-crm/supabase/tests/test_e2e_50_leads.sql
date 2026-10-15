@@ -1,5 +1,3 @@
--- A3 fixture: the consent wording the test leads carry
-insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 -- Phase 1 end-to-end scenarios (spec B20) on STAGING, 50 throwaway leads in one transaction, rolled back.
 -- The routing engine runs for real (b2b.route_decide). Partner answers are applied with the same functions the push
 -- engine calls on an HTTP answer (apply_created, apply_duplicate, apply_rejection, accept_allocation), so no request
@@ -7,6 +5,8 @@ insert into b2b.consent_texts (version, channel, purposes, body, covers_admissio
 -- Staging fixtures used: partners e2e-down (25%, MBA, MCA), e2e-sync (20%, MBA, BBA, sync dedupe), e2e-async
 -- (18%, MBA, BBA, async with a hold window). Every row of the final select must say ok = true.
 begin;
+-- A3 fixture: the consent wording the test leads carry
+insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 create temp table r (name text, ok boolean, detail text);
 create temp table l50 (k text, n int, lead_id bigint, phone text);
 

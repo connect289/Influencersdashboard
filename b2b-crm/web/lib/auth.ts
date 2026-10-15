@@ -13,6 +13,8 @@ export type Me = {
   role: string | null;
   require_totp: boolean;
   is_admin: boolean;
+  /** M33a: a viewer. Reads pass, every write is refused by the database. */
+  read_only?: boolean;
 };
 
 export type MeResult = { me: Me } | { setupError: "b2b_not_exposed" };
@@ -71,6 +73,14 @@ export async function recordSignIn(entry: SignInEntry): Promise<void> {
 export async function isLocked(email: string): Promise<boolean> {
   const { data, error } = await adminClient().rpc("sign_in_locked", { p_email: email });
   if (error) throw new Error(`lockout check failed (${error.code ?? "unknown"})`); // fail closed
+  return data === true;
+}
+
+/** M33a: an authenticated identity that is not on the team yet joins through an open invitation for its address. */
+export async function acceptTeamInvite(userId: string | null | undefined, email: string | null | undefined): Promise<boolean> {
+  if (!userId || !email) return false;
+  const { data, error } = await adminClient().rpc("team_invite_accept", { p_user_id: userId, p_email: email.toLowerCase() });
+  if (error) { console.error("team_invite_accept failed", error.code); return false; }
   return data === true;
 }
 

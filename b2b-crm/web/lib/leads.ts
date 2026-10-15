@@ -33,6 +33,8 @@ export type LeadQuery = {
   status: string[];
   dest: Destination | null;
   paid: PaidFilter | null;
+  /** M33b: any of these tag names. */
+  tags: string[];
   sort: Sort;
   dir: "asc" | "desc";
   test: boolean;
@@ -87,6 +89,13 @@ export type LeadRow = {
   consent_state: ConsentState | null;
   /** Set while the partner has marked the lead lost and the 7-day grace runs (PART 6.1). */
   lost_grace_until: string | null;
+  /** Addendum 4 §3: for leads the B2C CRM holds, its own (Eduwit) stage and counsellor; §7: its money once it publishes it. */
+  b2c_stage?: string | null;
+  b2c_sub_stage?: string | null;
+  b2c_owner_name?: string | null;
+  b2c_money?: Record<string, unknown> | null;
+  /** M33b */
+  tags?: string[];
 };
 
 export type LeadPage = { rows: LeadRow[]; next: Cursor | null; total: number | null };
@@ -97,6 +106,8 @@ export type Facets = {
   /** Keyed by every DESTINATIONS value (the flags are counted on the list's base filter too). */
   destination: Record<string, number>;
   paid: { meta: number; google: number; any: number };
+  /** M33b: tag name -> leads carrying it. */
+  tags: Record<string, number>;
   bin: number;
   tests: number;
 };
@@ -127,6 +138,7 @@ export function parseLeadQuery(sp: SearchParams): LeadQuery {
     status: list(sp.status).map((s) => s.toUpperCase()),
     dest: DESTINATIONS.includes(dest) ? dest : null,
     paid: PAID_FILTERS.includes(paid) ? paid : null,
+    tags: list(sp.tags).map((t) => t.slice(0, 40)).slice(0, 10),
     sort: SORTS.includes(sort) ? sort : "created_at",
     dir: one(sp.dir) === "asc" ? "asc" : "desc",
     test: one(sp.test) === "1",
@@ -151,6 +163,7 @@ export function toRpcParams(q: LeadQuery, extra: { after?: Cursor | null; limit?
     status: q.status,
     destination: q.dest ?? undefined,
     paid: q.paid ?? undefined,
+    tags: q.tags.length ? q.tags : undefined,
     include_test: q.test,
     bin: q.bin,
     sort: q.sort,
@@ -171,6 +184,7 @@ export function leadsSearch(q: LeadQuery, patch: Partial<LeadQuery> = {}, lead: 
   if (m.status.length) p.set("status", m.status.join(","));
   if (m.dest) p.set("dest", m.dest);
   if (m.paid) p.set("paid", m.paid);
+  if (m.tags.length) p.set("tags", m.tags.join(","));
   if (m.sort !== "created_at") p.set("sort", m.sort);
   if (m.dir !== "desc") p.set("dir", m.dir);
   if (m.test) p.set("test", "1");
@@ -190,10 +204,10 @@ export function toggle(values: string[], value: string): string[] {
 }
 
 /** Every filter that narrows the list (sort, the test switch and the bin are views, not filters). */
-export const CLEAR_FILTERS: Partial<LeadQuery> = { q: "", stage: [], source: [], status: [], dest: null, paid: null };
+export const CLEAR_FILTERS: Partial<LeadQuery> = { q: "", stage: [], source: [], status: [], dest: null, paid: null, tags: [] };
 
 export function hasFilters(q: LeadQuery): boolean {
-  return Boolean(q.q || q.stage.length || q.source.length || q.status.length || q.dest || q.paid);
+  return Boolean(q.q || q.stage.length || q.source.length || q.status.length || q.dest || q.paid || q.tags.length);
 }
 
 // ---------- labels ----------

@@ -1,9 +1,9 @@
--- A3 fixture: the consent wording the test leads carry
-insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 -- M16 status/activity sync, SLAs and reconciliation on STAGING, rolled back. Two leads accepted by partner e2e-down
 -- (id 20, Mon–Fri 10–19, Sat 10–17); signed events go through b2b.partner_event_ingest; the SLA clock is driven by
 -- calling b2b.sla_tick(). Every row of the final select must say ok = true.
 begin;
+-- A3 fixture: the consent wording the test leads carry
+insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 create temp table r (name text, ok boolean, detail text);
 create temp table t (k text primary key, v text);
 grant all on r, t to authenticated;

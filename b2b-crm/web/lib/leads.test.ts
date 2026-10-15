@@ -5,7 +5,7 @@ import {
   sendToPartnersPreview, shortDate, statusTone, toCsv, toRpcParams, toggle, whatsappLink, type LeadRow,
 } from "./leads";
 
-const DEFAULT_QUERY = { q: "", stage: [], source: [], status: [], dest: null, paid: null, sort: "created_at", dir: "desc", test: false, bin: false };
+const DEFAULT_QUERY = { q: "", stage: [], source: [], status: [], dest: null, paid: null, tags: [], sort: "created_at", dir: "desc", test: false, bin: false };
 
 describe("parseLeadQuery", () => {
   it("defaults to newest first, live leads, no tests", () => {
@@ -14,7 +14,7 @@ describe("parseLeadQuery", () => {
 
   it("reads every filter", () => {
     const q = parseLeadQuery({ q: "  ravi ", stage: "new,qualifying", source: "whatsapp_direct", status: "hot,warm", dest: "partner", paid: "meta", sort: "name", dir: "asc", test: "1", view: "bin" });
-    expect(q).toEqual({ q: "ravi", stage: ["new", "qualifying"], source: ["whatsapp_direct"], status: ["HOT", "WARM"], dest: "partner", paid: "meta", sort: "name", dir: "asc", test: true, bin: true });
+    expect(q).toEqual({ q: "ravi", stage: ["new", "qualifying"], source: ["whatsapp_direct"], status: ["HOT", "WARM"], dest: "partner", paid: "meta", tags: [], sort: "name", dir: "asc", test: true, bin: true });
   });
 
   it("rejects unknown enums and caps sizes", () => {

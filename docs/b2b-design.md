@@ -693,3 +693,73 @@ Source: `docs/B2B_CRM_ADDENDUM_3.md` and its Amendment 1. Migrations `m31a0` to 
 - **Deliberately unchanged**: Witty's tables and `lead_intake()`, and no triggers on `student_leads`.
 - **Go-live gate**: `routing_golive_check` refuses to switch routing on until partners, an approved consent text, a reachable B2C endpoint and the Witty W1 line are in place.
 - **Verification**: five new SQL suites (503 assertions) pass in the local full-schema harness; older suites need their fixtures reviewed against these rules (listed in `docs/go-live-setup.md` section 1.2).
+
+## Addendum 4 (the B2C CRM link, final shape): what was built
+
+Source: `docs/B2B_CRM_ADDENDUM_4.md` (14 Oct). Migrations `m32a`–`m32c`; contract `docs/b2c-contract.md` version 4.
+
+- **Real time only to B2C.** `b2c_link_cfg` always answers `delivery: realtime`; the settings save refuses batched;
+  `b2c.leads_batch` is kept for other products and never sent to the B2C endpoint. The B2C link screen no longer offers it.
+- **Echo suppression.** A version whose origin is the B2C CRM's own write (`b2c:…`) is not delivered, unless an older
+  version is still on its way to that endpoint (then the newest follows, so nobody else's change is lost). Every B2C write
+  first syncs any pending outside change, so suppression never hides it. The change feed lists every version.
+- **The 15-minute batch.** Items applied in the order given; `occurred_at` sets `stage_changed_at` and the timeline time
+  (`b2b.log_event_at`); contact roll-ups take the min/max of activity times and never move backwards; one delivery kick
+  per batch call. No rate limit exists on the batch endpoint, so 20 calls a minute pass.
+- **New fields** without new columns: the marketing group, `enrollment_verified_at`, and `b2c_stage`, `b2c_sub_stage`,
+  `b2c_stage_comment`, `owner_name` in `custom_fields.b2c` (dotted columns in `b2c_fields`). A generic `custom_fields`
+  write keeps `b2c` and refuses it as a key.
+- **Events:** marketing consent per channel (ledger rows, `consent_marketing_at`), per-channel opt-out
+  (`opted_out_channels`; fully opted out only when every channel is), `contact_added` into the new `b2b.lead_contacts`
+  (lookup and intake duplicate detection), timeline-only `lead_updated` / `commission_booked`.
+- **Reads:** lookup `holder` for students the B2C CRM does not hold; `GET /v1/b2c/leads/{id}/partner-history`; the schema
+  lists consent texts, batch rules and groups.
+- **Catalogue:** schema `catalog` (views joining tables directly, so the reader needs nothing on `b2b`), `catalog.changes`
+  fed by triggers on `b2b.rates` and published programme versions, role `b2c_app`.
+- **Phase 3 hooks:** `b2c_money_of` / `b2c_status_of` read the B2C CRM's views only when they exist; the Master Lead Table
+  shows the Eduwit stage, counsellor and B2C money for B2C-held leads, and the lead drawer shows the comment and marketing
+  consent. The referral view `b2b_referral_outcomes` is still not built; when it is, it reads `b2c_status_of`.
+- **Not changed:** Witty (`w2_*`, `lead_intake()`, n8n), hand-off reasons, lanes, holds, the partner bar and consent flow.
+  Forwarding Witty's interest signal and `w2_crm_owned` for B2C nurture stay Witty changes for later.
+- **Delivery target:** B2C CRM link shows the p95 delivery time of the last hour against the 5-second target.
+- **Verification:** `tests/test_m32_b2c_v4.sql` (41 checks, the ten tests of §10) and the B2C link, cadence and Addendum 3
+  suites pass in the local full-schema harness; web type check, 437 unit tests and the production build pass.
+
+
+## M33 (industry-grade pass, 15 Oct): what was built
+
+Own gap review after Addendum 4; no spec document. Migrations `m33a`–`m33e`; runbook `docs/operations.md`; referral
+API `docs/referral-api.md`.
+
+- **Access (m33a).** Two roles: `admin` and `viewer`. A viewer sees every screen and can export; every write is refused
+  (`is_admin()` is true for a viewer only inside a read-only transaction, which is how PostgREST runs `GET` and stable
+  RPC). Settings → Team: invitations by email (14 days, used up at first sign-in through `team_invite_accept` in the auth
+  callback), role changes, removal, two-factor reset, with last-Admin and own-access guards. Sign-in log unchanged.
+- **API hardening (m33a).** Keys carry an expiry (default 90 days), a per-minute rate limit (setting `api_limits`,
+  defaults per scope) and a holder note; `api_key_check` counts usage per minute in `b2b.api_key_usage` and raises
+  SQLSTATE `P0429` (HTTP 429 + `Retry-After`) over the limit; an expiry alert runs daily (`b2b-api-keys-expiry`).
+  `GET /api/health` (anon, no personal data) reports stale cron jobs, stuck queues, expiring keys; `503` when unhealthy.
+- **Lead workspace (m33b).** Tags (`b2b.tags`, `b2b.lead_tags`; filter and facet), pinned notes (`b2b.lead_notes`),
+  a duplicate review (`lead_duplicates`: same phone, email or secondary contact across live leads, dismissals kept) and
+  `lead_merge` (moves contacts, notes, tags, allocations' history and timeline to the kept lead; the merged lead points at
+  it through `merged_into_id` and leaves every view).
+- **Data protection (m33c).** `lead_anonymise` blanks personal data in `student_leads` and every copy this CRM holds
+  (contacts, notes, edits, B2C writes, notifications, partner activities, push requests, outbox payloads), opts the
+  student out, releases the lead from the B2C CRM, raises one `alert.partner_erasure_notice` per partner that had the
+  lead and logs `lead.anonymised`. Closing an erasure request as done now erases. Retention setting (`inactive_months`
+  null by default, `test_lead_days` 30) applied nightly by `retention_tick` (`b2b-retention`, 02:15 IST; also prunes the
+  sign-in log over a year and delivered outbox rows over 90 days; last run in `b2b.job_state`). `audit_log()` pages
+  `b2b.events` by actor, text, lead, partner and time; `data_protection_overview()` feeds the new System tab.
+- **Referral outcomes (m33d).** `public.b2b_referral_outcomes` (hashed `lead_ref`, no personal data) and
+  `GET /v1/referrals/{code}/outcomes` (scope `referrals`), the view Addendum 4 left open.
+- **Email partners (m33e).** Adapter type `email` for partners without an API: the push is an email through the
+  Notifications provider (Resend or Brevo) with the lead as a table; the provider's message id is the record id; a
+  refused provider key alerts the Admin. `allocation_outcome_manual` records what such a partner reported (stage,
+  sub-stage, note, lost reason) as a `partner_activities` row and applies it through the same mapped-stage path as a
+  synced CRM, so the lost grace and the partner bar follow. Routing tab: **Record partner's report**.
+- **Unchanged:** Witty's tables, `lead_intake()`, no triggers added to `student_leads` (the existing touch trigger is
+  what the retention rule's "idle" measures), the B2C contract (v4).
+- **Verification:** `tests/test_m33a_access_api.sql` 41, `test_m33b_lead_workspace.sql` 38, `test_m33c_data_protection.sql`
+  22, `test_m33d_referrals.sql` 7, `test_m33e_email_partner.sql` 15 checks pass in the local full-schema harness, with the
+  m19, m20, m22, m23, m31 and m32 suites; web type check, 437 unit tests and the production build pass. Not yet applied
+  to staging or production (deploy.mjs carries `m32a`–`m33e`).

@@ -1,5 +1,5 @@
--- M23 sync cadence on STAGING, rolled back: the B2C link in real time, then batched (real students wait for the batch,
--- test leads stay real time, one b2c.leads_batch per interval with each lead at its newest version), the batch write
+-- M23 sync cadence on STAGING, rolled back. Addendum 4: the B2C link is real time only (batched delivery is refused,
+-- no b2c.leads_batch reaches the B2C endpoint), the B2C CRM's own batch writes are not echoed back, the batch write
 -- endpoint, the interval setting, and live partner polling every interval instead of every 10 minutes.
 -- Every row must say ok = true.
 begin;
@@ -49,25 +49,22 @@ update public.student_leads set destination_type = 'partner', partner_id = 20 wh
 select b2b.b2c_sync_lead(pg_temp.v('H')::bigint);
 insert into r select 'realtime_webhook', pg_temp.upserts(pg_temp.v('H')::bigint) = 1, null;
 insert into r select 'sync_minutes_default', b2b.sync_minutes() = 15, b2b.sync_minutes()::text;
-insert into r select 'realtime_no_batch', b2b.b2c_batch_send(true) ->> 'why' = 'real time', null;
+insert into r select 'realtime_no_batch', b2b.b2c_batch_send(true) ->> 'why' like 'real time%', null;
 
--- the Admin switches to the production cadence
+-- Addendum 4: the B2C CRM is always served in real time; batched delivery is refused
 set local role authenticated;
 select pg_temp.admin();
 do $x$
 declare c jsonb; e text;
 begin
-  c := b2b.b2c_link_settings_save('{"delivery":"batched"}', 'm23 test: integration tested');
-  insert into r values ('delivery_saved', c ->> 'delivery' = 'batched' and c ->> 'scope' = 'held' and jsonb_array_length(c -> 'writable') > 30, c::text);
-  begin perform b2b.b2c_link_settings_save('{"delivery":"hourly"}', 'test'); e := 'saved'; exception when others then e := sqlerrm; end;
-  insert into r values ('delivery_checked', e = 'delivery is realtime or batched', e);
+  begin perform b2b.b2c_link_settings_save('{"delivery":"batched"}', 'm23 test: try batches'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r values ('batched_refused', e like 'the B2C CRM needs real-time delivery (Addendum 4)%', e);
+  c := b2b.b2c_link_settings_save('{"delivery":"realtime"}', 'm23 test: real time');
+  insert into r values ('delivery_saved', c ->> 'delivery' = 'realtime' and c ->> 'scope' = 'held' and jsonb_array_length(c -> 'writable') > 30, c::text);
   begin perform b2b.sync_settings_save(4, 'test'); e := 'saved'; exception when others then e := sqlerrm; end;
   insert into r values ('interval_checked', e = 'the sync interval is 5 to 60 minutes', e);
   c := b2b.sync_settings_save(20, 'm23 test: twenty');
-  insert into r values ('interval_saved', (c ->> 'interval_minutes')::int = 20 and c -> 'b2c' ->> 'delivery' = 'batched' and c -> 'b2c' ->> 'next_batch_at' is not null, left(c::text, 300));
-  c := b2b.webhook_endpoint_save(jsonb_build_object('id', (select id from b2b.webhook_endpoints where consumer = 'b2c_crm'), 'name', 'B2C CRM',
-                                                    'url', 'https://b2c.example.test/hooks/b2b', 'events', jsonb_build_array('b2c.leads_batch', 'b2c.lead_upserted', 'b2c.lead_released')));
-  insert into r values ('endpoint_accepts_batch', c -> 'events' @> '["b2c.leads_batch"]', null);
+  insert into r values ('interval_saved', (c ->> 'interval_minutes')::int = 20, left(c::text, 300));
 end $x$;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-0000000000c8","role":"authenticated","aal":"aal2","email":"nobody23@test.local"}', true);
 do $x$ declare e text; begin
@@ -77,31 +74,18 @@ end $x$;
 reset role;
 insert into r select 'interval_in_use', b2b.sync_minutes() = 20, null;
 
--- batched: the real student's change waits; the test lead goes at once
+-- a real student's change goes out at once, whatever the interval; nothing is batched for the B2C CRM
 update public.student_leads set city = 'Pune' where id = pg_temp.v('H')::bigint;
 insert into t select 'h2', b2b.b2c_sync_lead(pg_temp.v('H')::bigint)::text;
-insert into r select 'real_student_waits', (pg_temp.v('h2')::jsonb ->> 'batched')::boolean and pg_temp.upserts(pg_temp.v('H')::bigint) = 1, pg_temp.v('h2');
-select pg_temp.hold(pg_temp.v('T')::bigint);
-select b2b.b2c_sync_lead(pg_temp.v('T')::bigint);
-insert into r select 'test_lead_realtime', pg_temp.upserts(pg_temp.v('T')::bigint) = 1, null;
-insert into r select 'batch_not_due', (b2b.b2c_batch_send(false) ->> 'batches')::int = 0, null;
-update public.student_leads set sub_stage = 'second change' where id = pg_temp.v('H')::bigint;
-select b2b.b2c_sync_lead(pg_temp.v('H')::bigint);
--- the interval passes
+insert into r select 'real_student_realtime', not coalesce((pg_temp.v('h2')::jsonb ->> 'batched')::boolean, false) and pg_temp.upserts(pg_temp.v('H')::bigint) = 2, pg_temp.v('h2');
 update b2b.b2c_link_state set value = value || jsonb_build_object('at', now() - interval '21 minutes') where key = 'batch';
-insert into t select 'b1', b2b.b2c_batch_send(false)::text;
-insert into r select 'batch_sent', (pg_temp.v('b1')::jsonb ->> 'batches')::int = 1 and (pg_temp.v('b1')::jsonb ->> 'leads')::int = 2, pg_temp.v('b1');
-insert into r select 'batch_content', count(*) = 1
-                       and bool_and(jsonb_array_length(o.payload -> 'data' -> 'leads') = 2)
-                       and bool_and(exists (select 1 from jsonb_array_elements(o.payload -> 'data' -> 'leads') x
-                                             where x ->> 'lead_id' = pg_temp.v('H') and x ->> 'version' = '3' and x -> 'record' -> 'student' ->> 'city' = 'Pune'
-                                               and x -> 'record' -> 'pipeline' ->> 'sub_stage' = 'second change'))
-                       and bool_and(o.status = 'pending'), string_agg(left(o.payload::text, 200), ' | ')
-  from b2b.integration_outbox o where o.event_type = 'b2c.leads_batch' and o.created_at = now();
-insert into r select 'batch_empty_next', (b2b.b2c_batch_send(true) ->> 'leads')::int = 0, null;
-insert into r select 'schema_tells_delivery', x -> 'result' ->> 'delivery' = 'batched' and (x -> 'result' ->> 'interval_minutes')::int = 20, null
+insert into r select 'no_batch_to_b2c', (b2b.b2c_batch_send(true) ->> 'batches')::int = 0
+                       and not exists (select 1 from b2b.integration_outbox o where o.event_type = 'b2c.leads_batch'), null;
+insert into r select 'schema_tells_delivery', x -> 'result' ->> 'delivery' = 'realtime', null
   from (select b2b.api_b2c_schema('eb2b_m23test_key_0001') x) y;
 
+-- the earlier versions reached the B2C CRM (nothing is still on its way, so its own writes are not echoed back)
+update b2b.integration_outbox set status = 'delivered', delivered_at = now() where event_type = 'b2c.lead_upserted' and status = 'pending';
 -- the B2C CRM's own batch of writes
 insert into t select 'w', b2b.api_b2c_batch('eb2b_m23test_key_0001', jsonb_build_object('items', jsonb_build_array(
   jsonb_build_object('op', 'update', 'lead_id', pg_temp.v('H')::bigint, 'request_id', 'm23-b1', 'actor', jsonb_build_object('name', 'Priya'), 'set', jsonb_build_object('stage', 'assigned')),
@@ -114,7 +98,7 @@ insert into r select 'batch_writes', (x ->> 'ok')::boolean and (x -> 'result' ->
   from (select pg_temp.v('w')::jsonb x) y;
 insert into r select 'batch_writes_applied', l.stage = 'assigned' and l.contact_attempts = 1, l.stage || ' ' || coalesce(l.contact_attempts, 0)
   from public.student_leads l where l.id = pg_temp.v('H')::bigint;
-insert into r select 'batch_writes_no_webhook', pg_temp.upserts(pg_temp.v('H')::bigint) = 1, null;
+insert into r select 'batch_writes_no_webhook', pg_temp.upserts(pg_temp.v('H')::bigint) = 2, null;
 insert into r select 'batch_too_big', (b2b.api_b2c_batch('eb2b_m23test_key_0001', '{"items":[]}') ->> 'status')::int = 400, null;
 
 -- live partner polling: every interval (20 here) unless the partner set its own minutes
@@ -139,14 +123,10 @@ insert into r select 'cadence_lists_partner', exists (select 1 from jsonb_array_
                                                      where (p ->> 'id')::int = 20 and (p ->> 'live_minutes')::int = 20 and not (p ->> 'own_minutes')::boolean), null;
 reset role;
 
--- back to real time
-set local role authenticated;
-select pg_temp.admin();
-select b2b.b2c_link_settings_save('{"delivery":"realtime"}', 'm23 test: back');
-reset role;
+-- someone else's change after the B2C CRM's writes goes out at once
 update public.student_leads set sub_stage = 'third change' where id = pg_temp.v('H')::bigint;
 select b2b.b2c_sync_lead(pg_temp.v('H')::bigint);
-insert into r select 'realtime_again', pg_temp.upserts(pg_temp.v('H')::bigint) = 2, null;
+insert into r select 'realtime_again', pg_temp.upserts(pg_temp.v('H')::bigint) = 3, null;
 
 select name, ok, detail from r order by ok, name;
 rollback;
