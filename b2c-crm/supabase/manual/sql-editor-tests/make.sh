@@ -5,6 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 for f in tests/test_*.sql; do
+  grep -q "LOCAL COPY ONLY" "$f" && continue   # catalogue and partner fixtures: local copy only
   out="manual/sql-editor-tests/$(basename "$f")"
   python3 - "$f" "$out" <<'PY'
 import sys

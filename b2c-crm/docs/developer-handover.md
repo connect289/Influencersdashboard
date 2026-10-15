@@ -39,14 +39,16 @@ Two files, both idempotent (safe to run again, and safe where part is already ap
 **Staging** (`mplbspysxmtohnlwpbti`) → SQL editor → paste `apply_b39_b43.sql` → Run. Then run each file in
 `b2c-crm/supabase/manual/sql-editor-tests/` (one at a time). Each ends on purpose with an **error** that reads
 `TESTRESULT pass=N fail=0 …`: `fail=0` is a pass; any failure is listed by name. The error is what guarantees nothing a
-test writes is kept. Expected: `test_completion` 209, `test_phase1` 99, `test_phase2` 45, `test_phase3` 91,
-`test_phase4` 47, `test_features` 26, `test_support_phones` 28, `test_walkthrough_fixes` 10 (on staging the counts can
-differ slightly where real staging data adds rows to a check; every check must still pass). Then the staging site
-(`https://eduwit-b2c-crm.vercel.app`) has every screen working: click through it with the test users.
+test writes is kept. Expected on a clean copy: `test_completion` 209, `test_phase1` 99, `test_phase2` 45,
+`test_features` 26, `test_support_phones` 28, `test_walkthrough_fixes` 10 (real staging data can change a count; every
+check must still pass). `test_phase3` and `test_phase4` write catalogue and partner fixtures, so they refuse to run
+anywhere but a local Postgres database named `b2c_fresh` (load `supabase/tests/local_stubs.sql`, then every migration in
+order; see `b2c-crm/README.md` → tests).
 
 **Production** (`xlseqwgyjuqhktrguhyc`), only after staging passes: backup (step 1) → SQL editor → run
-`staging_b4_pool_calendar.sql`, then `apply_b39_b43.sql`, then the same test files (they write only test users
-`*.cp@eduwit.in` and test leads `9100009996…`, and raise at the end so nothing is kept).
+`staging_b4_pool_calendar.sql` (first time only), then `apply_b39_b43.sql` (or the next migration file). Do **not** run
+the test suites on production: it is the database Witty, the B2B CRM and the Influencer Dashboard share. The read-only
+check below is enough there, because the migrations are the same files that passed on staging and locally.
 
 **Check (production and staging; every row must say `true`):**
 
