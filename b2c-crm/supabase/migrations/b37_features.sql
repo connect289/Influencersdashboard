@@ -170,14 +170,17 @@ declare v_jobs jsonb := '[]'::jsonb; v_calls jsonb := null; v_ai jsonb; v_checks
         n_out_q int; n_out_bad int; t_out_old timestamptz; n_sq_q int; n_sq_held int; n_sq_bad int; t_sq_old timestamptz;
         n_in_err int; n_in_stale int; n_unassigned int; n_replies int; n_unlogged int; n_wa_fail int; t_batch timestamptz; t_event timestamptz;
 begin
-  if b2c.my_role() <> 'admin' then raise exception 'not allowed' using errcode = '42501'; end if;
+  if b2c.my_role() is distinct from 'admin' then raise exception 'not allowed' using errcode = '42501'; end if;
   -- timers
   if to_regclass('cron.job') is not null then
     if to_regclass('cron.job_run_details') is not null then
-      execute $q$select coalesce(jsonb_agg(jsonb_build_object('name', j.jobname, 'schedule', j.schedule, 'last_status', d.status, 'last_start', d.start_time,
+      -- cron.job_run_details has no index but its primary key and can hold hundreds of thousands of rows: read only the newest 20,000 runs, once.
+      execute $q$with recent as materialized (
+                   select distinct on (r.jobid) r.jobid, r.status, r.start_time, r.end_time, r.return_message from cron.job_run_details r
+                    where r.runid > coalesce((select max(x.runid) from cron.job_run_details x), 0) - 20000 order by r.jobid, r.start_time desc)
+                 select coalesce(jsonb_agg(jsonb_build_object('name', j.jobname, 'schedule', j.schedule, 'last_status', d.status, 'last_start', d.start_time,
                                                               'last_end', d.end_time, 'message', left(d.return_message, 200)) order by j.jobname), '[]'::jsonb)
-                   from cron.job j
-                   left join lateral (select status, start_time, end_time, return_message from cron.job_run_details r where r.jobid = j.jobid order by start_time desc limit 1) d on true
+                   from cron.job j left join recent d on d.jobid = j.jobid
                   where j.jobname like 'b2c-%'$q$ into v_jobs;
     else
       execute $q$select coalesce(jsonb_agg(jsonb_build_object('name', j.jobname, 'schedule', j.schedule) order by j.jobname), '[]'::jsonb) from cron.job j where j.jobname like 'b2c-%'$q$ into v_jobs;
@@ -235,7 +238,7 @@ declare v_limit int := least(greatest(coalesce((p ->> 'limit')::int, 100), 1), 5
         v_action text := nullif(p ->> 'action', ''); v_actor uuid := nullif(p ->> 'actor', '')::uuid; v_lead bigint := nullif(p ->> 'lead', '')::bigint;
         v_from timestamptz := nullif(p ->> 'from', '')::timestamptz; v_to timestamptz := nullif(p ->> 'to', '')::timestamptz;
 begin
-  if b2c.my_role() <> 'admin' then raise exception 'not allowed' using errcode = '42501'; end if;
+  if b2c.my_role() is distinct from 'admin' then raise exception 'not allowed' using errcode = '42501'; end if;
   return jsonb_build_object(
     'rows', (select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'at', a.at, 'actor', u.full_name, 'actor_id', a.actor_id, 'action', a.action, 'lead_id', a.lead_id, 'detail', a.detail) order by a.at desc), '[]'::jsonb)
                from (select * from b2c.audit_log a
@@ -253,7 +256,7 @@ end $f$;
 create or replace function b2c.sign_in_list(p jsonb default '{}'::jsonb) returns jsonb language plpgsql stable security definer set search_path = '' as $f$
 declare v_limit int := least(greatest(coalesce((p ->> 'limit')::int, 100), 1), 500); v_outcome text := nullif(p ->> 'outcome', ''); v_email text := nullif(lower(trim(p ->> 'email')), '');
 begin
-  if b2c.my_role() <> 'admin' then raise exception 'not allowed' using errcode = '42501'; end if;
+  if b2c.my_role() is distinct from 'admin' then raise exception 'not allowed' using errcode = '42501'; end if;
   return jsonb_build_object(
     'rows', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'at', s.at, 'email', s.email, 'method', s.method, 'outcome', s.outcome, 'ip', s.ip, 'user_agent', left(s.user_agent, 120)) order by s.at desc), '[]'::jsonb)
                from (select * from b2c.sign_in_log s where (v_outcome is null or s.outcome = v_outcome) and (v_email is null or lower(s.email) = v_email) order by s.at desc limit v_limit) s),
