@@ -67,7 +67,7 @@ export default async function WorkspaceLeads({ searchParams }: { searchParams: P
           {admin && <a className="btn ghost sm" href={`/w/leads/export?${new URLSearchParams({ ...(view ? { v: String(view.id) } : {}), ...(sp.q ? { q: sp.q } : {}), ...(sp.test ? { test: sp.test } : {}) })}`}>Export CSV</a>}
         </div>
       )}
-      {res.rows.length === 0 ? <Empty>No leads here.</Empty> : <LeadTable rows={res.rows} base="/w/leads" showOwner select />}
+      {res.rows.length === 0 ? <Empty>No leads match this view. Test leads are shown only with “Include test leads”.</Empty> : <LeadTable rows={res.rows} base="/w/leads" showOwner select />}
       {res.total > PAGE && (
         <div className="pager">
           {page > 0 && <Link className="btn ghost sm" href={qs({ page: page - 1 })}>Previous</Link>}

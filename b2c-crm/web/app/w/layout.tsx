@@ -1,12 +1,17 @@
+import { CommandPalette } from "@/components/shell/CommandPalette";
 import { BottomNav, SideNav, type NavItem } from "@/components/shell/Nav";
 import { UserBox } from "@/components/shell/UserBox";
 import { requireUser } from "@/lib/auth";
+import { rpc } from "@/lib/data";
 import { ROLE_LABEL } from "@/lib/labels";
 
-/** The workspace (spec B12–B14): the Admin's console; Marketing reads it in Phase 1 (its own tools come in Phase 2). */
+type Counts = { unread_inbox: number };
+
+/** The workspace (spec B15): the Admin's console; Marketing sees the same shell with its own tools. */
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const me = await requireUser("workspace", "/w");
   const admin = me.role === "admin";
+  const c = await rpc<Counts>("nav_counts").catch(() => ({ unread_inbox: 0 }));
   const items: NavItem[] = [
     { href: "/w", label: "Home", icon: "dashboard", phone: true },
     { href: "/w/leads", label: "Leads", icon: "leads", group: "Sales", phone: true },
@@ -16,7 +21,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     { href: "/w/enrollments", label: "Enrolments", icon: "enrollments", group: "Sales", phone: true },
     { href: "/w/team", label: "Team performance", icon: "team", group: "Sales" },
     ...(admin || me.role === "marketing" ? [
-      { href: "/w/nurture", label: "Nurture", icon: "nurture", group: "Marketing", phone: me.role === "marketing" } as NavItem,
+      { href: "/w/nurture", label: "Nurture", icon: "nurture", group: "Marketing", phone: me.role === "marketing", count: c.unread_inbox || undefined } as NavItem,
       { href: "/w/templates", label: "Templates", icon: "templates", group: "Marketing" } as NavItem,
     ] : []),
     { href: "/w/analytics", label: "Analytics", icon: "analytics", group: "Numbers" },
@@ -25,10 +30,21 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     ...(admin ? [{ href: "/w/settings", label: "Settings", icon: "settings", group: "Company" } as NavItem] : []),
     { href: "/w/guide", label: "Guide", icon: "guide", group: "Company", phone: true },
     { href: "/w/support", label: "Support", icon: "support", group: "Company" },
+    ...(admin ? [{ href: "/s", label: "Sales app", icon: "switch", group: "Company" } as NavItem] : []),
+  ];
+  const pages = [
+    ...items.map((i) => ({ href: i.href, label: i.label })),
+    { href: "/w/allocation?tab=rules", label: "Allocation rules", hint: "Lead Allocation" }, { href: "/w/allocation?tab=queues", label: "Unassigned queue", hint: "Lead Allocation" },
+    { href: "/w/allocation?tab=calendar", label: "Hours and leave", hint: "Lead Allocation" }, { href: "/w/nurture?tab=pool", label: "Nurture pool", hint: "Nurture" },
+    { href: "/w/nurture?tab=journeys", label: "Journeys", hint: "Nurture" }, { href: "/w/nurture?tab=campaigns", label: "Campaigns", hint: "Nurture" },
+    { href: "/w/nurture?tab=replies", label: "Replies", hint: "Nurture" }, { href: "/w/money?tab=commission", label: "Counsellor commission", hint: "Money" },
+    { href: "/w/money?tab=universities", label: "Universities", hint: "Money" }, { href: "/w/money?tab=ads", label: "Ad spend", hint: "Money" },
+    { href: "/w/teams", label: "Phone numbers", hint: "Teams" },
   ];
   return (
     <div className="desk-shell">
-      <SideNav items={items} root="/w" product={admin ? "Admin" : "Marketing"} who={<UserBox name={me.full_name} email={me.email} role={ROLE_LABEL[me.role ?? ""] ?? ""} />} />
+      <SideNav items={items} root="/w" product={admin ? "Admin" : "Marketing"} tools={<CommandPalette pages={pages} base="/w" />}
+        who={<UserBox name={me.full_name} email={me.email} role={ROLE_LABEL[me.role ?? ""] ?? ""} />} />
       <div className="main" style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
         <BottomNav items={items} root="/w" />

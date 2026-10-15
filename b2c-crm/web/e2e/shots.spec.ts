@@ -4,7 +4,7 @@ import { people, service, stateFile, type Who } from "./helpers";
 
 /**
  * Screenshots of chosen screens for a design review, at both sizes: SHOTS="asha:/s,asha:LEAD,admin:/w" npm run e2e -- shots
- * (LEAD = the person's first test lead). Files land in e2e/review/<laptop|phone>/.
+ * (LEAD = the person's first test lead). Files land in e2e/review/<laptop|phone>/. SHOTS_DARK=1 takes them in dark mode.
  */
 const spec = (process.env.SHOTS ?? "asha:/s,asha:LEAD,admin:/w").split(",").map((s) => s.trim()).filter(Boolean)
   .map((s) => { const [who, route] = s.split(":") as [Who, string]; return { who, route }; });
@@ -18,7 +18,7 @@ async function leadFor(who: Who): Promise<number> {
 
 for (const who of [...new Set(spec.map((s) => s.who))]) {
   test.describe(who, () => {
-    test.use({ storageState: stateFile(who) });
+    test.use({ storageState: stateFile(who), colorScheme: process.env.SHOTS_DARK ? "dark" : "light" });
     test("review shots", async ({ page }, info) => {
       const dir = new URL(`./review/${info.project.name}/`, import.meta.url).pathname;
       mkdirSync(dir, { recursive: true });

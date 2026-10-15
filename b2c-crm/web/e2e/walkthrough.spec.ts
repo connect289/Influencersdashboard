@@ -7,7 +7,7 @@ import { people, service, stateFile, watch, type Who } from "./helpers";
  * Screenshots go to e2e/screens/<laptop|phone>/ for review.
  */
 const SALES = ["/s", "/s/leads", "LEAD", "/s/pipeline", "/s/followups", "/s/inbox", "/s/programmes", "/s/money", "/s/analytics",
-  "/s/team", "/s/me", "/s/me?tab=availability", "/s/me?tab=templates", "/s/me?tab=enrolments", "/s/me?tab=guide", "/s/support"];
+  "/s/team", "/s/alerts", "/s/me", "/s/me?tab=availability", "/s/me?tab=templates", "/s/me?tab=enrolments", "/s/me?tab=guide", "/s/support"];
 const WORKSPACE = ["/w", "/w/leads", "LEAD", "/w/pipeline",
   "/w/allocation", "/w/allocation?tab=rules", "/w/allocation?tab=pools", "/w/allocation?tab=calendar", "/w/allocation?tab=queues", "/w/allocation?tab=simulation", "/w/allocation?tab=audit",
   "/w/enrollments",

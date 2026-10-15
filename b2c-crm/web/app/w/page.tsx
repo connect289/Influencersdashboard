@@ -4,7 +4,10 @@ import { AlertTriangle } from "lucide-react";
 import { Page, SetupError } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
+import { b2bConfig, liveMode } from "@/lib/env";
 import { istDay, relative, when } from "@/lib/format";
+import { googleSa } from "@/lib/gmail";
+import { waConfig } from "@/lib/whatsapp";
 
 export const metadata: Metadata = { title: "Home" };
 
@@ -25,7 +28,7 @@ type TeamRow = { user: { user_id: string; full_name: string | null; role: string
 
 /** The Admin's home (spec B12.1): what needs attention, four numbers, then the funnel and the team. */
 export default async function WorkspaceHome() {
-  await requireUser("workspace", "/w");
+  const me = await requireUser("workspace", "/w");
   let h: Home;
   let team: TeamRow[];
   try {
@@ -44,8 +47,32 @@ export default async function WorkspaceHome() {
     h.to_verify > 0 && { tone: "info", text: <><b>{h.to_verify} {h.to_verify === 1 ? "enrolment waits" : "enrolments wait"} for your verification.</b></>, href: "/w/enrollments", cta: "Verify" },
   ].filter(Boolean) as { tone: string; text: React.ReactNode; href: string; cta: string }[];
 
+  // the Admin's setup checklist, shown until everything is connected (spec B15: the guide's "setting up, in order")
+  const setup: { label: string; done: boolean; href: string; hint: string }[] = me.role === "admin" ? [
+    { label: "Email for sign-in codes", done: !!process.env.SMTP_HOST, href: "/w/guide", hint: "SMTP in the site's variables" },
+    { label: "Phone alerts", done: !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, href: "/w/connectors", hint: "push keys" },
+    { label: "Google Workspace", done: !!googleSa(), href: "/w/connectors", hint: "service account with delegation" },
+    { label: "WhatsApp number", done: !!waConfig(), href: "/w/connectors", hint: "Cloud API token and number" },
+    { label: "B2B CRM link", done: !!b2bConfig(), href: "/w/connectors", hint: "API key and signing secret" },
+    { label: "Live mode", done: liveMode(), href: "/w/settings", hint: "after the end-to-end test" },
+  ] : [];
+  const todo = setup.filter((x) => !x.done);
   return (
     <Page title="Home" sub={`${h.handoffs_today.sales + h.handoffs_today.nurture} hand-offs today · ${h.pool} in the nurture pool`}>
+      {todo.length > 0 && (
+        <details className="panel" open={todo.length === setup.length}>
+          <summary>Setting up: {setup.length - todo.length} of {setup.length} connected</summary>
+          <div className="setup-list">
+            {setup.map((x) => (
+              <Link key={x.label} href={x.href} className={`setup-item${x.done ? " done" : ""}`}>
+                <span className="setup-mark" aria-hidden>{x.done ? "✓" : ""}</span>
+                <span className="grow"><b>{x.label}</b><span className="small muted"> · {x.hint}</span></span>
+                {!x.done && <span className="chip line">to do</span>}
+              </Link>
+            ))}
+          </div>
+        </details>
+      )}
       {attention.length > 0 && (
         <div className="attention">
           {attention.map((a) => (

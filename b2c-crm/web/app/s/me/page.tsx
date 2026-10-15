@@ -59,8 +59,11 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
       .is("deleted_at", null).order("recommended", { ascending: false }).order("uses", { ascending: false });
     body = <EmailTemplates templates={(data ?? []) as EmailTemplate[]} me={me.user_id!} />;
   } else if (tab === "availability") {
-    const { data } = await supabase.from("users").select("away_until").eq("user_id", me.user_id!).maybeSingle();
-    const phones = await rpc<{ mobile: string | null; caller_id: string | null; own_caller_id: boolean }>("phone_mine").catch(() => null);
+    const [{ data }, phones, calMine] = await Promise.all([
+      supabase.from("users").select("away_until").eq("user_id", me.user_id!).maybeSingle(),
+      rpc<{ mobile: string | null; caller_id: string | null; own_caller_id: boolean }>("phone_mine").catch(() => null),
+      rpc<CalendarMine>("calendar_mine").catch(() => null),
+    ]);
     const away = data?.away_until && new Date(data.away_until) > new Date() ? data.away_until : null;
     body = (
       <div className="stack">
@@ -78,7 +81,7 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
           ) : "—"}
             <p className="note">Only the Admin changes these. Ask for a change with a support ticket.</p></div></section>
         <section className="panel"><header><h3>Google Calendar</h3></header>
-          <div className="body"><CalendarToggle mine={await rpc<CalendarMine>("calendar_mine").catch(() => null)} ready={!!googleSa()} /></div></section>
+          <div className="body"><CalendarToggle mine={calMine} ready={!!googleSa()} /></div></section>
       </div>
     );
   } else {

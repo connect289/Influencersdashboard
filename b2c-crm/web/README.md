@@ -25,6 +25,9 @@ npm run typecheck && npm test && npm run build
 | Analytics (every role, in its scope) | `/w/analytics`, `/s/analytics`: standard and personal dashboards, filters for every widget, the widget editor, **Ask** (Claude writes a query spec from the catalogue; the database runs it as the person), **Explain** on any chart, CSV, schedules (PDF or CSV by email), alerts, the morning insights. Every number opens its leads on `/w/leads?drill=…` or `/s/leads?drill=…` |
 | Telephony (Phase 4) | The Call button calls `b2c.call_start`: with Settings → telephony → provider `none` (today) it is the manual flow (dialler, log sheet); with `exotel` the call is bridged (counsellor's mobile first), recorded, and logged by itself; test leads always use the mock, played from the call sheet. `GET/POST /v1/webhooks/telephony/exotel?key=…` (status callbacks and the Passthru applet for incoming calls). Recordings play on the timeline through a 5-minute signed link (logged) |
 | Ad spend (Admin and Marketing) | `/w/money` → Ad spend: import the Meta Ads Manager and Google Ads CSV exports (by day, INR), match campaigns to leads, spend, leads, cost per lead and ROAS per campaign; the Ad spend dashboard in Analytics |
+| Search anywhere (everyone) | ⌘K / Ctrl+K, "/" or **Search…** in the sidebar: a student by name, phone, email or application ID (the Leads page's search, eight hits), or a screen by name; arrow keys and Enter |
+| Alerts (Sales) | `/s/alerts`: every alert newest first; Today shows the latest six with **All** |
+| Settings as forms (Admin) | `/w/settings`: each setting is a form (switches, numbers, words, comma-separated lists; nested parts as JSON) with **Edit as JSON** for the whole thing; every save needs a reason and is a new version |
 | Support (everyone) | `/s/support`, `/w/support`: raise a ticket (what it is about, subject, description, links, up to 4 screenshots), follow it by number (SUP-0001) through Open, In progress (in progress, waiting for you, fixed) and Closed; reply, close, reopen. The Admin sees everyone's tickets and can set any status. Every message from the CRM side is emailed to Settings → support → `developer_emails` with the screenshots; the developer answers by replying (read from Settings → support → `mailbox` every 5 minutes; a `Status: fixed` line sets the status) or through `/support/r/<signed link>` in each email. Fixed tickets close by themselves after 7 days |
 | Phone numbers (Admin) | `/w/teams` → Phone numbers: each person's work mobile and own caller ID, changed or moved with a reason and kept in a history; Me shows a person their numbers with "Ask for a change" |
 | Calendar (everyone, personal) | Connectors and Me → Availability: "Show my follow-ups in my Google Calendar" |
@@ -98,6 +101,16 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
 10. **Later, for live channels**: WhatsApp Cloud API number and templates (audit §9), Gmail delegation (audit §8). Keep
    `LIVE_MODE=off` until the end-to-end test with test leads passes.
 
+## Design
+
+Eduwit Spark's look (16 Oct 2026, `docs/brand/palette.md`): white cards on a pale canvas, navy for words and actions,
+the logo's amber only for the one Call per screen and "hot", one type scale a size larger on a phone, 44 px controls on
+a phone. Progressive disclosure instead of everything at once: the lead screen has Overview / Profile / Applications tabs
+with the activity rail beside them (an Activity tab on a phone); Today is the queue, four counts, one month card and six
+alerts; the Workspace Home is an attention list, four numbers and two cards. All of it lives in `app/globals.css`
+(design tokens, light and dark) and the shell in `components/shell/`. Review screenshots of chosen screens at both sizes:
+`SHOTS="asha:/s,asha:LEAD,admin:/w" npx playwright test e2e/shots.spec.ts` (`SHOTS_DARK=1` for dark mode).
+
 ## Checks
 
 - **Browser tests against staging** (`e2e/`, Playwright with the Chromium already on the machine):
@@ -120,6 +133,7 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
   callbacks (outbound, the counsellor's leg not answering, inbound Passthru), the mock's recording, calendar events
   (no phone or email), Meta and Google ad CSVs; support emails, status lines in answers, the developer's signed link,
   screenshot limits, Gmail attachments; dates are not phone numbers in the brief's check. 96 tests.
+- `../supabase/tests/test_walkthrough_fixes.sql` (10): the b32 and b34 fixes, safe on staging.
 - `../supabase/tests/test_phase1.sql` (99) and `test_phase2.sql` (45): rolled-back database checks (run in the SQL editor).
   `test_phase3.sql` (91) and `test_phase4.sql` (47), the Phase 3 and 4 exit tests, run on a local database built from
   the migrations.

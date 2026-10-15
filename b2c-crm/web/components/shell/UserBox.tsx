@@ -1,12 +1,7 @@
 "use client";
 import { useTheme } from "next-themes";
 import { LogOut, Moon, Sun } from "lucide-react";
-
-export function initials(name: string | null | undefined, email?: string | null) {
-  const src = (name || email || "?").trim();
-  const parts = src.split(/[\s.@]+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
-}
+import { initials } from "@/lib/format";
 
 /** Name, role, theme switch (dark only when chosen) and sign-out. */
 export function UserBox({ name, email, role }: { name: string | null; email: string | null; role: string }) {
@@ -14,7 +9,7 @@ export function UserBox({ name, email, role }: { name: string | null; email: str
   const dark = resolvedTheme === "dark";
   return (
     <div className="who-box">
-      <span className="avatar">{initials(name, email)}</span>
+      <span className="avatar">{initials(name ?? email)}</span>
       <div className="grow">
         <div className="ellipsis" style={{ fontWeight: 650 }}>{name ?? email}</div>
         <div className="small muted">{role}</div>

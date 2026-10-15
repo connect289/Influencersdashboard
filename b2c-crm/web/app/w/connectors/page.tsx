@@ -36,27 +36,28 @@ export default async function ConnectorsPage() {
   let live: { whatsapp?: boolean; email?: boolean } = {};
   let tel: Telephony | null = null, cal: CalStatus = [], mine: CalendarMine | null = null, telProvider = "none";
   try {
-    sync = (await rpc<{ sync: Sync }>("admin_home")).sync;
     const supabase = await createClient();
-    const [t, s] = await Promise.all([
+    const db = admin ? adminClient() : null;
+    // everything this screen shows is independent: one round trip
+    const [home, t, s, telSetting, calMine, telStatus, calStatus, o, i] = await Promise.all([
+      rpc<{ sync: Sync }>("admin_home"),
       supabase.from("wa_templates").select("name, language, audience, purpose, status").order("audience").order("name"),
       supabase.from("settings").select("value").eq("key", "live_mode").maybeSingle(),
+      supabase.from("settings").select("value").eq("key", "telephony").maybeSingle(),
+      rpc<CalendarMine>("calendar_mine").catch(() => null),
+      admin ? rpc<Telephony>("telephony_status") : Promise.resolve(null),
+      admin ? rpc<CalStatus>("calendar_status") : Promise.resolve([] as CalStatus),
+      db ? db.from("outbox").select("id, kind, lead_id, status, attempts, answer, done_at").in("status", ["refused", "failed", "conflict"]).order("id", { ascending: false }).limit(30) : Promise.resolve({ data: null }),
+      db ? db.from("inbox").select("envelope_id, type, lead_id, error, received_at").eq("status", "error").order("received_at", { ascending: false }).limit(30) : Promise.resolve({ data: null }),
     ]);
+    sync = home.sync;
     templates = t.data ?? [];
-    mine = await rpc<CalendarMine>("calendar_mine").catch(() => null);
-    const telSetting = (await supabase.from("settings").select("value").eq("key", "telephony").maybeSingle()).data?.value as Telephony["settings"] | undefined;
-    telProvider = telSetting?.provider ?? "none";
-    if (admin) [tel, cal] = await Promise.all([rpc<Telephony>("telephony_status"), rpc<CalStatus>("calendar_status")]);
+    mine = calMine;
+    telProvider = (telSetting.data?.value as Telephony["settings"] | undefined)?.provider ?? "none";
+    tel = telStatus; cal = calStatus;
     live = (s.data?.value ?? {}) as typeof live;
-    if (admin) {
-      const db = adminClient();
-      const [o, i] = await Promise.all([
-        db.from("outbox").select("id, kind, lead_id, status, attempts, answer, done_at").in("status", ["refused", "failed", "conflict"]).order("id", { ascending: false }).limit(30),
-        db.from("inbox").select("envelope_id, type, lead_id, error, received_at").eq("status", "error").order("received_at", { ascending: false }).limit(30),
-      ]);
-      problems = (o.data ?? []) as typeof problems;
-      inboxErrors = (i.data ?? []) as typeof inboxErrors;
-    }
+    problems = (o.data ?? []) as typeof problems;
+    inboxErrors = (i.data ?? []) as typeof inboxErrors;
   } catch (e) {
     return <Page title="Connectors"><SetupError error={e} /></Page>;
   }

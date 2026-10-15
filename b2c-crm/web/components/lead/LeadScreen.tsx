@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, MessageCircle, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, MessageCircle, Users } from "lucide-react";
 import type { Me } from "@/lib/auth";
 import { firstName } from "@/lib/compose";
 import { maskPhone, when } from "@/lib/format";
@@ -30,7 +30,7 @@ const g = (rec: LeadDetail["record"], group: string, key: string): string | null
  * Overview (brief, contacts, interest, programme fit), Profile, Applications; follow-ups, nurture and the timeline in the
  * activity rail. Values still waiting to reach the master lead table (pending) are shown as the counsellor typed them.
  */
-export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadDetail; stages: Stage[]; subs: SubStage[]; me: Me; base: string; adminTools?: React.ReactNode }) {
+export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d: LeadDetail; stages: Stage[]; subs: SubStage[]; me: Me; base: string; adminTools?: React.ReactNode; next?: { id: number; name: string | null; left: number } | null }) {
   const l = d.lead!;
   const pend = d.pending as Record<string, unknown>;
   const val = (group: string, key: string) => (key in pend ? (pend[key] === null ? null : String(pend[key])) : g(d.record, group, key));
@@ -64,7 +64,7 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
 
   const email = d.contacts.filter((c) => c.kind === "email").sort((a, b) => Number(b.primary_email) - Number(a.primary_email))[0]?.value ?? null;
   const first = firstName(val("student", "name"));
-  const next = d.tasks[0];
+  const nextTask = d.tasks[0];
 
   const followups = (
     <section className="panel">
@@ -87,6 +87,7 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
         <Link className="btn quiet sm icon-only" href={base} aria-label="Back to leads"><ArrowLeft className="icon s" aria-hidden /></Link>
         <span className="small muted grow ellipsis">Lead #{l.lead_id} · {STATUS_LABEL[l.status] ?? l.status}{l.owner_name ? ` · ${l.owner_name}` : ""}</span>
         <TestChip on={l.is_test} />
+        {next && <Link className="btn ghost sm" href={`${base}/${next.id}`} title={`${next.left} more in your queue`}>Next: {(next.name ?? "lead").split(" ")[0]} <ArrowRight className="icon s" aria-hidden /></Link>}
       </div>
 
       <div className="lead-head card pad">
@@ -120,7 +121,7 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools }: { d: LeadD
         )}
         <div className="next-line">
           <span>Next</span>
-          {next ? <><b>{next.title}</b><span>{when(next.due_at)}</span></> : <b>nothing planned</b>}
+          {nextTask ? <><b>{nextTask.title}</b><span>{when(nextTask.due_at)}</span></> : <b>nothing planned</b>}
         </div>
       </div>
 

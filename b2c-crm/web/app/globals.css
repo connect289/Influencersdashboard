@@ -451,6 +451,25 @@ svg.chart .gridl { stroke: var(--line); stroke-width: 1; }
   @keyframes rise { from { transform: translateY(18px); opacity: .5; } to { transform: none; opacity: 1; } }
 }
 
+/* search anywhere */
+.side-tools { padding: 0 2px 10px; }
+.side-tools .cmdk { width: 100%; min-width: 0; }
+.cmdk { cursor: pointer; border: 0; }
+.palette { max-width: 620px; gap: 10px; }
+.palette-list { display: grid; gap: 2px; max-height: 50vh; overflow-y: auto; }
+.palette-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 10px 10px; border-radius: var(--r-sm); font-size: var(--fs); color: var(--ink); }
+.palette-item[aria-selected="true"] { background: var(--primary-soft); }
+.setting-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 16px; align-items: end; }
+.setting-form .checkbox { min-height: var(--control); }
+
+/* the Admin's setup checklist */
+.setup-list { display: grid; gap: 4px; }
+.setup-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-sm); color: inherit; text-decoration: none; }
+.setup-item:hover { background: var(--bg); }
+.setup-mark { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--surface-2); color: var(--green); flex: none; box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.setup-item.done .setup-mark { background: var(--green-soft); box-shadow: none; }
+.setup-item.done b { color: var(--muted); font-weight: 500; }
+
 /* phone-only and laptop-only parts: last so they beat any component's own display */
 .only-phone { display: none !important; }
 @media (max-width: 900px) { .only-phone { display: grid !important; } .only-desk { display: none !important; } }

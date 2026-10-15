@@ -52,7 +52,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         <ViewBuilder role="sales" base="/s/leads" stages={stages} />
         {view && !view.is_standard && view.owner_id === me.user_id && !sp.q && <ViewBuilder key={view.id} role="sales" base="/s/leads" stages={stages} view={view} />}
       </div>
-      {res.rows.length === 0 ? <Empty>No leads here.</Empty> : <LeadTable rows={res.rows} base="/s/leads" />}
+      {res.rows.length === 0 ? (
+        <Empty>{sp.q ? <>Nobody matches “{sp.q}”. Try part of the name, or the phone's last digits.</> : <>No leads in “{view?.name ?? "this view"}”. {views.find((v) => v.name === "All mine") && <Link href={`/s/leads?v=${views.find((v) => v.name === "All mine")!.id}`}>See all my leads</Link>}</>}</Empty>
+      ) : <LeadTable rows={res.rows} base="/s/leads" />}
       {res.total > PAGE && (
         <div className="pager">
           {page > 0 && <Link className="btn ghost sm" href={link({ page: page - 1 })}>Previous</Link>}
