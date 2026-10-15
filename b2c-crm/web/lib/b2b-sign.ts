@@ -26,3 +26,21 @@ export function signedHeaders(rawBody: string, secret: string, nowSeconds = Math
   const ts = String(nowSeconds);
   return { "content-type": "application/json", "x-eduwit-timestamp": ts, "x-eduwit-signature": sign(rawBody, ts, secret) };
 }
+
+/**
+ * A GET has no body, so the signed text is the request target instead: "GET <path>?<query>", exactly as requested
+ * (GET /v1/events). Signature: "sha256=" + HMAC-SHA256 of "<timestamp>.GET /v1/events?since=120&limit=200".
+ */
+export function requestTarget(method: string, pathAndQuery: string): string {
+  return `${method.toUpperCase()} ${pathAndQuery}`;
+}
+
+export function verifyGet(pathAndQuery: string, timestamp: string | null, signature: string | null, secret: string, nowSeconds = Date.now() / 1000): VerifyResult {
+  return verify(requestTarget("GET", pathAndQuery), timestamp, signature, secret, nowSeconds);
+}
+
+/** Headers for a signed GET (what the B2B CRM sends to GET /v1/events; also used by the tests). */
+export function signedGetHeaders(pathAndQuery: string, secret: string, nowSeconds = Math.floor(Date.now() / 1000)): Record<string, string> {
+  const ts = String(nowSeconds);
+  return { "x-eduwit-timestamp": ts, "x-eduwit-signature": sign(requestTarget("GET", pathAndQuery), ts, secret) };
+}

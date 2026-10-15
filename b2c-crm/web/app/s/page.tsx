@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { AlertTriangle, Check, Moon } from "lucide-react";
+import { AlertTriangle, Check, ClipboardCheck, Moon } from "lucide-react";
 import { CallButton } from "@/components/lead/CallButton";
 import { SlaChip, TempChip } from "@/components/lead/Chips";
 import { Page, SetupError } from "@/components/shell/Page";
@@ -13,6 +13,7 @@ import { FollowupCards } from "./followups/FollowupCards";
 import { Notifications } from "./Notifications";
 import { Swipeable } from "@/components/ui/Swipeable";
 import { Hotkeys } from "@/components/shell/Hotkeys";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -37,8 +38,10 @@ export default async function TodayPage() {
   const me = await requireUser("sales", "/s");
   let t: Today;
   let progress: Progress | null, board: Board | null;
+  let qualify: QualifyTask[];
   try {
-    [t, progress, board] = await Promise.all([rpc<Today>("today"), rpc<Progress>("my_progress").catch(() => null), rpc<Board>("leaderboard", { p_month: null }).catch(() => null)]);
+    [t, progress, board, qualify] = await Promise.all([rpc<Today>("today"), rpc<Progress>("my_progress").catch(() => null), rpc<Board>("leaderboard", { p_month: null }).catch(() => null),
+      qualifyTasks(me.user_id)]);
   } catch (e) {
     return <Page title="Today"><SetupError error={e} /></Page>;
   }
@@ -56,6 +59,20 @@ export default async function TodayPage() {
               <AlertTriangle className="icon" aria-hidden />
               <div><b>{breached.length === 1 ? `${breached[0]!.lead.name ?? "A lead"} has` : `${breached.length} leads have`} not been called in time.</b> The first-contact SLA is breached; the Admin has been alerted. Call now.</div>
             </div>
+          )}
+          {qualify.length > 0 && (
+            <section className="panel">
+              <header><h3><ClipboardCheck className="icon s" aria-hidden /> Collect missing details</h3><span className="small muted">{qualify.length}</span></header>
+              <div className="body stack tight">
+                <p className="note">Re-engaged students the Admin asked you to qualify. Call only to record what is missing; the lead then goes back to routing.</p>
+                {qualify.map((q) => (
+                  <Link key={q.id} href={`/s/leads/${q.lead_id}`} className="row between" style={{ textDecoration: "none", color: "inherit" }}>
+                    <span><b>{q.name ?? `Lead #${q.lead_id}`}</b> <span className="small muted">· {q.course ?? "programme not given"}</span></span>
+                    <span className="small muted">{when(q.due_at)}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
           )}
           <div className="sec-title"><h2>Work next</h2><span className="note">In queue order · swipe right to call</span></div>
           <Hotkeys keys={[]} />
@@ -105,6 +122,19 @@ export default async function TodayPage() {
       </div>
     </Page>
   );
+}
+
+type QualifyTask = { id: number; lead_id: number; due_at: string; name: string | null; course: string | null };
+
+/** The To qualify tasks the Admin gave this person (b39): pooled leads, so b2c.today() does not list them. */
+async function qualifyTasks(userId: string | null): Promise<QualifyTask[]> {
+  if (!userId) return [];
+  const supabase = await createClient();
+  const { data: tasks } = await supabase.from("tasks").select("id, lead_id, due_at").eq("kind", "qualify").eq("status", "open").eq("owner_id", userId).order("due_at").limit(20);
+  if (!tasks?.length) return [];
+  const { data: leads } = await supabase.from("leads_v").select("lead_id, name, course").in("lead_id", tasks.map((x) => x.lead_id));
+  const by = new Map((leads ?? []).map((l) => [l.lead_id as number, l as { name: string | null; course: string | null }]));
+  return tasks.map((x) => ({ id: x.id as number, lead_id: x.lead_id as number, due_at: x.due_at as string, name: by.get(x.lead_id as number)?.name ?? null, course: by.get(x.lead_id as number)?.course ?? null }));
 }
 
 /** One card for the month: the four targets with a pace marker (where the bar should be today), and today's calls in a line. */

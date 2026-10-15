@@ -12,7 +12,7 @@ import { buildCsp, IDLE_LIMIT_SECONDS, isIdleExpired, safeNext, SEEN_COOKIE } fr
  */
 
 const PUBLIC = ["/login", "/thanks", "/password"];
-const isPublic = (path: string) => PUBLIC.includes(path) || ["/auth/", "/u/", "/e/", "/support/r/"].some((p) => path.startsWith(p));
+const isPublic = (path: string) => PUBLIC.includes(path) || ["/auth/", "/u/", "/q/", "/e/", "/support/r/"].some((p) => path.startsWith(p));
 
 type Cookie = { name: string; value: string; options?: Parameters<NextResponse["cookies"]["set"]>[2] };
 

@@ -40,6 +40,8 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     { href: "/w/nurture?tab=replies", label: "Replies", hint: "Nurture" }, { href: "/w/money?tab=commission", label: "Counsellor commission", hint: "Money" },
     { href: "/w/money?tab=universities", label: "Universities", hint: "Money" }, { href: "/w/money?tab=ads", label: "Ad spend", hint: "Money" },
     { href: "/w/teams", label: "Phone numbers", hint: "Teams" }, { href: "/w/leads/duplicates", label: "Duplicate suspects", hint: "Leads" },
+    ...(admin ? [{ href: "/w/qualify", label: "To qualify", hint: "Leads" }, { href: "/w/leads/flagged", label: "Flagged leads", hint: "Leads" },
+      { href: "/w/leads?exports=1", label: "Exports", hint: "Leads" }, { href: "/w/leads?deleted=1", label: "Background jobs", hint: "Leads" }] : []),
     ...(admin ? [{ href: "/w/settings?tab=health", label: "System health", hint: "Settings" }, { href: "/w/settings?tab=audit", label: "Audit log", hint: "Settings" }, { href: "/w/settings?tab=signins", label: "Sign-ins", hint: "Settings" }] : []),
   ];
   return (

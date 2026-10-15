@@ -10,7 +10,10 @@ type Counts = { not_worked: number; overdue: number; unread_alerts: number; unre
 /** The Sales app (spec B15): phone first, a sidebar on a laptop. Counsellors, the sales head and the Admin. */
 export default async function SalesLayout({ children }: { children: React.ReactNode }) {
   const me = await requireUser("sales", "/s");
-  const c = await rpc<Counts>("nav_counts").catch(() => ({ not_worked: 0, overdue: 0, unread_alerts: 0, unread_inbox: 0 }));
+  const [c, replies] = await Promise.all([
+    rpc<Counts>("nav_counts").catch(() => ({ not_worked: 0, overdue: 0, unread_alerts: 0, unread_inbox: 0 })),
+    me.role === "admin" ? Promise.resolve(false) : rpc<boolean>("can", { p_perm: "replies" }).catch(() => false),
+  ]);
   const urgent = (c.not_worked ?? 0) + (c.overdue ?? 0);
   const items: NavItem[] = [
     { href: "/s", label: "Today", icon: "home", phone: true, count: c.unread_alerts || undefined },
@@ -18,6 +21,7 @@ export default async function SalesLayout({ children }: { children: React.ReactN
     { href: "/s/followups", label: "Follow-ups", icon: "followups", phone: true, count: urgent || undefined },
     { href: "/s/inbox", label: "Inbox", icon: "inbox", phone: true, count: c.unread_inbox || undefined },
     { href: "/s/pipeline", label: "Pipeline", icon: "pipeline" },
+    ...(replies ? [{ href: "/s/replies", label: "Replies", icon: "replies" } as NavItem] : []),
     { href: "/s/programmes", label: "Programmes", icon: "programmes", group: "More" },
     { href: "/s/money", label: "My money", icon: "money", group: "More" },
     { href: "/s/analytics", label: "Analytics", icon: "analytics", group: "More" },

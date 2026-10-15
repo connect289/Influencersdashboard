@@ -4,13 +4,15 @@ import { runClassify } from "@/lib/classify";
 import { runPush } from "@/lib/push";
 import { runSync } from "@/lib/sync";
 import { runAnalyticsJobs } from "@/lib/analytics-jobs";
+import { runLeadJobs } from "@/lib/lead-jobs";
 import { runPhase4Jobs } from "@/lib/phase4-jobs";
 import { sendSupportMail } from "@/lib/support-jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Called by pg_cron (b2c-sync-urgent every minute, b2c-sync-batch every 15 minutes) with x-internal-key. */
+/** Called by pg_cron (b2c-sync-urgent every minute, b2c-sync-batch every 15 minutes) with x-internal-key. The urgent run
+ *  also removes erased students' files and writes large lead exports (lib/lead-jobs.ts). */
 export async function POST(request: NextRequest) {
   if (!internalKeyOk(request.headers.get("x-internal-key"), process.env.B2C_INTERNAL_KEY)) {
     return NextResponse.json({ ok: false, error: "unauthorised" }, { status: 401 });
@@ -23,7 +25,8 @@ export async function POST(request: NextRequest) {
     const analytics = mode === "urgent" ? await runAnalyticsJobs().catch((e) => ({ analytics_error: e instanceof Error ? e.message : String(e) })) : {};
     const phase4 = mode === "urgent" ? await runPhase4Jobs().catch((e) => ({ phase4_error: e instanceof Error ? e.message : String(e) })) : {};
     const support = mode === "urgent" ? await sendSupportMail().catch((e) => ({ support_error: e instanceof Error ? e.message : String(e) })) : {};
-    return NextResponse.json({ ok: true, mode, ...sync, push, classify, analytics, phase4, support });
+    const leads = mode === "urgent" ? await runLeadJobs().catch((e) => ({ leads_error: e instanceof Error ? e.message : String(e) })) : {};
+    return NextResponse.json({ ok: true, mode, ...sync, push, classify, analytics, phase4, support, leads });
   } catch (e) {
     console.error("sync failed", e);
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });

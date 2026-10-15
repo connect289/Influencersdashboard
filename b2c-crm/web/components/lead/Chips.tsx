@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, Clock, Flame, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Check, Clock, Flag, Flame, ShieldAlert } from "lucide-react";
 import { relative } from "@/lib/format";
 import { BAR_LABEL } from "@/lib/labels";
 import type { LeadRow } from "@/lib/types";
@@ -30,4 +30,10 @@ export function OkChip({ children }: { children: React.ReactNode }) {
 
 export function TestChip({ on }: { on: boolean }) {
   return on ? <span className="chip line">Test</span> : null;
+}
+
+/** Flagged by the B2B CRM (junk, test, cannot be served…) and waiting for the Admin's review: no marketing meanwhile. */
+export function FlagChip({ flag }: { flag: string | null | undefined }) {
+  if (!flag) return null;
+  return <span className="chip breach" title={`Flagged: ${flag.replace(/_/g, " ")}. Waiting for the Admin's review.`}><Flag className="icon s" aria-hidden />Flagged</span>;
 }

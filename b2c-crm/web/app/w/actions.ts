@@ -6,8 +6,11 @@ import { act, rpc, type ActionResult } from "@/lib/data";
 import { adminClient } from "@/lib/supabase/admin";
 
 const ADMIN = ["admin"] as const;
-const ids = z.array(z.coerce.number().int().positive()).min(1).max(500);
+const ids = z.array(z.coerce.number().int().positive()).min(1).max(500, "At most 500 leads at a time for this action.");
+const manyIds = z.array(z.coerce.number().int().positive()).min(1, "Tick at least one lead.").max(20000, "At most 20,000 leads at a time.");
 const uuid = z.string().uuid();
+const id = z.coerce.number().int().positive();
+type Refusals = { done: number; refused: { lead_id: number; why: string }[] };
 
 function done(path = "/w") {
   revalidatePath(path, "layout");
@@ -48,6 +51,98 @@ export async function tagLeads(leads: number[], tag: string, add: boolean): Prom
   await assertUser([...ADMIN, "marketing"]);
   const r = await act(() => rpc<number>("tag", { p_leads: ids.parse(leads), p_tag: tag.slice(0, 40), p_add: add }), add ? "Tagged." : "Tag removed.");
   done();
+  return r;
+}
+
+/** Every id of the current view or search ("select all N in this view"), at most 20,000 (b2c.lead_list mode ids). */
+export async function viewIds(query: Record<string, unknown>): Promise<ActionResult<{ total: number; ids: number[] }>> {
+  await assertUser([...ADMIN, "marketing"]);
+  const { filters, search, include_test, drill, deleted } = query;
+  return act(() => rpc<{ total: number; ids: number[] }>("lead_list", { p: { filters: filters ?? {}, search: search ?? "", include_test: typeof include_test === "boolean" ? include_test : null, drill: drill ?? null, deleted: deleted === true, mode: "ids" } }));
+}
+
+/** Into a journey or out of one (b2c.bulk_journey: Marketing too); each lead is checked as if done alone. */
+export async function bulkJourney(leads: number[], action: "add" | "remove", journey: number | null): Promise<ActionResult<Refusals>> {
+  await assertUser([...ADMIN, "marketing"]);
+  const r = await act(() => rpc<Refusals>("bulk_journey", { p_leads: manyIds.parse(leads), p_action: action, p_journey: action === "add" ? id.parse(journey) : null }));
+  done();
+  return r;
+}
+
+/** One stage, sub-stage and comment for many (b2c.bulk_stage, Admin), under the stage rules. */
+export async function bulkStage(leads: number[], stage: number, sub: string | null, comment: string, nextDue: string | null): Promise<ActionResult<Refusals>> {
+  await assertUser([...ADMIN]);
+  const r = await act(() => rpc<Refusals>("bulk_stage", { p_leads: manyIds.parse(leads), p_stage: id.parse(stage), p_sub: sub || null, p_comment: comment.trim() || null, p_next_due: nextDue }));
+  done();
+  return r;
+}
+
+/** Bulk delete as a background job (b2c.lead_delete_request): the typed confirmation "DELETE <n>" is checked again there. */
+export async function deleteRequest(leads: number[], reason: string, confirm: string): Promise<ActionResult<{ job_id: number; leads: number }>> {
+  await assertUser([...ADMIN]);
+  const r = await act(() => rpc<{ job_id: number; leads: number }>("lead_delete_request", { p_leads: manyIds.parse(leads), p_reason: reason, p_confirm: confirm }));
+  done();
+  return r;
+}
+
+export async function bulkJobUndo(job: number): Promise<ActionResult<number>> {
+  await assertUser([...ADMIN]);
+  const r = await act(() => rpc<number>("bulk_job_undo", { p_job: id.parse(job) }));
+  done();
+  return r.ok ? { ...r, notice: `${r.data ?? 0} leads restored.` } : r;
+}
+
+/** A 2-minute link to one of the person's ready exports (b2c.export_open logs the download). */
+export async function exportLink(exportId: number): Promise<ActionResult<string>> {
+  await assertUser([...ADMIN]);
+  return act(async () => {
+    const path = await rpc<string>("export_open", { p_export: id.parse(exportId) });
+    const { data, error } = await adminClient().storage.from("b2c-exports").createSignedUrl(path, 120, { download: true });
+    if (error || !data) throw new Error("The file could not be opened.");
+    return data.signedUrl;
+  });
+}
+
+/** The student's erasure request (DPDP, b2c.lead_erase): cannot be undone. */
+export async function eraseLead(leadId: number, reference: string, note: string): Promise<ActionResult<{ erased: boolean; messages: number; files: number }>> {
+  await assertUser([...ADMIN]);
+  const r = await act(() => rpc<{ erased: boolean; messages: number; files: number }>("lead_erase", { p_lead: id.parse(leadId), p_reference: reference.trim().slice(0, 200), p_note: note.trim().slice(0, 300) || null }));
+  done();
+  return r;
+}
+
+/** The Admin's answer to a flagged lead (b2c.flag_review). */
+export async function flagReview(leadId: number, action: "keep" | "junk" | "cannot_serve", note: string): Promise<ActionResult> {
+  await assertUser([...ADMIN]);
+  const r = await act(() => rpc("flag_review", { p_lead: id.parse(leadId), p_action: action, p_note: note.trim() || null }),
+    action === "keep" ? "Kept: marketing may continue." : "Closed and sent to the master lead table.");
+  done();
+  return r;
+}
+
+// ---------- to qualify (b39) ----------
+
+export async function qualifyAssign(request: number, userId: string | null): Promise<ActionResult> {
+  await assertUser([...ADMIN]);
+  const r = await act(() => rpc("qualify_assign", { p_request: id.parse(request), p_user: userId ? uuid.parse(userId) : null }), userId ? "Given to the counsellor." : "Taken back.");
+  done("/w/qualify");
+  return r;
+}
+
+export async function qualifyResend(request: number): Promise<ActionResult<{ whatsapp: number | null; email: number | null }>> {
+  await assertUser([...ADMIN]);
+  const r = await act(() => rpc<{ whatsapp: number | null; email: number | null }>("qualify_resend", { p_request: id.parse(request) }));
+  done("/w/qualify");
+  if (!r.ok) return r;
+  const via = [r.data?.whatsapp && "WhatsApp", r.data?.email && "email"].filter(Boolean).join(" and ");
+  return { ...r, notice: via ? `Sent again by ${via}.` : "Nothing could be sent: no open WhatsApp window or approved template, and no email." };
+}
+
+/** The counsellors who may answer the Replies inbox (b2c.replies_delegates_set). */
+export async function repliesDelegatesSet(users: string[]): Promise<ActionResult> {
+  await assertUser([...ADMIN]);
+  const r = await act(() => rpc("replies_delegates_set", { p_users: z.array(uuid).max(50).parse(users) }), "Saved.");
+  done("/w/nurture");
   return r;
 }
 

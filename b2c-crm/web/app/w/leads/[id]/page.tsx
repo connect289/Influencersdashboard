@@ -29,6 +29,6 @@ export default async function WorkspaceLead({ params }: { params: Promise<{ id: 
   const people = assignable(members);
   return (
     <LeadScreen d={d} stages={stages} subs={subs} me={me} base="/w/leads"
-      adminTools={<AdminTools leadId={leadId} admin={me.role === "admin"} decision={d.decision} contacts={d.contacts} people={people} barred={!!d.lead.partner_bar_reason} consent={d.lead.partner_consent_state} status={d.lead.status} />} />
+      adminTools={<AdminTools leadId={leadId} admin={me.role === "admin"} decision={d.decision} contacts={d.contacts} people={people} barred={!!d.lead.partner_bar_reason} consent={d.lead.partner_consent_state} status={d.lead.status} flagged={d.lead.flagged} />} />
   );
 }

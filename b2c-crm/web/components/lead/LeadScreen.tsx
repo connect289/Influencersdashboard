@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, MessageCircle, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, History, MessageCircle, Users } from "lucide-react";
 import type { Me } from "@/lib/auth";
 import { firstName } from "@/lib/compose";
 import { maskPhone, when } from "@/lib/format";
@@ -11,9 +11,10 @@ import { EmailButton } from "./EmailButton";
 import { BriefPanel } from "./BriefPanel";
 import { LeadTabs } from "./LeadTabs";
 import { NurturePanel } from "./NurturePanel";
-import { BarChip, SlaChip, TempChip, TestChip } from "./Chips";
+import { BarChip, FlagChip, SlaChip, TempChip, TestChip } from "./Chips";
 import { AddTaskButton, ContactsPanel, EditablePanel, NoteBox, type FieldDef } from "./Panels";
 import { ProgrammeFit } from "./ProgrammeFit";
+import { QualifyPanel } from "./QualifyPanel";
 import { StageButton } from "./StageButton";
 import { TaskActions } from "./TaskActions";
 import { Timeline } from "./Timeline";
@@ -37,6 +38,10 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
   const val = (group: string, key: string) => (key in pend ? (pend[key] === null ? null : String(pend[key])) : g(d.record, group, key));
   const mine = l.owner_id === me.user_id;
   const canWork = l.status === "active" && (mine || me.role === "admin" || me.role === "sales_head");
+  // B10.2: the Admin edits any lead, pooled and closed included; calling and messaging stay with active leads
+  const canEdit = canWork || me.role === "admin";
+  const qualifyTask = d.tasks.some((t) => t.kind === "qualify" && t.owner_id === me.user_id) || (me.role === "admin" && (l.tags ?? []).includes("to_qualify"));
+  const partner = partnerHistory(d.timeline);
   const handling = (l.handling ?? {}) as Record<string, string | null>;
   const providers = (l.providers ?? []) as { partner_name: string; first_had_at: string | null }[];
   const others = g(d.record, "interest", "other_courses");
@@ -69,13 +74,13 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
 
   const followups = (
     <section className="panel">
-      <header><h3>Follow-ups</h3>{canWork && <AddTaskButton leadId={l.lead_id} />}</header>
+      <header><h3>Follow-ups</h3>{canEdit && <AddTaskButton leadId={l.lead_id} />}</header>
       <div className="body small">
         {d.tasks.length === 0 && <p className="note">No open follow-up.</p>}
         {d.tasks.map((t) => (
           <div key={t.id} className="row between wrap">
             <div><b>{TASK_KIND_LABEL[t.kind] ?? t.kind}</b> · {t.title}<div className={new Date(t.due_at) < new Date() ? "error" : "muted"}>{when(t.due_at)}</div></div>
-            {canWork && <TaskActions taskId={t.id} title={t.title} leadId={l.lead_id} />}
+            {canEdit && <TaskActions taskId={t.id} title={t.title} leadId={l.lead_id} />}
           </div>
         ))}
       </div>
@@ -100,14 +105,23 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
           </div>
         </div>
         <div className="row wrap" style={{ gap: 6 }}>
-          <span data-hotkey="s" className="contents"><StageButton leadId={l.lead_id} current={l.stage_id} sub={l.sub_stage} stages={stages} subs={subs} canMoveBack={me.role === "admin" || me.role === "sales_head"} disabled={!canWork} /></span>
+          <span data-hotkey="s" className="contents"><StageButton leadId={l.lead_id} current={l.stage_id} sub={l.sub_stage} stages={stages} subs={subs} canMoveBack={me.role === "admin" || me.role === "sales_head"} disabled={!canEdit} /></span>
           <SlaChip lead={l} />
           <BarChip reason={l.partner_bar_reason} />
+          <FlagChip flag={l.flagged} />
           {l.opted_out && <span className="chip breach">Opted out: do not message</span>}
           <span className="chip line">{reasonLabel(l.handoff_reason)}{l.reengage_trigger ? ` · re-engaged` : ""}</span>
         </div>
         {providers.length > 0 && (
           <div className="banner"><Users className="icon" aria-hidden /><div><b>Already with other providers.</b> {providers.map((p) => `${p.partner_name}${p.first_had_at ? ` (since ${when(p.first_had_at)})` : ""}`).join(" · ")}. Open as a neutral adviser: &ldquo;Eduwit can help you compare your options.&rdquo;</div></div>
+        )}
+        {partner && (
+          <div className="banner"><History className="icon" aria-hidden /><div>
+            <b>Lost by {partner.lost?.partner_name ?? "a partner"}</b>{partner.lost?.lost_reason ? `: ${partner.lost.lost_reason}` : ""}{partner.mapped ? ` (${partner.mapped})` : ""}
+            {partner.lost?.partner_status ? ` · their status ${[partner.lost.partner_status, partner.lost.partner_sub_status].filter(Boolean).join(" / ")}` : ""}
+            {partner.lost?.calls_made !== undefined ? ` · ${partner.lost.calls_made} calls made` : ""}
+            {partner.tried.length > 0 && <div className="small">Partners tried ({partner.tried.length}): {partner.tried.map((t) => `${t.partner_name ?? "?"}${t.outcome ?? t.status ? ` (${t.outcome ?? t.status})` : ""}`).join(", ")}</div>}
+          </div></div>
         )}
         {handling.first_contact_script === "neutral_adviser" && providers.length === 0 && (
           <div className="banner info">Open as a neutral adviser: &ldquo;Eduwit can help you compare your options.&rdquo;</div>
@@ -131,18 +145,21 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
         tabs={[
           { id: "overview", label: "Overview", content: (
             <>
+              {qualifyTask && <QualifyPanel leadId={l.lead_id} missing={l.missing}
+                known={{ course: val("interest", "course"), highest_qualification: val("education", "highest_qualification"), enrollment_timeline: val("interest", "enrollment_timeline"),
+                  annual_budget_inr: val("interest", "annual_budget_inr"), study_mode: val("interest", "study_mode"), specialization: val("interest", "specialization"), name: val("student", "name"), email }} />}
               <BriefPanel leadId={l.lead_id} autoWrite={canWork} />
               {adminTools}
               <div className="grid g2">
-                <ContactsPanel leadId={l.lead_id} contacts={d.contacts} canEdit={canWork} />
-                <EditablePanel leadId={l.lead_id} title="Interest" fields={interest} reasonRequired canEdit={canWork} note={others ? `Also interested in: ${others}` : undefined} />
+                <ContactsPanel leadId={l.lead_id} contacts={d.contacts} canEdit={canEdit} />
+                <EditablePanel leadId={l.lead_id} title="Interest" fields={interest} reasonRequired canEdit={canEdit} note={others ? `Also interested in: ${others}` : undefined} />
               </div>
               <ProgrammeFit leadId={l.lead_id} canShare={canWork && !l.opted_out} firstName={first} counsellor={me.full_name} hasEmail={!!email} />
             </>
           ) },
           { id: "profile", label: "Profile", content: (
             <>
-              <EditablePanel leadId={l.lead_id} title="Profile" fields={profile} canEdit={canWork} />
+              <EditablePanel leadId={l.lead_id} title="Profile" fields={profile} canEdit={canEdit} />
               <section className="panel">
                 <header><h3>Consent and source</h3></header>
                 <div className="body">
@@ -158,19 +175,30 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
             </>
           ) },
           { id: "applications", label: "Applications", content: (
-            <ApplicationsPanel leadId={l.lead_id} apps={d.applications} enrollments={d.enrollments} canEdit={canWork}
+            <ApplicationsPanel leadId={l.lead_id} apps={d.applications} enrollments={d.enrollments} canEdit={canEdit}
               defaultProgramme={val("interest", "course")} defaultUniversity={val("interest", "university")} />
           ) },
         ]}
         aside={
           <>
             {followups}
-            <Timeline items={d.timeline}>{canWork && <span data-hotkey="n" className="contents"><NoteBox leadId={l.lead_id} /></span>}</Timeline>
-            <NurturePanel leadId={l.lead_id} marketing={me.role === "admin" || me.role === "marketing"} canWork={canWork} inPool={l.status === "pool"} />
+            <Timeline items={d.timeline}>{canEdit && <span data-hotkey="n" className="contents"><NoteBox leadId={l.lead_id} /></span>}</Timeline>
+            <NurturePanel leadId={l.lead_id} marketing={me.role === "admin" || me.role === "marketing"} canWork={canWork} inPool={l.status === "pool"} optedOut={l.opted_out} />
             <WittyTranscript leadId={l.lead_id} />
           </>
         }
       />
     </div>
   );
+}
+
+type PartnerLost = { partner_name?: string; lost_reason?: string; partner_status?: string; partner_sub_status?: string; calls_made?: number | string };
+
+/** The partner's history (b39 activity "partner_history"): who lost the lead and why, the mapped lost sub-stage, the partners tried. */
+function partnerHistory(timeline: LeadDetail["timeline"]): { lost: PartnerLost | null; mapped: string | null; tried: { partner_name?: string; outcome?: string; status?: string }[] } | null {
+  const a = timeline.find((t) => t.kind === "partner_history");
+  if (!a) return null;
+  const m = a.meta ?? {};
+  return { lost: (m.lost as PartnerLost | undefined) ?? null, mapped: typeof m.mapped_sub_stage === "string" ? m.mapped_sub_stage : null,
+    tried: Array.isArray(m.partners_tried) ? (m.partners_tried as { partner_name?: string; outcome?: string; status?: string }[]) : [] };
 }

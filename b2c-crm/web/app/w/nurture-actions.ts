@@ -121,6 +121,14 @@ export async function optOut(lead: number, channels: ("whatsapp" | "email")[] | 
   done(`/w/leads/${lead}`, `/s/leads/${lead}`);
   return r;
 }
+/** Opting in again after an opt-out (b2c.opt_in, b39): on the student's request, with how they asked. */
+export async function optIn(lead: number, channels: ("whatsapp" | "email")[] | null, source: string, note: string): Promise<ActionResult<{ opted_in?: boolean; already?: boolean }>> {
+  await assertUser([...MKT]);
+  const r = await act(() => rpc<{ opted_in?: boolean; already?: boolean }>("opt_in", { p_lead: id.parse(lead), p_channels: channels && channels.length ? channels : null, p_source: source.slice(0, 40), p_note: note.trim().slice(0, 300) }));
+  done(`/w/leads/${lead}`, `/s/leads/${lead}`);
+  if (!r.ok) return r;
+  return { ...r, notice: r.data?.already ? "Already opted in." : "Opted in again and sent to the master lead table." };
+}
 export async function marketingConsent(lead: number, channel: "whatsapp" | "email", given: boolean, source: string): Promise<ActionResult> {
   await assertUser([...MKT]);
   const r = await act(() => rpc("marketing_consent", { p_lead: id.parse(lead), p_channel: channel, p_given: given, p_source: source, p_text_version: null, p_text: null }), "Consent recorded.");
@@ -128,17 +136,17 @@ export async function marketingConsent(lead: number, channel: "whatsapp" | "emai
   return r;
 }
 
-// ---------- replies ----------
+// ---------- replies (Marketing, the Admin, and the counsellors the Admin named: b2c.can('replies')) ----------
 export async function replyHandle(reply: number, action: "assign" | "negative" | "opt_out" | "correct" | "done", klass?: string): Promise<ActionResult<string>> {
-  await assertUser([...MKT]);
+  await assertUser();
   const r = await act(() => rpc<string>("reply_handle", { p_id: id.parse(reply), p_action: action, p_class: klass ?? null }), "Done.");
-  done();
+  done("/s/replies");
   return r;
 }
 export async function replyAnswer(lead: number, text: string): Promise<ActionResult> {
-  await assertUser([...MKT]);
+  await assertUser();
   const r = await act(() => rpc("wa_queue_reply", { p_lead: id.parse(lead), p_text: text.slice(0, 4096) }), "Answer queued.");
-  done();
+  done("/s/replies");
   return r;
 }
 

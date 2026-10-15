@@ -8,11 +8,12 @@ import { Sheet } from "@/components/ui/Sheet";
 import { Conditions, toFilters } from "@/components/marketing/Conditions";
 import { when } from "@/lib/format";
 import type { Stage } from "@/lib/types";
-import { SEGMENT_FIELDS, type Condition } from "@/lib/viewFields";
+import { fromFilter, SEGMENT_FIELDS, type Condition } from "@/lib/viewFields";
 import {
   campaignClone, campaignSave, campaignSet, campaignStats, journeySave, replyAnswer, replyHandle, scoreRuleSave, segmentAddPhones, segmentCount,
   segmentOverlap, segmentSave, segmentSnapshot, suppress,
 } from "../nurture-actions";
+import { repliesDelegatesSet } from "../actions";
 
 type Run<T> = () => Promise<{ ok: true; data?: T; notice?: string } | { ok: false; error: string }>;
 function useAct() {
@@ -47,7 +48,7 @@ function SegmentSheet({ stages, segment, onClose }: { stages: Stage[]; segment?:
   const [name, setName] = useState(segment?.name ?? "");
   const [description, setDescription] = useState(segment?.description ?? "");
   const [kind, setKind] = useState<"dynamic" | "static">(segment?.kind ?? "dynamic");
-  const [conds, setConds] = useState<Condition[]>(segment?.filters.all ?? [{ field: "status", op: "eq", value: "pool" }]);
+  const [conds, setConds] = useState<Condition[]>(segment?.filters.all?.map(fromFilter) ?? [{ field: "status", op: "eq", value: "pool" }]);
   const [count, setCount] = useState<Record<string, number> | null>(null);
   const [phones, setPhones] = useState("");
   const filters = toFilters(conds, SEGMENT_FIELDS);
@@ -201,6 +202,7 @@ export function CampaignActions({ c }: { c: Campaign }) {
       <button type="button" className="btn quiet sm" disabled={busy} onClick={() => run(() => campaignStats(c.id), (d) => setStats(d ?? null))} aria-label="Results"><BarChart3 className="icon s" aria-hidden /></button>
       {stats && (
         <Sheet title={`Results: ${c.name}`} onClose={() => setStats(null)}>
+          <CampaignReplies s={stats} />
           <dl className="kv">
             {Object.entries(stats).filter(([, v]) => typeof v !== "object" || v === null).map(([k, v]) => <span key={k} style={{ display: "contents" }}><dt>{k.replace(/_/g, " ")}</dt><dd className="num">{String(v ?? "—")}</dd></span>)}
           </dl>
@@ -210,6 +212,20 @@ export function CampaignActions({ c }: { c: Campaign }) {
         </Sheet>
       )}
     </span>
+  );
+}
+
+/** Sent and the replies that followed, split positive and negative (b39 campaign_stats). */
+function CampaignReplies({ s }: { s: Record<string, unknown> }) {
+  const n = (k: string) => Number(s[k] ?? 0);
+  const other = Math.max(0, n("replied") - n("replied_positive") - n("replied_negative"));
+  const share = (v: number) => (n("sent") ? ` (${Math.round((v / n("sent")) * 100)}%)` : "");
+  return (
+    <div className="table-wrap"><table>
+      <thead><tr><th>Sent</th><th className="right">Replied</th><th className="right">Positive</th><th className="right">Negative</th><th className="right">Other</th></tr></thead>
+      <tbody><tr><td className="num">{n("sent")}</td><td className="right num">{n("replied")}{share(n("replied"))}</td><td className="right num">{n("replied_positive")}{share(n("replied_positive"))}</td>
+        <td className="right num">{n("replied_negative")}{share(n("replied_negative"))}</td><td className="right num">{other}</td></tr></tbody>
+    </table></div>
   );
 }
 
@@ -239,7 +255,7 @@ export type Reply = {
 };
 const CLASSES = ["positive", "question", "negative", "opt_out", "other"];
 
-export function ReplyRow({ r }: { r: Reply }) {
+export function ReplyRow({ r, base = "/w/leads" }: { r: Reply; base?: string }) {
   const { busy, run } = useAct();
   const [answer, setAnswer] = useState("");
   const x = r.reply;
@@ -247,7 +263,7 @@ export function ReplyRow({ r }: { r: Reply }) {
   return (
     <div className="panel">
       <header>
-        <span><Link href={`/w/leads/${r.lead.lead_id}`}><b>{r.lead.name ?? `Lead #${r.lead.lead_id}`}</b></Link> <span className="muted small">· {r.lead.course ?? "—"} · {r.lead.status}{r.lead.owner_name ? ` · ${r.lead.owner_name}` : ""}</span></span>
+        <span><Link href={`${base}/${r.lead.lead_id}`}><b>{r.lead.name ?? `Lead #${r.lead.lead_id}`}</b></Link> <span className="muted small">· {r.lead.course ?? "—"} · {r.lead.status}{r.lead.owner_name ? ` · ${r.lead.owner_name}` : ""}</span></span>
         <span className="small muted">{x.channel} · {when(x.created_at)}</span>
       </header>
       <div className="body">
@@ -308,5 +324,29 @@ export function SuppressForm() {
       <button type="button" className="btn ghost sm" disabled={busy || !value.trim()} onClick={() => run(() => suppress(value, reason || "manual", true), () => setValue(""))}>Suppress</button>
       <button type="button" className="btn quiet sm" disabled={busy || !value.trim()} onClick={() => run(() => suppress(value, reason, false), () => setValue(""))}>Lift</button>
     </div>
+  );
+}
+
+// ---------- the Replies counsellors (b39) ----------
+/** The Admin names counsellors who may also answer the Replies inbox (in the Sales app, under Replies). */
+export function RepliesDelegates({ people, chosen }: { people: { user_id: string; name: string }[]; chosen: string[] }) {
+  const { busy, run } = useAct();
+  const [sel, setSel] = useState<string[]>(chosen);
+  const dirty = JSON.stringify([...sel].sort()) !== JSON.stringify([...chosen].sort());
+  return (
+    <details className="panel">
+      <summary>Counsellors who answer replies ({chosen.length})</summary>
+      <div className="stack tight">
+        <p className="note">They see a Replies inbox in the Sales app and can answer, hand over or close a reply, and open its lead.</p>
+        <div className="row wrap" style={{ gap: 12 }}>
+          {people.length === 0 && <span className="muted small">No active counsellors.</span>}
+          {people.map((p) => (
+            <label key={p.user_id} className="checkbox"><input type="checkbox" checked={sel.includes(p.user_id)}
+              onChange={(e) => setSel((s) => (e.target.checked ? [...s, p.user_id] : s.filter((x) => x !== p.user_id)))} /> {p.name}</label>
+          ))}
+        </div>
+        <button type="button" className="btn ghost sm" style={{ justifySelf: "start" }} disabled={busy || !dirty} onClick={() => run(() => repliesDelegatesSet(sel))}>Save</button>
+      </div>
+    </details>
   );
 }

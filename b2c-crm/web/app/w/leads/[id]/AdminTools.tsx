@@ -6,20 +6,23 @@ import { Sheet } from "@/components/ui/Sheet";
 import { when } from "@/lib/format";
 import { LOGIC_LABEL } from "@/lib/labels";
 import type { Contact } from "@/lib/types";
-import { adminEditContact, coachingNote, reassign, routeToPartners } from "../../actions";
+import { adminEditContact, coachingNote, eraseLead, reassign, routeToPartners } from "../../actions";
+import { FlagActions } from "../flagged/FlagActions";
 
 type Person = { user_id: string; name: string };
 
 /** Why the lead went to whom (the allocation decision) and the Admin's actions on one lead. */
-export function AdminTools({ leadId, admin, decision, contacts, people, barred, consent, status }: {
-  leadId: number; admin: boolean; decision: Record<string, unknown> | null; contacts: Contact[]; people: Person[]; barred: boolean; consent: string | null; status: string;
+export function AdminTools({ leadId, admin, decision, contacts, people, barred, consent, status, flagged }: {
+  leadId: number; admin: boolean; decision: Record<string, unknown> | null; contacts: Contact[]; people: Person[]; barred: boolean; consent: string | null; status: string; flagged?: string | null;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
-  const [sheet, setSheet] = useState<"reassign" | "route" | "coach" | "contacts" | null>(null);
+  const [sheet, setSheet] = useState<"reassign" | "route" | "coach" | "contacts" | "erase" | null>(null);
   const [to, setTo] = useState("");
   const [text, setText] = useState("");
-  const close = () => { setSheet(null); setText(""); };
+  const [reference, setReference] = useState("");
+  const [typed, setTyped] = useState("");
+  const close = () => { setSheet(null); setText(""); setReference(""); setTyped(""); };
   const go = (fn: () => Promise<{ ok: boolean; error?: string; notice?: string }>, msg?: string) => start(async () => {
     const r = await fn();
     if (!r.ok) return void toast.error(r.error);
@@ -40,12 +43,16 @@ export function AdminTools({ leadId, admin, decision, contacts, people, barred, 
             {skipped.length > 0 && <><dt>Skipped</dt><dd>{skipped.map((s) => `${s.name} (${s.why})`).join(", ")}</dd></>}
           </dl>
         ) : <p className="note">No allocation decision yet.</p>}
+        {admin && flagged && status !== "closed" && (
+          <div className="banner"><div className="grow stack tight"><span><b>Flagged as {flagged.replace(/_/g, " ")}</b>: no marketing until you decide.</span><FlagActions leadId={leadId} /></div></div>
+        )}
         {admin && (
           <div className="row wrap" style={{ gap: 6 }}>
             {status === "active" && <button type="button" className="btn ghost sm" onClick={() => setSheet("reassign")}>Reassign</button>}
             {status !== "closed" && !barred && <button type="button" className="btn ghost sm" onClick={() => setSheet("route")} disabled={consent !== "given"} title={consent !== "given" ? "Needs the student's partner-sharing consent" : undefined}>Send to partner routing</button>}
             <button type="button" className="btn ghost sm" onClick={() => setSheet("coach")}>Coaching note</button>
             <button type="button" className="btn ghost sm" onClick={() => setSheet("contacts")}>Edit contact details</button>
+            <button type="button" className="btn quiet sm" onClick={() => setSheet("erase")}>Erase on the student&apos;s request</button>
           </div>
         )}
       </div>
@@ -81,6 +88,23 @@ export function AdminTools({ leadId, admin, decision, contacts, people, barred, 
         <Sheet title="Edit contact details" onClose={close}>
           <p className="note">Edits and removals are kept in the field history. A change to the enquiry&apos;s own number or email also goes to the master lead table.</p>
           {contacts.map((c) => <ContactRow key={c.id} c={c} busy={busy} onSave={(v, rm) => go(() => adminEditContact(c.id, v, rm, leadId))} />)}
+        </Sheet>
+      )}
+      {sheet === "erase" && (
+        <Sheet title="Erase on the student's request" onClose={close}>
+          <p className="note">For a request under India&apos;s data protection law (DPDP). The name, numbers and emails are anonymised, message bodies, notes and documents
+            are removed, the lead leaves every view, journey and queue, and the B2B CRM is told so every partner that had the lead is told too. Money rows stay, by
+            lead number only. <b>This cannot be undone.</b></p>
+          <label className="field"><span>Request reference (the email or ticket the student used)</span><input className="input" value={reference} onChange={(e) => setReference(e.target.value)} maxLength={200} placeholder="SUP-0042, or the student's email of 15 Oct" /></label>
+          <label className="field"><span>Note (optional, kept in the audit log)</span><textarea className="input" value={text} onChange={(e) => setText(e.target.value)} maxLength={300} rows={3} /></label>
+          <label className="field"><span>Type ERASE {leadId} to confirm</span><input className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" /></label>
+          <button type="button" className="btn danger block" disabled={busy || reference.trim().length < 3 || typed.trim() !== `ERASE ${leadId}`} onClick={() => start(async () => {
+            const r = await eraseLead(leadId, reference, text);
+            if (!r.ok) return void toast.error(r.error);
+            toast.success(`Erased. ${r.data?.messages ?? 0} messages emptied; ${r.data?.files ?? 0} files are being removed.`);
+            close();
+            router.push("/w/leads");
+          })}>Erase this student</button>
         </Sheet>
       )}
     </section>

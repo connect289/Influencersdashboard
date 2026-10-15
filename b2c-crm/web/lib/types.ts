@@ -59,7 +59,8 @@ export type LeadRow = {
   lost_by: string | null;
   reengaged_at: string | null;
   reengage_trigger: string | null;
-  flagged: boolean | null;
+  /** The B2B classification while flagged for the Admin's review (b39), else null. */
+  flagged: string | null;
   reenquired_at: string | null;
   routing_requested_at: string | null;
   closed_at: string | null;
@@ -68,7 +69,22 @@ export type LeadRow = {
   is_test: boolean;
   deleted_at: string | null;
   handed_off_at: string | null;
+} & Partial<WideFields>;
+
+/** The extra columns of b2c.leads_wide_v (b40) that lead_list returns; money fields only for Admin and Marketing. */
+export type WideFields = {
+  created_at: string | null; updated_at: string | null; timeline: string | null; budget: number | null; work_experience: string | null;
+  partner: string | null; partner_lost_reason: string | null; partners_tried_count: number;
+  engagement_points: number | null; fit_points: number | null; calls_logged: number; calls_connected: number; last_call_outcome: string | null; last_call_at: string | null;
+  wa_sent: number; wa_received: number; last_wa_in_at: string | null; emails_sent: number; emails_opened: number; last_email_at: string | null;
+  last_reply_at: string | null; last_reply_class: string | null; days_in_stage: number | null; days_untouched: number | null;
+  sla_status: "running" | "at_risk" | "breached" | "met" | null; application_status: string | null; application_ref: string | null; documents_pending: number | null;
+  enrollment_status: string | null; enrolled_on: string | null; fee: number | null;
+  university_gross: number | null; university_net: number | null; university_gst: number | null; university_status: string | null; counsellor_commission: number | null;
 };
+
+/** lead_list (b40): a page of rows, and with group_by the counts (and money totals for Admin and Marketing) over the whole view. */
+export type LeadList = { total: number; rows: LeadRow[]; groups?: { key: string | null; count: number; expected?: number; commission?: number }[]; group_by?: string };
 
 export type Task = {
   id: number;
@@ -153,12 +169,17 @@ export type SubStage = { stage_id: number; name: string; rank: number; returns_t
 export type SavedView = {
   id: number;
   name: string;
-  role: string | null;
+  role?: string | null;
   filters: Record<string, unknown>;
+  columns: string[];
   sort: { field: string; dir: "asc" | "desc" };
+  group_by: string | null;
   layout: "list" | "kanban";
   is_standard: boolean;
-  owner_id: string | null;
+  shared_with_role: string | null;
+  /** The person's own view. */
+  mine: boolean;
+  owner?: string | null;
 };
 
 export type Notification = { id: number; kind: string; title: string; body: string | null; link: string | null; created_at: string; read_at: string | null };

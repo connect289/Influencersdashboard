@@ -56,7 +56,7 @@ export const BAR_LABEL: Record<string, string> = { duplicate: "Partner-barred: d
 export const TIMELINE_KIND_LABEL: Record<string, string> = {
   handoff: "Hand-off", assignment: "Assigned", stage: "Stage", call: "Call", whatsapp: "WhatsApp", email: "Email", note: "Note",
   coaching: "Coaching", reenquiry: "Enquired again", reengaged: "Re-engaged", system: "System", contact: "Contact", correction: "Change",
-  application: "Application", enrollment: "Enrolment", programme_shared: "Programme shared",
+  application: "Application", enrollment: "Enrolment", programme_shared: "Programme shared", partner_history: "Partner history",
 };
 
 export const LOGIC_LABEL: Record<string, string> = {

@@ -500,3 +500,8 @@ svg.chart .gridl { stroke: var(--line); stroke-width: 1; }
 /* phone-only and laptop-only parts: last so they beat any component's own display */
 .only-phone { display: none !important; }
 @media (max-width: 900px) { .only-phone { display: grid !important; } .only-desk { display: none !important; } }
+
+/* Leads table density (the viewer's choice, components/lead/Density.tsx) */
+html[data-density="compact"] .table-wrap th { padding: 7px 10px; }
+html[data-density="compact"] .table-wrap td { padding: 4px 10px; }
+html[data-density="compact"] .kcard { padding: 6px 8px; gap: 2px; }

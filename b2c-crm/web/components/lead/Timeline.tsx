@@ -12,7 +12,7 @@ const GROUPS: { key: string; label: string; kinds: string[] | null }[] = [
   { key: "calls", label: "Calls", kinds: ["call"] },
   { key: "messages", label: "WhatsApp and email", kinds: ["whatsapp", "email", "programme_shared"] },
   { key: "notes", label: "Notes", kinds: ["note", "coaching"] },
-  { key: "stage", label: "Stage and assignment", kinds: ["stage", "assignment", "handoff", "reenquiry", "reengaged"] },
+  { key: "stage", label: "Stage and assignment", kinds: ["stage", "assignment", "handoff", "partner_history", "reenquiry", "reengaged"] },
   { key: "records", label: "Changes and documents", kinds: ["contact", "correction", "application", "enrollment", "system"] },
 ];
 

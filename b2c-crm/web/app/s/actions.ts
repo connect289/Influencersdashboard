@@ -8,6 +8,7 @@ import { textToHtml } from "@/lib/compose";
 import { act, rpc, type ActionResult } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { cleanAnswers } from "@/lib/qualify";
 
 const SALES = ["counsellor", "sales_head", "admin"] as const;
 const id = z.coerce.number().int().positive();
@@ -343,13 +344,18 @@ export async function numberCopied(leadId: number): Promise<void> {
   await rpc("audit", { p_action: "contact_copy", p_lead: id.parse(leadId), p_detail: { via: "call_sheet" } }).catch(() => undefined);
 }
 
-// ---------- custom lead views (B8.4) ----------
+// ---------- custom lead views (B8.2) ----------
 
+const cond = z.object({ field: z.string().max(40), op: z.string().max(20), value: z.unknown().optional() });
 const viewSchema = z.object({
   id: id.optional(), name: z.string().trim().min(1).max(60).optional(), role: z.enum(["sales", "workspace"]),
-  filters: z.object({ all: z.array(z.object({ field: z.string().max(40), op: z.string().max(20), value: z.unknown().optional() })).max(12) }).optional(),
+  filters: z.object({
+    all: z.array(cond).max(20).optional(), any: z.array(cond).max(20).optional(),
+    groups: z.array(z.object({ all: z.array(cond).max(20).optional(), any: z.array(cond).max(20).optional() })).max(6).optional(),
+  }).optional(),
   sort: z.object({ field: z.string().max(40), dir: z.enum(["asc", "desc"]) }).optional(),
-  is_standard: z.boolean().optional(), hidden: z.boolean().optional(),
+  columns: z.array(z.string().max(40)).max(40).optional(), group_by: z.string().max(40).nullable().optional(), layout: z.enum(["list", "kanban"]).optional(),
+  shared_with_role: z.string().max(20).nullable().optional(), is_standard: z.boolean().optional(), hidden: z.boolean().optional(),
 });
 
 /** Saves (or hides) one of the person's views; the database runs it once first, so a broken view is never saved. */
@@ -357,7 +363,30 @@ export async function viewSave(input: z.input<typeof viewSchema>): Promise<Actio
   await assertUser();
   const p = viewSchema.safeParse(input);
   if (!p.success) return { ok: false, error: "Name the view and check its conditions." };
-  const r = await act(() => rpc<number>("view_save", { p: p.data }), p.data.hidden ? "View removed." : "View saved.");
+  const r = await act(() => rpc<number>("view_save", { p: { ...p.data, group_by: p.data.group_by === undefined ? undefined : p.data.group_by ?? "" } }),
+    p.data.hidden ? "View removed." : "View saved.");
   revalidatePath(p.data.role === "sales" ? "/s/leads" : "/w/leads");
+  return r;
+}
+
+/** The view a person's Leads page opens on (b2c.view_pin); null unpins. */
+export async function viewPin(role: "sales" | "workspace", viewId: number | null): Promise<ActionResult> {
+  await assertUser();
+  const r = await act(() => rpc("view_pin", { p_role: role, p_view: viewId === null ? null : id.parse(viewId) }), viewId === null ? "Unpinned." : "Pinned: the Leads page opens on this view.");
+  revalidatePath(role === "sales" ? "/s/leads" : "/w/leads");
+  return r;
+}
+
+// ---------- to qualify (b39) ----------
+
+/** The details a counsellor (with the To qualify task) or the Admin collected; the lead goes back to B2B routing. */
+export async function qualifyRecord(leadId: number, answers: Record<string, string>): Promise<ActionResult<{ recorded: Record<string, string> }>> {
+  await assertUser([...SALES]);
+  const clean = cleanAnswers(answers);
+  if (Object.keys(clean).length === 0) return { ok: false, error: "Answer at least one question." };
+  const r = await act(() => rpc<{ recorded: Record<string, string> }>("qualify_record", { p_lead: id.parse(leadId), p_answers: clean }),
+    "Recorded and sent to the B2B CRM, which routes the lead again.");
+  done(leadId);
+  revalidatePath(`/w/leads/${leadId}`);
   return r;
 }

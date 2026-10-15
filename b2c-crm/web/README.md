@@ -40,10 +40,12 @@ npm run typecheck && npm test && npm run build
 | Calendar (everyone, personal) | Connectors and Me → Availability: "Show my follow-ups in my Google Calendar" |
 | Brief before you call | On the lead screen: 3–5 lines, each with its source; written by Claude from scrubbed input, refreshed when a key fact changes, and by the job for calls due within the hour |
 | Public (signed links in marketing email) | `/u/[token]` unsubscribe per channel, `POST /e/u/[token]` one-click (List-Unsubscribe), `/e/o/[token]` open pixel, `/e/c/[token]` tracked click and "I'm interested", `/thanks` |
-| From the B2B CRM | `POST /v1/handoffs`: signed webhooks (HMAC over the raw body, 5-minute window), stored and applied once per envelope id |
+| From the B2B CRM | `POST /v1/handoffs`: signed webhooks (HMAC over the raw body, 5-minute window), stored and applied once per envelope id. `GET /v1/events?since=<seq>&limit=<1–1000>`: the reconciliation feed of what Spark sent (below) |
 | From Meta | `GET/POST /v1/webhooks/whatsapp`: signed with the app secret; messages to `b2c.wa_inbound`, statuses to `b2c.wa_status` |
 | Jobs (pg_cron → here, `x-internal-key`) | `POST /api/internal/sync?mode=urgent` (every minute, also sends phone alerts, classifies replies with Claude, writes briefs for calls due within the hour, emails alerts and scheduled dashboards, and once a day after Settings → ai → `insights_hour_ist` writes the insights; Phase 4: fetches call recordings into the private bucket, removes them after the retention period, and pushes follow-ups to Google Calendar), `?mode=batch` (every 15 minutes), `POST /api/internal/reconcile` (every 5 minutes, also reads the marketing mailbox's replies and bounces and, hourly, Meta template status and quality), `POST /api/internal/directory` (daily, 02:10 IST) |
-| Export (Admin) | `GET /w/leads/export?v=<view>&q=<search>`: the view or search as CSV, up to 10,000 rows, logged in the audit log |
+| Export (Admin) | `GET /w/leads/export?view=<view>&q=<search>&ids=<ticked>&format=xlsx\|csv`: the view, a search or the ticked rows, in the view's columns, as Excel (`lib/xlsx.ts`, no dependency) or CSV. `b2c.export_request` decides: up to 10,000 rows download at once; more are written in the background by the every-minute job into the private bucket `b2c-exports` (created if missing) and listed under **Exports** on `/w/leads` with a 2-minute signed link for 7 days (b40). Every export is logged |
+| Leads table (b40) | `/w/leads`, `/s/leads`: views with groups of conditions (all of the groups; inside each, all or any) on every lead property and sales activity (`b2c.lead_fields()`, `lib/viewFields.ts`), relative dates (today, this week, this month, last month, between), chosen columns in order, group-by with counts and commission totals (Admin and Marketing), list or board, compact or comfortable rows (kept in the browser), a pinned default per person, shared with one's own role by link (`?view=<id>`), standard views the Admin publishes to the Workspace or the Sales app; live refresh every minute while the tab is visible. Bulk (Workspace): journeys in and out (Marketing too), stage change, select all rows of a view (up to 20,000), delete as a background job with typed confirmation and undo for 30 days (**Background jobs**). Lead screen: the Admin edits any lead, pooled and closed included, and can erase a student on request (DPDP); the erased files are removed by the every-minute job |
+| Nurture completion (b39) | `/q/[token]` the public 3-question form (no sign-in, not indexed); `/w/qualify` the Admin's To qualify queue (give to a counsellor, send again); the counsellor's task shows on Today and opens the lead with a "Collect the missing details" form; `/w/leads/flagged` flagged leads (keep, close as junk, cannot be served); "Opt in again" on the lead's Nurture panel; Replies counsellors chosen on Nurture → Replies, who answer at `/s/replies`; journey triggers on a field, a date, email engagement and WhatsApp replies, and an "update a field" step; WhatsApp spend per journey; pool outflow, deliverability and partner-lost sub-stages on the Overview |
 
 **Sync with the B2B CRM** (decisions K2 and K14): the B2B CRM sends hand-offs and lead changes in real time. The B2C CRM
 sends its activity back in one batch every 15 minutes (merged to one update per lead), except what must go at once:
@@ -54,6 +56,32 @@ partner (Addendum 4 §4a). A lead reaches a partner only through the B2B engine.
 **Messages**: WhatsApp from the Eduwit B2C number (template first outside the 24-hour window) and counsellors' email from
 their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → live mode is on; test leads (phones `910000…`,
 `9190000000…`) never get a real message. In test mode a message is recorded as "test mode, not sent".
+
+## For the B2B developer: `GET /v1/events` (reconciliation feed)
+
+Every event Spark sent the B2B CRM (`b2ccrm.*`), oldest first, after a sequence number (`b2c.events_feed`). Use it to catch
+up on anything a webhook missed.
+
+```
+GET https://<spark>/v1/events?since=0&limit=200
+X-Eduwit-Timestamp: 1760000000
+X-Eduwit-Signature: sha256=<hex HMAC-SHA256 of "1760000000.GET /v1/events?since=0&limit=200">
+```
+
+- Signed with the same signing secret as the webhooks. A GET has no body, so the signed text is
+  `<timestamp>.GET <path>?<query>`: the method, one space, then the path and query string exactly as you request them
+  (same order, same encoding). Timestamps more than 5 minutes from Spark's clock are refused (`401 bad timestamp`).
+- `since` (or `after`): the last `seq` you processed (0 to start). `limit`: 1 to 1000, default 200.
+- Answer: `{ "ok": true, "events": [{ "seq", "event_id", "type", "lead_id", "occurred_at", "data", "delivery" }], "next_after": <seq> }`.
+  Pass `next_after` as the next `since`; an empty `events` means you are up to date. `event_id` is the one the webhook
+  carried, so process each once.
+
+```js
+const target = `/v1/events?since=${since}&limit=200`;
+const ts = String(Math.floor(Date.now() / 1000));
+const sig = "sha256=" + crypto.createHmac("sha256", secret).update(`${ts}.GET ${target}`, "utf8").digest("hex");
+const res = await fetch(SPARK + target, { headers: { "x-eduwit-timestamp": ts, "x-eduwit-signature": sig } });
+```
 
 ## Setup (Vikas), staging first
 

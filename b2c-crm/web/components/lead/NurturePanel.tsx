@@ -3,7 +3,8 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sprout } from "lucide-react";
 import { toast } from "sonner";
-import { journeyLead, leadNurture, marketingConsent, nurtureHandover, nurtureSend, optOut, type LeadNurture, type NurtureOptions } from "@/app/w/nurture-actions";
+import { Sheet } from "@/components/ui/Sheet";
+import { journeyLead, leadNurture, marketingConsent, nurtureHandover, nurtureSend, optIn, optOut, type LeadNurture, type NurtureOptions } from "@/app/w/nurture-actions";
 import { when } from "@/lib/format";
 
 /**
@@ -11,13 +12,14 @@ import { when } from "@/lib/format";
  * Marketing and the Admin can start, pause, stop or move a journey, send a one-off message, hand the lead over and record
  * consent; anyone who works the lead can record an opt-out.
  */
-export function NurturePanel({ leadId, marketing, canWork, inPool }: { leadId: number; marketing: boolean; canWork: boolean; inPool: boolean }) {
+export function NurturePanel({ leadId, marketing, canWork, inPool, optedOut }: { leadId: number; marketing: boolean; canWork: boolean; inPool: boolean; optedOut?: boolean }) {
   const router = useRouter();
   const [state, setState] = useState<{ data: LeadNurture; options: NurtureOptions | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
   const [journey, setJourney] = useState(0);
   const [tpl, setTpl] = useState("");
+  const [optInOpen, setOptInOpen] = useState(false);
   const load = () => leadNurture(leadId).then((r) => (r.ok ? setState(r.data!) : setError(r.error)));
   useEffect(() => { void load(); }, [leadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -78,7 +80,18 @@ export function NurturePanel({ leadId, marketing, canWork, inPool }: { leadId: n
                 </div>
               </div>
             )}
-            {(marketing || canWork) && (
+            {optedOut && (
+              <div className="row wrap" style={{ gap: 6 }}>
+                <span className="chip breach">Opted out</span>
+                {marketing && <button type="button" className="btn ghost sm" disabled={busy} onClick={() => setOptInOpen(true)}>Opt in again</button>}
+              </div>
+            )}
+            {optInOpen && <OptInSheet onClose={() => setOptInOpen(false)} busy={busy} onSave={(ch, source, note) => run(async () => {
+              const r = await optIn(leadId, ch, source, note);
+              if (r.ok) setOptInOpen(false);
+              return r;
+            })} />}
+            {(marketing || canWork) && !optedOut && (
               <div className="row wrap" style={{ gap: 6 }}>
                 <button type="button" className="btn quiet sm" disabled={busy} onClick={() => confirm("The student asked to stop emails?") && run(() => optOut(leadId, ["email"]))}>Opt out of emails</button>
                 <button type="button" className="btn quiet sm" disabled={busy} onClick={() => confirm("The student asked to stop all messages? This is final until they opt in again.") && run(() => optOut(leadId, null))}>Opt out of everything</button>
@@ -103,5 +116,29 @@ export function NurturePanel({ leadId, marketing, canWork, inPool }: { leadId: n
         )}
       </div>
     </section>
+  );
+}
+
+const SOURCES: [string, string][] = [["whatsapp_request", "Asked on WhatsApp"], ["email_request", "Asked by email"], ["call_request", "Asked on a call"], ["form", "Filled a form again"]];
+
+/** Opting in again (spec B6.5): only on the student's own request, with how they asked (at least 5 characters, logged). */
+function OptInSheet({ onClose, onSave, busy }: { onClose: () => void; onSave: (channels: ("whatsapp" | "email")[] | null, source: string, note: string) => void; busy: boolean }) {
+  const [wa, setWa] = useState(true);
+  const [em, setEm] = useState(true);
+  const [source, setSource] = useState(SOURCES[0]![0]);
+  const [note, setNote] = useState("");
+  const channels = wa && em ? null : ([wa && "whatsapp", em && "email"].filter(Boolean) as ("whatsapp" | "email")[]);
+  return (
+    <Sheet title="Opt in again" onClose={onClose}>
+      <p className="note">Only when the student asked to hear from Eduwit again. Messages are allowed again and marketing consent is recorded on the channels ticked; the master lead table is told.</p>
+      <div className="row wrap" style={{ gap: 12 }}>
+        <label className="checkbox"><input type="checkbox" checked={wa} onChange={(e) => setWa(e.target.checked)} /> WhatsApp</label>
+        <label className="checkbox"><input type="checkbox" checked={em} onChange={(e) => setEm(e.target.checked)} /> Email</label>
+      </div>
+      <label className="field"><span>How they asked</span>
+        <select className="input" value={source} onChange={(e) => setSource(e.target.value)}>{SOURCES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+      <label className="field"><span>What they said, and when (required)</span><textarea className="input" rows={3} value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="Wrote on WhatsApp on 15 Oct: please send me MBA details again" /></label>
+      <button type="button" className="btn primary block" disabled={busy || note.trim().length < 5 || (!wa && !em)} onClick={() => onSave(channels, source, note)}>Opt in again</button>
+    </Sheet>
   );
 }

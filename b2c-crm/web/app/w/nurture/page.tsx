@@ -5,10 +5,12 @@ import { Page, SetupError, Empty } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
 import { inr, when } from "@/lib/format";
+import { FlagChip } from "@/components/lead/Chips";
+import { team } from "@/lib/team";
 import { stagesAndSubs } from "@/lib/stages";
 import { createClient } from "@/lib/supabase/server";
 import {
-  CampaignActions, CampaignButton, NewJourneyButton, OverlapTool, ReplyRow, ScoreRuleRow, SegmentButton, SuppressForm,
+  CampaignActions, CampaignButton, NewJourneyButton, OverlapTool, RepliesDelegates, ReplyRow, ScoreRuleRow, SegmentButton, SuppressForm,
   type Campaign, type Reply, type ScoreRule, type Segment, type Template,
 } from "./parts";
 
@@ -17,17 +19,21 @@ export const metadata: Metadata = { title: "Nurture" };
 const TABS = [["overview", "Overview"], ["pool", "Pool"], ["journeys", "Journeys"], ["campaigns", "Campaigns"], ["segments", "Segments"], ["replies", "Replies"], ["scoring", "Scoring and rules"]] as const;
 type Tab = (typeof TABS)[number][0];
 
+type Flow = { day: string; in: number; reengaged: number; dormant?: number; opted_out?: number; closed?: number };
 type Overview = {
-  pool: number; dormant: number; by_reason: { reason: string; age: string; n: number }[]; flow_14d: { day: string; in: number; reengaged: number }[];
+  pool: number; dormant: number; by_reason: { reason: string; age: string; n: number }[]; flow_14d: Flow[];
   reengaged_30d: number; entered_30d: number; hours_to_reengage: number | null; messages_today: { whatsapp: number; email: number };
-  email_allowance: { limit: number; left: number }; wa_cost_30d: number; replies_today: Record<string, number>; replies_waiting: number;
-  suppressed_today: Record<string, number>; wa_quality: { rating?: string; tier?: string; at?: string } | null; journeys_running: number;
+  email_allowance: { limit: number; left: number }; wa_cost_30d: number; cost_per_reengaged?: number | null; replies_today: Record<string, number>; replies_waiting: number;
+  suppressed_today: Record<string, number>; wa_quality: { rating?: string; tier?: string; at?: string } | null; journeys_running: number; to_qualify?: number;
+  deliverability_7d?: { wa_sent: number; wa_delivered: number; wa_read: number; wa_failed: number; email_sent: number; email_bounced: number; email_opened: number } | null;
 };
+const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : "—");
 type PoolRow = {
   lead_id: number; name: string | null; course: string | null; reason: string | null; sub_stage: string | null; lost_by: string | null; lost_detail: string | null;
   lost_reason: string | null; missing: string[]; score: number | null; trend_7d: number; marketing_consent: { whatsapp: boolean; email: boolean };
   journey: { name: string; step: number; status: string; next_at: string } | null; first_message_due_at: string | null; pool_entered_at: string | null;
-  last_message: { status: string; at: string } | null; last_student_at: string | null;
+  last_message: { channel?: string; status: string; at: string } | null; last_student_at: string | null;
+  qualifying?: boolean; flagged?: string | null; mapped_sub_stage?: string | null;
 };
 type Journey = { id: number; key: string; name: string; description: string | null; trigger: { type: string; reasons?: string[]; sub_stages?: string[] }; status: string; current_version: number; test_mode: boolean; priority: number };
 
@@ -44,18 +50,26 @@ export default async function NurturePage({ searchParams }: { searchParams: Prom
   try {
     if (tab === "overview") {
       const o = await rpc<Overview>("nurture_overview");
-      const flowMax = Math.max(1, ...o.flow_14d.map((d) => Math.max(d.in, d.reengaged)));
+      const out = (d: Flow) => d.reengaged + (d.dormant ?? 0) + (d.opted_out ?? 0) + (d.closed ?? 0);
+      const flowMax = Math.max(1, ...o.flow_14d.map((d) => Math.max(d.in, out(d))));
       const supp = Object.entries(o.suppressed_today);
+      const partnerLost = Object.entries(o.by_reason.filter((r) => r.reason.startsWith("partner lost:")).reduce<Record<string, number>>((a, r) => {
+        const k = r.reason.slice("partner lost: ".length);
+        a[k] = (a[k] ?? 0) + r.n;
+        return a;
+      }, {})).sort((a, b) => b[1] - a[1]);
+      const dv = o.deliverability_7d;
       body = (
         <div className="stack">
           <div className="grid g4">
             <div className="stat"><span className="small muted">In the pool</span><b>{o.pool}</b><span className="delta">{o.dormant} dormant</span></div>
             <div className="stat"><span className="small muted">Re-engaged, 30 days</span><b>{o.reengaged_30d}</b><span className="delta">{o.entered_30d ? Math.round((o.reengaged_30d / o.entered_30d) * 100) : 0}% of {o.entered_30d} entered{o.hours_to_reengage !== null ? ` · median ${o.hours_to_reengage} h` : ""}</span></div>
             <div className="stat"><span className="small muted">Messages today</span><b>{o.messages_today.whatsapp + o.messages_today.email}</b><span className="delta">{o.messages_today.whatsapp} WhatsApp · {o.messages_today.email} email ({o.email_allowance.left} of {o.email_allowance.limit} left)</span></div>
-            <div className="stat"><span className="small muted">WhatsApp spend, 30 days</span><b>{inr(o.wa_cost_30d)}</b><span className="delta">{o.reengaged_30d ? `${inr(o.wa_cost_30d / o.reengaged_30d)} per re-engaged lead` : "estimate from the rate card"}</span></div>
+            <div className="stat"><span className="small muted">WhatsApp spend, 30 days</span><b>{inr(o.wa_cost_30d)}</b><span className="delta">{o.cost_per_reengaged != null ? `${inr(o.cost_per_reengaged)} per re-engaged lead` : o.reengaged_30d ? `${inr(o.wa_cost_30d / o.reengaged_30d)} per re-engaged lead` : "estimate from the rate card"}</span></div>
           </div>
           {o.wa_quality?.rating && o.wa_quality.rating !== "GREEN" && <div className="banner danger">WhatsApp quality rating is <b>{o.wa_quality.rating}</b>. Slow down marketing on the B2C number.</div>}
           {o.replies_waiting > 0 && <div className="banner info"><div className="grow"><b>{o.replies_waiting} replies</b> wait for a person.</div><Link className="btn ghost sm" href="/w/nurture?tab=replies">Open replies</Link></div>}
+          {(o.to_qualify ?? 0) > 0 && <div className="banner info"><div className="grow"><b>{o.to_qualify} re-engaged leads</b> are still missing details before they can be routed again.</div>{admin && <Link className="btn ghost sm" href="/w/qualify">To qualify</Link>}</div>}
           <div className="grid g2">
             <section className="card pad stack">
               <h2>Pool by reason and age</h2>
@@ -65,36 +79,64 @@ export default async function NurturePage({ searchParams }: { searchParams: Prom
                   <tbody>{o.by_reason.map((r) => <tr key={r.reason + r.age}><td>{r.reason}</td><td>{r.age}</td><td className="right num">{r.n}</td></tr>)}</tbody>
                 </table></div>
               )}
+              {partnerLost.length > 0 && (
+                <>
+                  <h3>Partner lost, by lost sub-stage</h3>
+                  <div className="table-wrap"><table>
+                    <thead><tr><th>Sub-stage (from the partner&apos;s reason)</th><th className="right">Leads</th></tr></thead>
+                    <tbody>{partnerLost.map(([k, n]) => <tr key={k}><td>{k}</td><td className="right num">{n}</td></tr>)}</tbody>
+                  </table></div>
+                </>
+              )}
             </section>
             <section className="card pad stack">
               <h2>In and out, 14 days</h2>
               {o.flow_14d.map((d) => (
-                <div key={d.day} className="funnel-row small">
+                <div key={d.day} className="funnel-row small" title={`In ${d.in} · re-engaged ${d.reengaged} · dormant ${d.dormant ?? 0} · opted out ${d.opted_out ?? 0} · closed ${d.closed ?? 0}`}>
                   <span className="mono">{d.day.slice(5)}</span>
                   <div className="stack" style={{ gap: 2 }}>
                     <div className="bar-track"><div className="bar-fill amber" style={{ width: `${(d.in / flowMax) * 100}%` }} /></div>
-                    <div className="bar-track"><div className="bar-fill" style={{ width: `${(d.reengaged / flowMax) * 100}%` }} /></div>
+                    <div className="bar-track"><div className="bar-fill" style={{ width: `${(out(d) / flowMax) * 100}%` }} /></div>
                   </div>
-                  <span className="num right">{d.in}/{d.reengaged}</span>
+                  <span className="num right">{d.in}/{out(d)}</span>
                 </div>
               ))}
-              <div className="row small"><span className="chip warm">■ Entered</span><span className="chip soft">■ Re-engaged</span></div>
+              <div className="row small"><span className="chip warm">■ Entered</span><span className="chip soft">■ Left: re-engaged, dormant, opted out or closed</span></div>
+              <div className="table-wrap"><table>
+                <thead><tr><th>14 days</th><th className="right">Re-engaged</th><th className="right">Dormant</th><th className="right">Opted out</th><th className="right">Closed</th></tr></thead>
+                <tbody><tr><td>Left the pool</td>
+                  {(["reengaged", "dormant", "opted_out", "closed"] as const).map((k) => <td key={k} className="right num">{o.flow_14d.reduce((a, d) => a + Number(d[k] ?? 0), 0)}</td>)}</tr></tbody>
+              </table></div>
             </section>
           </div>
           <div className="grid g2">
             <section className="card pad stack">
               <h2>Guardrails today</h2>
               {supp.length === 0 ? <p className="note">Nothing held back today.</p> : <p>{supp.reduce((a, [, n]) => a + n, 0)} leads held back: {supp.map(([k, n]) => `${n} ${k.replace(/^wait: /, "")}`).join(", ")}.</p>}
-              <p className="note">Quiet hours, at most 1 marketing WhatsApp a day and 6 in 30 days, 2 emails a day, nothing during a Witty chat or active sales, one journey at a time. Change them under Settings → messaging.</p>
+              <p className="note">Quiet hours, at most 1 marketing WhatsApp a day and 6 in 30 days, 2 emails a day, nothing during a Witty chat or active sales, one journey at a time, nothing while a lead is flagged. Change them under Settings → messaging.</p>
             </section>
             <section className="card pad stack">
-              <h2>Replies today</h2>
-              {Object.keys(o.replies_today).length === 0 ? <p className="note">No replies yet today.</p> : (
-                <div className="row wrap" style={{ gap: 6 }}>{Object.entries(o.replies_today).map(([k, n]) => <span key={k} className="chip soft">{k}: {n}</span>)}</div>
+              <h2>Deliverability, 7 days</h2>
+              {!dv ? <p className="note">No figures yet.</p> : (
+                <dl className="kv">
+                  <dt>WhatsApp sent</dt><dd className="num">{dv.wa_sent}</dd>
+                  <dt>Delivered</dt><dd className="num">{dv.wa_delivered} ({pct(dv.wa_delivered, dv.wa_sent)})</dd>
+                  <dt>Read</dt><dd className="num">{dv.wa_read} ({pct(dv.wa_read, dv.wa_sent)})</dd>
+                  <dt>Failed</dt><dd className="num">{dv.wa_failed} ({pct(dv.wa_failed, dv.wa_sent)})</dd>
+                  <dt>Emails sent</dt><dd className="num">{dv.email_sent}</dd>
+                  <dt>Opened</dt><dd className="num">{dv.email_opened} ({pct(dv.email_opened, dv.email_sent)})</dd>
+                  <dt>Bounced</dt><dd className="num">{dv.email_bounced} ({pct(dv.email_bounced, dv.email_sent)})</dd>
+                </dl>
               )}
-              <p className="small muted">{o.journeys_running} leads in a journey now.</p>
             </section>
           </div>
+          <section className="card pad stack">
+            <h2>Replies today</h2>
+            {Object.keys(o.replies_today).length === 0 ? <p className="note">No replies yet today.</p> : (
+              <div className="row wrap" style={{ gap: 6 }}>{Object.entries(o.replies_today).map(([k, n]) => <span key={k} className="chip soft">{k}: {n}</span>)}</div>
+            )}
+            <p className="small muted">{o.journeys_running} leads in a journey now.</p>
+          </section>
         </div>
       );
     } else if (tab === "pool") {
@@ -112,18 +154,18 @@ export default async function NurturePage({ searchParams }: { searchParams: Prom
           </form>
           <p className="small muted">{res.total} leads</p>
           <div className="table-wrap"><table>
-            <thead><tr><th>Lead</th><th>Why in the pool</th><th>Missing</th><th className="right">Score</th><th>Consent</th><th>Journey</th><th>Last message</th><th>Last reply</th></tr></thead>
+            <thead><tr><th>Lead</th><th>Why in the pool</th><th>Missing</th><th className="right">Score</th><th>Consent</th><th>Journey</th><th>Last message</th><th>Student last active</th></tr></thead>
             <tbody>
               {res.rows.length === 0 && <tr><td colSpan={8} className="muted">Nobody here.</td></tr>}
               {res.rows.map((r) => (
                 <tr key={r.lead_id}>
-                  <td><Link href={`/w/leads/${r.lead_id}`}><b>{r.name ?? `#${r.lead_id}`}</b></Link><div className="small muted">{r.course ?? "—"}</div></td>
-                  <td>{r.reason === "partner_lost" ? `Partner lost${r.lost_detail ? ` (${r.lost_detail})` : ""}` : r.reason === "counsellor_lost" ? `Lost by ${r.lost_detail ?? "a counsellor"}` : r.reason ?? "—"}<div className="small muted">{r.lost_reason ?? ""}</div></td>
+                  <td><Link href={`/w/leads/${r.lead_id}`}><b>{r.name ?? `#${r.lead_id}`}</b></Link> <FlagChip flag={r.flagged} />{r.qualifying && <span className="chip risk">Qualifying</span>}<div className="small muted">{r.course ?? "—"}</div></td>
+                  <td>{r.reason === "partner_lost" ? `Partner lost${r.lost_detail ? ` (${r.lost_detail})` : ""}` : r.reason === "counsellor_lost" ? `Lost by ${r.lost_detail ?? "a counsellor"}` : r.reason ?? "—"}<div className="small muted">{r.lost_reason ?? ""}{r.mapped_sub_stage && r.mapped_sub_stage !== r.lost_reason ? ` → ${r.mapped_sub_stage}` : ""}</div></td>
                   <td className="small">{(r.missing ?? []).join(", ") || "—"}</td>
                   <td className="right num">{r.score ?? 0}<span className={`small ${r.trend_7d > 0 ? "" : "muted"}`}>{r.trend_7d ? ` ${r.trend_7d > 0 ? "+" : ""}${Math.round(r.trend_7d)}` : ""}</span></td>
                   <td className="small">{r.marketing_consent.whatsapp ? "WA" : "—"} · {r.marketing_consent.email ? "Email" : "—"}</td>
                   <td className="small">{r.journey ? `${r.journey.name} · step ${r.journey.step}${r.journey.status === "paused" ? " (paused)" : ""}` : r.first_message_due_at && new Date(r.first_message_due_at) > new Date() ? `Starts ${when(r.first_message_due_at)}` : "—"}</td>
-                  <td className="small">{r.last_message ? `${r.last_message.status} · ${when(r.last_message.at)}` : "—"}</td>
+                  <td className="small">{r.last_message ? `${r.last_message.channel === "email" ? "Email" : r.last_message.channel === "whatsapp" ? "WhatsApp" : ""} ${r.last_message.status} · ${when(r.last_message.at)}` : "—"}</td>
                   <td className="small">{when(r.last_student_at)}</td>
                 </tr>
               ))}
@@ -134,18 +176,19 @@ export default async function NurturePage({ searchParams }: { searchParams: Prom
     } else if (tab === "journeys") {
       const { data } = await supabase.from("journeys").select("id, key, name, description, trigger, status, current_version, test_mode, priority").neq("status", "archived").order("priority").order("name");
       const journeys = (data ?? []) as Journey[];
-      const stats = await Promise.all(journeys.map((j) => rpc<{ entered: number; running: number; re_engaged: number; enrolled: number }>("journey_stats", { p_id: j.id })));
+      const stats = await Promise.all(journeys.map((j) => rpc<{ entered: number; running: number; re_engaged: number; enrolled: number; wa_cost?: number; emails?: number }>("journey_stats", { p_id: j.id })));
       body = (
         <div className="stack">
           <div className="row between"><p className="note">Pooled leads enter the journey their lost reason names, after its delay. The starter journeys begin paused: review each one and set it running.</p><NewJourneyButton /></div>
           <div className="table-wrap"><table>
-            <thead><tr><th>Journey</th><th>Starts for</th><th>Status</th><th className="right">In it now</th><th className="right">Entered</th><th className="right">Re-engaged</th><th className="right">Enrolled</th></tr></thead>
+            <thead><tr><th>Journey</th><th>Starts for</th><th>Status</th><th className="right">In it now</th><th className="right">Entered</th><th className="right">Re-engaged</th><th className="right">Enrolled</th><th className="right">WhatsApp spend</th><th className="right">Emails</th></tr></thead>
             <tbody>{journeys.map((j, i) => (
               <tr key={j.id}>
                 <td><Link href={`/w/nurture/journeys/${j.id}`}><b>{j.name}</b></Link><div className="small muted">{j.description ?? ""}</div></td>
                 <td className="small">{j.trigger.type === "pool_entry" ? (j.trigger.sub_stages?.join(", ") ?? j.trigger.reasons?.join(", ") ?? "Pool entry") : j.trigger.type}</td>
                 <td><span className={`chip ${j.status === "active" ? "ok" : j.status === "paused" ? "risk" : "line"}`}>{j.status}</span>{j.test_mode && <span className="chip line"> test mode</span>}<div className="small muted">v{j.current_version}</div></td>
                 <td className="right num">{stats[i]!.running}</td><td className="right num">{stats[i]!.entered}</td><td className="right num">{stats[i]!.re_engaged}</td><td className="right num">{stats[i]!.enrolled}</td>
+                <td className="right num">{inr(stats[i]!.wa_cost ?? 0)}</td><td className="right num">{stats[i]!.emails ?? 0}</td>
               </tr>
             ))}</tbody>
           </table></div>
@@ -210,9 +253,16 @@ export default async function NurturePage({ searchParams }: { searchParams: Prom
       }
     } else if (tab === "replies") {
       const status = sp.status === "all" ? "all" : "inbox";
-      const rows = await rpc<Reply[]>("replies_list", { p: { status, limit: 100 } });
+      const [rows, members, { data: nurtureSetting }] = await Promise.all([
+        rpc<Reply[]>("replies_list", { p: { status, limit: 100 } }),
+        admin ? team() : Promise.resolve([]),
+        supabase.from("settings").select("value").eq("key", "nurture").maybeSingle(),
+      ]);
+      const delegates = ((nurtureSetting?.value as { replies_user_ids?: string[] } | null)?.replies_user_ids ?? []);
+      const counsellors = members.filter((m) => m.user.is_active && ["counsellor", "sales_head"].includes(m.user.role)).map((m) => ({ user_id: m.user.user_id, name: m.user.full_name ?? m.user.email }));
       body = (
         <div className="stack">
+          {admin && <RepliesDelegates people={counsellors} chosen={delegates} />}
           <div className="hscroll">
             <Link className="pill" href="/w/nurture?tab=replies" aria-pressed={status === "inbox"} style={{ color: "inherit", textDecoration: "none" }}>Waiting</Link>
             <Link className="pill" href="/w/nurture?tab=replies&status=all" aria-pressed={status === "all"} style={{ color: "inherit", textDecoration: "none" }}>All recent</Link>
