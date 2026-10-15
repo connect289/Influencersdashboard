@@ -89,6 +89,8 @@ Me, telephony status and unknown callers under Connectors. Typecheck, 90 unit te
 | `docs/phase2-plan.md` | Phase 2 plan (Nurture): built as b14–b18, Marketing workspace, exit test, what is needed to go live |
 | `docs/phase3-plan.md` | Phase 3 plan (Money and analytics): b19–b23, money and analytics screens, Brief before you call, exit test, what is needed to go live |
 | `docs/phase4-plan.md` | Phase 4 plan (Telephony and depth) with the decisions of 15 Oct: built as b25–b29 (telephony adapter switched off, ad spend and ROAS, performance-weighted allocation, Google Calendar; no Hindi) |
+| `docs/audit-2026-10.md` | Security and code audit of 16 Oct 2026: database, app, deployment; findings outside Spark reported, not changed |
+| `docs/go-live-plan.md` | The go-live plan, step by step with checks and the way back; waits for Vikas's approval |
 | `docs/WITTY_CHANGES_B2C.md` | Witty release W2: the changes Witty needs for the B2C CRM |
 | `supabase/` | Migrations, the manual staging files, local test stubs and the Phase 1–4 checks |
 | `design/` | Clickable design of the three interfaces (sample data) |

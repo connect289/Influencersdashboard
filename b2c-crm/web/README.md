@@ -50,6 +50,10 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
 
 ## Setup (Vikas), staging first
 
+The Admin's Home shows a **Setting up** checklist (email, phone alerts, Google Workspace, WhatsApp, the B2B link, live
+mode) until everything is connected; each line opens the screen that needs it. Production follows
+`../docs/go-live-plan.md`, step by step, once approved.
+
 1. **Supabase → Project Settings → Data API → Exposed schemas: add `b2c`** and save. Until then sign-in says the app
    cannot reach its data.
 2. **Vercel** (staging is live at https://eduwit-b2c-crm.vercel.app, project `eduwit-b2c-crm` in the Eduwit team):
