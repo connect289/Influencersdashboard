@@ -58,6 +58,14 @@ begin
   j := b2c.pool_list('{"test": true, "q": "no such student zz"}');
   insert into r (name, ok, detail) values ('pool_total_zero_when_empty', (j ->> 'total')::int = 0 and jsonb_array_length(j -> 'rows') = 0, j::text);
 
+  -- a counsellor asking for someone else's follow-up counts gets their own (b34)
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e301');
+  insert into r (name, ok, detail) values ('followup_counts_only_own', b2c.followup_counts('aaaaaaaa-0000-0000-0000-00000000e302') = b2c.followup_counts('aaaaaaaa-0000-0000-0000-00000000e301'), null);
+  insert into r (name, ok, detail) values ('internal_helpers_not_callable_by_staff',
+    not has_function_privilege('authenticated', 'b2c.setting(text)', 'execute') and not has_function_privilege('authenticated', 'b2c.pending_set(bigint)', 'execute')
+    and not has_function_privilege('authenticated', 'b2c.call_suggestion(bigint, text)', 'execute'), null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e303');
+
   -- a search with no digits never matches every chat
   j := b2c.inbox_list('{"search": "no such student zz"}');
   insert into r (name, ok, detail) values ('inbox_search_without_digits', jsonb_array_length(j) = 0, left(j::text, 300));
