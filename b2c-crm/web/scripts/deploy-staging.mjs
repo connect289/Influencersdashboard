@@ -26,7 +26,16 @@ const branch = process.env.DEPLOY_BRANCH ?? execSync("git rev-parse --abbrev-ref
 
 async function api(method, path, body) {
   const url = `https://api.vercel.com${path}${path.includes("?") ? "&" : "?"}teamId=${team.id}`;
-  const res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  let res;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+      if (res.status < 500 || attempt === 4) break;
+    } catch (e) {
+      if (attempt === 4) throw e; // a network blip: try again
+    }
+    await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt));
+  }
   const data = res.status === 204 ? {} : await res.json();
   if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${data?.error?.message ?? JSON.stringify(data).slice(0, 300)}`);
   return data;
