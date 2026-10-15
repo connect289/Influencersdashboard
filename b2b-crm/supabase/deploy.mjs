@@ -24,6 +24,8 @@ const files = [
   'pending/m31n_facts.sql', 'migrations/m31o_a3_metrics.sql', 'migrations/m31p_partner_agreement.sql',
   // Addendum 4: the B2C CRM link, final shape
   'migrations/m32a_a4_b2c_realtime_batch.sql', 'migrations/m32b_a4_b2c_events_reads.sql', 'migrations/m32c_a4_catalog.sql',
+  'migrations/m33a_access_api_hardening.sql', 'migrations/m33b_lead_workspace.sql', 'migrations/m33c_data_protection_audit.sql',
+  'migrations/m33d_referral_outcomes.sql', 'migrations/m33e_email_partner_adapter.sql',
 ];
 const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
 await client.connect();

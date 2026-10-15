@@ -65,7 +65,7 @@ Nothing in this section needs doing. Read it so you know the starting point.
 1. **Extensions** `pgmq`, `pg_cron`, `pg_net`, `vault` are already on (M2). Check: Supabase → Database → Extensions.
 2. **Auth providers.** Supabase → Authentication → Providers: Google enabled (redirect `https://<crm host>/auth/callback`); Email enabled. Authentication → Multi-factor: TOTP enabled. Authentication → Settings: **leaked-password protection on** (`b2b-design.md` §3.1 says this must be done by hand in the dashboard).
    Check: Authentication → Providers shows Google and Email as enabled; MFA shows TOTP.
-3. **Cron jobs.** The jobs listed below should exist (`select jobname, schedule, active from cron.job where jobname like 'b2b-%' order by 1;`): `b2b-route-ready-leads` (every minute), `b2b-push-tick` (10 s), `b2b-notify-tick` (30 s), `b2b-outbox-tick` (15 s), `b2b-b2c-sync-tick` (5 s), `b2b-intake-tick` (10 s), `b2b-import-tick`, `b2b-capi-tick`, `b2b-partner-sync-tick`, `b2b-sla-tick` (5 min), `b2b-guard-tick` (5 min), `b2b-money-tick` (5 min), `b2b-money-daily` (09:05 IST), `b2b-reconcile-nightly` (02:37 IST), `b2b-stats-refresh` (hourly :07), `b2b-stats-ai-catchup`, `b2b-refresh-facts`, `b2b-admin-alerts`, `b2b-ml-tick`, `b2b-ai-schedule`, `b2b-ai-autopilot`. Jobs from migrations not yet on production will be missing; that is expected.
+3. **Cron jobs.** The jobs listed below should exist (`select jobname, schedule, active from cron.job where jobname like 'b2b-%' order by 1;`): `b2b-route-ready-leads` (every minute), `b2b-push-tick` (10 s), `b2b-notify-tick` (30 s), `b2b-outbox-tick` (15 s), `b2b-b2c-sync-tick` (5 s), `b2b-intake-tick` (10 s), `b2b-import-tick`, `b2b-capi-tick`, `b2b-partner-sync-tick`, `b2b-sla-tick` (5 min), `b2b-guard-tick` (5 min), `b2b-money-tick` (5 min), `b2b-money-daily` (09:05 IST), `b2b-reconcile-nightly` (02:37 IST), `b2b-stats-refresh` (hourly :07), `b2b-stats-ai-catchup`, `b2b-refresh-facts`, `b2b-admin-alerts`, `b2b-ml-tick`, `b2b-ai-schedule`, `b2b-ai-autopilot`, and after M33 `b2b-api-keys-expiry`, `b2b-retention`. Jobs from migrations not yet on production will be missing; that is expected.
    Check: System health (`/system`) → Background jobs shows each job with its last run and no failures. `select * from cron.job_run_details order by start_time desc limit 50;` has no `failed` rows.
 4. **Apply migrations M24 to M31p (the promotion window).** Use `b2b-crm/supabase/deploy.sh`. It pauses every `b2b-*` cron job, applies the 34 files in the right order (each in its own transaction, stops on the first error), records them in `supabase_migrations.schema_migrations`, and resumes the cron jobs. Routing stays off, nothing is sent.
    ```
@@ -148,6 +148,7 @@ The B2C CRM (in-house counsellors, nurture) is a separate product with its own d
 4. **Link settings.** B2C CRM link (`/b2c`): `b2c_link.enabled`, `scope` (`held`: leads B2C holds; `all`: every lead read-only), `writable` (which fields B2C may write; default every B2C-owned field). 
    Check: `/b2c` → Overview shows the checklist steps; `select value from b2b.settings where key = 'b2c_link';`. Addendum 4: `delivery` is always `realtime` (batched is refused).
    After the Addendum 4 deploy (`m32a`–`m32c`), press **Resend every lead** once on `/b2c` so the B2C CRM's copies gain the version-4 fields.
+   `m32a`–`m33e` are applied together by `node deploy.mjs` (section 1.2 step 4): staging first, then production, after a backup.
 4a. **The shared catalogue (Addendum 4 §6).** The B2C CRM reads `catalog.programmes_v`, `catalog.universities_v`, `catalog.synonyms_v`, `catalog.partner_rates_v` and `catalog.changes` through the role `b2c_app` (no login). Its server needs a database user that is a member of that role; create one in the Supabase SQL editor (pick the password there, never in chat): `create role b2c_server login password '…' in role b2c_app;`. It gets nothing on `student_leads`, `b2b` or `w2_*`.
    Check: as `b2c_server`, `select count(*) from catalog.programmes_v;` works and `select count(*) from public.student_leads;` is refused.
 5. **The welcome message** (Addendum 3 Amendment 1). When an unqualified Witty lead is pushed to B2C qualification nurture after 18 idle hours, the hand-off event asks the B2C CRM to send a WhatsApp prompting the student to explore programmes. B2B sends nothing itself. The B2C developer needs a **Meta-approved template on the B2C number** (free-form is not allowed from a number the student never wrote to). Setting `engine.welcome_for_all_nurture` (default false) widens the ask to every nurture hand-off.
@@ -335,7 +336,24 @@ Real-time sync is for integration and testing (Vikas: real-time calls to partner
 
 ---
 
-## 15. Known limitations and not built
+## 15. Team, limits, health and data protection (M33, after the `m33a`–`m33e` deploy)
+
+1. **Team.** Settings → Team: invite each colleague as Admin or Viewer (viewers read everything, change nothing). The
+   first Admin is whoever is already in `b2b.app_users` (connect@eduwit.in). Check: `select email, role, active from b2b.app_users;`.
+2. **API limits.** Setting `api_limits` (`per_minute` by scope: intake 120, referrals 60, events 300, b2c 600, ai_worker 600;
+   `default` 300). Raise a scope only when a caller reports `429`. New keys default to a 90-day expiry; keys without one
+   are allowed but listed by the health check.
+3. **Health monitor.** Point an external monitor at `GET https://crm.eduwit.in/api/health` every 5 minutes (no key, no
+   personal data; `503` with `problems` when a job is stale or a queue stuck). Cron jobs added by M33: `b2b-api-keys-expiry`
+   (daily), `b2b-retention` (02:15 IST).
+4. **Retention.** System health → Data protection: decide the idle period (empty keeps every lead; 24 months is a
+   common DPDP choice) and the test-lead age (30 days). Record the reason; it goes to the audit log.
+5. **Email partners.** Needs the email provider of section 8 step 3 (the partner emails are sent from the same sender).
+6. **Referral outcomes.** For the influencer dashboard: a key with scope `referrals` only; `docs/referral-api.md`.
+7. **Runbook.** `docs/operations.md`: daily checks, access, key rotation, deploys, erasure steps (partners, Witty, backups),
+   restore test, incidents.
+
+## 16. Known limitations and not built
 
 From `docs/b2b-design.md` §7.2 (as-built notes), the addenda, the feature guides and the sources above.
 
@@ -345,13 +363,13 @@ From `docs/b2b-design.md` §7.2 (as-built notes), the addenda, the feature guide
 - Partner-sharing consent: no lead carries it today; Witty's workflow half is not applied; the lawyer has not approved the texts.
 
 **Partners and sync**
-- Partners **without an API** cannot be routed to automatically (no email or CSV push). Keep them paused; export leads from Leads and hand them over; reconcile their export on Sync & SLAs and their statement on Commission & Finance.
+- Partners **without an API** receive leads by **email** (CRM type `email`, m33e) through the Notifications email provider, so section 8 step 3 must be done first; their outcomes are recorded by hand from the lead's Routing tab. No CSV push.
 - No adapter (LeadSquared, Zoho, Salesforce, HubSpot, Meritto, in-house) has been run against a **real** account; all were tested on simulated replies. Salesforce's token call may need a server route (pg_net sends the grant as query parameters); Meritto's API shape varies by account; Zoho refresh tokens are per data centre.
 - Google Sheet programme sources are read only on **Sync now**; no scheduled read (needs a Vercel Cron secret).
 - `.xls` files are not supported (save as `.xlsx` or CSV); an import rollback does not undo merges into existing leads.
 - Pushes are not paused automatically on mapping drift of a required field (alert and queue item only). Events are applied as they arrive, not strictly in order per lead.
 - `describeSchema()` through partner APIs exists only for the five CRM adapters.
-- Opt-outs and erasure are **not** forwarded to partners automatically (an Admin alert tells you to do it).
+- Erasure removes the data from this CRM (m33c) but is **not** forwarded to partners or to Witty's chat history automatically: one alert per partner tells you to do it; `docs/operations.md` section 5 has the steps.
 - The 7-day "lost, in grace" period is planned as allocation status `accepted` so Witty stays quiet; today `allocation_partner_lost` hands the lead to B2C at once (Witty prompt §9).
 
 **B2C and Witty**

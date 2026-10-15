@@ -1,6 +1,6 @@
 /** Partner CRM adapters (m19): what the Admin sets per CRM and environment, and what the status read returns. */
 
-export const CRM_ADAPTERS = ["leadsquared", "zoho", "salesforce", "hubspot", "meritto", "inhouse"] as const;
+export const CRM_ADAPTERS = ["leadsquared", "zoho", "salesforce", "hubspot", "meritto", "inhouse", "email"] as const;
 export type CrmAdapter = (typeof CRM_ADAPTERS)[number];
 export const isCrmAdapter = (a: string): a is CrmAdapter => (CRM_ADAPTERS as readonly string[]).includes(a);
 
@@ -28,6 +28,10 @@ export const SETTING_FIELD: Record<string, { label: string; placeholder?: string
   poll_url: { label: "Changed-leads address", placeholder: "https://crm.partner.com/api/leads?updated_since={since}",
               hint: "Optional. A GET address listing leads changed since a time; {since} is replaced. Without it, status comes by webhook or the partner's export.", optional: true },
   since_param: { label: "Since parameter", placeholder: "updated_since", hint: "Used when the address has no {since}.", optional: true },
+  // M33e: a partner without any API gets each lead by email
+  to_email: { label: "Send leads to", placeholder: "admissions@partner.edu, counsellor@partner.edu", hint: "One or more addresses, separated by commas. The sandbox address receives test leads." },
+  cc_email: { label: "Copy to", placeholder: "ops@partner.edu", optional: true },
+  subject_prefix: { label: "Subject starts with", placeholder: "Eduwit lead", hint: "Followed by the reference, the student's name and course.", optional: true },
 };
 
 export const AUTH_TYPES = ["bearer", "header", "basic", "query", "none"] as const;
@@ -126,6 +130,7 @@ export const REFERENCE_HELP: Record<CrmAdapter, string> = {
   zoho: "Create a single-line custom field on Leads, API name Eduwit_Reference. Mark Phone as unique so duplicates are refused.",
   salesforce: "Create a text field Eduwit_Reference__c on Lead and turn on a duplicate rule for Leads (Phone or Email) that blocks.",
   hubspot: "Create a single-line text contact property eduwit_reference.",
+  email: "No field needed: the reference is in the subject line of every email.",
   meritto: "Ask Meritto to add an eduwit_reference field to the lead form used for the API.",
   inhouse: "Ask the partner's developer to store eduwit_reference on each lead and return it, with the lead's status, in the changed-leads list. Field names are the CRM's own; a nested one is written as stage.name.",
 };

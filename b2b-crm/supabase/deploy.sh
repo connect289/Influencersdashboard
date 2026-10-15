@@ -20,6 +20,8 @@ FILES=(
  migrations/m31j_a3_b2c_contract.sql migrations/m31k_a3_redecide.sql migrations/m31l_a3_admin_reads.sql migrations/m31m_a3_ai_ml.sql
  pending/m31n_facts.sql migrations/m31o_a3_metrics.sql migrations/m31p_partner_agreement.sql
  migrations/m32a_a4_b2c_realtime_batch.sql migrations/m32b_a4_b2c_events_reads.sql migrations/m32c_a4_catalog.sql
+  migrations/m33a_access_api_hardening.sql migrations/m33b_lead_workspace.sql migrations/m33c_data_protection_audit.sql
+  migrations/m33d_referral_outcomes.sql migrations/m33e_email_partner_adapter.sql
 )
 for f in "${FILES[@]}"; do
   name=$(basename "$f" .sql)

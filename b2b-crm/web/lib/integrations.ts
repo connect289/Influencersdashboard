@@ -86,6 +86,17 @@ export type SystemOverview = {
 
 export type ErasureRow = { id: number; lead_id: number; source: string; requested_at: string; note: string | null; name: string | null };
 
+/** M33c */
+export type AuditRow = { id: number; at: string; type: string; actor_type: string; actor_id: string | null; actor_email: string | null; lead_id: number | null;
+  allocation_id: number | null; partner_id: number | null; partner_name: string | null; payload: Record<string, unknown> };
+export type AuditPage = { rows: AuditRow[]; next_after: number | null };
+export type DataProtection = {
+  settings: { inactive_months: number | null; test_lead_days: number | null };
+  inactive_to_erase: number; test_leads_to_delete: number; anonymised_total: number;
+  last_run: { at: string; erased: number; test_deleted: number; errors: number; sign_in_pruned: number; deliveries_pruned: number } | null;
+  erasures: { open: number; done_30d: number }; partner_notices_open: number; consents_30d: number; opted_out_total: number;
+};
+
 export const SCOPES = ["intake", "referrals", "events", "b2c", "ai_worker"] as const;
 export type Scope = (typeof SCOPES)[number];
 export const SCOPE_LABEL: Record<Scope, string> = {

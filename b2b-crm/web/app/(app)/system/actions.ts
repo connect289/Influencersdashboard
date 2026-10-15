@@ -101,3 +101,27 @@ export async function closeErasure(id: number, status: "done" | "rejected", note
   if (error) return dbMessage(error, "Could not close the request. Try again.");
   refresh();
 }
+
+
+// ---------- M33c: data protection ----------
+export async function saveRetention(inactiveMonths: number | null, testLeadDays: number | null, reason: string): Promise<string | void> {
+  await assertAdmin();
+  const p = z.object({
+    inactiveMonths: z.number().int().min(6).max(120).nullable(), testLeadDays: z.number().int().min(1).max(365).nullable(),
+    reason: z.string().trim().min(3, "Give a reason (3 to 300 characters).").max(300),
+  }).safeParse({ inactiveMonths, testLeadDays, reason });
+  if (!p.success) return p.error.issues[0]?.message ?? "Check the fields.";
+  const { error } = await rpc("retention_settings_save", { p: { inactive_months: p.data.inactiveMonths, test_lead_days: p.data.testLeadDays }, p_reason: p.data.reason });
+  if (error) return dbMessage(error, "Could not save. Try again.");
+  refresh();
+}
+
+export async function anonymiseLead(leadId: number, reason: string): Promise<{ ok: true; partners: number[] } | { ok: false; error: string }> {
+  await assertAdmin();
+  const p = z.object({ leadId: z.number().int().positive(), reason: z.string().trim().min(3, "Give a reason (3 to 300 characters).").max(300) }).safeParse({ leadId, reason });
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? "Check the fields." };
+  const { data, error } = await rpc("lead_anonymise", { p_lead_id: p.data.leadId, p_reason: p.data.reason, p_source: "admin" });
+  if (error) return { ok: false, error: dbMessage(error, "Could not erase. Try again.") };
+  refresh(); revalidatePath("/leads");
+  return { ok: true, partners: ((data as { partners_to_notify?: number[] })?.partners_to_notify ?? []) };
+}

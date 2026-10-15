@@ -22,7 +22,7 @@ export function Erasures({ rows }: { rows: ErasureRow[] }) {
                 Asked through the B2C CRM <span title={formatDateTime(r.requested_at)}>{relativeTime(r.requested_at)}</span>{r.note && <> · “{r.note}”</>}
               </p>
             </div>
-            <Button size="sm" variant="secondary" onClick={() => setOpen({ r, status: "done" })}>Mark erased</Button>
+            <Button size="sm" variant="secondary" onClick={() => setOpen({ r, status: "done" })}>Erase and close</Button>
             <Button size="sm" variant="ghost" onClick={() => setOpen({ r, status: "rejected" })}>Reject</Button>
           </li>
         ))}
@@ -30,10 +30,10 @@ export function Erasures({ rows }: { rows: ErasureRow[] }) {
       <ConfirmDialog
         open={open !== null}
         onClose={() => setOpen(null)}
-        title={open?.status === "done" ? "Mark this request as carried out?" : "Reject this request?"}
+        title={open?.status === "done" ? "Erase this student's data and close the request?" : "Reject this request?"}
         tone={open?.status === "done" ? "primary" : "danger"}
-        confirmLabel={open?.status === "done" ? "Mark erased" : "Reject"}
-        reason={{ label: "Note for the audit log", placeholder: open?.status === "done" ? "e.g. removed from B2B, Witty and both partner CRMs" : "e.g. legal hold: enrolment in progress" }}
+        confirmLabel={open?.status === "done" ? "Erase and close" : "Reject"}
+        reason={{ label: "Note for the audit log", placeholder: open?.status === "done" ? "e.g. request verified on the phone" : "e.g. legal hold: enrolment in progress" }}
         onConfirm={async (note) => {
           if (!open) return;
           const err = await closeErasure(open.r.id, open.status, note);
@@ -42,7 +42,7 @@ export function Erasures({ rows }: { rows: ErasureRow[] }) {
         }}
       >
         {open?.status === "done"
-          ? "This only records that the erasure was done. Remove the student's data first: here, in Witty's chat history and at every partner that received the lead."
+          ? "The student's personal data is removed from this CRM now (name, numbers, email, notes, contacts, message and delivery copies); statistics stay without identity. Then remove it from Witty's chat history and at every partner that received the lead: the runbook lists the steps and an alert names each partner."
           : "The B2C CRM is not told automatically; let the student know why."}
       </ConfirmDialog>
     </>

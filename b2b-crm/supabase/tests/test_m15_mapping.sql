@@ -1,9 +1,9 @@
--- A3 fixture: the consent wording the test leads carry
-insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 -- M15 mapping layer on STAGING, rolled back. Partner e2e-down (generic REST) gets a mapping through the Admin
 -- functions; signed partner events go through b2b.partner_event_ingest before and after publishing. Every row of the
 -- final select must say ok = true.
 begin;
+-- A3 fixture: the consent wording the test leads carry
+insert into b2b.consent_texts (version, channel, purposes, body, covers_admission_partners, active, lawyer_approved_at) values ('test-partner-share:v1', 'web_form', '{partner_share}', 'test', true, true, now()) on conflict (version) do nothing;
 create temp table r (name text, ok boolean, detail text);
 create temp table t (k text primary key, v text);
 grant all on r, t to authenticated;
