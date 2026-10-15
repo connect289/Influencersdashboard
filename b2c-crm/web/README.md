@@ -1,4 +1,4 @@
-# Eduwit B2C CRM: web app (Phases 1–4: Sell, Nurture, Money and analytics, Telephony and depth)
+# Eduwit Spark (B2C CRM): web app (Phases 1–4: Sell, Nurture, Money and analytics, Telephony and depth)
 
 Next.js 16 (App Router, Turbopack), React 19, `@supabase/ssr`, zod, sonner, lucide, Geist. The styles are the approved
 design's stylesheet (`app/globals.css`, from `../design`), not Tailwind. The database is the `b2c` schema

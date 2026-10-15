@@ -25,7 +25,7 @@ export function eventBody(r: CalendarRow, site: string): Record<string, unknown>
     end: { dateTime: end.toISOString(), timeZone: "Asia/Kolkata" },
     reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 10 }] },
     extendedProperties: { private: { b2cTaskId: String(r.task_id) } },
-    source: { title: "Eduwit CRM", url: `${site.replace(/\/+$/, "")}/s/leads/${r.lead_id}` },
+    source: { title: "Eduwit Spark", url: `${site.replace(/\/+$/, "")}/s/leads/${r.lead_id}` },
   };
 }
 

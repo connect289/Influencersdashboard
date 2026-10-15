@@ -80,7 +80,7 @@ const vars = [
   ["SMTP_PORT", process.env.SMTP_PORT ?? "587", "plain"],
   ["SMTP_USER", process.env.SMTP_USER, "plain"],
   ["SMTP_PASSWORD", process.env.SMTP_PASSWORD, "sensitive"],
-  ["SMTP_FROM", process.env.SMTP_FROM, "plain"],
+  ["SMTP_FROM", `Eduwit Spark <${(process.env.SMTP_FROM ?? "").match(/<([^>]+)>/)?.[1] ?? process.env.SMTP_USER}>`, "plain"], // the app's name, whatever the variable says
 ];
 if (!existing.has("LINK_SECRET")) vars.push(["LINK_SECRET", randomBytes(32).toString("hex"), "sensitive"]); // signed links must survive redeploys
 if (!existing.has("VAPID_PRIVATE_KEY")) { // phone alerts: a key pair made once; devices stay subscribed across deploys

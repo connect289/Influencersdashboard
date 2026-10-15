@@ -47,7 +47,7 @@ async function alertEmails(): Promise<number> {
   for (const r of (data ?? []) as Row[]) {
     const what = r.alert.kind === "threshold" ? `is ${r.event.value} (${r.event.detail.op} ${r.event.detail.threshold})` : `is ${r.event.value}, usually about ${Math.round(Number(r.event.detail.mean ?? 0) * 10) / 10}`;
     const sent = await sendMail({ to: r.email, subject: `Alert: ${r.alert.name}`,
-      text: `Hi ${(r.name ?? "").split(" ")[0] || "there"},\n\n${r.label} ${r.alert.win === "7d" ? "over the last 7 days" : "today"} ${what}.\n\nOpen Analytics in the CRM: ${siteUrl()}\n\nEduwit CRM` });
+      text: `Hi ${(r.name ?? "").split(" ")[0] || "there"},\n\n${r.label} ${r.alert.win === "7d" ? "over the last 7 days" : "today"} ${what}.\n\nOpen Analytics in the CRM: ${siteUrl()}\n\nEduwit Spark` });
     if (sent.sent) n++;
   }
   return n;
@@ -81,7 +81,7 @@ async function schedules(now: Date): Promise<number> {
         ? { filename: `${r.dashboard.name}-${stamp}.pdf`, content: Buffer.from(await dashboardPdf({ name: r.dashboard.name, range: period, sections })), contentType: "application/pdf" }
         : { filename: `${r.dashboard.name}-${stamp}.csv`, content: sections.map((s) => `${s.title}\r\n${toCsv(s.columns, s.rows).replace(/^﻿/, "")}`).join("\r\n"), contentType: "text/csv" };
       const sent = await sendMail({ to: r.email, subject: `${r.dashboard.name}: ${period}`, attachments: [file],
-        text: `Hi ${(r.name ?? "").split(" ")[0] || "there"},\n\nYour ${r.schedule.freq} copy of "${r.dashboard.name}" for ${period} is attached.\n\nEduwit CRM` });
+        text: `Hi ${(r.name ?? "").split(" ")[0] || "there"},\n\nYour ${r.schedule.freq} copy of "${r.dashboard.name}" for ${period} is attached.\n\nEduwit Spark` });
       await db.rpc("schedule_done", { p_id: r.schedule.id, p_error: sent.sent ? null : "email is not configured" });
       if (sent.sent) n++;
     } catch (e) {

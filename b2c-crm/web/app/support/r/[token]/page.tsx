@@ -31,7 +31,7 @@ export default async function DeveloperTicket({ params }: { params: Promise<{ to
     <main className="content" style={{ maxWidth: 820, margin: "0 auto", padding: 16 }}>
       <div className="stack">
         <div className="stack" style={{ gap: 4 }}>
-          <span className="eyebrow">Eduwit CRM support · {t.number}</span>
+          <span className="eyebrow">Eduwit Spark support · {t.number}</span>
           <h1>{t.subject}</h1>
           <p className="small muted">{KIND_LABEL[t.kind] ?? t.kind}{t.priority === "urgent" ? " · URGENT" : ""} · raised by {t.by} ({ROLE_WORD[t.by_role] ?? t.by_role}) on {fmt(t.created_at)}{t.page ? ` · screen ${t.page}` : ""} · now <b>{STATUS_LABEL[t.status] ?? t.status}</b></p>
         </div>

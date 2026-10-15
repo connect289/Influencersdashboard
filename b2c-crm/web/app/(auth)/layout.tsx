@@ -5,7 +5,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="card">
         <div className="brand">
           <img src="/logo.jpg" alt="" width={36} height={36} />
-          <span>Eduwit CRM</span>
+          <span>Eduwit Spark</span>
         </div>
         {children}
       </div>

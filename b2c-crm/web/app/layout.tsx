@@ -6,7 +6,7 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Eduwit CRM", template: "%s · Eduwit CRM" },
+  title: { default: "Eduwit Spark", template: "%s · Eduwit Spark" },
   description: "Eduwit's in-house sales and nurture CRM.",
   robots: { index: false, follow: false },
   icons: { icon: "/logo.jpg", apple: "/logo.jpg" },

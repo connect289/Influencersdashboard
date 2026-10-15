@@ -1,4 +1,4 @@
-# Eduwit B2C CRM
+# Eduwit Spark (B2C CRM)
 
 In-house sales and nurture CRM for Eduwit Learning Services. Spec: `docs/B2C_CRM_PROMPT.md` (final, 14 Oct 2026).
 

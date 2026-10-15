@@ -12,7 +12,7 @@ export const REASON_LABEL: Record<string, string> = {
   partner_duplicate: "Already with partners (duplicate)",
   duplicate_cascade: "Already with partners (duplicate)",
   manual_route_failed: "Sent to partners; none took it",
-  b2c_created: "Created in the B2C CRM",
+  b2c_created: "Created in Eduwit Spark",
   b2c_whatsapp: "Wrote to the B2C WhatsApp number",
   in_house_rule: "Kept in-house by a routing rule",
   in_house_programme: "Programme sold in-house",

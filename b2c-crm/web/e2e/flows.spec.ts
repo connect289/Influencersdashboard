@@ -102,7 +102,7 @@ test.describe("password", () => {
     await page.locator("input[name='email']").fill("e2e.nobody@eduwit.in");
     await expect(page.locator("input[name='email']")).toHaveValue("e2e.nobody@eduwit.in");
     await page.getByRole("button", { name: "Email me a link" }).click();
-    await expect(page.getByText(/If e2e\.nobody@eduwit\.in has an Eduwit CRM account/)).toBeVisible();
+    await expect(page.getByText(/If e2e\.nobody@eduwit\.in has an Eduwit Spark account/)).toBeVisible();
   });
 
   test("sets a new password through the emailed link, then the code step follows", async ({ page }) => {

@@ -127,7 +127,7 @@ export async function requestPasswordLink(_: FormState, form: FormData): Promise
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   if (!z.email().max(254).safeParse(email).success) return { error: "Enter your @eduwit.in email address." };
   if (!isAllowedEmail(email)) return { error: DOMAIN };
-  const done = { notice: `If ${email} has an Eduwit CRM account, a link to set the password is on its way. It works once, for one hour.` };
+  const done = { notice: `If ${email} has an Eduwit Spark account, a link to set the password is on its way. It works once, for one hour.` };
   const ctx = await requestContext();
   const db = adminClient();
   const recent = await db.schema("b2c").from("sign_in_log").select("id", { count: "exact", head: true })

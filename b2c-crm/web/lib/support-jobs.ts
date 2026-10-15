@@ -29,7 +29,7 @@ export async function sendSupportMail(limit = 10): Promise<number> {
       const m = supportEmail(r, siteUrl(), supportToken(r.ticket_id));
       const to = (r.developer_emails ?? []).join(", ");
       if (r.mailbox && sa) {
-        const res = await sendGmail(sa, { from: `Eduwit CRM support <${mailbox(r.mailbox)}>`, to, replyTo: mailbox(r.mailbox), subject: m.subject, text: m.text, attachments: files }, true);
+        const res = await sendGmail(sa, { from: `Eduwit Spark support <${mailbox(r.mailbox)}>`, to, replyTo: mailbox(r.mailbox), subject: m.subject, text: m.text, attachments: files }, true);
         if (!res.ok) throw new Error(res.error ?? "Gmail refused the message");
       } else {
         const res = await sendMail({ to, subject: m.subject, text: m.text, replyTo: r.mailbox ?? undefined, attachments: files });
