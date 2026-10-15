@@ -4,7 +4,10 @@ import { Page, SetupError } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { when } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import { SettingEditor } from "./SettingEditor";
+import { HealthPanel } from "./Health";
+import { AuditPanel, SignInsPanel } from "./Logs";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -27,14 +30,32 @@ const ABOUT: Record<string, string> = {
 };
 
 /** Settings (spec B14): every change needs a reason and is versioned. */
-export default async function SettingsPage() {
+const TABS = [["settings", "Settings"], ["health", "System health"], ["audit", "Audit log"], ["signins", "Sign-ins"]] as const;
+
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const me = await requireUser("workspace", "/w/settings");
   if (me.role !== "admin") redirect("/w");
+  const sp = await searchParams;
+  const tab = TABS.some(([k]) => k === sp.tab) ? sp.tab! : "settings";
+  const tabs = (
+    <div className="tabs" role="tablist">
+      {TABS.map(([k, n]) => <Link key={k} href={`/w/settings?tab=${k}`} role="tab" aria-selected={tab === k}>{n}</Link>)}
+    </div>
+  );
+  if (tab !== "settings") {
+    return (
+      <Page title="Settings" sub={tab === "health" ? "Is everything running? The timers, the queues, the feeds, the app and Claude." : tab === "audit" ? "Every phone reveal, Call tap, export, contact edit and delete, with who and when." : "Every sign-in attempt, newest first."}>
+        {tabs}
+        {tab === "health" ? <HealthPanel /> : tab === "audit" ? <AuditPanel sp={sp} /> : <SignInsPanel sp={sp} />}
+      </Page>
+    );
+  }
   const supabase = await createClient();
   const { data, error } = await supabase.from("settings").select("key, value, version, updated_at").order("key");
   if (error) return <Page title="Settings"><SetupError error={error.message} /></Page>;
   return (
     <Page title="Settings" sub="Every change needs a reason and is kept as a new version.">
+      {tabs}
       <div className="stack">
         {(data ?? []).map((s) => (
           <section key={s.key} className="panel">

@@ -17,6 +17,7 @@ import { ProgrammeFit } from "./ProgrammeFit";
 import { StageButton } from "./StageButton";
 import { TaskActions } from "./TaskActions";
 import { Timeline } from "./Timeline";
+import { Hotkeys } from "@/components/shell/Hotkeys";
 import { WittyTranscript } from "./WittyTranscript";
 
 const g = (rec: LeadDetail["record"], group: string, key: string): string | null => {
@@ -83,11 +84,12 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
 
   return (
     <div className="content">
+      {canWork && <Hotkeys keys={[{ key: "c", label: "Call" }, { key: "w", label: "WhatsApp" }, { key: "e", label: "Email" }, { key: "f", label: "Add a follow-up" }, { key: "n", label: "Write a note" }, { key: "s", label: "Change the stage" }, { key: "]", label: "Next lead in the queue" }]} />}
       <div className="row">
         <Link className="btn quiet sm icon-only" href={base} aria-label="Back to leads"><ArrowLeft className="icon s" aria-hidden /></Link>
         <span className="small muted grow ellipsis">Lead #{l.lead_id} · {STATUS_LABEL[l.status] ?? l.status}{l.owner_name ? ` · ${l.owner_name}` : ""}</span>
         <TestChip on={l.is_test} />
-        {next && <Link className="btn ghost sm" href={`${base}/${next.id}`} title={`${next.left} more in your queue`}>Next: {(next.name ?? "lead").split(" ")[0]} <ArrowRight className="icon s" aria-hidden /></Link>}
+        {next && <Link className="btn ghost sm" data-hotkey="]" href={`${base}/${next.id}`} title={`${next.left} more in your queue`}>Next: {(next.name ?? "lead").split(" ")[0]} <ArrowRight className="icon s" aria-hidden /></Link>}
       </div>
 
       <div className="lead-head card pad">
@@ -98,7 +100,7 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
           </div>
         </div>
         <div className="row wrap" style={{ gap: 6 }}>
-          <StageButton leadId={l.lead_id} current={l.stage_id} sub={l.sub_stage} stages={stages} subs={subs} canMoveBack={me.role === "admin" || me.role === "sales_head"} disabled={!canWork} />
+          <span data-hotkey="s" className="contents"><StageButton leadId={l.lead_id} current={l.stage_id} sub={l.sub_stage} stages={stages} subs={subs} canMoveBack={me.role === "admin" || me.role === "sales_head"} disabled={!canWork} /></span>
           <SlaChip lead={l} />
           <BarChip reason={l.partner_bar_reason} />
           {l.opted_out && <span className="chip breach">Opted out: do not message</span>}
@@ -112,11 +114,11 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
         )}
         {canWork && (
           <div className="lead-actions">
-            <CallButton leadId={l.lead_id} name={l.name ?? "the student"} pending={d.unlogged_call} />
-            <Link className="btn ghost" href={`/s/inbox?lead=${l.lead_id}`}><MessageCircle className="icon s" aria-hidden />WhatsApp</Link>
-            <EmailButton leadId={l.lead_id} to={email} blocked={l.opted_out ? "This student opted out: do not message." : null}
-              vars={{ first_name: first, programme: val("interest", "course"), university: val("interest", "university"), counsellor: me.full_name }} />
-            <AddTaskButton leadId={l.lead_id} label="Follow-up" className="btn ghost" />
+            <span data-hotkey="c" className="contents"><CallButton leadId={l.lead_id} name={l.name ?? "the student"} pending={d.unlogged_call} /></span>
+            <Link className="btn ghost" data-hotkey="w" href={`/s/inbox?lead=${l.lead_id}`}><MessageCircle className="icon s" aria-hidden />WhatsApp</Link>
+            <span data-hotkey="e" className="contents"><EmailButton leadId={l.lead_id} to={email} blocked={l.opted_out ? "This student opted out: do not message." : null}
+              vars={{ first_name: first, programme: val("interest", "course"), university: val("interest", "university"), counsellor: me.full_name }} /></span>
+            <span data-hotkey="f" className="contents"><AddTaskButton leadId={l.lead_id} label="Follow-up" className="btn ghost" /></span>
           </div>
         )}
         <div className="next-line">
@@ -163,7 +165,7 @@ export function LeadScreen({ d, stages, subs, me, base, adminTools, next }: { d:
         aside={
           <>
             {followups}
-            <Timeline items={d.timeline}>{canWork && <NoteBox leadId={l.lead_id} />}</Timeline>
+            <Timeline items={d.timeline}>{canWork && <span data-hotkey="n" className="contents"><NoteBox leadId={l.lead_id} /></span>}</Timeline>
             <NurturePanel leadId={l.lead_id} marketing={me.role === "admin" || me.role === "marketing"} canWork={canWork} inPool={l.status === "pool"} />
             <WittyTranscript leadId={l.lead_id} />
           </>

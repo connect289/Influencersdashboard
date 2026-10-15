@@ -4,6 +4,7 @@ import { Empty, Page, SetupError } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
 import { inr } from "@/lib/format";
+import { SuggestCorrection } from "./SuggestCorrection";
 
 export const metadata: Metadata = { title: "Programmes" };
 
@@ -49,7 +50,7 @@ export default async function ProgrammesPage({ searchParams }: { searchParams: P
                   <td>{[p.level, p.mode].filter(Boolean).join(" · ") || "—"}</td>
                   <td className="small">{p.eligibility ?? [p.min_qualification, p.min_pct ? `${p.min_pct}%` : null].filter(Boolean).join(", ") ?? "—"}</td>
                   <td className="right num">{inr(p.fee_total ?? p.fee_yearly)}</td>
-                  <td>{p.brochure_url && <a className="btn quiet sm" href={p.brochure_url} target="_blank" rel="noopener noreferrer">Brochure <ExternalLink className="icon s" aria-hidden /></a>}</td>
+                  <td className="row" style={{ gap: 2, justifyContent: "flex-end" }}>{p.brochure_url && <a className="btn quiet sm" href={p.brochure_url} target="_blank" rel="noopener noreferrer">Brochure <ExternalLink className="icon s" aria-hidden /></a>}<SuggestCorrection programmeId={p.id} name={`${p.name}${p.specialization ? ` · ${p.specialization}` : ""} · ${p.university}`} /></td>
                 </tr>
               ))}
             </tbody>

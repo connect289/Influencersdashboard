@@ -64,6 +64,7 @@ export default async function WorkspaceLeads({ searchParams }: { searchParams: P
           <ViewBuilder role="workspace" base="/w/leads" stages={stages} admin={admin} />
           {view && !sp.q && ((!view.is_standard && view.owner_id === me.user_id) || (view.is_standard && admin)) &&
             <ViewBuilder key={view.id} role="workspace" base="/w/leads" stages={stages} view={view} admin={admin} />}
+          <Link className="btn ghost sm" href="/w/leads/duplicates">Duplicate suspects</Link>
           {admin && <a className="btn ghost sm" href={`/w/leads/export?${new URLSearchParams({ ...(view ? { v: String(view.id) } : {}), ...(sp.q ? { q: sp.q } : {}), ...(sp.test ? { test: sp.test } : {}) })}`}>Export CSV</a>}
         </div>
       )}

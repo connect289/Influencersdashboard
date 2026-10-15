@@ -31,8 +31,10 @@ export default async function WorkspaceHome() {
   const me = await requireUser("workspace", "/w");
   let h: Home;
   let team: TeamRow[];
+  let health: { overall: "ok" | "warn" | "bad"; checks: { label: string; level: string; detail: string }[] } | null = null;
   try {
-    [h, team] = await Promise.all([rpc<Home>("admin_home"), rpc<TeamRow[]>("team")]);
+    [h, team, health] = await Promise.all([rpc<Home>("admin_home"), rpc<TeamRow[]>("team"),
+      me.role === "admin" ? rpc<{ overall: "ok" | "warn" | "bad"; checks: { label: string; level: string; detail: string }[] }>("system_health").catch(() => null) : Promise.resolve(null)]);
   } catch (e) {
     return <Page title="Home"><SetupError error={e} /></Page>;
   }
@@ -42,6 +44,7 @@ export default async function WorkspaceHome() {
   const dayMax = Math.max(1, ...h.handoffs_14d.map((d) => d.sales + d.nurture));
   const counsellors = team.filter((t) => ["counsellor", "sales_head"].includes(t.user.role) && t.user.is_active);
   const attention = [
+    health?.overall === "bad" && { tone: "danger", text: <><b>Something is not running:</b> {health.checks.filter((c) => c.level === "bad").map((c) => `${c.label.toLowerCase()} (${c.detail})`).join("; ")}.</>, href: "/w/settings?tab=health", cta: "System health" },
     h.unassigned.count > 0 && { tone: "danger", text: <><b>{h.unassigned.count} sales {h.unassigned.count === 1 ? "lead is" : "leads are"} waiting unassigned</b>, the oldest since {when(h.unassigned.oldest)}.</>, href: "/w/allocation?tab=queues", cta: "Open queues" },
     (h.sync.failed > 0 || h.sync.inbox_errors > 0) && { tone: "", text: <>The link with the master lead table needs attention: {h.sync.failed} changes refused or failed this week, {h.sync.inbox_errors} incoming events with errors.</>, href: "/w/connectors", cta: "Connectors" },
     h.to_verify > 0 && { tone: "info", text: <><b>{h.to_verify} {h.to_verify === 1 ? "enrolment waits" : "enrolments wait"} for your verification.</b></>, href: "/w/enrollments", cta: "Verify" },

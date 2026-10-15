@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { CampaignCalendar } from "./CampaignCalendar";
 import { Page, SetupError, Empty } from "@/components/shell/Page";
 import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
@@ -31,7 +32,7 @@ type PoolRow = {
 type Journey = { id: number; key: string; name: string; description: string | null; trigger: { type: string; reasons?: string[]; sub_stages?: string[] }; status: string; current_version: number; test_mode: boolean; priority: number };
 
 /** The Nurture page (spec B9.0): every nurture programme for every type of lead. Admin and Marketing. */
-export default async function NurturePage({ searchParams }: { searchParams: Promise<{ tab?: string; reason?: string; q?: string; test?: string; status?: string }> }) {
+export default async function NurturePage({ searchParams }: { searchParams: Promise<{ tab?: string; reason?: string; q?: string; test?: string; status?: string; m?: string }> }) {
   const me = await requireUser("workspace", "/w/nurture");
   if (me.role !== "admin" && me.role !== "marketing") return <Page title="Nurture"><Empty>The Nurture page is for Marketing and the Admin.</Empty></Page>;
   const sp = await searchParams;
@@ -186,6 +187,7 @@ export default async function NurturePage({ searchParams }: { searchParams: Prom
         const tplName = new Map(templates.map((t) => [`${t.channel}:${t.id}`, t.name]));
         body = (
           <div className="stack">
+            <CampaignCalendar month={sp.m} />
             <div className="row between"><p className="note">Campaigns send within their window and throttle; the guardrails decide for each lead. Test mode reaches test leads only.</p>
               {segments.length ? <CampaignButton segments={segments} templates={templates} admin={admin} /> : <Link className="btn ghost sm" href="/w/nurture?tab=segments">Make a segment first</Link>}</div>
             <div className="table-wrap"><table>

@@ -10,6 +10,9 @@ import type { LeadRow } from "@/lib/types";
 import { stagesAndSubs } from "@/lib/stages";
 import { viewsFor } from "@/lib/views";
 import { NewLeadButton } from "./NewLead";
+import { SalesBulkBar } from "./SalesBulkBar";
+import { Hotkeys } from "@/components/shell/Hotkeys";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Leads" };
 
@@ -19,7 +22,9 @@ const PAGE = 50;
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ v?: string; q?: string; page?: string; drill?: string; dl?: string }> }) {
   const me = await requireUser("sales", "/s/leads");
   const sp = await searchParams;
-  const [views, { stages }] = await Promise.all([viewsFor("sales"), stagesAndSubs()]);
+  const supabase = await createClient();
+  const [views, { stages }, { data: tpls }] = await Promise.all([viewsFor("sales"), stagesAndSubs(),
+    supabase.from("wa_templates").select("id, name, language, purpose, status").eq("usable_by_sales", true).eq("audience", "sales").in("status", ["approved", "draft"]).order("purpose")]);
   const view = views.find((v) => String(v.id) === sp.v) ?? views.find((v) => v.name === "Due now") ?? views[0];
   const page = Math.max(0, Number(sp.page ?? 0) || 0);
   const drill = sp.drill && /^[0-9a-f-]{36}$/i.test(sp.drill) ? sp.drill : undefined;
@@ -35,7 +40,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     return `/s/leads?${q}`;
   };
   return (
-    <Page title="Leads" sub={`${res.total} ${sp.q ? "found" : drill ? `behind “${(sp.dl ?? "a number").slice(0, 80)}”` : view?.name ?? ""}`} actions={<NewLeadButton />}>
+    <Page title="Leads" sub={`${res.total} ${sp.q ? "found" : drill ? `behind “${(sp.dl ?? "a number").slice(0, 80)}”` : view?.name ?? ""}`} actions={<span data-hotkey="n" className="contents"><NewLeadButton /></span>}>
       {drill && <div className="banner info"><div className="grow">These are the {res.total} leads behind the number you opened in Analytics.</div><Link className="btn ghost sm" href="/s/leads">All my leads</Link></div>}
       <form className="search" action="/s/leads" role="search">
         <Search className="icon s" aria-hidden />
@@ -54,7 +59,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       </div>
       {res.rows.length === 0 ? (
         <Empty>{sp.q ? <>Nobody matches “{sp.q}”. Try part of the name, or the phone's last digits.</> : <>No leads in “{view?.name ?? "this view"}”. {views.find((v) => v.name === "All mine") && <Link href={`/s/leads?v=${views.find((v) => v.name === "All mine")!.id}`}>See all my leads</Link>}</>}</Empty>
-      ) : <LeadTable rows={res.rows} base="/s/leads" />}
+      ) : <LeadTable rows={res.rows} base="/s/leads" select />}
+      {res.rows.length > 0 && <SalesBulkBar templates={(tpls ?? []) as { id: number; name: string; language: string; purpose: string | null; status: string }[]} />}
+      <Hotkeys keys={[{ key: "n", label: "New lead" }]} />
       {res.total > PAGE && (
         <div className="pager">
           {page > 0 && <Link className="btn ghost sm" href={link({ page: page - 1 })}>Previous</Link>}

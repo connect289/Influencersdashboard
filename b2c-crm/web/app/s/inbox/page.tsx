@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
 import { initials, when } from "@/lib/format";
 import { Thread, type Compose } from "./Thread";
+import type { Snippet } from "../snippet-actions";
 
 export const metadata: Metadata = { title: "Inbox" };
 
@@ -13,15 +14,17 @@ type Convo = { phone: string; lead_id: number | null; name: string | null; cours
 
 /** WhatsApp on the Eduwit B2C number (spec B10): my leads' conversations, template first when the 24-hour window is closed. */
 export default async function InboxPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; unread?: string }> }) {
-  await requireUser("sales", "/s/inbox");
+  const me = await requireUser("sales", "/s/inbox");
   const sp = await searchParams;
   const leadId = Number(sp.lead) || null;
   let list: Convo[];
   let compose: Compose | null = null;
+  let snippets: Snippet[] = [];
   try {
-    [list, compose] = await Promise.all([
+    [list, compose, snippets] = await Promise.all([
       rpc<Convo[]>("inbox_list", { p: { search: sp.q ?? "", unread: sp.unread === "1" } }),
       leadId ? rpc<Compose>("wa_compose", { p_lead: leadId }) : Promise.resolve(null),
+      leadId ? rpc<Snippet[]>("snippets_mine").catch(() => [] as Snippet[]) : Promise.resolve([] as Snippet[]),
     ]);
   } catch (e) {
     return <Page title="Inbox"><SetupError error={e} /></Page>;
@@ -55,7 +58,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     <Page title="Inbox" sub="Your leads' WhatsApp on the Eduwit B2C number">
       <div className="grid" style={{ gridTemplateColumns: compose ? "minmax(240px, 340px) minmax(0, 1fr)" : "1fr", alignItems: "start" }}>
         <div className={compose ? "only-desk" : undefined}>{listing}</div>
-        {compose && leadId && <Thread leadId={leadId} name={current?.name ?? null} compose={compose} />}
+        {compose && leadId && <Thread leadId={leadId} name={current?.name ?? null} compose={compose} snippets={snippets} vars={{ first_name: (current?.name ?? "").split(" ")[0] || null, programme: current?.course, counsellor_first_name: (me.full_name ?? "").split(" ")[0] || null }} />}
       </div>
     </Page>
   );

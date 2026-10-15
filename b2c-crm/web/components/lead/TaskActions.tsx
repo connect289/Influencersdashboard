@@ -13,7 +13,7 @@ export function TaskActions({ taskId, title, leadId, needsNext = true, moveLabel
   return (
     <span className="row" style={{ gap: 4 }}>
       <button type="button" className="btn ghost sm" onClick={() => setMode("done")}>Done</button>
-      <button type="button" className="btn quiet sm" onClick={() => setMode("move")}>{moveLabel}</button>
+      <button type="button" className="btn quiet sm" data-move onClick={() => setMode("move")}>{moveLabel}</button>
       {mode === "done" && <DoneSheet taskId={taskId} title={title} leadId={leadId} needsNext={needsNext} onClose={() => setMode(null)} />}
       {mode === "move" && <MoveSheet taskId={taskId} title={title} leadId={leadId} onClose={() => setMode(null)} />}
     </span>

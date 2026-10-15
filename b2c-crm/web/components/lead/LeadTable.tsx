@@ -19,7 +19,7 @@ export function LeadTable({ rows, base, showOwner, select }: { rows: LeadRow[]; 
           </thead>
           <tbody>
             {rows.map((l) => (
-              <tr key={l.lead_id}>
+              <tr key={l.lead_id} data-row>
                 {select && <td><input type="checkbox" className="sel" name="lead" value={l.lead_id} aria-label={`Select ${l.name ?? l.lead_id}`} form="bulk" /></td>}
                 <td>
                   <Link href={`${base}/${l.lead_id}`} style={{ fontWeight: 600 }}>{l.name ?? `Lead #${l.lead_id}`}</Link>{" "}

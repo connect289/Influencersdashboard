@@ -7,14 +7,14 @@ import { people, service, stateFile, watch, type Who } from "./helpers";
  * Screenshots go to e2e/screens/<laptop|phone>/ for review.
  */
 const SALES = ["/s", "/s/leads", "LEAD", "/s/pipeline", "/s/followups", "/s/inbox", "/s/programmes", "/s/money", "/s/analytics",
-  "/s/team", "/s/alerts", "/s/me", "/s/me?tab=availability", "/s/me?tab=templates", "/s/me?tab=enrolments", "/s/me?tab=guide", "/s/support"];
+  "/s/team", "/s/alerts", "/s/me", "/s/me?tab=availability", "/s/me?tab=templates", "/s/me?tab=enrolments", "/s/me?tab=snippets", "/s/me?tab=guide", "/s/support"];
 const WORKSPACE = ["/w", "/w/leads", "LEAD", "/w/pipeline",
   "/w/allocation", "/w/allocation?tab=rules", "/w/allocation?tab=pools", "/w/allocation?tab=calendar", "/w/allocation?tab=queues", "/w/allocation?tab=simulation", "/w/allocation?tab=audit",
   "/w/enrollments",
   "/w/nurture", "/w/nurture?tab=pool", "/w/nurture?tab=journeys", "/w/nurture?tab=campaigns", "/w/nurture?tab=segments", "/w/nurture?tab=replies", "/w/nurture?tab=scoring",
   "/w/templates", "/w/templates?tab=wa_sales", "/w/templates?tab=wa_marketing", "/w/templates?tab=email_marketing",
   "/w/money", "/w/money?tab=universities", "/w/money?tab=enrolments", "/w/money?tab=receivables", "/w/money?tab=statements", "/w/money?tab=commission", "/w/money?tab=ads",
-  "/w/analytics", "/w/team", "/w/teams", "/w/connectors", "/w/settings", "/w/guide", "/w/support"];
+  "/w/analytics", "/w/team", "/w/teams", "/w/connectors", "/w/settings", "/w/settings?tab=health", "/w/settings?tab=audit", "/w/settings?tab=signins", "/w/leads/duplicates", "/w/guide", "/w/support"];
 
 const ROUTES: Record<Who, string[]> = { asha: SALES, ravi: ["/s", "/s/leads", "LEAD"], manager: SALES, admin: WORKSPACE, marketing: WORKSPACE };
 

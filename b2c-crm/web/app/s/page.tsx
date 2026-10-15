@@ -11,6 +11,8 @@ import type { LeadRow } from "@/lib/types";
 import { Leaderboard } from "@/components/team/Leaderboard";
 import { FollowupCards } from "./followups/FollowupCards";
 import { Notifications } from "./Notifications";
+import { Swipeable } from "@/components/ui/Swipeable";
+import { Hotkeys } from "@/components/shell/Hotkeys";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -55,7 +57,8 @@ export default async function TodayPage() {
               <div><b>{breached.length === 1 ? `${breached[0]!.lead.name ?? "A lead"} has` : `${breached.length} leads have`} not been called in time.</b> The first-contact SLA is breached; the Admin has been alerted. Call now.</div>
             </div>
           )}
-          <div className="sec-title"><h2>Work next</h2><span className="note">In queue order</span></div>
+          <div className="sec-title"><h2>Work next</h2><span className="note">In queue order · swipe right to call</span></div>
+          <Hotkeys keys={[]} />
           {t.queue.length === 0 ? (
             <div className="card empty">Nothing waiting. New leads and follow-ups appear here as they come due.</div>
           ) : (
@@ -64,7 +67,8 @@ export default async function TodayPage() {
                 const l = q.lead;
                 const breach = !!l.sla_breached_at && !l.first_contacted_at;
                 return (
-                  <div key={`${l.lead_id}-${q.task_id ?? i}`} className={`qcard${breach ? " breach" : ""}`}>
+                  <Swipeable key={`${l.lead_id}-${q.task_id ?? i}`} right={{ label: "Call", selector: ".btn.call" }} left={{ label: "Open", selector: "a.plain", tone: "primary" }}>
+                  <div className={`qcard${breach ? " breach" : ""}`} data-row>
                     <span className="avatar">{initials(l.name)}</span>
                     <Link href={`/s/leads/${l.lead_id}`} className="plain grow" style={{ textDecoration: "none" }}>
                       <span className="name">{l.name ?? `Lead #${l.lead_id}`}</span> <TempChip t={l.temperature} />
@@ -76,6 +80,7 @@ export default async function TodayPage() {
                       <span>{q.task ?? l.sub_stage ?? l.stage ?? ""}{q.due_at ? ` · ${when(q.due_at)}` : ""}</span>
                     </div>
                   </div>
+                  </Swipeable>
                 );
               })}
             </div>

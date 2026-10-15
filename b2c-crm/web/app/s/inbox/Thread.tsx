@@ -6,6 +6,7 @@ import { ArrowLeft, Clock, Lock, Send } from "lucide-react";
 import { toast } from "sonner";
 import { relative, when } from "@/lib/format";
 import { waRead, waTemplate, waText } from "../actions";
+import { snippetUsed, type Snippet } from "../snippet-actions";
 
 export type Compose = {
   phone: string | null;
@@ -18,12 +19,17 @@ export type Compose = {
 };
 
 /** One conversation. Free text only inside the 24-hour window; otherwise an approved sales template (Meta's rule). */
-export function Thread({ leadId, name, compose }: { leadId: number; name: string | null; compose: Compose }) {
+export function Thread({ leadId, name, compose, snippets = [], vars = {} }: { leadId: number; name: string | null; compose: Compose; snippets?: Snippet[]; vars?: Record<string, string | null | undefined> }) {
   const router = useRouter();
   const [pick, setPick] = useState<number | null>(null);
   const [text, setText] = useState("");
   const [busy, start] = useTransition();
   useEffect(() => { void waRead(leadId); }, [leadId]);
+  function insert(s: Snippet) {
+    const filled = s.body.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k: string) => vars[k] ?? m);
+    setText((t) => (t.trim() ? `${t.trimEnd()} ${filled}` : filled));
+    void snippetUsed(s.id);
+  }
 
   const send = (fn: () => Promise<{ ok: boolean; error?: string; notice?: string }>, after: () => void) =>
     start(async () => {
@@ -57,6 +63,12 @@ export function Thread({ leadId, name, compose }: { leadId: number; name: string
         ) : compose.window_open ? (
           <>
             <div className="window" style={{ color: "var(--green)" }}><Clock className="icon s" aria-hidden />Free text allowed, window closes {relative(compose.window_closes_at)}</div>
+            {snippets.length > 0 && (
+              <div className="hscroll" aria-label="Snippets">
+                {snippets.map((s) => <button key={s.id} type="button" className="pill" onClick={() => insert(s)} title={s.body}>{s.title}</button>)}
+                <Link className="pill" href="/s/me?tab=snippets" style={{ textDecoration: "none", color: "inherit" }}>Edit…</Link>
+              </div>
+            )}
             <form className="row" action={() => send(() => waText(leadId, text), () => setText(""))}>
               <input className="input grow" value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message" maxLength={4096} aria-label="Message" />
               <button className="btn primary" type="submit" disabled={busy || !text.trim()} aria-label="Send"><Send className="icon s" aria-hidden /></button>

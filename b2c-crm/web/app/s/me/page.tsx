@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Snippets } from "./Snippets";
+import type { Snippet } from "../snippet-actions";
 import { Guide } from "@/components/guide/Guide";
 import { PushToggle } from "@/components/shell/PushToggle";
 import { Page, SetupError } from "@/components/shell/Page";
@@ -18,7 +20,7 @@ import { EmailTemplates, type EmailTemplate } from "./EmailTemplates";
 
 export const metadata: Metadata = { title: "Me" };
 
-const TABS = [["enrolments", "My enrolments"], ["templates", "Email templates"], ["availability", "Availability and alerts"], ["guide", "Guide"]] as const;
+const TABS = [["enrolments", "My enrolments"], ["templates", "Email templates"], ["snippets", "Snippets"], ["availability", "Availability and alerts"], ["guide", "Guide"]] as const;
 
 /** Me (spec B8.7): my enrolments, shared sales email templates, availability, and the guide. */
 export default async function MePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
@@ -58,6 +60,8 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
     const { data } = await supabase.from("sales_email_templates").select("id, owner_id, name, category, subject, body, parent_id, version, recommended, hidden, uses, updated_at")
       .is("deleted_at", null).order("recommended", { ascending: false }).order("uses", { ascending: false });
     body = <EmailTemplates templates={(data ?? []) as EmailTemplate[]} me={me.user_id!} />;
+  } else if (tab === "snippets") {
+    body = <Snippets snippets={await rpc<Snippet[]>("snippets_mine")} />;
   } else if (tab === "availability") {
     const [{ data }, phones, calMine] = await Promise.all([
       supabase.from("users").select("away_until").eq("user_id", me.user_id!).maybeSingle(),

@@ -12,6 +12,8 @@ import { TASK_KIND_LABEL } from "@/lib/labels";
 import type { LeadRow, Task } from "@/lib/types";
 import { Calendar, type Item } from "./Calendar";
 import { BUCKETS, FollowupCards, type Bucket } from "./FollowupCards";
+import { Swipeable } from "@/components/ui/Swipeable";
+import { Hotkeys } from "@/components/shell/Hotkeys";
 
 export const metadata: Metadata = { title: "Follow-ups" };
 
@@ -54,12 +56,14 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Pr
   return (
     <Page title="Follow-ups" sub="Reminders come 10 minutes before each follow-up; a missed one is escalated after 2 hours." actions={switcher}>
       <FollowupCards counts={counts} active={bucket} />
+      <Hotkeys keys={[]} />
       {rows.length === 0 ? <Empty>Nothing here.</Empty> : (
         <div className="list">
           {rows.map(({ task, lead: l }) => {
             const Icon = task ? ICON[task.kind as keyof typeof ICON] ?? CalendarClock : Phone;
             return (
-              <div key={task?.id ?? l.lead_id} className="li" style={{ gridTemplateColumns: "auto 1fr auto" }}>
+              <Swipeable key={task?.id ?? l.lead_id} right={{ label: "Call", selector: ".btn.call" }} left={task ? { label: "Snooze", selector: "button[data-move]", tone: "primary" } : { label: "WhatsApp", selector: "a[href^='/s/inbox']", tone: "primary" }}>
+              <div className="li" style={{ gridTemplateColumns: "auto 1fr auto" }} data-row>
                 <span className="avatar">{task ? <Icon className="icon s" aria-hidden /> : initials(l.name)}</span>
                 <Link href={`/s/leads/${l.lead_id}`} className="t ellipsis" style={{ color: "inherit" }}>
                   {l.name ?? `Lead #${l.lead_id}`} <TempChip t={l.temperature} />
@@ -73,6 +77,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Pr
                   {task ? <>{TASK_KIND_LABEL[task.kind] ?? task.kind} · {task.title} · <b style={{ color: bucket === "overdue" ? "var(--red)" : undefined }}>{when(task.due_at)}</b></> : <>New · {l.course ?? "Programme not given"} <SlaChip lead={l} /></>}
                 </span>
               </div>
+              </Swipeable>
             );
           })}
         </div>
