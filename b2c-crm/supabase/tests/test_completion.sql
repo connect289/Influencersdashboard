@@ -409,6 +409,168 @@ insert into r (name, ok, detail) values ('d2_status_view_service_only', not has_
   and not has_table_privilege('anon', 'public.b2c_lead_status_v', 'select') and has_table_privilege('service_role', 'public.b2c_lead_status_v', 'select'), null);
 insert into r (name, ok, detail) values ('b2_wide_view_not_for_clients', not has_table_privilege('authenticated', 'b2c.leads_wide_v', 'select'), null);
 
+-- ========== b41: counsellor workspace ==========
+-- C1 WhatsApp media out and in
+do $x$
+declare j jsonb; e text; v bigint; m bigint; a bigint; d bigint;
+begin
+  perform pg_temp.as_system();
+  perform pg_temp.lead(996630, '{"b2c_lane": "sales", "reason": "no_partner_offers_programme"}'::jsonb);
+  update b2c.leads_state set status = 'active', owner_id = 'aaaaaaaa-0000-0000-0000-00000000e901', assigned_at = now(), stage_id = 3 where lead_id = 996630;
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  begin perform b2c.wa_queue_media(996630, 'image', 'leads/996630/x.png'); e := 'sent'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c1_media_needs_open_window', e like 'the 24-hour window is closed%', e);
+  perform pg_temp.as_system();
+  j := b2c.wa_inbound(jsonb_build_object('from', '910000999630', 'kind', 'media', 'wamid', 'cp-wamid-630',
+         'media', jsonb_build_object('id', 'meta-media-1', 'mime_type', 'application/pdf', 'filename', 'marksheet.pdf', 'caption', 'my marksheet')));
+  select id into m from b2c.wa_messages where wamid = 'cp-wamid-630';
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  begin perform b2c.wa_queue_media(996630, 'image', 'leads/1/x.png'); e := 'sent'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c1_only_from_the_leads_folder', e = 'files are sent from the lead''s folder', e);
+  v := b2c.wa_queue_media(996630, 'document', null, 'Our brochure', 'brochure.pdf', 'https://example.com/brochure.pdf');
+  insert into r (name, ok, detail) values ('c1_brochure_sent_in_window', exists (select 1 from b2c.send_queue q where q.wa_message_id = v and q.payload ->> 'type' = 'media'
+    and q.payload ->> 'link' = 'https://example.com/brochure.pdf' and q.payload ->> 'media_kind' = 'document'), null);
+  begin perform b2c.wa_media_open(m); e := 'opened'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c1_inbound_waits_for_fetch', e = 'this file is still being fetched', e);
+  perform pg_temp.as_system();
+  j := b2c.wa_media_take(50);
+  insert into r (name, ok, detail) values ('c1_job_takes_inbound_media', exists (select 1 from jsonb_array_elements(j) x where (x ->> 'id')::bigint = m and x -> 'media' ->> 'id' = 'meta-media-1'), j::text);
+  perform b2c.wa_media_stored(m, 'leads/996630/wa/' || m || '-marksheet.pdf');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e902');
+  begin perform b2c.wa_media_open(m); e := 'opened'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c1_other_counsellor_cannot_open', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  insert into r (name, ok, detail) values ('c1_owner_opens', b2c.wa_media_open(m) ->> 'path' like 'leads/996630/wa/%', null);
+  insert into b2c.applications (lead_id, university, programme, status, checklist, created_by)
+  values (996630, 'Jain Online', 'Online MBA', 'started', '{"Graduation marksheet": "pending"}', 'aaaaaaaa-0000-0000-0000-00000000e901') returning id into a;
+  d := b2c.wa_media_attach(m, a, 'Graduation marksheet');
+  insert into r (name, ok, detail) values ('c1_attach_to_checklist_in_one_tap', (select checklist ->> 'Graduation marksheet' from b2c.applications where id = a) = 'received'
+    and (select source from b2c.documents where id = d) = 'whatsapp', null);
+  insert into r (name, ok, detail) values ('c10_counsellor_opens_own_documents', b2c.document_open(d) ->> 'path' like 'leads/996630/%', null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
+  begin perform b2c.wa_queue_media(996630, 'document', null, null, null, 'https://example.com/b.pdf'); e := 'sent'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c5_marketing_cannot_send', e = 'not allowed', e);
+  j := b2c.inbox_list('{"search": "marksheet"}');
+  insert into r (name, ok, detail) values ('c5_search_message_text_marketing_reads', exists (select 1 from jsonb_array_elements(j) x where (x ->> 'lead_id')::bigint = 996630 and (x ->> 'read_only')::boolean), j::text);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  j := b2c.inbox_list('{"window": "open"}');
+  insert into r (name, ok, detail) values ('c5_window_filter', exists (select 1 from jsonb_array_elements(j) x where (x ->> 'lead_id')::bigint = 996630), null);
+  j := b2c.inbox_list('{"awaiting": true}');
+  insert into r (name, ok, detail) values ('c5_awaiting_reply_filter', not exists (select 1 from jsonb_array_elements(j) x where (x ->> 'lead_id')::bigint = 996630), j::text);
+  perform pg_temp.as_system();
+end $x$;
+
+-- C2/C6 the programme page and fit; C3 pipeline; C4 library and merge fields
+do $x$
+declare j jsonb; e text;
+begin
+  perform pg_temp.as_system();
+  update public.catalog_programs set fee_yearly = 89500, fee_other = '{"duration_months": 24, "emi_monthly": 4999, "intakes": ["January", "July"], "scholarship": "10% for defence"}',
+         min_qualification = 'Graduation' where id = 11;
+  insert into b2b.partners (id, slug, name, status) values (99601, 'cp-partner', 'CP Partner', 'active') on conflict do nothing;
+  insert into b2b.partner_programmes (partner_id, programme_id, commission, active) values (99601, 11, '{"rate_type": "percent", "value": 12}', true);
+  insert into b2c.university_rates (university_id, programme_id, rate_type, fee_base, value, valid_from, note) values (1, null, 'percent', 'first_year', 20, current_date - 1, 'cp test');
+  e := b2c.programme_cache_refresh(true)::text;
+  insert into r (name, ok, detail) values ('c2_cache_refreshes', e::int >= 3
+    and (select duration_months = 24 and emi_monthly = 4999 and intakes = '{January,July}' and jsonb_array_length(partners) = 1 from b2c.programme_cache where id = 11), null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  j := b2c.programme_search('{"intake": "jul", "emi": true, "duration_max": 24, "sort": "fee"}');
+  insert into r (name, ok, detail) values ('c2_filters', (j ->> 'total')::int = 1 and (j -> 'rows' -> 0 ->> 'id')::bigint = 11, j::text);
+  insert into r (name, ok, detail) values ('c2_no_partner_money_for_sales', not (j -> 'rows' -> 0 ? 'partners') and not (j -> 'rows' -> 0 ? 'eduwit_commission'), null);
+  j := b2c.programme_search('{"lead": 996630, "eligible": true, "course": "MBA"}');
+  insert into r (name, ok, detail) values ('c2_eligible_for_this_lead', (j ->> 'eligible_rank') is not null and (j ->> 'total')::int >= 1, j::text);
+  begin perform b2c.programme_compare(array[11]::bigint[]); e := 'compared'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c2_compare_2_to_4', e = 'compare 2 to 4 programmes', e);
+  j := b2c.programme_compare(array[11, 12]::bigint[], 996630);
+  insert into r (name, ok, detail) values ('c2_compare_side_by_side', jsonb_array_length(j) = 2 and (j -> 0 ->> 'id')::bigint = 11 and j -> 0 ? 'eligible', j::text);
+  insert into r (name, ok, detail) values ('c2_facets', b2c.programme_facets() -> 'intakes' ? 'July', null);
+  j := b2c.programme_fit(996630);
+  insert into r (name, ok, detail) values ('c6_fit_with_eligibility_and_emi', j -> 'rows' -> 0 ? 'eligible' and j -> 'rows' -> 0 ? 'emi_monthly' and j -> 'rows' -> 0 ? 'duration_months', j::text);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
+  j := b2c.programme_search('{"q": "MBA", "university": "Amity"}');
+  insert into r (name, ok, detail) values ('c2_marketing_sees_partners_and_commission', j -> 'rows' -> 0 -> 'partners' -> 0 ->> 'name' = 'CP Partner'
+    and (j -> 'rows' -> 0 -> 'eduwit_commission' ->> 'amount')::numeric = 17900, j::text);
+  begin perform b2c.pipeline_board(); e := 'listed'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c3_pipeline_not_for_marketing', e = 'not allowed', e);
+  perform pg_temp.as_system();
+  update b2c.leads_state set next_task_due_at = now() - interval '1 hour' where lead_id = 996630;
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e902');
+  j := b2c.pipeline_board(jsonb_build_object('owner', 'aaaaaaaa-0000-0000-0000-00000000e901', 'include_test', true));
+  insert into r (name, ok, detail) values ('c3_counsellor_sees_only_own', not exists (select 1 from jsonb_array_elements(j -> 'columns') c, jsonb_array_elements(c -> 'cards') k where (k ->> 'lead_id')::bigint = 996630), null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  j := b2c.pipeline_board(jsonb_build_object('owner', 'aaaaaaaa-0000-0000-0000-00000000e901', 'include_test', true));
+  insert into r (name, ok, detail) values ('c3_admin_filters_by_counsellor', (select (c ->> 'count')::int from jsonb_array_elements(j -> 'columns') c where (c ->> 'stage_id')::int = 3) >= 1
+    and (select k ->> 'overdue' from jsonb_array_elements(j -> 'columns') c, jsonb_array_elements(c -> 'cards') k where (k ->> 'lead_id')::bigint = 996630) = 'true', j::text);
+  insert into r (name, ok, detail) values ('c3_column_value', (select c ? 'expected' from jsonb_array_elements(j -> 'columns') c where (c ->> 'stage_id')::int = 3), null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  perform b2c.email_template_save('{"name": "CP after call", "subject": "Hello {{first_name}}", "body": "Fee {{fee}}"}');
+  j := b2c.email_library('{"mine": true}');
+  insert into r (name, ok, detail) values ('c4_library_has_author_and_rate', j -> 0 ->> 'author' = 'Asha CP' and j -> 0 ? 'uses' and j -> 0 ? 'reply_rate', j::text);
+  j := b2c.merge_values(996630);
+  insert into r (name, ok, detail) values ('c4_merge_fields', j ->> 'first_name' is not null and j ->> 'counsellor_name' = 'Asha CP' and j ? 'programme', j::text);
+  perform pg_temp.as_system();
+end $x$;
+
+-- C7 WhatsApp alerts to one's own number; C9 custom fields and done tasks; C10 checklists; C11 SLA by source and neglect
+do $x$
+declare j jsonb; e text; v int;
+begin
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  begin perform b2c.my_wa_alerts_set(array['moon']); e := 'set'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c7_unknown_alert_refused', e = 'unknown alert', e);
+  begin perform b2c.my_wa_alerts_set(array['reminder']); e := 'set'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c7_needs_own_number', e = 'add your mobile number in Teams first', e);
+  perform pg_temp.as_system();
+  update b2c.users set phone = '919000099601' where user_id = 'aaaaaaaa-0000-0000-0000-00000000e901';
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  perform b2c.my_wa_alerts_set(array['reminder']);
+  perform pg_temp.as_system();
+  perform b2c.notify('aaaaaaaa-0000-0000-0000-00000000e901', 'reminder', 'In 10 minutes: call', 'CP Student', '/s/leads/996630', 996630, 'cp-rem-1');
+  j := b2c.staff_wa_tick();
+  insert into r (name, ok, detail) values ('c7_nothing_without_template', j ->> 'why' = 'no approved staff template', j::text);
+  insert into b2c.wa_templates (name, language, category, audience, body, variables, status)
+  values ('staff_alert', 'en', 'utility', 'sales', '{{1}} {{2}} {{3}}', '["title", "body", "link"]', 'approved');
+  j := b2c.staff_wa_tick();
+  insert into r (name, ok, detail) values ('c7_alert_to_own_number', exists (select 1 from b2c.send_queue q where q.to_address = '919000099601' and q.purpose = 'staff_alert'
+    and q.payload -> 'template' -> 'params' ->> 0 = 'In 10 minutes: call'), j::text);
+  j := b2c.staff_wa_tick();
+  insert into r (name, ok, detail) values ('c7_sent_once', (select count(*) from b2c.send_queue q where q.to_address = '919000099601' and q.purpose = 'staff_alert') = 1, null);
+
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  begin perform b2c.custom_fields_save('[{"key": "x", "label": "X", "type": "text"}]', 'test'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c9_fields_admin_only', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  begin perform b2c.custom_fields_save('[{"key": "Bad Key", "label": "X", "type": "text"}]', 'test'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c9_keys_validated', e like 'field keys are%', e);
+  perform b2c.custom_fields_save('[{"key": "parent_name", "label": "Parent", "type": "text"}, {"key": "exam", "label": "Entrance exam", "type": "select", "options": ["CAT", "MAT"]}]', 'cp test');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  begin perform b2c.custom_field_set(996630, 'exam', 'GRE'); e := 'set'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c9_select_options', e = 'choose one of the options', e);
+  j := b2c.custom_field_set(996630, 'exam', 'CAT');
+  insert into r (name, ok, detail) values ('c9_custom_value_with_history', j ->> 'exam' = 'CAT'
+    and exists (select 1 from b2c.field_history h where h.lead_id = 996630 and h.field = 'custom.exam'), j::text);
+  j := b2c.lead_detail(996630);
+  insert into r (name, ok, detail) values ('c9_lead_screen_extras', j ? 'done_tasks' and j -> 'custom' ->> 'exam' = 'CAT' and jsonb_array_length(j -> 'custom_fields') = 2
+    and jsonb_array_length(j -> 'documents') = 1 and j ? 'partner', null);
+
+  begin perform b2c.checklist_save('Jain Online', array['ID']); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('c10_checklist_admin_only', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  perform b2c.checklist_save('Jain Online', array['ID', 'Graduation marksheet', ' id '], 'cp');
+  j := b2c.checklists();
+  insert into r (name, ok, detail) values ('c10_checklist_saved_with_history', exists (select 1 from jsonb_array_elements(j -> 'lists') x where x ->> 'university' = 'Jain Online' and jsonb_array_length(x -> 'items') = 2)
+    and jsonb_array_length(j -> 'history') >= 1, j::text);
+
+  perform pg_temp.as_system();
+  update b2c.settings set value = value || '{"by_source": {"website": {"hot": 7, "warm": 60}}}' where key = 'sla_minutes';
+  insert into r (name, ok, detail) values ('c11_sla_by_source', b2c.sla_minutes_for(996630, true, null, 15) = 7 and b2c.sla_minutes_for(996630, false, 'cold', 1440) = 1440, null);
+  update b2c.leads_state set last_activity_at = now() - interval '50 hours', neglect_alerted_at = null where lead_id = 996630;
+  v := b2c.neglect_tick();
+  insert into r (name, ok, detail) values ('c11_neglect_flagged', (select neglect_alerted_at is not null from b2c.leads_state where lead_id = 996630)
+    and exists (select 1 from b2c.notifications n where n.lead_id = 996630 and n.kind = 'neglect'), v::text);
+  insert into r (name, ok, detail) values ('c11_neglect_once_per_spell', b2c.neglect_tick() = 0, null);
+end $x$;
+
 -- ---------- grants ----------
 insert into r (name, ok, detail)
 select 'authenticated_can_call', bool_and(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where not has_function_privilege('authenticated', f, 'execute'))
@@ -416,13 +578,17 @@ select 'authenticated_can_call', bool_and(has_function_privilege('authenticated'
     'b2c.qualify_resend(bigint)', 'b2c.flag_review(bigint,text,text)', 'b2c.flagged_list()', 'b2c.replies_delegates_set(uuid[])',
     'b2c.views_list(text)', 'b2c.view_get(bigint)', 'b2c.view_pin(text,bigint)', 'b2c.bulk_journey(bigint[],text,bigint)', 'b2c.bulk_stage(bigint[],smallint,text,text,timestamp with time zone)',
     'b2c.lead_delete_request(bigint[],text,text)', 'b2c.bulk_job_undo(bigint)', 'b2c.bulk_jobs_list()', 'b2c.lead_erase(bigint,text,text)', 'b2c.export_request(jsonb)',
-    'b2c.exports_mine()', 'b2c.export_open(bigint)']) f;
+    'b2c.exports_mine()', 'b2c.export_open(bigint)', 'b2c.wa_queue_media(bigint,text,text,text,text,text)', 'b2c.wa_media_open(bigint)',
+    'b2c.wa_media_attach(bigint,bigint,text)', 'b2c.programme_compare(bigint[],bigint)', 'b2c.programme_facets()', 'b2c.pipeline_board(jsonb)', 'b2c.email_library(jsonb)',
+    'b2c.merge_values(bigint)', 'b2c.my_wa_alerts_set(text[])', 'b2c.custom_fields_save(jsonb,text)', 'b2c.custom_field_set(bigint,text,text)',
+    'b2c.checklist_save(text,text[],text)', 'b2c.checklists()', 'b2c.document_open(bigint)']) f;
 insert into r (name, ok, detail)
 select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where has_function_privilege('authenticated', f, 'execute'))
   from unnest(array['b2c.qualify_form(text)', 'b2c.qualify_submit(text,jsonb)', 'b2c.qualify_apply(bigint,jsonb,text,uuid)', 'b2c.qualify_start(bigint,text)',
     'b2c.qualify_tick()', 'b2c.queue_system_email(bigint,text,text,text,text,timestamp with time zone)', 'b2c.queue_system_text(bigint,text,text,text)',
     'b2c.opted_out_now(bigint)', 'b2c.partner_lost_due(jsonb)', 'b2c.erase_files_take(integer)', 'b2c.export_take(integer)', 'b2c.export_page(bigint,integer,integer)',
-    'b2c.events_feed(bigint,integer)', 'b2c.bulk_jobs_tick(integer)', 'b2c.lead_delete_job_part(bigint[],text,uuid,bigint)', 'b2c.filter_leads(jsonb,boolean)']) f;
+    'b2c.events_feed(bigint,integer)', 'b2c.bulk_jobs_tick(integer)', 'b2c.wa_media_take(integer)', 'b2c.wa_media_stored(bigint,text,text)',
+    'b2c.programme_cache_refresh(boolean)', 'b2c.staff_wa_tick()', 'b2c.neglect_tick()', 'b2c.lead_expected_value(bigint)', 'b2c.lead_delete_job_part(bigint[],text,uuid,bigint)', 'b2c.filter_leads(jsonb,boolean)']) f;
 insert into r (name, ok, detail)
 select 'anon_calls_nothing', not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'b2c' and has_function_privilege('anon', p.oid, 'execute')), null;
 
