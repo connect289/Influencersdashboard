@@ -15,7 +15,7 @@ const WORKSPACE = ["/w", "/w/leads", "LEAD", "/w/pipeline",
   "/w/templates", "/w/templates?tab=wa_sales", "/w/templates?tab=wa_marketing", "/w/templates?tab=email_marketing",
   "/w/money", "/w/money?tab=universities", "/w/money?tab=enrolments", "/w/money?tab=receivables", "/w/money?tab=statements", "/w/money?tab=commission", "/w/money?tab=ads",
   "/w/analytics", "/w/team", "/w/teams", "/w/connectors", "/w/settings", "/w/settings?tab=health", "/w/settings?tab=audit", "/w/settings?tab=signins", "/w/leads/duplicates", "/w/guide", "/w/support",
-  "/w/programmes", "/w/programmes?course=MBA&level=PG", "/w/qualify", "/w/leads/flagged", "/w/leads?layout=kanban", "/w/allocation?tab=queues", "/w/allocation?tab=week"];
+  "/w/programmes", "/w/programmes?course=MBA&level=PG", "/w/qualify", "/w/leads/flagged", "/w/leads?layout=kanban", "/w/allocation?tab=capacity"];
 
 const ROUTES: Record<Who, string[]> = { asha: SALES, ravi: ["/s", "/s/leads", "LEAD"], manager: SALES, admin: WORKSPACE, marketing: WORKSPACE };
 
