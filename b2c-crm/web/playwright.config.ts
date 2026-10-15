@@ -4,7 +4,11 @@ import { defineConfig, devices } from "@playwright/test";
  * Browser tests against staging (test people and test leads from e2e/seed.mjs). The app runs locally in dev mode with
  * LIVE_MODE off, so nothing is ever sent. `npm run e2e` runs everything; `npm run e2e:seed` refreshes the test data.
  */
+// @ts-expect-error plain JavaScript shared with the seed script
+import { assertStagingKey } from "./e2e/fixtures.mjs";
+
 const PORT = Number(process.env.E2E_PORT ?? 3100);
+assertStagingKey(process.env.SUPABASE_SERVICE_ROLE_KEY); // the local app gets this key too: staging only
 
 export default defineConfig({
   testDir: "e2e",

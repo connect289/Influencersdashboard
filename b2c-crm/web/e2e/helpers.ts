@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import type { BrowserContext, Page } from "@playwright/test";
+// @ts-expect-error plain JavaScript shared with the seed script
+import { assertStagingKey } from "./fixtures.mjs";
 
 export const STAGING_REF = "mplbspysxmtohnlwpbti"; // the same as e2e/fixtures.mjs: staging only
 
@@ -13,8 +15,8 @@ export const people = (): Record<Who, Person> =>
 export const stateFile = (who: Who) => new URL(`./.auth/${who}.json`, import.meta.url).pathname;
 
 export function service() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!key) throw new Error("Set SUPABASE_SERVICE_ROLE_KEY (staging).");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  assertStagingKey(key);
   return createClient(`https://${STAGING_REF}.supabase.co`, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 

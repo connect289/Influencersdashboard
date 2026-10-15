@@ -7,11 +7,11 @@
 import { randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { envelopes, LEADS, PRODUCTION_REF, STAFF, STAGING_REF } from "./fixtures.mjs";
+import { assertStagingKey, envelopes, LEADS, PRODUCTION_REF, STAFF, STAGING_REF } from "./fixtures.mjs";
 
 const url = process.env.E2E_SUPABASE_URL ?? `https://${STAGING_REF}.supabase.co`;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!key) throw new Error("Set SUPABASE_SERVICE_ROLE_KEY (staging).");
+assertStagingKey(key);
 if (url.includes(PRODUCTION_REF) || !url.includes(STAGING_REF)) throw new Error(`Refusing to seed ${url}: staging only.`);
 
 const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });

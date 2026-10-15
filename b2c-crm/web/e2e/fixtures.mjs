@@ -5,6 +5,21 @@
 export const STAGING_REF = "mplbspysxmtohnlwpbti";
 export const PRODUCTION_REF = "xlseqwgyjuqhktrguhyc";
 
+/** The project a Supabase key belongs to ("ref" inside a legacy JWT key); null for the newer sb_secret_ keys. */
+export function keyProject(key) {
+  if (!key?.startsWith("eyJ")) return null;
+  try { return JSON.parse(Buffer.from(key.split(".")[1] ?? "", "base64url").toString("utf8")).ref ?? null; } catch { return null; }
+}
+
+/** Stops before any request when the key is for another project (production above all). */
+export function assertStagingKey(key) {
+  if (!key) throw new Error("Set SUPABASE_SERVICE_ROLE_KEY to the staging project's service role key.");
+  const ref = keyProject(key);
+  if (ref && ref !== STAGING_REF) {
+    throw new Error(`SUPABASE_SERVICE_ROLE_KEY belongs to ${ref === PRODUCTION_REF ? "PRODUCTION" : "another project"} (${ref}), not staging (${STAGING_REF}). Nothing was sent.`);
+  }
+}
+
 export const STAFF = [
   { key: "admin", email: "e2e.admin@eduwit.in", full_name: "Test Admin", role: "admin", takes_leads: false, home: "/w" },
   { key: "manager", email: "e2e.manager@eduwit.in", full_name: "Meera Manager", role: "sales_head", takes_leads: true, home: "/s" },
