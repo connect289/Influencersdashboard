@@ -757,6 +757,10 @@ API `docs/referral-api.md`.
   refused provider key alerts the Admin. `allocation_outcome_manual` records what such a partner reported (stage,
   sub-stage, note, lost reason) as a `partner_activities` row and applies it through the same mapped-stage path as a
   synced CRM, so the lost grace and the partner bar follow. Routing tab: **Record partner's report**.
+- **Cron history (m33f).** `cron.job_run_details` grows about 58,000 rows a day and only has its `runid` key (the table
+  belongs to `supabase_admin`, so no index can be added). `health_check` and `system_overview` read only the newest runs
+  through that key (6,000 and 75,000), and `b2b-cron-prune` keeps 7 days. Found after go-live: `/api/health` timed out at
+  the anon role's 3-second limit.
 - **Unchanged:** Witty's tables, `lead_intake()`, no triggers added to `student_leads` (the existing touch trigger is
   what the retention rule's "idle" measures), the B2C contract (v4).
 - **Verification:** `tests/test_m33a_access_api.sql` 41, `test_m33b_lead_workspace.sql` 38, `test_m33c_data_protection.sql`

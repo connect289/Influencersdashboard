@@ -344,8 +344,8 @@ Real-time sync is for integration and testing (Vikas: real-time calls to partner
    `default` 300). Raise a scope only when a caller reports `429`. New keys default to a 90-day expiry; keys without one
    are allowed but listed by the health check.
 3. **Health monitor.** Point an external monitor at `GET https://crm.eduwit.in/api/health` every 5 minutes (no key, no
-   personal data; `503` with `problems` when a job is stale or a queue stuck). Cron jobs added by M33: `b2b-api-keys-expiry`
-   (daily), `b2b-retention` (02:15 IST).
+   personal data; `503` when a job is stale or a queue stuck). Cron jobs added by M33: `b2b-api-keys-expiry`
+   (daily), `b2b-retention` (02:15 IST), `b2b-cron-prune` (03:45 IST, keeps 7 days of run history).
 4. **Retention.** System health → Data protection: decide the idle period (empty keeps every lead; 24 months is a
    common DPDP choice) and the test-lead age (30 days). Record the reason; it goes to the audit log.
 5. **Email partners.** Needs the email provider of section 8 step 3 (the partner emails are sent from the same sender).
