@@ -67,7 +67,15 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
         <Availability awayUntil={away} label={away ? `Away until ${when(away)}` : "Working"} />
         <PushToggle vapidKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
         <section className="panel"><header><h3>My phone numbers</h3><NewTicketButton base="/s" kind="phone" label="Ask for a change" /></header>
-          <div className="body small">{phones ? <>Work mobile: <b className="mono">{phones.mobile ?? "none yet"}</b> · Students see: <b className="mono">{phones.caller_id ?? "your own number when you dial yourself"}</b>{phones.own_caller_id ? "" : " (company number)"}</> : "—"}
+          <div className="body small">{phones ? (
+            <dl className="kv">
+              <dt>Work mobile</dt><dd className="mono">{phones.mobile ?? "none yet"}</dd>
+              <dt>Students see</dt>
+              <dd>{phones.caller_id
+                ? <><span className="mono">{phones.caller_id}</span> {phones.own_caller_id ? "(your own caller ID)" : "(company number)"}</>
+                : "your own number: you call from your own phone"}</dd>
+            </dl>
+          ) : "—"}
             <p className="note">Only the Admin changes these. Ask for a change with a support ticket.</p></div></section>
         <section className="panel"><header><h3>Google Calendar</h3></header>
           <div className="body"><CalendarToggle mine={await rpc<CalendarMine>("calendar_mine").catch(() => null)} ready={!!googleSa()} /></div></section>

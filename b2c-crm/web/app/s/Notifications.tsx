@@ -1,3 +1,4 @@
+import { plainCodes } from "@/lib/labels";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { rpc } from "@/lib/data";
@@ -24,7 +25,7 @@ export async function Notifications() {
                     {x.link ? <Link href={x.link} style={{ fontWeight: x.read_at ? 500 : 650 }}>{x.title}</Link> : <b>{x.title}</b>}
                     <time>{when(x.created_at)}</time>
                   </div>
-                  {x.body && <div className="small muted">{x.body}</div>}
+                  {x.body && <div className="small muted">{plainCodes(x.body)}</div>}
                 </div>
               </div>
             ))}

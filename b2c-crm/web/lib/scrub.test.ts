@@ -23,4 +23,12 @@ describe("scrubPii", () => {
     expect(containsPii("a@b.co")).toBe(true);
     expect(containsPii(scrubPii("a@b.co 98765 43210"))).toBe(false);
   });
+  it("does not take dates and timestamps for phone numbers", () => {
+    const brief = JSON.stringify({ activity: [{ at: "2026-10-15T10:45:08.443+00:00", text: "Handed to B2C" }], due: "2026-10-16 09:30" });
+    expect(containsPii(brief)).toBe(false);
+    expect(scrubPii(brief)).toBe(brief);
+    expect(containsPii(`${brief} call 98765 43210`)).toBe(true);
+    expect(scrubPii("on 2026-10-15 call +91 98765 43210")).toBe("on 2026-10-15 call [phone]");
+  });
 });
+

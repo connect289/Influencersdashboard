@@ -6,6 +6,7 @@ const words = (code: string | null | undefined) => (code ? code.replace(/_/g, " 
 export const REASON_LABEL: Record<string, string> = {
   no_partner_capacity: "No partner had capacity",
   no_partner_match: "No partner offers this programme",
+  no_partner_offers_programme: "No partner offers this programme",
   no_partner_consent: "Student did not consent to partner sharing",
   partner_lost: "A partner lost the lead",
   partner_duplicate: "Already with partners (duplicate)",
@@ -21,6 +22,10 @@ export const REASON_LABEL: Record<string, string> = {
   test: "Test hand-off",
 };
 export const reasonLabel = (r: string | null | undefined) => (r ? REASON_LABEL[r] ?? words(r) : "—");
+
+/** System texts (alerts, timeline) carry raw reason codes such as no_partner_offers_programme: show their words instead. */
+export const plainCodes = (text: string) =>
+  text.replace(/\b[a-z]+(?:_[a-z]+)+\b/g, (code) => REASON_LABEL[code] ?? code);
 
 export const LANE_LABEL: Record<string, string> = { sales: "Sales", nurture: "Nurture" };
 export const STATUS_LABEL: Record<string, string> = { active: "In sales", pool: "Nurture pool", closed: "Closed" };

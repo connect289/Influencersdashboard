@@ -48,6 +48,12 @@ setup and the end-to-end test.
   answers come back by replying to the email or through a signed link and update the ticket; open, in progress and
   closed; the Admin sees every ticket). Staging matches the local build: 102 tables, 377 functions, 71 policies, 54
   guide articles. Checks: `supabase/tests/test_support_phones.sql` (28, safe to run on staging).
+- Step 1 of running the app (16 Oct): the app runs against staging with five test people and 30 test leads
+  (`web/e2e/seed.mjs`); every screen was opened as each role at laptop and phone sizes. b32 fixes what that found:
+  test counsellors now see their own test leads on Leads and Pipeline, the Nurture Pool and Programme counts, and the Pool
+  and Inbox searches no longer match everything when the words have no digits. Checks:
+  `supabase/tests/test_walkthrough_fixes.sql` (8, safe on staging). Staging matches the local build: 102 tables,
+  377 functions, 71 policies.
 - `supabase/manual/staging_b4_pool_calendar.sql` (`pool_save`, `calendar_save`) was run by hand on staging on 14 Oct (the
   automated apply path stalls on any SQL containing DELETE). Staging's copies match the local build.
 - Checks: `supabase/tests/test_phase1.sql` (99 checks), `test_phase2.sql` (45, the Phase 2 exit test) and

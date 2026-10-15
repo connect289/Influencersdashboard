@@ -92,7 +92,9 @@ a { color: var(--primary); }
 textarea.input { min-height: 72px; resize: vertical; }
 .pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .pill { border: 1px solid var(--line-strong); background: var(--bg); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 550; }
-.pill[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+a.pill { color: var(--ink); text-decoration: none; }
+/* !important: link pills also carry an inline `color: inherit`, which made the chosen pill's label disappear */
+.pill[aria-pressed="true"] { background: var(--primary); color: var(--on-primary) !important; border-color: var(--primary); }
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
 .tabs button { border: 0; background: none; padding: 9px 12px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--amber); }

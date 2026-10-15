@@ -97,6 +97,17 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
 
 ## Checks
 
+- **Browser tests against staging** (`e2e/`, Playwright with the Chromium already on the machine):
+  1. `SUPABASE_SERVICE_ROLE_KEY` must be the **staging** service role key; every script checks the key's project first and
+     stops for any other (production above all).
+  2. `npm run e2e:seed` creates five test people (`e2e.admin`, `e2e.manager`, `e2e.asha`, `e2e.ravi`, `e2e.marketing`
+     @eduwit.in, all test users) with fresh passwords in `e2e/.auth/passwords.json` (never committed), and 30 test leads
+     (phones `9100009901NN`, lead ids 990101–990130) through the B2B hand-off route; 22 are allocated, 8 go to the pool.
+  3. `npm run e2e` starts the app locally (LIVE_MODE off, nothing is sent), signs each person in through the password and
+     emailed-code screens (the code comes from `b2c.mfa_issue`, as the app would email it), opens every screen per role
+     at laptop and phone sizes (screenshots in `e2e/screens/`), and runs the main flows on test leads: logging a call,
+     a note, the Admin changing a work mobile, Marketing unable to call, a counsellor unable to open another's lead.
+  Behind the cloud proxy, run both with `NODE_USE_ENV_PROXY=1`.
 - `npm test`: signing (contract reference code), batch and answer mapping, Intake API body, WhatsApp body and webhook
   parsing, Meta signatures, Gmail JWT and header injection, IST dates, the internal key, email and share text (HTML
   escaping, placeholders), CSV (formula injection), the guides' Markdown, directory mapping; Phase 2: signed email
@@ -105,7 +116,7 @@ their own mailbox. Nothing is sent unless `LIVE_MODE=on` **and** Settings → li
   and rate shown), money words and tiers, invoice, statement and dashboard PDFs, statement CSV reading; Phase 4: Exotel
   callbacks (outbound, the counsellor's leg not answering, inbound Passthru), the mock's recording, calendar events
   (no phone or email), Meta and Google ad CSVs; support emails, status lines in answers, the developer's signed link,
-  screenshot limits, Gmail attachments. 95 tests.
+  screenshot limits, Gmail attachments; dates are not phone numbers in the brief's check. 96 tests.
 - `../supabase/tests/test_phase1.sql` (99) and `test_phase2.sql` (45): rolled-back database checks (run in the SQL editor).
   `test_phase3.sql` (91) and `test_phase4.sql` (47), the Phase 3 and 4 exit tests, run on a local database built from
   the migrations.

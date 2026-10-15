@@ -4,7 +4,7 @@ import { Play } from "lucide-react";
 import { toast } from "sonner";
 import { recordingLink } from "@/app/s/call-actions";
 import { when } from "@/lib/format";
-import { TIMELINE_KIND_LABEL } from "@/lib/labels";
+import { plainCodes, TIMELINE_KIND_LABEL } from "@/lib/labels";
 import type { TimelineItem } from "@/lib/types";
 
 const GROUPS: { key: string; label: string; kinds: string[] | null }[] = [
@@ -38,7 +38,7 @@ export function Timeline({ items, children }: { items: TimelineItem[]; children?
               <time dateTime={t.at}>{when(t.at).replace(/^Today /, "")}</time>
               <div>
                 <div className="tl-kind">{TIMELINE_KIND_LABEL[t.kind] ?? t.kind}{t.direction === "in" ? " · in" : ""}{t.internal ? " · coaching (Admin only)" : ""}</div>
-                <div style={{ whiteSpace: "pre-wrap" }}>{t.body}</div>
+                <div style={{ whiteSpace: "pre-wrap" }}>{t.body && plainCodes(t.body)}</div>
                 {t.kind === "call" && t.meta?.bridged === true && typeof t.meta.call_id === "number" && <RecordingButton callId={t.meta.call_id} />}
                 {t.actor && <div className="small muted">{t.actor}</div>}
               </div>
