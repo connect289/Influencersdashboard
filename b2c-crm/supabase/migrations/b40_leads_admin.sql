@@ -11,7 +11,6 @@
 --   events_feed()          the reconciliation feed of what Spark sent the B2B CRM (GET /v1/events?since=)
 --   b2c_lead_status_v      the published read-only status of each B2C lead, for the B2B CRM
 
-drop function if exists b2c.lead_scope_sql();
 create index if not exists enrollments_lead on b2c.enrollments (lead_id);
 create index if not exists emails_lead_dir on b2c.emails (lead_id, direction, created_at desc);
 alter table b2c.leads_state add column if not exists erase_reference text;
