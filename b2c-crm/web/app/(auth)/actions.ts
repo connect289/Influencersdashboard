@@ -83,7 +83,14 @@ export async function sendCode(_: FormState, form: FormData): Promise<FormState>
     return { error: String((e as Error).message).includes("too many") ? "Too many codes this hour. Try again later." : "The code could not be sent. Try again." };
   }
   const mail = codeEmail(code, me.full_name);
-  await sendMail({ ...mail, to: me.email });
+  const sent = await sendMail({ ...mail, to: me.email }).catch((e: unknown) => {
+    console.error("[mail] sign-in code not sent:", (e as Error).message);
+    return null;
+  });
+  if (!sent) {
+    await recordSignIn({ email: me.email, user_id: userId, method: "email_code", outcome: "mail_failed", ...(await requestContext()) });
+    return { error: "The code email could not be sent (the email settings need checking). Tell the Admin." };
+  }
   await recordSignIn({ email: me.email, user_id: userId, method: "email_code", outcome: "code_sent", ...(await requestContext()) });
   return { notice: `A code is on its way to ${me.email}. It expires in 10 minutes.` };
 }
@@ -134,8 +141,12 @@ export async function requestPasswordLink(_: FormState, form: FormData): Promise
   const { data, error } = await db.auth.admin.generateLink({ type: "recovery", email });
   if (error || !data.properties?.hashed_token) return { error: "The link could not be made. Try again in a minute." };
   const link = `${siteUrl()}/auth/confirm?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery`;
-  const sent = await sendMail({ ...passwordEmail(link, person.full_name), to: email });
-  await recordSignIn({ email, user_id: person.user_id, method: "password_link", outcome: sent.sent ? "link_sent" : "mail_not_configured", ...ctx });
+  const sent = await sendMail({ ...passwordEmail(link, person.full_name), to: email }).catch((e: unknown) => {
+    console.error("[mail] password link not sent:", (e as Error).message);
+    return null;
+  });
+  await recordSignIn({ email, user_id: person.user_id, method: "password_link", outcome: !sent ? "mail_failed" : sent.sent ? "link_sent" : "mail_not_configured", ...ctx });
+  if (!sent) return { error: "The email could not be sent (the email settings need checking). Tell the Admin." };
   return sent.sent ? done : { error: "Email is not set up yet (SMTP). Ask the Admin." };
 }
 

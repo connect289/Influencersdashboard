@@ -8,6 +8,8 @@ import { defineConfig, devices } from "@playwright/test";
 import { assertStagingKey } from "./e2e/fixtures.mjs";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
+/** E2E_BASE_URL=https://eduwit-b2c-crm.vercel.app runs the same tests against the deployed staging site. */
+const REMOTE = process.env.E2E_BASE_URL;
 assertStagingKey(process.env.SUPABASE_SERVICE_ROLE_KEY); // the local app gets this key too: staging only
 
 export default defineConfig({
@@ -18,13 +20,13 @@ export default defineConfig({
   workers: 2,
   retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],
-  use: { baseURL: `http://localhost:${PORT}`, trace: "retain-on-failure", screenshot: "only-on-failure" },
+  use: { baseURL: REMOTE ?? `http://localhost:${PORT}`, ...(REMOTE && process.env.HTTPS_PROXY ? { proxy: { server: process.env.HTTPS_PROXY } } : {}), trace: "retain-on-failure", screenshot: "only-on-failure" },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },
     { name: "laptop", dependencies: ["setup"], testIgnore: /auth\.setup\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1366, height: 820 } } },
     { name: "phone", dependencies: ["setup"], testIgnore: /auth\.setup\.ts/, use: { ...devices["Pixel 7"] } },
   ],
-  webServer: {
+  webServer: REMOTE ? undefined : {
     command: `npx next dev -p ${PORT}`,
     url: `http://localhost:${PORT}/login`,
     reuseExistingServer: true,

@@ -12,7 +12,9 @@ export type Who = "admin" | "manager" | "asha" | "ravi" | "marketing";
 export const people = (): Record<Who, Person> =>
   JSON.parse(readFileSync(new URL("./.auth/passwords.json", import.meta.url), "utf8"));
 
-export const stateFile = (who: Who) => new URL(`./.auth/${who}.json`, import.meta.url).pathname;
+/** Signed-in browser state per person and per site (local run or the deployed staging site). */
+const site = process.env.E2E_BASE_URL ? new URL(process.env.E2E_BASE_URL).hostname : "local";
+export const stateFile = (who: Who) => new URL(`./.auth/${site}-${who}.json`, import.meta.url).pathname;
 
 export function service() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
