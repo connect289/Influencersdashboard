@@ -12,19 +12,23 @@ B2B CRM's code; put a secret in git or in chat. `LIVE_MODE` stays `off` until st
 
 | Piece | State |
 | --- | --- |
-| Production database `xlseqwgyjuqhktrguhyc` (Mumbai) | Schema `b2c` with `b1`–`b38` (applied 15 Oct). **`b39`–`b43` and `staging_b4_pool_calendar.sql` are step 2** |
-| Staging database `mplbspysxmtohnlwpbti` | `b1`–`b39` and the first half of `b40`. **The rest of `b40`–`b43` is step 2** (the Supabase connector refuses SQL that contains DELETE or DROP, even inside a function body) |
-| Local proof | `b1`–`b43` on a clean Postgres: every suite passes (`test_completion` 209 checks, `test_phase1` 99, `test_phase2` 45, `test_phase3` 91, `test_phase4` 47, `test_features` 26, `test_support_phones` 28, `test_walkthrough_fixes` 10); the bundle in step 2 applies on top of `b38` in one transaction, twice |
-| Production site | Vercel project `eduwit-spark` (team `eduwit`), root `b2c-crm/web`, address `https://spark.eduwit.in` (DNS done by Vikas) and `https://eduwit-spark.vercel.app`. All variables set except the service role key and the optional services below |
+| Production database `xlseqwgyjuqhktrguhyc` ("EDUWIT LEAD TRACK", Mumbai) | **Done 16 Oct 2026**: `b1`–`b43` and `staging_b4_pool_calendar.sql` (SQL editor); 510 `b2c` functions, the same set as staging and the tested local build; 16 `b2c-*` timers; anon executes nothing; programme cache filled (715 programmes). `b2c` exposed in the Data API. First Admin: connect@eduwit.in |
+| Staging database `mplbspysxmtohnlwpbti` ("eduwit-b2b-staging") | **Done 16 Oct 2026**: `b1`–`b43`; 510 functions |
+| Local proof | `b1`–`b43` on a clean Postgres: every suite passes (`test_completion` 209 checks, `test_phase1` 99, `test_phase2` 45, `test_phase3` 91, `test_phase4` 47, `test_features` 26, `test_support_phones` 28, `test_walkthrough_fixes` 10) |
+| Production site | Vercel project `eduwit-spark` (team `eduwit`), root `b2c-crm/web`, `https://spark.eduwit.in` (DNS done) and `https://eduwit-spark.vercel.app`. Set: Supabase URL and publishable key, **service role key** (Vikas, 16 Oct), site URL `https://spark.eduwit.in`, SMTP, VAPID, `LINK_SECRET`, `B2C_INTERNAL_KEY`, `LIVE_MODE=off`. Google sign-in works (production client `103728006747-7cb08…`). **Not yet**: the timers' key in Vault (step 5.2) and the optional services (step 5.3) |
 | Staging site | Vercel project for `https://eduwit-b2c-crm.vercel.app` on the staging database |
 | Branch | `claude/exciting-heisenberg-fse6ik` in `connect289/Influencersdashboard` |
 
 ## 1. Backup production (Vikas)
 
+Steps 2 and 3 are done (16 October). Keep this step for every future migration.
+
+### Backup
+
 Supabase → production project → Database → Backups: confirm today's backup (or take one). **Check:** a backup listed
 for today. **Undo for everything below:** restore it.
 
-## 2. The database: staging first, then production (SQL editor)
+## 2. The database: staging first, then production (SQL editor) — done 16 Oct 2026; repeat for future migrations
 
 Two files, both idempotent (safe to run again, and safe where part is already applied):
 
@@ -62,7 +66,7 @@ union all select 'no anon execute', not exists (select 1 from pg_proc p join pg_
 **Undo:** restore the backup from step 1 (everything Spark adds lives in schema `b2c`; Witty's tables, `student_leads`
 and the B2B CRM's objects are not touched by these files).
 
-## 3. Supabase production settings (Vikas, 5 minutes)
+## 3. Supabase production settings — done 16 Oct 2026 (kept for reference)
 
 1. **Expose the schema.** Project Settings → API (Data API) → Exposed schemas: add `b2c` (keep `public`). Save.
 2. **Sign-in addresses.** Authentication → URL Configuration:
@@ -107,8 +111,11 @@ Two errors seen on 15–16 October and what they mean:
 
 ## 5. Vercel `eduwit-spark`: the service role key, then the services
 
-1. Domain: Settings → Domains → `spark.eduwit.in` must show "Valid configuration".
-2. Run the deploy script once with the production service role key (Supabase → production → Project Settings → API
+1. Domain: Settings → Domains → `spark.eduwit.in` must show "Valid configuration" (done).
+2. **Still to do: run the deploy script once** (the service role key is already in Vercel; the script needs it in your
+   shell too, to call `app_deploy_set`, which stores `B2C_INTERNAL_KEY` in Vault so the 16 timers can call the site.
+   Until this runs, queued messages, the B2B sync and the other background jobs wait).
+   Run it with the production service role key (Supabase → production → Project Settings → API
    keys → service_role). It sets the key, rotates `B2C_INTERNAL_KEY` into Vault, redeploys and points the database
    timers at the site (`app_deploy_set`). It refuses a staging key.
    ```bash
