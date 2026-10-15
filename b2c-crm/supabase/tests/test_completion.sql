@@ -255,16 +255,174 @@ begin
   perform pg_temp.as_system();
 end $x$;
 
+-- ========== b40: leads table and Admin tools ==========
+-- B1/B2 the wide row: activity, application and money columns; money hidden from Sales; new filters, groups, group-by, select all
+do $x$
+declare j jsonb; e text; v bigint; v2 bigint;
+begin
+  perform pg_temp.as_system();
+  perform pg_temp.lead(996620, '{"b2c_lane": "sales", "reason": "no_partner_offers_programme"}'::jsonb);
+  perform pg_temp.lead(996621, '{"b2c_lane": "sales", "reason": "no_partner_offers_programme"}'::jsonb);
+  update b2c.leads_state set status = 'active', owner_id = 'aaaaaaaa-0000-0000-0000-00000000e901', assigned_at = now() where lead_id in (996620, 996621);
+  insert into b2c.calls (lead_id, number, direction, outcome, logged_at, user_id) values (996620, '910000999620', 'out', 'no_answer', now() - interval '1 hour', 'aaaaaaaa-0000-0000-0000-00000000e901'),
+    (996620, '910000999620', 'out', 'connected', now(), 'aaaaaaaa-0000-0000-0000-00000000e901');
+  insert into b2c.wa_messages (lead_id, phone, direction, kind, body, status) values (996620, '910000999620', 'in', 'text', 'my number is 98...', 'received');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  j := b2c.lead_list('{"filters": {"all": [{"field": "calls_connected", "op": "gte", "value": 1}]}, "include_test": true}');
+  insert into r (name, ok, detail) values ('b1_filter_on_sales_activity', (j ->> 'total')::int = 1 and j -> 'rows' -> 0 ->> 'last_call_outcome' = 'connected'
+    and (j -> 'rows' -> 0 ->> 'calls_logged')::int = 2 and (j -> 'rows' -> 0 ->> 'wa_received')::int = 1, j::text);
+  insert into r (name, ok, detail) values ('b2_money_hidden_from_sales', not (j -> 'rows' -> 0 ? 'university_gross') and not (j -> 'rows' -> 0 ? 'counsellor_commission'), null);
+  begin perform b2c.lead_list('{"filters": {"all": [{"field": "university_gross", "op": "gt", "value": 0}]}}'); e := 'listed'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b2_cannot_filter_on_money_in_sales', e = 'cannot filter on university_gross', e);
+  j := b2c.lead_list('{"filters": {"all": [{"field": "created_at", "op": "this_month"}, {"field": "lead_id", "op": "in", "value": ["996620", "996621"]}]}, "include_test": true}');
+  insert into r (name, ok, detail) values ('b1_this_month', (j ->> 'total')::int = 2, j ->> 'total');
+  j := b2c.lead_list('{"filters": {"all": [{"field": "lead_id", "op": "in", "value": ["996620", "996621"]}],
+        "groups": [{"any": [{"field": "calls_logged", "op": "gte", "value": 1}, {"field": "name", "op": "contains", "value": "nobody"}]}]}, "include_test": true}');
+  insert into r (name, ok, detail) values ('b1_or_groups', (j ->> 'total')::int = 1, j ->> 'total');
+  j := b2c.lead_list('{"filters": {"all": [{"field": "lead_id", "op": "in", "value": ["996620", "996621"]}]}, "group_by": "last_call_outcome", "include_test": true}');
+  insert into r (name, ok, detail) values ('b1_group_by_counts', jsonb_array_length(j -> 'groups') = 2 and not (j -> 'groups' -> 0 ? 'expected'), j -> 'groups' ->> 0);
+  j := b2c.lead_list('{"mode": "ids", "filters": {"all": [{"field": "lead_id", "op": "in", "value": ["996620", "996621"]}]}, "include_test": true}');
+  insert into r (name, ok, detail) values ('b3_select_all_of_a_view', j -> 'ids' = '[996620, 996621]'::jsonb, j::text);
+  j := b2c.lead_list('{"ids": [996621], "include_test": true}');
+  insert into r (name, ok, detail) values ('b5_selected_rows_only', (j ->> 'total')::int = 1, j ->> 'total');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e902');
+  j := b2c.lead_list('{"ids": [996620, 996621], "include_test": true}');
+  insert into r (name, ok, detail) values ('b1_counsellor_scope_kept', (j ->> 'total')::int = 0, j ->> 'total');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  j := b2c.lead_list('{"ids": [996620], "group_by": "owner_name", "include_test": true}');
+  insert into r (name, ok, detail) values ('b2_admin_sees_money_columns', j -> 'rows' -> 0 ? 'university_gross' and j -> 'groups' -> 0 ? 'expected', null);
+
+  -- views shared with the same role by link, a default per person
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  begin perform b2c.view_save('{"name": "x", "columns": ["name", "password"]}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b1_unknown_column_refused', e = 'unknown column', e);
+  begin perform b2c.view_save('{"name": "x", "shared_with_role": "admin"}'); e := 'saved'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b1_share_own_role_only', e = 'a view can be shared with your own role only', e);
+  v := b2c.view_save('{"name": "CP shared", "columns": ["name", "calls_logged", "last_call_outcome"], "group_by": "stage", "layout": "kanban", "shared_with_role": "counsellor"}');
+  v2 := b2c.view_save('{"name": "CP private"}');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e902');
+  insert into r (name, ok, detail) values ('b1_shared_view_opens_by_link', (b2c.view_get(v) ->> 'layout') = 'kanban'
+    and exists (select 1 from jsonb_array_elements(b2c.views_list('sales') -> 'views') x where (x ->> 'id')::bigint = v), null);
+  begin perform b2c.view_get(v2); e := 'opened'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b1_private_view_stays_private', e = 'this view is not shared with you', e);
+  perform b2c.view_pin('sales', v);
+  insert into r (name, ok, detail) values ('b1_pinned_default', (b2c.views_list('sales') ->> 'default')::bigint = v, null);
+  perform pg_temp.as_system();
+end $x$;
+
+-- B3/B4 bulk: journeys, stage, delete as a job with typed confirmation and undo
+do $x$
+declare j jsonb; e text; v bigint;
+begin
+  perform pg_temp.as_system();
+  perform pg_temp.lead(996622, '{"b2c_lane": "nurture", "reason": "partner_lost", "lost": {"lost_reason": "later"}}'::jsonb);
+  perform pg_temp.lead(996623, '{"b2c_lane": "nurture", "reason": "partner_lost", "lost": {"lost_reason": "later"}}'::jsonb);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
+  begin perform b2c.bulk_journey(array[996622]::bigint[], 'add', -1); e := 'added'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b3_journey_must_be_published', e = 'choose a published journey', e);
+  v := b2c.journey_save('{"name": "CP bulk", "test_mode": true, "trigger": {"type": "manual"}, "draft_steps": [{"id": "s1", "type": "wait", "hours": 24}, {"id": "s2", "type": "exit", "reason": "done"}]}');
+  perform b2c.journey_publish(v);
+  perform b2c.journey_set(v, 'active');
+  j := b2c.bulk_journey(array[996622, 996623]::bigint[], 'add', v);
+  insert into r (name, ok, detail) values ('b3_marketing_adds_to_journey', (j ->> 'done')::int = 2
+    and (select count(*) from b2c.journey_runs where journey_id = v and lead_id in (996622, 996623) and status = 'running') = 2, j::text);
+  j := b2c.bulk_journey(array[996622]::bigint[], 'remove');
+  insert into r (name, ok, detail) values ('b3_marketing_removes_from_journey', (j ->> 'done')::int = 1
+    and not exists (select 1 from b2c.journey_runs where journey_id = v and lead_id = 996622 and status = 'running'), j::text);
+  begin perform b2c.bulk_stage(array[996622]::bigint[], 3::smallint, null); e := 'changed'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b3_stage_is_admin_only', e = 'not allowed', e);
+  begin perform b2c.lead_delete_request(array[996622, 996623]::bigint[], 'test', 'DELETE'); e := 'queued'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b3_bulk_delete_admin_only', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  begin perform b2c.lead_delete_request(array[996622, 996623]::bigint[], 'test', 'DELETE'); e := 'queued'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b3_typed_confirmation', e = 'type DELETE 2 to confirm', e);
+  j := b2c.lead_delete_request(array[996622, 996623]::bigint[], 'test', 'DELETE 2');
+  insert into r (name, ok, detail) values ('b3_delete_waits_for_the_job', (select count(*) from b2c.leads_state where lead_id in (996622, 996623) and deleted_at is null) = 2, j::text);
+  perform pg_temp.as_system();
+  perform b2c.bulk_jobs_tick();
+  perform b2c.bulk_jobs_tick();
+  insert into r (name, ok, detail) values ('b3_job_deletes', (select count(*) from b2c.leads_state where lead_id in (996622, 996623) and deleted_at is not null) = 2
+    and (select status from b2c.bulk_jobs where id = (j ->> 'job_id')::bigint) = 'done'
+    and not exists (select 1 from b2c.journey_runs where lead_id = 996623 and status = 'running'), (select row_to_json(b)::text from b2c.bulk_jobs b where id = (j ->> 'job_id')::bigint));
+  insert into r (name, ok, detail) values ('b3_job_notifies', exists (select 1 from b2c.notifications n where n.user_id = 'aaaaaaaa-0000-0000-0000-00000000e904' and n.kind = 'bulk_job'), null);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  e := b2c.bulk_job_undo((j ->> 'job_id')::bigint)::text;
+  insert into r (name, ok, detail) values ('b3_undo_restores', e = '2'
+    and (select count(*) from b2c.leads_state where lead_id in (996622, 996623) and deleted_at is null) = 2, null);
+  perform pg_temp.as_system();
+end $x$;
+
+-- B4 erasure on the student's request
+do $x$
+declare j jsonb; e text;
+begin
+  perform pg_temp.as_system();
+  perform pg_temp.lead(996624, '{"b2c_lane": "nurture", "reason": "partner_lost", "lost": {"lost_reason": "later", "partner_name": "CP Partner"}}'::jsonb);
+  insert into b2c.wa_messages (lead_id, phone, direction, kind, body, status) values (996624, '910000999624', 'in', 'text', 'my address is ...', 'received');
+  insert into b2c.activities (lead_id, kind, body) values (996624, 'note', 'lives near the station');
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
+  begin perform b2c.lead_erase(996624, 'email 15 Oct'); e := 'erased'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b4_erase_admin_only', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  begin perform b2c.lead_erase(996624, ''); e := 'erased'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b4_needs_reference', e like 'give the request reference%', e);
+  j := b2c.lead_erase(996624, 'email 15 Oct', 'asked by email');
+  insert into r (name, ok, detail) values ('b4_identity_gone', (select record -> 'student' ->> 'name' = 'Erased student' and not (record -> 'student' ? 'phone') and not (record -> 'student' ? 'email')
+     from b2c.lead_records where lead_id = 996624)
+    and not exists (select 1 from b2c.lead_contacts where lead_id = 996624 and value <> 'erased'), j::text);
+  insert into r (name, ok, detail) values ('b4_messages_and_notes_gone', not exists (select 1 from b2c.wa_messages where lead_id = 996624 and body is not null)
+    and not exists (select 1 from b2c.activities where lead_id = 996624 and kind = 'note' and body <> '[erased]'), null);
+  insert into r (name, ok, detail) values ('b4_b2b_told', exists (select 1 from b2c.outbox o where o.kind = 'event' and o.lead_id = 996624 and o.body ->> 'type' = 'b2ccrm.erasure_requested'
+    and o.body -> 'data' ->> 'reference' = 'email 15 Oct'), null);
+  insert into r (name, ok, detail) values ('b4_logged_with_reference', exists (select 1 from b2c.audit_log a where a.lead_id = 996624 and a.action = 'erase' and a.detail ->> 'reference' = 'email 15 Oct'), null);
+  insert into r (name, ok, detail) values ('b4_restore_cannot_bring_back', b2c.lead_restore(array[996624]::bigint[]) = 0, null);
+  begin perform b2c.lead_erase(996624, 'again'); e := 'erased'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b4_once_only', e = 'this lead was already erased', e);
+  perform pg_temp.as_system();
+  insert into r (name, ok, detail) values ('b4_record_not_refilled', not b2c.apply_record(996624, 99, 99, '{"id": 996624, "student": {"name": "Back", "phone": "910000999624"}}')
+    and (select record -> 'student' ->> 'name' from b2c.lead_records where lead_id = 996624) = 'Erased student', null);
+end $x$;
+
+-- B5 exports, D1 events feed, D2 published status
+do $x$
+declare j jsonb; e text;
+begin
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  begin perform b2c.export_request('{}'); e := 'requested'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('b5_export_admin_only', e = 'not allowed', e);
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  j := b2c.export_request('{"ids": [996620, 996621], "format": "xlsx", "include_test": true}');
+  insert into r (name, ok, detail) values ('b5_small_export_inline', (j ->> 'inline')::boolean and (j ->> 'rows')::int = 2, j::text);
+  perform pg_temp.as_system();
+  insert into b2c.exports (user_id, params, format) values ('aaaaaaaa-0000-0000-0000-00000000e904', '{"ids": [996620], "include_test": true}', 'csv');
+  j := b2c.export_take(5);
+  insert into r (name, ok, detail) values ('b5_job_runs_as_the_admin', (b2c.export_page((j -> 0 ->> 'id')::bigint, 0) ->> 'total')::int = 1, j::text);
+  perform b2c.export_done((j -> 0 ->> 'id')::bigint, 1, 'exports/x.csv');
+  insert into r (name, ok, detail) values ('b5_link_expires_in_7_days', (select expires_at between now() + interval '6 days' and now() + interval '8 days' from b2c.exports where id = (j -> 0 ->> 'id')::bigint), null);
+  j := b2c.events_feed(0, 1000);
+  insert into r (name, ok, detail) values ('d1_events_feed', exists (select 1 from jsonb_array_elements(j -> 'events') x where x ->> 'type' = 'b2ccrm.erasure_requested' and (x ->> 'lead_id')::bigint = 996624)
+    and (j ->> 'next_after')::bigint >= (select max(id) from b2c.outbox where kind = 'event'), null);
+  insert into r (name, ok, detail) values ('d2_status_view', exists (select 1 from public.b2c_lead_status_v where lead_id = 996620 and counsellor = 'Asha CP')
+    and not exists (select 1 from public.b2c_lead_status_v where lead_id = 996624), null);
+end $x$;
+insert into r (name, ok, detail) values ('d2_status_view_service_only', not has_table_privilege('authenticated', 'public.b2c_lead_status_v', 'select')
+  and not has_table_privilege('anon', 'public.b2c_lead_status_v', 'select') and has_table_privilege('service_role', 'public.b2c_lead_status_v', 'select'), null);
+insert into r (name, ok, detail) values ('b2_wide_view_not_for_clients', not has_table_privilege('authenticated', 'b2c.leads_wide_v', 'select'), null);
+
 -- ---------- grants ----------
 insert into r (name, ok, detail)
 select 'authenticated_can_call', bool_and(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where not has_function_privilege('authenticated', f, 'execute'))
   from unnest(array['b2c.opt_in(bigint,text[],text,text)', 'b2c.qualify_record(bigint,jsonb)', 'b2c.qualify_queue(jsonb)', 'b2c.qualify_assign(bigint,uuid)',
-    'b2c.qualify_resend(bigint)', 'b2c.flag_review(bigint,text,text)', 'b2c.flagged_list()', 'b2c.replies_delegates_set(uuid[])']) f;
+    'b2c.qualify_resend(bigint)', 'b2c.flag_review(bigint,text,text)', 'b2c.flagged_list()', 'b2c.replies_delegates_set(uuid[])',
+    'b2c.views_list(text)', 'b2c.view_get(bigint)', 'b2c.view_pin(text,bigint)', 'b2c.bulk_journey(bigint[],text,bigint)', 'b2c.bulk_stage(bigint[],smallint,text,text,timestamp with time zone)',
+    'b2c.lead_delete_request(bigint[],text,text)', 'b2c.bulk_job_undo(bigint)', 'b2c.bulk_jobs_list()', 'b2c.lead_erase(bigint,text,text)', 'b2c.export_request(jsonb)',
+    'b2c.exports_mine()', 'b2c.export_open(bigint)']) f;
 insert into r (name, ok, detail)
 select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege('authenticated', f, 'execute')), string_agg(f, ', ') filter (where has_function_privilege('authenticated', f, 'execute'))
   from unnest(array['b2c.qualify_form(text)', 'b2c.qualify_submit(text,jsonb)', 'b2c.qualify_apply(bigint,jsonb,text,uuid)', 'b2c.qualify_start(bigint,text)',
     'b2c.qualify_tick()', 'b2c.queue_system_email(bigint,text,text,text,text,timestamp with time zone)', 'b2c.queue_system_text(bigint,text,text,text)',
-    'b2c.opted_out_now(bigint)', 'b2c.partner_lost_due(jsonb)']) f;
+    'b2c.opted_out_now(bigint)', 'b2c.partner_lost_due(jsonb)', 'b2c.erase_files_take(integer)', 'b2c.export_take(integer)', 'b2c.export_page(bigint,integer,integer)',
+    'b2c.events_feed(bigint,integer)', 'b2c.bulk_jobs_tick(integer)', 'b2c.lead_delete_job_part(bigint[],text,uuid,bigint)', 'b2c.filter_leads(jsonb,boolean)']) f;
 insert into r (name, ok, detail)
 select 'anon_calls_nothing', not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'b2c' and has_function_privilege('anon', p.oid, 'execute')), null;
 

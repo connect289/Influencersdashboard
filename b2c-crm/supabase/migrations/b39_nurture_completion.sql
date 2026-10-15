@@ -986,6 +986,13 @@ begin
   end loop;
 end $f$;
 
+/* The leads matching a filter (journey triggers). b40 widens it to every lead property and sales activity. */
+create or replace function b2c.filter_leads(p_filters jsonb, p_test boolean default false) returns setof bigint
+language plpgsql stable security definer set search_path = '' as $f$
+begin
+  return query execute format('select v.lead_id from b2c.leads_v v where v.deleted_at is null and v.is_test = %L and %s', p_test, b2c.filters_where(coalesce(p_filters, '{}')));
+end $f$;
+
 /* Every minute: leads that should enter a journey now (b16), with the field, date, email and WhatsApp-reply triggers. */
 create or replace function b2c.journey_enroll_tick(p_limit int default 200) returns int language plpgsql security definer set search_path = '' as $f$
 declare r record; v bigint; n int := 0; j b2c.journeys; v_pred text;
@@ -1006,10 +1013,10 @@ begin
       when 'segment' then format('s.lead_id in (select b2c.segment_leads(%s, null, %L))', (j.trigger ->> 'segment_id')::bigint, j.test_mode)
       when 'tag' then format('%L = any (s.tags)', lower(j.trigger ->> 'tag'))
       when 'inactive' then format('coalesce(s.last_activity_at, s.pool_entered_at) < now() - make_interval(days => %s)', coalesce((j.trigger ->> 'days')::int, 30))
-      when 'field' then format('s.lead_id in (select v.lead_id from b2c.leads_v v where %s)', b2c.filters_where(coalesce(j.trigger -> 'filters', '{}')))
+      when 'field' then format('s.lead_id in (select b2c.filter_leads(%L::jsonb, %L))', coalesce(j.trigger -> 'filters', '{}'), j.test_mode)
       when 'date' then format('now() >= ((%L::date - %s)::timestamp at time zone %L) and now() < ((%L::date + 1)::timestamp at time zone %L)%s',
                               j.trigger ->> 'at', coalesce((j.trigger ->> 'days_before')::int, 0), 'Asia/Kolkata', j.trigger ->> 'at', 'Asia/Kolkata',
-                              case when j.trigger -> 'filters' is not null then format(' and s.lead_id in (select v.lead_id from b2c.leads_v v where %s)', b2c.filters_where(j.trigger -> 'filters')) else '' end)
+                              case when j.trigger -> 'filters' is not null then format(' and s.lead_id in (select b2c.filter_leads(%L::jsonb, %L))', j.trigger -> 'filters', j.test_mode) else '' end)
       when 'email_engaged' then format('exists (select 1 from b2c.emails e where e.lead_id = s.lead_id and e.direction = %L and e.%s > now() - make_interval(days => %s))',
                                        'out', case when j.trigger ->> 'kind' = 'click' then 'clicked_at' else 'opened_at' end, coalesce((j.trigger ->> 'within_days')::int, 2))
       else format('exists (select 1 from b2c.replies x where x.lead_id = s.lead_id and x.channel = %L and x.created_at > now() - make_interval(days => %s) and coalesce(x.corrected_class, x.class) = any (%L::text[]))',
@@ -1203,6 +1210,6 @@ grant execute on function b2c.qualify_form(text), b2c.qualify_submit(text, jsonb
 revoke execute on function b2c.qualify_form(text), b2c.qualify_submit(text, jsonb), b2c.qualify_apply(bigint, jsonb, text, uuid), b2c.qualify_start(bigint, text),
   b2c.qualify_send(bigint), b2c.qualify_tick(), b2c.qualify_questions(jsonb), b2c.qualify_link(text), b2c.queue_system_email(bigint, text, text, text, text, timestamptz),
   b2c.queue_system_text(bigint, text, text, text), b2c.partner_lost_sub_stage(text), b2c.partner_lost_due(jsonb), b2c.partner_history_text(jsonb),
-  b2c.opted_out_now(bigint), b2c.qual_rank(text), b2c.journey_check_trigger(jsonb), b2c.replies_delegate(uuid) from public, authenticated;
+  b2c.opted_out_now(bigint), b2c.qual_rank(text), b2c.filter_leads(jsonb, boolean), b2c.journey_check_trigger(jsonb), b2c.replies_delegate(uuid) from public, authenticated;
 grant all on all tables in schema b2c to service_role;
 revoke execute on all functions in schema b2c from public, anon;
