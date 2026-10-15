@@ -55,8 +55,8 @@ describe("follow-ups and neglect", () => {
 
 describe("programme page", () => {
   it("turns the address into the search, dropping fee bounds at the catalogue's edge", () => {
-    const q = programmeQuery({ q: " mba ", fee_min: "50000", fee_max: "400000", emi: "1", eligible: "1", lead: "42", sort: "fee", page: "2" }, { min: 50000, max: 400000 });
-    expect(q).toMatchObject({ q: "mba", fee_min: null, fee_max: null, emi: true, eligible: true, lead: 42, sort: "fee", offset: 48 });
+    const q = programmeQuery({ q: " mba ", fee_min: "50000", fee_max: "400000", emi: "1", eligible: "1", lead: "42", sort: "fee" }, { min: 50000, max: 400000 }, 600);
+    expect(q).toMatchObject({ q: "mba", fee_min: null, fee_max: null, emi: true, eligible: true, lead: 42, sort: "fee", offset: 600 });
     expect(programmeQuery({ fee_max: "200000", sort: "nonsense", eligible: "1" }, { min: 50000, max: 400000 })).toMatchObject({ fee_max: 200000, sort: "name", eligible: null });
   });
   it("words durations and commissions", () => {

@@ -505,3 +505,24 @@ svg.chart .gridl { stroke: var(--line); stroke-width: 1; }
 html[data-density="compact"] .table-wrap th { padding: 7px 10px; }
 html[data-density="compact"] .table-wrap td { padding: 4px 10px; }
 html[data-density="compact"] .kcard { padding: 6px 8px; gap: 2px; }
+
+/* ---------- Programme page (B8.9): toolbar, university groups, cards ---------- */
+.prog-toolbar { display: grid; grid-template-columns: minmax(240px, 2.2fr) repeat(5, minmax(130px, 1fr)) auto; gap: 8px; align-items: center; }
+.prog-toolbar .search { min-width: 0; }
+.prog-toolbar select.input { min-width: 0; }
+.prog-count { font-size: var(--fs-sm); }
+.uni-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 6px; }
+.uni-head h2 { font-size: var(--fs-h2); min-width: 0; }
+.uni-head .icon { color: var(--primary-ink); flex: none; }
+.prog-grid { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.pcard { padding: var(--pad); display: grid; gap: 10px; align-content: start; }
+.pcard-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+.pstats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px 0 2px; border-top: 1px solid var(--line); }
+.pstats > div { display: grid; gap: 2px; }
+.stat-label { font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.stat-value { font-size: 19px; font-weight: 650; }
+.stat-value.manual { color: var(--amber-ink); font-size: var(--fs); }
+.pcard-foot { padding-top: 6px; border-top: 1px solid var(--line); min-height: 36px; }
+.accred { display: inline-flex; align-items: center; gap: 5px; color: var(--green); font-size: var(--fs-sm); font-weight: 600; }
+@media (max-width: 1100px) { .prog-toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)); } .prog-toolbar .search { grid-column: 1 / -1; } }
+@media (max-width: 600px) { .prog-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); } .prog-toolbar .btn { grid-column: 1 / -1; } }

@@ -483,7 +483,7 @@ begin
   insert into r (name, ok, detail) values ('c2_compare_2_to_4', e = 'compare 2 to 4 programmes', e);
   j := b2c.programme_compare(array[11, 12]::bigint[], 996630);
   insert into r (name, ok, detail) values ('c2_compare_side_by_side', jsonb_array_length(j) = 2 and (j -> 0 ->> 'id')::bigint = 11 and j -> 0 ? 'eligible', j::text);
-  insert into r (name, ok, detail) values ('c2_facets', b2c.programme_facets() -> 'intakes' ? 'July', null);
+  insert into r (name, ok, detail) values ('c2_facets', b2c.programme_facets() -> 'intakes' ? 'July' and b2c.programme_facets() -> 'courses' ? 'MBA', null);
   j := b2c.programme_fit(996630);
   insert into r (name, ok, detail) values ('c6_fit_with_eligibility_and_emi', j -> 'rows' -> 0 ? 'eligible' and j -> 'rows' -> 0 ? 'emi_monthly' and j -> 'rows' -> 0 ? 'duration_months', j::text);
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
