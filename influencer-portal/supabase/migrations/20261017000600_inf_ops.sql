@@ -242,7 +242,7 @@ begin
 end $$;
 
 -- service_role: delivery bookkeeping for the job runner.
-create or replace function inf.delivery_result(p_id bigint, p_status text, p_provider text, p_ref text, p_error text)
+create or replace function inf.delivery_result(p_id bigint, p_status text, p_provider text default null, p_ref text default null, p_error text default null)
 returns void language sql security definer set search_path = '' as $$
   update inf.notification_deliveries
      set status = p_status, attempts = attempts + 1, provider = p_provider, provider_ref = left(p_ref, 200),

@@ -1,0 +1,748 @@
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
+export type Database = {
+  
+  "inf": {
+          Tables: {
+            "audit_log": {
+                  Row: {
+                    "action": string,"actor_id": string | null,"actor_role": string | null,"after": Json | null,"at": string,"before": Json | null,"entity_id": string | null,"entity_type": string,"id": number,"ip": unknown,"request_id": string | null,"user_agent": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "action": string,"actor_id"?: string | null,"actor_role"?: string | null,"after"?: Json | null,"at"?: string,"before"?: Json | null,"entity_id"?: string | null,"entity_type": string,"id"?: never,"ip"?: unknown,"request_id"?: string | null,"user_agent"?: string | null
+                  }
+                  Update: {
+                    "action"?: string,"actor_id"?: string | null,"actor_role"?: string | null,"after"?: Json | null,"at"?: string,"before"?: Json | null,"entity_id"?: string | null,"entity_type"?: string,"id"?: never,"ip"?: unknown,"request_id"?: string | null,"user_agent"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"client_grants": {
+                  Row: {
+                    "grantee": string,"object_name": string,"object_type": string,"privilege": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "grantee": string,"object_name": string,"object_type": string,"privilege": string
+                  }
+                  Update: {
+                    "grantee"?: string,"object_name"?: string,"object_type"?: string,"privilege"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"creator_accounts": {
+                  Row: {
+                    "creator_id": string,"linked_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "creator_id": string,"linked_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "creator_id"?: string,"linked_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "creator_accounts_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: true
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"creators": {
+                  Row: {
+                    "avatar_path": string | null,"bio": string | null,"blocked_reason": string | null,"city": string | null,"created_at": string,"created_by": string | null,"display_name": string,"email": string | null,"handle": string,"id": string,"is_blocked": boolean,"is_test": boolean,"languages": (string)[],"last_activity_at": string | null,"leaderboard_opt_in": boolean,"legal_name": string | null,"niches": (string)[],"owner_id": string | null,"phone_e164": string | null,"pipeline_stage": string,"public_page_enabled": boolean,"source": string | null,"state": string | null,"status": string,"tags": (string)[],"tier_id": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name": string,"email"?: string | null,"handle": string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string,"email"?: string | null,"handle"?: string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "creators_owner_id_fkey"
+      columns: ["owner_id"]
+isOneToOne: false
+      referencedRelation: "staff_profiles"
+      referencedColumns: ["user_id"]
+    },{
+      foreignKeyName: "creators_tier_id_fkey"
+      columns: ["tier_id"]
+isOneToOne: false
+      referencedRelation: "tiers"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"domain_events": {
+                  Row: {
+                    "actor_id": string | null,"id": number,"idem_key": string,"occurred_at": string,"payload": NonNullable<Json>,"subject_id": string,"subject_type": string,"type": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actor_id"?: string | null,"id"?: never,"idem_key": string,"occurred_at"?: string,"payload"?: NonNullable<Json>,"subject_id": string,"subject_type": string,"type": string
+                  }
+                  Update: {
+                    "actor_id"?: string | null,"id"?: never,"idem_key"?: string,"occurred_at"?: string,"payload"?: NonNullable<Json>,"subject_id"?: string,"subject_type"?: string,"type"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"email_codes": {
+                  Row: {
+                    "attempts": number,"code_hash": string,"consumed_at": string | null,"created_at": string,"expires_at": string,"id": string,"purpose": string,"salt": string,"session_id": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"code_hash": string,"consumed_at"?: string | null,"created_at"?: string,"expires_at": string,"id"?: string,"purpose"?: string,"salt": string,"session_id": string,"user_id": string
+                  }
+                  Update: {
+                    "attempts"?: number,"code_hash"?: string,"consumed_at"?: string | null,"created_at"?: string,"expires_at"?: string,"id"?: string,"purpose"?: string,"salt"?: string,"session_id"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"jobs": {
+                  Row: {
+                    "attempts": number,"created_at": string,"finished_at": string | null,"id": number,"idem_key": string | null,"kind": string,"last_error": string | null,"locked_at": string | null,"locked_by": string | null,"max_attempts": number,"payload": NonNullable<Json>,"run_at": string,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"created_at"?: string,"finished_at"?: string | null,"id"?: never,"idem_key"?: string | null,"kind": string,"last_error"?: string | null,"locked_at"?: string | null,"locked_by"?: string | null,"max_attempts"?: number,"payload"?: NonNullable<Json>,"run_at"?: string,"status"?: string
+                  }
+                  Update: {
+                    "attempts"?: number,"created_at"?: string,"finished_at"?: string | null,"id"?: never,"idem_key"?: string | null,"kind"?: string,"last_error"?: string | null,"locked_at"?: string | null,"locked_by"?: string | null,"max_attempts"?: number,"payload"?: NonNullable<Json>,"run_at"?: string,"status"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"notification_deliveries": {
+                  Row: {
+                    "attempts": number,"channel": string,"created_at": string,"error": string | null,"id": number,"notification_id": string,"provider": string | null,"provider_ref": string | null,"sent_at": string | null,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"channel": string,"created_at"?: string,"error"?: string | null,"id"?: never,"notification_id": string,"provider"?: string | null,"provider_ref"?: string | null,"sent_at"?: string | null,"status"?: string
+                  }
+                  Update: {
+                    "attempts"?: number,"channel"?: string,"created_at"?: string,"error"?: string | null,"id"?: never,"notification_id"?: string,"provider"?: string | null,"provider_ref"?: string | null,"sent_at"?: string | null,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_deliveries_notification_id_fkey"
+      columns: ["notification_id"]
+isOneToOne: false
+      referencedRelation: "notifications"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"notification_preferences": {
+                  Row: {
+                    "channel": string,"enabled": boolean,"event": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "channel": string,"enabled": boolean,"event": string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "channel"?: string,"enabled"?: boolean,"event"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"notification_templates": {
+                  Row: {
+                    "active": boolean,"body": string,"channel": string,"created_at": string,"event": string,"id": string,"locale": string,"subject": string | null,"updated_at": string,"updated_by": string | null,"version": number,"wa_template_name": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"body": string,"channel": string,"created_at"?: string,"event": string,"id"?: string,"locale"?: string,"subject"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"wa_template_name"?: string | null
+                  }
+                  Update: {
+                    "active"?: boolean,"body"?: string,"channel"?: string,"created_at"?: string,"event"?: string,"id"?: string,"locale"?: string,"subject"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"wa_template_name"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"notifications": {
+                  Row: {
+                    "body": string | null,"created_at": string,"data": NonNullable<Json>,"event": string,"id": string,"idem_key": string,"link": string | null,"mandatory": boolean,"read_at": string | null,"title": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body"?: string | null,"created_at"?: string,"data"?: NonNullable<Json>,"event": string,"id"?: string,"idem_key": string,"link"?: string | null,"mandatory"?: boolean,"read_at"?: string | null,"title": string,"user_id": string
+                  }
+                  Update: {
+                    "body"?: string | null,"created_at"?: string,"data"?: NonNullable<Json>,"event"?: string,"id"?: string,"idem_key"?: string,"link"?: string | null,"mandatory"?: boolean,"read_at"?: string | null,"title"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"permissions": {
+                  Row: {
+                    "area": string,"key": string,"label": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "area": string,"key": string,"label": string
+                  }
+                  Update: {
+                    "area"?: string,"key"?: string,"label"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"rate_hits": {
+                  Row: {
+                    "hits": number,"key": string,"window_start": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "hits"?: number,"key": string,"window_start": string
+                  }
+                  Update: {
+                    "hits"?: number,"key"?: string,"window_start"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"role_permissions": {
+                  Row: {
+                    "permission": string,"role": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "permission": string,"role": string
+                  }
+                  Update: {
+                    "permission"?: string,"role"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "role_permissions_permission_fkey"
+      columns: ["permission"]
+isOneToOne: false
+      referencedRelation: "permissions"
+      referencedColumns: ["key"]
+    }
+                  ]
+                },"setting_definitions": {
+                  Row: {
+                    "default_value": NonNullable<Json>,"description": string,"edit_permission": string,"grp": string,"json_schema": NonNullable<Json>,"key": string,"label": string,"needs_confirmation": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "default_value": NonNullable<Json>,"description": string,"edit_permission": string,"grp": string,"json_schema": NonNullable<Json>,"key": string,"label": string,"needs_confirmation"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "default_value"?: NonNullable<Json>,"description"?: string,"edit_permission"?: string,"grp"?: string,"json_schema"?: NonNullable<Json>,"key"?: string,"label"?: string,"needs_confirmation"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "setting_definitions_edit_permission_fkey"
+      columns: ["edit_permission"]
+isOneToOne: false
+      referencedRelation: "permissions"
+      referencedColumns: ["key"]
+    }
+                  ]
+                },"settings": {
+                  Row: {
+                    "confirmed_at": string | null,"confirmed_by": string | null,"key": string,"updated_at": string,"updated_by": string | null,"value": NonNullable<Json>,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "confirmed_at"?: string | null,"confirmed_by"?: string | null,"key": string,"updated_at"?: string,"updated_by"?: string | null,"value": NonNullable<Json>,"version"?: number
+                  }
+                  Update: {
+                    "confirmed_at"?: string | null,"confirmed_by"?: string | null,"key"?: string,"updated_at"?: string,"updated_by"?: string | null,"value"?: NonNullable<Json>,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "settings_key_fkey"
+      columns: ["key"]
+isOneToOne: true
+      referencedRelation: "setting_definitions"
+      referencedColumns: ["key"]
+    }
+                  ]
+                },"settings_versions": {
+                  Row: {
+                    "actor_id": string | null,"at": string,"id": number,"key": string,"reason": string,"value": NonNullable<Json>,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actor_id"?: string | null,"at"?: string,"id"?: never,"key": string,"reason": string,"value": NonNullable<Json>,"version": number
+                  }
+                  Update: {
+                    "actor_id"?: string | null,"at"?: string,"id"?: never,"key"?: string,"reason"?: string,"value"?: NonNullable<Json>,"version"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"sign_in_log": {
+                  Row: {
+                    "at": string,"email": string | null,"id": number,"ip": unknown,"method": string,"outcome": string,"portal": string,"reason": string | null,"user_agent": string | null,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"email"?: string | null,"id"?: never,"ip"?: unknown,"method": string,"outcome": string,"portal": string,"reason"?: string | null,"user_agent"?: string | null,"user_id"?: string | null
+                  }
+                  Update: {
+                    "at"?: string,"email"?: string | null,"id"?: never,"ip"?: unknown,"method"?: string,"outcome"?: string,"portal"?: string,"reason"?: string | null,"user_agent"?: string | null,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"staff_profiles": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"email": string,"full_name": string,"is_signatory": boolean,"last_seen_at": string | null,"signatory_designation": string | null,"status": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"email": string,"full_name": string,"is_signatory"?: boolean,"last_seen_at"?: string | null,"signatory_designation"?: string | null,"status"?: string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"email"?: string,"full_name"?: string,"is_signatory"?: boolean,"last_seen_at"?: string | null,"signatory_designation"?: string | null,"status"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"staff_role_grants": {
+                  Row: {
+                    "granted_at": string,"granted_by": string | null,"role": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "granted_at"?: string,"granted_by"?: string | null,"role": string,"user_id": string
+                  }
+                  Update: {
+                    "granted_at"?: string,"granted_by"?: string | null,"role"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "staff_role_grants_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "staff_profiles"
+      referencedColumns: ["user_id"]
+    }
+                  ]
+                },"terms_acceptances": {
+                  Row: {
+                    "accepted_at": string,"id": number,"ip": unknown,"terms_version_id": string,"user_agent": string | null,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_at"?: string,"id"?: never,"ip"?: unknown,"terms_version_id": string,"user_agent"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "accepted_at"?: string,"id"?: never,"ip"?: unknown,"terms_version_id"?: string,"user_agent"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "terms_acceptances_terms_version_id_fkey"
+      columns: ["terms_version_id"]
+isOneToOne: false
+      referencedRelation: "terms_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"terms_versions": {
+                  Row: {
+                    "body": string,"created_at": string,"created_by": string | null,"effective_at": string,"id": string,"kind": string,"title": string,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body": string,"created_at"?: string,"created_by"?: string | null,"effective_at"?: string,"id"?: string,"kind": string,"title": string,"version": number
+                  }
+                  Update: {
+                    "body"?: string,"created_at"?: string,"created_by"?: string | null,"effective_at"?: string,"id"?: string,"kind"?: string,"title"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"tiers": {
+                  Row: {
+                    "active": boolean,"benefits": NonNullable<Json>,"created_at": string,"entry_rules": NonNullable<Json>,"id": string,"name": string,"rank": number,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"benefits"?: NonNullable<Json>,"created_at"?: string,"entry_rules"?: NonNullable<Json>,"id"?: string,"name": string,"rank": number,"updated_at"?: string
+                  }
+                  Update: {
+                    "active"?: boolean,"benefits"?: NonNullable<Json>,"created_at"?: string,"entry_rules"?: NonNullable<Json>,"id"?: string,"name"?: string,"rank"?: number,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"trusted_devices": {
+                  Row: {
+                    "created_at": string,"expires_at": string,"id": string,"label": string | null,"last_used_at": string | null,"revoked_at": string | null,"token_hash": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"expires_at": string,"id"?: string,"label"?: string | null,"last_used_at"?: string | null,"revoked_at"?: string | null,"token_hash": string,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"expires_at"?: string,"id"?: string,"label"?: string | null,"last_used_at"?: string | null,"revoked_at"?: string | null,"token_hash"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"user_sessions": {
+                  Row: {
+                    "auth_method": string | null,"created_at": string,"ip": unknown,"kind": string,"last_seen_at": string,"revoke_reason": string | null,"revoked_at": string | null,"revoked_by": string | null,"session_id": string,"user_agent": string | null,"user_id": string,"verified_at": string | null,"verified_via": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "auth_method"?: string | null,"created_at"?: string,"ip"?: unknown,"kind": string,"last_seen_at"?: string,"revoke_reason"?: string | null,"revoked_at"?: string | null,"revoked_by"?: string | null,"session_id": string,"user_agent"?: string | null,"user_id": string,"verified_at"?: string | null,"verified_via"?: string | null
+                  }
+                  Update: {
+                    "auth_method"?: string | null,"created_at"?: string,"ip"?: unknown,"kind"?: string,"last_seen_at"?: string,"revoke_reason"?: string | null,"revoked_at"?: string | null,"revoked_by"?: string | null,"session_id"?: string,"user_agent"?: string | null,"user_id"?: string,"verified_at"?: string | null,"verified_via"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                }
+          }
+          Views: {
+            [_ in never]: never
+          }
+          Functions: {
+            "actor_role":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"audit":
+{ Args: { "p_action": string,"p_after"?: Json,"p_before"?: Json,"p_entity_id": string,"p_entity_type": string }; Returns: undefined
+                           },
+"auth_user_id_by_email":
+{ Args: { "p_email": string }; Returns: string
+                           },
+"bootstrap_super_admin":
+{ Args: { "p_designation": string,"p_email": string,"p_full_name": string }; Returns: string
+                           },
+"code_hash":
+{ Args: { "p_code": string,"p_salt": string,"p_user": string }; Returns: string
+                           },
+"creator_account_link":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"cron_dispatch":
+{ Args: { "p_path": string }; Returns: undefined
+                           },
+"current_creator_id":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"current_session_id":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"delivery_result":
+{ Args: { "p_error"?: string,"p_id": number,"p_provider"?: string,"p_ref"?: string,"p_status": string }; Returns: undefined
+                           },
+"device_revoke":
+{ Args: { "p_id": string }; Returns: boolean
+                           },
+"device_trust_check":
+{ Args: { "p_token": string }; Returns: boolean
+                           },
+"emit_event":
+{ Args: { "p_idem_key": string,"p_payload": Json,"p_subject_id": string,"p_subject_type": string,"p_type": string }; Returns: number
+                           },
+"has_perm":
+{ Args: { "p_permission": string }; Returns: boolean
+                           },
+"health":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"idle_limit":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"is_staff":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"job_claim":
+{ Args: { "p_kinds"?: (string)[],"p_limit"?: number,"p_worker": string }; Returns: {
+              "attempts": number,
+"created_at": string,
+"finished_at": string | null,
+"id": number,
+"idem_key": string | null,
+"kind": string,
+"last_error": string | null,
+"locked_at": string | null,
+"locked_by": string | null,
+"max_attempts": number,
+"payload": NonNullable<Json>,
+"run_at": string,
+"status": string
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "jobs"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
+"job_enqueue":
+{ Args: { "p_idem_key"?: string,"p_kind": string,"p_max_attempts"?: number,"p_payload": Json,"p_run_at"?: string }; Returns: number
+                           },
+"job_finish":
+{ Args: { "p_error"?: string,"p_id": number,"p_ok": boolean }; Returns: string
+                           },
+"job_retry":
+{ Args: { "p_id": number }; Returns: boolean
+                           },
+"jobs_recent":
+{ Args: { "p_limit"?: number,"p_status"?: string }; Returns: {
+              "attempts": number,"created_at": string,"finished_at": string,"id": number,"kind": string,"last_error": string,"max_attempts": number,"run_at": string,"status": string
+            }[]
+                           },
+"json_matches_schema":
+{ Args: { "p_schema": Json,"p_value": Json }; Returns: boolean
+                           },
+"json_schema_errors":
+{ Args: { "p_path"?: string,"p_schema": Json,"p_value": Json }; Returns: (string)[]
+                           },
+"me":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"mfa_issue":
+{ Args: { "p_session": string,"p_user": string }; Returns: Json
+                           },
+"mfa_verify":
+{ Args: { "p_code": string,"p_label"?: string,"p_trust"?: boolean }; Returns: Json
+                           },
+"my_devices":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "created_at": string,"expires_at": string,"id": string,"label": string,"last_used_at": string
+            }[]
+                           },
+"my_notifications":
+{ Args: { "p_before"?: string,"p_limit"?: number }; Returns: {
+              "body": string,"created_at": string,"data": Json,"event": string,"id": string,"link": string,"read_at": string,"title": string
+            }[]
+                           },
+"my_sessions":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "created_at": string,"ip": unknown,"is_current": boolean,"kind": string,"last_seen_at": string,"revoked_at": string,"session_id": string,"user_agent": string,"verified": boolean
+            }[]
+                           },
+"nightly_prune":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"notification_preference_set":
+{ Args: { "p_channel": string,"p_enabled": boolean,"p_event": string }; Returns: undefined
+                           },
+"notifications_mark_read":
+{ Args: { "p_ids": (string)[] }; Returns: number
+                           },
+"notify":
+{ Args: { "p_body": string,"p_channels"?: (string)[],"p_data": Json,"p_event": string,"p_idem_key": string,"p_link": string,"p_mandatory": boolean,"p_title": string,"p_user": string }; Returns: string
+                           },
+"rate_check":
+{ Args: { "p_key": string,"p_limit": number,"p_seconds": number }; Returns: boolean
+                           },
+"request_header":
+{ Args: { "p_name": string }; Returns: string
+                           },
+"request_id":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"request_ip":
+{ Args: Record<PropertyKey, never>; Returns: unknown
+                           },
+"request_user_agent":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"session_ok":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"session_register":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"session_revoke":
+{ Args: { "p_session_id": string }; Returns: boolean
+                           },
+"session_touch":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"setting":
+{ Args: { "p_key": string }; Returns: Json
+                           },
+"setting_confirm":
+{ Args: { "p_key": string,"p_note": string }; Returns: undefined
+                           },
+"setting_history":
+{ Args: { "p_key": string }; Returns: {
+              "actor_name": string,"at": string,"reason": string,"value": Json,"version": number
+            }[]
+                           },
+"setting_set":
+{ Args: { "p_expected_version": number,"p_key": string,"p_reason": string,"p_value": Json }; Returns: Json
+                           },
+"settings_list":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "can_edit": boolean,"confirmed_at": string,"default_value": Json,"description": string,"grp": string,"is_default": boolean,"json_schema": Json,"key": string,"label": string,"needs_confirmation": string,"updated_at": string,"updated_by_name": string,"value": Json,"version": number
+            }[]
+                           },
+"sign_in_locked":
+{ Args: { "p_email": string }; Returns: boolean
+                           },
+"sign_in_record":
+{ Args: { "p_email": string,"p_ip"?: string,"p_method": string,"p_outcome": string,"p_portal": string,"p_reason"?: string,"p_ua"?: string,"p_user"?: string }; Returns: undefined
+                           },
+"staff_list":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "created_at": string,"email": string,"full_name": string,"is_signatory": boolean,"last_seen_at": string,"roles": (string)[],"signatory_designation": string,"status": string,"user_id": string
+            }[]
+                           },
+"staff_revoke_all_sessions":
+{ Args: { "p_reason": string,"p_user": string }; Returns: number
+                           },
+"staff_save":
+{ Args: { "p_designation"?: string,"p_email": string,"p_full_name": string,"p_is_signatory": boolean,"p_roles": (string)[],"p_user": string }; Returns: undefined
+                           },
+"staff_set_status":
+{ Args: { "p_reason": string,"p_status": string,"p_user": string }; Returns: undefined
+                           },
+"system_status":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"terms_accept":
+{ Args: { "p_terms_version_id": string }; Returns: undefined
+                           },
+"terms_pending":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "body": string,"effective_at": string,"id": string,"kind": string,"title": string,"version": number
+            }[]
+                           },
+"terms_publish":
+{ Args: { "p_body": string,"p_kind": string,"p_title": string }; Returns: string
+                           }
+          }
+          Enums: {
+            [_ in never]: never
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        }
+}
+
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
+
+export const Constants = {
+  "inf": {
+          Enums: {
+            
+          }
+        }
+} as const

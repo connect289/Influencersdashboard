@@ -1,7 +1,7 @@
 -- Staff emailed-code 2FA, trusted devices, session registration, remote logout, creator account linking.
 begin;
 \ir _helpers.psql
-select plan(26);
+select plan(28);
 
 -- A staff member who has just signed in: session not registered yet.
 insert into tests.people select 'sam', u, gen_random_uuid(), null from tests.create_user('sam@staff.test') u;
@@ -61,6 +61,16 @@ select is(inf.has_perm('creator.read'), true, 'with permissions');
 select is((select count(*)::int from inf.my_sessions()), 2, 'both sessions listed');
 select is(inf.session_revoke((select session_id from inf.my_sessions() where not is_current limit 1)), true, 'other session revoked');
 select is((select count(*)::int from inf.my_sessions() where revoked_at is null), 1, 'one live session left');
+
+-- Idle timeout is enforced by the database (12 hours by default).
+select tests.reset();
+update inf.user_sessions set last_seen_at = now() - interval '13 hours'
+ where session_id = (select session_id from tests.people where label = 'sam');
+select tests.as_person('sam');
+select is(inf.has_perm('creator.read'), false, 'an idle session loses access');
+select is((inf.me() -> 'session' ->> 'revoked')::boolean, true, 'and me() reports it as ended');
+select tests.reset();
+update inf.user_sessions set last_seen_at = now() where session_id = (select session_id from tests.people where label = 'sam');
 
 -- Suspension signs a staff member out everywhere.
 select tests.reset();

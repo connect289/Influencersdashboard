@@ -1,0 +1,23 @@
+import { describe, expect, it } from "vitest";
+import { permissionsFor } from "@/lib/auth/permissions";
+import { isActive, visibleStaffNav } from "./nav";
+
+describe("staff navigation", () => {
+  it("shows Super Admin everything", () => {
+    expect(visibleStaffNav(permissionsFor({ roles: ["super_admin"], isSignatory: false })).map((i) => i.href)).toEqual([
+      "/admin", "/admin/staff", "/admin/settings", "/admin/audit", "/admin/system",
+    ]);
+  });
+  it("hides what a Viewer can't use", () => {
+    expect(visibleStaffNav(permissionsFor({ roles: ["viewer"], isSignatory: false })).map((i) => i.href)).toEqual(["/admin"]);
+  });
+  it("shows Finance the settings it can edit", () => {
+    expect(visibleStaffNav(permissionsFor({ roles: ["finance"], isSignatory: false })).map((i) => i.href)).toContain("/admin/settings");
+  });
+  it("matches active items", () => {
+    expect(isActive("/admin", "/admin")).toBe(true);
+    expect(isActive("/admin/staff", "/admin")).toBe(false);
+    expect(isActive("/admin/settings/x", "/admin/settings")).toBe(true);
+    expect(isActive("/admin/settingsx", "/admin/settings")).toBe(false);
+  });
+});

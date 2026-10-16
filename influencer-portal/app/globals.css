@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+/* Dark mode follows next-themes' data-theme attribute (system by default). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ------------------------------------------------------------------------------------------------------------------
+   Eduwit tokens (docs/brand/palette.md). Navy from the logo is the primary; amber is the accent and is never used as
+   text on light backgrounds (use --accent-ink). One colour per status family, reused everywhere.
+   ------------------------------------------------------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --surface-2: #e9edf2;
+  --surface-3: #dce3eb;
+  --line: #e4e9ef;
+  --line-strong: #b3c0cf;
+  --ink: #0e2240;
+  --muted: #5c6f87;
+  --faint: #8a9bb0;
+  --primary: #0b2f5e;
+  --primary-hover: #082447;
+  --primary-soft: #e6edf6;
+  --on-primary: #ffffff;
+  --accent: #f4a504;
+  --accent-hover: #e09700;
+  --on-accent: #0e2240;
+  --accent-soft: #fff3d6;
+  --accent-ink: #8a5a00;
+  --success: #0f7a4b;
+  --success-soft: #e4f5ec;
+  --danger: #c2281d;
+  --danger-soft: #fceae9;
+  --focus: #0b2f5e;
+  --shadow: 0 1px 2px rgb(14 34 64 / 0.06), 0 4px 16px rgb(14 34 64 / 0.06);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0a1322;
+  --surface: #122036;
+  --surface-2: #182a44;
+  --surface-3: #213654;
+  --line: #22344f;
+  --line-strong: #3a5274;
+  --ink: #e6ecf4;
+  --muted: #9db0c7;
+  --faint: #7f93ac;
+  --primary: #c9d6e6;
+  --primary-hover: #e1e9f3;
+  --primary-soft: #1d3250;
+  --on-primary: #0a1322;
+  --accent: #f4a504;
+  --accent-hover: #f7bc43;
+  --on-accent: #0a1322;
+  --accent-soft: #3a2c0a;
+  --accent-ink: #f7bc43;
+  --success: #4bd08c;
+  --success-soft: #0f2e22;
+  --danger: #f8766b;
+  --danger-soft: #3a1714;
+  --focus: #f7bc43;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --radius-card: 14px;
+  --shadow-card: var(--shadow);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    font-feature-settings: "tnum" 1;
+  }
+  @media (min-width: 768px) {
+    body {
+      font-size: 14px;
+    }
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

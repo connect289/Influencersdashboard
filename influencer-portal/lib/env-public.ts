@@ -4,3 +4,6 @@ export const publicEnv = {
   supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "",
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3200",
 } as const;
+
+/** Google sign-in buttons appear only when the provider is configured in Supabase Auth. */
+export const googleEnabled = process.env.NEXT_PUBLIC_AUTH_GOOGLE === "on";

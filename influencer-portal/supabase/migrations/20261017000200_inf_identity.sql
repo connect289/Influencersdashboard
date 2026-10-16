@@ -203,14 +203,31 @@ begin
 exception when others then return null;
 end $$;
 
--- A session the portal knows, not revoked, and verified (staff: emailed code or trusted device; creators: their sign-in).
+-- Idle limit in hours, from the security.sessions setting (default 12). plpgsql because the settings tables are
+-- created by a later migration.
+create or replace function inf.idle_limit() returns interval
+language plpgsql stable security definer set search_path = '' as $$
+declare v int;
+begin
+  select (coalesce(s.value, d.default_value) ->> 'idle_timeout_hours')::int into v
+    from inf.setting_definitions d left join inf.settings s on s.key = d.key
+   where d.key = 'security.sessions';
+  return make_interval(hours => coalesce(v, 12));
+exception when undefined_table then
+  return interval '12 hours';
+end $$;
+
+-- A session the portal knows, not revoked, not idle past the limit, and verified (staff: emailed code or trusted
+-- device; creators: their sign-in). The database enforces the idle timeout itself; the app's cookie is only a UX aid.
 create or replace function inf.session_ok() returns boolean
-language sql stable security definer set search_path = '' as $$
-  select exists (
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  return exists (
     select 1 from inf.user_sessions s
      where s.session_id = inf.current_session_id() and s.user_id = auth.uid()
-       and s.verified_at is not null and s.revoked_at is null);
-$$;
+       and s.verified_at is not null and s.revoked_at is null
+       and s.last_seen_at > now() - inf.idle_limit());
+end $$;
 
 create or replace function inf.is_staff() returns boolean
 language sql stable security definer set search_path = '' as $$
@@ -286,12 +303,14 @@ begin
   return jsonb_build_object('ok', true, 'kind', v_kind);
 end $$;
 
+-- Keeps an active session alive (at most one write per 2 minutes). An idle-expired session is not revived.
 create or replace function inf.session_touch() returns void
-language sql security definer set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
+begin
   update inf.user_sessions set last_seen_at = now()
    where session_id = inf.current_session_id() and user_id = auth.uid() and revoked_at is null
-     and last_seen_at < now() - interval '2 minutes';
-$$;
+     and last_seen_at < now() - interval '2 minutes' and last_seen_at > now() - inf.idle_limit();
+end $$;
 
 -- Everything the app needs to render and guard a page, in one call.
 create or replace function inf.me() returns jsonb
@@ -312,7 +331,8 @@ begin
     'user_id', v_uid,
     'email', auth.jwt() ->> 'email',
     'session', case when v_sess.session_id is null then null else jsonb_build_object(
-        'registered', true, 'verified', v_sess.verified_at is not null, 'revoked', v_sess.revoked_at is not null,
+        'registered', true, 'verified', v_sess.verified_at is not null,
+        'revoked', v_sess.revoked_at is not null or v_sess.last_seen_at <= now() - inf.idle_limit(),
         'verified_via', v_sess.verified_via) end,
     'kind', case when v_staff.user_id is not null then 'staff' when v_creator.id is not null then 'creator' else 'none' end,
     'staff', case when v_staff.user_id is null then null else jsonb_build_object(
@@ -465,7 +485,7 @@ $$;
 -- ---------------------------------------------------------------------------------------------------------------
 -- Sign-in log and lockout (service_role: the app calls these around Supabase Auth)
 -- ---------------------------------------------------------------------------------------------------------------
-create or replace function inf.sign_in_record(p_email text, p_portal text, p_method text, p_outcome text, p_reason text,
+create or replace function inf.sign_in_record(p_email text, p_portal text, p_method text, p_outcome text, p_reason text default null,
                                               p_user uuid default null, p_ip text default null, p_ua text default null)
 returns void language plpgsql security definer set search_path = '' as $$
 declare v_ip inet;
@@ -486,7 +506,7 @@ $$;
 -- Staff administration (permission staff.manage). Auth users are created by the app with the Admin API first.
 -- ---------------------------------------------------------------------------------------------------------------
 create or replace function inf.staff_save(p_user uuid, p_full_name text, p_email text, p_roles text[],
-                                          p_is_signatory boolean, p_designation text) returns void
+                                          p_is_signatory boolean, p_designation text default null) returns void
 language plpgsql security definer set search_path = '' as $$
 declare
   v_roles text[] := (select coalesce(array_agg(distinct r order by r), '{}') from unnest(p_roles) r);
@@ -556,6 +576,13 @@ begin
   insert into inf.staff_role_grants (user_id, role) values (v_uid, 'super_admin') on conflict do nothing;
   return v_uid;
 end $$;
+
+-- service_role only: the auth user id for an email (used when inviting staff or creators who may already have an
+-- account on the shared Supabase Auth, e.g. from another Eduwit product).
+create or replace function inf.auth_user_id_by_email(p_email text) returns uuid
+language sql stable security definer set search_path = '' as $$
+  select id from auth.users where lower(email) = lower(trim(p_email)) limit 1;
+$$;
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- Creator account linking: on first sign-in, a verified email that matches exactly one invited/onboarding/active/paused
@@ -647,6 +674,7 @@ insert into inf.client_grants (object_type, object_name, grantee, privilege) val
   ('table', 'inf.creators', 'authenticated', 'select'),
   ('table', 'inf.creator_accounts', 'authenticated', 'select'),
   ('function', 'inf.current_session_id()', 'authenticated', 'execute'),
+  ('function', 'inf.idle_limit()', 'authenticated', 'execute'),
   ('function', 'inf.session_ok()', 'authenticated', 'execute'),
   ('function', 'inf.is_staff()', 'authenticated', 'execute'),
   ('function', 'inf.has_perm(text)', 'authenticated', 'execute'),
