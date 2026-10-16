@@ -12,13 +12,21 @@ if (!/@(127\.0\.0\.1|localhost|postgres|db)(:\d+)?\//.test(dbUrl)) {
 }
 const dir = join(import.meta.dirname, "..", "supabase", "tests");
 const filter = process.argv[2];
-const files = readdirSync(dir).filter((f) => f.endsWith(".sql") && (!filter || f.includes(filter))).sort();
+const files = readdirSync(dir)
+  .filter((f) => f.endsWith(".sql") && (!filter || f.includes(filter)))
+  .sort();
 
 let failedFiles = 0;
 let total = 0;
 for (const file of files) {
-  const r = spawnSync("psql", [dbUrl, "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-f", file], { cwd: dir, encoding: "utf8" });
-  const lines = (r.stdout ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const r = spawnSync("psql", [dbUrl, "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-f", file], {
+    cwd: dir,
+    encoding: "utf8",
+  });
+  const lines = (r.stdout ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   const plan = lines.find((l) => /^1\.\.\d+$/.test(l));
   const planned = plan ? Number(plan.split("..")[1]) : NaN;
   const oks = lines.filter((l) => /^ok \d+/.test(l)).length;
@@ -29,7 +37,13 @@ for (const file of files) {
     failedFiles++;
     console.error(`✗ ${file}: ${oks}/${Number.isNaN(planned) ? "?" : planned} passed`);
     for (const l of lines.filter((x) => /^not ok|^#/.test(x))) console.error(`    ${l}`);
-    if (r.stderr) console.error(r.stderr.split("\n").map((l) => `    ${l}`).join("\n"));
+    if (r.stderr)
+      console.error(
+        r.stderr
+          .split("\n")
+          .map((l) => `    ${l}`)
+          .join("\n"),
+      );
   } else {
     console.info(`✓ ${file}: ${oks} tests`);
   }

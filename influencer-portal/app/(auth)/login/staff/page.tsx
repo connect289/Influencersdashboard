@@ -11,7 +11,11 @@ export async function generateMetadata() {
   return { title: t("auth.staff.title") };
 }
 
-export default async function StaffLogin({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+export default async function StaffLogin({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const t = await getTranslations();
   const sp = await searchParams;
   const next = safeNext(sp.next, "/admin");
@@ -35,7 +39,13 @@ export default async function StaffLogin({ searchParams }: { searchParams: Promi
       {sp.error && errors[sp.error] ? <Banner tone="danger">{errors[sp.error]}</Banner> : null}
       {googleEnabled ? (
         <>
-          <GoogleButton portal="staff" next={next} label={t("auth.google")} errorLabel={t("auth.errors.googleFailed")} hd={process.env.STAFF_GOOGLE_HD} />
+          <GoogleButton
+            portal="staff"
+            next={next}
+            label={t("auth.google")}
+            errorLabel={t("auth.errors.googleFailed")}
+            hd={process.env.STAFF_GOOGLE_HD}
+          />
           <div className="flex items-center gap-3 text-xs text-muted" aria-hidden>
             <span className="h-px flex-1 bg-line" />
             {t("auth.or")}

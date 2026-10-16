@@ -6,7 +6,9 @@ import { join } from "node:path";
 import { GENERATORS, latestRecordedHash, type GeneratedKind } from "@/lib/codegen/sql";
 
 const dir = join(import.meta.dirname, "..", "supabase", "migrations");
-const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).map((name) => ({ name, content: readFileSync(join(dir, name), "utf8") }));
+const files = readdirSync(dir)
+  .filter((f) => f.endsWith(".sql"))
+  .map((name) => ({ name, content: readFileSync(join(dir, name), "utf8") }));
 const firstSlot: Record<GeneratedKind, string> = {
   "permission-matrix": "20261017000300",
   "settings-definitions": "20261017000500",

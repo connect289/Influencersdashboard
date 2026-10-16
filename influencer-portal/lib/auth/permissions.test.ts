@@ -25,7 +25,10 @@ describe("permission matrix", () => {
 
   it("keeps Content Reviewers away from money", () => {
     const reviewer = permissionsFor({ roles: ["content_reviewer"], isSignatory: false });
-    for (const p of reviewer) expect(p.startsWith("ledger") || p.startsWith("payout") || p.startsWith("tax") || p.startsWith("deal")).toBe(false);
+    for (const p of reviewer)
+      expect(p.startsWith("ledger") || p.startsWith("payout") || p.startsWith("tax") || p.startsWith("deal")).toBe(
+        false,
+      );
   });
 
   it("restricts unmasked KYC to Finance and Super Admin", () => {
@@ -34,7 +37,10 @@ describe("permission matrix", () => {
   });
 
   it("gives Viewers dashboards only", () => {
-    expect([...permissionsFor({ roles: ["viewer"], isSignatory: false })].sort()).toEqual(["analytics.read", "scorecard.read"]);
+    expect([...permissionsFor({ roles: ["viewer"], isSignatory: false })].sort()).toEqual([
+      "analytics.read",
+      "scorecard.read",
+    ]);
   });
 
   it("denies a missing access object", () => {

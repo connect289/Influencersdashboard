@@ -29,6 +29,23 @@ describe("environment", () => {
     expect(() => parseEnv({ ...base, NODE_ENV: "production" })).toThrow(/mock/);
   });
 
+  it("refuses a hosted project's key paired with another URL", () => {
+    const payload = Buffer.from(
+      JSON.stringify({ iss: "supabase", ref: "mplbspysxmtohnlwpbti", role: "service_role" }),
+    ).toString("base64url");
+    const key = `eyJhbGciOiJIUzI1NiJ9.${payload}.sig`;
+    expect(() => parseEnv({ ...base, SUPABASE_SERVICE_ROLE_KEY: key })).toThrow(
+      /belongs to project mplbspysxmtohnlwpbti/,
+    );
+    expect(() =>
+      parseEnv({
+        ...base,
+        NEXT_PUBLIC_SUPABASE_URL: "https://mplbspysxmtohnlwpbti.supabase.co",
+        SUPABASE_SERVICE_ROLE_KEY: key,
+      }),
+    ).not.toThrow();
+  });
+
   it("never echoes secret values in errors", () => {
     try {
       parseEnv({ ...base, SUPABASE_SERVICE_ROLE_KEY: "secret-value", INF_INTERNAL_API_KEY: "short-secret" });

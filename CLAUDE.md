@@ -39,10 +39,14 @@ This repository holds three separate Eduwit products that share one Supabase pro
 - Commit at least once per completed sub-step; tag each phase end (`phase-N-done`). Branch:
   `claude/blissful-goldberg-xaqrbr`.
 
-## Portal conventions (from Phase 1)
+## Portal conventions
 
 - Next.js 16 App Router, TypeScript strict (no `any`), zod on client and server, Tailwind v4 + shadcn/ui.
-- Database objects only in schema `inf`; RLS on every table, with pgTAP tests per role. Creators read lead data only
+- Database objects only in schema `inf`; RLS on every table, with pgTAP tests per role. Every function sets
+  `search_path = ''`. Client grants are declared in `inf.client_grants` and applied with
+  `call inf.apply_client_grants();` at the end of each migration (never plain GRANT).
+- Shared helpers: `inf.has_perm(p)`, `inf.current_creator_id()`, `inf.session_ok()`, `inf.audit_row()` trigger,
+  `inf.forbid_mutation()` for append-only tables, `inf.emit_event()`, `inf.job_enqueue()`, `inf.notify()`. Creators read lead data only
   through `SECURITY DEFINER` functions and `inf.creator_lead_feed`, with phone and email masked in the database.
 - Money in integer paise (`bigint`), banker's rounding once per line item. Store UTC, display IST, Indian number format,
   Indian financial year (1 Apr – 31 Mar).
@@ -74,7 +78,19 @@ influencer-portal/
   docs/                    spec, progress, decisions, findings, runbook, guides
 ```
 
-## Commands (from Phase 1)
+## Commands (run inside `influencer-portal/`)
 
-To be filled in when the scaffold exists: `npm run dev`, `npm run typecheck`, `npm run lint`, `npm test`,
-`npm run test:db`, `npm run e2e`, `npm run seed`.
+| Command | What |
+| --- | --- |
+| `node scripts/db.mjs start` / `stop` / `reset` | Local Supabase (Docker Hub images; refuses remote targets). Reset rebuilds from the shared baseline + every migration |
+| `npm run gen:sql` | Regenerate migrations from `lib/auth/permissions.ts` and `lib/settings/registry.ts` (a unit test fails if stale) |
+| `node scripts/db.mjs types` | Regenerate `lib/database.types.ts` after a schema change (CI checks drift) |
+| `npm run seed` | Local demo data (staff password `Local-Demo-Password-2026`; Mailpit at http://127.0.0.1:54424 shows emails) |
+| `npm run dev` | App on http://localhost:3200 (needs `.env.local`; copy `.env.example`, keys from `npx supabase status`) |
+| `npm run typecheck` · `npm run lint` · `npm run format` | Static checks |
+| `npm test` | Vitest (unit, codegen drift, message keys, contrast) |
+| `npm run test:db` | pgTAP files in `supabase/tests` via psql (local DB only) |
+| `npm run e2e` | Playwright against a production build; resets and seeds the local DB first (`E2E_RESET=0` to skip) |
+
+Environment note: this cloud environment exports `SUPABASE_SERVICE_ROLE_KEY` for the B2B/B2C staging project. Never
+use it. `lib/env.ts` refuses it with a local URL; scripts read `.env.local` first.

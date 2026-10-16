@@ -11,5 +11,13 @@ export function TabsList({ className, ...props }: ComponentProps<typeof T.List>)
 }
 
 export function TabsTrigger({ className, ...props }: ComponentProps<typeof T.Trigger>) {
-  return <T.Trigger className={cn("rounded-lg px-3 py-1.5 text-sm whitespace-nowrap text-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-sm", className)} {...props} />;
+  return (
+    <T.Trigger
+      className={cn(
+        "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap text-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-sm",
+        className,
+      )}
+      {...props}
+    />
+  );
 }

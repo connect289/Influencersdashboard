@@ -22,7 +22,8 @@ export async function proxy(request: NextRequest) {
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
   const isDev = process.env.NODE_ENV === "development";
   const nonce = btoa(crypto.randomUUID());
-  const csp = buildCsp(nonce, url ? new URL(url).origin : "'self'", isDev);
+  const siteIsHttps = (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https://");
+  const csp = buildCsp(nonce, url ? new URL(url).origin : "'self'", isDev, siteIsHttps);
   const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
 
   const pending: Cookie[] = [];
@@ -77,7 +78,13 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set("Content-Security-Policy", csp);
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   if (userId) {
-    res.cookies.set(SEEN_COOKIE, String(now), { httpOnly: true, secure: !isDev, sameSite: "lax", path: "/", maxAge: IDLE_LIMIT_SECONDS * 2 });
+    res.cookies.set(SEEN_COOKIE, String(now), {
+      httpOnly: true,
+      secure: !isDev,
+      sameSite: "lax",
+      path: "/",
+      maxAge: IDLE_LIMIT_SECONDS * 2,
+    });
   } else if (seen) {
     res.cookies.delete(SEEN_COOKIE);
   }
@@ -88,7 +95,8 @@ export const config = {
   matcher: [
     {
       // Machine endpoints authenticate their own callers (internal key, HMAC) and get no session handling.
-      source: "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|brand/|manifest.webmanifest|sw.js|api/internal/|api/metrics/).*)",
+      source:
+        "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|brand/|manifest.webmanifest|sw.js|api/internal/|api/metrics/).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

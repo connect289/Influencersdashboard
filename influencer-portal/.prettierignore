@@ -5,3 +5,9 @@ supabase/tests
 docs/INFLUENCER_PORTAL_SPEC.md
 package-lock.json
 lib/database.types.ts
+docs
+supabase
+README.md
+AGENTS.md
+test-results
+playwright-report

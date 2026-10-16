@@ -29,11 +29,19 @@ export async function generateMetadata() {
   return { title: t("nav.admin.audit") };
 }
 
-export default async function AuditPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+export default async function AuditPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const { supabase } = await requireStaff("audit.read");
   const t = await getTranslations();
   const f = auditFilterSchema.parse(await searchParams);
-  let q = supabase.from("audit_log").select("id, at, actor_id, actor_role, entity_type, entity_id, action, before, after, ip").order("id", { ascending: false }).limit(AUDIT_PAGE_SIZE + 1);
+  let q = supabase
+    .from("audit_log")
+    .select("id, at, actor_id, actor_role, entity_type, entity_id, action, before, after, ip")
+    .order("id", { ascending: false })
+    .limit(AUDIT_PAGE_SIZE + 1);
   if (f.entity) q = q.eq("entity_type", f.entity);
   if (f.action) q = q.eq("action", f.action);
   if (f.actor) q = q.eq("actor_id", f.actor);
@@ -56,8 +64,18 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       <PageHeader title={t("nav.admin.audit")} description={t("audit.subtitle")} />
       <Card className="mb-4">
         <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" method="get">
-          <Input name="entity" defaultValue={f.entity} placeholder={t("audit.filters.entity")} aria-label={t("audit.filters.entity")} />
-          <Input name="action" defaultValue={f.action} placeholder={t("audit.filters.action")} aria-label={t("audit.filters.action")} />
+          <Input
+            name="entity"
+            defaultValue={f.entity}
+            placeholder={t("audit.filters.entity")}
+            aria-label={t("audit.filters.entity")}
+          />
+          <Input
+            name="action"
+            defaultValue={f.action}
+            placeholder={t("audit.filters.action")}
+            aria-label={t("audit.filters.action")}
+          />
           <Input name="from" type="date" defaultValue={f.from} aria-label={t("audit.filters.from")} />
           <Input name="to" type="date" defaultValue={f.to} aria-label={t("audit.filters.to")} />
           <div className="flex gap-2">
@@ -73,7 +91,13 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         </form>
       </Card>
       {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
-      {!error && rows.length === 0 ? (filtered ? <NoResults title={t("audit.noResults")} /> : <EmptyState title={t("audit.empty")} />) : null}
+      {!error && rows.length === 0 ? (
+        filtered ? (
+          <NoResults title={t("audit.noResults")} />
+        ) : (
+          <EmptyState title={t("audit.empty")} />
+        )
+      ) : null}
       {rows.length > 0 ? (
         <Card className="p-0 md:p-0">
           <Table>
@@ -90,23 +114,30 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                 <tr key={r.id}>
                   <Td className="whitespace-nowrap text-muted">{formatDateTime(r.at)}</Td>
                   <Td>
-                    <span className="block font-medium">{r.actor_id ? (names.get(r.actor_id) ?? t("audit.unknownActor")) : t("audit.system")}</span>
+                    <span className="block font-medium">
+                      {r.actor_id ? (names.get(r.actor_id) ?? t("audit.unknownActor")) : t("audit.system")}
+                    </span>
                     <span className="block text-xs text-muted">
                       {r.actor_role}
                       {r.ip ? ` · ${r.ip}` : ""}
                     </span>
                   </Td>
                   <Td>
-                    <Badge family="progress">{r.action}</Badge>{" "}
-                    <span className="text-sm">{r.entity_type}</span>
-                    {r.entity_id ? <span className="block max-w-48 truncate font-mono text-xs text-muted">{r.entity_id}</span> : null}
+                    <Badge family="progress">{r.action}</Badge> <span className="text-sm">{r.entity_type}</span>
+                    {r.entity_id ? (
+                      <span className="block max-w-48 truncate font-mono text-xs text-muted">{r.entity_id}</span>
+                    ) : null}
                   </Td>
                   <Td>
                     <details>
                       <summary className="cursor-pointer text-sm text-primary">{t("audit.showChange")}</summary>
                       <div className="mt-2 grid gap-2 lg:grid-cols-2">
-                        <pre className="max-h-48 overflow-auto rounded-lg bg-surface-2 p-2 text-xs whitespace-pre-wrap">{r.before ? JSON.stringify(r.before, null, 2) : "—"}</pre>
-                        <pre className="max-h-48 overflow-auto rounded-lg bg-surface-2 p-2 text-xs whitespace-pre-wrap">{r.after ? JSON.stringify(r.after, null, 2) : "—"}</pre>
+                        <pre className="max-h-48 overflow-auto rounded-lg bg-surface-2 p-2 text-xs whitespace-pre-wrap">
+                          {r.before ? JSON.stringify(r.before, null, 2) : "—"}
+                        </pre>
+                        <pre className="max-h-48 overflow-auto rounded-lg bg-surface-2 p-2 text-xs whitespace-pre-wrap">
+                          {r.after ? JSON.stringify(r.after, null, 2) : "—"}
+                        </pre>
                       </div>
                     </details>
                   </Td>
@@ -124,7 +155,9 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
             )}
             {hasMore ? (
               <Button asChild variant="secondary" size="sm">
-                <Link href={`/admin/audit${auditQueryString(f, { before: rows.at(-1)?.id })}`}>{t("common.older")}</Link>
+                <Link href={`/admin/audit${auditQueryString(f, { before: rows.at(-1)?.id })}`}>
+                  {t("common.older")}
+                </Link>
               </Button>
             ) : null}
           </div>

@@ -7,7 +7,11 @@ export async function generateMetadata() {
   return { title: t("auth.noAccess.title") };
 }
 
-export default async function NoAccess({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+export default async function NoAccess({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const t = await getTranslations();
   const creator = (await searchParams).portal === "creator";
   return (
@@ -20,7 +24,10 @@ export default async function NoAccess({ searchParams }: { searchParams: Promise
           {t("auth.useAnother")}
         </Button>
       </form>
-      <Link href={creator ? "/login" : "/login/staff"} className="text-sm text-muted underline-offset-4 hover:underline">
+      <Link
+        href={creator ? "/login" : "/login/staff"}
+        className="text-sm text-muted underline-offset-4 hover:underline"
+      >
         {t("auth.backToSignIn")}
       </Link>
     </div>

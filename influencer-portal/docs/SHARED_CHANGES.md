@@ -49,7 +49,7 @@ headline:
 | # | Setting | Why | Effect on other products |
 | --- | --- | --- | --- |
 | S-13 | **Auth: allow new sign-ups** (if currently off; I can't read this from SQL) | Creator self sign-up (spec 13) and invite acceptance | Anyone can then create an auth account. B2B and B2C already refuse any account not on their allowlists, and the portal refuses accounts without an `inf` profile. **Side effect:** the old CRM's trigger `crm_on_auth_user_created` inserts every new auth user into `public.crm_users` as an **inactive viewer** (no access; `crm_role()` requires `is_active`). Creators will appear there; see risk RK-3 |
-| S-14 | **Auth: redirect URLs** for the portal's domain(s); email OTP template wording that works for every product (or a portal-specific sender through custom SMTP) | Creator email OTP and Google sign-in | Shared templates change for every product, so I'll propose neutral wording |
+| S-14 | **Auth: redirect URLs** for the portal's domain(s); email OTP template wording that works for every product (or a portal-specific sender through custom SMTP) | Creator email OTP and Google sign-in | Shared templates change for every product. Phase 1 found the magic-link template must carry the 6-digit `{{ .Token }}` (creators type the code); the proposed neutral template is `supabase/templates/magic_link.html` |
 | S-15 | **Auth: leaked-password protection on** (currently off, per the security advisor) | Staff password sign-in (spec 19) | Stronger passwords for every product |
 
 ## E. Existing exposures found (not caused by the portal; flagged under HARD STOP 3)

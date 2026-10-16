@@ -5,7 +5,12 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { setStaffStatus, signOutStaffEverywhere } from "@/lib/actions/staff";
@@ -14,7 +19,19 @@ import { StaffDialog, type StaffFormValues } from "./staff-dialog";
 
 type Pending = { kind: "suspend" | "reactivate" | "signout" } | null;
 
-export function StaffRowActions({ userId, values, status, isSelf, name }: { userId: string; values: StaffFormValues; status: string; isSelf: boolean; name: string }) {
+export function StaffRowActions({
+  userId,
+  values,
+  status,
+  isSelf,
+  name,
+}: {
+  userId: string;
+  values: StaffFormValues;
+  status: string;
+  isSelf: boolean;
+  name: string;
+}) {
   const t = useTranslations();
   const [confirm, setConfirm] = useState<Pending>(null);
   const [reason, setReason] = useState("");
@@ -30,7 +47,15 @@ export function StaffRowActions({ userId, values, status, isSelf, name }: { user
     });
   return (
     <div className="flex justify-end gap-1">
-      <StaffDialog invite={false} initial={values} trigger={<Button variant="ghost" size="sm">{t("common.edit")}</Button>} />
+      <StaffDialog
+        invite={false}
+        initial={values}
+        trigger={
+          <Button variant="ghost" size="sm">
+            {t("common.edit")}
+          </Button>
+        }
+      />
       {!isSelf ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -42,15 +67,23 @@ export function StaffRowActions({ userId, values, status, isSelf, name }: { user
             {status === "active" ? (
               <DropdownMenuItem onSelect={() => setConfirm({ kind: "suspend" })}>{t("staff.suspend")}</DropdownMenuItem>
             ) : (
-              <DropdownMenuItem onSelect={() => setConfirm({ kind: "reactivate" })}>{t("staff.reactivate")}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setConfirm({ kind: "reactivate" })}>
+                {t("staff.reactivate")}
+              </DropdownMenuItem>
             )}
-            <DropdownMenuItem onSelect={() => setConfirm({ kind: "signout" })}>{t("staff.signOutEverywhere")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setConfirm({ kind: "signout" })}>
+              {t("staff.signOutEverywhere")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
       <Dialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>
         {confirm ? (
-          <DialogContent title={t(`staff.confirm.${confirm.kind}.title`, { name })} description={t(`staff.confirm.${confirm.kind}.body`)} closeLabel={t("common.close")}>
+          <DialogContent
+            title={t(`staff.confirm.${confirm.kind}.title`, { name })}
+            description={t(`staff.confirm.${confirm.kind}.body`)}
+            closeLabel={t("common.close")}
+          >
             <div className="flex flex-col gap-4">
               <Field id="reason" label={t("staff.fields.reason")} required>
                 <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} />
@@ -64,7 +97,9 @@ export function StaffRowActions({ userId, values, status, isSelf, name }: { user
                   disabled={pending || reason.trim().length < 3}
                   onClick={() =>
                     run(() =>
-                      confirm.kind === "signout" ? signOutStaffEverywhere(userId, reason) : setStaffStatus(userId, confirm.kind === "suspend" ? "suspended" : "active", reason),
+                      confirm.kind === "signout"
+                        ? signOutStaffEverywhere(userId, reason)
+                        : setStaffStatus(userId, confirm.kind === "suspend" ? "suspended" : "active", reason),
                     )
                   }
                 >

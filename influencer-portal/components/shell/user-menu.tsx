@@ -1,13 +1,40 @@
 "use client";
 import Link from "next/link";
 import { LogOut, UserCog } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-export function UserMenu({ name, subtitle, accountHref, signOutTo, labels }: { name: string; subtitle: string; accountHref: string; signOutTo: string; labels: { menu: string; account: string; signOut: string } }) {
-  const initials = name.split(/\s+/).map((p) => p[0] ?? "").join("").slice(0, 2).toUpperCase();
+export function UserMenu({
+  name,
+  subtitle,
+  accountHref,
+  signOutTo,
+  labels,
+}: {
+  name: string;
+  subtitle: string;
+  accountHref: string;
+  signOutTo: string;
+  labels: { menu: string; account: string; signOut: string };
+}) {
+  const initials = name
+    .split(/\s+/)
+    .map((p) => p[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex size-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-on-primary" aria-label={labels.menu}>
+      <DropdownMenuTrigger
+        className="flex size-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-on-primary"
+        aria-label={labels.menu}
+      >
         {initials || "?"}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

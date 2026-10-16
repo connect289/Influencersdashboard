@@ -6,9 +6,24 @@ import type { ServerSupabase } from "@/lib/supabase/server";
 import { DeviceList, SessionList, type DeviceRow, type SessionRow } from "./session-list";
 
 /** The Account page body for both portals: who you are, your sessions, and (staff) trusted devices. */
-export async function AccountPage({ supabase, name, email, extra, showDevices }: { supabase: ServerSupabase; name: string; email: string; extra?: React.ReactNode; showDevices: boolean }) {
+export async function AccountPage({
+  supabase,
+  name,
+  email,
+  extra,
+  showDevices,
+}: {
+  supabase: ServerSupabase;
+  name: string;
+  email: string;
+  extra?: React.ReactNode;
+  showDevices: boolean;
+}) {
   const t = await getTranslations();
-  const [sessions, devices] = await Promise.all([supabase.rpc("my_sessions"), showDevices ? supabase.rpc("my_devices") : Promise.resolve({ data: [], error: null })]);
+  const [sessions, devices] = await Promise.all([
+    supabase.rpc("my_sessions"),
+    showDevices ? supabase.rpc("my_devices") : Promise.resolve({ data: [], error: null }),
+  ]);
   return (
     <>
       <PageHeader title={t("account.title")} description={t("account.subtitle")} />
@@ -29,12 +44,20 @@ export async function AccountPage({ supabase, name, email, extra, showDevices }:
         </Card>
         <Card>
           <CardHeader title={t("account.sessions.title")} description={t("account.sessions.subtitle")} />
-          {sessions.error ? <ErrorState title={t("errors.loadFailed")} /> : <SessionList sessions={sessions.data as SessionRow[]} />}
+          {sessions.error ? (
+            <ErrorState title={t("errors.loadFailed")} />
+          ) : (
+            <SessionList sessions={sessions.data as SessionRow[]} />
+          )}
         </Card>
         {showDevices ? (
           <Card>
             <CardHeader title={t("account.devices.title")} description={t("account.devices.subtitle")} />
-            {devices.error ? <ErrorState title={t("errors.loadFailed")} /> : <DeviceList devices={devices.data as DeviceRow[]} />}
+            {devices.error ? (
+              <ErrorState title={t("errors.loadFailed")} />
+            ) : (
+              <DeviceList devices={devices.data as DeviceRow[]} />
+            )}
           </Card>
         ) : null}
       </div>

@@ -161,7 +161,8 @@ export const SETTINGS = {
     }),
     default: {
       witty_whatsapp_number: "919643977407",
-      deep_link_template: "Hi Eduwit! I saw {creator_name}'s post about {programme}. My access code is {access_code} (ref {code})",
+      deep_link_template:
+        "Hi Eduwit! I saw {creator_name}'s post about {programme}. My access code is {access_code} (ref {code})",
       issue_witty_access_codes: true,
       utm_source: "influencer",
       short_link_base: "https://creators.eduwit.in/r/",
@@ -224,7 +225,10 @@ export const SETTINGS = {
     label: "Signing and reminders",
     description: "OTP channels and limits, negotiation reminders, expiry reminders and the legal-review gate.",
     schema: z.strictObject({
-      otp_channels: z.array(z.enum(["email", "whatsapp"])).min(1).max(2),
+      otp_channels: z
+        .array(z.enum(["email", "whatsapp"]))
+        .min(1)
+        .max(2),
       otp_expiry_minutes: z.number().int().min(2).max(30),
       otp_max_attempts: z.number().int().min(1).max(10),
       otp_resend_cooldown_seconds: z.number().int().min(15).max(600),
@@ -253,7 +257,16 @@ export const SETTINGS = {
     description: "Revision limits, disclosure rules per platform and metric checkpoints.",
     schema: z.strictObject({
       default_revision_limit: z.number().int().min(0).max(20),
-      metric_checkpoints_hours: z.array(z.number().int().min(1).max(24 * 90)).min(1).max(6),
+      metric_checkpoints_hours: z
+        .array(
+          z
+            .number()
+            .int()
+            .min(1)
+            .max(24 * 90),
+        )
+        .min(1)
+        .max(6),
       disclosure_terms: z.array(z.string().min(2).max(60)).min(1).max(20),
       disclosure_required_platforms: z.array(
         z.enum(["instagram", "youtube", "facebook", "linkedin", "x", "telegram", "moj_josh", "other"]),
@@ -263,7 +276,16 @@ export const SETTINGS = {
       default_revision_limit: 2,
       metric_checkpoints_hours: [24, 168, 720],
       disclosure_terms: ["#ad", "#collab", "#sponsored", "paid partnership"],
-      disclosure_required_platforms: ["instagram", "youtube", "facebook", "linkedin", "x", "telegram", "moj_josh", "other"],
+      disclosure_required_platforms: [
+        "instagram",
+        "youtube",
+        "facebook",
+        "linkedin",
+        "x",
+        "telegram",
+        "moj_josh",
+        "other",
+      ],
     },
     edit: "settings.write",
   }),

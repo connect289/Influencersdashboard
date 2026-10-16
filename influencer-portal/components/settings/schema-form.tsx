@@ -30,13 +30,29 @@ function scalarText(v: Value): string {
 function baseType(s: JsonSchema): { type: string; nullable: boolean; schema: JsonSchema } {
   if (s.anyOf) {
     const nonNull = s.anyOf.find((x) => x.type !== "null") ?? {};
-    return { type: String(nonNull.type ?? "string"), nullable: s.anyOf.some((x) => x.type === "null"), schema: nonNull };
+    return {
+      type: String(nonNull.type ?? "string"),
+      nullable: s.anyOf.some((x) => x.type === "null"),
+      schema: nonNull,
+    };
   }
   if (s.const !== undefined) return { type: "const", nullable: false, schema: s };
   return { type: Array.isArray(s.type) ? String(s.type[0]) : (s.type ?? "string"), nullable: false, schema: s };
 }
 
-export function SchemaFields({ schema, value, onChange, disabled, idPrefix }: { schema: JsonSchema; value: Record<string, Value>; onChange: (v: Record<string, Value>) => void; disabled: boolean; idPrefix: string }) {
+export function SchemaFields({
+  schema,
+  value,
+  onChange,
+  disabled,
+  idPrefix,
+}: {
+  schema: JsonSchema;
+  value: Record<string, Value>;
+  onChange: (v: Record<string, Value>) => void;
+  disabled: boolean;
+  idPrefix: string;
+}) {
   const t = useTranslations();
   const label = (prop: string) => (t.has(`settingFields.${prop}`) ? t(`settingFields.${prop}`) : prop);
   return (
@@ -50,7 +66,13 @@ export function SchemaFields({ schema, value, onChange, disabled, idPrefix }: { 
           return (
             <fieldset key={prop} className="rounded-xl border border-line p-3 sm:col-span-2">
               <legend className="px-1 text-sm font-medium">{label(prop)}</legend>
-              <SchemaFields schema={s} value={(v ?? {}) as Record<string, Value>} onChange={set} disabled={disabled} idPrefix={id} />
+              <SchemaFields
+                schema={s}
+                value={(v ?? {}) as Record<string, Value>}
+                onChange={set}
+                disabled={disabled}
+                idPrefix={id}
+              />
             </fieldset>
           );
         }
@@ -75,8 +97,17 @@ export function SchemaFields({ schema, value, onChange, disabled, idPrefix }: { 
                   {items.enum.map((opt) => {
                     const on = arr.includes(opt);
                     return (
-                      <label key={String(opt)} className={`flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-sm ring-1 ring-inset ${on ? "bg-primary-soft text-primary ring-primary" : "ring-line-strong"}`}>
-                        <input type="checkbox" className="sr-only" checked={on} disabled={disabled} onChange={() => set(on ? arr.filter((x) => x !== opt) : [...arr, opt])} />
+                      <label
+                        key={String(opt)}
+                        className={`flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-sm ring-1 ring-inset ${on ? "bg-primary-soft text-primary ring-primary" : "ring-line-strong"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={on}
+                          disabled={disabled}
+                          onChange={() => set(on ? arr.filter((x) => x !== opt) : [...arr, opt])}
+                        />
                         {t.has(`settingOptions.${String(opt)}`) ? t(`settingOptions.${String(opt)}`) : String(opt)}
                       </label>
                     );
@@ -96,7 +127,15 @@ export function SchemaFields({ schema, value, onChange, disabled, idPrefix }: { 
                   defaultValue={arr.join(", ")}
                   disabled={disabled}
                   inputMode="numeric"
-                  onBlur={(e) => set(e.target.value.split(/[,\s]+/).filter(Boolean).map(Number).filter((n) => Number.isFinite(n)))}
+                  onBlur={(e) =>
+                    set(
+                      e.target.value
+                        .split(/[,\s]+/)
+                        .filter(Boolean)
+                        .map(Number)
+                        .filter((n) => Number.isFinite(n)),
+                    )
+                  }
                 />
                 <p className="text-xs text-muted">{t("settings.commaHint")}</p>
               </div>
@@ -107,7 +146,19 @@ export function SchemaFields({ schema, value, onChange, disabled, idPrefix }: { 
               <label htmlFor={id} className="text-sm font-medium">
                 {label(prop)}
               </label>
-              <Textarea id={id} defaultValue={arr.join("\n")} disabled={disabled} onBlur={(e) => set(e.target.value.split("\n").map((x) => x.trim()).filter(Boolean))} />
+              <Textarea
+                id={id}
+                defaultValue={arr.join("\n")}
+                disabled={disabled}
+                onBlur={(e) =>
+                  set(
+                    e.target.value
+                      .split("\n")
+                      .map((x) => x.trim())
+                      .filter(Boolean),
+                  )
+                }
+              />
               <p className="text-xs text-muted">{t("settings.linesHint")}</p>
             </div>
           );
@@ -132,7 +183,11 @@ export function SchemaFields({ schema, value, onChange, disabled, idPrefix }: { 
           return (
             <div key={prop} className="flex flex-col gap-1.5">
               <span className="text-sm font-medium">{label(prop)}</span>
-              <span className="text-sm text-muted">{t.has(`settingOptions.${String(sub.const)}`) ? t(`settingOptions.${String(sub.const)}`) : String(sub.const)}</span>
+              <span className="text-sm text-muted">
+                {t.has(`settingOptions.${String(sub.const)}`)
+                  ? t(`settingOptions.${String(sub.const)}`)
+                  : String(sub.const)}
+              </span>
             </div>
           );
         }
@@ -162,7 +217,13 @@ export function SchemaFields({ schema, value, onChange, disabled, idPrefix }: { 
             <label htmlFor={id} className="text-sm font-medium">
               {label(prop)}
             </label>
-            <Input id={id} value={scalarText(v)} maxLength={s.maxLength} disabled={disabled} onChange={(e) => set(e.target.value)} />
+            <Input
+              id={id}
+              value={scalarText(v)}
+              maxLength={s.maxLength}
+              disabled={disabled}
+              onChange={(e) => set(e.target.value)}
+            />
           </div>
         );
       })}

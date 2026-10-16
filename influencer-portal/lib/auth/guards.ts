@@ -67,7 +67,9 @@ export async function requireStaff(permission?: Permission): Promise<{ supabase:
   const staff = toStaffMe(me);
   if (!staff) return signOutWith(supabase, "/no-access");
   if (permission && !staff.permissions.has(permission)) notFound();
-  void supabase.rpc("session_touch").then(({ error }) => error && log.warn("session_touch.failed", { error: error.message }));
+  void supabase
+    .rpc("session_touch")
+    .then(({ error }) => error && log.warn("session_touch.failed", { error: error.message }));
   return { supabase, me: staff };
 }
 
@@ -88,7 +90,9 @@ export async function requireCreator(): Promise<{ supabase: ServerSupabase; me: 
   if (me.session?.revoked) return signOutWith(supabase, "/login?reason=revoked");
   const creator = toCreatorMe(me);
   if (!creator || !me.session?.verified) return signOutWith(supabase, "/no-access?portal=creator");
-  void supabase.rpc("session_touch").then(({ error }) => error && log.warn("session_touch.failed", { error: error.message }));
+  void supabase
+    .rpc("session_touch")
+    .then(({ error }) => error && log.warn("session_touch.failed", { error: error.message }));
   return { supabase, me: creator };
 }
 
@@ -97,7 +101,8 @@ export async function assertStaff(permission?: Permission): Promise<{ supabase: 
   const supabase = await createClient();
   const me = await fetchMe(supabase);
   const staff = toStaffMe(me);
-  if (!staff || !me.session?.verified || me.session.revoked) throw new ForbiddenError("Your session has ended. Sign in again.");
+  if (!staff || !me.session?.verified || me.session.revoked)
+    throw new ForbiddenError("Your session has ended. Sign in again.");
   if (permission && !staff.permissions.has(permission)) throw new ForbiddenError();
   return { supabase, me: staff };
 }
@@ -106,6 +111,7 @@ export async function assertCreator(): Promise<{ supabase: ServerSupabase; me: C
   const supabase = await createClient();
   const me = await fetchMe(supabase);
   const creator = toCreatorMe(me);
-  if (!creator || !me.session?.verified || me.session.revoked) throw new ForbiddenError("Your session has ended. Sign in again.");
+  if (!creator || !me.session?.verified || me.session.revoked)
+    throw new ForbiddenError("Your session has ended. Sign in again.");
   return { supabase, me: creator };
 }

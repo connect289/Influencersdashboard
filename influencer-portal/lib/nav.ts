@@ -15,7 +15,12 @@ export interface StaffNavItem {
 export const STAFF_NAV: StaffNavItem[] = [
   { href: "/admin", labelKey: "nav.admin.overview", icon: "home" },
   { href: "/admin/staff", labelKey: "nav.admin.staff", icon: "users", anyOf: ["staff.manage"] },
-  { href: "/admin/settings", labelKey: "nav.admin.settings", icon: "settings", anyOf: ["settings.read", "settings.write", "tax.manage", "tier.manage"] },
+  {
+    href: "/admin/settings",
+    labelKey: "nav.admin.settings",
+    icon: "settings",
+    anyOf: ["settings.read", "settings.write", "tax.manage", "tier.manage"],
+  },
   { href: "/admin/audit", labelKey: "nav.admin.audit", icon: "scroll", anyOf: ["audit.read"] },
   { href: "/admin/system", labelKey: "nav.admin.system", icon: "activity", anyOf: ["system.read"] },
 ];

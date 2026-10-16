@@ -2,11 +2,27 @@ import { z } from "zod";
 
 /** Filters for the audit log viewer, parsed from the URL (never trusted). */
 export const auditFilterSchema = z.object({
-  entity: z.string().regex(/^[a-z_]{2,40}$/).optional().catch(undefined),
-  action: z.string().regex(/^[a-z_]{2,40}$/).optional().catch(undefined),
+  entity: z
+    .string()
+    .regex(/^[a-z_]{2,40}$/)
+    .optional()
+    .catch(undefined),
+  action: z
+    .string()
+    .regex(/^[a-z_]{2,40}$/)
+    .optional()
+    .catch(undefined),
   actor: z.uuid().optional().catch(undefined),
-  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined),
-  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .catch(undefined),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .catch(undefined),
   before: z.coerce.number().int().positive().optional().catch(undefined),
 });
 export type AuditFilter = z.infer<typeof auditFilterSchema>;
@@ -26,7 +42,8 @@ export function istDayEnd(day: string): string {
 export function auditQueryString(f: AuditFilter, overrides: Partial<AuditFilter> = {}): string {
   const merged = { ...f, ...overrides };
   const p = new URLSearchParams();
-  for (const [k, v] of Object.entries(merged) as [string, string | number | undefined][]) if (v !== undefined) p.set(k, String(v));
+  for (const [k, v] of Object.entries(merged) as [string, string | number | undefined][])
+    if (v !== undefined) p.set(k, String(v));
   const s = p.toString();
   return s ? `?${s}` : "";
 }

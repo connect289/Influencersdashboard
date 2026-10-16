@@ -34,13 +34,19 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
         template: {
           name: m.template,
           language: { code: m.language },
-          components: m.params.length ? [{ type: "body", parameters: m.params.map((text) => ({ type: "text", text })) }] : [],
+          components: m.params.length
+            ? [{ type: "body", parameters: m.params.map((text) => ({ type: "text", text })) }]
+            : [],
         },
       }),
       signal: AbortSignal.timeout(15_000),
     });
     const body = (await res.json().catch(() => ({}))) as { messages?: { id?: string }[]; error?: { message?: string } };
-    if (!res.ok) throw new ProviderError(`Meta ${res.status}: ${body.error?.message ?? "error"}`, res.status >= 500 || res.status === 429);
+    if (!res.ok)
+      throw new ProviderError(
+        `Meta ${res.status}: ${body.error?.message ?? "error"}`,
+        res.status >= 500 || res.status === 429,
+      );
     return { provider: this.name, id: body.messages?.[0]?.id ?? null };
   }
 }

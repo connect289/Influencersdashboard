@@ -2,7 +2,8 @@
 // passwords, phone numbers or email addresses.
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 } as const;
 type Level = keyof typeof LEVELS;
-const SENSITIVE = /pass(word)?|token|secret|code|otp|authorization|cookie|phone|email|pan|account|ifsc/i;
+// Keys whose values are never logged: secrets, one-time codes, contact details, PAN and bank data.
+const SENSITIVE = /^(code|otp)$|pass(word)?|token|secret|authorization|cookie|phone|email|^pan$|account|ifsc/i;
 
 function threshold(): number {
   const l = process.env.LOG_LEVEL;
@@ -19,7 +20,12 @@ export function redact(value: unknown, depth = 0): unknown {
 
 function write(level: Level, event: string, fields: Record<string, unknown> = {}): void {
   if (LEVELS[level] < threshold()) return;
-  const line = JSON.stringify({ t: new Date().toISOString(), level, event, ...(redact(fields) as Record<string, unknown>) });
+  const line = JSON.stringify({
+    t: new Date().toISOString(),
+    level,
+    event,
+    ...(redact(fields) as Record<string, unknown>),
+  });
   if (level === "error") console.error(line);
   else if (level === "warn") console.warn(line);
   else console.info(line);

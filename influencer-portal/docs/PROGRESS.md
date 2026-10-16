@@ -2,8 +2,8 @@
 
 ## Now
 
-- **Current phase:** Phase 1 (Foundation), in progress.
-- **Current step:** 1.1 scaffold.
+- **Current phase:** Phase 2 (Creators and campaigns), starting.
+- **Phase 1:** complete and tagged `phase-1-done` (summary below).
 - **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
   the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
   first name + initial, the stage mapping and the integration contracts. Tagged `phase-0-done`.
@@ -23,6 +23,59 @@
 | 1.5 | Design tokens and components (empty, loading, error states), admin shell (sidebar, ⌘K), creator shell (bottom nav, PWA), settings screens, audit log viewer, staff and roles, system status, account and sessions | `app/globals.css`, `components/ui/*`, `app/(admin)/*`, `app/(creator)/*` | component units; Playwright role guards, mobile |
 | 1.6 | Notification adapters (SMTP, Resend, Brevo, Meta Cloud, Mock) and delivery queue; seed framework (local only); Playwright suite; phase gate | `lib/notify/*`, `scripts/seed.ts`, `e2e/*` | units for adapters; gate |
 
+
+### Phase 1 requirement checklist (spec Section 22, Phase 1, plus the spec sections it touches)
+
+| Requirement | Status | Where / note |
+| --- | --- | --- |
+| Project scaffold (Next 16, TypeScript strict, no `any`) | Done | `package.json`, `tsconfig.json`, ESLint strict-type-checked with `no-explicit-any` |
+| CI | Done | `.github/workflows/influencer-portal-ci.yml`: typecheck, lint, format, unit, build, audit, pgTAP on a local Supabase, types drift, Playwright |
+| Env handling | Done | `lib/env.ts` (zod; refuses mismatched project keys, mock email in production), `.env.example` documents every variable |
+| Staff auth: Google or password, emailed code always (also after Google) | Done | `app/(auth)/*`, `inf.mfa_issue/verify`, trusted devices; Google path built, not exercisable locally (needs a Google OAuth client, HARD STOP 4) |
+| Creator auth: email OTP or Google | Done | OTP for invited accounts; Google with linking by verified email |
+| Creator phone OTP (optional) | Deferred | Needs an SMS/WhatsApp provider (HARD STOP 4) |
+| Roles and the permission matrix as single source of truth for RLS and UI | Done | `lib/auth/permissions.ts` → generated `inf.role_permissions`; `inf.has_perm`; UI hides items (`lib/nav.ts`) |
+| Layouts for both portals | Done | Admin: sidebar, ⌘K, mobile drawer. Creator: mobile-first with bottom nav, PWA manifest and service worker |
+| Settings framework (typed keys, schema per key, who/when) | Done | Registry → generated definitions; DB validates JSON Schema; versions, history, confirmation for CA/counsel items |
+| Audit log | Done | `inf.audit_log` (append-only), row trigger with changed keys only, viewer with filters |
+| Notification adapter skeleton | Done | Email (SMTP, Resend, Brevo, mock), WhatsApp (Meta, mock), in-app rows, delivery queue, job runner |
+| Storage buckets | Done | Seven `inf-*` buckets; object policies arrive with the features that upload |
+| Base schema and RLS with tests | Done | 7 migrations; RLS on every table; 142 pgTAP assertions incl. per-role access, privileges equal declared list, shared-table isolation |
+| Design system and components | Done | Tokens from the logo with a WCAG contrast test (both themes); empty/loading/error/no-results states. Data grid: Deferred to Phase 2 (D-35) |
+| Seed framework | Done | `scripts/seed.ts`: local only, idempotent, staff for every role, creators in five states, demo terms |
+| Session timeout, device/session list, remote logout (spec 19) | Done | DB-enforced idle limit, account page, staff "sign out everywhere" |
+| Rate limiting, CSP, security headers (spec 19) | Done | `inf.rate_check`, nonce CSP with `strict-dynamic`, HSTS, frame denial |
+| i18n with next-intl, every string externalised (spec 3) | Done | `messages/en.json` with a key coverage test |
+| `/api/health`, `/api/metrics/summary` (spec 18) | Done | Booleans only on the public health check; metrics need the internal key |
+| Observability: Sentry | Deferred | Needs a DSN (HARD STOP 4); structured redacted logs, request ids, system status page are in place |
+| Phase gate: migrations on a fresh database and on the production-schema copy | Done | Each reset builds from nothing: shared baseline (the production copy) + all `inf` migrations; the baseline's guard proven to abort on a database that has the shared objects |
+| Phase gate: typecheck, lint, unit, RLS, Playwright green | Done | 405 unit tests, 142 pgTAP assertions, 19 Playwright journeys |
+| Phase gate: seed works | Done | Run twice in a row and in every e2e run |
+
+### Phase 1 summary
+
+- **Built:** the foundation above. Screens: staff and creator sign-in, verify code, password set/reset, no-access,
+  admin overview (setup checklist from real configuration), staff and roles, settings, audit log, system status,
+  account and sessions (both portals), creator home with action centre, terms acceptance, offline page.
+- **Decisions:** D-20 to D-35 in `DECISIONS.md`. Notable: client grants as data (Supabase defaults otherwise expose
+  every new function to `anon`), DB-enforced idle timeout, per-IP vs per-email rate limits, the staging service key
+  found in this environment and guarded against (D-32).
+- **Known issues / notes:** Google sign-in and phone OTP need external setup; Sentry needs a DSN; the not-found page
+  for hidden screens returns HTTP 200 under streaming (D-30); local Supabase uses Docker Hub images (D-24).
+
+## Phase 2: Creators and campaigns
+
+### Plan
+
+| Step | What | Main files | Tests |
+| --- | --- | --- | --- |
+| 2.1 | Creator profile completion: platforms, rate cards, portfolio, family/self contact hashes; KYC with PAN and bank encrypted (Vault key), masked display, Finance reveal (audited), verification workflow | `supabase/migrations/2026101800*_inf_creators.sql`, `app/(creator)/creator/profile/*`, `app/(admin)/admin/creators/[id]/*` | pgTAP: KYC visible only masked except Finance; encryption round-trip; creators see only own |
+| 2.2 | Agencies, members, creator-granted permissions (view, act on deliverables, negotiate/sign, view earnings) | agency tables + RLS helper `inf.agency_can()` | pgTAP per grant |
+| 2.3 | Admin creator CRM: server-paginated grid (TanStack) with saved filters and views, kanban pipeline (dnd-kit), Creator 360° (profile, platforms, KYC status, outreach, tasks, audit), bulk CSV import with validation and dedupe (handle/phone/email) and error report, bulk invite/tag/owner, outreach log, follow-ups widget, tasks | `app/(admin)/admin/creators/*`, `components/data-grid/*` | unit: CSV parser and dedupe; Playwright: import + invite |
+| 2.4 | Invitations (auth account + email), self sign-up page and onboarding wizard (profile, platforms, KYC, terms, compliance mini-course and quiz), admin approval with auto-approval rule | `app/(auth)/signup/*`, `app/(creator)/creator/onboarding/*` | Playwright journey 1 |
+| 2.5 | Campaigns (builder, programmes from catalog, eligibility rules, visibility, slots, budget), marketplace for eligible creators, invites (accept/decline/counter), applications (pitch, proposed terms, samples), review (shortlist/accept/reject with reason templates/counter) with negotiation threads and structured counter-offers | `app/(admin)/admin/campaigns/*`, `app/(creator)/creator/campaigns/*` | pgTAP: eligibility-limited marketplace visibility; Playwright: apply → counter → accept (deal auto-creation lands in Phase 3) |
+| 2.6 | Media kit (web page + PDF) from profile data | `app/(admin)/admin/creators/[id]/media-kit`, `lib/pdf/*` | unit snapshot of PDF data |
+| 2.7 | Phase gate | | |
 
 ## Phase 0: Discovery and design
 

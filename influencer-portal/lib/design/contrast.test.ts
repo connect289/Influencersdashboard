@@ -8,7 +8,9 @@ const css = readFileSync(join(import.meta.dirname, "..", "..", "app", "globals.c
 function block(selector: string): Record<string, string> {
   const start = css.indexOf(`${selector} {`);
   const body = css.slice(start, css.indexOf("}", start));
-  return Object.fromEntries([...body.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1] ?? "", (m[2] ?? "").toLowerCase()]));
+  return Object.fromEntries(
+    [...body.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1] ?? "", (m[2] ?? "").toLowerCase()]),
+  );
 }
 
 function luminance(hex: string): number {

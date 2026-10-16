@@ -12,7 +12,14 @@ import { passwordLinkEmail, staffCodeEmail } from "@/lib/notify/templates";
 import { formText } from "@/lib/forms";
 import { rateLimit } from "@/lib/rate-limit";
 import { requestContext } from "@/lib/request-context";
-import { breachedPassword, DEVICE_COOKIE, DEVICE_COOKIE_DAYS, PASSWORD_MAX, PASSWORD_MIN, safeNext } from "@/lib/security";
+import {
+  breachedPassword,
+  DEVICE_COOKIE,
+  DEVICE_COOKIE_DAYS,
+  PASSWORD_MAX,
+  PASSWORD_MIN,
+  safeNext,
+} from "@/lib/security";
 import { adminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,7 +30,14 @@ const emailSchema = z.email().max(254);
 type SignInMethod = "password" | "google" | "email_otp" | "email_code" | "trusted_device" | "magic_link";
 type Outcome = "ok" | "failed" | "refused" | "locked";
 
-async function record(email: string, portal: "staff" | "creator", method: SignInMethod, outcome: Outcome, reason: string | null, userId?: string) {
+async function record(
+  email: string,
+  portal: "staff" | "creator",
+  method: SignInMethod,
+  outcome: Outcome,
+  reason: string | null,
+  userId?: string,
+) {
   const ctx = await requestContext();
   const { error } = await adminClient().rpc("sign_in_record", {
     p_email: email,
@@ -49,7 +63,10 @@ const staffCredentials = z.object({ email: emailSchema, password: z.string().min
 
 export async function staffSignIn(_: FormState, form: FormData): Promise<FormState> {
   const t = await getTranslations();
-  const parsed = staffCredentials.safeParse({ email: formText(form, "email").trim().toLowerCase(), password: formText(form, "password") });
+  const parsed = staffCredentials.safeParse({
+    email: formText(form, "email").trim().toLowerCase(),
+    password: formText(form, "password"),
+  });
   if (!parsed.success) return { error: t("auth.errors.invalidCredentialsFormat") };
   const { email, password } = parsed.data;
   const next = safeNext(formText(form, "next"), "/admin");
@@ -104,7 +121,11 @@ export async function sendStaffCode(_: FormState): Promise<FormState> {
   }
   const to = me.email ?? "";
   try {
-    await emailProvider().send({ ...staffCodeEmail(r.code, me.staff.full_name), to, idempotencyKey: `code:${sessionId}:${Date.now()}` });
+    await emailProvider().send({
+      ...staffCodeEmail(r.code, me.staff.full_name),
+      to,
+      idempotencyKey: `code:${sessionId}:${Date.now()}`,
+    });
   } catch (e) {
     log.error("staff_code.send_failed", { error: errorMessage(e) });
     await record(to, "staff", "email_code", "failed", "mail_failed", userId);
@@ -127,16 +148,20 @@ export async function verifyStaffCode(_: FormState, form: FormData): Promise<For
   if (!limited.ok) return { error: t("auth.errors.tooManyAttempts") };
 
   const ctx = await requestContext();
-  const { data, error } = await supabase.rpc("mfa_verify", { p_code: code, p_trust: trust, p_label: ctx.userAgent?.slice(0, 120) ?? undefined });
+  const { data, error } = await supabase.rpc("mfa_verify", {
+    p_code: code,
+    p_trust: trust,
+    p_label: ctx.userAgent?.slice(0, 120) ?? undefined,
+  });
   const r = data as { ok: boolean; error?: string; attempts_left?: number; device_token?: string | null } | null;
   if (error || !r) return { error: t("auth.errors.unavailable") };
   if (!r.ok) {
-    await record((claims.claims.email ?? ""), "staff", "email_code", "failed", r.error ?? "invalid", userId);
+    await record(claims.claims.email ?? "", "staff", "email_code", "failed", r.error ?? "invalid", userId);
     if (r.error === "expired") return { error: t("auth.errors.codeExpired") };
     if (r.error === "too_many_attempts") return { error: t("auth.errors.codeLocked") };
     return { error: t("auth.errors.codeWrong", { left: r.attempts_left ?? 0 }) };
   }
-  await record((claims.claims.email ?? ""), "staff", "email_code", "ok", null, userId);
+  await record(claims.claims.email ?? "", "staff", "email_code", "ok", null, userId);
   if (r.device_token) {
     (await cookies()).set(DEVICE_COOKIE, r.device_token, {
       httpOnly: true,
@@ -155,10 +180,15 @@ export async function requestPasswordLink(_: FormState, form: FormData): Promise
   const email = formText(form, "email").trim().toLowerCase();
   if (!emailSchema.safeParse(email).success) return { error: t("auth.errors.emailFormat") };
   const done = { notice: t("auth.password.linkSent") };
-  if (!(await rateLimit("password_link", email)).ok || !(await rateLimit("password_link", await ipKey())).ok) return done;
+  if (!(await rateLimit("password_link", email)).ok || !(await rateLimit("password_link", await ipKey())).ok)
+    return done;
 
   const db = adminClient();
-  const { data: staff } = await db.from("staff_profiles").select("user_id, full_name, status").eq("email", email).maybeSingle();
+  const { data: staff } = await db
+    .from("staff_profiles")
+    .select("user_id, full_name, status")
+    .eq("email", email)
+    .maybeSingle();
   if (!staff || staff.status !== "active") {
     await record(email, "staff", "magic_link", "refused", "not_staff");
     return done;
@@ -207,7 +237,10 @@ export async function creatorSendOtp(_: FormState, form: FormData): Promise<Form
   const t = await getTranslations();
   const email = formText(form, "email").trim().toLowerCase();
   if (!emailSchema.safeParse(email).success) return { error: t("auth.errors.emailFormat") };
-  if (!(await rateLimit("creator_otp_send", await ipKey())).ok || !(await rateLimit("creator_otp_send", email)).ok) {
+  if (
+    !(await rateLimit("creator_otp_send_ip", await ipKey())).ok ||
+    !(await rateLimit("creator_otp_send_email", email)).ok
+  ) {
     return { error: t("auth.errors.tooManyCodes") };
   }
   const supabase = await createClient();
@@ -215,11 +248,17 @@ export async function creatorSendOtp(_: FormState, form: FormData): Promise<Form
   // response is the same for unknown emails, so the form can't be used to discover who is registered.
   const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
   if (error && !/signups not allowed|user not found/i.test(error.message)) {
-    log.warn("creator_otp.send_failed", { code: error.code ?? null, status: error.status ?? null });
+    log.warn("creator_otp.send_failed", { error_code: error.code ?? null, status: error.status ?? null });
     if (error.status === 429) return { error: t("auth.errors.tooManyCodes") };
   }
   await record(email, "creator", "email_otp", error ? "refused" : "ok", error ? "otp_not_sent" : "otp_sent");
-  (await cookies()).set(OTP_EMAIL_COOKIE, email, { httpOnly: true, secure: env().NODE_ENV === "production", sameSite: "lax", path: "/login", maxAge: 15 * 60 });
+  (await cookies()).set(OTP_EMAIL_COOKIE, email, {
+    httpOnly: true,
+    secure: env().NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/login",
+    maxAge: 15 * 60,
+  });
   const next = safeNext(formText(form, "next"), "/creator");
   redirect(`/login/code?next=${encodeURIComponent(next)}`);
 }

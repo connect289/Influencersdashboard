@@ -28,8 +28,12 @@ function withHeader(kind: GeneratedKind, body: string): { sql: string; hash: str
 
 export function permissionMatrixSql(): { sql: string; hash: string } {
   const perms = Object.entries(PERMISSIONS) as [Permission, { area: string; label: string }][];
-  const permValues = perms.map(([k, v]) => `  (${sqlString(k)}, ${sqlString(v.area)}, ${sqlString(v.label)})`).join(",\n");
-  const grants = STAFF_ROLES.flatMap((role) => [...new Set(ROLE_GRANTS[role])].sort().map((p) => `  (${sqlString(role)}, ${sqlString(p)})`));
+  const permValues = perms
+    .map(([k, v]) => `  (${sqlString(k)}, ${sqlString(v.area)}, ${sqlString(v.label)})`)
+    .join(",\n");
+  const grants = STAFF_ROLES.flatMap((role) =>
+    [...new Set(ROLE_GRANTS[role])].sort().map((p) => `  (${sqlString(role)}, ${sqlString(p)})`),
+  );
   const body = [
     "insert into inf.permissions (key, area, label) values",
     permValues,

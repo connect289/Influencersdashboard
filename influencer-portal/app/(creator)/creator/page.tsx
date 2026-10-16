@@ -24,18 +24,35 @@ export default async function CreatorHome() {
   const t = await getTranslations();
   const terms = await supabase.rpc("terms_pending");
   const actions: Action[] = [];
-  if ((terms.data ?? []).length > 0) actions.push({ key: "terms", title: t("home.actions.terms"), hint: t("home.actions.termsHint"), href: "/creator/terms" });
+  if ((terms.data ?? []).length > 0)
+    actions.push({
+      key: "terms",
+      title: t("home.actions.terms"),
+      hint: t("home.actions.termsHint"),
+      href: "/creator/terms",
+    });
   return (
     <>
-      <PageHeader title={t("home.title", { name: me.displayName.split(" ")[0] ?? me.displayName })} description={t("home.subtitle")} />
+      <PageHeader
+        title={t("home.title", { name: me.displayName.split(" ")[0] ?? me.displayName })}
+        description={t("home.subtitle")}
+      />
       <Card>
-        <CardHeader title={t("home.actionCentre")} description={actions.length ? t("home.actionsCount", { count: actions.length }) : undefined} />
+        <CardHeader
+          title={t("home.actionCentre")}
+          description={actions.length ? t("home.actionsCount", { count: actions.length }) : undefined}
+        />
         {terms.error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
-        {!terms.error && actions.length === 0 ? <EmptyState title={t("home.noActions")} description={t("home.noActionsHint")} /> : null}
+        {!terms.error && actions.length === 0 ? (
+          <EmptyState title={t("home.noActions")} description={t("home.noActionsHint")} />
+        ) : null}
         <ul className="flex flex-col gap-2">
           {actions.map((a) => (
             <li key={a.key}>
-              <Link href={a.href} className="flex items-center gap-3 rounded-xl bg-accent-soft px-3 py-3 text-accent-ink hover:opacity-90">
+              <Link
+                href={a.href}
+                className="flex items-center gap-3 rounded-xl bg-accent-soft px-3 py-3 text-accent-ink hover:opacity-90"
+              >
                 <FileCheck2 className="size-5 shrink-0" aria-hidden />
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium">{a.title}</span>

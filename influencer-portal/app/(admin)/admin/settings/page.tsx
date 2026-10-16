@@ -13,11 +13,14 @@ export async function generateMetadata() {
 
 export default async function SettingsPage() {
   const { supabase, me } = await requireStaff();
-  if (!["settings.read", "settings.write", "tax.manage", "tier.manage"].some((p) => me.permissions.has(p as never))) notFound();
+  if (!["settings.read", "settings.write", "tax.manage", "tier.manage"].some((p) => me.permissions.has(p as never)))
+    notFound();
   const t = await getTranslations();
   const { data, error } = await supabase.rpc("settings_list");
-  const rows = ((data ?? []) as (SettingRow & { grp: string })[]);
-  const groups = (Object.keys(SETTING_GROUPS) as SettingGroup[]).map((g) => ({ g, rows: rows.filter((r) => r.grp === g) })).filter((x) => x.rows.length);
+  const rows = (data ?? []) as (SettingRow & { grp: string })[];
+  const groups = (Object.keys(SETTING_GROUPS) as SettingGroup[])
+    .map((g) => ({ g, rows: rows.filter((r) => r.grp === g) }))
+    .filter((x) => x.rows.length);
   return (
     <>
       <PageHeader title={t("nav.admin.settings")} description={t("settings.subtitle")} />

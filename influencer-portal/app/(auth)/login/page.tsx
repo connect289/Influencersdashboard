@@ -11,7 +11,11 @@ export async function generateMetadata() {
   return { title: t("auth.creator.title") };
 }
 
-export default async function CreatorLogin({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+export default async function CreatorLogin({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const t = await getTranslations();
   const sp = await searchParams;
   const next = safeNext(sp.next, "/creator");
@@ -27,7 +31,12 @@ export default async function CreatorLogin({ searchParams }: { searchParams: Pro
       {reason === "expired" ? <Banner tone="info">{t("auth.reasons.codeExpired")}</Banner> : null}
       {googleEnabled ? (
         <>
-          <GoogleButton portal="creator" next={next} label={t("auth.google")} errorLabel={t("auth.errors.googleFailed")} />
+          <GoogleButton
+            portal="creator"
+            next={next}
+            label={t("auth.google")}
+            errorLabel={t("auth.errors.googleFailed")}
+          />
           <div className="flex items-center gap-3 text-xs text-muted" aria-hidden>
             <span className="h-px flex-1 bg-line" />
             {t("auth.or")}

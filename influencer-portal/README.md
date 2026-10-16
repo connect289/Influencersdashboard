@@ -5,7 +5,8 @@ contracts with negotiation and OTP click-sign, briefs, content approval, lead at
 creators, the earnings ledger, TDS and payouts, dashboards, messaging, scorecards and compliance.
 
 - Spec: `docs/INFLUENCER_PORTAL_SPEC.md`
-- Status: **Phase 0 (discovery and design) done; waiting for the owner's approval** (`docs/PROGRESS.md`)
+- Status: **Phase 1 (foundation) done; Phase 2 (creators and campaigns) next** (`docs/PROGRESS.md`)
+- Developer commands and conventions: root `CLAUDE.md`
 - Phase 0 documents: `docs/PHASE0_FINDINGS.md`, `docs/ERD.md`, `docs/SHARED_CHANGES.md`,
   `docs/LEAD_FIELD_WHITELIST.md`, `docs/STAGE_MAPPING.md`, `docs/INTEGRATION_CONTRACTS.md`, `docs/DECISIONS.md`
 - Brand: `docs/brand/palette.md`, `docs/brand/eduwit-logo.jpg`

@@ -8,7 +8,12 @@ export const meSchema = z.object({
   email: z.string().nullable().optional(),
   kind: z.enum(["staff", "creator", "none"]).optional(),
   session: z
-    .object({ registered: z.boolean(), verified: z.boolean(), revoked: z.boolean(), verified_via: z.string().nullable() })
+    .object({
+      registered: z.boolean(),
+      verified: z.boolean(),
+      revoked: z.boolean(),
+      verified_via: z.string().nullable(),
+    })
     .nullable()
     .optional(),
   staff: z

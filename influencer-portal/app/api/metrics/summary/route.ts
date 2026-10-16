@@ -12,5 +12,8 @@ export async function GET(request: NextRequest) {
   if (status.error || creators.error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   const byStatus: Record<string, number> = {};
   for (const c of creators.data) byStatus[c.status] = (byStatus[c.status] ?? 0) + 1;
-  return NextResponse.json({ time: new Date().toISOString(), creators: byStatus, system: status.data }, { headers: { "cache-control": "no-store" } });
+  return NextResponse.json(
+    { time: new Date().toISOString(), creators: byStatus, system: status.data },
+    { headers: { "cache-control": "no-store" } },
+  );
 }

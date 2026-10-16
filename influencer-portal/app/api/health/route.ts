@@ -22,7 +22,12 @@ export async function GET() {
   const checks = { db: health?.db === true, storage, queue: health?.queue_ok === true };
   const ok = checks.db && checks.storage && checks.queue;
   return NextResponse.json(
-    { status: ok ? "ok" : "degraded", checks, version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev", time: new Date().toISOString() },
+    {
+      status: ok ? "ok" : "degraded",
+      checks,
+      version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev",
+      time: new Date().toISOString(),
+    },
     { status: ok ? 200 : 503, headers: { "cache-control": "no-store" } },
   );
 }

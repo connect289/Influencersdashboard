@@ -31,8 +31,26 @@ export interface DeviceRow {
 function deviceName(ua: string | null): { name: string; mobile: boolean } {
   if (!ua) return { name: "", mobile: false };
   const mobile = /Mobile|Android|iPhone|iPad/i.test(ua);
-  const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "";
-  const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : "";
+  const browser = /Edg\//.test(ua)
+    ? "Edge"
+    : /Chrome\//.test(ua)
+      ? "Chrome"
+      : /Firefox\//.test(ua)
+        ? "Firefox"
+        : /Safari\//.test(ua)
+          ? "Safari"
+          : "";
+  const os = /Android/.test(ua)
+    ? "Android"
+    : /iPhone|iPad/.test(ua)
+      ? "iOS"
+      : /Windows/.test(ua)
+        ? "Windows"
+        : /Mac OS X/.test(ua)
+          ? "macOS"
+          : /Linux/.test(ua)
+            ? "Linux"
+            : "";
   return { name: [browser, os].filter(Boolean).join(" on "), mobile };
 }
 
@@ -73,7 +91,12 @@ export function SessionList({ sessions }: { sessions: SessionRow[] }) {
                 </p>
               </div>
               {!s.is_current ? (
-                <Button variant="secondary" size="sm" disabled={pending} onClick={() => run(() => revokeSession(s.session_id))}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => run(() => revokeSession(s.session_id))}
+                >
                   {t("account.sessions.signOut")}
                 </Button>
               ) : null}
@@ -99,8 +122,12 @@ export function DeviceList({ devices }: { devices: DeviceRow[] }) {
       {devices.map((d) => (
         <li key={d.id} className="flex items-center gap-3 py-3">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{deviceName(d.label).name || t("account.sessions.unknownDevice")}</p>
-            <p className="text-xs text-muted">{t("account.devices.trustedUntil", { date: formatDateTime(d.expires_at) })}</p>
+            <p className="truncate text-sm font-medium">
+              {deviceName(d.label).name || t("account.sessions.unknownDevice")}
+            </p>
+            <p className="text-xs text-muted">
+              {t("account.devices.trustedUntil", { date: formatDateTime(d.expires_at) })}
+            </p>
           </div>
           <Button variant="secondary" size="sm" disabled={pending} onClick={() => run(() => revokeDevice(d.id))}>
             {t("account.devices.forget")}

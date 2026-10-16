@@ -28,7 +28,8 @@ function has(key: string): boolean {
 describe("messages", () => {
   const sources = ["app", "components", "lib"].flatMap((d) => files(join(root, d)));
   const keys = new Set<string>();
-  for (const f of sources) for (const m of readFileSync(f, "utf8").matchAll(/\bt\("([a-zA-Z0-9_.]+)"/g)) keys.add(m[1] ?? "");
+  for (const f of sources)
+    for (const m of readFileSync(f, "utf8").matchAll(/\bt\("([a-zA-Z0-9_.]+)"/g)) keys.add(m[1] ?? "");
 
   it("finds keys to check", () => expect(keys.size).toBeGreaterThan(100));
   it.each([...keys])("has %s", (k) => expect(has(k)).toBe(true));
@@ -49,7 +50,8 @@ describe("messages", () => {
       }
       const items = s.items as Record<string, unknown> | undefined;
       if (items) walk(items);
-      for (const e of (s.enum ?? []) as unknown[]) if (typeof e === "string" && /^[a-z_]+$/.test(e)) expect(has(`settingOptions.${e}`), e).toBe(true);
+      for (const e of (s.enum ?? []) as unknown[])
+        if (typeof e === "string" && /^[a-z_]+$/.test(e)) expect(has(`settingOptions.${e}`), e).toBe(true);
       for (const a of (s.anyOf ?? []) as Record<string, unknown>[]) walk(a);
     };
     for (const key of SETTING_KEYS) walk(settingJsonSchema(key));

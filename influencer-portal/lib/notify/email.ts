@@ -49,7 +49,12 @@ export class SmtpEmailProvider implements EmailProvider {
   }
 }
 
-async function postJson(url: string, headers: Record<string, string>, body: unknown, fetchImpl: typeof fetch): Promise<Record<string, unknown>> {
+async function postJson(
+  url: string,
+  headers: Record<string, string>,
+  body: unknown,
+  fetchImpl: typeof fetch,
+): Promise<Record<string, unknown>> {
   const res = await fetchImpl(url, {
     method: "POST",
     headers: { "content-type": "application/json", ...headers },
@@ -57,7 +62,8 @@ async function postJson(url: string, headers: Record<string, string>, body: unkn
     signal: AbortSignal.timeout(15_000),
   });
   const text = await res.text();
-  if (!res.ok) throw new ProviderError(`HTTP ${res.status}: ${text.slice(0, 300)}`, res.status >= 500 || res.status === 429);
+  if (!res.ok)
+    throw new ProviderError(`HTTP ${res.status}: ${text.slice(0, 300)}`, res.status >= 500 || res.status === 429);
   try {
     return JSON.parse(text) as Record<string, unknown>;
   } catch {

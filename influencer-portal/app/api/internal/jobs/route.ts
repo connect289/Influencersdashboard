@@ -18,7 +18,11 @@ export async function POST(request: NextRequest) {
   let done = 0;
   let failed = 0;
   while (Date.now() < deadline) {
-    const { data, error } = await db.rpc("job_claim", { p_worker: worker, p_limit: 10, p_kinds: Object.keys(JOB_HANDLERS) });
+    const { data, error } = await db.rpc("job_claim", {
+      p_worker: worker,
+      p_limit: 10,
+      p_kinds: Object.keys(JOB_HANDLERS),
+    });
     if (error) {
       log.error("jobs.claim_failed", { error: error.message });
       return NextResponse.json({ error: "claim_failed" }, { status: 503 });
@@ -34,7 +38,8 @@ export async function POST(request: NextRequest) {
         done++;
       } catch (e) {
         failed++;
-        if (e instanceof PermanentJobError) await db.from("jobs").update({ max_attempts: job.attempts }).eq("id", job.id);
+        if (e instanceof PermanentJobError)
+          await db.from("jobs").update({ max_attempts: job.attempts }).eq("id", job.id);
         await db.rpc("job_finish", { p_id: job.id, p_ok: false, p_error: errorMessage(e) });
         log.warn("jobs.failed", { id: job.id, kind: job.kind, error: errorMessage(e) });
       }

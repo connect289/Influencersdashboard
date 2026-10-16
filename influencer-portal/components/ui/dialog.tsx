@@ -8,7 +8,19 @@ export const Dialog = D.Root;
 export const DialogTrigger = D.Trigger;
 export const DialogClose = D.Close;
 
-export function DialogContent({ title, description, children, className, closeLabel }: { title: string; description?: string; children: ReactNode; className?: string; closeLabel: string }) {
+export function DialogContent({
+  title,
+  description,
+  children,
+  className,
+  closeLabel,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+  className?: string;
+  closeLabel: string;
+}) {
   return (
     <D.Portal>
       <D.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px]" />
@@ -21,7 +33,11 @@ export function DialogContent({ title, description, children, className, closeLa
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <D.Title className="text-lg font-semibold">{title}</D.Title>
-            {description ? <D.Description className="text-sm text-muted">{description}</D.Description> : <D.Description className="sr-only">{title}</D.Description>}
+            {description ? (
+              <D.Description className="text-sm text-muted">{description}</D.Description>
+            ) : (
+              <D.Description className="sr-only">{title}</D.Description>
+            )}
           </div>
           <D.Close className="rounded-lg p-1 text-muted hover:bg-surface-2" aria-label={closeLabel}>
             <X className="size-5" />

@@ -10,7 +10,13 @@ export function Table({ className, ...props }: ComponentProps<"table">) {
   );
 }
 export function Th({ className, ...props }: ComponentProps<"th">) {
-  return <th scope="col" className={cn("border-b border-line bg-surface px-3 py-2 text-left text-xs font-medium text-muted", className)} {...props} />;
+  return (
+    <th
+      scope="col"
+      className={cn("border-b border-line bg-surface px-3 py-2 text-left text-xs font-medium text-muted", className)}
+      {...props}
+    />
+  );
 }
 export function Td({ className, ...props }: ComponentProps<"td">) {
   return <td className={cn("border-b border-line px-3 py-2.5 align-top", className)} {...props} />;

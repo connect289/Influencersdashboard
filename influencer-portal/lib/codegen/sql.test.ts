@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 import { GENERATORS, latestRecordedHash, sqlString, type GeneratedKind } from "./sql";
 
 const dir = join(import.meta.dirname, "..", "..", "supabase", "migrations");
-const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).map((name) => ({ name, content: readFileSync(join(dir, name), "utf8") }));
+const files = readdirSync(dir)
+  .filter((f) => f.endsWith(".sql"))
+  .map((name) => ({ name, content: readFileSync(join(dir, name), "utf8") }));
 
 describe("generated SQL", () => {
   for (const kind of Object.keys(GENERATORS) as GeneratedKind[]) {

@@ -13,13 +13,19 @@ import { fail, type ActionResult } from "./result";
 
 const staffInput = z
   .object({
-    email: z.email().max(254).transform((v) => v.trim().toLowerCase()),
+    email: z
+      .email()
+      .max(254)
+      .transform((v) => v.trim().toLowerCase()),
     fullName: z.string().trim().min(1).max(120),
     roles: z.array(z.enum(STAFF_ROLES)).min(1),
     isSignatory: z.boolean(),
     designation: z.string().trim().max(120).optional().default(""),
   })
-  .refine((v) => !v.isSignatory || v.designation.length >= 2, { path: ["designation"], message: "designation required" });
+  .refine((v) => !v.isSignatory || v.designation.length >= 2, {
+    path: ["designation"],
+    message: "designation required",
+  });
 export type StaffInput = z.input<typeof staffInput>;
 
 function dbError(e: { message: string } | null, t: (k: string) => string): string {
@@ -34,14 +40,23 @@ function dbError(e: { message: string } | null, t: (k: string) => string): strin
 export async function saveStaff(input: StaffInput, invite: boolean): Promise<ActionResult> {
   const t = await getTranslations();
   const parsed = staffInput.safeParse(input);
-  if (!parsed.success) return fail(parsed.error.issues.some((i) => i.path[0] === "designation") ? t("staff.errors.designation") : t("errors.invalidInput"));
+  if (!parsed.success)
+    return fail(
+      parsed.error.issues.some((i) => i.path[0] === "designation")
+        ? t("staff.errors.designation")
+        : t("errors.invalidInput"),
+    );
   const v = parsed.data;
   try {
     const { supabase } = await assertStaff("staff.manage");
     const admin = adminClient();
     let userId: string | null = (await admin.rpc("auth_user_id_by_email", { p_email: v.email })).data;
     if (!userId) {
-      const created = await admin.auth.admin.createUser({ email: v.email, email_confirm: true, user_metadata: { full_name: v.fullName } });
+      const created = await admin.auth.admin.createUser({
+        email: v.email,
+        email_confirm: true,
+        user_metadata: { full_name: v.fullName },
+      });
       if (created.error) return fail(t("staff.errors.createFailed"));
       userId = created.data.user.id;
     }
@@ -74,15 +89,27 @@ export async function saveStaff(input: StaffInput, invite: boolean): Promise<Act
   }
 }
 
-const statusInput = z.object({ userId: z.uuid(), status: z.enum(["active", "suspended"]), reason: z.string().trim().min(3).max(300) });
+const statusInput = z.object({
+  userId: z.uuid(),
+  status: z.enum(["active", "suspended"]),
+  reason: z.string().trim().min(3).max(300),
+});
 
-export async function setStaffStatus(userId: string, status: "active" | "suspended", reason: string): Promise<ActionResult> {
+export async function setStaffStatus(
+  userId: string,
+  status: "active" | "suspended",
+  reason: string,
+): Promise<ActionResult> {
   const t = await getTranslations();
   const parsed = statusInput.safeParse({ userId, status, reason });
   if (!parsed.success) return fail(t("staff.errors.reason"));
   try {
     const { supabase } = await assertStaff("staff.manage");
-    const { error } = await supabase.rpc("staff_set_status", { p_user: parsed.data.userId, p_status: parsed.data.status, p_reason: parsed.data.reason });
+    const { error } = await supabase.rpc("staff_set_status", {
+      p_user: parsed.data.userId,
+      p_status: parsed.data.status,
+      p_reason: parsed.data.reason,
+    });
     if (error) return fail(/yourself/i.test(error.message) ? t("staff.errors.self") : dbError(error, t));
   } catch (e) {
     return fail(e instanceof ForbiddenError ? e.message : t("errors.generic"));
@@ -93,11 +120,16 @@ export async function setStaffStatus(userId: string, status: "active" | "suspend
 
 export async function signOutStaffEverywhere(userId: string, reason: string): Promise<ActionResult> {
   const t = await getTranslations();
-  const parsed = z.object({ userId: z.uuid(), reason: z.string().trim().min(3).max(300) }).safeParse({ userId, reason });
+  const parsed = z
+    .object({ userId: z.uuid(), reason: z.string().trim().min(3).max(300) })
+    .safeParse({ userId, reason });
   if (!parsed.success) return fail(t("staff.errors.reason"));
   try {
     const { supabase } = await assertStaff("staff.manage");
-    const { data, error } = await supabase.rpc("staff_revoke_all_sessions", { p_user: parsed.data.userId, p_reason: parsed.data.reason });
+    const { data, error } = await supabase.rpc("staff_revoke_all_sessions", {
+      p_user: parsed.data.userId,
+      p_reason: parsed.data.reason,
+    });
     if (error) return fail(dbError(error, t));
     revalidatePath("/admin/staff");
     return { ok: true, message: t("staff.signedOut", { count: data }) };

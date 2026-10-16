@@ -8,7 +8,13 @@ import type { NavLink } from "./nav-links";
 import { ICONS } from "./icons";
 
 /** ⌘K / Ctrl+K: jump to any screen the person can use. Later phases add record search. */
-export function CommandPalette({ links, labels }: { links: NavLink[]; labels: { open: string; placeholder: string; empty: string; title: string; shortcut: string } }) {
+export function CommandPalette({
+  links,
+  labels,
+}: {
+  links: NavLink[];
+  labels: { open: string; placeholder: string; empty: string; title: string; shortcut: string };
+}) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   useEffect(() => {
@@ -40,7 +46,10 @@ export function CommandPalette({ links, labels }: { links: NavLink[]; labels: { 
             <D.Title className="sr-only">{labels.title}</D.Title>
             <D.Description className="sr-only">{labels.placeholder}</D.Description>
             <Command label={labels.title}>
-              <Command.Input placeholder={labels.placeholder} className="h-12 w-full border-b border-line bg-transparent px-4 text-[15px] outline-none" />
+              <Command.Input
+                placeholder={labels.placeholder}
+                className="h-12 w-full border-b border-line bg-transparent px-4 text-[15px] outline-none"
+              />
               <Command.List className="max-h-80 overflow-y-auto p-2">
                 <Command.Empty className="px-3 py-6 text-center text-sm text-muted">{labels.empty}</Command.Empty>
                 {links.map((l) => {

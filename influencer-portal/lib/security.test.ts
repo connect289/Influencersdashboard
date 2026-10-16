@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { breachedPassword, buildCsp, clientIp, isIdleExpired, pwnedCount, pwnedParts, rateIp, rateKey, retryAfter, safeEqual, safeNext } from "./security";
+import {
+  breachedPassword,
+  buildCsp,
+  clientIp,
+  isIdleExpired,
+  pwnedCount,
+  pwnedParts,
+  rateIp,
+  rateKey,
+  retryAfter,
+  safeEqual,
+  safeNext,
+} from "./security";
 
 describe("safeNext", () => {
   it.each([
@@ -34,6 +46,9 @@ describe("CSP", () => {
     expect(csp).not.toContain("unsafe-eval");
     expect(csp).toContain("upgrade-insecure-requests");
   });
+  it("upgrades insecure requests only when asked (never for a plain-http local site)", () => {
+    expect(buildCsp("n", "http://127.0.0.1:54421", false, false)).not.toContain("upgrade-insecure-requests");
+  });
   it("allows eval only in development", () => {
     expect(buildCsp("n", "http://127.0.0.1:54421", true)).toContain("'unsafe-eval'");
   });
@@ -41,7 +56,9 @@ describe("CSP", () => {
 
 describe("client addresses", () => {
   it("prefers the platform header", () => {
-    expect(clientIp(new Headers({ "x-vercel-forwarded-for": "1.2.3.4", "x-forwarded-for": "9.9.9.9" }))).toBe("1.2.3.4");
+    expect(clientIp(new Headers({ "x-vercel-forwarded-for": "1.2.3.4", "x-forwarded-for": "9.9.9.9" }))).toBe(
+      "1.2.3.4",
+    );
   });
   it("rejects junk", () => {
     expect(clientIp(new Headers({ "x-forwarded-for": "<script>" }))).toBeNull();
@@ -84,5 +101,26 @@ describe("breached passwords", () => {
   it("fails open when the service is down", async () => {
     const down = (() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
     expect(await breachedPassword("x", down)).toEqual({ checked: false, breached: false });
+  });
+});
+
+describe("log redaction", () => {
+  it("redacts secrets, codes and contact details but keeps error codes", async () => {
+    const { redact } = await import("./log");
+    expect(
+      redact({
+        code: "123456",
+        error_code: "otp_expired",
+        email: "a@b.c",
+        phone_e164: "+91",
+        nested: { password: "x", status: 429 },
+      }),
+    ).toEqual({
+      code: "[redacted]",
+      error_code: "otp_expired",
+      email: "[redacted]",
+      phone_e164: "[redacted]",
+      nested: { password: "[redacted]", status: 429 },
+    });
   });
 });

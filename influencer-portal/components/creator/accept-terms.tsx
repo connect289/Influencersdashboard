@@ -12,7 +12,12 @@ export function AcceptTerms({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="size-4 accent-[var(--primary)]" />
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(e) => setAgreed(e.target.checked)}
+          className="size-4 accent-[var(--primary)]"
+        />
         {t("terms.agree")}
       </label>
       <Button

@@ -2,7 +2,10 @@
 import type { EmailMessage } from "./types";
 
 export function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
+  return s.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c,
+  );
 }
 
 function layout(title: string, bodyHtml: string): string {
@@ -20,8 +23,11 @@ export function staffCodeEmail(code: string, name: string): Omit<EmailMessage, "
   const safe = /^\d{6}$/.test(code) ? code : "------";
   return {
     subject: `${safe} is your Eduwit sign-in code`,
-    html: layout("Your sign-in code", `<p>Hi ${escapeHtml(name)},</p><p>Enter this code to finish signing in. It expires in 10 minutes and works once.</p>
-<p style="font-size:32px;letter-spacing:6px;font-weight:bold;color:#0B2F5E;margin:20px 0">${safe}</p>`),
+    html: layout(
+      "Your sign-in code",
+      `<p>Hi ${escapeHtml(name)},</p><p>Enter this code to finish signing in. It expires in 10 minutes and works once.</p>
+<p style="font-size:32px;letter-spacing:6px;font-weight:bold;color:#0B2F5E;margin:20px 0">${safe}</p>`,
+    ),
     text: `Hi ${name},\n\nYour Eduwit sign-in code is ${safe}. It expires in 10 minutes and works once.\n\nIf it wasn't you, ignore this email.`,
   };
 }
@@ -29,8 +35,11 @@ export function staffCodeEmail(code: string, name: string): Omit<EmailMessage, "
 export function passwordLinkEmail(link: string, name: string): Omit<EmailMessage, "to"> {
   return {
     subject: "Set your Eduwit portal password",
-    html: layout("Set your password", `<p>Hi ${escapeHtml(name)},</p><p>Use this link to set your password. It works once, for one hour.</p>
-<p style="margin:20px 0"><a href="${escapeHtml(link)}" style="background:#0B2F5E;color:#FFFFFF;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">Set password</a></p>`),
+    html: layout(
+      "Set your password",
+      `<p>Hi ${escapeHtml(name)},</p><p>Use this link to set your password. It works once, for one hour.</p>
+<p style="margin:20px 0"><a href="${escapeHtml(link)}" style="background:#0B2F5E;color:#FFFFFF;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">Set password</a></p>`,
+    ),
     text: `Hi ${name},\n\nSet your Eduwit portal password with this link (works once, for one hour):\n${link}\n`,
   };
 }

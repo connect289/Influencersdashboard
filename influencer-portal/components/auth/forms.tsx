@@ -30,9 +30,19 @@ export function CreatorEmailForm({ next }: { next: string }) {
       <Messages state={state} />
       <input type="hidden" name="next" value={next} />
       <Field id="email" label={t("auth.fields.email")} hint={t("auth.creator.emailHint")}>
-        <Input id="email" name="email" type="email" autoComplete="email" inputMode="email" required aria-describedby="email-hint" />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          required
+          aria-describedby="email-hint"
+        />
       </Field>
-      <SubmitButton block pendingLabel={t("auth.creator.sending")}>{t("auth.creator.sendCode")}</SubmitButton>
+      <SubmitButton block pendingLabel={t("auth.creator.sending")}>
+        {t("auth.creator.sendCode")}
+      </SubmitButton>
     </form>
   );
 }
@@ -45,9 +55,20 @@ export function CreatorCodeForm({ next }: { next: string }) {
       <Messages state={state} />
       <input type="hidden" name="next" value={next} />
       <Field id="code" label={t("auth.fields.code")}>
-        <Input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6,8}" maxLength={8} required className="text-center text-xl tracking-[0.4em]" />
+        <Input
+          id="code"
+          name="code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="\d{6,8}"
+          maxLength={8}
+          required
+          className="text-center text-xl tracking-[0.4em]"
+        />
       </Field>
-      <SubmitButton block pendingLabel={t("auth.checking")}>{t("auth.continue")}</SubmitButton>
+      <SubmitButton block pendingLabel={t("auth.checking")}>
+        {t("auth.continue")}
+      </SubmitButton>
     </form>
   );
 }
@@ -65,7 +86,9 @@ export function StaffPasswordForm({ next }: { next: string }) {
       <Field id="password" label={t("auth.fields.password")}>
         <Input id="password" name="password" type="password" autoComplete="current-password" required />
       </Field>
-      <SubmitButton block pendingLabel={t("auth.signingIn")}>{t("auth.signIn")}</SubmitButton>
+      <SubmitButton block pendingLabel={t("auth.signingIn")}>
+        {t("auth.signIn")}
+      </SubmitButton>
     </form>
   );
 }
@@ -85,13 +108,24 @@ export function StaffCodeForms({ next }: { next: string }) {
       <form action={check} className="flex flex-col gap-4">
         <input type="hidden" name="next" value={next} />
         <Field id="code" label={t("auth.fields.code")}>
-          <Input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required className="text-center text-xl tracking-[0.4em]" />
+          <Input
+            id="code"
+            name="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="\d{6}"
+            maxLength={6}
+            required
+            className="text-center text-xl tracking-[0.4em]"
+          />
         </Field>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="trust" className="size-4 accent-[var(--primary)]" />
           {t("auth.verify.trust")}
         </label>
-        <SubmitButton block pendingLabel={t("auth.checking")}>{t("auth.continue")}</SubmitButton>
+        <SubmitButton block pendingLabel={t("auth.checking")}>
+          {t("auth.continue")}
+        </SubmitButton>
       </form>
     </div>
   );
@@ -106,7 +140,9 @@ export function PasswordLinkForm() {
       <Field id="email" label={t("auth.fields.workEmail")}>
         <Input id="email" name="email" type="email" autoComplete="email" required />
       </Field>
-      <SubmitButton block pendingLabel={t("auth.creator.sending")}>{t("auth.password.sendLink")}</SubmitButton>
+      <SubmitButton block pendingLabel={t("auth.creator.sending")}>
+        {t("auth.password.sendLink")}
+      </SubmitButton>
     </form>
   );
 }
@@ -118,12 +154,22 @@ export function NewPasswordForm({ min }: { min: number }) {
     <form action={action} className="flex flex-col gap-4">
       <Messages state={state} />
       <Field id="password" label={t("auth.password.new")} hint={t("auth.password.rule", { min })}>
-        <Input id="password" name="password" type="password" autoComplete="new-password" minLength={min} required aria-describedby="password-hint" />
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          minLength={min}
+          required
+          aria-describedby="password-hint"
+        />
       </Field>
       <Field id="confirm" label={t("auth.password.confirm")}>
         <Input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={min} required />
       </Field>
-      <SubmitButton block pendingLabel={t("auth.saving")}>{t("auth.password.save")}</SubmitButton>
+      <SubmitButton block pendingLabel={t("auth.saving")}>
+        {t("auth.password.save")}
+      </SubmitButton>
     </form>
   );
 }

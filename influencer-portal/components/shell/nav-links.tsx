@@ -43,14 +43,24 @@ export function SideNav({ links, onNavigate }: { links: NavLink[]; onNavigate?: 
 export function BottomNav({ links, label }: { links: NavLink[]; label: string }) {
   const path = usePathname();
   return (
-    <nav aria-label={label} className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface md:hidden">
+    <nav
+      aria-label={label}
+      className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface md:hidden"
+    >
       <ul className="mx-auto flex max-w-lg">
         {links.map((l) => {
           const Icon = ICONS[l.icon];
           const active = isActive(path, l.href);
           return (
             <li key={l.href} className="flex-1">
-              <Link href={l.href} aria-current={active ? "page" : undefined} className={cn("flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-muted", active && "text-primary")}>
+              <Link
+                href={l.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-muted",
+                  active && "text-primary",
+                )}
+              >
                 <Icon className="size-5" aria-hidden />
                 {l.label}
               </Link>

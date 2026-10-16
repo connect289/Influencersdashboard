@@ -1,0 +1,108 @@
+# Eduwit Influencer Portal: typecheck, lint, unit tests, build, database tests (pgTAP on a local Supabase) and the
+# Playwright journeys. No secrets: everything runs against a throwaway local Supabase stack in the runner.
+name: influencer-portal CI
+
+on:
+  pull_request:
+    paths:
+      - "influencer-portal/**"
+      - ".github/workflows/influencer-portal-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "influencer-portal/**"
+      - ".github/workflows/influencer-portal-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: influencer-portal-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: influencer-portal
+
+jobs:
+  check:
+    name: Typecheck, lint, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: influencer-portal/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - name: Unit tests (includes generated-SQL and message drift checks)
+        run: npm test
+      - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54421
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_only_placeholder
+          NEXT_PUBLIC_SITE_URL: http://localhost:3200
+        run: npm run build
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  database-and-e2e:
+    name: Database tests and end-to-end journeys
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: influencer-portal/package-lock.json
+      - run: npm ci
+      - name: Start local Supabase (all migrations, including the shared baseline)
+        run: npx supabase start
+      - name: Generated types are up to date
+        run: |
+          npx supabase gen types typescript --local --schema inf > /tmp/types.ts
+          diff -u lib/database.types.ts /tmp/types.ts
+      - name: pgTAP (RLS per role, masking, append-only, settings, sessions)
+        run: npm run test:db
+      - run: node scripts/ci-env.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Playwright
+        env:
+          CI: "1"
+        run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: influencer-portal/playwright-report
+          retention-days: 7
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

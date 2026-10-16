@@ -8,23 +8,42 @@ import { fail, type ActionResult } from "./result";
 
 const reasonSchema = z.string().trim().min(3).max(500);
 
-export async function saveSetting(key: string, value: unknown, reason: string, expectedVersion: number): Promise<ActionResult<{ version: number }>> {
+export async function saveSetting(
+  key: string,
+  value: unknown,
+  reason: string,
+  expectedVersion: number,
+): Promise<ActionResult<{ version: number }>> {
   const t = await getTranslations();
   if (!isSettingKey(key)) return fail(t("settings.errors.unknown"));
   const def = SETTINGS[key];
   const parsed = def.schema.safeParse(value);
-  if (!parsed.success) return fail(t("settings.errors.invalid", { details: parsed.error.issues.slice(0, 3).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") }));
+  if (!parsed.success)
+    return fail(
+      t("settings.errors.invalid", {
+        details: parsed.error.issues
+          .slice(0, 3)
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; "),
+      }),
+    );
   const why = reasonSchema.safeParse(reason);
   if (!why.success) return fail(t("settings.errors.reason"));
   if (!Number.isInteger(expectedVersion) || expectedVersion < 0) return fail(t("errors.invalidInput"));
   try {
     const { supabase } = await assertStaff(def.edit);
-    const { data, error } = await supabase.rpc("setting_set", { p_key: key, p_value: parsed.data, p_reason: why.data, p_expected_version: expectedVersion });
+    const { data, error } = await supabase.rpc("setting_set", {
+      p_key: key,
+      p_value: parsed.data,
+      p_reason: why.data,
+      p_expected_version: expectedVersion,
+    });
     if (error) return fail(t("errors.generic"));
     const r = data as { ok: boolean; error?: string; version?: number; details?: string[] };
     if (!r.ok) {
       if (r.error === "stale") return fail(t("settings.errors.stale"));
-      if (r.error === "invalid") return fail(t("settings.errors.invalid", { details: (r.details ?? []).slice(0, 3).join("; ") }));
+      if (r.error === "invalid")
+        return fail(t("settings.errors.invalid", { details: (r.details ?? []).slice(0, 3).join("; ") }));
       return fail(t("errors.generic"));
     }
     revalidatePath("/admin/settings");

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { financialYear, formatCompact, formatDate, formatDateTime, formatPaise, formatRelative, fyQuarter, istParts } from "./format";
+import {
+  financialYear,
+  formatCompact,
+  formatDate,
+  formatDateTime,
+  formatPaise,
+  formatRelative,
+  fyQuarter,
+  istParts,
+} from "./format";
 
 describe("money", () => {
   it.each([

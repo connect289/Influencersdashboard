@@ -92,7 +92,13 @@ export default async function StaffPage() {
                       name={r.full_name}
                       status={r.status}
                       isSelf={r.user_id === me.userId}
-                      values={{ email: r.email, fullName: r.full_name, roles: r.roles.filter(isStaffRole), isSignatory: r.is_signatory, designation: r.signatory_designation ?? "" }}
+                      values={{
+                        email: r.email,
+                        fullName: r.full_name,
+                        roles: r.roles.filter(isStaffRole),
+                        isSignatory: r.is_signatory,
+                        designation: r.signatory_designation ?? "",
+                      }}
                     />
                   </Td>
                 </tr>

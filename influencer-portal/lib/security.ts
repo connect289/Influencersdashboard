@@ -25,7 +25,7 @@ export function isIdleExpired(lastSeen: string | undefined, nowSeconds: number, 
 }
 
 /** Content-Security-Policy for one request: scripts need the per-request nonce; nothing else may run. */
-export function buildCsp(nonce: string, supabaseOrigin: string, isDev: boolean): string {
+export function buildCsp(nonce: string, supabaseOrigin: string, isDev: boolean, upgradeInsecure = !isDev): string {
   const wsOrigin = supabaseOrigin.replace(/^http/, "ws");
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
@@ -44,14 +44,17 @@ export function buildCsp(nonce: string, supabaseOrigin: string, isDev: boolean):
     "worker-src": ["'self'", "blob:"],
   };
   const parts = Object.entries(directives).map(([k, v]) => `${k} ${v.join(" ")}`);
-  if (!isDev) parts.push("upgrade-insecure-requests");
+  if (upgradeInsecure) parts.push("upgrade-insecure-requests");
   return parts.join("; ");
 }
 
 /** The browser's IP from the platform's header (Vercel overwrites these, so a client can't choose them). */
 export function clientIp(headers: Headers): string | null {
   const first = (v: string | null) => v?.split(",")[0]?.trim() || null;
-  const ip = first(headers.get("x-vercel-forwarded-for")) ?? first(headers.get("x-real-ip")) ?? first(headers.get("x-forwarded-for"));
+  const ip =
+    first(headers.get("x-vercel-forwarded-for")) ??
+    first(headers.get("x-real-ip")) ??
+    first(headers.get("x-forwarded-for"));
   return ip && /^[0-9a-fA-F:.]{3,45}$/.test(ip) ? ip : null;
 }
 
@@ -78,9 +81,12 @@ export function rateIp(headers: Headers): string {
 }
 
 /** Per-scope limits as [hits, window seconds]. */
+// Per-IP limits are generous because many creators share one network (colleges, offices, mobile carrier NAT);
+// per-email limits and the database lockout stop guessing against one account.
 export const RATE_LIMITS = {
-  staff_sign_in: [10, 300],
-  creator_otp_send: [5, 600],
+  staff_sign_in: [30, 300],
+  creator_otp_send_ip: [30, 600],
+  creator_otp_send_email: [5, 600],
   creator_otp_verify: [10, 600],
   code_send: [5, 600],
   code_verify: [10, 600],
@@ -127,7 +133,10 @@ export function pwnedCount(rangeBody: string, suffix: string): number {
 }
 
 /** Have I Been Pwned range check (k-anonymity: only 5 hex characters leave the server). Fails open. */
-export async function breachedPassword(password: string, fetchImpl: typeof fetch = fetch): Promise<{ checked: boolean; breached: boolean }> {
+export async function breachedPassword(
+  password: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ checked: boolean; breached: boolean }> {
   const { prefix, suffix } = pwnedParts(password);
   try {
     const res = await fetchImpl(`https://api.pwnedpasswords.com/range/${prefix}`, {

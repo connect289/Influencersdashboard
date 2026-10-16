@@ -21,8 +21,14 @@ export async function GET(request: NextRequest) {
 
   const record = async (email: string, outcome: "ok" | "refused", reason: string | null, userId?: string) => {
     await adminClient().rpc("sign_in_record", {
-      p_email: email, p_portal: portal, p_method: "google", p_outcome: outcome, p_reason: reason ?? undefined,
-      p_user: userId, p_ip: clientIp(request.headers) ?? undefined, p_ua: request.headers.get("user-agent")?.slice(0, 500) ?? undefined,
+      p_email: email,
+      p_portal: portal,
+      p_method: "google",
+      p_outcome: outcome,
+      p_reason: reason ?? undefined,
+      p_user: userId,
+      p_ip: clientIp(request.headers) ?? undefined,
+      p_ua: request.headers.get("user-agent")?.slice(0, 500) ?? undefined,
     });
   };
 

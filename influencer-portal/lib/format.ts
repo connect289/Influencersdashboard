@@ -2,7 +2,12 @@
 // Money is stored as integer paise; these functions only format it.
 export const IST = "Asia/Kolkata";
 
-const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const inr = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 const inrWhole = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 const num = new Intl.NumberFormat("en-IN");
 
@@ -15,7 +20,9 @@ export function formatPaise(paise: bigint | number, opts: { whole?: boolean } = 
   const rest = Number(abs % 100n);
   // Group the rupee part with Indian grouping via Intl on the integer, then append the paise digits exactly.
   const grouped = num.format(rupees);
-  const text = opts.whole ? `₹${num.format(rest >= 50 ? rupees + 1n : rupees)}` : `₹${grouped}.${String(rest).padStart(2, "0")}`;
+  const text = opts.whole
+    ? `₹${num.format(rest >= 50 ? rupees + 1n : rupees)}`
+    : `₹${grouped}.${String(rest).padStart(2, "0")}`;
   return negative ? `-${text}` : text;
 }
 
@@ -77,7 +84,12 @@ export function formatRelative(value: Date | string | number, now: Date = new Da
 
 /** Calendar parts of an instant in IST. */
 export function istParts(value: Date | string | number): { year: number; month: number; day: number } {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: IST, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(toDate(value));
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: IST,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(toDate(value));
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
   return { year: get("year"), month: get("month"), day: get("day") };
 }

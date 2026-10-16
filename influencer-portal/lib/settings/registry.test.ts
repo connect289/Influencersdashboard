@@ -17,7 +17,9 @@ describe("settings registry", () => {
       expect(fields).not.toContain(f);
     }
     const schema = SETTINGS["lead_visibility.creator"].schema;
-    expect(schema.safeParse({ fields: ["whatsapp_number"], name_format: "full", public_mail_domains: [] }).success).toBe(false);
+    expect(
+      schema.safeParse({ fields: ["whatsapp_number"], name_format: "full", public_mail_domains: [] }).success,
+    ).toBe(false);
   });
 
   it("defaults to first name and initial for student names", () => {
@@ -26,11 +28,17 @@ describe("settings registry", () => {
 
   it("keeps financial records at least 8 years", () => {
     const schema = SETTINGS["retention.privacy"].schema;
-    expect(schema.safeParse({ ...SETTINGS["retention.privacy"].default, financial_records_years: 7 }).success).toBe(false);
+    expect(schema.safeParse({ ...SETTINGS["retention.privacy"].default, financial_records_years: 7 }).success).toBe(
+      false,
+    );
   });
 
   it("uses the approved attribution defaults", () => {
-    expect(SETTINGS["attribution.rules"].default).toMatchObject({ window_days: 90, model: "first_touch_with_assisted", reenquiry_credit_after_days: null });
+    expect(SETTINGS["attribution.rules"].default).toMatchObject({
+      window_days: 90,
+      model: "first_touch_with_assisted",
+      reenquiry_credit_after_days: null,
+    });
     expect(SETTINGS["compensation.defaults"].default.confirm_partial_receipts).toBe(false);
   });
 });

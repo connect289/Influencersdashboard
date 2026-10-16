@@ -12,11 +12,19 @@ import { visibleStaffNav } from "@/lib/nav";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { me } = await requireStaff();
   const t = await getTranslations();
-  const links: NavLink[] = visibleStaffNav(me.permissions).map((i) => ({ href: i.href, label: t(i.labelKey), icon: i.icon }));
-  const roleText = me.roles.map((r) => ROLE_LABELS[r]).join(", ") + (me.isSignatory ? ` · ${t("roles.signatory")}` : "");
+  const links: NavLink[] = visibleStaffNav(me.permissions).map((i) => ({
+    href: i.href,
+    label: t(i.labelKey),
+    icon: i.icon,
+  }));
+  const roleText =
+    me.roles.map((r) => ROLE_LABELS[r]).join(", ") + (me.isSignatory ? ` · ${t("roles.signatory")}` : "");
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[240px_1fr]">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2"
+      >
         {t("shell.skip")}
       </a>
       <aside className="sticky top-0 hidden h-dvh flex-col gap-6 border-r border-line bg-surface px-3 py-4 md:flex">
@@ -36,11 +44,23 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="flex flex-1 justify-center md:justify-start">
             <CommandPalette
               links={links}
-              labels={{ open: t("shell.search.open"), placeholder: t("shell.search.placeholder"), empty: t("shell.search.empty"), title: t("shell.search.title"), shortcut: t("shell.search.shortcut") }}
+              labels={{
+                open: t("shell.search.open"),
+                placeholder: t("shell.search.placeholder"),
+                empty: t("shell.search.empty"),
+                title: t("shell.search.title"),
+                shortcut: t("shell.search.shortcut"),
+              }}
             />
           </div>
           <ThemeToggle label={t("shell.theme")} />
-          <UserMenu name={me.fullName} subtitle={roleText} accountHref="/admin/account" signOutTo="/login/staff" labels={{ menu: t("shell.userMenu"), account: t("shell.account"), signOut: t("shell.signOut") }} />
+          <UserMenu
+            name={me.fullName}
+            subtitle={roleText}
+            accountHref="/admin/account"
+            signOutTo="/login/staff"
+            labels={{ menu: t("shell.userMenu"), account: t("shell.account"), signOut: t("shell.signOut") }}
+          />
         </header>
         <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 md:px-6 md:py-8">
           {children}
