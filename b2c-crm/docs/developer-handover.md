@@ -12,10 +12,12 @@ B2B CRM's code; put a secret in git or in chat. `LIVE_MODE` stays `off` until st
 
 | Piece | State |
 | --- | --- |
-| Production database `xlseqwgyjuqhktrguhyc` ("EDUWIT LEAD TRACK", Mumbai) | **Done 16 Oct 2026**: `b1`–`b43` and `staging_b4_pool_calendar.sql` (SQL editor); 510 `b2c` functions, the same set as staging and the tested local build; 16 `b2c-*` timers; anon executes nothing; programme cache filled (715 programmes). `b2c` exposed in the Data API. First Admin: connect@eduwit.in |
-| Staging database `mplbspysxmtohnlwpbti` ("eduwit-b2b-staging") | **Done 16 Oct 2026**: `b1`–`b43`; 510 functions |
+| Production database `xlseqwgyjuqhktrguhyc` ("EDUWIT LEAD TRACK", Mumbai) | **Done 16 Oct 2026**: `b1`–`b45` (`b39`–`b43` and `staging_b4_pool_calendar.sql` through the SQL editor, `b44`–`b45` through the connector); 510 `b2c` functions, the same set as staging and the tested local build; 16 `b2c-*` timers; anon executes nothing; programme cache filled (715 programmes, 29 universities). `b2c` exposed in the Data API. First Admin: connect@eduwit.in |
+| Staging database `mplbspysxmtohnlwpbti` ("eduwit-b2b-staging") | **Done 16 Oct 2026**: `b1`–`b45`; 510 functions; test people and 30 test leads seeded for the browser tests |
 | Local proof | `b1`–`b43` on a clean Postgres: every suite passes (`test_completion` 209 checks, `test_phase1` 99, `test_phase2` 45, `test_phase3` 91, `test_phase4` 47, `test_features` 26, `test_support_phones` 28, `test_walkthrough_fixes` 10) |
-| Production site | Vercel project `eduwit-spark` (team `eduwit`), root `b2c-crm/web`, `https://spark.eduwit.in` (DNS done) and `https://eduwit-spark.vercel.app`. Set: Supabase URL and publishable key, **service role key** (Vikas, 16 Oct), site URL `https://spark.eduwit.in`, SMTP, VAPID, `LINK_SECRET`, `B2C_INTERNAL_KEY`, `LIVE_MODE=off`. Google sign-in works (production client `103728006747-7cb08…`). **Not yet**: the timers' key in Vault (step 5.2) and the optional services (step 5.3) |
+| Production site | Vercel project `eduwit-spark` (team `eduwit`), root `b2c-crm/web`, `https://spark.eduwit.in` (DNS done) and `https://eduwit-spark.vercel.app`. **Deployed 16 Oct 2026 from branch commit `cfe6131`** (every screen of `b39`–`b45`). Set: Supabase URL and publishable key, **service role key** (Vikas, 16 Oct), site URL `https://spark.eduwit.in`, SMTP, VAPID, `LINK_SECRET`, `B2C_INTERNAL_KEY`, `LIVE_MODE=off`. Google sign-in and the emailed code work (Vikas signed in on 16 Oct). **Not yet**: the timers' key in Vault (step 5.2) and the optional services (step 5.3) |
+| Staging site | `https://eduwit-b2c-crm.vercel.app` (Vercel project `eduwit-b2c-crm`), deployed 16 Oct from the same branch; the browser tests ran against it |
+| Checks on 16 Oct | Local database: every suite passes (`test_completion` 210, `test_phase1` 99, `test_phase2` 45, `test_phase3` 91, `test_phase4` 47, `test_features` 26, `test_support_phones` 28, `test_walkthrough_fixes` 10). App: typecheck, 174 unit tests, production build. Browser: `walkthrough.spec.ts` opened every screen as every role (laptop and phone) against staging and locally with no error page, server error or console error; `flows.spec.ts` 14 of 14 (call log, note, stage, support ticket, work-mobile change, password link and code). Note: the Vercel projects' production branch is `main`, which has no `b2c-crm` folder, so a push to `main` makes them log a failed build that changes nothing; merge this branch into `main` (or set the production branch to it) so pushes deploy |
 | Staging site | Vercel project for `https://eduwit-b2c-crm.vercel.app` on the staging database |
 | Branch | `claude/exciting-heisenberg-fse6ik` in `connect289/Influencersdashboard` |
 
@@ -32,11 +34,11 @@ for today. **Undo for everything below:** restore it.
 
 Two files, both idempotent (safe to run again, and safe where part is already applied):
 
-- `b2c-crm/supabase/manual/apply_b39_b43.sql`: migrations `b39`–`b43` in one file (generated from `supabase/migrations`).
+- `b2c-crm/supabase/manual/apply_b39_b45.sql`: migrations `b39`–`b45` in one file (generated from `supabase/migrations`).
 - `b2c-crm/supabase/manual/staging_b4_pool_calendar.sql`: saving a pool's members and a person's weekly hours
   (production only; staging has it).
 
-**Staging** (`mplbspysxmtohnlwpbti`) → SQL editor → paste `apply_b39_b43.sql` → Run. Then run each file in
+**Staging** (`mplbspysxmtohnlwpbti`) → SQL editor → paste `apply_b39_b45.sql` → Run. Then run each file in
 `b2c-crm/supabase/manual/sql-editor-tests/` (one at a time). Each ends on purpose with an **error** that reads
 `TESTRESULT pass=N fail=0 …`: `fail=0` is a pass; any failure is listed by name. The error is what guarantees nothing a
 test writes is kept. Expected on a clean copy: `test_completion` 209, `test_phase1` 99, `test_phase2` 45,
@@ -46,7 +48,7 @@ anywhere but a local Postgres database named `b2c_fresh` (load `supabase/tests/l
 order; see `b2c-crm/README.md` → tests).
 
 **Production** (`xlseqwgyjuqhktrguhyc`), only after staging passes: backup (step 1) → SQL editor → run
-`staging_b4_pool_calendar.sql` (first time only), then `apply_b39_b43.sql` (or the next migration file). Do **not** run
+`staging_b4_pool_calendar.sql` (first time only), then `apply_b39_b45.sql` (or the next migration file). Do **not** run
 the test suites on production: it is the database Witty, the B2B CRM and the Influencer Dashboard share. The read-only
 check below is enough there, because the migrations are the same files that passed on staging and locally.
 
