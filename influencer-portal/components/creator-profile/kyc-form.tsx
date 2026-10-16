@@ -30,7 +30,7 @@ export function KycForm({ creatorId, kyc, canEdit }: { creatorId: string; kyc: K
   const [v, setV] = useState({
     pan: "",
     nameOnPan: kyc.name_on_pan ?? "",
-    gstStatus: (kyc.gst_status ?? "unregistered"),
+    gstStatus: kyc.gst_status ?? "unregistered",
     gstin: kyc.gstin ?? "",
     bankAccount: "",
     ifsc: kyc.ifsc ?? "",
