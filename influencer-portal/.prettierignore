@@ -1,0 +1,7 @@
+node_modules
+.next
+supabase/migrations
+supabase/tests
+docs/INFLUENCER_PORTAL_SPEC.md
+package-lock.json
+lib/database.types.ts
