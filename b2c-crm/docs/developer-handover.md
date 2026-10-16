@@ -12,8 +12,8 @@ B2B CRM's code; put a secret in git or in chat. `LIVE_MODE` stays `off` until st
 
 | Piece | State |
 | --- | --- |
-| Production database `xlseqwgyjuqhktrguhyc` ("EDUWIT LEAD TRACK", Mumbai) | **Done 16 Oct 2026**: `b1`–`b45` (`b39`–`b43` and `staging_b4_pool_calendar.sql` through the SQL editor, `b44`–`b45` through the connector); 510 `b2c` functions, the same set as staging and the tested local build; 16 `b2c-*` timers; anon executes nothing; programme cache filled (715 programmes, 29 universities). `b2c` exposed in the Data API. First Admin: connect@eduwit.in |
-| Staging database `mplbspysxmtohnlwpbti` ("eduwit-b2b-staging") | **Done 16 Oct 2026**: `b1`–`b45`; 510 functions; test people and 30 test leads seeded for the browser tests |
+| Production database `xlseqwgyjuqhktrguhyc` ("EDUWIT LEAD TRACK", Mumbai) | **Done 16 Oct 2026**: `b1`–`b46` (`b39`–`b43` and `staging_b4_pool_calendar.sql` through the SQL editor, `b44`–`b46` through the connector); 510 `b2c` functions, the same set as staging and the tested local build; 16 `b2c-*` timers; anon executes nothing; programme cache filled (715 programmes, 29 universities). `b2c` exposed in the Data API. First Admin: connect@eduwit.in |
+| Staging database `mplbspysxmtohnlwpbti` ("eduwit-b2b-staging") | **Done 16 Oct 2026**: `b1`–`b46`; 510 functions; test people and 30 test leads seeded for the browser tests |
 | Local proof | `b1`–`b43` on a clean Postgres: every suite passes (`test_completion` 209 checks, `test_phase1` 99, `test_phase2` 45, `test_phase3` 91, `test_phase4` 47, `test_features` 26, `test_support_phones` 28, `test_walkthrough_fixes` 10) |
 | Production site | Vercel project `eduwit-spark` (team `eduwit`), root `b2c-crm/web`, `https://spark.eduwit.in` (DNS done) and `https://eduwit-spark.vercel.app`. **Deployed 16 Oct 2026 from branch commit `ab1d219`** (every screen of `b39`–`b45`). Set: Supabase URL and publishable key, **service role key** (Vikas, 16 Oct), site URL `https://spark.eduwit.in`, SMTP, VAPID, `LINK_SECRET`, `B2C_INTERNAL_KEY`, `LIVE_MODE=off`. Google sign-in and the emailed code work (Vikas signed in on 16 Oct). **Not yet**: the timers' key in Vault (step 5.2) and the optional services (step 5.3) |
 | Staging site | `https://eduwit-b2c-crm.vercel.app` (Vercel project `eduwit-b2c-crm`), deployed 16 Oct from the same commit; the browser tests ran against it |
@@ -36,13 +36,14 @@ for today. **Undo for everything below:** restore it.
 Two files, both idempotent (safe to run again, and safe where part is already applied):
 
 - `b2c-crm/supabase/manual/apply_b39_b45.sql`: migrations `b39`–`b45` in one file (generated from `supabase/migrations`).
+  `b46_health_timer_calls.sql` came after the bundle: run it on its own, after the bundle (both databases already have it).
 - `b2c-crm/supabase/manual/staging_b4_pool_calendar.sql`: saving a pool's members and a person's weekly hours
   (production only; staging has it).
 
 **Staging** (`mplbspysxmtohnlwpbti`) → SQL editor → paste `apply_b39_b45.sql` → Run. Then run each file in
 `b2c-crm/supabase/manual/sql-editor-tests/` (one at a time). Each ends on purpose with an **error** that reads
 `TESTRESULT pass=N fail=0 …`: `fail=0` is a pass; any failure is listed by name. The error is what guarantees nothing a
-test writes is kept. Expected on a clean copy: `test_completion` 209, `test_phase1` 99, `test_phase2` 45,
+test writes is kept. Expected on a clean copy: `test_completion` 215, `test_phase1` 99, `test_phase2` 45,
 `test_features` 26, `test_support_phones` 28, `test_walkthrough_fixes` 10 (real staging data can change a count; every
 check must still pass). `test_phase3` and `test_phase4` write catalogue and partner fixtures, so they refuse to run
 anywhere but a local Postgres database named `b2c_fresh` (load `supabase/tests/local_stubs.sql`, then every migration in
@@ -119,7 +120,8 @@ Two errors seen on 15–16 October and what they mean:
 1. Domain: Settings → Domains → `spark.eduwit.in` must show "Valid configuration" (done).
 2. **Still to do: run the deploy script once** (the service role key is already in Vercel; the script needs it in your
    shell too, to call `app_deploy_set`, which stores `B2C_INTERNAL_KEY` in Vault so the 16 timers can call the site.
-   Until this runs, queued messages, the B2B sync and the other background jobs wait).
+   Until this runs, queued messages, the B2B sync and the other background jobs wait, and the Home page's health row
+   "The app answering the timers" stays yellow with "not pointed at the site yet").
    Run it with the production service role key (Supabase → production → Project Settings → API
    keys → service_role). It sets the key, rotates `B2C_INTERNAL_KEY` into Vault, redeploys and points the database
    timers at the site (`app_deploy_set`). It refuses a staging key.
@@ -218,6 +220,8 @@ production.
 - `qualify_assign(request, null)` with no task yet creates a task without an owner (the Admin assigns it from the queue).
 - Spark's background jobs run inside the every-minute `/api/internal/sync` call; a Vercel function's 60-second limit means
   a very large export (>10,000 rows) is written in several runs. `export_take` retries a run that died part-way.
+- The health row "The app answering the timers" counts only Spark's own timer calls (`b46`); the production database is
+  shared, so the B2B CRM's test ping to Spark (one 503 before its signing secret matched, on 16 Oct) no longer turns it red.
 - Playwright from a network that proxies outbound traffic can report `502` on static files; run the browser tests locally
   (`npm run e2e`, the app on your machine against the staging database) for a clean result.
 
