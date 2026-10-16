@@ -2,12 +2,27 @@
 
 ## Now
 
-- **Current phase:** Phase 0 (Discovery and design): **complete, at HARD STOP 1**, waiting for the owner's approval.
-- **Current step:** none. Waiting for answers to the open questions in `PHASE0_FINDINGS.md` §7 and approval of
-  `ERD.md`, `SHARED_CHANGES.md`, `LEAD_FIELD_WHITELIST.md`, `STAGE_MAPPING.md` and `INTEGRATION_CONTRACTS.md`.
-- **Next:** Phase 1 (Foundation), plan in `PHASE0_FINDINGS.md` §8. Starts only after approval.
-- **Blockers:** owner approval (HARD STOP 1). Provider credentials, domain, Vercel and Sentry are needed later (HARD STOP 4)
-  but don't block Phase 1, which uses mocks.
+- **Current phase:** Phase 1 (Foundation), in progress.
+- **Current step:** 1.1 scaffold.
+- **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
+  the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
+  first name + initial, the stage mapping and the integration contracts. Tagged `phase-0-done`.
+- **Blockers:** none for Phase 1. Provider credentials, domain, Vercel and Sentry are needed later (HARD STOP 4); Phase 1
+  uses mock providers.
+
+## Phase 1: Foundation
+
+### Plan
+
+| Step | What | Main files | Tests |
+| --- | --- | --- | --- |
+| 1.1 | Scaffold: Next 16, TypeScript strict, Tailwind v4, shadcn-style UI kit, ESLint, Prettier, Vitest, Playwright, next-intl, zod-validated env, `.env.example`, CI workflow | `package.json`, `tsconfig.json`, `eslint.config.mjs`, `lib/env.ts`, `.github/workflows/influencer-portal-ci.yml` | env, formatting units |
+| 1.2 | Local Supabase (Docker Hub images), shared-objects baseline generated read-only from production, guarded so it can never run on production | `supabase/config.toml`, `supabase/migrations/00000000000000_shared_baseline.sql`, `scripts/generate-baseline.*` | migrations apply on a fresh stack |
+| 1.3 | Schema `inf`: permission tables generated from the matrix, staff, creators core, settings + versions + JSON-schema validator, audit log + trigger, jobs, domain events, notifications core, email codes, trusted devices, sessions, sign-in log, rate limits, terms, storage buckets | `supabase/migrations/2026101*_inf_*.sql`, `lib/auth/permissions.ts` | pgTAP: RLS per role, append-only, validator; Vitest: matrix ↔ SQL drift |
+| 1.4 | Auth: Supabase clients, `proxy.ts` (session, idle timeout, CSP nonce, rate limits), staff sign-in (Google or password) + emailed code + trusted devices, creator email OTP + Google, session list and remote sign-out | `lib/supabase/*`, `proxy.ts`, `app/(auth)/*`, `lib/auth/*` | units for CSP, rate-limit keys, code flow; Playwright sign-in |
+| 1.5 | Design tokens and components (empty, loading, error states), admin shell (sidebar, ⌘K), creator shell (bottom nav, PWA), settings screens, audit log viewer, staff and roles, system status, account and sessions | `app/globals.css`, `components/ui/*`, `app/(admin)/*`, `app/(creator)/*` | component units; Playwright role guards, mobile |
+| 1.6 | Notification adapters (SMTP, Resend, Brevo, Meta Cloud, Mock) and delivery queue; seed framework (local only); Playwright suite; phase gate | `lib/notify/*`, `scripts/seed.ts`, `e2e/*` | units for adapters; gate |
+
 
 ## Phase 0: Discovery and design
 
