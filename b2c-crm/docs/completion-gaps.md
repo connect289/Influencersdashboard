@@ -56,9 +56,10 @@ E14 (the B2B write API must accept the fields) and D6 (needs the Google OAuth cl
 - [x] C1 WhatsApp inside the window: images, documents and brochures out; inbound media viewable; attach an inbound
       document to the application checklist in one tap (B8.5, B8.8)
 - [x] C2 Programme page complete: duration, exam and registration fees, EMI, scholarship, intakes, partners offering
-      it and the partner and counsellor commission (Admin and Marketing only); filters (university, specialization,
-      fee range, duration, intake, accreditation, eligible for this lead), sort; compare 2–4 and send; Marketing access;
-      `programme_cache` (B8.9)
+      it and the partner and counsellor commission (Admin and Marketing only); filters (university, programme,
+      specialization, level, mode, fee range, duration, intake, accreditation, eligible for this lead), sort; compare
+      2–4 and send; Marketing access; `programme_cache` (B8.9). Redesigned 16 Oct: grouped by university, cards lead with
+      the full fee (`b44` course facet)
 - [x] C3 Pipeline: expected commission per column, SLA colour, priority order, filters, counsellor filter for the sales
       head (B8.2)
 - [x] C4 Sales email library: recommended and hidden (Admin), delete, author name, reply rate, all merge fields,

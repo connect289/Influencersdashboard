@@ -15,8 +15,9 @@ B2B CRM's code; put a secret in git or in chat. `LIVE_MODE` stays `off` until st
 | Production database `xlseqwgyjuqhktrguhyc` ("EDUWIT LEAD TRACK", Mumbai) | **Done 16 Oct 2026**: `b1`–`b45` (`b39`–`b43` and `staging_b4_pool_calendar.sql` through the SQL editor, `b44`–`b45` through the connector); 510 `b2c` functions, the same set as staging and the tested local build; 16 `b2c-*` timers; anon executes nothing; programme cache filled (715 programmes, 29 universities). `b2c` exposed in the Data API. First Admin: connect@eduwit.in |
 | Staging database `mplbspysxmtohnlwpbti` ("eduwit-b2b-staging") | **Done 16 Oct 2026**: `b1`–`b45`; 510 functions; test people and 30 test leads seeded for the browser tests |
 | Local proof | `b1`–`b43` on a clean Postgres: every suite passes (`test_completion` 209 checks, `test_phase1` 99, `test_phase2` 45, `test_phase3` 91, `test_phase4` 47, `test_features` 26, `test_support_phones` 28, `test_walkthrough_fixes` 10) |
-| Production site | Vercel project `eduwit-spark` (team `eduwit`), root `b2c-crm/web`, `https://spark.eduwit.in` (DNS done) and `https://eduwit-spark.vercel.app`. **Deployed 16 Oct 2026 from branch commit `cfe6131`** (every screen of `b39`–`b45`). Set: Supabase URL and publishable key, **service role key** (Vikas, 16 Oct), site URL `https://spark.eduwit.in`, SMTP, VAPID, `LINK_SECRET`, `B2C_INTERNAL_KEY`, `LIVE_MODE=off`. Google sign-in and the emailed code work (Vikas signed in on 16 Oct). **Not yet**: the timers' key in Vault (step 5.2) and the optional services (step 5.3) |
-| Staging site | `https://eduwit-b2c-crm.vercel.app` (Vercel project `eduwit-b2c-crm`), deployed 16 Oct from the same branch; the browser tests ran against it |
+| Production site | Vercel project `eduwit-spark` (team `eduwit`), root `b2c-crm/web`, `https://spark.eduwit.in` (DNS done) and `https://eduwit-spark.vercel.app`. **Deployed 16 Oct 2026 from branch commit `ab1d219`** (every screen of `b39`–`b45`). Set: Supabase URL and publishable key, **service role key** (Vikas, 16 Oct), site URL `https://spark.eduwit.in`, SMTP, VAPID, `LINK_SECRET`, `B2C_INTERNAL_KEY`, `LIVE_MODE=off`. Google sign-in and the emailed code work (Vikas signed in on 16 Oct). **Not yet**: the timers' key in Vault (step 5.2) and the optional services (step 5.3) |
+| Staging site | `https://eduwit-b2c-crm.vercel.app` (Vercel project `eduwit-b2c-crm`), deployed 16 Oct from the same commit; the browser tests ran against it |
+| Programme page (16 Oct) | Grouped by university; filters in the address (`?q=&university=&course=&specialization=&level=&mode=`, more under "More filters"). **Each card leads with the full fee for the whole programme**: the catalogue's total; if that is missing, the yearly fee times the duration; if only a yearly fee is known it says "Fee per year". The per-semester instalment sits under it; the yearly figure is only in Details and the compare table. 86 of the 715 programmes have no fee in the catalogue and show "—" until the B2B CRM's Programme Repository fills them in. Commission column and the university's rate chip: Admin and Marketing only |
 | Checks on 16 Oct | Local database: every suite passes (`test_completion` 210, `test_phase1` 99, `test_phase2` 45, `test_phase3` 91, `test_phase4` 47, `test_features` 26, `test_support_phones` 28, `test_walkthrough_fixes` 10). App: typecheck, 174 unit tests, production build. Browser: `walkthrough.spec.ts` opened every screen as every role (laptop and phone) against staging and locally with no error page, server error or console error; `flows.spec.ts` 14 of 14 (call log, note, stage, support ticket, work-mobile change, password link and code). Note: the Vercel projects' production branch is `main`, which has no `b2c-crm` folder, so a push to `main` makes them log a failed build that changes nothing; merge this branch into `main` (or set the production branch to it) so pushes deploy |
 | Staging site | Vercel project for `https://eduwit-b2c-crm.vercel.app` on the staging database |
 | Branch | `claude/exciting-heisenberg-fse6ik` in `connect289/Influencersdashboard` |
@@ -208,6 +209,17 @@ every change under `b2c-crm/web`; Dependabot proposes updates weekly. Keep both 
 Delete the test leads and test users from production (Leads → filter "test" → bulk delete; Teams → deactivate test users).
 Keep staging as it is for future changes: every new migration goes to staging first, every suite must pass there, then
 production.
+
+## Small things left as they are (not blockers)
+
+- `b2c.today()` lists "To qualify" tasks only through the Today card the app builds itself, because the task sits on a
+  pooled lead; the database view of overdue tasks assumes an active lead.
+- `nurture_overview` reports partner-lost sub-stage names in lower case.
+- `qualify_assign(request, null)` with no task yet creates a task without an owner (the Admin assigns it from the queue).
+- Spark's background jobs run inside the every-minute `/api/internal/sync` call; a Vercel function's 60-second limit means
+  a very large export (>10,000 rows) is written in several runs. `export_take` retries a run that died part-way.
+- Playwright from a network that proxies outbound traffic can report `502` on static files; run the browser tests locally
+  (`npm run e2e`, the app on your machine against the staging database) for a clean result.
 
 ## Where to read more
 
