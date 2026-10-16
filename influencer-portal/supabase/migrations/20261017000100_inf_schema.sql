@@ -297,4 +297,53 @@ end $$;
 
 revoke execute on function inf.audit(text, text, text, jsonb, jsonb) from public, anon, authenticated;
 revoke execute on function inf.audit_row() from public, anon, authenticated;
-grant execute on function inf.json_schema_errors(jsonb, jsonb, text), inf.json_matches_schema(jsonb, jsonb) to authenticated;
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- Client privileges as data. Supabase's project-wide default privileges grant anon and authenticated everything on
+-- new tables, sequences and functions in every schema, and a schema-level REVOKE cannot undo a global default. So
+-- every migration declares the client grants it wants in inf.client_grants and calls inf.apply_client_grants(), which
+-- revokes everything from anon/authenticated/PUBLIC on all `inf` objects and re-applies exactly the declared list.
+-- The RLS test suite checks that the live privileges equal this table.
+-- ---------------------------------------------------------------------------------------------------------------
+create table inf.client_grants (
+  object_type text not null check (object_type in ('table', 'function')),
+  object_name text not null,
+  grantee     text not null check (grantee in ('anon', 'authenticated')),
+  privilege   text not null check (privilege in ('select', 'insert', 'update', 'delete', 'execute')),
+  primary key (object_type, object_name, grantee, privilege),
+  check ((object_type = 'function') = (privilege = 'execute'))
+);
+alter table inf.client_grants enable row level security;
+
+create or replace procedure inf.apply_client_grants()
+language plpgsql set search_path = '' as $$
+declare r record;
+begin
+  for r in select c.oid::regclass as rel from pg_class c join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'inf' and c.relkind in ('r', 'p', 'v', 'm') loop
+    execute format('revoke all on %s from public, anon, authenticated', r.rel);
+  end loop;
+  for r in select c.oid::regclass as rel from pg_class c join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'inf' and c.relkind = 'S' loop
+    execute format('revoke all on sequence %s from public, anon, authenticated', r.rel);
+  end loop;
+  for r in select p.oid::regprocedure as fn from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'inf' and p.prokind in ('f', 'p') loop
+    execute format('revoke all on %s %s from public, anon, authenticated',
+                   case when (select prokind from pg_proc where oid = r.fn) = 'p' then 'procedure' else 'function' end, r.fn);
+  end loop;
+  for r in select * from inf.client_grants loop
+    if r.object_type = 'table' then
+      if to_regclass(r.object_name) is null then raise exception 'client_grants: unknown table %', r.object_name; end if;
+      execute format('grant %s on %s to %I', r.privilege, to_regclass(r.object_name), r.grantee);
+    else
+      if to_regprocedure(r.object_name) is null then raise exception 'client_grants: unknown function %', r.object_name; end if;
+      execute format('grant execute on function %s to %I', to_regprocedure(r.object_name), r.grantee);
+    end if;
+  end loop;
+end $$;
+
+insert into inf.client_grants (object_type, object_name, grantee, privilege) values
+  ('function', 'inf.json_schema_errors(jsonb, jsonb, text)', 'authenticated', 'execute'),
+  ('function', 'inf.json_matches_schema(jsonb, jsonb)', 'authenticated', 'execute');
+call inf.apply_client_grants();

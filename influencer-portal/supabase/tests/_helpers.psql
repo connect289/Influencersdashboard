@@ -1,0 +1,85 @@
+-- Test helpers, included by every test file with \ir _helpers.psql (inside the file's transaction, so they vanish on
+-- rollback). Not a test file itself (pg_prove only runs *.sql).
+create extension if not exists pgtap with schema extensions;
+set search_path to public, extensions;
+
+create schema if not exists tests;
+
+create or replace function tests.create_user(p_email text) returns uuid language plpgsql as $$
+declare v_id uuid := gen_random_uuid();
+begin
+  insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+  values ('00000000-0000-0000-0000-000000000000', v_id, 'authenticated', 'authenticated', lower(p_email), '', now(),
+          '{"provider":"email","providers":["email"]}', jsonb_build_object('full_name', split_part(p_email, '@', 1)), now(), now());
+  return v_id;
+end $$;
+
+-- Become a signed-in user with a given Supabase session id (the JWT carries both).
+create or replace function tests.act_as(p_user uuid, p_session uuid, p_amr text default 'password') returns void language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims', json_build_object(
+    'sub', p_user, 'role', 'authenticated', 'session_id', p_session,
+    'email', (select email from auth.users where id = p_user),
+    'amr', json_build_array(json_build_object('method', p_amr, 'timestamp', extract(epoch from now())::int)))::text, true);
+  perform set_config('role', 'authenticated', true);
+end $$;
+
+create or replace function tests.act_as_anon() returns void language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+  perform set_config('role', 'anon', true);
+end $$;
+
+create or replace function tests.act_as_service() returns void language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  perform set_config('role', 'service_role', true);
+end $$;
+
+-- Back to the test runner's own role (postgres).
+create or replace function tests.reset() returns void language plpgsql as $$
+begin
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '', true);
+end $$;
+
+-- A staff member with roles and a session; verified unless p_verified = false. Returns the session id; the user id is
+-- in tests.people by label.
+create table if not exists tests.people (label text primary key, user_id uuid not null, session_id uuid not null, creator_id uuid);
+
+create or replace function tests.make_staff(p_label text, p_roles text[], p_verified boolean default true, p_signatory boolean default false)
+returns uuid language plpgsql as $$
+declare v_uid uuid := tests.create_user(p_label || '@staff.test'); v_sid uuid := gen_random_uuid();
+begin
+  insert into inf.staff_profiles (user_id, full_name, email, is_signatory, signatory_designation)
+  values (v_uid, initcap(p_label), p_label || '@staff.test', p_signatory, case when p_signatory then 'Director' end);
+  insert into inf.staff_role_grants (user_id, role) select v_uid, r from unnest(p_roles) r;
+  insert into inf.user_sessions (session_id, user_id, kind, verified_at, verified_via)
+  values (v_sid, v_uid, 'staff', case when p_verified then now() end, case when p_verified then 'email_code' end);
+  insert into tests.people values (p_label, v_uid, v_sid, null);
+  return v_sid;
+end $$;
+
+create or replace function tests.make_creator(p_label text, p_status text default 'active') returns uuid language plpgsql as $$
+declare v_uid uuid := tests.create_user(p_label || '@creator.test'); v_sid uuid := gen_random_uuid(); v_cid uuid;
+begin
+  insert into inf.creators (display_name, handle, email, status) values (initcap(p_label), lower(p_label), p_label || '@creator.test', p_status)
+  returning id into v_cid;
+  insert into inf.creator_accounts (creator_id, user_id) values (v_cid, v_uid);
+  insert into inf.user_sessions (session_id, user_id, kind, verified_at, verified_via) values (v_sid, v_uid, 'creator', now(), 'otp');
+  insert into tests.people values (p_label, v_uid, v_sid, v_cid);
+  return v_cid;
+end $$;
+
+create or replace function tests.as_person(p_label text) returns void language plpgsql as $$
+declare r tests.people;
+begin
+  perform tests.reset();
+  select * into r from tests.people where label = p_label;
+  if r.user_id is null then raise exception 'unknown test person %', p_label; end if;
+  perform tests.act_as(r.user_id, r.session_id);
+end $$;
+
+grant usage on schema tests to anon, authenticated, service_role;
+grant select on tests.people to anon, authenticated, service_role;
+grant execute on all functions in schema tests to anon, authenticated, service_role;

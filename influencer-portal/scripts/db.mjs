@@ -29,7 +29,7 @@ switch (cmd) {
     run(["db", "reset", "--local"]);
     break;
   case "test":
-    run(["test", "db", "--local"]);
+    { const r = spawnSync("node", [new URL("./test-db.mjs", import.meta.url).pathname, ...process.argv.slice(3)], { stdio: "inherit" }); process.exit(r.status ?? 1); }
     break;
   case "types": {
     const out = run(["gen", "types", "typescript", "--local", "--schema", "inf"], { capture: true });

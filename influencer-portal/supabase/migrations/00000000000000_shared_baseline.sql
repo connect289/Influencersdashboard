@@ -30,6 +30,7 @@ set search_path to public, extensions;
 
 create extension if not exists pg_trgm with schema extensions;
 create extension if not exists pgcrypto with schema extensions;
+create extension if not exists pg_cron;
 
 -- ---------- B2B CRM (schema b2b): only the columns the portal or the exact functions reference ----------
 create schema if not exists b2b;
