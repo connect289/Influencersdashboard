@@ -18,6 +18,8 @@ export function ConfirmDialog({
   reasonLabel,
   danger = true,
   pending,
+  defaultOpen = false,
+  onClose,
   onConfirm,
 }: {
   trigger: ReactNode;
@@ -27,14 +29,18 @@ export function ConfirmDialog({
   reasonLabel?: string;
   danger?: boolean;
   pending?: boolean;
+  /** Open on mount (e.g. when a menu item asks for confirmation). */
+  defaultOpen?: boolean;
+  onClose?: () => void;
   onConfirm: (reason: string, close: () => void) => void;
 }) {
   const t = useTranslations();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [reason, setReason] = useState("");
   const close = () => {
     setOpen(false);
     setReason("");
+    onClose?.();
   };
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>

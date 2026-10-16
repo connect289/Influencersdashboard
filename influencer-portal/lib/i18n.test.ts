@@ -14,6 +14,14 @@ import {
   PLATFORMS,
 } from "@/lib/creators/schemas";
 import { AGENCY_GRANTS } from "@/lib/agencies/schemas";
+import {
+  CREATOR_STATUSES,
+  IMPORT_REASON_CODES,
+  OUTREACH_CHANNELS,
+  OUTREACH_OUTCOMES,
+  PIPELINE_STAGES,
+  TASK_PRIORITIES,
+} from "@/lib/creators/crm";
 import en from "@/messages/en.json";
 
 const root = join(import.meta.dirname, "..");
@@ -56,6 +64,19 @@ describe("messages", () => {
       ...GST_STATUSES.map((g) => `kyc.gst.${g}`),
       ...CONTACT_KINDS.map((k) => `profile.contacts.kinds.${k}`),
       ...AGENCY_GRANTS.map((g) => `agencies.grants.${g}`),
+      ...PIPELINE_STAGES.map((x) => `creators.stages.${x}`),
+      ...CREATOR_STATUSES.map((x) => `creators.statuses.${x}`),
+      ...OUTREACH_CHANNELS.map((x) => `creators.outreach.channels.${x}`),
+      ...OUTREACH_OUTCOMES.map((x) => `creators.outreach.outcomes.${x}`),
+      ...TASK_PRIORITIES.map((x) => `tasks.priorities.${x}`),
+      ...IMPORT_REASON_CODES.map((x) => `creators.import.reasons.${x}`),
+      ...["created", "duplicate", "error"].map((x) => `creators.import.results.${x}`),
+      ...["block", "unblock", "delete"].flatMap((x) =>
+        ["title", "body", "action"].map((y) => `creators.confirm.${x}.${y}`),
+      ),
+      ...["overview", "profile", "kyc", "outreach", "tasks", "agencies", "history"].map((x) => `creators.tabs.${x}`),
+      ...["tag_add", "tag_remove", "owner", "stage"].map((x) => `creators.bulk.${x}`),
+      ...["open", "done", "cancelled"].map((x) => `tasks.statusDone.${x}`),
       ...["pending", "submitted", "verified", "rejected"].map((s) => `kyc.status.${s}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);

@@ -41,7 +41,9 @@
       "audit": "Audit log",
       "system": "System status",
       "kyc": "KYC review",
-      "agencies": "Agencies"
+      "agencies": "Agencies",
+      "creators": "Creators",
+      "tasks": "Tasks"
     },
     "creator": {
       "home": "Home",
@@ -72,7 +74,8 @@
       "placeholder": "Go to…",
       "empty": "No matching screen.",
       "title": "Quick navigation",
-      "shortcut": "Ctrl K"
+      "shortcut": "Ctrl K",
+      "creators": "Creators"
     },
     "more": "More",
     "agencyPortal": "Agency portal",
@@ -235,7 +238,8 @@
       "whatsappHint": "Needs a portal notification number, a WABA and approved templates.",
       "live": "Turn on live sending",
       "liveHint": "LIVE_MODE is off, so no notification leaves the system yet."
-    }
+    },
+    "myTasks": "My tasks"
   },
   "settings": {
     "subtitle": "Business rules the portal follows. Every change needs a reason and is kept in the history.",
@@ -894,6 +898,327 @@
       "reason": "Give a reason (at least 3 characters).",
       "handle": "Enter a valid handle.",
       "noCreator": "No creator has that handle."
+    }
+  },
+  "creators": {
+    "subtitle": "Prospects and creators: pipeline, outreach and follow-ups.",
+    "count": "{count, plural, one {# creator} other {# creators}}",
+    "search": "Search creators",
+    "searchPlaceholder": "Search by name, handle or email",
+    "layout": "Layout",
+    "tableView": "Table",
+    "kanbanView": "Pipeline board",
+    "add": "Add prospect",
+    "addHint": "Add someone you want to work with. You can invite them to the portal later.",
+    "edit": "Edit creator",
+    "created": "Prospect added.",
+    "saved": "Saved.",
+    "deleted": "Prospect deleted.",
+    "stageMoved": "Moved to {stage}.",
+    "blockedDone": "Creator blocked. Their sessions have ended.",
+    "unblockedDone": "Creator unblocked.",
+    "empty": "No creators yet",
+    "emptyHint": "Add a prospect or import a CSV to start your pipeline.",
+    "noResults": "No creators match",
+    "noResultsHint": "Try fewer filters or a different search.",
+    "moreActions": "More actions for {name}",
+    "block": "Block",
+    "unblock": "Unblock",
+    "blockReason": "Reason",
+    "deleteDraft": "Delete prospect",
+    "blockedBanner": "Blocked: {reason}",
+    "accountLinked": "Signed up",
+    "noAccount": "Not signed up yet",
+    "noAgency": "No agency is linked to this creator.",
+    "confirm": {
+      "block": {
+        "title": "Block {name}?",
+        "body": "They lose access to the portal at once and won't appear in lists by default.",
+        "action": "Block"
+      },
+      "unblock": {
+        "title": "Unblock {name}?",
+        "body": "They can sign in again.",
+        "action": "Unblock"
+      },
+      "delete": {
+        "title": "Delete {name}?",
+        "body": "Only untouched prospects can be deleted. This can't be undone.",
+        "action": "Delete"
+      }
+    },
+    "stages": {
+      "prospect": "Prospect",
+      "contacted": "Contacted",
+      "negotiating": "Negotiating",
+      "contracted": "Contracted",
+      "onboarding": "Onboarding",
+      "active": "Active",
+      "paused": "Paused",
+      "dormant": "Dormant",
+      "archived": "Archived"
+    },
+    "statuses": {
+      "prospect": "Prospect",
+      "invited": "Invited",
+      "onboarding": "Onboarding",
+      "active": "Active",
+      "paused": "Paused",
+      "blocked": "Blocked",
+      "archived": "Archived"
+    },
+    "fields": {
+      "handle": "Handle",
+      "handleHint": "3–30 lower-case letters, digits, dots or underscores.",
+      "email": "Email",
+      "tags": "Tags",
+      "source": "Source",
+      "owner": "Owner",
+      "ownerMe": "Me",
+      "tier": "Tier",
+      "status": "Account",
+      "account": "Portal account",
+      "added": "Added",
+      "lastContacted": "Last contacted"
+    },
+    "filters": {
+      "title": "Filters",
+      "stage": "Pipeline stage",
+      "status": "Account status",
+      "any": "Any",
+      "anyone": "Anyone",
+      "me": "Me",
+      "noOwner": "No owner",
+      "followersMin": "Followers from",
+      "followersMax": "Followers up to",
+      "niche": "Topic",
+      "language": "Language",
+      "tag": "Tag",
+      "followUp": "Follow-up",
+      "overdue": "Overdue",
+      "dueToday": "Due by today",
+      "includeBlocked": "Include blocked creators",
+      "clearAll": "Clear filters"
+    },
+    "views": {
+      "title": "Views",
+      "empty": "No saved views yet.",
+      "saveCurrent": "Save current view",
+      "name": "View name",
+      "shareWithTeam": "Share with the team",
+      "shared": "Shared",
+      "saved": "View saved.",
+      "deleted": "View deleted.",
+      "delete": "Delete view {name}"
+    },
+    "table": {
+      "creator": "Creator",
+      "stage": "Stage",
+      "followers": "Followers",
+      "followUp": "Follow-up",
+      "lastActivity": "Last activity",
+      "sortBy": "Sort by {column}",
+      "selectAll": "Select all on this page",
+      "select": "Select {name}",
+      "pagination": "Pages",
+      "showing": "{from}–{to} of {total}",
+      "perPage": "Per page",
+      "prev": "Previous page",
+      "next": "Next page",
+      "pageOf": "Page {page} of {pages}"
+    },
+    "bulk": {
+      "title": "Bulk actions",
+      "selected": "{count} selected",
+      "tag_add": "Add tag",
+      "tag_remove": "Remove tag",
+      "owner": "Assign owner",
+      "stage": "Move to stage",
+      "applyTo": "Applies to {count, plural, one {# creator} other {# creators}}.",
+      "done": "Updated {count} of {total}."
+    },
+    "kanban": {
+      "card": "Draggable creator card",
+      "overdue": "Follow-up overdue",
+      "more": "+{count} more (use the table to see all)",
+      "instructions": "To move a creator, press Space to pick up the card, use the arrow keys to choose a stage, then press Space to drop it, or Escape to cancel."
+    },
+    "tabs": {
+      "label": "Creator sections",
+      "overview": "Overview",
+      "profile": "Profile",
+      "kyc": "KYC",
+      "outreach": "Outreach",
+      "tasks": "Tasks",
+      "agencies": "Agency",
+      "history": "History"
+    },
+    "overview": {
+      "facts": "Summary",
+      "reach": "Total reach",
+      "reachHint": "Followers across {count, plural, one {# platform} other {# platforms}}",
+      "openTasks": "Open tasks"
+    },
+    "history": {
+      "title": "History",
+      "hint": "Changes to this creator's record and KYC.",
+      "empty": "Nothing recorded yet."
+    },
+    "outreach": {
+      "log": "Log outreach",
+      "channel": "Channel",
+      "direction": "Direction",
+      "outbound": "We reached out",
+      "inbound": "They reached out",
+      "outcome": "Outcome",
+      "notes": "Notes",
+      "followUpDate": "Follow up on",
+      "followUpTime": "At (IST)",
+      "followUpHint": "Optional. Shows in the follow-ups list.",
+      "save": "Log it",
+      "logged": "Outreach logged.",
+      "timeline": "Timeline",
+      "empty": "No outreach logged yet.",
+      "followUpOn": "Follow up {date}",
+      "followUpClosed": "Follow-up for {date} closed",
+      "markDone": "Done",
+      "followUpDone": "Follow-up closed.",
+      "channels": {
+        "call": "Call",
+        "whatsapp": "WhatsApp",
+        "instagram_dm": "Instagram DM",
+        "email": "Email",
+        "meeting": "Meeting",
+        "note": "Note",
+        "other": "Other"
+      },
+      "outcomes": {
+        "no_response": "No response",
+        "interested": "Interested",
+        "not_interested": "Not interested",
+        "follow_up": "Follow up",
+        "negotiating": "Negotiating",
+        "agreed": "Agreed",
+        "declined": "Declined",
+        "info": "Information"
+      }
+    },
+    "followUps": {
+      "title": "Follow-ups due",
+      "overdueCount": "{count, plural, one {# overdue} other {# overdue}}",
+      "viewAll": "View all",
+      "empty": "Nothing due",
+      "emptyMine": "Follow-ups for creators you own or contacted appear here.",
+      "done": "Mark the follow-up with {name} done"
+    },
+    "import": {
+      "title": "Import prospects",
+      "subtitle": "Add many prospects at once from a CSV file. Duplicates are skipped.",
+      "step1": "Choose a CSV file",
+      "step1Hint": "Up to 5,000 rows and 2 MB. Name and handle are required. We check the file before importing anything.",
+      "choose": "Choose file",
+      "chooseAnother": "Choose another file",
+      "template": "Download template",
+      "columns": "Columns we understand: {columns}. Separate several topics, languages or tags with semicolons.",
+      "checkTitle": "Check of {file}",
+      "checkHint": "Nothing has been imported yet. Review, then import.",
+      "doneTitle": "Import complete",
+      "doneBody": "{count, plural, one {# prospect was} other {# prospects were}} added to the pipeline.",
+      "willCreate": "{count} new",
+      "created": "{count} added",
+      "duplicates": "{count} duplicates",
+      "errorsCount": "{count} with errors",
+      "run": "Import {count, plural, one {# prospect} other {# prospects}}",
+      "downloadReport": "Download report",
+      "viewCreators": "View creators",
+      "row": "Row",
+      "result": "Result",
+      "reason": "Why",
+      "history": "Recent imports",
+      "file": "File",
+      "when": "When",
+      "rows": "Rows",
+      "results": {
+        "created": "Added",
+        "duplicate": "Duplicate",
+        "error": "Error"
+      },
+      "reasons": {
+        "name": "Name missing or too long",
+        "handle": "Handle missing or invalid",
+        "email": "Email invalid",
+        "phone": "Phone invalid",
+        "city": "City too long",
+        "state": "State too long",
+        "platform": "Unknown platform",
+        "platform_url": "Profile URL must start with https://",
+        "platform_handle": "Platform handle too long",
+        "followers": "Followers must be a number",
+        "source": "Source too long",
+        "platform_pair": "Give both platform and profile URL, or neither",
+        "duplicate_in_file_handle": "Same handle earlier in the file",
+        "duplicate_in_file_email": "Same email earlier in the file",
+        "duplicate_in_file_phone": "Same phone earlier in the file",
+        "existing_handle": "Handle already in the CRM",
+        "existing_email": "Email already in the CRM",
+        "existing_phone": "Phone already in the CRM",
+        "existing_platform_handle": "Platform handle already in the CRM"
+      },
+      "errors": {
+        "tooBig": "That file is over 2 MB.",
+        "tooMany": "That file has more than 5,000 rows. Split it and try again.",
+        "empty": "That file is empty.",
+        "invalid": "That file isn't valid CSV (check for an unclosed quote).",
+        "missingColumns": "Missing required columns: {columns}."
+      }
+    },
+    "errors": {
+      "handle": "Handles are 3–30 lower-case letters, digits, dots or underscores.",
+      "handleTaken": "Another creator already has that handle.",
+      "emailTaken": "Another creator already has that email.",
+      "phoneTaken": "Another creator already has that phone number.",
+      "notSignedUp": "This creator hasn't signed up yet, so they can't be active, paused or dormant.",
+      "blocked": "Unblock the creator first.",
+      "notDraft": "Only untouched prospects can be deleted.",
+      "pastFollowUp": "The follow-up date is in the past.",
+      "reason": "Give a reason (at least 3 characters)."
+    }
+  },
+  "tasks": {
+    "title": "Tasks",
+    "subtitle": "Work assigned to you and your team, and follow-ups that are due.",
+    "tabs": {
+      "mine": "Mine",
+      "all": "Everyone's",
+      "done": "Done"
+    },
+    "add": "New task",
+    "edit": "Edit task",
+    "created": "Task created.",
+    "saved": "Task saved.",
+    "empty": "No tasks here",
+    "unassigned": "Unassigned",
+    "due": "Due {date}",
+    "relatedCreator": "Creator",
+    "complete": "Mark {title} done",
+    "reopen": "Reopen {title}",
+    "statusDone": {
+      "open": "Task reopened.",
+      "done": "Task done.",
+      "cancelled": "Task cancelled."
+    },
+    "fields": {
+      "title": "Task",
+      "description": "Details",
+      "assignee": "Assign to",
+      "priority": "Priority",
+      "dueDate": "Due date",
+      "dueTime": "Time (IST)"
+    },
+    "priorities": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High"
     }
   }
 }

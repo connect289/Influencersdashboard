@@ -6,6 +6,8 @@ describe("staff navigation", () => {
   it("shows Super Admin everything", () => {
     expect(visibleStaffNav(permissionsFor({ roles: ["super_admin"], isSignatory: false })).map((i) => i.href)).toEqual([
       "/admin",
+      "/admin/creators",
+      "/admin/tasks",
       "/admin/agencies",
       "/admin/kyc",
       "/admin/staff",
@@ -17,6 +19,7 @@ describe("staff navigation", () => {
   it("hides what a Viewer can't use", () => {
     expect(visibleStaffNav(permissionsFor({ roles: ["viewer"], isSignatory: false })).map((i) => i.href)).toEqual([
       "/admin",
+      "/admin/tasks",
     ]);
   });
   it("shows Finance the settings it can edit", () => {

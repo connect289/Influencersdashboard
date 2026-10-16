@@ -2,8 +2,21 @@
 // entries. Items a role can't use are hidden (spec 4: hide, never just disable).
 import type { Permission } from "@/lib/auth/permissions";
 
-export type IconName =
-  "home" | "users" | "settings" | "scroll" | "activity" | "user" | "shield" | "idCard" | "badgeCheck" | "building";
+export const ICON_NAMES = [
+  "home",
+  "users",
+  "settings",
+  "scroll",
+  "activity",
+  "user",
+  "shield",
+  "idCard",
+  "badgeCheck",
+  "building",
+  "contact",
+  "checklist",
+] as const;
+export type IconName = (typeof ICON_NAMES)[number];
 
 export interface StaffNavItem {
   href: string;
@@ -15,6 +28,8 @@ export interface StaffNavItem {
 
 export const STAFF_NAV: StaffNavItem[] = [
   { href: "/admin", labelKey: "nav.admin.overview", icon: "home" },
+  { href: "/admin/creators", labelKey: "nav.admin.creators", icon: "contact", anyOf: ["creator.read"] },
+  { href: "/admin/tasks", labelKey: "nav.admin.tasks", icon: "checklist" },
   { href: "/admin/agencies", labelKey: "nav.admin.agencies", icon: "building", anyOf: ["agency.manage"] },
   { href: "/admin/kyc", labelKey: "nav.admin.kyc", icon: "badgeCheck", anyOf: ["kyc.read_masked"] },
   { href: "/admin/staff", labelKey: "nav.admin.staff", icon: "users", anyOf: ["staff.manage"] },

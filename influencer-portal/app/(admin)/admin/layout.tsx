@@ -50,7 +50,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 empty: t("shell.search.empty"),
                 title: t("shell.search.title"),
                 shortcut: t("shell.search.shortcut"),
+                creators: t("shell.search.creators"),
               }}
+              searchCreatorsEnabled={me.permissions.has("creator.read")}
             />
           </div>
           <ThemeToggle label={t("shell.theme")} />

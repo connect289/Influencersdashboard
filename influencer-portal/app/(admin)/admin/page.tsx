@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { CheckCircle2, Circle } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { FollowUpsWidget } from "@/components/creators/follow-ups-widget";
+import { TaskList } from "@/components/creators/tasks";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState } from "@/components/ui/states";
 import { requireStaff } from "@/lib/auth/guards";
+import { loadTasks } from "@/lib/creators/tasks-data";
 import { env } from "@/lib/env";
 
 interface Check {
@@ -26,7 +29,7 @@ export default async function AdminOverview() {
   const canSettings = me.permissions.has("settings.read");
   const canSystem = me.permissions.has("system.read");
 
-  const [settings, signatories, terms, status] = await Promise.all([
+  const [settings, signatories, terms, status, followUps, myTasks] = await Promise.all([
     canSettings ? supabase.rpc("settings_list") : Promise.resolve({ data: null, error: null }),
     supabase
       .from("staff_profiles")
@@ -35,6 +38,10 @@ export default async function AdminOverview() {
       .eq("status", "active"),
     supabase.from("terms_versions").select("kind").in("kind", ["platform_terms", "privacy"]),
     canSystem ? supabase.rpc("system_status") : Promise.resolve({ data: null, error: null }),
+    me.permissions.has("creator.read")
+      ? supabase.rpc("follow_ups_due", { p_scope: "mine", p_limit: 8 })
+      : Promise.resolve({ data: null, error: null }),
+    loadTasks(supabase, { status: "open", assignee: me.userId, limit: 6 }),
   ]);
   const failed = settings.error ?? signatories.error ?? terms.error ?? status.error;
 
@@ -162,6 +169,18 @@ export default async function AdminOverview() {
             </Link>
           </Card>
         ) : null}
+        {followUps.data ? <FollowUpsWidget items={followUps.data} scope="mine" /> : null}
+        <Card>
+          <CardHeader
+            title={t("overview.myTasks")}
+            actions={
+              <Link href="/admin/tasks" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+                {t("creators.followUps.viewAll")}
+              </Link>
+            }
+          />
+          <TaskList tasks={myTasks.tasks} owners={[]} canWrite={false} />
+        </Card>
       </div>
     </>
   );

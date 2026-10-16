@@ -133,6 +133,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"creator_imports": {
+                  Row: {
+                    "created": number,"created_at": string,"created_by": string,"duplicates": number,"errors": number,"file_name": string,"id": string,"report": NonNullable<Json>,"total": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created": number,"created_at"?: string,"created_by"?: string,"duplicates": number,"errors": number,"file_name": string,"id"?: string,"report": NonNullable<Json>,"total": number
+                  }
+                  Update: {
+                    "created"?: number,"created_at"?: string,"created_by"?: string,"duplicates"?: number,"errors"?: number,"file_name"?: string,"id"?: string,"report"?: NonNullable<Json>,"total"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"creator_kyc": {
                   Row: {
                     "account_holder": string | null,"bank_account_enc": string | null,"bank_last4": string | null,"creator_id": string,"gst_status": string,"gstin": string | null,"gstin_verified": boolean,"ifsc": string | null,"name_on_pan": string | null,"pan_enc": string | null,"pan_last4": string | null,"proof_path": string | null,"rejection_reason": string | null,"status": string,"submitted_at": string | null,"updated_at": string,"verified_at": string | null,"verified_by": string | null
@@ -215,14 +229,14 @@ isOneToOne: false
                   ]
                 },"creators": {
                   Row: {
-                    "approved_at": string | null,"approved_by": string | null,"avatar_path": string | null,"bio": string | null,"blocked_reason": string | null,"city": string | null,"created_at": string,"created_by": string | null,"display_name": string,"email": string | null,"handle": string,"id": string,"is_blocked": boolean,"is_test": boolean,"languages": (string)[],"last_activity_at": string | null,"leaderboard_opt_in": boolean,"legal_name": string | null,"niches": (string)[],"onboarding_step": string,"onboarding_submitted_at": string | null,"owner_id": string | null,"phone_e164": string | null,"pipeline_stage": string,"public_page_enabled": boolean,"source": string | null,"state": string | null,"status": string,"tags": (string)[],"tier_id": string | null,"updated_at": string
+                    "approved_at": string | null,"approved_by": string | null,"avatar_path": string | null,"bio": string | null,"blocked_reason": string | null,"city": string | null,"created_at": string,"created_by": string | null,"display_name": string,"email": string | null,"handle": string,"id": string,"is_blocked": boolean,"is_test": boolean,"languages": (string)[],"last_activity_at": string | null,"last_contacted_at": string | null,"leaderboard_opt_in": boolean,"legal_name": string | null,"niches": (string)[],"onboarding_step": string,"onboarding_submitted_at": string | null,"owner_id": string | null,"phone_e164": string | null,"pipeline_stage": string,"public_page_enabled": boolean,"source": string | null,"state": string | null,"status": string,"tags": (string)[],"tier_id": string | null,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name": string,"email"?: string | null,"handle": string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"onboarding_step"?: string,"onboarding_submitted_at"?: string | null,"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name": string,"email"?: string | null,"handle": string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"last_contacted_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"onboarding_step"?: string,"onboarding_submitted_at"?: string | null,"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string,"email"?: string | null,"handle"?: string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"onboarding_step"?: string,"onboarding_submitted_at"?: string | null,"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string,"email"?: string | null,"handle"?: string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"last_contacted_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"onboarding_step"?: string,"onboarding_submitted_at"?: string | null,"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -343,6 +357,26 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"outreach_activities": {
+                  Row: {
+                    "channel": string,"created_at": string,"created_by": string,"creator_id": string,"direction": string,"follow_up_done_at": string | null,"id": string,"next_follow_up_at": string | null,"notes": string | null,"outcome": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "channel": string,"created_at"?: string,"created_by"?: string,"creator_id": string,"direction"?: string,"follow_up_done_at"?: string | null,"id"?: string,"next_follow_up_at"?: string | null,"notes"?: string | null,"outcome": string
+                  }
+                  Update: {
+                    "channel"?: string,"created_at"?: string,"created_by"?: string,"creator_id"?: string,"direction"?: string,"follow_up_done_at"?: string | null,"id"?: string,"next_follow_up_at"?: string | null,"notes"?: string | null,"outcome"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outreach_activities_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"permissions": {
                   Row: {
                     "area": string,"key": string,"label": string
@@ -390,6 +424,20 @@ isOneToOne: false
       referencedRelation: "permissions"
       referencedColumns: ["key"]
     }
+                  ]
+                },"saved_views": {
+                  Row: {
+                    "created_at": string,"filters": NonNullable<Json>,"id": string,"is_shared": boolean,"name": string,"owner_id": string,"scope": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"filters": NonNullable<Json>,"id"?: string,"is_shared"?: boolean,"name": string,"owner_id"?: string,"scope"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"filters"?: NonNullable<Json>,"id"?: string,"is_shared"?: boolean,"name"?: string,"owner_id"?: string,"scope"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
                   ]
                 },"setting_definitions": {
                   Row: {
@@ -488,6 +536,26 @@ isOneToOne: true
                     {
       foreignKeyName: "staff_role_grants_user_id_fkey"
       columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "staff_profiles"
+      referencedColumns: ["user_id"]
+    }
+                  ]
+                },"tasks": {
+                  Row: {
+                    "assignee_id": string | null,"completed_at": string | null,"created_at": string,"created_by": string,"description": string | null,"due_at": string | null,"id": string,"priority": string,"related_id": string | null,"related_type": string | null,"status": string,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string,"description"?: string | null,"due_at"?: string | null,"id"?: string,"priority"?: string,"related_id"?: string | null,"related_type"?: string | null,"status"?: string,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string,"description"?: string | null,"due_at"?: string | null,"id"?: string,"priority"?: string,"related_id"?: string | null,"related_type"?: string | null,"status"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "tasks_assignee_id_fkey"
+      columns: ["assignee_id"]
 isOneToOne: false
       referencedRelation: "staff_profiles"
       referencedColumns: ["user_id"]
@@ -640,8 +708,42 @@ isOneToOne: false
 "creator_contact_delete":
 { Args: { "p_creator": string,"p_id": string }; Returns: undefined
                            },
+"creator_delete_draft":
+{ Args: { "p_creator": string }; Returns: undefined
+                           },
+"creator_import":
+{ Args: { "p_dry_run"?: boolean,"p_file_name": string,"p_invalid"?: Json,"p_rows": Json }; Returns: Json
+                           },
+"creator_list":
+{ Args: { "p": Json }; Returns: Json
+                           },
 "creator_profile_update":
 { Args: { "p": Json,"p_creator": string }; Returns: undefined
+                           },
+"creator_rows":
+{ Args: { "p": Json }; Returns: {
+              "city": string,"display_name": string,"email": string,"followers": number,"handle": string,"has_account": boolean,"id": string,"is_blocked": boolean,"languages": (string)[],"last_activity_at": string,"last_contacted_at": string,"next_follow_up_at": string,"niches": (string)[],"owner_id": string,"owner_name": string,"pipeline_stage": string,"platforms": (string)[],"state": string,"status": string,"tags": (string)[],"tier_id": string,"tier_name": string,"updated_at": string
+            }[]
+                           },
+"creator_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"creator_set_blocked":
+{ Args: { "p_blocked": boolean,"p_creator": string,"p_reason": string }; Returns: undefined
+                           },
+"creator_set_stage":
+{ Args: { "p_creator": string,"p_stage": string }; Returns: undefined
+                           },
+"creator_stage_counts":
+{ Args: { "p": Json }; Returns: {
+              "n": number,"stage": string
+            }[]
+                           },
+"creators_bulk":
+{ Args: { "p_action": string,"p_ids": (string)[],"p_value": string }; Returns: number
+                           },
+"creators_flag_dormant":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "cron_dispatch":
 { Args: { "p_path": string }; Returns: undefined
@@ -669,6 +771,14 @@ isOneToOne: false
                            },
 "emit_event":
 { Args: { "p_idem_key": string,"p_payload": Json,"p_subject_id": string,"p_subject_type": string,"p_type": string }; Returns: number
+                           },
+"follow_up_done":
+{ Args: { "p_activity": string }; Returns: undefined
+                           },
+"follow_ups_due":
+{ Args: { "p_limit"?: number,"p_scope"?: string }; Returns: {
+              "activity_id": string,"creator_id": string,"display_name": string,"handle": string,"next_follow_up_at": string,"notes": string,"outcome": string,"overdue": boolean,"owner_name": string
+            }[]
                            },
 "has_perm":
 { Args: { "p_permission": string }; Returns: boolean
@@ -785,6 +895,9 @@ isOneToOne: false
 "notify":
 { Args: { "p_body": string,"p_channels"?: (string)[],"p_data": Json,"p_event": string,"p_idem_key": string,"p_link": string,"p_mandatory": boolean,"p_title": string,"p_user": string }; Returns: string
                            },
+"outreach_log":
+{ Args: { "p_channel": string,"p_creator": string,"p_direction": string,"p_next_follow_up"?: string,"p_notes": string,"p_outcome": string }; Returns: string
+                           },
 "pii_decrypt":
 { Args: { "p": string }; Returns: string
                            },
@@ -829,6 +942,12 @@ isOneToOne: false
                            },
 "request_user_agent":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"saved_view_delete":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
+"saved_view_save":
+{ Args: { "p_filters": Json,"p_name": string,"p_shared": boolean }; Returns: string
                            },
 "session_ok":
 { Args: Record<PropertyKey, never>; Returns: boolean
@@ -881,8 +1000,17 @@ isOneToOne: false
 "staff_set_status":
 { Args: { "p_reason": string,"p_status": string,"p_user": string }; Returns: undefined
                            },
+"status_for_stage":
+{ Args: { "p_stage": string,"p_status": string }; Returns: string
+                           },
 "system_status":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"task_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"task_set_status":
+{ Args: { "p_status": string,"p_task": string }; Returns: undefined
                            },
 "terms_accept":
 { Args: { "p_terms_version_id": string }; Returns: undefined
