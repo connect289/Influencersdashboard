@@ -494,6 +494,9 @@ begin
   insert into r (name, ok, detail) values ('c3_pipeline_not_for_marketing', e = 'not allowed', e);
   perform pg_temp.as_system();
   update b2c.leads_state set next_task_due_at = now() - interval '1 hour' where lead_id = 996630;
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  j := b2c.pipeline_board('{}');
+  insert into r (name, ok, detail) values ('c3_test_user_sees_test_leads_by_default', exists (select 1 from jsonb_array_elements(j -> 'columns') c, jsonb_array_elements(c -> 'cards') k where (k ->> 'lead_id')::bigint = 996630), j::text);
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e902');
   j := b2c.pipeline_board(jsonb_build_object('owner', 'aaaaaaaa-0000-0000-0000-00000000e901', 'include_test', true));
   insert into r (name, ok, detail) values ('c3_counsellor_sees_only_own', not exists (select 1 from jsonb_array_elements(j -> 'columns') c, jsonb_array_elements(c -> 'cards') k where (k ->> 'lead_id')::bigint = 996630), null);

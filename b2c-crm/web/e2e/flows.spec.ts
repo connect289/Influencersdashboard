@@ -25,7 +25,7 @@ test.describe("counsellor", () => {
     await page.getByRole("link", { name: "All mine" }).click();
     await expect(page.locator("a[href^='/s/leads/99']").first()).toBeVisible();
     await page.goto("/s/pipeline");
-    await expect(page.getByText(/^[1-9]\d* active leads?$/)).toBeVisible();
+    await expect(page.getByText(/^[1-9]\d* active leads?\b/)).toBeVisible();
     expect(problems).toEqual([]);
   });
 
