@@ -34,10 +34,12 @@ describe("programmes", () => {
     expect(accreditationLabel("nothing here")).toBeNull();
   });
 
-  it("shows the total fee with the per-semester figure under it", () => {
-    expect(headlineFee({ fee_total: 160000, fee_yearly: 80000, fee_semester: 40000 })).toEqual({ label: "Total fee", value: 160000, per: "per semester:40000" });
-    expect(headlineFee({ fee_total: null, fee_yearly: 80000, fee_semester: null })).toEqual({ label: "Fee per year", value: 80000, per: null });
-    expect(headlineFee({ fee_total: 160000, fee_yearly: 80000, fee_semester: null })).toEqual({ label: "Total fee", value: 160000, per: "per year:80000" });
+  it("leads with the full fee, the per-semester instalment under it, never the yearly figure", () => {
+    expect(headlineFee({ fee_total: 160000, fee_yearly: 80000, fee_semester: 40000, duration_months: 24 })).toEqual({ label: "Full fee", value: 160000, semester: 40000 });
+    expect(headlineFee({ fee_total: null, fee_yearly: 80000, fee_semester: null, duration_months: 36 })).toEqual({ label: "Full fee", value: 240000, semester: null });
+    expect(headlineFee({ fee_total: null, fee_yearly: 80000, fee_semester: null, duration_months: null })).toEqual({ label: "Fee per year", value: 80000, semester: null });
+    expect(headlineFee({ fee_total: null, fee_yearly: null, fee_semester: 30000, duration_months: null })).toEqual({ label: "Fee per semester", value: 30000, semester: null });
+    expect(headlineFee({ fee_total: null, fee_yearly: null, fee_semester: null, duration_months: null })).toEqual({ label: "Fee", value: null, semester: null });
   });
 
   it("groups by university A to Z and keeps each university's order", () => {

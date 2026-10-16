@@ -95,13 +95,15 @@ export function accreditationLabel(text: string | null | undefined, recognitions
   return null;
 }
 
-/** The headline fee on a card: the total when the catalogue has it, else the yearly fee. */
-export function headlineFee(p: Pick<Programme, "fee_total" | "fee_yearly" | "fee_semester">): { label: string; value: number | null; per: string | null } {
-  const per = p.fee_semester ? "per semester" : p.fee_total && p.fee_yearly && p.fee_total !== p.fee_yearly ? "per year" : null;
-  const perValue = p.fee_semester ?? (per === "per year" ? p.fee_yearly : null);
-  if (p.fee_total) return { label: "Total fee", value: p.fee_total, per: perValue && per ? `${per}:${perValue}` : null };
-  if (p.fee_yearly) return { label: "Fee per year", value: p.fee_yearly, per: p.fee_semester ? `per semester:${p.fee_semester}` : null };
-  return { label: "Fee", value: null, per: null };
+/** The fee a card leads with: the full fee for the whole programme (the catalogue's total; else the yearly fee times the
+ * duration; else the yearly fee alone, saying so), and under it the per-semester instalment when the university bills that way. */
+export function headlineFee(p: Pick<Programme, "fee_total" | "fee_yearly" | "fee_semester" | "duration_months">): { label: string; value: number | null; semester: number | null } {
+  const semester = p.fee_semester ?? null;
+  if (p.fee_total) return { label: "Full fee", value: p.fee_total, semester };
+  if (p.fee_yearly && p.duration_months) return { label: "Full fee", value: Math.round(p.fee_yearly * p.duration_months / 12), semester };
+  if (p.fee_yearly) return { label: "Fee per year", value: p.fee_yearly, semester };
+  if (semester) return { label: "Fee per semester", value: semester, semester: null };
+  return { label: "Fee", value: null, semester: null };
 }
 
 export type UniversityGroup = { university: string; university_id: number | null; university_short: string | null; rows: Programme[] };

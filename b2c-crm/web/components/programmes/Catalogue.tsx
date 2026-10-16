@@ -191,7 +191,6 @@ function ProgrammeCard({ p, money, withLead, checked, send }: { p: Programme; mo
   const title = p.specialization && !p.name.toLowerCase().includes(p.specialization.toLowerCase()) ? `${p.name} – ${p.specialization}` : p.name;
   const name = `${title} · ${p.university}`;
   const fee = headlineFee(p);
-  const [perLabel, perValue] = fee.per ? fee.per.split(":") : [null, null];
   const accred = accreditationLabel(p.accreditation, p.recognitions);
   const brochure = p.brochure_url && HTTPS.test(p.brochure_url) ? p.brochure_url : null;
   return (
@@ -218,7 +217,7 @@ function ProgrammeCard({ p, money, withLead, checked, send }: { p: Programme; mo
           <div><span className="stat-label">Duration</span><span className="stat-value mono">{duration(p.duration_months) ?? "—"}</span></div>
         )}
       </div>
-      {perValue && <span className="mono muted small">{inr(Number(perValue))} {perLabel}</span>}
+      {fee.semester && <span className="mono muted small">{inr(fee.semester)} per semester</span>}
       <div className="row between pcard-foot">
         {accred ? <span className="accred"><ShieldCheck className="icon s" aria-hidden />{accred}</span> : <span />}
         <span className="row" style={{ gap: 4 }}>
