@@ -170,6 +170,52 @@ async function main() {
     }
   }
 
+  // A demo agency: an owner who can sign in, linked to Riya with "view" and "act on deliverables".
+  const agencyName = "Spotlight Talent (demo)";
+  const found = await db.from("agencies").select("id").eq("name", agencyName).maybeSingle();
+  const agency = found.data
+    ? { data: found.data, error: null }
+    : await db
+        .from("agencies")
+        .insert({ name: agencyName, email: "hello@spotlight.example.test" })
+        .select("id")
+        .single();
+  if (agency.error) throw new Error(`agency: ${agency.error.message}`);
+  const ownerEmail = "agency.owner@example.test";
+  const ownerId = await authUser(ownerEmail, null, "Sana Spotlight");
+  const member = await db
+    .from("agency_members")
+    .select("id")
+    .eq("email", ownerEmail)
+    .eq("status", "active")
+    .maybeSingle();
+  if (!member.data)
+    await db.from("agency_members").insert({
+      agency_id: agency.data.id,
+      email: ownerEmail,
+      full_name: "Sana Spotlight",
+      role: "owner",
+      user_id: ownerId,
+      linked_at: new Date().toISOString(),
+    });
+  const riya = await db.from("creators").select("id").eq("handle", "riyalearns").single();
+  const live = await db
+    .from("agency_creator_links")
+    .select("id")
+    .eq("agency_id", agency.data.id)
+    .eq("creator_id", riya.data?.id ?? "")
+    .in("status", ["pending", "active"])
+    .maybeSingle();
+  if (riya.data && !live.data)
+    await db.from("agency_creator_links").insert({
+      agency_id: agency.data.id,
+      creator_id: riya.data.id,
+      status: "active",
+      can_view: true,
+      can_act_deliverables: true,
+      responded_at: new Date().toISOString(),
+    });
+
   const terms = await db.from("terms_versions").select("kind");
   const have = new Set((terms.data ?? []).map((t) => t.kind));
   const demoTerms = [
@@ -186,7 +232,9 @@ async function main() {
   ];
   for (const t of demoTerms) if (!have.has(t.kind)) await db.from("terms_versions").insert({ ...t, version: 1 });
 
-  console.info(`Seeded ${STAFF.length} staff (password: ${SEED_PASSWORD}) and ${CREATORS.length} creators on ${url}.`);
+  console.info(
+    `Seeded ${STAFF.length} staff (password: ${SEED_PASSWORD}), ${CREATORS.length} creators and 1 agency (${ownerEmail}) on ${url}.`,
+  );
 }
 
 main().catch((e: unknown) => {

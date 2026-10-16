@@ -40,13 +40,20 @@
       "settings": "Settings",
       "audit": "Audit log",
       "system": "System status",
-      "kyc": "KYC review"
+      "kyc": "KYC review",
+      "agencies": "Agencies"
     },
     "creator": {
       "home": "Home",
       "account": "Account",
       "profile": "Profile",
-      "kyc": "KYC"
+      "kyc": "KYC",
+      "agency": "Manager"
+    },
+    "agency": {
+      "home": "Creators",
+      "team": "Team",
+      "account": "Account"
     }
   },
   "shell": {
@@ -67,7 +74,9 @@
       "title": "Quick navigation",
       "shortcut": "Ctrl K"
     },
-    "more": "More"
+    "more": "More",
+    "agencyPortal": "Agency portal",
+    "agencyGreeting": "Signed in as {name} · {agency}"
   },
   "roles": {
     "signatory": "Authorised Signatory",
@@ -97,8 +106,8 @@
     },
     "creator": {
       "title": "Sign in to Eduwit Creators",
-      "subtitle": "We'll email you a one-time code. No password needed.",
-      "emailHint": "Use the email your Eduwit manager invited.",
+      "subtitle": "For creators and their agencies. We'll email you a one-time code. No password needed.",
+      "emailHint": "Use the email Eduwit invited.",
       "sendCode": "Email me a code",
       "sending": "Sending…",
       "staffPrompt": "Eduwit team member?",
@@ -768,6 +777,123 @@
       "uploadFailed": "The upload failed. Try again.",
       "reason": "Give a reason (at least 3 characters).",
       "notReady": "This KYC isn't complete yet, so it can't be reviewed."
+    }
+  },
+  "agencyPortal": {
+    "title": "Your creators",
+    "subtitle": "Creators who linked their account to {agency}, and what each one lets you do.",
+    "creators": "Creators",
+    "empty": "No creators yet",
+    "emptyOwner": "Ask a creator to link with you below. They choose what you can do.",
+    "emptyMember": "Your agency's owner can ask creators to link with the agency.",
+    "granted": "They let you:",
+    "teamSubtitle": "People from your agency who can sign in here.",
+    "agency": "Agency"
+  },
+  "agencies": {
+    "subtitle": "Talent agencies and managers, their team, and the creators who granted them access.",
+    "add": "Add agency",
+    "edit": "Edit agency",
+    "saved": "Agency saved.",
+    "empty": "No agencies yet",
+    "emptyHint": "Add an agency, invite its owner, then ask creators to link with it.",
+    "linkedCreators": "Linked creators",
+    "added": "Added",
+    "status": "Status",
+    "statuses": {
+      "active": "Active",
+      "suspended": "Suspended"
+    },
+    "suspend": "Suspend",
+    "reactivate": "Reactivate",
+    "suspendTitle": "Suspend {name}?",
+    "suspendBody": "Its members lose access at once. Creator links stay in place and work again if you reactivate.",
+    "reactivateTitle": "Reactivate {name}?",
+    "suspended": "Agency suspended.",
+    "reactivated": "Agency reactivated.",
+    "fields": {
+      "name": "Name",
+      "legalName": "Legal name",
+      "email": "Email",
+      "phone": "Phone",
+      "gstin": "GSTIN",
+      "notes": "Notes"
+    },
+    "members": {
+      "title": "Team",
+      "hint": "People who sign in to the agency portal. Owners can invite others and ask creators to link.",
+      "add": "Invite member",
+      "addHint": "They sign in with this email and a code we send each time.",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "roles": {
+        "owner": "Owner",
+        "member": "Member"
+      },
+      "sendInvite": "Send invitation",
+      "invited": "Not signed in yet",
+      "empty": "No team members yet",
+      "added": "Invitation sent to {email}.",
+      "addedNoMail": "Member added, but the invitation email couldn't be sent. Ask them to sign in at the portal.",
+      "removed": "Member removed. Their sessions have ended.",
+      "removeTitle": "Remove {name}?",
+      "removeBody": "They lose access to the agency portal at once.",
+      "removeOne": "Remove {name}"
+    },
+    "grants": {
+      "view": "View profile and work",
+      "viewHint": "Always on while you're linked.",
+      "deliverables": "Act on deliverables",
+      "deliverablesHint": "Upload drafts, reply to feedback and submit live links for you.",
+      "negotiate": "Negotiate and sign",
+      "negotiateHint": "Accept campaign invites, counter offers and sign contracts on your behalf.",
+      "earnings": "View earnings",
+      "earningsHint": "See your earnings and payouts (never your bank details).",
+      "bankNote": "Payouts always go to your own bank account unless a contract names the agency as payee."
+    },
+    "links": {
+      "status": {
+        "pending": "Waiting for the creator",
+        "active": "Linked"
+      },
+      "pendingHint": "This agency asked to manage your account. Choose what they can do, then accept.",
+      "activeHint": "You can change these permissions or end the link at any time.",
+      "accept": "Accept",
+      "saveGrants": "Save permissions",
+      "saved": "Permissions saved.",
+      "decline": "Decline",
+      "end": "End link",
+      "declineTitle": "Decline {name}?",
+      "endTitle": "End the link with {name}?",
+      "endBody": "They lose access to your account at once.",
+      "ended": "Done.",
+      "requestTitle": "Link a creator",
+      "requestHint": "The creator gets a request and chooses what your agency can do.",
+      "adminHint": "Links only start working once the creator accepts them.",
+      "handle": "Creator handle",
+      "handleHint": "Their Eduwit handle, e.g. @riyalearns.",
+      "request": "Send request",
+      "requested": "Request sent. The creator will be asked to accept.",
+      "empty": "No linked creators",
+      "revoke": "End link",
+      "revokeTitle": "End the link with {name}?",
+      "revokeBody": "The agency loses access to this creator at once. The creator is not asked first.",
+      "reason": "Reason",
+      "revoked": "Link ended."
+    },
+    "creatorTitle": "Manager or agency",
+    "creatorSubtitle": "Agencies you allow to work on your behalf, and what each may do.",
+    "creatorEmpty": "No agency is linked to you",
+    "creatorEmptyHint": "If you work with a manager, ask them to send you a link request from their Eduwit agency portal.",
+    "errors": {
+      "duplicate": "That already exists.",
+      "otherAccount": "That email belongs to a staff or creator account and can't join an agency.",
+      "lastOwner": "An agency needs at least one owner. Make someone else an owner first.",
+      "linkEnded": "This link has already ended.",
+      "reason": "Give a reason (at least 3 characters).",
+      "handle": "Enter a valid handle.",
+      "noCreator": "No creator has that handle."
     }
   }
 }

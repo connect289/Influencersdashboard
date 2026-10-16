@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { fetchMe, SetupError } from "@/lib/auth/guards";
+import { linkPortalAccount, portalNext } from "@/lib/auth/link";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 import { clientIp, safeNext } from "@/lib/security";
@@ -50,9 +51,10 @@ export async function GET(request: NextRequest) {
       await supabase.auth.signOut({ scope: "local" });
       return to("/login/staff");
     }
-    if (me.kind !== "creator") {
-      const link = await supabase.rpc("creator_account_link");
-      if ((link.data as { ok?: boolean } | null)?.ok !== true) {
+    let kind: "creator" | "agency" | null = me.kind === "creator" || me.kind === "agency" ? me.kind : null;
+    if (!kind) {
+      kind = await linkPortalAccount(supabase);
+      if (!kind) {
         await record(email, "refused", "not_registered", me.user_id);
         await supabase.auth.signOut({ scope: "local" });
         return to("/no-access?portal=creator");
@@ -60,8 +62,8 @@ export async function GET(request: NextRequest) {
       me = await fetchMe(supabase);
     }
     await supabase.rpc("session_register");
-    await record(email, "ok", null, me.user_id);
-    return to(safeNext(params.get("next"), "/creator"));
+    await record(email, "ok", kind === "agency" ? "agency" : null, me.user_id);
+    return to(portalNext(kind, safeNext(params.get("next"), "/creator")));
   } catch (e) {
     log.error("oauth_callback.failed", { error: e instanceof Error ? e.message : String(e) });
     await supabase.auth.signOut({ scope: "local" });

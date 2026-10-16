@@ -3,7 +3,7 @@
 import type { Permission } from "@/lib/auth/permissions";
 
 export type IconName =
-  "home" | "users" | "settings" | "scroll" | "activity" | "user" | "shield" | "idCard" | "badgeCheck";
+  "home" | "users" | "settings" | "scroll" | "activity" | "user" | "shield" | "idCard" | "badgeCheck" | "building";
 
 export interface StaffNavItem {
   href: string;
@@ -15,6 +15,7 @@ export interface StaffNavItem {
 
 export const STAFF_NAV: StaffNavItem[] = [
   { href: "/admin", labelKey: "nav.admin.overview", icon: "home" },
+  { href: "/admin/agencies", labelKey: "nav.admin.agencies", icon: "building", anyOf: ["agency.manage"] },
   { href: "/admin/kyc", labelKey: "nav.admin.kyc", icon: "badgeCheck", anyOf: ["kyc.read_masked"] },
   { href: "/admin/staff", labelKey: "nav.admin.staff", icon: "users", anyOf: ["staff.manage"] },
   {
@@ -41,11 +42,18 @@ export const CREATOR_NAV: CreatorNavItem[] = [
   { href: "/creator", labelKey: "nav.creator.home", icon: "home" },
   { href: "/creator/profile", labelKey: "nav.creator.profile", icon: "idCard" },
   { href: "/creator/kyc", labelKey: "nav.creator.kyc", icon: "badgeCheck" },
+  { href: "/creator/agency", labelKey: "nav.creator.agency", icon: "building" },
   { href: "/creator/account", labelKey: "nav.creator.account", icon: "user" },
+];
+
+export const AGENCY_NAV: CreatorNavItem[] = [
+  { href: "/agency", labelKey: "nav.agency.home", icon: "users" },
+  { href: "/agency/team", labelKey: "nav.agency.team", icon: "building" },
+  { href: "/agency/account", labelKey: "nav.agency.account", icon: "user" },
 ];
 
 /** Active when the path is the item or below it (except the portal root, which matches exactly). */
 export function isActive(path: string, href: string): boolean {
-  if (href === "/admin" || href === "/creator") return path === href;
+  if (href === "/admin" || href === "/creator" || href === "/agency") return path === href;
   return path === href || path.startsWith(`${href}/`);
 }

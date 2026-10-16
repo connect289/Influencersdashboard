@@ -1,7 +1,16 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { meSchema, toCreatorMe, toStaffMe, type CreatorMe, type Me, type StaffMe } from "@/lib/auth/me";
+import {
+  meSchema,
+  toAgencyMe,
+  toCreatorMe,
+  toStaffMe,
+  type AgencyMe,
+  type CreatorMe,
+  type Me,
+  type StaffMe,
+} from "@/lib/auth/me";
 import type { Permission } from "@/lib/auth/permissions";
 import { log } from "@/lib/log";
 import { DEVICE_COOKIE, safeNext } from "@/lib/security";
@@ -78,6 +87,7 @@ export async function requireCreator(): Promise<{ supabase: ServerSupabase; me: 
   const supabase = await signedInClient("/login");
   let me = await fetchMe(supabase);
   if (me.kind === "staff") redirect("/admin");
+  if (me.kind === "agency") redirect("/agency");
   if (me.kind !== "creator") {
     const link = await supabase.rpc("creator_account_link");
     if ((link.data as { ok?: boolean } | null)?.ok !== true) return signOutWith(supabase, "/no-access?portal=creator");
@@ -94,6 +104,25 @@ export async function requireCreator(): Promise<{ supabase: ServerSupabase; me: 
     .rpc("session_touch")
     .then(({ error }) => error && log.warn("session_touch.failed", { error: error.message }));
   return { supabase, me: creator };
+}
+
+/** Gate for every agency page. Membership is linked at sign-in; this only registers the session. */
+export async function requireAgency(): Promise<{ supabase: ServerSupabase; me: AgencyMe }> {
+  const supabase = await signedInClient("/login");
+  let me = await fetchMe(supabase);
+  if (me.kind === "staff") redirect("/admin");
+  if (me.kind === "creator") redirect("/creator");
+  if (!me.session?.registered) {
+    await supabase.rpc("session_register");
+    me = await fetchMe(supabase);
+  }
+  if (me.session?.revoked) return signOutWith(supabase, "/login?reason=revoked");
+  const agency = toAgencyMe(me);
+  if (!agency || !me.session?.verified) return signOutWith(supabase, "/no-access?portal=creator");
+  void supabase
+    .rpc("session_touch")
+    .then(({ error }) => error && log.warn("session_touch.failed", { error: error.message }));
+  return { supabase, me: agency };
 }
 
 /** Throwing variant for server actions and route handlers (no redirects). */
@@ -114,4 +143,13 @@ export async function assertCreator(): Promise<{ supabase: ServerSupabase; me: C
   if (!creator || !me.session?.verified || me.session.revoked)
     throw new ForbiddenError("Your session has ended. Sign in again.");
   return { supabase, me: creator };
+}
+
+export async function assertAgency(): Promise<{ supabase: ServerSupabase; me: AgencyMe }> {
+  const supabase = await createClient();
+  const me = await fetchMe(supabase);
+  const agency = toAgencyMe(me);
+  if (!agency || !me.session?.verified || me.session.revoked)
+    throw new ForbiddenError("Your session has ended. Sign in again.");
+  return { supabase, me: agency };
 }

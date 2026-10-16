@@ -6,6 +6,7 @@ describe("staff navigation", () => {
   it("shows Super Admin everything", () => {
     expect(visibleStaffNav(permissionsFor({ roles: ["super_admin"], isSignatory: false })).map((i) => i.href)).toEqual([
       "/admin",
+      "/admin/agencies",
       "/admin/kyc",
       "/admin/staff",
       "/admin/settings",

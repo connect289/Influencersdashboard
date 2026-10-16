@@ -22,6 +22,7 @@ import {
 } from "@/lib/security";
 import { adminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { linkPortalAccount, portalNext } from "@/lib/auth/link";
 
 export type FormState = { error?: string; notice?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -278,15 +279,14 @@ export async function creatorVerifyOtp(_: FormState, form: FormData): Promise<Fo
     await record(email, "creator", "email_otp", "failed", error?.code ?? "invalid");
     return { error: t("auth.errors.otpWrong") };
   }
-  const link = await supabase.rpc("creator_account_link");
-  const linked = (link.data as { ok?: boolean; error?: string } | null) ?? {};
-  if (!linked.ok) {
-    await record(email, "creator", "email_otp", "refused", linked.error ?? "not_registered", data.user.id);
+  const kind = await linkPortalAccount(supabase);
+  if (!kind) {
+    await record(email, "creator", "email_otp", "refused", "not_registered", data.user.id);
     await supabase.auth.signOut({ scope: "local" });
     redirect("/no-access?portal=creator");
   }
   await supabase.rpc("session_register");
-  await record(email, "creator", "email_otp", "ok", null, data.user.id);
+  await record(email, "creator", "email_otp", "ok", kind === "agency" ? "agency" : null, data.user.id);
   (await cookies()).delete({ name: OTP_EMAIL_COOKIE, path: "/login" });
-  redirect(next);
+  redirect(portalNext(kind, next));
 }

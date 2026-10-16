@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { homeFor, meSchema, toCreatorMe, toStaffMe } from "./me";
+import { homeFor, meSchema, toAgencyMe, toCreatorMe, toStaffMe } from "./me";
 
 const uid = "6b0f7b5e-6a3c-4b1e-9b9d-6f2f1d1a2b3c";
 const cid = "0e4a1f2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b";
@@ -43,6 +43,23 @@ describe("me", () => {
     expect(toCreatorMe(meSchema.parse({ ...base, creator: { ...base.creator, status: "archived" } }))).toBeNull();
     expect(toCreatorMe(meSchema.parse({ ...base, creator: { ...base.creator, is_blocked: true } }))).toBeNull();
     expect(homeFor(meSchema.parse(base))).toBe("/creator");
+  });
+
+  it("parses an agency member and refuses suspended agencies or removed members", () => {
+    const base = {
+      signed_in: true,
+      user_id: uid,
+      email: "ola@acme.test",
+      kind: "agency",
+      agency: { id: cid, name: "Acme", status: "active", member_name: "Ola", role: "owner", member_status: "active" },
+    };
+    const me = meSchema.parse(base);
+    expect(toAgencyMe(me)).toMatchObject({ agencyId: cid, agencyName: "Acme", isOwner: true });
+    expect(toCreatorMe(me)).toBeNull();
+    expect(toStaffMe(me)).toBeNull();
+    expect(homeFor(me)).toBe("/agency");
+    expect(toAgencyMe(meSchema.parse({ ...base, agency: { ...base.agency, status: "suspended" } }))).toBeNull();
+    expect(toAgencyMe(meSchema.parse({ ...base, agency: { ...base.agency, member_status: "removed" } }))).toBeNull();
   });
 
   it("sends anyone else to no-access", () => {

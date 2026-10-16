@@ -5,7 +5,67 @@ export type Database = {
   
   "inf": {
           Tables: {
-            "audit_log": {
+            "agencies": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"email": string | null,"gstin": string | null,"id": string,"legal_name": string | null,"name": string,"notes": string | null,"phone_e164": string | null,"status": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"email"?: string | null,"gstin"?: string | null,"id"?: string,"legal_name"?: string | null,"name": string,"notes"?: string | null,"phone_e164"?: string | null,"status"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"email"?: string | null,"gstin"?: string | null,"id"?: string,"legal_name"?: string | null,"name"?: string,"notes"?: string | null,"phone_e164"?: string | null,"status"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"agency_creator_links": {
+                  Row: {
+                    "agency_id": string,"can_act_deliverables": boolean,"can_negotiate_sign": boolean,"can_view": boolean,"can_view_earnings": boolean,"creator_id": string,"id": string,"requested_at": string,"requested_by": string | null,"responded_at": string | null,"revoked_at": string | null,"status": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "agency_id": string,"can_act_deliverables"?: boolean,"can_negotiate_sign"?: boolean,"can_view"?: boolean,"can_view_earnings"?: boolean,"creator_id": string,"id"?: string,"requested_at"?: string,"requested_by"?: string | null,"responded_at"?: string | null,"revoked_at"?: string | null,"status"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "agency_id"?: string,"can_act_deliverables"?: boolean,"can_negotiate_sign"?: boolean,"can_view"?: boolean,"can_view_earnings"?: boolean,"creator_id"?: string,"id"?: string,"requested_at"?: string,"requested_by"?: string | null,"responded_at"?: string | null,"revoked_at"?: string | null,"status"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "agency_creator_links_agency_id_fkey"
+      columns: ["agency_id"]
+isOneToOne: false
+      referencedRelation: "agencies"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "agency_creator_links_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"agency_members": {
+                  Row: {
+                    "agency_id": string,"created_at": string,"email": string,"full_name": string,"id": string,"invited_by": string | null,"linked_at": string | null,"role": string,"status": string,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "agency_id": string,"created_at"?: string,"email": string,"full_name": string,"id"?: string,"invited_by"?: string | null,"linked_at"?: string | null,"role"?: string,"status"?: string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "agency_id"?: string,"created_at"?: string,"email"?: string,"full_name"?: string,"id"?: string,"invited_by"?: string | null,"linked_at"?: string | null,"role"?: string,"status"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "agency_members_agency_id_fkey"
+      columns: ["agency_id"]
+isOneToOne: false
+      referencedRelation: "agencies"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"audit_log": {
                   Row: {
                     "action": string,"actor_id": string | null,"actor_role": string | null,"after": Json | null,"at": string,"before": Json | null,"entity_id": string | null,"entity_type": string,"id": number,"ip": unknown,"request_id": string | null,"user_agent": string | null
                   }
@@ -518,6 +578,41 @@ isOneToOne: false
             "actor_role":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
+"agency_account_link":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"agency_can":
+{ Args: { "p_creator": string,"p_grant": string }; Returns: boolean
+                           },
+"agency_creators":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "avatar_path": string,"can_act_deliverables": boolean,"can_negotiate_sign": boolean,"can_view": boolean,"can_view_earnings": boolean,"creator_id": string,"creator_status": string,"display_name": string,"handle": string,"link_id": string,"link_status": string,"requested_at": string
+            }[]
+                           },
+"agency_link_request":
+{ Args: { "p_agency": string,"p_creator": string }; Returns: string
+                           },
+"agency_link_request_by_handle":
+{ Args: { "p_agency": string,"p_handle": string }; Returns: string
+                           },
+"agency_link_respond":
+{ Args: { "p_accept": boolean,"p_deliverables": boolean,"p_earnings": boolean,"p_link": string,"p_negotiate": boolean,"p_view": boolean }; Returns: undefined
+                           },
+"agency_link_revoke":
+{ Args: { "p_link": string,"p_reason": string }; Returns: undefined
+                           },
+"agency_member_add":
+{ Args: { "p_agency": string,"p_email": string,"p_full_name": string,"p_role"?: string }; Returns: string
+                           },
+"agency_member_remove":
+{ Args: { "p_member": string }; Returns: undefined
+                           },
+"agency_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"agency_set_status":
+{ Args: { "p_agency": string,"p_reason": string,"p_status": string }; Returns: undefined
+                           },
 "audit":
 { Args: { "p_action": string,"p_after"?: Json,"p_before"?: Json,"p_entity_id": string,"p_entity_type": string }; Returns: undefined
                            },
@@ -550,6 +645,12 @@ isOneToOne: false
                            },
 "cron_dispatch":
 { Args: { "p_path": string }; Returns: undefined
+                           },
+"current_agency_id":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"current_agency_role":
+{ Args: Record<PropertyKey, never>; Returns: string
                            },
 "current_creator_id":
 { Args: Record<PropertyKey, never>; Returns: string
@@ -648,6 +749,11 @@ isOneToOne: false
                            },
 "mfa_verify":
 { Args: { "p_code": string,"p_label"?: string,"p_trust"?: boolean }; Returns: Json
+                           },
+"my_agency_links":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "agency_name": string,"can_act_deliverables": boolean,"can_negotiate_sign": boolean,"can_view": boolean,"can_view_earnings": boolean,"link_id": string,"requested_at": string,"responded_at": string,"status": string
+            }[]
                            },
 "my_devices":
 { Args: Record<PropertyKey, never>; Returns: {

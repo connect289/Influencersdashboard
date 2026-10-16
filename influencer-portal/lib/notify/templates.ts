@@ -43,3 +43,16 @@ export function passwordLinkEmail(link: string, name: string): Omit<EmailMessage
     text: `Hi ${name},\n\nSet your Eduwit portal password with this link (works once, for one hour):\n${link}\n`,
   };
 }
+
+export function agencyInviteEmail(loginUrl: string, name: string, agencyName: string): Omit<EmailMessage, "to"> {
+  return {
+    subject: `You've been added to ${agencyName} on Eduwit Creators`,
+    html: layout(
+      "You're invited",
+      `<p>Hi ${escapeHtml(name)},</p><p>You've been added to <strong>${escapeHtml(agencyName)}</strong> on the Eduwit creator portal, where you can manage the creators who link their accounts to your agency.</p>
+<p>Sign in with this email address; we'll email you a code each time.</p>
+<p style="margin:20px 0"><a href="${escapeHtml(loginUrl)}" style="background:#0B2F5E;color:#FFFFFF;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">Sign in</a></p>`,
+    ),
+    text: `Hi ${name},\n\nYou've been added to ${agencyName} on the Eduwit creator portal. Sign in with this email address (we'll email you a code):\n${loginUrl}\n`,
+  };
+}

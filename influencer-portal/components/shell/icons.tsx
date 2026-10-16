@@ -1,6 +1,7 @@
 import {
   Activity,
   BadgeCheck,
+  Building2,
   Home,
   IdCard,
   ScrollText,
@@ -22,4 +23,5 @@ export const ICONS: Record<IconName, LucideIcon> = {
   shield: Shield,
   idCard: IdCard,
   badgeCheck: BadgeCheck,
+  building: Building2,
 };

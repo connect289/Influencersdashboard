@@ -6,7 +6,7 @@ export const meSchema = z.object({
   signed_in: z.boolean(),
   user_id: z.uuid().optional(),
   email: z.string().nullable().optional(),
-  kind: z.enum(["staff", "creator", "none"]).optional(),
+  kind: z.enum(["staff", "creator", "agency", "none"]).optional(),
   session: z
     .object({
       registered: z.boolean(),
@@ -33,6 +33,17 @@ export const meSchema = z.object({
       status: z.string(),
       is_blocked: z.boolean(),
       is_test: z.boolean(),
+    })
+    .nullable()
+    .optional(),
+  agency: z
+    .object({
+      id: z.uuid(),
+      name: z.string(),
+      status: z.enum(["active", "suspended"]),
+      member_name: z.string(),
+      role: z.enum(["owner", "member"]),
+      member_status: z.enum(["active", "removed"]),
     })
     .nullable()
     .optional(),
@@ -88,9 +99,32 @@ export function toCreatorMe(me: Me): CreatorMe | null {
   };
 }
 
+export interface AgencyMe {
+  userId: string;
+  email: string;
+  agencyId: string;
+  agencyName: string;
+  memberName: string;
+  isOwner: boolean;
+}
+
+export function toAgencyMe(me: Me): AgencyMe | null {
+  const a = me.agency;
+  if (me.kind !== "agency" || !a || !me.user_id || a.status !== "active" || a.member_status !== "active") return null;
+  return {
+    userId: me.user_id,
+    email: me.email ?? "",
+    agencyId: a.id,
+    agencyName: a.name,
+    memberName: a.member_name,
+    isOwner: a.role === "owner",
+  };
+}
+
 /** Where a signed-in person lands. */
 export function homeFor(me: Me): string {
   if (me.kind === "staff") return "/admin";
   if (me.kind === "creator") return "/creator";
+  if (me.kind === "agency") return "/agency";
   return "/no-access";
 }
