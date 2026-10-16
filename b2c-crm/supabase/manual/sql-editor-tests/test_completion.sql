@@ -484,7 +484,7 @@ begin
   insert into r (name, ok, detail) values ('c2_compare_2_to_4', e = 'compare 2 to 4 programmes', e);
   j := b2c.programme_compare(array[11, 12]::bigint[], 996630);
   insert into r (name, ok, detail) values ('c2_compare_side_by_side', jsonb_array_length(j) = 2 and (j -> 0 ->> 'id')::bigint = 11 and j -> 0 ? 'eligible', j::text);
-  insert into r (name, ok, detail) values ('c2_facets', b2c.programme_facets() -> 'intakes' ? 'July', null);
+  insert into r (name, ok, detail) values ('c2_facets', b2c.programme_facets() -> 'intakes' ? 'July' and b2c.programme_facets() -> 'courses' ? 'MBA', null);
   j := b2c.programme_fit(996630);
   insert into r (name, ok, detail) values ('c6_fit_with_eligibility_and_emi', j -> 'rows' -> 0 ? 'eligible' and j -> 'rows' -> 0 ? 'emi_monthly' and j -> 'rows' -> 0 ? 'duration_months', j::text);
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e903');
@@ -495,6 +495,9 @@ begin
   insert into r (name, ok, detail) values ('c3_pipeline_not_for_marketing', e = 'not allowed', e);
   perform pg_temp.as_system();
   update b2c.leads_state set next_task_due_at = now() - interval '1 hour' where lead_id = 996630;
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e901');
+  j := b2c.pipeline_board('{}');
+  insert into r (name, ok, detail) values ('c3_test_user_sees_test_leads_by_default', exists (select 1 from jsonb_array_elements(j -> 'columns') c, jsonb_array_elements(c -> 'cards') k where (k ->> 'lead_id')::bigint = 996630), j::text);
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e902');
   j := b2c.pipeline_board(jsonb_build_object('owner', 'aaaaaaaa-0000-0000-0000-00000000e901', 'include_test', true));
   insert into r (name, ok, detail) values ('c3_counsellor_sees_only_own', not exists (select 1 from jsonb_array_elements(j -> 'columns') c, jsonb_array_elements(c -> 'cards') k where (k ->> 'lead_id')::bigint = 996630), null);
@@ -903,6 +906,30 @@ select 'authenticated_cannot_call_internals', not bool_or(has_function_privilege
     'b2c.events_feed(bigint,integer)', 'b2c.bulk_jobs_tick(integer)', 'b2c.wa_media_take(integer)', 'b2c.wa_media_stored(bigint,text,text)',
     'b2c.programme_cache_refresh(boolean)', 'b2c.staff_wa_tick()', 'b2c.neglect_tick()', 'b2c.lead_expected_value(bigint)',
     'b2c.invite_ok(text)', 'b2c.capacity_tick()', 'b2c.witty_busy(bigint)', 'b2c.assignment_email(bigint,timestamp with time zone)', 'b2c.in_my_team(uuid)', 'b2c.lead_delete_job_part(bigint[],text,uuid,bigint)', 'b2c.filter_leads(jsonb,boolean)']) f;
+-- b46: the health row about the app answering the timers counts only Spark's own calls, and says so until the timers are pointed at the site.
+do $t$
+declare j jsonb; a jsonb; v_id bigint;
+begin
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  update b2c.settings set value = value || '{"base_url": null}' where key = 'app';
+  j := b2c.system_health();
+  select c into a from jsonb_array_elements(j -> 'checks') c where c ->> 'key' = 'app';
+  insert into r (name, ok, detail) values ('c6_health_app_not_pointed_yet', a ->> 'level' = 'warn' and a ->> 'detail' like '%not pointed at the site yet%', a::text);
+  perform pg_temp.as_system();
+  insert into r (name, ok, detail) values ('c6_job_call_idle_without_site', b2c.job_call('/api/internal/sync?mode=urgent') is null, null);
+  update b2c.settings set value = value || '{"base_url": "https://spark.example.test"}' where key = 'app';
+  insert into vault.secrets_store (name, decrypted_secret) values ('b2c_internal_key', 'k-test') on conflict (name) do update set decrypted_secret = excluded.decrypted_secret;
+  v_id := b2c.job_call('/api/internal/sync?mode=urgent');
+  insert into r (name, ok, detail) values ('c6_job_call_recorded', v_id is not null and exists (select 1 from b2c.job_calls c, jsonb_array_elements(c.calls) e where (e ->> 'id')::bigint = v_id and e ->> 'path' = '/api/internal/sync?mode=urgent'), v_id::text);
+  update b2c.job_calls set calls = (select jsonb_agg(jsonb_build_object('id', g, 'path', '/x', 'at', now())) from generate_series(1, 650) g);
+  perform b2c.job_call('/api/internal/reconcile');
+  insert into r (name, ok, detail) values ('c6_job_calls_capped', (select jsonb_array_length(calls) from b2c.job_calls) = 600 and (select calls -> -1 ->> 'path' from b2c.job_calls) = '/api/internal/reconcile', (select jsonb_array_length(calls)::text from b2c.job_calls));
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000e904');
+  j := b2c.system_health();
+  select c into a from jsonb_array_elements(j -> 'checks') c where c ->> 'key' = 'app';
+  insert into r (name, ok, detail) values ('c6_health_app_pointed', a ->> 'level' in ('ok', 'warn') and a ->> 'detail' not like '%not pointed%', a::text);
+end $t$;
+
 insert into r (name, ok, detail)
 select 'anon_calls_nothing', not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'b2c' and has_function_privilege('anon', p.oid, 'execute')), null;
 
