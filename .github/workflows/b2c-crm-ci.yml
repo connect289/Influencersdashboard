@@ -1,0 +1,65 @@
+# Eduwit Spark (b2c-crm/web): typecheck, unit tests and dependency scanning (spec B18, docs/completion-gaps.md D14).
+# Runs on pull requests and pushes that touch the web app. No secrets are used: the tests mock every network call.
+name: b2c-crm CI
+
+on:
+  pull_request:
+    paths:
+      - "b2c-crm/web/**"
+      - ".github/workflows/b2c-crm-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "b2c-crm/web/**"
+      - ".github/workflows/b2c-crm-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: b2c-crm-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, tests, audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: b2c-crm/web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: b2c-crm/web/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Unit tests
+        run: npx vitest run
+      # Blocking: a high or critical advisory in a production dependency fails the build. Dev-only tools
+      # (Playwright, Vitest, types) are not shipped and are left to Dependabot.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

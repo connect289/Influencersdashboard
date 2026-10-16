@@ -1,0 +1,21 @@
+# Dependency updates (spec B18). Security updates also arrive outside this schedule once Dependabot alerts are on.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /b2c-crm/web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    groups:
+      b2c-minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Asia/Kolkata

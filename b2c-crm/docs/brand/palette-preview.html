@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B2C Palette Preview</title>
+<style>
+  :root { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { margin: 0; background: #FFFFFF; color: #052244; }
+  .wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .mode { padding: 24px 16px; min-height: 100vh; box-sizing: border-box; }
+  .light { --bg:#FFFFFF; --surface:#F8F9FA; --surface-2:#EEF0F3; --border:#D7DEE5; --border-strong:#778CA4; --text:#052244; --muted:#516D8C;
+           --primary:#072E5A; --on-primary:#FFFFFF; --primary-soft:#E6EAEE; --accent:#F4A504; --on-accent:#052244; --accent-soft:#FDF1D7; --accent-text:#7F5602;
+           --red:#B42318; --red-soft:#FEF3F2; --green:#067647; --green-soft:#ECFDF3; --focus:#072E5A; }
+  .dark  { --bg:#020D19; --surface:#031224; --surface-2:#041932; --border:#345478; --border-strong:#6A829C; --text:#F0F2F5; --muted:#A1B0C0;
+           --primary:#B5C0CE; --on-primary:#020D19; --primary-soft:#052244; --accent:#F4A504; --on-accent:#020D19; --accent-soft:#2E2C1E; --accent-text:#F7BC43;
+           --red:#F97066; --red-soft:#2A1416; --green:#47CD89; --green-soft:#0D2419; --focus:#F4A504; }
+  .mode { background: var(--bg); color: var(--text); }
+  h2 { margin: 0 0 4px; font-size: 18px; }
+  p.sub { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+  .sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin-bottom: 20px; }
+  .s { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-size: 11px; background: var(--surface); }
+  .s i { display: block; height: 40px; }
+  .s span { display: block; padding: 6px; line-height: 1.3; }
+  .s b { display: block; font-weight: 600; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: 0; }
+  .name { font-weight: 600; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .hot { background: var(--accent); color: var(--on-accent); }
+  .risk { background: var(--accent-soft); color: var(--accent-text); }
+  .breach { background: var(--red-soft); color: var(--red); }
+  .ok { background: var(--green-soft); color: var(--green); }
+  .soft { background: var(--primary-soft); color: var(--text); }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  button { font: inherit; font-size: 14px; font-weight: 600; border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+  .b1 { background: var(--primary); color: var(--on-primary); border: 0; }
+  .b2 { background: transparent; color: var(--text); border: 1px solid var(--border-strong); }
+  .b3 { background: var(--accent); color: var(--on-accent); border: 0; }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  input { font: inherit; width: 100%; box-sizing: border-box; margin-top: 12px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--bg); color: var(--text); }
+  a { color: var(--primary); }
+  .note { margin-top: 10px; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="mode light">
+    <h2>Light</h2>
+    <p class="sub">Navy #072E5A and amber #F4A504, sampled from the logo</p>
+    <div class="sw">
+      <div class="s"><i style="background:#072E5A"></i><span><b>primary</b>#072E5A</span></div>
+      <div class="s"><i style="background:#F4A504"></i><span><b>accent</b>#F4A504</span></div>
+      <div class="s"><i style="background:#052244"></i><span><b>text</b>#052244</span></div>
+      <div class="s"><i style="background:#516D8C"></i><span><b>text-muted</b>#516D8C</span></div>
+      <div class="s"><i style="background:#7F5602"></i><span><b>accent-text</b>#7F5602</span></div>
+      <div class="s"><i style="background:#FDF1D7"></i><span><b>accent-soft</b>#FDF1D7</span></div>
+      <div class="s"><i style="background:#E6EAEE"></i><span><b>primary-soft</b>#E6EAEE</span></div>
+      <div class="s"><i style="background:#778CA4"></i><span><b>border-strong</b>#778CA4</span></div>
+    </div>
+    <div class="card">
+      <div class="row"><div><div class="name">Asha Verma</div><div class="meta">Online MBA · Duplicate at 2 partners</div></div><span class="chip hot">Hot</span></div>
+      <div class="row"><div><div class="name">Rohit Sharma</div><div class="meta">BBA · First call due in 6 min</div></div><span class="chip risk">⏱ At risk</span></div>
+      <div class="row"><div><div class="name">Neha Gupta</div><div class="meta">MCA · SLA passed 12 min ago</div></div><span class="chip breach">⚠ Breached</span></div>
+      <div class="row"><div><div class="name">Imran Khan</div><div class="meta">Executive MBA · Fee paid</div></div><span class="chip ok">✓ Enrolled</span></div>
+      <div class="row"><div><div class="name">Priya Nair</div><div class="meta">B.Com · Nurture</div></div><span class="chip soft">Partner-barred</span></div>
+      <div class="btns"><button class="b1">Save follow-up</button><button class="b2">Snooze</button><button class="b3">Call</button></div>
+      <input placeholder="Search name, phone, email">
+      <p class="note">Red and green appear only if you choose option B. <a href="#">A link looks like this.</a></p>
+    </div>
+  </section>
+  <section class="mode dark">
+    <h2>Dark</h2>
+    <p class="sub">Navy shaded for surfaces, tinted for text and actions</p>
+    <div class="sw">
+      <div class="s"><i style="background:#B5C0CE"></i><span><b>primary</b>#B5C0CE</span></div>
+      <div class="s"><i style="background:#F4A504"></i><span><b>accent</b>#F4A504</span></div>
+      <div class="s"><i style="background:#F0F2F5"></i><span><b>text</b>#F0F2F5</span></div>
+      <div class="s"><i style="background:#A1B0C0"></i><span><b>text-muted</b>#A1B0C0</span></div>
+      <div class="s"><i style="background:#F7BC43"></i><span><b>accent-text</b>#F7BC43</span></div>
+      <div class="s"><i style="background:#020D19"></i><span><b>bg</b>#020D19</span></div>
+      <div class="s"><i style="background:#041932"></i><span><b>surface-2</b>#041932</span></div>
+      <div class="s"><i style="background:#6A829C"></i><span><b>border-strong</b>#6A829C</span></div>
+    </div>
+    <div class="card">
+      <div class="row"><div><div class="name">Asha Verma</div><div class="meta">Online MBA · Duplicate at 2 partners</div></div><span class="chip hot">Hot</span></div>
+      <div class="row"><div><div class="name">Rohit Sharma</div><div class="meta">BBA · First call due in 6 min</div></div><span class="chip risk">⏱ At risk</span></div>
+      <div class="row"><div><div class="name">Neha Gupta</div><div class="meta">MCA · SLA passed 12 min ago</div></div><span class="chip breach">⚠ Breached</span></div>
+      <div class="row"><div><div class="name">Imran Khan</div><div class="meta">Executive MBA · Fee paid</div></div><span class="chip ok">✓ Enrolled</span></div>
+      <div class="row"><div><div class="name">Priya Nair</div><div class="meta">B.Com · Nurture</div></div><span class="chip soft">Partner-barred</span></div>
+      <div class="btns"><button class="b1">Save follow-up</button><button class="b2">Snooze</button><button class="b3">Call</button></div>
+      <input placeholder="Search name, phone, email">
+      <p class="note">Sample data only. <a href="#">A link looks like this.</a></p>
+    </div>
+  </section>
+</div>
+</body>
+</html>
