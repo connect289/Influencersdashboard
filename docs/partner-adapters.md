@@ -105,7 +105,7 @@ Some partners run their own CRM, built in-house. Choose one of three ways on the
 | --- | --- | --- | --- |
 | 1. Eduwit adapts to their API | **In-house CRM (partner's own API)** | Nothing on the partner's side if their CRM already has a create-lead API | The CRM has an API, even a simple one |
 | 2. They build Eduwit's contract | **Eduwit's API contract** | The partner's developer implements `partner-api.md` (create, signed events) | They have a developer and no usable API yet |
-| 3. No API | Not built for routing (see below) | Nobody; leads are handed over by hand | No API and no developer |
+| 3. No API | **Email (no CRM API)** | Nobody; leads arrive by email, outcomes are recorded by hand | No API and no developer |
 
 ### Option 1: the In-house CRM adapter
 
@@ -167,16 +167,14 @@ Eduwit stages in Mapping studio.
 - to store `eduwit_reference` on the lead;
 - optionally, a changed-leads address.
 
-### Option 3: no API
+### Option 3: no API (email)
 
-The CRM cannot route automatically to a partner without an API: there is no email or file push yet. For now:
-- keep the partner paused for routing;
-- export the leads meant for it from Leads and hand them over yourself;
-- reconcile the partner's export on Sync & SLAs (matched by reference, phone or name);
-- reconcile its commission statement on Commission & Finance. Enrolments found only in the partner's statement show as
-  *partner only* for checking.
-
-An email or CSV push for such partners can be added if needed.
+Choose CRM type **Email (no CRM API)**. Each lead allocated to the partner is emailed to the addresses on the
+Connection tab (to, optional cc, a subject prefix; live and sandbox apart), sent through Eduwit's own email provider
+(Notifications). The subject carries the Eduwit reference, so the partner can quote it back. The lead is accepted after
+the hold window as usual. What the partner reports by phone or email is recorded from the lead's Routing tab →
+**Record partner's report** (stage, sub-stage, note, lost reason), which the engine applies like a synced stage. Their
+export can still be reconciled on Sync & SLAs, and their commission statement on Commission & Finance.
 
 ## Not yet verified
 
