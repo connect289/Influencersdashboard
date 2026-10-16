@@ -10,10 +10,10 @@ screens, or into Vercel's environment variables; the database connection string 
 
 ## 0. What you are taking over
 
-| Part | Where | State on 15 Oct 2026 |
+| Part | Where | State on 16 Oct 2026 |
 |---|---|---|
-| Web app | Vercel project `web`, root `b2b-crm/web`, Next.js 15, deploys branch `main`, host `https://crm.eduwit.in` | `main` is at commit c6d8d29 (Addendum 3). Addendum 4 and M33 (five commits) are on branch `claude/friendly-darwin-w7cuye`, pull request open, **not merged** |
-| Database | Supabase project `xlseqwgyjuqhktrguhyc` (Mumbai), schema `b2b` plus `student_leads` in `public` (shared with Witty and the B2C CRM) | Migrations through `m32c_a4_catalog` applied. `m33a` to `m33e` **not applied** (the Supabase connector refuses their `drop constraint` lines; apply from a shell, step 1) |
+| Web app | Vercel project `web`, root `b2b-crm/web`, Next.js 15, deploys branch `main`, host `https://crm.eduwit.in` | **Live.** `main` carries everything (Addenda 1 to 4, M33); `https://crm.eduwit.in/api/health` answers `{"ok": true}` |
+| Database | Supabase project `xlseqwgyjuqhktrguhyc` (Mumbai), schema `b2b` plus `student_leads` in `public` (shared with Witty and the B2C CRM) | **Live.** Every migration through `m33f_cron_history_performance` applied; 30 `b2b-*` cron jobs active |
 | Staging | Supabase `mplbspysxmtohnlwpbti` (free plan, pauses when idle) | Has migrations only up to `m30a`: missing all of Addendum 3 and later. Catch up with the same deploy script before using it |
 | Witty | n8n workflow "Eduwit Witty" `PKPs7tXg9bej8AgX` on VM `n8n-vm`, WhatsApp +91 96439 77407 | Database half of release W1 live; **workflow half not applied** (`b2b-crm/witty/WITTY_CHANGES_PROMPT.md`) |
 | B2C CRM | Separate product, same database (schema `b2c`, its own migrations b1 to b38) | Built by another developer; connected to B2B through `docs/b2c-contract.md` version 4 once step 8 is done |
@@ -23,9 +23,11 @@ Accounts you need: GitHub (the repository), Vercel (project `web`), Supabase (bo
 member), Meta Business (WhatsApp, Lead Ads, Events Manager), Google Ads, the email provider (Resend or Brevo), n8n
 (`https://n8n.eduwit.in`) and Chatwoot (`https://chat.eduwit.in`) for the Witty step.
 
-## 1. Finish the deployment (day 1)
+## 1. Deployment (done on 15 to 16 Oct; how to deploy future changes)
 
-1. **Apply the pending migrations.** On your machine, with the repository cloned and Node 20+:
+Steps 1 and 2 are done for the current code: use them for every later change. Steps 3 to 6 still need checking.
+
+1. **Apply migrations.** On your machine, with the repository cloned and Node 20+:
    ```
    cd b2b-crm/supabase
    export DATABASE_URL='postgresql://postgres:<password>@db.xlseqwgyjuqhktrguhyc.supabase.co:5432/postgres'
@@ -33,13 +35,13 @@ member), Meta Business (WhatsApp, Lead Ads, Events Manager), Google Ads, the ema
    ```
    The password is in Supabase → Project Settings → Database (reset it there if you cannot see it; the owner has pasted
    it into a chat before, so a reset is due anyway **[Vikas]**). The script pauses the `b2b-*` cron jobs, skips every
-   migration already recorded, applies `m33a_access_api_hardening`, `m33b_lead_workspace`, `m33c_data_protection_audit`,
-   `m33d_referral_outcomes`, `m33e_email_partner_adapter` in order, each in its own transaction, records them, and resumes
-   the jobs. It stops on the first error and leaves the earlier files applied; fix and rerun.
-   Check: `select name from supabase_migrations.schema_migrations order by version desc limit 5;` ends with `m33e_email_partner_adapter`;
-   `select count(*) filter (where active), count(*) from cron.job where jobname like 'b2b-%';` shows every job active (29 after M33).
-2. **Merge the pull request** `claude/friendly-darwin-w7cuye` → `main` on GitHub. Vercel builds and deploys in about two
-   minutes. Do this only after step 1: the new screens call the M33 functions.
+   migration already recorded, applies the new ones in order, each in its own transaction, records them, and resumes
+   the jobs. It stops on the first error and leaves the earlier files applied; fix and rerun. The Supabase connector
+   (MCP) cannot apply files containing `drop constraint`; use this script for those.
+   Check: `select name from supabase_migrations.schema_migrations order by version desc limit 5;` ends with the newest file;
+   `select count(*) filter (where active), count(*) from cron.job where jobname like 'b2b-%';` shows every job active (30 today).
+2. **Merge the change's pull request into `main`** on GitHub. Vercel builds and deploys in about two minutes. Apply the
+   migrations first when the new screens call new database functions.
    Check: Vercel → Deployments → latest is Ready; `https://crm.eduwit.in/api/health` answers `200 {"ok": true, …}`;
    `/login` loads; sign in as the Admin; System health → Health shows every job with a recent run.
 3. **Vercel environment variables** (production scope; redeploy after a change): `NEXT_PUBLIC_SUPABASE_URL`,
@@ -49,7 +51,7 @@ member), Meta Business (WhatsApp, Lead Ads, Events Manager), Google Ads, the ema
 5. **Post-deploy once-offs:** on `/b2c` press **Resend every lead** (the B2C CRM's copies gain the version-4 fields);
    on System health → Data protection set the retention rules (step 12).
 6. **Staging catch-up (recommended before any further migration):** run the same `node deploy.mjs` with staging's
-   connection string; it applies `m30b` to `m33e` there. Then run the SQL test files (`b2b-crm/supabase/tests/`) that
+   connection string; it applies `m30b` to `m33f` there. Then run the SQL test files (`b2b-crm/supabase/tests/`) that
    matter for a change in the staging SQL editor: every row of the final select must say `ok`.
 
 ## 2. Access, security and monitoring (day 1)
@@ -222,7 +224,7 @@ step 3 are on. Rulebook `docs/B2B_CRM_ADDENDUM_3.md`; detail Go-live §11.
 ## 14. Verification queries (read-only, Supabase SQL editor)
 
 ```sql
-select name from supabase_migrations.schema_migrations order by version desc limit 8;          -- ends with m33e
+select name from supabase_migrations.schema_migrations order by version desc limit 8;          -- ends with m33f
 select jobname, active from cron.job where jobname like 'b2b-%' order by 1;                     -- all active
 select scope, live from b2b.live_switches order by 1;                                            -- routing and channels
 select b2b.health_check();                                                                       -- ok true
