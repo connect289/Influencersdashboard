@@ -53,16 +53,116 @@ isOneToOne: true
       referencedColumns: ["id"]
     }
                   ]
-                },"creators": {
+                },"creator_contacts": {
                   Row: {
-                    "avatar_path": string | null,"bio": string | null,"blocked_reason": string | null,"city": string | null,"created_at": string,"created_by": string | null,"display_name": string,"email": string | null,"handle": string,"id": string,"is_blocked": boolean,"is_test": boolean,"languages": (string)[],"last_activity_at": string | null,"leaderboard_opt_in": boolean,"legal_name": string | null,"niches": (string)[],"owner_id": string | null,"phone_e164": string | null,"pipeline_stage": string,"public_page_enabled": boolean,"source": string | null,"state": string | null,"status": string,"tags": (string)[],"tier_id": string | null,"updated_at": string
+                    "created_at": string,"created_by": string | null,"creator_id": string,"email_hash": string | null,"id": string,"kind": string,"label": string | null,"phone_hash": string | null,"phone_last2": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name": string,"email"?: string | null,"handle": string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"created_by"?: string | null,"creator_id": string,"email_hash"?: string | null,"id"?: string,"kind": string,"label"?: string | null,"phone_hash"?: string | null,"phone_last2"?: string | null
                   }
                   Update: {
-                    "avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string,"email"?: string | null,"handle"?: string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"created_by"?: string | null,"creator_id"?: string,"email_hash"?: string | null,"id"?: string,"kind"?: string,"label"?: string | null,"phone_hash"?: string | null,"phone_last2"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "creator_contacts_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"creator_kyc": {
+                  Row: {
+                    "account_holder": string | null,"bank_account_enc": string | null,"bank_last4": string | null,"creator_id": string,"gst_status": string,"gstin": string | null,"gstin_verified": boolean,"ifsc": string | null,"name_on_pan": string | null,"pan_enc": string | null,"pan_last4": string | null,"proof_path": string | null,"rejection_reason": string | null,"status": string,"submitted_at": string | null,"updated_at": string,"verified_at": string | null,"verified_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_holder"?: string | null,"bank_account_enc"?: string | null,"bank_last4"?: string | null,"creator_id": string,"gst_status"?: string,"gstin"?: string | null,"gstin_verified"?: boolean,"ifsc"?: string | null,"name_on_pan"?: string | null,"pan_enc"?: string | null,"pan_last4"?: string | null,"proof_path"?: string | null,"rejection_reason"?: string | null,"status"?: string,"submitted_at"?: string | null,"updated_at"?: string,"verified_at"?: string | null,"verified_by"?: string | null
+                  }
+                  Update: {
+                    "account_holder"?: string | null,"bank_account_enc"?: string | null,"bank_last4"?: string | null,"creator_id"?: string,"gst_status"?: string,"gstin"?: string | null,"gstin_verified"?: boolean,"ifsc"?: string | null,"name_on_pan"?: string | null,"pan_enc"?: string | null,"pan_last4"?: string | null,"proof_path"?: string | null,"rejection_reason"?: string | null,"status"?: string,"submitted_at"?: string | null,"updated_at"?: string,"verified_at"?: string | null,"verified_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "creator_kyc_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: true
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"creator_platforms": {
+                  Row: {
+                    "audience": NonNullable<Json>,"avg_views": number | null,"created_at": string,"creator_id": string,"engagement_rate": number | null,"followers": number | null,"handle": string,"id": string,"platform": string,"source": string,"stats_updated_at": string | null,"updated_at": string,"url": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "audience"?: NonNullable<Json>,"avg_views"?: number | null,"created_at"?: string,"creator_id": string,"engagement_rate"?: number | null,"followers"?: number | null,"handle": string,"id"?: string,"platform": string,"source"?: string,"stats_updated_at"?: string | null,"updated_at"?: string,"url": string
+                  }
+                  Update: {
+                    "audience"?: NonNullable<Json>,"avg_views"?: number | null,"created_at"?: string,"creator_id"?: string,"engagement_rate"?: number | null,"followers"?: number | null,"handle"?: string,"id"?: string,"platform"?: string,"source"?: string,"stats_updated_at"?: string | null,"updated_at"?: string,"url"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "creator_platforms_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"creator_portfolio": {
+                  Row: {
+                    "caption": string | null,"created_at": string,"creator_id": string,"id": string,"position": number,"title": string | null,"url": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "caption"?: string | null,"created_at"?: string,"creator_id": string,"id"?: string,"position"?: number,"title"?: string | null,"url": string
+                  }
+                  Update: {
+                    "caption"?: string | null,"created_at"?: string,"creator_id"?: string,"id"?: string,"position"?: number,"title"?: string | null,"url"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "creator_portfolio_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"creator_rate_cards": {
+                  Row: {
+                    "created_at": string,"creator_id": string,"format": string,"id": string,"notes": string | null,"platform": string,"suggested_paise": number,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"creator_id": string,"format": string,"id"?: string,"notes"?: string | null,"platform": string,"suggested_paise": number,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"creator_id"?: string,"format"?: string,"id"?: string,"notes"?: string | null,"platform"?: string,"suggested_paise"?: number,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "creator_rate_cards_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"creators": {
+                  Row: {
+                    "approved_at": string | null,"approved_by": string | null,"avatar_path": string | null,"bio": string | null,"blocked_reason": string | null,"city": string | null,"created_at": string,"created_by": string | null,"display_name": string,"email": string | null,"handle": string,"id": string,"is_blocked": boolean,"is_test": boolean,"languages": (string)[],"last_activity_at": string | null,"leaderboard_opt_in": boolean,"legal_name": string | null,"niches": (string)[],"onboarding_step": string,"onboarding_submitted_at": string | null,"owner_id": string | null,"phone_e164": string | null,"pipeline_stage": string,"public_page_enabled": boolean,"source": string | null,"state": string | null,"status": string,"tags": (string)[],"tier_id": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "approved_at"?: string | null,"approved_by"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name": string,"email"?: string | null,"handle": string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"onboarding_step"?: string,"onboarding_submitted_at"?: string | null,"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "approved_at"?: string | null,"approved_by"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string,"email"?: string | null,"handle"?: string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"onboarding_step"?: string,"onboarding_submitted_at"?: string | null,"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -427,11 +527,26 @@ isOneToOne: false
 "bootstrap_super_admin":
 { Args: { "p_designation": string,"p_email": string,"p_full_name": string }; Returns: string
                            },
+"can_edit_creator":
+{ Args: { "p_creator": string }; Returns: boolean
+                           },
+"can_view_creator":
+{ Args: { "p_creator": string }; Returns: boolean
+                           },
 "code_hash":
 { Args: { "p_code": string,"p_salt": string,"p_user": string }; Returns: string
                            },
 "creator_account_link":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"creator_contact_add":
+{ Args: { "p_creator": string,"p_email": string,"p_kind": string,"p_label": string,"p_phone": string }; Returns: string
+                           },
+"creator_contact_delete":
+{ Args: { "p_creator": string,"p_id": string }; Returns: undefined
+                           },
+"creator_profile_update":
+{ Args: { "p": Json,"p_creator": string }; Returns: undefined
                            },
 "cron_dispatch":
 { Args: { "p_path": string }; Returns: undefined
@@ -508,6 +623,23 @@ isOneToOne: false
 "json_schema_errors":
 { Args: { "p_path"?: string,"p_schema": Json,"p_value": Json }; Returns: (string)[]
                            },
+"kyc_queue":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "creator_id": string,"display_name": string,"gst_status": string,"handle": string,"status": string,"submitted_at": string
+            }[]
+                           },
+"kyc_reveal":
+{ Args: { "p_creator": string,"p_reason": string }; Returns: Json
+                           },
+"kyc_save":
+{ Args: { "p_account_holder": string,"p_bank_account": string,"p_creator": string,"p_gst_status": string,"p_gstin": string,"p_ifsc": string,"p_name_on_pan": string,"p_pan": string,"p_proof_path"?: string }; Returns: Json
+                           },
+"kyc_verify":
+{ Args: { "p_approve": boolean,"p_creator": string,"p_gstin_verified"?: boolean,"p_reason": string }; Returns: undefined
+                           },
+"kyc_view":
+{ Args: { "p_creator": string }; Returns: Json
+                           },
 "me":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
@@ -535,6 +667,9 @@ isOneToOne: false
 "nightly_prune":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
+"norm_phone":
+{ Args: { "p": string }; Returns: string
+                           },
 "notification_preference_set":
 { Args: { "p_channel": string,"p_enabled": boolean,"p_event": string }; Returns: undefined
                            },
@@ -543,6 +678,36 @@ isOneToOne: false
                            },
 "notify":
 { Args: { "p_body": string,"p_channels"?: (string)[],"p_data": Json,"p_event": string,"p_idem_key": string,"p_link": string,"p_mandatory": boolean,"p_title": string,"p_user": string }; Returns: string
+                           },
+"pii_decrypt":
+{ Args: { "p": string }; Returns: string
+                           },
+"pii_encrypt":
+{ Args: { "p": string }; Returns: string
+                           },
+"pii_hash":
+{ Args: { "p": string }; Returns: string
+                           },
+"pii_key":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"platform_delete":
+{ Args: { "p_creator": string,"p_id": string }; Returns: undefined
+                           },
+"platform_save":
+{ Args: { "p": Json,"p_creator": string }; Returns: string
+                           },
+"portfolio_delete":
+{ Args: { "p_creator": string,"p_id": string }; Returns: undefined
+                           },
+"portfolio_save":
+{ Args: { "p": Json,"p_creator": string }; Returns: string
+                           },
+"rate_card_delete":
+{ Args: { "p_creator": string,"p_id": string }; Returns: undefined
+                           },
+"rate_card_save":
+{ Args: { "p": Json,"p_creator": string }; Returns: string
                            },
 "rate_check":
 { Args: { "p_key": string,"p_limit": number,"p_seconds": number }; Returns: boolean
@@ -623,6 +788,15 @@ isOneToOne: false
                            },
 "terms_publish":
 { Args: { "p_body": string,"p_kind": string,"p_title": string }; Returns: string
+                           },
+"valid_gstin":
+{ Args: { "p": string }; Returns: boolean
+                           },
+"valid_ifsc":
+{ Args: { "p": string }; Returns: boolean
+                           },
+"valid_pan":
+{ Args: { "p": string }; Returns: boolean
                            }
           }
           Enums: {

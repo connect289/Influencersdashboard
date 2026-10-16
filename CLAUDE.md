@@ -48,6 +48,12 @@ This repository holds three separate Eduwit products that share one Supabase pro
 - Shared helpers: `inf.has_perm(p)`, `inf.current_creator_id()`, `inf.session_ok()`, `inf.audit_row()` trigger,
   `inf.forbid_mutation()` for append-only tables, `inf.emit_event()`, `inf.job_enqueue()`, `inf.notify()`. Creators read lead data only
   through `SECURITY DEFINER` functions and `inf.creator_lead_feed`, with phone and email masked in the database.
+- Ownership checks in SQL: `coalesce(p_creator = inf.current_creator_id(), false)` (or `inf.can_edit_creator()` /
+  `inf.can_view_creator()`). A bare comparison is null for staff and makes `if not (...) then raise` silently pass.
+- PII (PAN, bank account) goes through `inf.pii_encrypt/decrypt` (Vault key `inf_pii_key`); matching-only PII through
+  `inf.pii_hash`. Never return decrypted values except from an audited reveal function.
+- Server actions: validate with the zod schema in `lib/<domain>/schemas.ts`, call one RPC, map DB errors to message
+  keys, return `ActionResult`. Client components run them with `useAction()` (`components/ui/use-action.ts`).
 - Money in integer paise (`bigint`), banker's rounding once per line item. Store UTC, display IST, Indian number format,
   Indian financial year (1 Apr – 31 Mar).
 - The compensation engine (`lib/compensation`) and attribution logic are pure, deterministic and fully unit-tested

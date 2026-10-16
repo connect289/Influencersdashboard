@@ -5,6 +5,14 @@ import { describe, expect, it } from "vitest";
 import { SETTING_KEYS, settingJsonSchema } from "@/lib/settings/registry";
 import { STAFF_ROLES } from "@/lib/auth/permissions";
 import { CREATOR_NAV, STAFF_NAV } from "@/lib/nav";
+import {
+  CONTACT_KINDS,
+  CONTENT_FORMATS,
+  GST_STATUSES,
+  KYC_DB_ERRORS,
+  KYC_FORM_ERRORS,
+  PLATFORMS,
+} from "@/lib/creators/schemas";
 import en from "@/messages/en.json";
 
 const root = join(import.meta.dirname, "..");
@@ -36,6 +44,19 @@ describe("messages", () => {
 
   it("labels every navigation item", () => {
     for (const i of [...STAFF_NAV, ...CREATOR_NAV]) expect(has(i.labelKey), i.labelKey).toBe(true);
+  });
+
+  it("labels every value used as a dynamic key", () => {
+    const keys = [
+      ...Object.values(KYC_DB_ERRORS),
+      ...Object.values(KYC_FORM_ERRORS),
+      ...PLATFORMS.map((p) => `platforms.${p}`),
+      ...CONTENT_FORMATS.map((f) => `formats.${f}`),
+      ...GST_STATUSES.map((g) => `kyc.gst.${g}`),
+      ...CONTACT_KINDS.map((k) => `profile.contacts.kinds.${k}`),
+      ...["pending", "submitted", "verified", "rejected"].map((s) => `kyc.status.${s}`),
+    ];
+    for (const k of keys) expect(has(k), k).toBe(true);
   });
 
   it("describes every role", () => {

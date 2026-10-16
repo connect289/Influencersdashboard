@@ -50,7 +50,7 @@ export default async function CreatorLayout({ children }: { children: React.Reac
           {children}
         </main>
       </div>
-      <BottomNav links={links} label={t("shell.mainNav")} />
+      <BottomNav links={links} label={t("shell.mainNav")} moreLabel={t("shell.more")} closeLabel={t("common.close")} />
       <ServiceWorkerRegister />
     </div>
   );

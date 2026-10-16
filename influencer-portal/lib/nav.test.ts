@@ -6,6 +6,7 @@ describe("staff navigation", () => {
   it("shows Super Admin everything", () => {
     expect(visibleStaffNav(permissionsFor({ roles: ["super_admin"], isSignatory: false })).map((i) => i.href)).toEqual([
       "/admin",
+      "/admin/kyc",
       "/admin/staff",
       "/admin/settings",
       "/admin/audit",
@@ -21,6 +22,14 @@ describe("staff navigation", () => {
     expect(visibleStaffNav(permissionsFor({ roles: ["finance"], isSignatory: false })).map((i) => i.href)).toContain(
       "/admin/settings",
     );
+  });
+  it("shows KYC review to Finance but not to Content Reviewers", () => {
+    expect(visibleStaffNav(permissionsFor({ roles: ["finance"], isSignatory: false })).map((i) => i.href)).toContain(
+      "/admin/kyc",
+    );
+    expect(
+      visibleStaffNav(permissionsFor({ roles: ["content_reviewer"], isSignatory: false })).map((i) => i.href),
+    ).not.toContain("/admin/kyc");
   });
   it("matches active items", () => {
     expect(isActive("/admin", "/admin")).toBe(true);

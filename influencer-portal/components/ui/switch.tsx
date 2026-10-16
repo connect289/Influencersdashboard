@@ -16,3 +16,21 @@ export function Switch({ className, ...props }: ComponentProps<typeof S.Root>) {
     </S.Root>
   );
 }
+
+/** A switch with its label (and optional hint) as one clickable row. */
+export function SwitchField({
+  id,
+  label,
+  hint,
+  ...props
+}: ComponentProps<typeof S.Root> & { id: string; label: string; hint?: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <label htmlFor={id} className="text-sm">
+        <span className="font-medium">{label}</span>
+        {hint ? <span className="block text-xs text-muted">{hint}</span> : null}
+      </label>
+      <Switch id={id} {...props} />
+    </div>
+  );
+}

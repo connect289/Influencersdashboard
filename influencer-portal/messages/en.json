@@ -17,7 +17,8 @@
     "clear": "Clear",
     "actions": "Actions",
     "newest": "Newest",
-    "older": "Older"
+    "older": "Older",
+    "remove": "Remove"
   },
   "errors": {
     "generic": "Something went wrong. Try again in a moment.",
@@ -38,11 +39,14 @@
       "staff": "Staff and roles",
       "settings": "Settings",
       "audit": "Audit log",
-      "system": "System status"
+      "system": "System status",
+      "kyc": "KYC review"
     },
     "creator": {
       "home": "Home",
-      "account": "Account"
+      "account": "Account",
+      "profile": "Profile",
+      "kyc": "KYC"
     }
   },
   "shell": {
@@ -62,7 +66,8 @@
       "empty": "No matching screen.",
       "title": "Quick navigation",
       "shortcut": "Ctrl K"
-    }
+    },
+    "more": "More"
   },
   "roles": {
     "signatory": "Authorised Signatory",
@@ -562,5 +567,207 @@
   "offline": {
     "title": "You're offline",
     "body": "Check your connection. The portal will reload when you're back online."
+  },
+  "platforms": {
+    "instagram": "Instagram",
+    "youtube": "YouTube",
+    "facebook": "Facebook",
+    "linkedin": "LinkedIn",
+    "x": "X",
+    "telegram": "Telegram",
+    "moj_josh": "Moj / Josh",
+    "other": "Other"
+  },
+  "formats": {
+    "reel": "Reel",
+    "story": "Story",
+    "post": "Post",
+    "youtube_video": "YouTube video",
+    "short": "Short",
+    "live": "Live",
+    "carousel": "Carousel",
+    "blog": "Blog",
+    "other": "Other"
+  },
+  "profile": {
+    "title": "Your profile",
+    "subtitle": "What brands and the Eduwit team see about you. Keep it current: it decides which campaigns you're shown.",
+    "basics": "Basics",
+    "basicsHint": "Your name, location and the topics you cover.",
+    "saved": "Profile saved.",
+    "removed": "Removed.",
+    "fields": {
+      "displayName": "Display name",
+      "legalName": "Legal name",
+      "legalNameHint": "As on your PAN. Used on contracts and invoices.",
+      "phone": "WhatsApp number",
+      "phoneHint": "Indian numbers can be typed without +91.",
+      "city": "City",
+      "state": "State",
+      "languages": "Languages",
+      "niches": "Topics you cover",
+      "listHint": "Separate with commas.",
+      "bio": "Short bio",
+      "publicPage": "Public profile page",
+      "publicPageHint": "A page with your bio and media kit that you can share.",
+      "leaderboard": "Show me on the leaderboard",
+      "leaderboardHint": "Your first name and initial only."
+    },
+    "platforms": {
+      "title": "Platforms",
+      "hint": "Where you publish, with your latest numbers.",
+      "add": "Add platform",
+      "edit": "Edit platform",
+      "editOne": "Edit @{handle}",
+      "removeOne": "Remove @{handle}",
+      "removeTitle": "Remove @{handle}?",
+      "open": "Open @{handle}",
+      "platform": "Platform",
+      "handle": "Handle",
+      "url": "Profile link",
+      "urlHint": "Starts with https://",
+      "followers": "Followers",
+      "avgViews": "Average views",
+      "engagement": "Engagement %",
+      "followersCount": "{count} followers",
+      "viewsCount": "{count} avg views",
+      "erValue": "{value}% engagement",
+      "noStats": "No numbers yet",
+      "empty": "No platforms yet",
+      "emptyHint": "Add at least one platform so we can match you to campaigns.",
+      "saved": "Platform saved."
+    },
+    "rates": {
+      "title": "Rate card",
+      "hint": "Your suggested price per format. A starting point for negotiation, not a commitment.",
+      "add": "Add rate",
+      "addHint": "Adding the same platform and format again replaces the price.",
+      "format": "Format",
+      "amount": "Price (₹)",
+      "amountHint": "In rupees, before GST.",
+      "notes": "Notes",
+      "empty": "No rates yet",
+      "removeOne": "Remove rate",
+      "removeTitle": "Remove this rate?",
+      "saved": "Rate saved."
+    },
+    "portfolio": {
+      "title": "Portfolio",
+      "hint": "Links to your best work (up to 30).",
+      "url": "Link",
+      "itemTitle": "Title",
+      "add": "Add",
+      "empty": "No portfolio links yet",
+      "removeOne": "Remove link",
+      "removeTitle": "Remove this link?",
+      "saved": "Link added."
+    },
+    "contacts": {
+      "title": "Other numbers and emails",
+      "hint": "Numbers and emails of family or your team. Leads from these don't earn commission (self-referral rule). Stored only in a protected form.",
+      "kind": "Whose",
+      "kinds": {
+        "self": "Mine",
+        "family": "Family",
+        "team": "Team"
+      },
+      "label": "Name or note",
+      "phone": "Phone",
+      "email": "Email",
+      "add": "Add",
+      "empty": "None added",
+      "phoneEnding": "Phone ending ••{digits}",
+      "emailOnly": "Email on file",
+      "removeOne": "Remove contact",
+      "removeTitle": "Remove this contact?",
+      "saved": "Contact added."
+    },
+    "errors": {
+      "duplicate": "That's already on your profile.",
+      "portfolioFull": "You can keep up to 30 portfolio links. Remove one first."
+    }
+  },
+  "kyc": {
+    "pageTitle": "KYC and bank details",
+    "pageSubtitle": "Needed before any payout. Your PAN decides the TDS rate, so check it carefully.",
+    "title": "KYC",
+    "hint": "PAN, GST and the bank account payouts go to.",
+    "encryptedNote": "PAN and account numbers are encrypted. Only Eduwit Finance can see them in full, and every view is logged.",
+    "status": {
+      "pending": "Not submitted",
+      "submitted": "Waiting for review",
+      "verified": "Verified",
+      "rejected": "Needs changes"
+    },
+    "gst": {
+      "unregistered": "Not registered for GST",
+      "registered": "Registered (regular)",
+      "composition": "Registered (composition)"
+    },
+    "fields": {
+      "pan": "PAN",
+      "panHint": "10 characters, e.g. ABCDE1234F.",
+      "onFile": "On file: {value}. Leave blank to keep it.",
+      "nameOnPan": "Name on PAN",
+      "gstStatus": "GST",
+      "gstHint": "Registered creators add GST to invoices.",
+      "gstin": "GSTIN",
+      "account": "Bank account number",
+      "ifsc": "IFSC",
+      "accountHolder": "Account holder name",
+      "proof": "PAN or cancelled cheque (optional)",
+      "proofHint": "JPG, PNG, WebP or PDF up to 10 MB."
+    },
+    "uploadProof": "Upload a file",
+    "replaceProof": "Replace file",
+    "uploading": "Uploading…",
+    "submit": "Submit for verification",
+    "saveChanges": "Save changes",
+    "reverifyNote": "Changing PAN, bank details or GSTIN sends your KYC back for verification.",
+    "submitted": "Sent for verification.",
+    "savedIncomplete": "Saved. Add the remaining details to submit.",
+    "submittedBanner": "We're checking your details. This usually takes one working day.",
+    "verifiedBanner": "Verified on {date}.",
+    "rejectedBanner": "Needs changes: {reason}",
+    "notStarted": "This creator hasn't added KYC details yet.",
+    "submittedOn": "Submitted {date}",
+    "verify": "Mark verified",
+    "verified": "KYC verified. The creator has been told.",
+    "reject": "Ask for changes",
+    "rejectTitle": "Ask for changes",
+    "rejectBody": "The creator sees the reason and can resubmit.",
+    "rejectReason": "What needs changing",
+    "rejected": "Sent back to the creator.",
+    "gstinChecked": "I checked the GSTIN on the GST portal",
+    "reveal": {
+      "open": "Show full details",
+      "title": "Show full PAN and account number",
+      "body": "This is recorded in the audit log with your reason.",
+      "reason": "Reason",
+      "action": "Show",
+      "hide": "Hide",
+      "proof": "Open uploaded proof (link valid 60 seconds)"
+    },
+    "queue": {
+      "title": "KYC review",
+      "subtitle": "Creators waiting for KYC verification, oldest first.",
+      "empty": "Nothing to review",
+      "emptyHint": "New submissions appear here.",
+      "creator": "Creator",
+      "submitted": "Submitted",
+      "status": "Status",
+      "back": "KYC review"
+    },
+    "errors": {
+      "pan": "That PAN isn't valid. It should look like ABCDE1234F.",
+      "account": "Account numbers have 9 to 18 digits.",
+      "ifsc": "That IFSC isn't valid. It has 11 characters and the fifth is 0.",
+      "gstin": "That GSTIN isn't valid.",
+      "gstinPan": "The GSTIN must contain your PAN (characters 3 to 12).",
+      "proofType": "Upload a JPG, PNG, WebP or PDF up to 10 MB.",
+      "uploadFailed": "The upload failed. Try again.",
+      "reason": "Give a reason (at least 3 characters).",
+      "notReady": "This KYC isn't complete yet, so it can't be reviewed."
+    }
   }
 }
