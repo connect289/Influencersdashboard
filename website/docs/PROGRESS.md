@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 7 — Gate, email verification, accounts, forms. Current step: 7.1 (plan).**
+**Current phase: 8 — Witty on the website (`web_advisor`). Current step: 8.1 (plan).**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -445,3 +445,63 @@ and all layout shift.
 | FAQs (with FAQPage schema) | Done |
 | Redirects | Done (legacy static map + admin runtime map); CI redirect tests extended in Phase 9 |
 | Privacy Policy edits as a separate reviewable diff | Done (`docs/legal/privacy-policy-proposed-additions.md`) |
+
+## Phase 7 — Gate, email verification, accounts, forms ✅ `website-phase-7-done`
+
+### Plan
+1. `web7_students_leads`: consent texts, students, hashed codes, gate attempts, consent ledger, sessions, applications,
+   shortlists, comparisons, block list, disposable domains, privacy requests; lead via `lead_intake` only after the code.
+2. Server: verification core (honeypot, Turnstile, limits per IP / device / email, screening, junk score), signed
+   student session, server actions for forms and accounts, outbox handlers (confirmation email, CAPI), creator provider.
+3. UI: wire the application and enquiry forms, account pages, save comparison, shortlist sync, creator pages.
+4. Tests (unit, SQL, e2e with Mailpit codes), docs, gate.
+
+### Step log
+- 7.1 ✅ `20261017100600_web7_students_leads.sql` (14 tables, 22 functions) + `supabase/tests/60_web_leads.test.sql`
+  (42 checks through the real `lead_intake`: lead only after verification, exactly once, duplicate phone → merged,
+  first touch kept, trusted skip, owner check, consent withdrawal opt-out, unverified push off by default).
+- 7.2 ✅ `lib/forms/junk.ts`, `lib/forms/lead-fields.ts` (SCHEMA_PLAN §4.1 mapping), `lib/server/{gate,student-session,
+  turnstile,capi,creators,outbox-handlers}.ts`, `app/actions/{forms,account}.ts` (D-046–D-053).
+- 7.3 ✅ Forms on the server transport (`lib/forms/server-client.ts`): resend, spam hint, honeypot, Turnstile, pre-fill and
+  code skip for signed-in students; `/account`, `/account/sign-in` (per-request nonce; signed-out → 307 in the proxy),
+  "Save comparison", shortlist sync, `/c/[handle]`; banned-phrase check now also catches blanket approval claims.
+- 7.4 ✅ `e2e/leads.spec.ts` (application flow with wrong/right code and lead assertions; enquiry + duplicate phone;
+  unverified attempt and honeypot; creator code on the lead; sign-in, account, trusted skip, privacy request, sign out);
+  axe now also covers `/account/sign-in` and `/c/demo-creator`; redirect fixture moved into the seed.
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 115 unit tests, copy check) | ✅ |
+| `npm run db:gate` (web1–7 on the replica: 809+18+15+48+42+1+42 checks, shared unchanged, s03; local + 31 quality) | ✅ |
+| `npm run build` | ✅ (`/account*` per request for the CSP nonce; `/c/demo-creator` prerendered) |
+| Playwright | ✅ 116 passed (laptop + Pixel 7), incl. 5 lead/account flows with real Mailpit codes |
+| Lighthouse CI mobile | ✅ `/` 93–95, finder 94–97, curated 93–96, universities 97–98, about 98–99, contact 97, sign-in 98–99, creator 96–98; LCP ≤ 1.9 s; TBT ≤ 291 ms; CLS 0; a11y 100 |
+
+### Self-review (Phase 7 row; spec 7.2 gate mechanics, 9.1A, 9.1, 9.2, 9.3, 12, 14)
+| Item | Status |
+|---|---|
+| Email verification: 6-digit inline code, 10-min expiry, 5 attempts, resend after 30 s, change email, spam hint | Done |
+| Lead via `lead_intake()` only after verification; exactly once; duplicate phone handled by `lead_intake` | Done (SQL + e2e) |
+| Phone validated, E.164, not OTP-verified; phone-OTP adapter built and disabled (`require_phone_otp` off) | Done (`disabledPhoneOtp`; S-25) |
+| Turnstile, rate limits per IP / device / email, disposable list, honeypot, block list, junk score | Done (D-050, D-052, D-053) |
+| Consent versioned and stored (ledger + lead stamps); withdrawal; deletion / opt-out / export requests | Done |
+| Drop-offs recorded in `web_gate_attempts`; `push_unverified_gate_leads` (default off) | Done (worker calls `web_push_unverified`) |
+| Sessions: verified users stay signed in; sign in again with an email code | Done (own sessions, D-005) |
+| Account pages: profile, shortlist (synced), saved comparisons, applications, consent, opt-out / deletion | Done; chat history arrives with Phase 8 |
+| Built-in application form: steps 2–4 enrich the same lead, save on Next, submit = application request, reference, confirmation email | Done |
+| Signed-in users skip verification and get pre-filled fields | Done |
+| Short enquiry form via `lead_intake` with page context | Done |
+| Attribution (UTM, click ids, referrer, landing, creator code) on every lead | Done (cookies → `attributionToLead`) |
+| Creator pages with a typed provider + mock; code attached, never gates | Done (D-018, D-051; S-43) |
+| Server-side conversion events on a verified lead (CAPI Lead) and on submit (SubmitApplication) | Done via outbox (D-047; S-17) |
+| Document upload behind `document_upload_enabled` (off) | Deferred — owner decision on storage, retention and legal text (D-054) |
+| Form fields configurable in the admin | Deferred to Phase 10 (the form already reads a `config` of hidden/optional fields) |
+| Witty gate UI (before the first message) | Phase 8 (reuses `startVerification` with `surface = 'gate'`) |
+
+### Phase 7 summary
+Students verify their email inline; only then is a lead written through `lead_intake` (once, de-duplicated by phone, with
+attribution, creator code and versioned consent). The application form enriches the same lead step by step and ends as
+an application request with a reference and a confirmation email; the enquiry form and creator pages use the same flow.
+Students can sign in, see their applications, sync their shortlist, save comparisons, withdraw consent and request
+deletion. Conversions API events wait for marketing consent and a token.

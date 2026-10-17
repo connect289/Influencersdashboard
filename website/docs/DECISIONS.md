@@ -328,3 +328,54 @@ these at the end (spec Section 0).
 - **Why:** admin-managed redirects (renamed slugs, old URLs, 404-monitor fixes) must work without a redeploy. The proxy
   reads `web_redirects` through `web_redirects_all()` (cached 60 s in memory, 1.5 s timeout, last good map kept on
   error) and counts hits asynchronously. The legacy URL map stays static in `next.config.ts`.
+
+## Phase 7
+
+### D-046 · Only the signed-in owner can change an application
+- **Why:** an attempt id travels through the browser. `web_application_save_step` and `web_application_submit` also
+  require the student id from the signed `ew_sid` session (set at verification), so a leaked attempt id cannot enrich
+  or submit someone else's application. The verification code hash is bound to the attempt's idempotency key.
+
+### D-047 · Conversions API events only with marketing-cookie consent
+- **Why:** the Lead / SubmitApplication events are ads measurement. The outbox handler sends them only when the visitor
+  accepted marketing cookies at the time of the form (`attribution.ad_consent`); `_fbp`/`_fbc` are read only then.
+  Without `META_CAPI_TOKEN` + `NEXT_PUBLIC_META_PIXEL_ID` (S-17) the event is logged as mocked. Email and phone are
+  SHA-256 hashed; the event id is the attempt / application id, for de-duplication with the Pixel (Phase 9).
+  **Change:** `lib/server/outbox-handlers.ts`.
+
+### D-048 · Outbox worker schedule: Vercel Cron every minute, pg_cron fallback
+- **Why:** `vercel.json` calls `/api/internal/outbox` every minute (needs the Vercel Pro plan, S-47). On Hobby, use the
+  documented pg_cron + pg_net call with `WEB_INTERNAL_KEY` (same endpoint, POST). The worker also runs
+  `web_push_unverified()` (off unless `push_unverified_gate_leads` is on).
+
+### D-049 · Sign-in with an unknown email creates a verified account without a lead
+- **Why:** answering "no account for this email" would reveal who has enquired. A code is sent either way; proving the
+  email creates a student record with no lead (`surface = 'signin'` never calls `lead_intake`). The account page then
+  shows nothing until they apply or enquire.
+
+### D-050 · Turnstile test keys are mocks outside production and refused in production
+- **Why:** CI and local runs must not depend on Cloudflare being reachable. Cloudflare's documented test secrets
+  (`1x…AA` pass, `2x…`/`3x…` fail) are evaluated locally and the widget is not loaded for test site keys; in production a
+  test or missing secret fails closed. A real key with Cloudflare unreachable lets the attempt through (logged) because
+  rate limits, screening and the email code still apply.
+
+### D-051 · Creator pages never claim an endorsement without the portal's data
+- **Why:** `/c/<handle>` could otherwise say "Recommended by <anyone>". With no `CREATOR_API_URL`, production renders a
+  neutral welcome (the code is still attached through the attribution cookie); outside production a single
+  `demo-creator` mock exists for tests. Creator pages are `noindex` (campaign landing pages).
+
+### D-052 · Client IP for rate limits comes from `x-forwarded-for`
+- **Why:** on Vercel the header is set by the platform (client-supplied values are overwritten), so limits per IP are
+  reliable there; the e2e suite sets a different value per test so repeated local runs do not trip per-IP limits. Raw
+  IPs are never stored (hashed with `hashId`).
+
+### D-053 · Junk-risk score is a hint, never a block
+- **Why:** spec 7.2. Heuristics (repeated or sequential digits, test words, keyboard runs, vowel-less emails, test
+  domains) score 0–100; stored on the attempt; unverified attempts scoring ≥ 50 are never pushed as leads. It reaches the
+  lead only after A-LEAD-3.
+
+### D-054 · Document upload is not built in v1
+- **Why:** the spec makes it optional behind `document_upload_enabled` (default off) because documents are sensitive.
+  Turning it on needs a private storage bucket, retention rules, malware scanning and a Privacy Policy change (legal
+  review, S-44), none of which can be decided without the owner. The setting exists and the form shows no upload.
+  **Change:** owner decision at or after go-live.

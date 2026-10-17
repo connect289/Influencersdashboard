@@ -1,6 +1,6 @@
 // Lighthouse CI budgets (spec 3A/12): mobile form factor, applied (DevTools) throttling — slow 4G + 4x CPU — which is
 // what D-021 measures against. Runs against `next start` on :3100 with the local Supabase stack.
-const paths = ["/", "/programmes", "/programmes?programme=mba&spec=marketing", "/programmes/online-mba", "/universities", "/universities/nmims", "/about", "/contact", "/thank-you", "/admin/login"];
+const paths = ["/", "/programmes", "/programmes?programme=mba&spec=marketing", "/programmes/online-mba", "/universities", "/universities/nmims", "/about", "/contact", "/thank-you", "/account/sign-in", "/c/demo-creator", "/admin/login"];
 module.exports = {
   ci: {
     collect: {
@@ -34,8 +34,8 @@ module.exports = {
           },
         },
         {
-          // Public pages must be indexable; /admin and /thank-you are deliberately noindex.
-          matchingUrlPattern: "^(?!.*/(admin|thank-you)).*$",
+          // Public pages must be indexable; /admin, /account, /c/ and /thank-you are deliberately noindex.
+          matchingUrlPattern: "^(?!.*/(admin|account|c|thank-you)(/|$)).*$",
           assertions: { "categories:seo": ["error", { minScore: 0.95 }] },
         },
       ],
