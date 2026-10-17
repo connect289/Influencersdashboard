@@ -64,7 +64,12 @@ async function View({ searchParams }: { searchParams: Promise<{ msg?: string }> 
         <Card title="Falling pages"><Table rows={d.falling} cols={["page", "clicks", "prev"]} /></Card>
         <Card title="Impressions but low CTR (fix the title and description)"><Table rows={d.low_ctr} cols={["page", "impressions", "clicks", "ctr"]} /></Card>
         <Card title="Index coverage and Core Web Vitals">
-          <p className="text-muted text-sm">Shown once Search Console is connected (the Search Analytics API does not expose them for sample data). Lab Core Web Vitals are enforced in CI (docs/PERFORMANCE.md).</p>
+          <p className="text-muted text-sm">
+            Google&apos;s API does not export these reports, so open them in Search Console:{" "}
+            <a className="text-accent underline" href="https://search.google.com/search-console/index" target="_blank" rel="noopener noreferrer">Pages (index coverage)</a> and{" "}
+            <a className="text-accent underline" href="https://search.google.com/search-console/core-web-vitals" target="_blank" rel="noopener noreferrer">Core Web Vitals</a>. Lab
+            Core Web Vitals are enforced on every deploy (Lighthouse budgets, docs/PERFORMANCE.md).
+          </p>
         </Card>
       </div>
     </AdminShell>

@@ -1,4 +1,4 @@
-import banned from "@/content/banned-claims.json";
+import banned from "@/content/banned-claims.json" with { type: "json" };
 
 /**
  * On-page checker (spec 13.4): runs on the rendered HTML of curated views, university pages and guides. Checks title and

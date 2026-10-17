@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import banned from "@/content/banned-claims.json";
+import banned from "@/content/banned-claims.json" with { type: "json" };
 import { suggestLinks, type LinkTarget } from "@/lib/seo/links";
 import { checkPage, extractFacts } from "@/lib/seo/onpage";
 import type { Block } from "../content";
