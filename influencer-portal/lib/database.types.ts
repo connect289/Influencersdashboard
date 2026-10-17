@@ -935,6 +935,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"deal_manual_events": {
+                  Row: {
+                    "at": string,"created_by": string,"deal_id": string,"id": string,"kind": string,"reason": string,"ref": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"created_by"?: string,"deal_id": string,"id"?: string,"kind": string,"reason": string,"ref"?: string | null
+                  }
+                  Update: {
+                    "at"?: string,"created_by"?: string,"deal_id"?: string,"id"?: string,"kind"?: string,"reason"?: string,"ref"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deal_manual_events_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"deal_presets": {
                   Row: {
                     "archived_at": string | null,"comp_config": NonNullable<Json>,"created_at": string,"created_by": string | null,"description": string | null,"id": string,"is_system": boolean,"key": string | null,"name": string,"updated_at": string
@@ -1111,6 +1131,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"eduwit_commission_receipts": {
+                  Row: {
+                    "created_at": string,"enrollment_ref": string,"enrollment_status": string | null,"entered_by": string | null,"gross_paise": number,"gst_paise": number,"id": number,"net_paise": number,"reason": string | null,"received_on": string | null,"received_paise": number,"source": string,"source_version": string,"status": string,"student_lead_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"enrollment_ref": string,"enrollment_status"?: string | null,"entered_by"?: string | null,"gross_paise"?: number,"gst_paise"?: number,"id"?: never,"net_paise"?: number,"reason"?: string | null,"received_on"?: string | null,"received_paise"?: number,"source": string,"source_version": string,"status": string,"student_lead_id": number
+                  }
+                  Update: {
+                    "created_at"?: string,"enrollment_ref"?: string,"enrollment_status"?: string | null,"entered_by"?: string | null,"gross_paise"?: number,"gst_paise"?: number,"id"?: never,"net_paise"?: number,"reason"?: string | null,"received_on"?: string | null,"received_paise"?: number,"source"?: string,"source_version"?: string,"status"?: string,"student_lead_id"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"email_codes": {
                   Row: {
                     "attempts": number,"code_hash": string,"consumed_at": string | null,"created_at": string,"expires_at": string,"id": string,"purpose": string,"salt": string,"session_id": string,"user_id": string
@@ -1148,6 +1182,32 @@ isOneToOne: false
       columns: ["creator_id"]
 isOneToOne: false
       referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"invoices": {
+                  Row: {
+                    "created_at": string,"creator_id": string,"file_path": string | null,"gst_paise": number,"gstin": string | null,"id": string,"issued_on": string,"kind": string,"number": string,"payout_id": string,"review_note": string | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": string,"taxable_paise": number,"total_paise": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"creator_id": string,"file_path"?: string | null,"gst_paise"?: number,"gstin"?: string | null,"id"?: string,"issued_on": string,"kind": string,"number": string,"payout_id": string,"review_note"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: string,"taxable_paise": number,"total_paise": number
+                  }
+                  Update: {
+                    "created_at"?: string,"creator_id"?: string,"file_path"?: string | null,"gst_paise"?: number,"gstin"?: string | null,"id"?: string,"issued_on"?: string,"kind"?: string,"number"?: string,"payout_id"?: string,"review_note"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: string,"taxable_paise"?: number,"total_paise"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "invoices_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_payout_id_fkey"
+      columns: ["payout_id"]
+isOneToOne: false
+      referencedRelation: "payouts"
       referencedColumns: ["id"]
     }
                   ]
@@ -1226,6 +1286,82 @@ isOneToOne: false
       columns: ["attribution_id"]
 isOneToOne: false
       referencedRelation: "lead_attributions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ledger_entries": {
+                  Row: {
+                    "amount_paise": number,"attribution_id": string | null,"confirmed_paise": number,"creator_id": string,"deal_id": string | null,"deal_version_id": string | null,"direction": string,"due_on": string,"event_key": string,"held": boolean,"hold_reason": string | null,"id": number,"note": string | null,"paid_paise": number,"payout_id": string | null,"period": string,"posted_at": string,"posted_by": string | null,"reversed_by_id": number | null,"reverses_id": number | null,"rule_id": string | null,"source": string,"status": string,"subject": string | null,"tds_component": string | null,"type": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_paise": number,"attribution_id"?: string | null,"confirmed_paise"?: number,"creator_id": string,"deal_id"?: string | null,"deal_version_id"?: string | null,"direction": string,"due_on": string,"event_key": string,"held"?: boolean,"hold_reason"?: string | null,"id"?: never,"note"?: string | null,"paid_paise"?: number,"payout_id"?: string | null,"period": string,"posted_at"?: string,"posted_by"?: string | null,"reversed_by_id"?: number | null,"reverses_id"?: number | null,"rule_id"?: string | null,"source": string,"status": string,"subject"?: string | null,"tds_component"?: string | null,"type": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "amount_paise"?: number,"attribution_id"?: string | null,"confirmed_paise"?: number,"creator_id"?: string,"deal_id"?: string | null,"deal_version_id"?: string | null,"direction"?: string,"due_on"?: string,"event_key"?: string,"held"?: boolean,"hold_reason"?: string | null,"id"?: never,"note"?: string | null,"paid_paise"?: number,"payout_id"?: string | null,"period"?: string,"posted_at"?: string,"posted_by"?: string | null,"reversed_by_id"?: number | null,"reverses_id"?: number | null,"rule_id"?: string | null,"source"?: string,"status"?: string,"subject"?: string | null,"tds_component"?: string | null,"type"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ledger_entries_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
+      referencedRelation: "lead_attributions"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ledger_entries_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ledger_entries_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ledger_entries_deal_version_id_fkey"
+      columns: ["deal_version_id"]
+isOneToOne: false
+      referencedRelation: "deal_versions"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ledger_entries_payout_fk"
+      columns: ["payout_id"]
+isOneToOne: false
+      referencedRelation: "payouts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ledger_entries_reversed_by_id_fkey"
+      columns: ["reversed_by_id"]
+isOneToOne: false
+      referencedRelation: "ledger_entries"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ledger_entries_reverses_id_fkey"
+      columns: ["reverses_id"]
+isOneToOne: true
+      referencedRelation: "ledger_entries"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ledger_status_events": {
+                  Row: {
+                    "actor_id": string | null,"at": string,"entry_id": number,"from_status": string | null,"id": number,"reason": string | null,"to_status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actor_id"?: string | null,"at"?: string,"entry_id": number,"from_status"?: string | null,"id"?: never,"reason"?: string | null,"to_status": string
+                  }
+                  Update: {
+                    "actor_id"?: string | null,"at"?: string,"entry_id"?: number,"from_status"?: string | null,"id"?: never,"reason"?: string | null,"to_status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ledger_status_events_entry_id_fkey"
+      columns: ["entry_id"]
+isOneToOne: false
+      referencedRelation: "ledger_entries"
       referencedColumns: ["id"]
     }
                   ]
@@ -1345,6 +1481,72 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "outreach_activities_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"payout_batches": {
+                  Row: {
+                    "approved_at": string | null,"approved_by": string | null,"cancelled_reason": string | null,"created_at": string,"created_by": string,"export_count": number,"exported_at": string | null,"exported_by": string | null,"filters": NonNullable<Json>,"id": string,"note": string | null,"ref": string,"second_approved_at": string | null,"second_approved_by": string | null,"status": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "approved_at"?: string | null,"approved_by"?: string | null,"cancelled_reason"?: string | null,"created_at"?: string,"created_by"?: string,"export_count"?: number,"exported_at"?: string | null,"exported_by"?: string | null,"filters"?: NonNullable<Json>,"id"?: string,"note"?: string | null,"ref": string,"second_approved_at"?: string | null,"second_approved_by"?: string | null,"status"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "approved_at"?: string | null,"approved_by"?: string | null,"cancelled_reason"?: string | null,"created_at"?: string,"created_by"?: string,"export_count"?: number,"exported_at"?: string | null,"exported_by"?: string | null,"filters"?: NonNullable<Json>,"id"?: string,"note"?: string | null,"ref"?: string,"second_approved_at"?: string | null,"second_approved_by"?: string | null,"status"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"payout_items": {
+                  Row: {
+                    "amount_paise": number,"entry_id": number,"payout_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_paise": number,"entry_id": number,"payout_id": string
+                  }
+                  Update: {
+                    "amount_paise"?: number,"entry_id"?: number,"payout_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "payout_items_entry_id_fkey"
+      columns: ["entry_id"]
+isOneToOne: false
+      referencedRelation: "ledger_entries"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payout_items_payout_id_fkey"
+      columns: ["payout_id"]
+isOneToOne: false
+      referencedRelation: "payouts"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"payouts": {
+                  Row: {
+                    "advice_path": string | null,"batch_id": string,"created_at": string,"creator_id": string,"eduwit_tds_paise": number,"gross_paise": number,"gst_base_paise": number,"gst_paise": number,"id": string,"needs_invoice": boolean,"net_paise": number,"paid_on": string | null,"payee": string,"ref": string,"sections": NonNullable<Json>,"status": string,"status_reason": string | null,"tds_paise": number,"updated_at": string,"utr": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "advice_path"?: string | null,"batch_id": string,"created_at"?: string,"creator_id": string,"eduwit_tds_paise"?: number,"gross_paise": number,"gst_base_paise"?: number,"gst_paise"?: number,"id"?: string,"needs_invoice"?: boolean,"net_paise": number,"paid_on"?: string | null,"payee"?: string,"ref": string,"sections"?: NonNullable<Json>,"status"?: string,"status_reason"?: string | null,"tds_paise"?: number,"updated_at"?: string,"utr"?: string | null
+                  }
+                  Update: {
+                    "advice_path"?: string | null,"batch_id"?: string,"created_at"?: string,"creator_id"?: string,"eduwit_tds_paise"?: number,"gross_paise"?: number,"gst_base_paise"?: number,"gst_paise"?: number,"id"?: string,"needs_invoice"?: boolean,"net_paise"?: number,"paid_on"?: string | null,"payee"?: string,"ref"?: string,"sections"?: NonNullable<Json>,"status"?: string,"status_reason"?: string | null,"tds_paise"?: number,"updated_at"?: string,"utr"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "payouts_batch_id_fkey"
+      columns: ["batch_id"]
+isOneToOne: false
+      referencedRelation: "payout_batches"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payouts_creator_id_fkey"
       columns: ["creator_id"]
 isOneToOne: false
       referencedRelation: "creators"
@@ -1739,6 +1941,52 @@ isOneToOne: false
       referencedColumns: ["user_id"]
     }
                   ]
+                },"tds_certificates": {
+                  Row: {
+                    "creator_id": string,"file_path": string,"fy": string,"id": string,"quarter": string,"uploaded_at": string,"uploaded_by": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "creator_id": string,"file_path": string,"fy": string,"id"?: string,"quarter": string,"uploaded_at"?: string,"uploaded_by"?: string
+                  }
+                  Update: {
+                    "creator_id"?: string,"file_path"?: string,"fy"?: string,"id"?: string,"quarter"?: string,"uploaded_at"?: string,"uploaded_by"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "tds_certificates_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"tds_records": {
+                  Row: {
+                    "amount_paise": number,"base_paise": number,"borne_by": string,"created_at": string,"creator_id": string,"fy": string,"id": string,"paid_on": string,"payout_id": string,"quarter": string,"rate_bps": number,"section": string,"taxable_paise": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_paise": number,"base_paise": number,"borne_by": string,"created_at"?: string,"creator_id": string,"fy": string,"id"?: string,"paid_on": string,"payout_id": string,"quarter": string,"rate_bps": number,"section": string,"taxable_paise": number
+                  }
+                  Update: {
+                    "amount_paise"?: number,"base_paise"?: number,"borne_by"?: string,"created_at"?: string,"creator_id"?: string,"fy"?: string,"id"?: string,"paid_on"?: string,"payout_id"?: string,"quarter"?: string,"rate_bps"?: number,"section"?: string,"taxable_paise"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "tds_records_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tds_records_payout_id_fkey"
+      columns: ["payout_id"]
+isOneToOne: false
+      referencedRelation: "payouts"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"tds_sections": {
                   Row: {
                     "borne_by": string,"code": string,"components": (string)[],"confirmed_by_ca": boolean,"fy_threshold_paise": number | null,"label": string,"no_pan_rate_bps": number,"position": number,"rate_bps": number,"single_threshold_paise": number | null,"updated_at": string,"updated_by": string | null
@@ -2089,6 +2337,9 @@ isOneToOne: false
 "can_view_deal_of":
 { Args: { "p_creator": string }; Returns: boolean
                            },
+"can_view_earnings":
+{ Args: { "p_creator": string }; Returns: boolean
+                           },
 "catalog_programmes_search":
 { Args: { "p_limit"?: number,"p_q": string }; Returns: {
               "fee_total": number,"id": number,"level": string,"mode": string,"program_name": string,"specialization": string,"university": string
@@ -2126,6 +2377,9 @@ isOneToOne: false
                            },
 "commission_estimate":
 { Args: { "p_campaign": string }; Returns: number
+                           },
+"commission_receipts_sync":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "comp_config_errors":
 { Args: { "p": Json }; Returns: (string)[]
@@ -2244,6 +2498,9 @@ isOneToOne: false
 "creator_delete_draft":
 { Args: { "p_creator": string }; Returns: undefined
                            },
+"creator_earnings":
+{ Args: { "p_creator": string }; Returns: Json
+                           },
 "creator_import":
 { Args: { "p_dry_run"?: boolean,"p_file_name": string,"p_invalid"?: Json,"p_rows": Json }; Returns: Json
                            },
@@ -2318,6 +2575,9 @@ isOneToOne: false
                            },
 "deal_from_application":
 { Args: { "p_app": string,"p_config": Json }; Returns: string
+                           },
+"deal_manual_event":
+{ Args: { "p_deal": string,"p_kind": string,"p_reason": string,"p_ref": string }; Returns: string
                            },
 "deal_model":
 { Args: { "p": Json }; Returns: string
@@ -2415,6 +2675,9 @@ isOneToOne: false
 "emit_event":
 { Args: { "p_idem_key": string,"p_payload": Json,"p_subject_id": string,"p_subject_type": string,"p_type": string }; Returns: number
                            },
+"finance_file_allowed":
+{ Args: { "p_path": string }; Returns: boolean
+                           },
 "follow_up_done":
 { Args: { "p_activity": string }; Returns: undefined
                            },
@@ -2435,6 +2698,12 @@ isOneToOne: false
 "fraud_queue":
 { Args: { "p": Json }; Returns: Json
                            },
+"fy_of":
+{ Args: { "p": string }; Returns: string
+                           },
+"fy_quarter_of":
+{ Args: { "p": string }; Returns: string
+                           },
 "has_perm":
 { Args: { "p_permission": string }; Returns: boolean
                            },
@@ -2450,8 +2719,23 @@ isOneToOne: false
 "invite_withdraw":
 { Args: { "p_invite": string }; Returns: undefined
                            },
+"invoice_review":
+{ Args: { "p_accept": boolean,"p_invoice": string,"p_note": string }; Returns: undefined
+                           },
+"invoice_submit":
+{ Args: { "p": Json }; Returns: string
+                           },
+"invoice_upload_allowed":
+{ Args: { "p_payout": string }; Returns: boolean
+                           },
+"invoices_queue":
+{ Args: { "p_status": string }; Returns: Json
+                           },
 "is_staff":
 { Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"ist_date":
+{ Args: { "p": string }; Returns: string
                            },
 "job_claim":
 { Args: { "p_kinds"?: (string)[],"p_limit"?: number,"p_worker": string }; Returns: {
@@ -2518,6 +2802,9 @@ isOneToOne: false
 "lead_detail":
 { Args: { "p_attribution": string }; Returns: Json
                            },
+"lead_feed_earnings":
+{ Args: { "p_deal": string }; Returns: undefined
+                           },
 "lead_feed_refresh":
 { Args: { "p_lead": number }; Returns: undefined
                            },
@@ -2544,6 +2831,60 @@ isOneToOne: false
                            },
 "leads_list":
 { Args: { "p": Json }; Returns: Json
+                           },
+"ledger_adjust":
+{ Args: { "p": Json }; Returns: number
+                           },
+"ledger_apply":
+{ Args: { "p": Json,"p_deal": string }; Returns: Json
+                           },
+"ledger_can_transition":
+{ Args: { "p_from": string,"p_to": string }; Returns: boolean
+                           },
+"ledger_deals_to_run":
+{ Args: Record<PropertyKey, never>; Returns: string[]
+                           },
+"ledger_enqueue":
+{ Args: { "p_deal": string,"p_reason": string }; Returns: undefined
+                           },
+"ledger_entry_events":
+{ Args: { "p_entry": number }; Returns: Json
+                           },
+"ledger_facts":
+{ Args: { "p_deal": string }; Returns: Json
+                           },
+"ledger_hold":
+{ Args: { "p_entry": number,"p_hold": boolean,"p_reason": string }; Returns: string
+                           },
+"ledger_hold_creator":
+{ Args: { "p_creator": string,"p_hold": boolean,"p_reason": string }; Returns: number
+                           },
+"ledger_in_open_batch":
+{ Args: { "p_entry": number }; Returns: boolean
+                           },
+"ledger_list":
+{ Args: { "p": Json }; Returns: Json
+                           },
+"ledger_nightly":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"ledger_post":
+{ Args: { "p": Json }; Returns: number
+                           },
+"ledger_refresh_due":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"ledger_status_of":
+{ Args: { "p_amount": number,"p_confirmed": number,"p_due_on": string,"p_held": boolean,"p_in_open_batch": boolean,"p_is_reversal": boolean,"p_paid": number,"p_reversed": boolean,"p_today": string }; Returns: string
+                           },
+"ledger_transition":
+{ Args: { "p_entry": number,"p_reason"?: string }; Returns: string
+                           },
+"ledger_writer_on":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"ledger_writer_restore":
+{ Args: { "p_prev": string }; Returns: undefined
                            },
 "link_code_suggest":
 { Args: { "p_handle": string,"p_tag": string }; Returns: string
@@ -2668,6 +3009,45 @@ isOneToOne: false
 "outreach_log":
 { Args: { "p_channel": string,"p_creator": string,"p_direction": string,"p_next_follow_up"?: string,"p_notes": string,"p_outcome": string }; Returns: string
                            },
+"payout_advice_saved":
+{ Args: { "p_path": string,"p_payout": string }; Returns: undefined
+                           },
+"payout_bank_rows":
+{ Args: { "p_batch": string }; Returns: Json
+                           },
+"payout_batch_approve":
+{ Args: { "p_batch": string }; Returns: string
+                           },
+"payout_batch_cancel":
+{ Args: { "p_batch": string,"p_reason": string }; Returns: undefined
+                           },
+"payout_batch_create":
+{ Args: { "p": Json }; Returns: string
+                           },
+"payout_batch_detail":
+{ Args: { "p_batch": string }; Returns: Json
+                           },
+"payout_batches_list":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"payout_candidates":
+{ Args: { "p": Json }; Returns: Json
+                           },
+"payout_detail":
+{ Args: { "p_payout": string }; Returns: Json
+                           },
+"payout_mark_failed":
+{ Args: { "p_payout": string,"p_reason": string }; Returns: undefined
+                           },
+"payout_release_items":
+{ Args: { "p_payout": string,"p_reason": string }; Returns: undefined
+                           },
+"payout_remove":
+{ Args: { "p_payout": string,"p_reason": string }; Returns: undefined
+                           },
+"payouts_mark_paid":
+{ Args: { "p": Json }; Returns: number
+                           },
 "penalties_list":
 { Args: { "p": Json }; Returns: Json
                            },
@@ -2718,6 +3098,36 @@ isOneToOne: false
                            },
 "rate_check":
 { Args: { "p_key": string,"p_limit": number,"p_seconds": number }; Returns: boolean
+                           },
+"receipt_record":
+{ Args: { "p": Json }; Returns: number
+                           },
+"receipts_effective":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "created_at": string,
+"enrollment_ref": string,
+"enrollment_status": string | null,
+"entered_by": string | null,
+"gross_paise": number,
+"gst_paise": number,
+"id": number,
+"net_paise": number,
+"reason": string | null,
+"received_on": string | null,
+"received_paise": number,
+"source": string,
+"source_version": string,
+"status": string,
+"student_lead_id": number
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "eduwit_commission_receipts"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
+"recon_data":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "request_header":
 { Args: { "p_name": string }; Returns: string
@@ -2821,11 +3231,17 @@ isOneToOne: false
 "task_set_status":
 { Args: { "p_status": string,"p_task": string }; Returns: undefined
                            },
+"tds_certificate_record":
+{ Args: { "p_creator": string,"p_fy": string,"p_path": string,"p_quarter": string }; Returns: string
+                           },
 "tds_section_save":
 { Args: { "p": Json }; Returns: undefined
                            },
 "tds_sections_list":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"tds_summary":
+{ Args: { "p_fy": string,"p_quarter": string }; Returns: Json
                            },
 "template_archive":
 { Args: { "p_archived": boolean,"p_template": string }; Returns: undefined

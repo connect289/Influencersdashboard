@@ -4,6 +4,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { GENERATORS, latestRecordedHash, type GeneratedKind } from "@/lib/codegen/sql";
+import { ledgerMatrixSql } from "@/lib/codegen/ledger-matrix";
 import { workflowMatrixSql } from "@/lib/codegen/workflow-matrix";
 
 const dir = join(import.meta.dirname, "..", "supabase", "migrations");
@@ -45,17 +46,21 @@ for (const [kind, build] of Object.entries(GENERATORS) as [GeneratedKind, () => 
   console.info(`${kind}: wrote ${name}`);
 }
 
-// The generated pgTAP matrix that keeps the database workflow in step with lib/content/workflow.ts.
-const matrix = join(import.meta.dirname, "..", "supabase", "tests", "017_workflow_matrix.sql");
-const sql = workflowMatrixSql();
-let current = "";
-try {
-  current = readFileSync(matrix, "utf8");
-} catch {
-  // First generation.
-}
-if (current === sql) console.info("workflow-matrix: up to date");
-else {
-  writeFileSync(matrix, sql);
-  console.info("workflow-matrix: wrote supabase/tests/017_workflow_matrix.sql");
+// The generated pgTAP matrices that keep the database copies of the workflow and the ledger lifecycle in step.
+for (const [name, file, sql] of [
+  ["workflow-matrix", "017_workflow_matrix.sql", workflowMatrixSql()],
+  ["ledger-matrix", "020_ledger_status_matrix.sql", ledgerMatrixSql()],
+] as const) {
+  const path = join(import.meta.dirname, "..", "supabase", "tests", file);
+  let current = "";
+  try {
+    current = readFileSync(path, "utf8");
+  } catch {
+    // First generation.
+  }
+  if (current === sql) console.info(`${name}: up to date`);
+  else {
+    writeFileSync(path, sql);
+    console.info(`${name}: wrote supabase/tests/${file}`);
+  }
 }

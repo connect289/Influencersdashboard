@@ -336,6 +336,8 @@ export const SETTINGS = {
       two_person_approval: z.boolean(),
       kyc_required_for_payout: z.boolean(),
       hold_until_tax_confirmed: z.boolean(),
+      min_payout_rupees: z.number().int().min(0).max(1_000_000),
+      agency_payee: z.enum(["hold", "pay_creator"]),
       bank_export: z.strictObject({
         delimiter: z.enum([",", ";", "|", "\t"]),
         header: z.boolean(),
@@ -362,6 +364,8 @@ export const SETTINGS = {
       two_person_approval: true,
       kyc_required_for_payout: true,
       hold_until_tax_confirmed: false,
+      min_payout_rupees: 0,
+      agency_payee: "hold",
       bank_export: {
         delimiter: ",",
         header: true,
@@ -382,6 +386,16 @@ export const SETTINGS = {
     default: { rate_pct: 18, require_invoice_for_registered: true, sac_code: "998361" },
     edit: "tax.manage",
     needsConfirmation: "GST rate and SAC code: confirm with your CA.",
+  }),
+  "finance.reconciliation": def({
+    group: "finance",
+    label: "Commission reconciliation",
+    description: "When creator commission still waiting on Eduwit's own commission is flagged for Finance.",
+    schema: z.strictObject({
+      flag_after_days: z.number().int().min(7).max(730),
+    }),
+    default: { flag_after_days: 90 },
+    edit: "tax.manage",
   }),
   "creators.lifecycle": def({
     group: "creators",

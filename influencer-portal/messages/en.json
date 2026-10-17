@@ -425,7 +425,10 @@
     "due_reminder_days": "Reminder days before a due date",
     "overdue_escalation_days": "Escalate to the deal owner after (days overdue)",
     "metrics_grace_hours": "Grace period for metrics (hours)",
-    "website_base_url": "Website address (for landing-page links)"
+    "website_base_url": "Website address (for landing-page links)",
+    "min_payout_rupees": "Minimum payout (₹)",
+    "agency_payee": "When a contract names an agency as payee",
+    "flag_after_days": "Flag commission still unpaid by the partner after (days)"
   },
   "settingOptions": {
     "first_touch": "First touch",
@@ -485,7 +488,9 @@
     "amount_inr": "Amount (₹)",
     "narration": "Narration",
     "payout_ref": "Payout reference",
-    "creator_code": "Creator code"
+    "creator_code": "Creator code",
+    "hold": "Hold the payout for Finance to arrange",
+    "pay_creator": "Pay the creator's own account"
   },
   "staff": {
     "subtitle": "Who can use the admin console, with which roles. Changes take effect at once.",
