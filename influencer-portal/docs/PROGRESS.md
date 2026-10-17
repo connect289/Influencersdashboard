@@ -427,3 +427,22 @@ was created or changed: no trigger on `student_leads`, no new shared column, `le
 | Agency view with the view grant; links only with negotiate and sign | Done | `/agency/creators/<id>/leads`, Links card |
 | Guides for every audience | Done | Creator `#links`, `#leads`; agency `#leads`; influencer manager `#leads`, `#fraud`; super admin `#stage-rules`; developer `#attribution` |
 | Connecting attribution to live `student_leads` | Deferred (HARD STOP 6) | Ready; RUNBOOK G-14 to G-17 list the steps. Needs the owner's go-live approval |
+
+## Phase 7: Ledger, payouts and tax
+
+Spec Section 22 Phase 7 and spec 11 (with 6.1–6.3, 13). Builds on the Phase 3 engine (`computeLedger`, `diffLedger`,
+`estimateTax`), the Phase 5 content facts and penalty proposals, and the Phase 6 attributions. The ledger is
+append-only (D-06): amounts never change, corrections are reversal entries, status moves only through
+`inf.ledger_transition()`. No money moves automatically (spec 11): payouts are prepared, exported for the bank and
+marked paid by Finance; a payment-provider adapter interface is defined for later.
+
+### Plan
+
+| Step | What | Main files | Tests |
+| --- | --- | --- | --- |
+| 7.1 | Pure modules: deal facts → engine events (content, leads, enrolments, receipts, manual releases, deal and campaign close); runner plan (engine → diff → postings, approved penalties); entry lifecycle; payout builder (eligibility, gross, TDS per section with FY aggregates and catch-up, GST, net, carry-forward of negative balances); bank export file; UTR CSV parser; GST invoice checks; Indian FY and quarters; reconciliation of commission units against receipts | `lib/ledger/*` | exhaustive units |
+| 7.2 | Database: ledger entries and status events, receipts (sync from B2B/B2C per INTEGRATION_CONTRACTS §3, manual entries), manual releases, payout batches, payouts and items, invoices, TDS records and Form 16A files, payment providers interface log; gather and apply functions for the runner; payable sweep; audited bank export; RLS and grants | `20261022000100_inf_ledger.sql` | pgTAP per role, immutability, lifecycle |
+| 7.3 | Runner and wiring: `ledger.run` job per deal from domain events (contract, brief, deliverables, leads, enrolments, receipts, penalties, releases, deal status), nightly full run for time-based confirmations; penalties approved → ledger; dry run against posted entries | `lib/ledger/runner.ts`, `lib/jobs/*` | units + pgTAP + e2e |
+| 7.4 | Finance console: ledger with filters, adjustments and holds, receipts and reconciliation, payout batches (select, summary, approve with optional second approver, bank export, mark paid one by one or by CSV, cancel), GST invoice review, TDS summaries and Form 16A upload | `app/(admin)/admin/finance/*` | Playwright |
+| 7.5 | Creator and agency earnings: totals (lifetime, FY, month, pending, confirmed, payable, paid), next expected payout, per-deal and per-lead status (the lead feed's earning status), statements (monthly PDF), GST invoice upload, payment advice PDF and notification, TDS certificates | `app/(creator)/creator/earnings/*` | Playwright |
+| 7.6 | Guides, seed (posted ledger, a paid batch), phase gate | | gate |
