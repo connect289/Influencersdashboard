@@ -720,3 +720,22 @@ views or guide ideas, a keyword list with cannibalisation flags, a content plann
 facts only and can never publish without a named author and reviewer, a daily on-page checker, an approval-based
 internal-link engine, a 404 monitor with one-click 301s, and a local SEO checklist. CI fails on on-page errors. Owner
 items: S-20 (Search Console), S-50 (authors and reviewers), S-51 (hours), S-52 (Business Profile), S-53 (university intros).
+
+## Phase 12 — Hardening and go-live prep (in progress)
+
+### Plan
+1. Security review (`docs/SECURITY_REVIEW.md`): independent read-only review done (no high findings; 4 medium, 13 low).
+   Fix every medium and every low that is cheap and safe; record the rest with reasons. `npm audit`.
+2. Accessibility audit (`docs/ACCESSIBILITY.md`): axe on every page type in both themes and on phone + laptop,
+   keyboard-only and screen-reader walkthrough of the gate, finder, panel, form, Witty and admin.
+3. Full end-to-end suite on the final build.
+4. Load tests (`docs/LOAD_TESTS.md`, spec 3A): 10,000+ offerings (synthetic catalogue on a local copy), 1,000
+   concurrent visitors on cached pages and search, 200 concurrent Witty conversations (mock model provider).
+5. Production migration dry-run (`docs/GO_LIVE_DRY_RUN.md`) on the production-schema replica: every web migration in
+   order, every APPROVALS item (s01, s02, s03, data/cron proposals), smoke tests, timings, locks; rollback scripts for
+   web_ objects and for each shared proposal.
+6. `docs/RUNBOOK.md` (operations, incidents, flags, rollbacks), DNS cut-over plan Hostinger → Vercel with rollback,
+   go-live checklist.
+7. Final report; **stop** for the owner's go-live approval (no production apply, deploy or DNS change).
+
+### Step log
