@@ -197,23 +197,6 @@ language sql immutable set search_path = '' as $$
                        else p_day end
 $$;
 
--- The grouping key of a fact row for a dimension (or a time bucket).
-create or replace function inf.an_key(p_dim text, p_bucket text, p_day date, p_creator uuid, p_campaign uuid, p_deal uuid,
-                                      p_platform text, p_content_type text, p_programme bigint, p_deal_model text)
-returns text
-language sql immutable set search_path = '' as $$
-  select case
-    when p_bucket is not null then inf.an_bucket(p_day, p_bucket)::text
-    when p_dim = 'creator' then p_creator::text
-    when p_dim = 'campaign' then p_campaign::text
-    when p_dim = 'deal' then p_deal::text
-    when p_dim = 'platform' then p_platform
-    when p_dim = 'content_type' then p_content_type
-    when p_dim = 'programme' then p_programme::text
-    when p_dim = 'deal_model' then p_deal_model
-    else 'all' end
-$$;
-
 -- Totals for a date range, grouped by a dimension (creator, campaign, deal, platform, content_type, programme,
 -- deal_model, or all) or by time bucket (day, week, month), within an optional campaign, creator or deal. Rows whose
 -- key is null are facts that do not belong to one value of the dimension (for example deal-level fees by platform).
@@ -224,76 +207,86 @@ declare
   v_to date := (p ->> 'to')::date;
   v_dim text := coalesce(nullif(p ->> 'dim', ''), 'all');
   v_bucket text := nullif(p ->> 'bucket', '');
-  v_campaign uuid := nullif(p ->> 'campaign_id', '')::uuid;
-  v_creator uuid := nullif(p ->> 'creator_id', '')::uuid;
-  v_deal uuid := nullif(p ->> 'deal_id', '')::uuid;
-  v_test boolean := coalesce((p ->> 'include_test')::boolean, false);
+  v_key text;
   v_out jsonb;
 begin
   if not inf.has_perm('analytics.read') then raise exception 'not allowed' using errcode = '42501'; end if;
   if v_from is null or v_to is null or v_to < v_from or v_to - v_from > 1100 then
     raise exception 'invalid range' using errcode = '22023';
   end if;
-  if v_dim not in ('all', 'creator', 'campaign', 'deal', 'platform', 'content_type', 'programme', 'deal_model')
-     or (v_bucket is not null and v_bucket not in ('day', 'week', 'month')) then
-    raise exception 'invalid dimension' using errcode = '22023';
-  end if;
-  with
-  l as (
-    select inf.an_key(v_dim, v_bucket, x.day, x.creator_id, x.campaign_id, x.deal_id, x.platform, x.content_type, x.programme_id, x.deal_model) as k,
-           count(*) filter (where x.credited) as leads,
-           count(*) filter (where x.credited and x.qualified) as qualified,
-           count(*) filter (where x.credited and x.allocated) as allocated,
-           count(*) filter (where x.credited and x.applied) as applied,
-           count(*) filter (where x.credited and x.enrolled) as enrolled,
-           count(*) filter (where x.credited and x.junk) as junk,
-           count(*) as attributions,
-           count(*) filter (where x.duplicate) as duplicates
-      from inf.an_leads x
-     where x.day between v_from and v_to and (v_test or not x.is_test)
-       and (v_campaign is null or x.campaign_id = v_campaign) and (v_creator is null or x.creator_id = v_creator)
-       and (v_deal is null or x.deal_id = v_deal)
-     group by 1),
-  c as (
-    select inf.an_key(v_dim, v_bucket, x.day, x.creator_id, x.campaign_id, x.deal_id, x.platform, x.content_type, x.programme_id, x.deal_model) as k,
-           sum(x.clicks) as clicks
-      from inf.an_clicks_daily x
-     where x.day between v_from and v_to
-       and (v_campaign is null or x.campaign_id = v_campaign) and (v_creator is null or x.creator_id = v_creator)
-       and (v_deal is null or x.deal_id = v_deal)
-     group by 1),
-  s as (
-    select inf.an_key(v_dim, v_bucket, x.day, x.creator_id, x.campaign_id, x.deal_id, x.platform, x.content_type, x.programme_id, x.deal_model) as k,
-           sum(x.accrued_paise) as cost
-      from inf.an_spend_daily x
-     where x.day between v_from and v_to
-       and (v_campaign is null or x.campaign_id = v_campaign) and (v_creator is null or x.creator_id = v_creator)
-       and (v_deal is null or x.deal_id = v_deal)
-     group by 1),
-  r as (
-    select inf.an_key(v_dim, v_bucket, x.day, x.creator_id, x.campaign_id, x.deal_id, x.platform, x.content_type, x.programme_id, x.deal_model) as k,
-           sum(x.received_net_paise) as revenue
-      from inf.an_revenue x
-     where x.day between v_from and v_to and (v_test or not x.is_test)
-       and (v_campaign is null or x.campaign_id = v_campaign) and (v_creator is null or x.creator_id = v_creator)
-       and (v_deal is null or x.deal_id = v_deal)
-     group by 1),
-  keys as (select k from l union select k from c union select k from s union select k from r)
-  select coalesce(jsonb_agg(jsonb_build_object(
-           'key', keys.k,
-           'label', case v_dim
-                      when 'creator' then (select cr.display_name from inf.creators cr where cr.id::text = keys.k)
-                      when 'campaign' then (select cp.name from inf.campaigns cp where cp.id::text = keys.k)
-                      when 'deal' then (select dl.title from inf.deals dl where dl.id::text = keys.k)
-                      when 'programme' then (select pg.program_name from public.catalog_programs pg where pg.id::text = keys.k)
-                      else null end,
-           'clicks', coalesce(c.clicks, 0), 'leads', coalesce(l.leads, 0), 'qualified', coalesce(l.qualified, 0),
-           'allocated', coalesce(l.allocated, 0), 'applied', coalesce(l.applied, 0), 'enrolled', coalesce(l.enrolled, 0),
-           'junk', coalesce(l.junk, 0), 'attributions', coalesce(l.attributions, 0), 'duplicates', coalesce(l.duplicates, 0),
-           'cost_paise', coalesce(s.cost, 0), 'revenue_paise', coalesce(r.revenue, 0)) order by keys.k nulls last), '[]')
-    into v_out
-    from keys left join l on l.k is not distinct from keys.k left join c on c.k is not distinct from keys.k
-    left join s on s.k is not distinct from keys.k left join r on r.k is not distinct from keys.k;
+  -- The grouping expression comes only from this whitelist, so the dynamic SQL below never contains caller text.
+  v_key := case
+    when v_bucket = 'day' then 'x.day::text'
+    when v_bucket = 'week' then '(x.day - (extract(isodow from x.day)::int - 1))::text'
+    when v_bucket = 'month' then 'date_trunc(''month'', x.day)::date::text'
+    when v_bucket is not null then null
+    when v_dim = 'all' then '''all'''
+    when v_dim = 'creator' then 'x.creator_id::text'
+    when v_dim = 'campaign' then 'x.campaign_id::text'
+    when v_dim = 'deal' then 'x.deal_id::text'
+    when v_dim = 'platform' then 'x.platform'
+    when v_dim = 'content_type' then 'x.content_type'
+    when v_dim = 'programme' then 'x.programme_id::text'
+    when v_dim = 'deal_model' then 'x.deal_model'
+  end;
+  if v_key is null then raise exception 'invalid dimension' using errcode = '22023'; end if;
+  -- Rows without a value for the dimension group under '~' and come back with a null key.
+  execute format($q$
+    with
+    l as (
+      select coalesce(%1$s, '~') as k,
+             count(*) filter (where x.credited) as leads,
+             count(*) filter (where x.credited and x.qualified) as qualified,
+             count(*) filter (where x.credited and x.allocated) as allocated,
+             count(*) filter (where x.credited and x.applied) as applied,
+             count(*) filter (where x.credited and x.enrolled) as enrolled,
+             count(*) filter (where x.credited and x.junk) as junk,
+             count(*) as attributions,
+             count(*) filter (where x.duplicate) as duplicates
+        from inf.an_leads x
+       where x.day between $1 and $2 and ($3 or not x.is_test)
+         and ($4::uuid is null or x.campaign_id = $4) and ($5::uuid is null or x.creator_id = $5) and ($6::uuid is null or x.deal_id = $6)
+       group by 1),
+    c as (
+      select coalesce(%1$s, '~') as k, sum(x.clicks) as clicks
+        from inf.an_clicks_daily x
+       where x.day between $1 and $2
+         and ($4::uuid is null or x.campaign_id = $4) and ($5::uuid is null or x.creator_id = $5) and ($6::uuid is null or x.deal_id = $6)
+       group by 1),
+    s as (
+      select coalesce(%1$s, '~') as k, sum(x.accrued_paise) as cost
+        from inf.an_spend_daily x
+       where x.day between $1 and $2
+         and ($4::uuid is null or x.campaign_id = $4) and ($5::uuid is null or x.creator_id = $5) and ($6::uuid is null or x.deal_id = $6)
+       group by 1),
+    r as (
+      select coalesce(%1$s, '~') as k, sum(x.received_net_paise) as revenue
+        from inf.an_revenue x
+       where x.day between $1 and $2 and ($3 or not x.is_test)
+         and ($4::uuid is null or x.campaign_id = $4) and ($5::uuid is null or x.creator_id = $5) and ($6::uuid is null or x.deal_id = $6)
+       group by 1),
+    keys as (select k from l union select k from c union select k from s union select k from r),
+    rows as (
+      select nullif(keys.k, '~') as k, l.leads, l.qualified, l.allocated, l.applied, l.enrolled, l.junk, l.attributions,
+             l.duplicates, c.clicks, s.cost, r.revenue
+        from keys left join l on l.k = keys.k left join c on c.k = keys.k left join s on s.k = keys.k left join r on r.k = keys.k)
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'key', rows.k,
+             'label', case $7
+                        when 'creator' then (select cr.display_name from inf.creators cr where cr.id::text = rows.k)
+                        when 'campaign' then (select cp.name from inf.campaigns cp where cp.id::text = rows.k)
+                        when 'deal' then (select dl.title from inf.deals dl where dl.id::text = rows.k)
+                        when 'programme' then (select pg.program_name from public.catalog_programs pg where pg.id::text = rows.k)
+                      end,
+             'clicks', coalesce(rows.clicks, 0), 'leads', coalesce(rows.leads, 0), 'qualified', coalesce(rows.qualified, 0),
+             'allocated', coalesce(rows.allocated, 0), 'applied', coalesce(rows.applied, 0), 'enrolled', coalesce(rows.enrolled, 0),
+             'junk', coalesce(rows.junk, 0), 'attributions', coalesce(rows.attributions, 0), 'duplicates', coalesce(rows.duplicates, 0),
+             'cost_paise', coalesce(rows.cost, 0), 'revenue_paise', coalesce(rows.revenue, 0)) order by rows.k nulls last), '[]')
+      from rows
+  $q$, v_key)
+  into v_out
+  using v_from, v_to, coalesce((p ->> 'include_test')::boolean, false), nullif(p ->> 'campaign_id', '')::uuid,
+        nullif(p ->> 'creator_id', '')::uuid, nullif(p ->> 'deal_id', '')::uuid, case when v_bucket is null then v_dim end;
   return v_out;
 end $$;
 

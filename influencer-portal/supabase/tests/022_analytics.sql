@@ -3,7 +3,7 @@
 -- creators see only their own live figures and never revenue, and that the views themselves stay closed to clients.
 begin;
 \ir _helpers.psql
-select plan(27);
+select plan(29);
 
 select tests.make_staff('vic', array['viewer']);
 select tests.make_staff('fin', array['finance']);
@@ -96,6 +96,11 @@ select is((select (x ->> 'budget_paise')::bigint from jsonb_array_elements(inf.a
 select is((select (x ->> 'leads')::int from jsonb_array_elements(inf.analytics_creators(jsonb_build_object('from', current_date - 6, 'to', current_date, 'campaign_id', (select id from ids where label = 'campaign')))) x
             where x ->> 'handle' = 'riya'), 2, 'per-creator figures for the leaderboards');
 select ok(inf.analytics_operations() ? 'overdue_deliverables', 'operations counts');
+select is((inf.analytics_totals(jsonb_build_object('from', current_date - 6, 'to', current_date, 'bucket', 'week',
+                                                   'campaign_id', (select id from ids where label = 'campaign'))) -> -1 ->> 'key')::date,
+          current_date - (extract(isodow from current_date)::int - 1), 'weekly buckets start on Monday');
+select throws_ok($$ select inf.analytics_totals(jsonb_build_object('from', current_date - 6, 'to', current_date, 'dim', 'x; drop table y')) $$,
+                 '22023', null, 'only known dimensions are accepted');
 select throws_ok($$ select inf.analytics_finance(jsonb_build_object('from', current_date - 6, 'to', current_date)) $$, '42501', null,
                  'the finance dashboard also needs ledger.read');
 select tests.as_person('fin');

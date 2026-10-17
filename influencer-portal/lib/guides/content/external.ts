@@ -73,6 +73,24 @@ export const CREATOR: Guide = {
       ],
     },
     {
+      id: "home",
+      title: "Your home dashboard",
+      blocks: [
+        {
+          p: "[Home](/creator) starts with **Needs your attention**: contracts to review or sign, briefs to acknowledge, deliverables due, overdue or with changes requested, metrics to report, GST invoices to upload and KYC to finish. Each item opens the right screen.",
+        },
+        {
+          list: [
+            "**Your earnings**: total earned, pending, due to you, paid and the next payout run. **Fixed fees** shows what you have earned of your fixed fees and milestones and what is still to come.",
+            "**How your content is doing**: pick a period and compare it with the one before. The funnel goes from clicks on your links to enrolments; below it are leads over time, your top posts and links, and your programmes and platforms. Tap the info button next to any number for what it means.",
+            "**Export CSV** downloads these figures (counts only, never students' details).",
+            "Test enquiries are not counted. Your figures update within minutes of a new lead.",
+            "Turn on **Show me on the leaderboard** in your profile to see your position by enrolments among the creators who also show theirs. You only ever see your own position and figures.",
+          ],
+        },
+      ],
+    },
+    {
       id: "deals",
       title: "Your deals and how you earn",
       blocks: [

@@ -54,6 +54,15 @@ test.describe.serial("dashboards and analytics", () => {
     await page.getByLabel("Period", { exact: true }).selectOption("7d");
     await expect(page).toHaveURL(/range=7d/);
     await expect(page.getByRole("group", { name: "Leads", exact: true })).toContainText("1");
+    // The creator's own export: counts only.
+    const href = (await page.getByRole("link", { name: "Export CSV" }).getAttribute("href")) ?? "";
+    const csv = await page.request.get(href);
+    expect(csv.status()).toBe(200);
+    const text = await csv.text();
+    expect(text).toContain("Section,Name,Leads,Enrolled");
+    expect(text).not.toContain("919000000301");
+    await creatorLogin(page, "arjun.creator@example.test");
+    expect((await page.request.get(href)).status()).toBe(404);
   });
 
   test("staff see programme analytics with definitions, breakdowns and a CSV export", async ({ page }) => {

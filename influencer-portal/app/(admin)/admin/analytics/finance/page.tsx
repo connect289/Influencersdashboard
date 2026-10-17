@@ -58,7 +58,7 @@ export default async function FinanceDashboard({
       <PageHeader
         title={t("nav.admin.analytics")}
         description={t("analytics.finance.subtitle")}
-        help="/admin/help/analytics#finance"
+        help="/admin/help/getting-started#analytics-finance"
       />
       <AnalyticsNav current="finance" permissions={me.permissions} search={keep} />
       <div className="mb-4">

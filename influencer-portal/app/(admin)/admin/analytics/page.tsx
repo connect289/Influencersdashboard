@@ -83,7 +83,7 @@ export default async function AnalyticsOverview({
       <PageHeader
         title={t("nav.admin.analytics")}
         description={t("analytics.overview.subtitle")}
-        help="/admin/help/analytics#overview"
+        help="/admin/help/getting-started#analytics"
         actions={
           <Button asChild size="sm" variant="secondary">
             <a

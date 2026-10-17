@@ -51,7 +51,7 @@ export default async function CampaignAnalyticsList({
       <PageHeader
         title={t("nav.admin.analytics")}
         description={t("analytics.campaigns.subtitle")}
-        help="/admin/help/analytics#campaigns"
+        help="/admin/help/getting-started#analytics-campaigns"
       />
       <AnalyticsNav current="campaigns" permissions={me.permissions} search={keep} />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">

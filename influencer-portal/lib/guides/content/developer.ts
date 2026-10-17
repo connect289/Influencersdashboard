@@ -166,6 +166,20 @@ export const DEVELOPER: Guide = {
       ],
     },
     {
+      id: "analytics",
+      title: "Analytics",
+      blocks: [
+        {
+          list: [
+            "Every metric is defined once in `lib/analytics/metrics.ts` (unit, polarity, formula, source) with its label and tooltip in messages (`analytics.metrics.<id>`); `npm run gen:sql` regenerates `docs/METRICS.md` and a test fails if it is stale.",
+            "Pure modules: `ranges.ts` (IST presets, comparison period, buckets), `compute.ts` (funnel, unit economics, quality, deltas, leaderboards), `breakdown.ts` (derived columns, CSV), `format.ts`.",
+            "Staff dashboards read four materialised views (`inf.an_leads`, `an_clicks_daily`, `an_spend_daily`, `an_revenue`) refreshed by pg_cron `inf-analytics` every 15 minutes through `inf.analytics_refresh()`; read functions `inf.analytics_*` need `analytics.read` (finance also `ledger.read`). The views are closed to clients.",
+            "The creator home reads live rows through `inf.creator_dashboard` (creator, agency with view, staff with creator.read), never revenue. Committed spend per deal (`inf.deals.committed_paise`) is written by the ledger runner from the engine's zero-performance simulation (`lib/ledger/committed.ts`).",
+          ],
+        },
+      ],
+    },
+    {
       id: "jobs",
       title: "Background jobs and notifications",
       blocks: [

@@ -4563,6 +4563,7 @@
       "quality": "Lead quality over time",
       "qualityHint": "Each period's leads and how they turned out."
     },
-    "open": "Open {metric}"
+    "open": "Open {metric}",
+    "section": "Section"
   }
 }

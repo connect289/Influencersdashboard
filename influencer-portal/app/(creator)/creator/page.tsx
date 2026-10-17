@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { ChevronRight, FileCheck2, Trophy } from "lucide-react";
+import { ChevronRight, Download, FileCheck2, Trophy } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { BarList, Funnel, LineChart } from "@/components/analytics/charts";
 import { KpiCard } from "@/components/analytics/kpi-card";
 import { RangeControl } from "@/components/analytics/range-control";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { funnel } from "@/lib/analytics/compute";
 import { loadCreatorDashboard, type CreatorDashboard } from "@/lib/analytics/data";
 import { formatMetric } from "@/lib/analytics/format";
-import { fillSeries, parseRange } from "@/lib/analytics/ranges";
+import { fillSeries, parseRange, rangeParams } from "@/lib/analytics/ranges";
 import { requireCreator } from "@/lib/auth/guards";
 import { onboardingState, progressPct } from "@/lib/creators/onboarding";
 import { loadEarnings } from "@/lib/ledger/data";
@@ -204,7 +205,22 @@ export default async function CreatorHome({
             <h2 id="home-performance" className="text-base font-semibold">
               {t("home.performance")}
             </h2>
-            <RangeControl preset={range.preset} from={range.from} to={range.to} compare={range.compare} today={today} />
+            <div className="flex flex-wrap items-end gap-2">
+              <RangeControl
+                preset={range.preset}
+                from={range.from}
+                to={range.to}
+                compare={range.compare}
+                today={today}
+              />
+              <Button asChild size="sm" variant="ghost">
+                <a
+                  href={`/api/analytics/creator-export?${new URLSearchParams({ ...rangeParams(range), creator: me.creatorId })}`}
+                >
+                  <Download /> {t("analytics.export")}
+                </a>
+              </Button>
+            </div>
           </div>
           {!dash ? (
             <Card>

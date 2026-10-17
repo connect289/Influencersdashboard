@@ -102,7 +102,7 @@ export default async function CampaignDashboard({
       <PageHeader
         title={name ?? ""}
         description={t("analytics.campaigns.dashboardSubtitle")}
-        help="/admin/help/analytics#campaigns"
+        help="/admin/help/getting-started#analytics-campaigns"
         actions={
           <Button asChild size="sm" variant="secondary">
             <a

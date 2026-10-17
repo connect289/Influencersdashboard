@@ -4,7 +4,8 @@ export const ALL_STAFF: Guide = {
   slug: "getting-started",
   audience: "all_staff",
   title: "Getting started (all staff)",
-  summary: "Signing in, finding your way around the admin console, notifications, and keeping your account safe.",
+  summary:
+    "Signing in, finding your way around the admin console, notifications, keeping your account safe, and reading the analytics dashboards.",
   sections: [
     {
       id: "sign-in",
@@ -90,6 +91,51 @@ export const ALL_STAFF: Guide = {
       blocks: [
         {
           p: "You get in-app and email notifications for work assigned to you: new applications on campaigns you own, creators accepting or declining deal terms, tasks assigned to you. Until the Super Admin turns on live sending, emails stay inside the system.",
+        },
+      ],
+    },
+    {
+      id: "analytics",
+      title: "Analytics: the programme at a glance",
+      blocks: [
+        {
+          p: "[Analytics](/admin/analytics) shows how the creator programme is doing. Every number has an info button with its definition; the full definitions and formulas are in METRICS.md (docs folder).",
+        },
+        {
+          list: [
+            "Pick a period (today, the last 7, 30 or 90 days, this month, last month, this financial year or a custom range). **Compare with previous period** shows each figure's change against the same number of days just before; green is good news for that figure, red is not.",
+            "**Programme health**: active, new and dormant creators and the creator pipeline.",
+            "**Lead funnel**: clicks → leads → qualified → allocated → applied → enrolled. Stages are cumulative, so a lead that applied also counts as qualified.",
+            "**Spend**: committed (fixed fees, milestones and guarantees on agreed and active deals, even with no leads), accrued (what creators earned in the period) and paid, by deal model and by campaign with budget used.",
+            "**Unit economics**: cost per lead, per qualified lead and per enrolment, Eduwit's revenue, net ROI and ROAS, broken down by creator, campaign, platform, content type, programme or deal model. Commission follows its lead's post; fixed fees are deal-level and shown as not split.",
+            "**Lead quality**, **operations** (each card opens the matching screen) and **leaderboards**.",
+            "Test leads (Witty's test numbers) are left out unless you tick **Include test leads**.",
+            "**Export CSV** downloads the breakdown you are looking at (counts and amounts only, never student details).",
+          ],
+        },
+        {
+          tip: "Staff dashboards are refreshed every 15 minutes (the time is shown next to Refresh). Press **Refresh** after a big change; a creator's own home dashboard is always live.",
+        },
+      ],
+    },
+    {
+      id: "analytics-campaigns",
+      title: "Campaign dashboards and the creator 360",
+      blocks: [
+        {
+          list: [
+            "[Campaigns](/admin/analytics/campaigns) lists every campaign's leads, enrolments, spend, revenue, cost per enrolment, ROI and budget used. Open one for its funnel, trend, a comparison of every creator in it, and a breakdown by platform, content type or programme.",
+            "On a creator's page, the **Analytics** tab shows their trend, results by deal and by content type, and how the quality of their leads has changed over time.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "analytics-finance",
+      title: "The finance dashboard",
+      blocks: [
+        {
+          p: "Finance (and anyone with ledger access) also sees [Analytics → Finance](/admin/analytics/finance): what Eduwit owes creators now, payouts due, payouts by week or month with TDS and GST, TDS by quarter and section, and the reconciliation status of creator commission waiting on Eduwit's own commission.",
         },
       ],
     },
@@ -917,14 +963,14 @@ export const VIEWER: Guide = {
   slug: "viewer",
   audience: "viewer",
   title: "Viewer",
-  summary: "Read-only access to analytics and scorecards.",
+  summary: "Read-only access to the analytics dashboards.",
   sections: [
     {
       id: "access",
       title: "What you can see",
       blocks: [
         {
-          p: "The Viewer role is read-only. Analytics dashboards and creator scorecards arrive in Phase 9; until then your sidebar shows the Overview, your account and these guides.",
+          p: "The Viewer role is read-only. You can open [Analytics](/admin/analytics): programme health, spend, unit economics, lead quality, operations, leaderboards and the campaign dashboards (see Getting started → Analytics). Creator scorecards arrive with Phase 10.",
         },
       ],
     },
