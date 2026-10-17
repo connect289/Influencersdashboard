@@ -17,15 +17,7 @@ import { draftFromTerms, TermsForm, termsFromDraft } from "./terms";
  * Apply to an open campaign, or answer an invitation: accept the campaign's terms as offered, counter with your own,
  * or decline. Used by creators and by agencies with the "negotiate" grant.
  */
-export function ApplyPanel({
-  c,
-  creatorId,
-  appBase,
-}: {
-  c: CampaignPublic;
-  creatorId: string;
-  appBase: string;
-}) {
+export function ApplyPanel({ c, creatorId, appBase }: { c: CampaignPublic; creatorId: string; appBase: string }) {
   const t = useTranslations();
   const router = useRouter();
   const { pending, run } = useAction();

@@ -65,7 +65,9 @@ test.describe.serial("creator CRM", () => {
     await page.mouse.up();
     await expect(page.getByText("Moved to Negotiating.")).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("region", { name: "Negotiating" }).getByRole("link", { name: "Meera Maths" })).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Negotiating" }).getByRole("link", { name: "Meera Maths" }),
+    ).toBeVisible();
   });
 
   test("import prospects from CSV: check first, then import; duplicates are skipped", async ({ page }) => {
@@ -77,7 +79,9 @@ test.describe.serial("creator CRM", () => {
       "Bad Row,bad handle,,,,",
       "Riya twin,riyalearns,,,,",
     ].join("\n");
-    await page.getByLabel("Choose file").setInputFiles({ name: "prospects.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+    await page
+      .getByLabel("Choose file")
+      .setInputFiles({ name: "prospects.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
     await expect(page.getByText("Check of prospects.csv")).toBeVisible();
     await expect(page.getByText("2 new")).toBeVisible();
     await expect(page.getByText("1 duplicates")).toBeVisible();

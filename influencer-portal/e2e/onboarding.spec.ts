@@ -34,7 +34,10 @@ test.describe.serial("self sign-up, onboarding and approval", () => {
     await expect(page.getByText("Profile saved.")).toBeVisible();
 
     // Platforms: added at sign-up.
-    await page.getByRole("navigation", { name: "Onboarding steps" }).getByRole("link", { name: /Platforms/ }).click();
+    await page
+      .getByRole("navigation", { name: "Onboarding steps" })
+      .getByRole("link", { name: /Platforms/ })
+      .click();
     await expect(page.getByText(`Instagram · @${handle}`)).toBeVisible();
 
     // KYC.
@@ -58,12 +61,20 @@ test.describe.serial("self sign-up, onboarding and approval", () => {
     }
 
     // Course: two wrong answers first (75% < 80%), then all right (the seed's course has one correct option, always "B").
-    await page.getByRole("navigation", { name: "Onboarding steps" }).getByRole("link", { name: /Compliance course/ }).click();
+    await page
+      .getByRole("navigation", { name: "Onboarding steps" })
+      .getByRole("link", { name: /Compliance course/ })
+      .click();
     const groups = page.getByRole("group");
     await expect(page.getByRole("heading", { name: "Quiz" })).toBeVisible();
     const count = await groups.count();
     expect(count).toBe(8);
-    for (let i = 0; i < count; i++) await groups.nth(i).getByRole("radio").nth(i < 2 ? 0 : 1).check();
+    for (let i = 0; i < count; i++)
+      await groups
+        .nth(i)
+        .getByRole("radio")
+        .nth(i < 2 ? 0 : 1)
+        .check();
     await page.getByRole("button", { name: "Check my answers" }).click();
     await expect(page.getByText(/You scored 75%/)).toBeVisible();
     await groups.nth(0).getByRole("radio").nth(1).check();
@@ -71,7 +82,10 @@ test.describe.serial("self sign-up, onboarding and approval", () => {
     await page.getByRole("button", { name: "Try again" }).click();
     await expect(page.getByText(/Passed with 100%/)).toBeVisible();
 
-    await page.getByRole("navigation", { name: "Onboarding steps" }).getByRole("link", { name: /Submit/ }).click();
+    await page
+      .getByRole("navigation", { name: "Onboarding steps" })
+      .getByRole("link", { name: /Submit/ })
+      .click();
     await page.getByRole("button", { name: "Submit for approval" }).click();
     await expect(page.getByText("Submitted. We'll let you know when you're approved.")).toBeVisible();
   });

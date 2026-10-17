@@ -221,18 +221,43 @@ async function main() {
 
   // Demo catalogue (local only: the real catalogue belongs to Witty) and two demo campaigns.
   const pub = db.schema("public" as never) as unknown as typeof db;
-  const uni = await pub.from("catalog_universities" as never).select("id").eq("name", "Demo State University").maybeSingle();
+  const uni = await pub
+    .from("catalog_universities" as never)
+    .select("id")
+    .eq("name", "Demo State University")
+    .maybeSingle();
   let uniId = (uni.data as { id: number } | null)?.id;
   if (!uniId) {
-    const ins = await pub.from("catalog_universities" as never).insert({ name: "Demo State University" } as never).select("id").single();
+    const ins = await pub
+      .from("catalog_universities" as never)
+      .insert({ name: "Demo State University" } as never)
+      .select("id")
+      .single();
     uniId = (ins.data as { id: number } | null)?.id;
   }
   if (uniId) {
-    const have = await pub.from("catalog_programs" as never).select("id").eq("university_id", uniId);
+    const have = await pub
+      .from("catalog_programs" as never)
+      .select("id")
+      .eq("university_id", uniId);
     if (!(have.data as unknown[] | null)?.length)
       await pub.from("catalog_programs" as never).insert([
-        { university_id: uniId, program_name: "Online MBA", specialization: "Marketing", level: "PG", mode: "online", fee_total: 150000 },
-        { university_id: uniId, program_name: "Online BBA", specialization: "Finance", level: "UG", mode: "online", fee_total: 90000 },
+        {
+          university_id: uniId,
+          program_name: "Online MBA",
+          specialization: "Marketing",
+          level: "PG",
+          mode: "online",
+          fee_total: 150000,
+        },
+        {
+          university_id: uniId,
+          program_name: "Online BBA",
+          specialization: "Finance",
+          level: "UG",
+          mode: "online",
+          fee_total: 90000,
+        },
       ] as never);
   }
   const ends = new Date(Date.now() + 45 * 86_400_000).toISOString().slice(0, 10);
@@ -264,7 +289,11 @@ async function main() {
   for (const c of demoCampaigns) {
     const found = await db.from("campaigns").select("id").eq("name", c.name).maybeSingle();
     if (!found.data) {
-      const ins = await db.from("campaigns").insert({ ...c, created_by: owner?.user_id ?? null } as never).select("id").single();
+      const ins = await db
+        .from("campaigns")
+        .insert({ ...c, created_by: owner?.user_id ?? null } as never)
+        .select("id")
+        .single();
       if (ins.error) throw new Error(`campaign: ${ins.error.message}`);
     }
   }
