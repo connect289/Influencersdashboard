@@ -379,3 +379,49 @@ these at the end (spec Section 0).
   Turning it on needs a private storage bucket, retention rules, malware scanning and a Privacy Policy change (legal
   review, S-44), none of which can be decided without the owner. The setting exists and the form shows no upload.
   **Change:** owner decision at or after go-live.
+
+## Phase 8
+
+### D-055 · Wrappers of Witty's shared functions pin `search_path = public`
+- **Why:** `w2_build_prompt`, `w2_search_programs` and `w2_kb_search` are SECURITY INVOKER with unqualified table names;
+  called from a website function pinned to `search_path = ''` they cannot find their tables. The three read-only
+  wrappers (`web_agent_core_prompts`, `web_advisor_search`, `web_advisor_kb`) pin `public` instead (pg_trgm and vector
+  live there; only `service_role` can execute them; nobody else can create objects in `public`). Every other web function
+  keeps `search_path = ''`.
+
+### D-056 · The local database mirrors Witty's prompts for development
+- **Why:** the web channel reads Witty's prompts by reference (never forked into code). Locally, `supabase/seed.sql`
+  loads the two production prompt rows from the read-only discovery copy (`docs/discovery/witty-prompts.md`); their md5
+  hashes match production (extractor `b53fe530…`, counselor LF-normalised `d0427706…`). Seeds never run on production.
+
+### D-057 · The homepage hero hands the first question to the full-screen chat
+- **Why:** spec 7.4 asks for a chat surface in the hero and a full-screen chat on mobile. Hydrating the whole chat in the
+  hero would break the homepage's performance budget (TBT ≤ 300 ms). The hero keeps Witty's orb, greeting and starter
+  chips, and its ask box is a plain GET form to `/witty?q=…` (works before hydration); the question becomes the first
+  interaction there (gate first, then the question is sent). Same flow on desktop and mobile.
+
+### D-058 · Pages with params allow blocking renders; the consent banner moved to the public layout
+- **Found in Phase 8:** when a cache tag expired (settings every 5 minutes, or any admin save), every `[slug]` page
+  returned 500: Next re-prerendered the routes' shared shell, where `params` and `usePathname()` are runtime data. Fix:
+  `instant = false` on the param routes (known params stay prerendered; others render on demand), and the consent banner
+  is mounted by the `(site)` layout instead of reading `usePathname()` in the root layout. Regression test in
+  `e2e/content.spec.ts`; `/api/internal/revalidate` accepts `expire_now` for flags.
+
+### D-059 · A scripted model provider stands in for Claude without a key
+- **Why:** no Anthropic key in this environment or CI (S-14). `lib/server/web-advisor/mock.ts` produces extractor and
+  counselor JSON from a few patterns, so the real engine, verifier, placeholder filling, streaming, storage and lead path
+  are exercised end to end. It is refused in production; with a key, the Claude provider (prompt caching on the system
+  prompt) is used automatically.
+
+### D-060 · Engine decisions the published contract leaves open (to verify under A-AGENT-1)
+- Classification needs a stated timeline (Witty shows no COLD leads in 393 conversations); `LIKELY_ELIGIBLE` stays
+  unqualified until the score is known; ask order course → specialization (once) → qualification + score → programmes →
+  timeline → budget (only when fees come up) → motivation → counsellor offer; three rows, one per university, exact
+  matches first, then within budget, then lowest fee; rows are re-listed only when the search changes or the student
+  asks; a stated "stop" opts the lead out (as on WhatsApp). Every rule cites its source in `engine.ts`.
+
+### D-061 · Web chat transcripts and leads
+- **Why:** turns go to `web_advisor_messages` (exact `w2_messages` columns + `channel='web'` + `session_id`; A-AGENT-2/3)
+  and the lead is updated every turn through `lead_intake` (`source_system='web_agent'`, Witty's payload keys and event
+  types, idempotency `web:<session>:<turn>`). A retried message (same client id) replays the stored reply. The website
+  never writes `w2_*` tables (the STABLE `w2_search_programs`, not the caching variant).

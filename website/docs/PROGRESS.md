@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 8 — Witty on the website (`web_advisor`). Current step: 8.1 (plan).**
+**Current phase: 9 — Technical SEO and analytics. Current step: 9.2 (build in progress: robots, sitemaps, OG images, indexing rules, events).**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -505,3 +505,60 @@ attribution, creator code and versioned consent). The application form enriches 
 an application request with a reference and a confirmation email; the enquiry form and creator pages use the same flow.
 Students can sign in, see their applications, sync their shortlist, save comparisons, withdraw consent and request
 deletion. Conversions API events wait for marketing consent and a token.
+
+## Phase 8 — Witty on the website (`web_advisor`) ✅ `website-phase-8-done` (ships OFF until A-AGENT-1)
+
+### Plan
+1. `web8_advisor`: sessions, transcript in the `w2_messages` shape, feedback, callbacks; read-only wrappers of Witty's
+   prompts, catalogue and knowledge functions; turn commit with the lead through `lead_intake`.
+2. `lib/witty-core`: Witty's published contract as a channel-agnostic module (engine, verifier, placeholders, texts).
+3. Model providers (Claude with prompt caching; scripted provider without a key), `/api/witty` (SSE, budget, timeout,
+   circuit breaker, verifier rewrite + fallback, metrics).
+4. Chat UI (gate, streaming, cards, chips, feedback, callback, restart, retry), `/witty`, hero, account chat history.
+5. Tests, docs, gate.
+
+### Step log
+- 8.1 ✅ Plan; spec 7 / 3A re-read; `docs/AGENT_ARCHITECTURE.md` followed.
+- 8.2 ✅ `20261017100700_web8_advisor.sql` (4 tables, 8 functions) + `supabase/tests/70_web_advisor.test.sql` (24 checks);
+  local seed mirrors Witty's two prompts (md5 = production, D-056); course names normalised to Witty's catalogue keys.
+- 8.3 ✅ `web/lib/witty-core/` (contract, normalise, language, fixed-texts, engine, placeholders, verifier) + 47 tests
+  (`happy_path_mba`, `hinglish_parent`, `general_questions`, `fee_check`, `alternatives_and_complaints`, eligibility,
+  hand-off, opt-out, fact rules, classification table, lead payload keys) — D-060.
+- 8.4 ✅ `lib/server/web-advisor/{model,mock,prompts,breaker,turn}.ts`, `lib/web-advisor/{stream,events}.ts` (+ tests),
+  `app/api/witty/route.ts`, `app/actions/witty.ts`; Anthropic SDK pinned to 0.131.0.
+- 8.5 ✅ `components/witty/{WittyChat,WittyGate,RichText}.tsx`, `/witty`, hero ask box (D-057), account "Chats with
+  Witty"; fixed the `[slug]` 500 after cache-tag expiry (D-058) with a regression test.
+- 8.6 ✅ `e2e/witty.spec.ts` (gate → no lead before the code → streamed DIRECTIONAL → PROGRAMS with cards → lead with
+  Witty's fields, transcript, feedback, callback; returning user resumes; same phone one lead; erasure → opt-out; flag
+  off fallback). Docs: D-055–D-061, A-AGENT-1 "ready" note, S-14.
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 165 unit tests incl. 47 witty-core, copy check) | ✅ |
+| `npm run db:gate` (web1–8 on the replica: 877+18+15+48+42+1+42+24 checks, shared unchanged, s03; local + 31 quality) | ✅ |
+| `npm run build` | ✅ |
+| Playwright | ✅ 126 passed (laptop + Pixel 7), incl. 4 Witty flows (laptop; the flag is global state) and the cache-expiry regression test |
+| Lighthouse CI mobile (2 runs) | ✅ all 13 paths on performance ≥ 0.9, LCP ≤ 1.9 s, CLS ≤ 0.07, a11y 100, SEO 100 on indexable pages — except TBT on `/programmes/online-mba` (355–365 ms in that run). Re-measured 3× on the same build: 234 / 263 ms (budget 300); `/universities/nmims` 170–198 ms; `/` 210–293 ms. Treated as run-to-run noise; Phase 9 moves Lighthouse to 3 runs (median) and does the performance pass |
+
+### Self-review (Phase 8 row; spec 7.0–7.5, 3A Witty path)
+| Item | Status |
+|---|---|
+| Public name Witty everywhere; `web_advisor` only internal | Done (UI, URLs `/witty`, page text; code, DB, env, flags use `web_advisor`) |
+| Shared agent core per `AGENT_ARCHITECTURE.md` (prompts by reference, same tools, same contract, lead keys and events) | Done; the engine is a contract implementation until A-AGENT-1 — **advisor ships OFF** (spec 7.3 allows launch without it) |
+| Ask before suggesting; HOT/WARM/COLD; hand-off; no hallucination (placeholders + verifier) | Done (D-060; verifier rewrite then safe fallback) |
+| Tools: search_programmes, get_offering_details, compare_offerings, check_eligibility, get_university_details, save_lead_fields | Done as engine-invoked functions (search via Witty's own function, cards from the read model, compare page, engine eligibility, lead via `lead_intake`); university details are not part of Witty's engine flow |
+| Gate before the first message (7.2) with inline code; lead only after verification; existing user → no duplicate, history restored | Done (e2e) |
+| Streaming chat UI: hero + full screen, markdown, programme cards with shortlist/compare/open panel, quick replies, typing indicator | Done (hero hands off to `/witty`, D-057). Comparison opens `/compare`; fee breakdown and eligibility are on the cards and in the detail panel |
+| Talk to a counsellor, Book a callback (writes to the lead), restart, thumbs up/down, history in the account | Done |
+| Edge cases: network loss (retry with the same message id, replay), long replies (max words + verifier), off-topic/abusive (Witty's own rules + rate limits), deletion request → opt-out flow | Done |
+| Storage (7.5): every message with channel web, session, tool calls in meta; lead fields via the approved function | Done in `web_advisor_messages` (exact `w2_messages` shape) pending A-AGENT-2/3 |
+| Circuit breaker, token budget, turn timeout, prompt caching, metrics (TTFT, total, tool latency, tokens, cost, hand-off) | Done; real latency and cost need the API key (S-14). Admin "Advisor insights" in Phase 10 |
+| Feature flag `web_advisor_enabled` without redeploy; hero fallback | Done (e2e) |
+| Accessibility: live region, keyboard, reduced motion | Done (axe on `/witty`) |
+
+### Phase 8 summary
+Witty runs on the website end to end — gate, streamed replies with programme cards, storage, leads with Witty's fields,
+feedback, callbacks, history — through Witty's own prompts and catalogue function, with the decision rules implemented
+from Witty's published contract. It stays switched off until Witty's ENGINE is shared or proven equivalent (A-AGENT-1)
+and an API key is supplied (S-14). Also fixed: `[slug]` pages returned 500 whenever a cache tag expired (D-058).

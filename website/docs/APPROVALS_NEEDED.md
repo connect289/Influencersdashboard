@@ -69,6 +69,12 @@ affected. Status: ☐ awaiting owner · ☑ approved · ✗ declined.
   contract; the exact rules must be verified against (or replaced by) Witty's own code before the advisor is switched on.
 - **Fallback:** `web_advisor_enabled = false` → hero shows the guided finder + "Get free counselling" (spec 7.3).
 - **Affects:** Witty's build (owner of Witty). Harness must stay 20/20. **Status:** ☐
+- **Ready on the website (Phase 8):** `web/lib/witty-core/` (contract, engine, verifier, placeholders, fixed texts, lead
+  payload; 47 scenario tests named after Witty's harness) and the whole web channel (gate, streaming route, storage,
+  leads). **To switch Witty on:** (1) replace `engine.ts` with Witty's ENGINE or replay the harness + recorded fact
+  sequences and fix every difference; (2) review the web-only fixed texts marked "web" in `fixed-texts.ts`; (3) set
+  `ANTHROPIC_API_KEY` (S-14) or add a Gemini provider for byte-identical behaviour (D-011); (4) turn on
+  `web_advisor_enabled` in the admin.
 
 ### A-AGENT-2 + A-AGENT-3 · One shared transcript with a channel column (must ship together)
 - **What:** `w2_messages` gets `channel text not null default 'whatsapp'` and `session_id text`; every reader that means
