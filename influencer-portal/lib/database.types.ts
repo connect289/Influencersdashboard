@@ -2452,9 +2452,6 @@ isOneToOne: false
 "an_bucket":
 { Args: { "p_bucket": string,"p_day": string }; Returns: string
                            },
-"an_key":
-{ Args: { "p_bucket": string,"p_campaign": string,"p_content_type": string,"p_creator": string,"p_day": string,"p_deal": string,"p_deal_model": string,"p_dim": string,"p_platform": string,"p_programme": number }; Returns: string
-                           },
 "an_stage_rank":
 { Args: { "p": string }; Returns: number
                            },
