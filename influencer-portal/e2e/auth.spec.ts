@@ -86,7 +86,7 @@ test.describe("staff", () => {
 });
 
 test.describe("creators", () => {
-  test("email code sign-in, then terms acceptance clears the action centre", async ({ page }) => {
+  test("email code sign-in, then terms acceptance clears it from the action centre", async ({ page }) => {
     await creatorLogin(page, "riya.creator@example.test");
     await expect(page).toHaveURL(/\/creator$/);
     await expect(page.getByRole("heading", { name: /Hi Riya/ })).toBeVisible();
@@ -102,7 +102,9 @@ test.describe("creators", () => {
     }
     await expect(page.getByText("Nothing to accept")).toBeVisible();
     await page.getByRole("link", { name: "Home" }).first().click();
-    await expect(page.getByText("You're all caught up")).toBeVisible();
+    // The terms item is gone; the seeded contract and brief still need Riya.
+    await expect(page.getByRole("link", { name: /A contract needs you/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Accept the platform terms/ })).toHaveCount(0);
   });
 
   test("an invited creator is linked on first sign-in", async ({ page }) => {

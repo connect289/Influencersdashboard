@@ -89,6 +89,7 @@ influencer-portal/
   lib/attribution/         pure codes, links, bots, rules, stages, fraud, plan + tests; sweep (sync-core/sync), redirect
   lib/ledger/              pure facts, plan, lifecycle, payout, prepare, bank file, provider, UTR, invoice, earnings,
                            reconcile + tests; runner, loaders, PDFs (advice, statement), files
+  lib/analytics/           metric registry (→ docs/METRICS.md), ranges, compute, breakdowns, format + tests; loaders
   lib/actions/             server actions (validate → one RPC → ActionResult)
   lib/<domain>/            zod schemas, loaders and helpers (creators, agencies, campaigns, media-kit, leads)
   lib/auth/permissions.ts  permission matrix (single source of truth)
@@ -115,6 +116,7 @@ influencer-portal/
 | `npm run typecheck` · `npm run lint` · `npm run format` | Static checks (format only with Prettier: `npx prettier --write <paths>`; no other formatter) |
 | `npm test` | Vitest (unit, codegen drift, message keys, contrast) |
 | `npm run test:db` | pgTAP files in `supabase/tests` via psql (local DB only) |
+| `psql "$LOCAL_DB" -f scripts/perf/analytics.sql` | Dashboard performance check (100k leads, 1,000 creators; local only, rolled back) |
 | `npm run e2e` | Playwright against a production build; resets and seeds the local DB first (`E2E_RESET=0` to skip) |
 
 Environment note: this cloud environment exports `SUPABASE_SERVICE_ROLE_KEY` for the B2B/B2C staging project. Never

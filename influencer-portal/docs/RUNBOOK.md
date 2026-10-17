@@ -28,6 +28,7 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 | G-19 | Finance set-up: payout cycle and day, two-person approval, minimum payout, agency-payee handling, the bank's bulk-upload column format (test one file with the bank before the first run) and the reconciliation flag days. Fill the organisation profile (printed on payment advice and statements) | Phase 7 |
 | G-20 | Private buckets `inf-invoices` and `inf-documents` are created by migration 20261017000600 (ops); confirm they exist and are not public after the migrations run. Payment advice and Form 16A files are kept for the retention period; never make these buckets public | Phase 7 |
 | G-21 | Optional (approved R-4): the B2B team publishes `public.b2b_enrollment_money_v`; the receipts sync then reads it instead of `b2b.earnings` and `b2b.invoices` (one function to change, `inf.commission_receipts_sync`). Until then the read is limited to those two tables, read only | Phase 7 |
+| G-22 | Analytics: the migration schedules pg_cron `inf-analytics` (every 15 minutes, `inf.analytics_refresh()`); confirm it runs in System status after go-live. Review the metric definitions in `docs/METRICS.md` with the owner (especially committed spend, revenue basis and how deal-level fees are shown by platform), and decide whether the staff dashboards' Viewer role should see revenue | Phase 8 |
 
 ## Operations
 
@@ -61,6 +62,10 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
   job in System status (it is idempotent and safe to re-run).
 - **Receipts:** `inf.commission_receipts_sync()` runs after each lead sweep (so only with `LEAD_SYNC=on`). A manual
   receipt overrides the CRM for that enrolment until it is withdrawn.
+- **Dashboards** read summary views refreshed every 15 minutes (`inf-analytics`). A refresh that fails leaves the last
+  data in place; the page shows when it last refreshed. Staff can press **Refresh** (skipped if the last refresh is under
+  two minutes old). At 100k leads a refresh takes about 16 s; re-measure with `scripts/perf/analytics.sql` (local only,
+  rolled back) after changing the views or functions.
 - **Production schema drift check** (read-only): run `scripts/baseline/generate-baseline.sql` against production and
   compare with `scripts/baseline/exact.sql`, or compare one md5 over all generated statements (production and a fresh
   local database must give the same hash; Phase 7 gate: 100 statements, `3f8bdfc5…`).

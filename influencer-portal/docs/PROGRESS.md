@@ -2,16 +2,17 @@
 
 ## Now
 
-- **Current phase:** Phase 8 (Dashboards and analytics), step 8.1 (plan). Phase 7 (Ledger, payouts and tax) complete and
-  tagged `phase-7-done`.
+- **Current phase:** Phase 9 (Communication), step 9.1 (plan). Phase 8 (Dashboards and analytics) complete and tagged
+  `phase-8-done`.
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
 - **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.
-- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-7-done`
+- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-8-done`
   exist in the local repository only. Push them from a normal clone with `git push origin --tags`.
 - **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
   the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
   first name + initial, the stage mapping and the integration contracts. Tagged `phase-0-done`.
+- **Owner question (HARD STOP 5, does not block Phase 9):** how a leaderboard-rank bonus ranks creators (measure, population, timing, ties). Until answered, rank bonuses never accrue (D-141, D-152).
 - **Blockers:** none. Provider credentials, domain, Vercel, Sentry, a Google OAuth client and (optionally) CAPTCHA keys are
   needed later (HARD STOP 4); everything runs on mock providers until then. Contracts need counsel's review of the
   clause library, consent text and stamp duty before go-live (RUNBOOK G-9 to G-11).
@@ -521,3 +522,55 @@ Tier status (Phase 10 scorecards and tiers) and announcements (Phase 9 communica
 | 8.5 | Admin overview: programme health, spend (committed, accrued, paid; by deal model, campaign, creator; budget vs actual), unit economics by creator, campaign, platform, content type, programme and deal model, lead quality, operations, leaderboards | `app/(admin)/admin/analytics/*` | Playwright |
 | 8.6 | Campaign dashboard with per-creator comparison, creator 360° analytics, finance dashboard (liabilities, payouts by period, TDS by quarter, reconciliation status) | | Playwright |
 | 8.7 | `METRICS.md`, exports, guides, seed, performance check (100k leads, 1,000 creators, p95 under 2 s), phase gate | | gate |
+
+### Phase 8 summary
+
+Every dashboard number is defined once (`lib/analytics/metrics.ts`) with its plain definition behind an info button and
+a generated `docs/METRICS.md` (D-145). Date ranges and comparisons follow IST calendar days (D-146). Staff dashboards
+read four summary views refreshed every 15 minutes; the creator home is live (D-147). The creator home now has the
+full action centre (contracts, briefs, overdue and due-soon deliverables, changes requested, metrics, GST invoices,
+KYC), earnings cards, fixed fees earned and to come, the lead funnel with comparisons, leads over time, top content,
+programmes, platforms, active deals, the opt-in leaderboard position and a CSV export. Staff get Analytics: programme
+health, the funnel, spend (committed, accrued, paid; by deal model; budget against actual by campaign), unit economics
+broken down by creator, campaign, platform, content type, programme or deal model, lead quality, operations with links
+into each queue, leaderboards and CSV export; a campaign list and per-campaign dashboard with every creator compared; a
+finance dashboard; and an Analytics tab on the creator 360. Counting, spend, revenue and splitting rules are D-148 to
+D-151; access D-153.
+
+Found and fixed during the phase: the first totals function took 6 s at 100k leads (function calls per row and
+unhashable joins); it now groups by a whitelisted plain expression and the slowest query takes 0.43 s (D-154). CSV
+exports were quoting negative numbers as text (D-156). The KPI card's info button sat inside a link. Playwright's
+readiness check could deadlock on a stale job queue (D-157).
+
+Gate on 17 Oct 2026: typecheck, lint and Prettier clean; 3,254 unit tests (67 files); 739 pgTAP assertions (22 files)
+on a fresh database built from the production baseline; Playwright: all journeys pass with 2 screenshot specs skipped
+by design (101 in total, 6 new analytics journeys and a phone check), after updating one Phase 1 journey whose action
+centre now correctly keeps Riya's open contract and brief; types regenerated; seed works and is idempotent (it now also
+records committed spend and refreshes the views); performance measured at 100k leads and 1,000 creators (D-154);
+production re-checked read-only (no `inf` schema or buckets; shared baseline identical, hash `3f8bdfc5…`; the programme
+columns the analytics reads exist). Nothing outside schema `inf` was created or changed.
+
+### Phase 8 requirement checklist (spec Section 22 Phase 8, spec 12)
+
+| Requirement | Status | Where / note |
+| --- | --- | --- |
+| A written definition for every metric in `METRICS.md` and a tooltip in the UI | Done | Registry + generated doc + info buttons (D-145) |
+| Date range presets (today, 7, 30, 90 days, this month, last month, this FY, custom) and comparison to the previous period | Done | `lib/analytics/ranges.ts`, `RangeControl` (D-146) |
+| Drill-down to the underlying records | Done | KPI cards and rows link to leads, creators (360 analytics), campaigns, deals, content, contracts, payouts, KYC, receipts and fraud review |
+| CSV export (masked for creators) | Done | Staff breakdown export; creator export of their own counts (D-153) |
+| Creator home: earnings cards, fixed fee received vs remaining, action centre, funnel with conversion rates, leads over time, top content, programme and platform breakdowns, active campaigns and deals, leaderboard position (opted in) | Done | `app/(creator)/creator/page.tsx`, `inf.creator_dashboard` |
+| Creator home: tier status and progress; announcements | Deferred to Phase 10 and Phase 9 | Tiers are Phase 10 scope, announcements Phase 9 (D-155) |
+| Admin overview: programme health (active, new, dormant, pipeline) | Done | `inf.analytics_health` |
+| Spend: committed, accrued, paid; by deal model, campaign, creator; budget vs actual per campaign | Done | `inf.analytics_spend`, committed from the engine (D-149); by creator in the breakdown table |
+| Unit economics: cost per lead, qualified lead and enrolment, revenue, net ROI, ROAS; by creator, campaign, platform, content type, programme and deal model | Done | `inf.analytics_totals`, breakdown table (D-150, D-151) |
+| Lead quality: qualification rate, junk %, duplicate %, enrolment rate per creator | Done | Lead quality cards and per-creator table (D-148) |
+| Operations: overdue deliverables, pending reviews, pending negotiations, contracts expiring, payouts due, KYC pending, fraud flags | Done | `inf.analytics_operations` |
+| Leaderboards: enrolments, ROI, on-time delivery | Done | D-152 |
+| Campaign dashboard with per-creator comparison | Done | `/admin/analytics/campaigns`, `/admin/analytics/campaigns/<id>` |
+| Creator 360° analytics: trends, content performance, lead-quality history | Done | Creator page → Analytics tab |
+| Finance dashboard: liabilities, payouts by period, TDS by quarter, reconciliation status | Done | `/admin/analytics/finance` |
+| Materialised views or summary tables refreshed by pg_cron | Done | `inf.an_*`, `inf-analytics` every 15 minutes (D-147) |
+| Under 2 s at p95 with 100k leads and 1,000 creators | Done | Measured 0.41 s p95 for the slowest query (D-154) |
+| Guides for every audience | Done | All staff `#analytics`, `#analytics-campaigns`, `#analytics-finance`; viewer; creator `#home`; developer `#analytics` |
+| Leaderboard-rank bonuses in the engine (Phase 7 carry-over) | Blocked (HARD STOP 5) | The engine accepts rank events, but paying money on rank needs the owner to define the leaderboard: which measure (enrolments, ROI, on-time), among which creators (all, the campaign, opted-in only), at which moment, and how ties are paid. No spec answer or configurable default exists; listed under Blockers |
+
