@@ -2,7 +2,7 @@
 
 ## Now
 
-- **Current phase:** Phase 10 (Scorecards, tiers, compliance and polish): steps 10.1 to 10.5 built; the final gate run is in progress, then `phase-10-done` and **HARD STOP 6
+- **Current phase:** all build phases (0–10) complete; Phase 10 tagged `phase-10-done`. **Stopped at HARD STOP 6
   (production go-live)**: waiting for the owner's approval and the items in `docs/RUNBOOK.md` (G-1 to G-29).
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
@@ -688,7 +688,12 @@ recorded from a reconciliation row before a CRM receipt existed (D-184); and a c
 `docs/ADMIN_GUIDE.md` and `docs/CREATOR_GUIDE.md` are generated from the in-app guides with a drift test; unhandled
 server errors are logged with their digest (`instrumentation.ts`).
 
-Gate: unit, pgTAP, typecheck, lint, Prettier, types and seed are green; the final full Playwright run is in progress and its result is recorded here when it completes.
+Gate on 18 Oct 2026: typecheck, lint and Prettier clean; 3,669 unit tests (84 files); 884 pgTAP assertions (24 files)
+on a fresh database built from the production baseline; Playwright: 127 passed with the 2 screenshot specs skipped by
+design (new: tiers, scorecards and privacy, the spec 20 journeys 5–8 and the accessibility checks); types regenerated
+with no drift; generated docs (`METRICS.md`, `ADMIN_GUIDE.md`, `CREATOR_GUIDE.md`) in step; seed works and is idempotent
+(now with tiers and last month's scorecards); production re-checked read-only (no `inf` schema, buckets or cron jobs;
+shared baseline identical, 100 statements, hash `3f8bdfc5`). Nothing outside schema `inf` was created or changed.
 
 ### Phase 10 requirement checklist (spec Section 22 Phase 10, spec 15, 16, 19 and 20)
 
