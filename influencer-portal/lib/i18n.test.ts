@@ -74,6 +74,8 @@ import { FRAUD_SIGNALS } from "@/lib/attribution/fraud";
 import { ATTRIBUTION_DB_ERRORS } from "@/lib/attribution/schemas";
 import { LEAD_FIELD_ORDER } from "@/components/leads/lead-detail";
 import { feedRow } from "@/lib/leads/data";
+import { ENTRY_STATUSES, LEDGER_TYPES } from "@/lib/ledger/lifecycle";
+import { LEDGER_DB_ERRORS } from "@/lib/ledger/schemas";
 import en from "@/messages/en.json";
 
 const root = join(import.meta.dirname, "..");
@@ -264,6 +266,16 @@ describe("messages", () => {
       ...["staff", "system"].map((x) => `leads.actor.${x}`),
       ...DESTINATIONS.flatMap((x) => [`links.destinations.${x}`, `links.destinationHints.${x}`]),
       ...ATTRIBUTION_DB_ERRORS.map(([, k]) => `leads.errors.${k}`),
+    ];
+    for (const k of keys) expect(has(k), k).toBe(true);
+  });
+
+  it("labels every ledger type, status and error", () => {
+    const keys = [
+      ...LEDGER_TYPES.map((x) => `finance.types.${x}`),
+      ...ENTRY_STATUSES.map((x) => `finance.statuses.${x}`),
+      ...LEDGER_DB_ERRORS.map(([, k]) => `finance.errors.${k}`),
+      ...["changed", "obsolete"].map((x) => `finance.deal.reasons.${x}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);
   });

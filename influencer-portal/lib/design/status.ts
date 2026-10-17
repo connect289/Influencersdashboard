@@ -26,6 +26,7 @@ const FAMILY_OF: Record<string, StatusFamily> = {
   contacted: "progress",
   running: "progress",
   processing: "progress",
+  in_batch: "progress",
   proposed: "progress",
   brief_acknowledged: "progress",
   concept_submitted: "progress",
@@ -92,6 +93,7 @@ const FAMILY_OF: Record<string, StatusFamily> = {
   outside_window: "closed",
   self_referral: "closed",
   reversed: "closed",
+  removed: "closed",
 };
 
 export function statusFamily(status: string): StatusFamily {

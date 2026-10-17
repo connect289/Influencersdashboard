@@ -1853,7 +1853,8 @@
       "versions": "Versions",
       "dryRun": "Dry run",
       "details": "Details",
-      "content": "Content"
+      "content": "Content",
+      "ledger": "Ledger"
     },
     "statuses": {
       "draft": "Draft",
@@ -3745,6 +3746,117 @@
       "alreadyDecided": "This has already been decided.",
       "range": "Choose a range of up to 400 days.",
       "priorityTaken": "Another rule has this priority."
+    }
+  },
+  "finance": {
+    "reason": "Reason",
+    "types": {
+      "fixed_fee": "Fee",
+      "milestone": "Milestone",
+      "commission": "Commission",
+      "bonus": "Bonus",
+      "usage_fee": "Usage fee",
+      "exclusivity_fee": "Exclusivity fee",
+      "reimbursement": "Reimbursement",
+      "penalty": "Penalty",
+      "clawback": "Clawback",
+      "adjustment": "Adjustment",
+      "reversal": "Reversal",
+      "tds": "TDS withheld",
+      "gst": "GST",
+      "payout": "Payout"
+    },
+    "statuses": {
+      "accrued": "Accrued",
+      "confirmed": "Confirmed",
+      "payable": "Payable",
+      "in_batch": "In payout",
+      "paid": "Paid",
+      "on_hold": "On hold",
+      "reversed": "Reversed",
+      "clawed_back": "Clawed back"
+    },
+    "ledger": {
+      "columns": {
+        "date": "Date",
+        "creator": "Creator",
+        "what": "What",
+        "deal": "Deal",
+        "amount": "Amount",
+        "confirmed": "Confirmed",
+        "status": "Status",
+        "due": "Due",
+        "actions": "Actions"
+      },
+      "adjusted": "Adjustment posted.",
+      "held": "Entry put on hold.",
+      "released": "Hold released.",
+      "heldCreator": "{count, plural, one {# entry} other {# entries}} put on hold.",
+      "releasedCreator": "{count, plural, one {# entry} other {# entries}} released."
+    },
+    "receipts": {
+      "recorded": "Receipt recorded. The deals involved are re-run shortly."
+    },
+    "deal": {
+      "posted": "Posted entries",
+      "postedHint": "What this deal has earned so far. Entries never change: corrections are reversals.",
+      "runNow": "Run now",
+      "ran": "Ledger updated: {created} posted, {confirmed} confirmed, {reversed} other changes.",
+      "noTerms": "This deal has no accepted terms yet.",
+      "emptyTitle": "Nothing posted yet",
+      "emptyHint": "Entries appear when the contract is signed, content goes live, leads enrol or Eduwit is paid.",
+      "preview": "Next run",
+      "previewHint": "What the compensation engine would change now (a dry run against the posted entries).",
+      "upToDate": "Up to date: the next run would change nothing.",
+      "willPost": "Post",
+      "willConfirm": "Confirm",
+      "willReverse": "Reverse",
+      "reasons": {
+        "changed": "amount changed",
+        "obsolete": "no longer earned"
+      },
+      "deferred": "{count, plural, one {# change waits} other {# changes wait}} for a payout batch to finish.",
+      "manualTitle": "Manual milestones and breaches",
+      "manualHint": "Milestones paid when someone releases them, and breaches that the deal's penalties apply to.",
+      "noManual": "This deal has no manual milestones.",
+      "release": "Release",
+      "releaseTitle": "Release “{milestone}”?",
+      "releaseHint": "The milestone is paid under the deal's terms. This is recorded and cannot be undone.",
+      "released": "Milestone released. The ledger updates in a minute.",
+      "releasedBadge": "Released",
+      "breach": "Record a breach",
+      "breachTitle": "Record a breach of this deal?",
+      "breachHint": "The deal's breach penalties are proposed for approval. This is recorded and cannot be undone.",
+      "breachRecorded": "Breach recorded. Penalty proposals update in a minute."
+    },
+    "errors": {
+      "reasonRequired": "A reason is required.",
+      "amount": "Enter an amount above zero.",
+      "invalidTarget": "That creator or deal isn't available.",
+      "cannotHold": "This entry can't be held.",
+      "noMilestone": "That milestone is not released by hand.",
+      "alreadyReleased": "This milestone is already released.",
+      "enrolmentRef": "Use an enrolment reference like b2b:123 or b2c:45.",
+      "noLead": "No lead is known for that enrolment. Give the lead id.",
+      "nothingToPay": "Nothing to pay.",
+      "kyc": "A creator in this batch has no verified KYC.",
+      "stale": "Something changed since the batch was prepared. Prepare it again.",
+      "notDraft": "Only a draft batch can be changed.",
+      "invoiceMissing": "A payout is waiting for its GST invoice. Accept it or remove the payout.",
+      "secondApprover": "A second person needs to approve.",
+      "notApproved": "Approve the batch first.",
+      "cannotCancel": "This batch has been sent to the bank and can't be cancelled.",
+      "noPayout": "No such payout.",
+      "notPending": "This payout is not waiting for payment.",
+      "futureDate": "The payment date can't be in the future.",
+      "noInvoiceNeeded": "This payout doesn't need an invoice.",
+      "gstinMismatch": "The GSTIN must match your verified GSTIN.",
+      "invoiceNumber": "Use up to 16 letters, digits, “/” or “-” for the invoice number.",
+      "invoiceDate": "The invoice date must be between the payout date and today.",
+      "invoiceAmounts": "The taxable value and GST must match the payout.",
+      "invoiceDuplicate": "An invoice is already submitted for this payout, or this number is used.",
+      "alreadyDecided": "This has already been decided.",
+      "file": "That file can't be used."
     }
   }
 }

@@ -1,6 +1,7 @@
 import "server-only";
 import { contractFinalize } from "./contract-finalize";
 import { dealFromApplication } from "./deal-from-application";
+import { ledgerRun } from "./ledger";
 import { leadsBackfill, leadsRerun } from "./leads";
 import { notifyDeliver } from "./notify-deliver";
 import { penaltiesRefresh } from "./penalties-refresh";
@@ -14,4 +15,5 @@ export const JOB_HANDLERS: Record<string, JobHandler> = {
   "penalties.refresh": penaltiesRefresh,
   "leads.rerun": leadsRerun,
   "leads.backfill": leadsBackfill,
+  "ledger.run": ledgerRun,
 };

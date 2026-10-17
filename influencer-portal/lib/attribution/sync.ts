@@ -38,5 +38,8 @@ export async function sweep(deadline: number): Promise<SyncResult[]> {
     out.push(r);
     if (r.scanned < BATCH) break;
   }
+  // Eduwit's commission receipts for attributed leads (INTEGRATION_CONTRACTS §3); a row is written only on change.
+  const receipts = await db.rpc("commission_receipts_sync");
+  if (receipts.error) throw new Error(receipts.error.message);
   return out;
 }

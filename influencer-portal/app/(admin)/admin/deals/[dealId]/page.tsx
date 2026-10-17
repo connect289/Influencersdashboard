@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { DealContent } from "@/components/content/deal-content";
+import { DealLedger } from "@/components/ledger/deal-ledger";
 import { DealActions } from "@/components/deals/deal-actions";
 import { DealDetailsForm } from "@/components/deals/deal-details-form";
 import { DryRunPanel } from "@/components/deals/dry-run-panel";
@@ -24,7 +25,7 @@ import { commissionEstimate, loadCompContext, loadDeal, loadTdsSections, version
 import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TABS = ["terms", "versions", "content", "dryRun", "details"] as const;
+const TABS = ["terms", "versions", "content", "ledger", "dryRun", "details"] as const;
 const EMPTY = compConfig.parse({ schema_version: 1 });
 
 export async function generateMetadata() {
@@ -63,7 +64,13 @@ export default async function DealPage({
   const amendmentDraft = draft !== null && current !== null;
   const canContent = me.permissions.has("brief.read") || me.permissions.has("deliverable.read");
   const visible = TABS.filter((x) =>
-    x === "dryRun" ? amendmentDraft && canWrite : x === "content" ? canContent : x !== "details" || canWrite,
+    x === "dryRun"
+      ? amendmentDraft && canWrite
+      : x === "content"
+        ? canContent
+        : x === "ledger"
+          ? me.permissions.has("ledger.read")
+          : x !== "details" || canWrite,
   );
   const requested = (await searchParams).tab;
   const tab = visible.find((x) => x === requested) ?? "terms";
@@ -121,6 +128,22 @@ export default async function DealPage({
     body = <VersionHistory versions={deal.versions} currentId={deal.current_version_id} />;
   } else if (tab === "content") {
     body = <DealContent supabase={supabase} deal={deal} permissions={me.permissions} />;
+  } else if (tab === "ledger") {
+    const released = await supabase
+      .from("deal_manual_events")
+      .select("ref")
+      .eq("deal_id", deal.id)
+      .eq("kind", "manual_release")
+      .then((r) => (r.data ?? []).map((x) => x.ref ?? ""));
+    body = (
+      <DealLedger
+        supabase={supabase}
+        dealId={deal.id}
+        config={current?.comp_config ?? null}
+        released={released}
+        permissions={me.permissions}
+      />
+    );
   } else if (tab === "dryRun" && draft) {
     body = (
       <div className="flex flex-col gap-4">
