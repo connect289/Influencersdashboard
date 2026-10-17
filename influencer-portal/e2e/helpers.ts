@@ -47,7 +47,23 @@ export async function staffLogin(
   }
 }
 
-export async function creatorLogin(page: Page, email: string): Promise<void> {
+const sessionPath = (email: string) => join(AUTH_DIR, `${email.replace(/[^a-z0-9.@_-]/gi, "_")}.session.json`);
+
+/**
+ * Signs a creator or agency user in with the emailed one-time code. Later calls in the same run reuse that session's
+ * cookies (and fall back to a new code if a test signed it out), because a full run signs some creators in more
+ * often than the product's code limit (5 per email per 10 minutes) allows. `fresh: true` always uses the code.
+ */
+export async function creatorLogin(page: Page, email: string, opts: { fresh?: boolean } = {}): Promise<void> {
+  const file = sessionPath(email);
+  if (!opts.fresh && existsSync(file)) {
+    const saved = JSON.parse(readFileSync(file, "utf8")) as Parameters<BrowserContext["addCookies"]>[0];
+    await page.context().addCookies(saved);
+    await page.goto("/creator");
+    await page.waitForLoadState("domcontentloaded");
+    if (/\/(creator|agency)(\/|$)/.test(new URL(page.url()).pathname)) return;
+    await page.context().clearCookies();
+  }
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   const since = new Date();
@@ -56,4 +72,9 @@ export async function creatorLogin(page: Page, email: string): Promise<void> {
   const mail = await waitForEmail(email, since);
   await page.getByLabel("6-digit code").fill(sixDigitCode(mail.text));
   await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL(/\/(creator|agency|no-access)/);
+  if (!opts.fresh && /\/(creator|agency)(\/|$)/.test(new URL(page.url()).pathname)) {
+    mkdirSync(AUTH_DIR, { recursive: true });
+    writeFileSync(file, JSON.stringify(await page.context().cookies()));
+  }
 }
