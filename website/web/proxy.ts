@@ -1,6 +1,11 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { encodeTouch, touchFromUrl } from "@/lib/attribution";
+import { BOOT_SCRIPT } from "@/lib/client/boot-script";
 import { buildCsp } from "@/lib/security/csp";
+import { createHash } from "node:crypto";
+
+const BOOT_HASH = `sha256-${createHash("sha256").update(BOOT_SCRIPT).digest("base64")}`;
 
 /**
  * Runs before every page request (not static assets):
@@ -12,30 +17,50 @@ import { buildCsp } from "@/lib/security/csp";
 const NONCE_AREAS = /^\/(account|admin)(\/|$)/;
 const MAX_AGE = 60 * 60 * 24 * 90;
 
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const requestId = req.headers.get("x-request-id") ?? req.headers.get("x-vercel-id") ?? crypto.randomUUID();
   const reqHeaders = new Headers(req.headers);
   reqHeaders.set("x-request-id", requestId);
 
   let nonce: string | null = null;
+  let csp: string | null = null;
   if (NONCE_AREAS.test(req.nextUrl.pathname)) {
     nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+    csp = buildCsp({
+      nonce,
+      hashes: [BOOT_HASH],
+      dev: process.env.NODE_ENV === "development",
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    });
+    // Next reads the nonce from the request's CSP header while rendering and stamps it on its scripts.
     reqHeaders.set("x-nonce", nonce);
+    reqHeaders.set("Content-Security-Policy", csp);
   }
 
   const res = NextResponse.next({ request: { headers: reqHeaders } });
   res.headers.set("x-request-id", requestId);
-  if (nonce) {
-    res.headers.set(
-      "Content-Security-Policy",
-      buildCsp({
-        nonce,
-        dev: process.env.NODE_ENV === "development",
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      }),
-    );
+  if (csp) {
+    // Same policy (same nonce) on the response as Next saw on the request.
+    res.headers.set("Content-Security-Policy", csp);
     res.headers.set("Cache-Control", "private, no-store");
     res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+
+  // Staff session refresh for the admin area (Server Components cannot write cookies).
+  if (req.nextUrl.pathname.startsWith("/admin") && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    const auth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      {
+        cookies: {
+          getAll: () => req.cookies.getAll(),
+          setAll: (list) => {
+            for (const { name, value, options } of list) res.cookies.set(name, value, options);
+          },
+        },
+      },
+    );
+    await auth.auth.getClaims();
   }
 
   const touch = touchFromUrl(req.nextUrl, req.headers.get("referer"));

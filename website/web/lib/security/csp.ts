@@ -5,6 +5,8 @@
  */
 export interface CspOptions {
   nonce?: string;
+  /** sha256 hashes ('sha256-…') of fixed inline scripts allowed alongside the nonce (the theme/tier boot script). */
+  hashes?: string[];
   dev?: boolean;
   supabaseUrl?: string;
 }
@@ -21,7 +23,14 @@ const TURNSTILE = "https://challenges.cloudflare.com";
 
 export function buildCsp(o: CspOptions = {}): string {
   const script = o.nonce
-    ? [`'self'`, `'nonce-${o.nonce}'`, `'strict-dynamic'`, TURNSTILE, ...ANALYTICS_SCRIPT]
+    ? [
+        `'self'`,
+        `'nonce-${o.nonce}'`,
+        ...(o.hashes ?? []).map((h) => `'${h}'`),
+        `'strict-dynamic'`,
+        TURNSTILE,
+        ...ANALYTICS_SCRIPT,
+      ]
     : [`'self'`, `'unsafe-inline'`, TURNSTILE, ...ANALYTICS_SCRIPT];
   if (o.dev) script.push(`'unsafe-eval'`);
   const connect = [`'self'`, ...ANALYTICS_CONNECT, TURNSTILE];

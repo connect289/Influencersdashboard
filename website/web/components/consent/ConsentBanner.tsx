@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Cookie } from "lucide-react";
 import { setConsent, useConsent } from "@/lib/client/consent-store";
@@ -11,10 +12,12 @@ import { setConsent, useConsent } from "@/lib/client/consent-store";
  */
 export function ConsentBanner() {
   const { state, ready } = useConsent();
+  const path = usePathname();
   const [choose, setChoose] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const [marketing, setMarketing] = useState(false);
-  if (!ready || state) return null;
+  // Staff pages load no analytics, so no banner there.
+  if (!ready || state || path?.startsWith("/admin")) return null;
   return (
     <section
       aria-label="Cookie preferences"

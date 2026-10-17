@@ -203,3 +203,7 @@ these at the end (spec Section 0).
 - **Why:** this build environment pre-sets `SUPABASE_SERVICE_ROLE_KEY` to the **B2B staging** project's service key;
   process variables override `.env.local`, so a generic name could silently point the website at another product's
   project. A website-specific name (Supabase's current term for the key) prevents that everywhere.
+- **Same for email and AI:** the environment also pre-sets `SMTP_HOST/PORT/USER/PASSWORD/FROM` (a real mail relay used by
+  another product) and `ANTHROPIC_BASE_URL`. The website reads `EMAIL_SMTP_*` and passes the Anthropic base URL
+  explicitly (`WEB_ANTHROPIC_BASE_URL`, optional), so local tests can never send real email through another product's
+  relay or route AI calls through an inherited endpoint.

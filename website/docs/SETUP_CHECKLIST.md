@@ -16,7 +16,7 @@ Status: ☐ needed · ◐ partly · ☑ done
 |---|---|---|---|---|
 | S-10 | Vercel project (root dir `website/web`, region `bom1`) | — | local only | ☐ |
 | S-11 | Supabase service-role key for production (set only at go-live) | `SUPABASE_SECRET_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | local stack | ☐ |
-| S-12 | Transactional email provider for verification codes and confirmations (sender e.g. `no-reply@eduwit.in`, SPF/DKIM/DMARC) | `EMAIL_PROVIDER` (`smtp`/`resend`), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `RESEND_API_KEY` | Mailpit locally; console log otherwise | ☐ |
+| S-12 | Transactional email provider for verification codes and confirmations (sender e.g. `no-reply@eduwit.in`, SPF/DKIM/DMARC) | `EMAIL_PROVIDER` (`smtp`/`resend`), `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD`, `EMAIL_FROM`, `RESEND_API_KEY` | Mailpit locally; console log otherwise | ☐ |
 | S-13 | Cloudflare Turnstile site key and secret | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Turnstile test keys (always pass) | ☐ |
 | S-14 | Anthropic API key for Witty on the website | `ANTHROPIC_API_KEY` | scripted mock agent | ☐ |
 | S-15 | Upstash Redis (rate limits, code attempt counters, hot search cache) | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | in-memory store | ☐ |

@@ -18,6 +18,9 @@ describe("CSP", () => {
     expect(script).toContain("'strict-dynamic'");
     expect(script).not.toContain("unsafe-inline");
   });
+  it("nonce policy can allow fixed inline scripts by hash", () => {
+    expect(buildCsp({ nonce: "n", hashes: ["sha256-abc="] })).toContain("'sha256-abc='");
+  });
   it("allows Turnstile and consented analytics hosts", () => {
     const p = buildCsp();
     expect(p).toContain("https://challenges.cloudflare.com");

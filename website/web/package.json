@@ -27,9 +27,11 @@
     "db:test": "../scripts/db/test.sh",
     "db:seed:regen": "node ../scripts/db/make-seed.mjs",
     "db:snapshot:regen": "../scripts/db/make-min-snapshot.sh",
-    "db:gate": "../scripts/db/build-replica.sh && ../scripts/db/apply-web-migrations.sh && ../scripts/db/test.sh postgresql://postgres:postgres@localhost:54330/postgres && ../scripts/db/check-shared-unchanged.sh && npm run db:reset && npm run db:test"
+    "db:gate": "../scripts/db/build-replica.sh && ../scripts/db/apply-web-migrations.sh && ../scripts/db/test.sh postgresql://postgres:postgres@localhost:54330/postgres && ../scripts/db/check-shared-unchanged.sh && npm run db:reset && npm run db:test",
+    "e2e:laptop": "playwright test --project=laptop"
   },
   "dependencies": {
+    "@sentry/nextjs": "^11.8.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "@upstash/ratelimit": "^2.2.0",
@@ -42,6 +44,7 @@
     "motion": "^14.3.0",
     "next": "^16.4.2",
     "next-themes": "^0.4.6",
+    "nodemailer": "^10.1.2",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -57,6 +60,7 @@
     "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.20.5",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
