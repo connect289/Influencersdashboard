@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 12 — Hardening and go-live prep. Current step: 12.1 (plan; security review findings in hand, s01/s02 drafted).**
+**Build complete (Phases 0–12). Waiting for the owner's go-live approval — read `docs/FINAL_REPORT.md` and `docs/GO_LIVE_CHECKLIST.md`. Do not apply anything to production, deploy or change DNS without that approval.**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -721,7 +721,7 @@ facts only and can never publish without a named author and reviewer, a daily on
 internal-link engine, a 404 monitor with one-click 301s, and a local SEO checklist. CI fails on on-page errors. Owner
 items: S-20 (Search Console), S-50 (authors and reviewers), S-51 (hours), S-52 (Business Profile), S-53 (university intros).
 
-## Phase 12 — Hardening and go-live prep (in progress)
+## Phase 12 — Hardening and go-live prep ✅ `website-phase-12-done`
 
 ### Plan
 1. Security review (`docs/SECURITY_REVIEW.md`): independent read-only review done (no high findings; 4 medium, 13 low).
@@ -757,3 +757,35 @@ items: S-20 (Search Console), S-50 (authors and reviewers), S-51 (hours), S-52 (
   `check-shared-proposals.sh` now applies, smoke-tests and rolls back each proposal to an identical state on every
   build. Lead payload already sends `email_verified_at`, `final_program_id/name`, `junk_risk_score` (dropped by
   production until s01 is approved).
+- 12.5 ✅ `docs/RUNBOOK.md` (operations, flags, go-live procedure, DNS cut-over Hostinger → Vercel with rollback,
+  database rollback, incidents), `docs/GO_LIVE_CHECKLIST.md`, `docs/FINAL_REPORT.md`; Staff management in the admin
+  (super admins; last super admin protected); `scripts/db/make-s01.py`; `.env.example` completed.
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 187 unit tests, copy check) | ✅ |
+| `npm run db:gate` (fresh replica 42/42 = production; web1–11: 1,051 security + 18+17+48+43+1+43+26+29+18 checks; shared unchanged; s01–s07 applied, smoke-tested, rolled back to the identical state; local + 31 quality) | ✅ |
+| `scripts/db/go-live-dry-run.sh` | ✅ DRY RUN PASSED |
+| `npm run build` | ✅ |
+| Playwright (laptop + Pixel 7, incl. the new accessibility audit) | ✅ 174 passed, 0 failed (32 skipped by design) |
+| Lighthouse CI mobile, 13 paths | ◐ full run: TBT over budget on 3 paths (322–433 ms) on this noisy container; re-run of the four heaviest paths passed (medians 215–285 ms; single runs 172–487 ms). Accessibility 1.00, SEO 1.00 on indexable pages, LCP ≤ 1.84 s, CLS ≤ 0.067 (`PERFORMANCE.md`) |
+
+### Self-review (Phase 12 row; spec 17)
+| Item | Status |
+|---|---|
+| Security review | Done (`SECURITY_REVIEW.md`; 16 of 17 findings fixed, L12 accepted D-076; npm audit production 0) |
+| Accessibility audit | Done (`ACCESSIBILITY.md`; 2 focus bugs fixed; manual screen-reader pass recommended) |
+| Full end-to-end suite | Done (174 passed) |
+| Load tests (3A: 10k offerings, 1,000 visitors, 200 Witty conversations) | Done on this environment (`LOAD_TESTS.md`); found and fixed shared-pool exhaustion (D-080). Production-like repeat is S-55 |
+| `docs/RUNBOOK.md` | Done |
+| DNS cut-over plan Hostinger → Vercel with rollback | Done (RUNBOOK §6; zone export first, only `@`/`www` change, TTL 300 s, 14-day rollback window) |
+| Production migration dry run incl. every APPROVALS item | Done (`GO_LIVE_DRY_RUN.md`; s01–s07, rollbacks for each and for all web_ objects) |
+| Final report | Done (`FINAL_REPORT.md`) |
+| STOP before go-live | Stopped: nothing applied to production, deployed or changed in DNS |
+
+### Phase 12 summary
+The site is hardened (security and accessibility findings fixed), load-tested with protections for the shared
+database, and its production rollout is rehearsed end to end on a production-schema replica with a full rollback.
+Go-live now waits on the owner: approval itself, the two blocking approvals (A-B2B-1, A-CONSENT-1 after S-44), the
+legal texts (S-01) and the go-live setup items.

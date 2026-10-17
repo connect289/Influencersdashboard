@@ -34,7 +34,7 @@ nothing deployed, no DNS changed.** Branch `claude/inspiring-babbage-8asj1y`, ph
 | Production migration dry run | **passed**: 1.24 s for all website migrations, no locks on shared tables, full rollback back to production's exact fingerprint |
 | End-to-end (Playwright, laptop + Pixel 7) | **174 passed, 0 failed** (32 skipped by design: laptop-only flows on the phone project) |
 | Accessibility (axe WCAG 2.1 AA, both themes, both devices) | **0 violations**; 2 keyboard-focus bugs found and fixed |
-| Lighthouse CI (mobile, median of 3, 13 paths) | LHCI_FINAL |
+| Lighthouse CI (mobile, median of 3, 13 paths) | accessibility 1.00 and SEO 1.00 on every indexable page; LCP 1.67–1.84 s; CLS ≤ 0.067; performance 0.88–0.98. Total blocking time: the first full run was over the 300 ms budget on 3 paths (322–433 ms); a re-run of those pages passed (medians 215–285 ms) with single runs spread 172–487 ms on this noisy container — see `PERFORMANCE.md` |
 | Load tests | 10k offerings ✔ · 1,000 visitors ✔ for ad-shaped traffic on one box (page views p95 10 ms) · 200 Witty conversations ✔ (800/800 turns) — production-like repeat recommended (S-55) |
 | Security review | no high findings; 4 medium + 13 low → 16 fixed, 1 accepted; production dependencies: 0 vulnerabilities |
 

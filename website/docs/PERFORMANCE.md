@@ -17,8 +17,8 @@ shares the CPU (seen in the Phase 10 gate). Measured with Lighthouse CI on the m
 ## JavaScript per route (17 Oct 2026, transfer size)
 | Route | JS | Notes |
 |---|---|---|
-| `/` | 192 KB | hero is server HTML; Witty orb shader starts when idle; chat code loads only on `/witty` |
-| `/programmes`, curated views | 213 KB | panels, guided finder, filter sheet, slider and toaster load on demand (D-039); desktop-only rail (D-043) |
+| `/` | 192 KB (Phase 12: 204 KB) | hero is server HTML; Witty orb shader starts when idle; chat code loads only on `/witty` |
+| `/programmes`, curated views | 213 KB (Phase 12: 225 KB) | panels, guided finder, filter sheet, slider and toaster load on demand (D-039); desktop-only rail (D-043) |
 | `/universities/[slug]` | 228 KB | application form loads when opened |
 | `/witty` | 228 KB | full chat |
 | content pages | 181–203 KB | |
@@ -31,3 +31,14 @@ client-side data fetching on first paint.
 ## Load targets (spec 3A)
 Verified by the Phase 12 load tests: 10,000+ offerings (search p95 measured at 145 ms on 10k rows, `npm run db:bench`),
 1,000 concurrent visitors, 200 concurrent Witty conversations.
+
+## Phase 12 final measurement (17 Oct 2026)
+
+Full run (13 paths, median of 3): all assertions passed except total blocking time on 3 paths (`/` 433 ms,
+`/programmes/online-mba` 349 ms, a filtered finder URL 322 ms; budget 300 ms) while performance scores stayed
+0.88–0.98. A targeted re-run of the four heaviest paths on the idle machine passed every assertion (medians: `/` 215,
+`/programmes` 285, `/programmes/online-mba` 282, filtered finder 235 ms), but single runs ranged 172–487 ms: this
+container's CPU is noisy, the same pattern as the Phase 10 gate. JavaScript grew by about 11 KB per route since
+Phase 9 and stays inside the 250 KB budget. **After launch, judge by field data** (Search Console Core Web Vitals /
+CrUX on real phones) rather than lab TBT from a shared container; the finder routes are the ones to watch, and the
+React + Next.js runtime (~110 KB) is most of their blocking time.
