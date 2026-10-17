@@ -74,7 +74,12 @@ import { FRAUD_SIGNALS } from "@/lib/attribution/fraud";
 import { ATTRIBUTION_DB_ERRORS } from "@/lib/attribution/schemas";
 import { LEAD_FIELD_ORDER } from "@/components/leads/lead-detail";
 import { feedRow } from "@/lib/leads/data";
+import { FINANCE_AREAS } from "@/components/finance/finance-nav";
+import { TDS_COMPONENTS } from "@/lib/compensation/tax";
+import { BATCH_STATUSES, PAYOUT_STATUSES } from "@/lib/ledger/data";
+import { INVOICE_PROBLEMS } from "@/lib/ledger/invoice";
 import { ENTRY_STATUSES, LEDGER_TYPES } from "@/lib/ledger/lifecycle";
+import { RECEIPT_STATUSES } from "@/lib/ledger/schemas";
 import { LEDGER_DB_ERRORS } from "@/lib/ledger/schemas";
 import en from "@/messages/en.json";
 
@@ -276,6 +281,26 @@ describe("messages", () => {
       ...ENTRY_STATUSES.map((x) => `finance.statuses.${x}`),
       ...LEDGER_DB_ERRORS.map(([, k]) => `finance.errors.${k}`),
       ...["changed", "obsolete"].map((x) => `finance.deal.reasons.${x}`),
+      ...FINANCE_AREAS.map((x) => `finance.area.${x.key}`),
+      ...TDS_COMPONENTS.map((x) => `finance.components.${x}`),
+      ...BATCH_STATUSES.map((x) => `finance.batchStatuses.${x}`),
+      ...PAYOUT_STATUSES.map((x) => `finance.payoutStatuses.${x}`),
+      ...["submitted", "accepted", "rejected"].map((x) => `finance.invoiceStatuses.${x}`),
+      ...["creator_gst_invoice", "payout_statement"].map((x) => `finance.invoiceKinds.${x}`),
+      ...[...RECEIPT_STATUSES, "none"].map((x) => `finance.receiptStatuses.${x}`),
+      ...["missing_column", "bad_ref", "bad_utr", "bad_date", "future_date", "duplicate", "file"].map(
+        (x) => `finance.utr.${x}`,
+      ),
+      ...["gross_paise", "tds_paise", "gst_paise", "net_paise"].map((x) => `finance.payouts.totals.${x}`),
+      ...["overdue", "received_not_confirmed"].map((x) => `finance.receipts.flags.${x}`),
+      ...["remove", "fail"].flatMap((x) => [
+        `finance.payouts.${x}`,
+        `finance.payouts.${x}Title`,
+        `finance.payouts.${x}Hint`,
+      ]),
+      ...["approved", "firstApproval"].map((x) => `finance.payouts.${x}`),
+      ...["accepted", "rejected"].map((x) => `finance.invoices.${x}`),
+      ...INVOICE_PROBLEMS.map((x) => `earnings.invoice.problems.${x}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);
   });

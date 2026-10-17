@@ -19,6 +19,7 @@ import {
   Settings,
   Shield,
   Target,
+  Wallet,
   User,
   Users,
   type LucideIcon,
@@ -48,4 +49,5 @@ export const ICONS: Record<IconName, LucideIcon> = {
   clapperboard: Clapperboard,
   target: Target,
   link: Link2,
+  wallet: Wallet,
 };

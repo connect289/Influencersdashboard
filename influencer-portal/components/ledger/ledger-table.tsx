@@ -1,5 +1,6 @@
 // Ledger entries as a table (desktop) or a list (phone). Amounts are signed: credits add to what the creator is owed,
 // debits (penalties, clawbacks, TDS, payouts) reduce it.
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/states";
@@ -21,6 +22,7 @@ export interface LedgerLineView {
   note: string | null;
   deal_title?: string | null;
   creator_name?: string;
+  creator_id?: string;
   held?: boolean;
 }
 
@@ -40,8 +42,11 @@ export function LedgerTable({
   emptyTitle,
   emptyHint,
   action,
+  creatorHref,
 }: {
   rows: readonly LedgerLineView[];
+  /** Links each creator name (staff: to that creator's ledger). */
+  creatorHref?: (row: LedgerLineView) => string;
   showCreator?: boolean;
   showDeal?: boolean;
   emptyTitle: string;
@@ -95,7 +100,17 @@ export function LedgerTable({
             {rows.map((r) => (
               <tr key={r.id}>
                 <Td className="whitespace-nowrap">{formatDate(r.posted_at)}</Td>
-                {showCreator ? <Td>{r.creator_name}</Td> : null}
+                {showCreator ? (
+                  <Td>
+                    {creatorHref ? (
+                      <Link href={creatorHref(r)} className="text-primary hover:underline">
+                        {r.creator_name}
+                      </Link>
+                    ) : (
+                      r.creator_name
+                    )}
+                  </Td>
+                ) : null}
                 <Td>
                   <span className="block">{r.note ?? t(`finance.types.${r.type}`)}</span>
                   <span className="text-xs text-muted">{t(`finance.types.${r.type}`)}</span>

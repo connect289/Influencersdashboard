@@ -25,6 +25,7 @@ export const ICON_NAMES = [
   "clapperboard",
   "target",
   "link",
+  "wallet",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 
@@ -71,6 +72,7 @@ export const STAFF_NAV: StaffNavItem[] = [
     anyOf: ["deliverable.read"],
   },
   { href: "/admin/leads", labelKey: "nav.admin.leads", icon: "target", anyOf: ["lead.read"] },
+  { href: "/admin/finance", labelKey: "nav.admin.finance", icon: "wallet", anyOf: ["ledger.read"] },
   { href: "/admin/tasks", labelKey: "nav.admin.tasks", icon: "checklist" },
   {
     href: "/admin/agencies",

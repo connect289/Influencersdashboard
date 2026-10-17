@@ -364,7 +364,8 @@ export const reconSource = z.object({
       expected_paise: paise.nullable(),
       received_paise: paise,
       received_on: z.string().nullable(),
-      status: z.enum(["expected", "partly_received", "received", "reversed", "withdrawn"]),
+      // The receipt in force is never a withdrawn override (that falls back to the CRM's row).
+      status: z.enum(["expected", "partly_received", "received", "reversed"]),
       source: z.enum(["b2b", "b2c", "manual"]),
       reason: z.string().nullable(),
       student_lead_id: z.number().int(),

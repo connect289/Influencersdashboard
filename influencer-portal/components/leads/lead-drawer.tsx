@@ -4,15 +4,23 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
-/** The lead drawer: open while ?lead= is in the URL; closing removes it. */
-export function LeadDrawer({ title, children }: { title: string; children: ReactNode }) {
+/** A detail drawer: open while ?<param>= is in the URL (the lead drawer by default); closing removes it. */
+export function LeadDrawer({
+  title,
+  children,
+  param = "lead",
+}: {
+  title: string;
+  children: ReactNode;
+  param?: string;
+}) {
   const t = useTranslations();
   const router = useRouter();
   const path = usePathname();
   const sp = useSearchParams();
   const close = () => {
     const u = new URLSearchParams(sp.toString());
-    u.delete("lead");
+    u.delete(param);
     const q = u.toString();
     router.replace(q ? `${path}?${q}` : path, { scroll: false });
   };
