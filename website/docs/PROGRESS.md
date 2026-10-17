@@ -1,6 +1,22 @@
 # Build progress
 
-**Build complete (Phases 0–12). Waiting for the owner's go-live approval — read `docs/FINAL_REPORT.md` and `docs/GO_LIVE_CHECKLIST.md`. Do not apply anything to production, deploy or change DNS without that approval.**
+**Build complete (Phases 0–12). Owner approved deploying on Vercel against the production database (17 Oct 2026); DNS and eduwit.in stay untouched until a separate go-live approval — read `docs/FINAL_REPORT.md` and `docs/GO_LIVE_CHECKLIST.md`.**
+
+## Production deployment state (17 Oct 2026)
+- Production Supabase (owner's choice "Production (go-live step)"): before applying, production's shared-schema
+  fingerprint was identical to `scripts/db/fingerprint.prod.txt` (42/42 rows). No `pg_dump` was possible (no database
+  password in the build environment); the migrations write no shared table.
+- Applied through the Supabase connector: web1–web8, web10, web12, web13, web9 split into `web9_admin` + `web9_admin_part3`
+  (connector request timeouts). Read model: 715 offerings, 708 visible, 0 unmapped; jobs `web_catalog_poll`,
+  `web_outbox_worker`, `web_seo_daily` scheduled.
+- **Pending (owner runs in the SQL Editor; the connector cancels statements it flags as destructive):** web9's
+  `web_admin_save`/`web_admin_delete` + web11 (file given to the owner, built verbatim from the migration files), and the
+  Vault secret `web_internal_key`. Shared proposals s01–s07: none applied (approvals pending).
+- Vercel: project `eduwit-website` (team eduwit, Hobby — Pro needed before a commercial go-live), Git-connected to this
+  repo, root `website/web`, production branch `claude/inspiring-babbage-8asj1y`. Env: `APP_ENV=preview` (noindex,
+  Turnstile mocked until keys exist), `NEXT_PUBLIC_SITE_URL=https://eduwit-website.vercel.app`, Supabase URL and
+  publishable key; the three secrets were added by the owner. No email provider yet (verification codes not delivered).
+- After the first deploy: set `web_settings.internal_base_url` to `"https://eduwit-website.vercel.app"`, then smoke test.
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
