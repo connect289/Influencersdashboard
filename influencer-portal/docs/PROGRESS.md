@@ -641,3 +641,19 @@ Phase 1 Realtime entry for `inf.notifications`.
 | Guides for every audience | Done | Creator, agency and staff `#notifications` and `#messages`; Super Admin `#communication`, `#webhooks`; Influencer Manager `#announcements`; developer `#communication` |
 | Live email/WhatsApp providers, approved WhatsApp templates | Blocked (HARD STOP 4) | Mock adapters until credentials exist; listed in RUNBOOK G-23 |
 
+
+## Phase 10: Scorecards, tiers, compliance and polish
+
+Spec Section 22 Phase 10, spec 15, 16, 19 and 20. The last build phase: after its gate the remaining step is production
+go-live, which waits for the owner (HARD STOP 6) together with the provider credentials (HARD STOP 4) and the legal and
+tax sign-offs already listed in the RUNBOOK.
+
+### Plan
+
+| Step | What | Main files | Tests |
+| --- | --- | --- | --- |
+| 10.1 | Pure modules: scorecard (delivery reliability, content performance against the creator's own baseline, lead quality, economics, compliance; weighted composite from `scorecard.weights`), tier evaluation (entry rules, highest tier met, manual override), rules-based recommendations behind a pluggable `Recommender` interface, contract compliance obligations (met, missed, open), DPDP export bundle shape, retention rules. Phase 9 follow-ups: digest defaults and hour, and quiet hours for WhatsApp and digests, from `notifications.delivery` | `lib/scorecards/*`, `lib/compliance/*`, `lib/privacy/*` | exhaustive units |
+| 10.2 | Database: monthly scorecards (frozen inputs and scores, on-demand recompute), tier history with reasons and manual overrides, tier benefits (default commission uplift suggested in the deal builder, early campaign access, payout cycle shown to Finance), compliance obligations per creator, consent records for communications, data export and deletion requests (financial and contract records kept for the retention period), retention jobs (click anonymisation, sign-in log and audit retention) | `20261025000100_inf_insight_privacy.sql` | pgTAP per role |
+| 10.3 | Screens: tiers and scorecard settings, creator 360 Scorecard and Compliance tabs, programme scorecard list, creator home tier status and progress, recommendations at deal renewal, creator privacy page (download my data, request deletion, communication consents) and the staff privacy-requests queue, audit viewer filters | `app/(admin)/…`, `app/(creator)/…`, `components/scorecards/*`, `components/privacy/*` | Playwright |
+| 10.4 | Passes: accessibility (axe checks on key screens, keyboard paths), performance (paginated lists, scorecard computation at 1,000 creators), security review (OWASP checklist, rate limits, CSP, file checks, service-role use) written to `docs/SECURITY_REVIEW.md`, and the spec 20 end-to-end journeys mapped to specs with any missing one added | `e2e/*`, `docs/SECURITY_REVIEW.md` | gate |
+| 10.5 | Docs: production runbook completed, `docs/ADMIN_GUIDE.md` and `docs/CREATOR_GUIDE.md` generated from the in-app guides (a test keeps them in step), seed, phase gate | `docs/*`, `scripts/*` | gate |
