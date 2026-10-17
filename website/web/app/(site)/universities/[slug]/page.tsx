@@ -5,14 +5,16 @@ import { BadgeCheck, CalendarCheck, ExternalLink } from "lucide-react";
 import { UniversityMark } from "@/components/finder/UniversityMark";
 import { UniversityProgrammes } from "@/components/finder/UniversityProgrammes";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { RelatedLinks } from "@/components/seo/RelatedLinks";
 import { EXPLAINERS } from "@/content/explainers";
 import { formatDate } from "@/lib/format";
 import { UGC_LABEL } from "@/lib/search/labels";
 import { parseFinderParams } from "@/lib/search/params";
 import type { OfferingCard, ProgrammeGroup } from "@/lib/search/types";
 import { breadcrumbLd, courseLd, itemListLd, universityLd } from "@/lib/seo/jsonld";
+import { viewsForProgrammes } from "@/lib/seo/related";
 import { siteUrl } from "@/lib/server/env";
-import { browse, searchOfferings, universities, universityDetails } from "@/lib/server/search";
+import { browse, curatedViews, searchOfferings, universities, universityDetails } from "@/lib/server/search";
 import { getSettings } from "@/lib/server/settings";
 import { withOverrides } from "@/lib/server/page-meta";
 
@@ -33,7 +35,8 @@ async function baseMetadata({ params }: Props): Promise<Metadata> {
   if (!u) return { title: "University not found", robots: { index: false } };
   const facts = [u.facts.ugc_deb ? UGC_LABEL[u.facts.ugc_deb] : null, u.facts.naac_grade ? `NAAC ${u.facts.naac_grade}` : null].filter(Boolean).join(", ");
   return {
-    title: `${u.name}: online and distance programmes`,
+    // keep the title (with " · Eduwit") within ~65 characters for long university names
+    title: u.name.length > 25 ? `${u.name}: programmes and fees` : `${u.name}: online and distance programmes`,
     description: `${u.offerings} online and distance options at ${u.name}${facts ? ` (${facts})` : ""}: full fees, duration, eligibility and how to apply.`,
     alternates: { canonical: `/universities/${slug}` },
   };
@@ -58,7 +61,7 @@ async function University({ params }: Props) {
   const u = await universityDetails(slug);
   if (!u) notFound();
   const fp = parseFinderParams({ uni: slug });
-  const [result, settings, b] = await Promise.all([searchOfferings(fp, { page_size: 100, include_offerings: true }), getSettings(), browse()]);
+  const [result, settings, b, views] = await Promise.all([searchOfferings(fp, { page_size: 100, include_offerings: true }), getSettings(), browse(), curatedViews()]);
   const groups = result.items as ProgrammeGroup[];
   const base = siteUrl("/").replace(/\/$/, "");
   const offerings = groups.flatMap((g) => g.items ?? []) as OfferingCard[];
@@ -135,6 +138,7 @@ async function University({ params }: Props) {
           goals={(b?.goals ?? []).map((g) => ({ value: g.id, label: g.label }))}
         />
       </section>
+      <RelatedLinks id="related-h" title="Compare across universities" links={viewsForProgrammes(views, u.programmes)} />
       <p className="text-subtle mt-8 flex items-center gap-1.5 text-xs">
         <CalendarCheck className="size-3.5" aria-hidden /> Data last verified: {formatDate(u.verified_at)}. Fees are set by universities and may change; confirm with your counsellor.
       </p>

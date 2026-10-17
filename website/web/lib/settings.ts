@@ -25,6 +25,8 @@ export const settingsSchema = z.object({
     .object({ max_tokens_per_session: z.number(), turn_timeout_ms: z.number(), max_turns_per_session: z.number() })
     .default({ max_tokens_per_session: 60000, turn_timeout_ms: 20000, max_turns_per_session: 40 }),
   sections: z.record(z.string(), z.boolean()).default({}),
+  /** Opening hours for LocalBusiness structured data, e.g. ["Mo-Sa 10:00-19:00"] (S-51); none shown until set. */
+  business_hours: z.array(z.string().regex(/^(Mo|Tu|We|Th|Fr|Sa|Su)(-(Mo|Tu|We|Th|Fr|Sa|Su))? \d{2}:\d{2}-\d{2}:\d{2}$/)).nullable().default(null),
   /** Application form: non-core fields to hide or make optional (spec 9.1A; contact and consent are locked). */
   application_form: z
     .object({ hidden: z.array(z.string()).default([]), optional: z.array(z.string()).default([]) })

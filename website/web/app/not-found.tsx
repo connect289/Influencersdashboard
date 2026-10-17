@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
+import { NotFoundBeacon } from "@/components/site/NotFoundBeacon";
 
 export const metadata: Metadata = { title: "Page not found", robots: { index: false } };
 
@@ -11,6 +12,7 @@ export default function NotFound() {
   return (
     <>
       <SiteHeader advisorEnabled={false} />
+      <NotFoundBeacon />
       <main id="main" className="container-site grid min-h-[60dvh] content-center gap-6 py-20">
         <p className="eyebrow">404 · Page not found</p>
         <h1 className="text-display text-[length:var(--text-4xl)] font-semibold">

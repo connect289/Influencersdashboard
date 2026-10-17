@@ -5,7 +5,7 @@ import { Blocks } from "@/components/content/Blocks";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { formatDate } from "@/lib/format";
 import { breadcrumbLd } from "@/lib/seo/jsonld";
-import { resource, resourcesList } from "@/lib/server/content";
+import { resource, resourceLinks, resourcesList } from "@/lib/server/content";
 import { siteUrl } from "@/lib/server/env";
 import { withOverrides } from "@/lib/server/page-meta";
 
@@ -28,7 +28,8 @@ async function baseMetadata({ params }: Props): Promise<Metadata> {
 
 /** A guide with its named author and reviewer (spec 13.4). */
 export default async function ResourcePage({ params }: Props) {
-  const r = await resource((await params).slug);
+  const { slug } = await params;
+  const [r, related] = await Promise.all([resource(slug), resourceLinks(slug)]);
   if (!r) notFound();
   const base = siteUrl("/").replace(/\/$/, "");
   return (
@@ -56,6 +57,18 @@ export default async function ResourcePage({ params }: Props) {
       </p>
       {r.summary ? <p className="text-text text-lg">{r.summary}</p> : null}
       <Blocks blocks={r.body} />
+      {related.length ? (
+        <aside aria-labelledby="related" className="border-border border-t pt-6">
+          <h2 id="related" className="font-display text-text text-xl font-semibold">Related</h2>
+          <ul className="mt-3 grid gap-2">
+            {related.map((l) => (
+              <li key={l.href}>
+                <Link href={l.href} className="text-accent underline underline-offset-4">{l.anchor}</Link>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      ) : null}
     </main>
   );
 }

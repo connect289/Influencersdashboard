@@ -480,3 +480,46 @@ these at the end (spec Section 0).
 ### D-069 · Application form fields configurable in the admin
 - **Why:** spec 9.1A. Setting `application_form` lists non-core fields to hide or make optional; the form reads it when
   opened. Contact details, the email code and consent cannot be hidden.
+
+
+## Phase 11
+
+### D-070 · Search Console without credentials: labelled sample data outside production only
+- **Why:** S-20 (service account) is not available. Development and CI import deterministic sample rows built from the
+  site's own pages (`source = 'sample'`, shown in amber on the dashboard) so every SEO screen can be exercised and
+  tested; production imports nothing until credentials exist. With credentials the same import reads Search Analytics
+  (date × query × page) daily through a service account (JWT via `jose`, read-only scope).
+
+### D-071 · Briefs and drafts are grounded in catalogue facts and never self-publish
+- **Why:** spec 13.4. A brief lists the search intent, outline, questions, internal links, the facts it may use (offering
+  count, university count, fee range from the read model) and the rules. A first draft is Claude-assisted only when an API
+  key is set (S-14) and is rejected if it contains a banned claim; otherwise it is a structured skeleton for the author.
+  Either way it lands as `draft`; publishing still requires a named author and reviewer (database constraint).
+
+### D-072 · On-page checks run against the rendered pages
+- **Why:** the checker fetches each curated view, university page and guide as a crawler sees it (D-035 user agent) and
+  checks the HTML that ships: title/description length and uniqueness, one H1, heading order, intro length, FAQs, JSON-LD
+  validity, image alt text, internal links in/out, broken internal links, banned claims (the same list as the CI copy
+  check, `content/banned-claims.json`). Scores are stored per path; it runs daily (`/api/internal/seo-daily`) and on demand.
+  "Before publish" for drafts is the preview in the editor plus the next run after publishing.
+
+### D-073 · Internal links need editor approval; 404s are captured by a beacon
+- **Why:** suggestions come from whole-word mentions of curated-view programmes and university names in guides; only
+  approved links render (a "Related" block on the guide). 404s are reported by the not-found page itself (path and
+  referring host only), since the proxy cannot know a route will 404; a miss becomes a 301 in one click, and redirect
+  chains are flagged.
+
+### D-074 · Local SEO without invented hours
+- **Why:** the home and contact pages carry `EducationalOrganization` + `LocalBusiness` with the address and phone from
+  the spec; opening hours appear only after the owner sets `business_hours` (S-51). The Google Business Profile and
+  directory work is a tracked manual checklist.
+
+### D-075 · Related-link blocks on curated views and university pages
+- **Why:** the first on-page run scored our own pages 80 on average, mostly for missing internal links in the content
+  (spec 9: curated views, university pages and resources link to relevant finder views). Curated views now list the
+  universities in their results (by option count) and related curated views; university pages list the curated views for
+  the programmes they offer. Both are computed on each render from the curated views and catalogue, so they stay fresh
+  without editing. University titles drop "online and distance" for names over 25 characters to stay near 65 characters.
+  The checker reads the intro as the first real paragraph after the H1, counts streamed Suspense content (crawlers render
+  it), and counts links from header, footer and hub pages (`/`, `/programmes`, `/universities`, `/resources`) as inbound.
+  After the change the local average is 95; what remains is content work (university intros in the admin, S-46/S-53).

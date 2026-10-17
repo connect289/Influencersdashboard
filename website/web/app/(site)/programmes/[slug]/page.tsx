@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FinderView } from "@/components/finder/FinderView";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { RelatedLinks } from "@/components/seo/RelatedLinks";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { parseFinderParams } from "@/lib/search/params";
 import type { OfferingCard, ProgrammeGroup } from "@/lib/search/types";
 import { courseLd, faqLd, itemListLd, breadcrumbLd } from "@/lib/seo/jsonld";
+import { siblingViews, universityLinks } from "@/lib/seo/related";
 import { siteUrl } from "@/lib/server/env";
 import { curatedView, curatedViews, searchOfferings } from "@/lib/server/search";
 import { getSettings } from "@/lib/server/settings";
@@ -36,7 +38,7 @@ async function View({ params }: Props) {
   const filters = parseFinderParams(
     Object.fromEntries(Object.entries(v.filters).map(([k, val]) => [k, Array.isArray(val) ? val.join(",") : String(val)])),
   );
-  const [result, settings] = await Promise.all([searchOfferings(filters, { page_size: 12, include_offerings: false }), getSettings()]);
+  const [result, settings, views] = await Promise.all([searchOfferings(filters, { page_size: 12, include_offerings: false }), getSettings(), curatedViews()]);
   const base = siteUrl("/").replace(/\/$/, "");
   const groups = result.items as ProgrammeGroup[];
   const firstOfferings = await searchOfferings({ ...filters, view: "flat" }, { page_size: 10 });
@@ -68,6 +70,8 @@ async function View({ params }: Props) {
           <Disclosure items={v.faqs.map((f, i) => ({ id: String(i), title: f.q, content: <p>{f.a}</p> }))} />
         </section>
       ) : null}
+      <RelatedLinks id="unis-h" title="Universities in this list" links={universityLinks(result.facets.university)} />
+      <RelatedLinks id="related-h" title="Related comparisons" links={siblingViews(views, v)} />
     </>
   );
 }

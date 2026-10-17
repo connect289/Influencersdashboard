@@ -27,6 +27,7 @@ async function Settings() {
         <SettingForm name="counsellor_whatsapp" label="Counsellor WhatsApp number" kind="text" value={v.counsellor_whatsapp} disabled={!editor} />
         <SettingForm name="counsellor_phone" label="Counsellor phone number" kind="text" value={v.counsellor_phone} disabled={!editor} />
         <SettingForm name="application_form" label="Application form fields" kind="json" value={v.application_form} disabled={!editor} help='{"hidden": ["board", "industry"], "optional": ["score"]}. Configurable: stream, score, yearOfPassing, board, role, industry, goal, why, intake, budget, emi, city, state, bestTime, questions. Contact details and consent are always shown.' />
+        <SettingForm name="business_hours" label="Opening hours (local SEO)" kind="json" value={v.business_hours} disabled={!editor} help='["Mo-Sa 10:00-19:00"] — shown in LocalBusiness structured data; null hides them.' />
         <SettingForm name="default_theme" label="Default theme" kind="text" value={v.default_theme} disabled={!editor} help="system, dark or light" />
       </Card>
     </AdminShell>

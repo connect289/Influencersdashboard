@@ -76,6 +76,7 @@ const SETTING_KEYS = new Set([
   "document_upload_enabled",
   "finder_include_regular_mode",
   "application_form",
+  "business_hours",
 ]);
 
 export async function saveSettingAction(_prev: AdminFormState, form: FormData): Promise<AdminFormState> {

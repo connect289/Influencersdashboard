@@ -45,3 +45,6 @@ Status: ☐ needed · ◐ partly · ☑ done
 | S-45 | Real photography of Indian learners (licensed), or approval of generated abstract imagery | ☐ |
 | S-46 | University state, city and official website for each university (`web_university_profiles`; enables the state facet) — not in the catalogue | ☐ |
 | S-47 | Vercel plan: per-minute Vercel Cron (outbox worker) needs Pro; on Hobby, pg_cron + pg_net can call the worker instead (Phase 7 decides) | ☐ |
+| S-51 | Business opening hours for local SEO (`business_hours` setting, e.g. Mon–Sat 10:00–19:00); shown in structured data only once set | ☐ |
+| S-52 | Google Business Profile: claim and verify for the Indirapuram office, then work through Admin → SEO toolkit → Local SEO | ☐ |
+| S-53 | Editorial intro ("About") for each university page in Admin → University profiles; the on-page checker flags pages without one | ☐ |

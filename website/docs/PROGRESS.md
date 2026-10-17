@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 11 — SEO toolkit. Current step: 11.2 (web10 migration + SQL test pass locally; toolkit libs, admin pages and e2e written; build and test next).**
+**Current phase: 11 — SEO toolkit. Current step: 11.4 (toolkit built and committed; seo-toolkit e2e 5/5 green; full e2e, db:gate, quiet Lighthouse and gate docs next). Security review for Phase 12 started.**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).

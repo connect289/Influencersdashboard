@@ -4,8 +4,9 @@ import { EnquiryForm } from "@/components/forms/EnquiryForm";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { COMPANY, whatsappLink } from "@/content/site";
-import { faqLd } from "@/lib/seo/jsonld";
+import { faqLd, organizationLd } from "@/lib/seo/jsonld";
 import { faqsFor } from "@/lib/server/content";
+import { siteUrl } from "@/lib/server/env";
 import { getSettings } from "@/lib/server/settings";
 import { withOverrides } from "@/lib/server/page-meta";
 
@@ -25,6 +26,7 @@ export default async function ContactPage() {
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${a.line1}, ${a.locality}, ${a.city} ${a.postalCode}`)}`;
   return (
     <main id="main" className="container-site grid gap-10 pt-10 pb-28 lg:pb-16">
+      <JsonLd data={organizationLd(siteUrl("/").replace(/\/$/, ""), settings.business_hours)} />
       {faqs.length ? <JsonLd data={faqLd(faqs)} /> : null}
       <header className="max-w-3xl">
         <p className="eyebrow">Contact</p>

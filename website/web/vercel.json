@@ -1,8 +1,20 @@
 {
   "framework": "nextjs",
-  "regions": ["bom1"],
+  "regions": [
+    "bom1"
+  ],
   "crons": [
-    { "path": "/api/internal/outbox", "schedule": "* * * * *" },
-    { "path": "/api/internal/catalog-poll", "schedule": "*/5 * * * *" }
+    {
+      "path": "/api/internal/outbox",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/catalog-poll",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/internal/seo-daily",
+      "schedule": "30 21 * * *"
+    }
   ]
 }

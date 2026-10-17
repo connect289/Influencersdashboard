@@ -9,6 +9,7 @@ const AREAS = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/settings", label: "Flags and settings" },
   { href: "/admin/insights", label: "Funnels and Witty insights" },
+  { href: "/admin/seo", label: "SEO toolkit" },
   { href: "/admin/data-quality", label: "Data quality" },
   { href: "/admin/taxonomy", label: "Taxonomy mapping" },
   { href: "/admin/outbox", label: "Outbox" },

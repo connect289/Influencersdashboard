@@ -90,6 +90,14 @@ export async function resourcesList(): Promise<ResourceSummary[]> {
   }
 }
 
+/** Editor-approved related links for a guide (internal linking engine, spec 13.4). */
+export async function resourceLinks(slug: string): Promise<{ href: string; anchor: string }[]> {
+  "use cache";
+  contentCache();
+  if (!dbConfigured() || !/^[a-z0-9-]{1,100}$/.test(slug)) return [];
+  return rpc<{ href: string; anchor: string }[]>("web_resource_links", { p_slug: slug }).catch(() => []);
+}
+
 export async function resource(slug: string): Promise<Resource | null> {
   "use cache";
   contentCache();

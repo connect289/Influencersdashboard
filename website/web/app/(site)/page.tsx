@@ -34,7 +34,7 @@ export default async function Home() {
   const base = siteUrl("/").replace(/\/$/, "");
   return (
     <main id="main">
-      <JsonLd data={organizationLd(base)} />
+      <JsonLd data={organizationLd(base, settings.business_hours)} />
       <JsonLd data={websiteLd(base)} />
       {content.faqs.length && on("faq") ? <JsonLd data={faqLd(content.faqs)} /> : null}
       <HomeHero stats={stats} advisorEnabled={settings.web_advisor_enabled} popular={content.popular} />

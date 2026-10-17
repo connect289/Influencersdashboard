@@ -62,10 +62,12 @@ export function breadcrumbLd(trail: { name: string; url: string }[]): Json {
   };
 }
 
-export function organizationLd(siteUrl: string): Json {
+/** Eduwit as an educational organisation and a local business (spec 13.4 local SEO); hours only when the owner set them. */
+export function organizationLd(siteUrl: string, hours?: string[] | null): Json {
   return {
     "@context": "https://schema.org",
-    "@type": "EducationalOrganization",
+    "@type": ["EducationalOrganization", "LocalBusiness"],
+    ...(hours?.length ? { openingHours: hours } : {}),
     name: COMPANY.name,
     alternateName: COMPANY.brand,
     url: siteUrl,

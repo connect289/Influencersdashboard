@@ -6,18 +6,10 @@ import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
 const DIRS = ["app", "components", "content"];
-const BANNED = [
-  /guarantee[ds]?\s+(a\s+)?(job|placement|admission|seat)/i,
-  /100\s*%\s*(job|placement)/i,
-  /equivalent\s+to\s+(a\s+)?regular\s+degree/i,
-  /assured\s+(job|placement)/i,
-  /\bbest\s+university\s+in\s+india\b/i,
-  /\b(hurry|only\s+\d+\s+seats?\s+left|last\s+chance)\b/i,
-  // Blanket approval claims: approvals are per university, from the catalogue (3 universities state none).
-  /UGC[- ]entitled\s+(online|distance|universit|programme|program|degree|course)/i,
-  /\b(all|every|only)\s+(our\s+)?(universit\w*|programmes?|programs?|degrees?)\s+(are\s+)?(ugc|aicte|naac)/i,
-];
-const ALLOW_FILE = /check-banned-phrases|\.test\.tsx?$/;
+const BANNED = JSON.parse(readFileSync(path.join(root, "content/banned-claims.json"), "utf8")).patterns.map(
+  (p) => new RegExp(p.source, p.flags),
+);
+const ALLOW_FILE = /check-banned-phrases|banned-claims\.json|\.test\.tsx?$/;
 let failures = 0;
 function walk(dir) {
   for (const f of readdirSync(dir)) {

@@ -1,0 +1,37 @@
+{
+  "_comment": "Claims the site must never make (spec 14). Used by scripts/check-banned-phrases.mjs (CI, site copy) and the admin on-page checker (rendered pages). Approvals are per university, from the catalogue.",
+  "patterns": [
+    {
+      "source": "guarantee[ds]?\\s+(a\\s+)?(job|placement|admission|seat)",
+      "flags": "i"
+    },
+    {
+      "source": "100\\s*%\\s*(job|placement)",
+      "flags": "i"
+    },
+    {
+      "source": "equivalent\\s+to\\s+(a\\s+)?regular\\s+degree",
+      "flags": "i"
+    },
+    {
+      "source": "assured\\s+(job|placement)",
+      "flags": "i"
+    },
+    {
+      "source": "\\bbest\\s+university\\s+in\\s+india\\b",
+      "flags": "i"
+    },
+    {
+      "source": "\\b(hurry|only\\s+\\d+\\s+seats?\\s+left|last\\s+chance)\\b",
+      "flags": "i"
+    },
+    {
+      "source": "UGC[- ]entitled\\s+(online|distance|universit|programme|program|degree|course)",
+      "flags": "i"
+    },
+    {
+      "source": "\\b(all|every|only)\\s+(our\\s+)?(universit\\w*|programmes?|programs?|degrees?)\\s+(are\\s+)?(ugc|aicte|naac)",
+      "flags": "i"
+    }
+  ]
+}
