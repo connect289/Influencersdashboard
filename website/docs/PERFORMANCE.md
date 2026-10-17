@@ -1,6 +1,7 @@
 # Performance budgets (spec 13.2)
 
-Measured with Lighthouse CI on the mobile profile (applied throttling: slow 4G, 4× CPU), median of 3 runs, against
+Measure only on an otherwise idle machine: TBT on the 4× CPU profile rises by 50–100 ms when a typecheck or test run
+shares the CPU (seen in the Phase 10 gate). Measured with Lighthouse CI on the mobile profile (applied throttling: slow 4G, 4× CPU), median of 3 runs, against
 `next start` with the local stack. Enforced in CI by `web/lighthouserc.cjs` (fails the build on regressions).
 
 | Budget | Limit | Where it applies |

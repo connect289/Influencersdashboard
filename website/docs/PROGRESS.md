@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 10 — Admin. Current step: 10.2 (web9 admin back end written and tested locally; UI pages written; e2e next).**
+**Current phase: 11 — SEO toolkit. Current step: 11.2 (web10 migration + SQL test pass locally; toolkit libs, admin pages and e2e written; build and test next).**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -632,3 +632,28 @@ including JavaScript per route, are enforced in CI.
   the read model; `application_form` setting read by the form (D-069). Rejected saves keep the editor's input.
 - 10.4 ✅ `e2e/admin.spec.ts`: curated view created → live at `/programmes/<slug>` → audited → deleted; testimonial consent
   rule; announcement bar live; every dashboard loads; axe on admin screens; viewer is read-only.
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 174 unit tests, copy check) | ✅ |
+| `npm run db:gate` (web1–9 on the replica: 930 security + 18+15+48+42+1+42+24+25 checks, shared unchanged, s03; local + 31 quality) | ✅ |
+| `npm run build` | ✅ |
+| Playwright | ✅ 138 passed (laptop + Pixel 7), incl. 6 admin flows and axe on admin screens |
+| Lighthouse CI mobile, median of 3, 13 paths | ✅ after a quiet re-run. The first run overlapped with typechecks on the same machine and put `/`, `/programmes/online-mba` and one filtered finder URL 5–60 ms over the TBT budget; re-measured alone: 235–246, 180–285, 194–269 ms (budget 300). Rule added to `docs/PERFORMANCE.md`: measure only on an idle machine |
+
+### Self-review (Phase 10 row; spec 11)
+| Item | Status |
+|---|---|
+| Auth: Supabase Auth (Google or email) + email-code 2FA after Google; roles Super Admin, Content Editor, Viewer | Done (Phase 2) + role enforcement in pages and database (D-067) |
+| Manage testimonials, FAQs, homepage sections and banners | Done (entities + settings: sections, announcement) |
+| Popular searches, resources, curated finder views, university editorial | Done |
+| SEO overrides, redirects | Done |
+| Announcement bar, feature flags, consent text versions | Done (consent texts never reworded) |
+| Taxonomy mapping tool + synonym management | Done |
+| Data quality dashboard | Done (missing fees, minimum %, duration, approvals, unmapped, zero-result searches) |
+| Advisor insights: conversations, gate and form funnels, top questions, thumbs-down; no prompt editing | Done (D-068) |
+| Outbox and dead-letter monitor | Done (retry for super admins) |
+| Revalidate on publish; audit log for every change | Done |
+| Programme data not edited here | Done (read-only; university pages edit editorial fields only) |
+| Application form fields configurable (from 9.1A) | Done (D-069) |
