@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 11 — SEO toolkit. Current step: 11.4 (toolkit built and committed; seo-toolkit e2e 5/5 green; full e2e, db:gate, quiet Lighthouse and gate docs next). Security review for Phase 12 started.**
+**Current phase: 12 — Hardening and go-live prep. Current step: 12.1 (plan; security review findings in hand, s01/s02 drafted).**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -657,3 +657,66 @@ including JavaScript per route, are enforced in CI.
 | Revalidate on publish; audit log for every change | Done |
 | Programme data not edited here | Done (read-only; university pages edit editorial fields only) |
 | Application form fields configurable (from 9.1A) | Done (D-069) |
+
+## Phase 11 — SEO toolkit ✅ `website-phase-11-done`
+
+### Plan
+1. `web10_seo_toolkit`: Search Console rows, sync log, keywords, 404 log, on-page check results, link suggestions, local
+   SEO tasks; dashboard, keyword, opportunity, 404 and link functions (all audited through the admin save path).
+2. Libraries: Search Console client (service account; labelled sample rows outside production, D-070), on-page checker
+   (D-072), internal-link suggester (D-073), brief/draft generator grounded in catalogue facts (D-071).
+3. Admin: SEO dashboard, opportunities → draft curated view / guide idea, keyword list with cannibalisation flags,
+   content planner (Idea → Brief → Draft → Review → Published → Refresh due), on-page checks, internal links, 404
+   monitor, local SEO checklist. Daily job `/api/internal/seo-daily`.
+4. Site: 404 beacon, approved "Related" links on guides, `LocalBusiness` structured data with owner-set hours (D-074),
+   related-link blocks on curated views and university pages (D-075).
+5. SEO checks in CI; tests, docs, gate.
+
+### Step log
+- 11.1 ✅ `20261017100900_web10_seo_toolkit.sql` (7 tables, 13 functions, 7 local SEO tasks) + `supabase/tests/90_web_seo.test.sql` (16 checks).
+- 11.2 ✅ `web/lib/seo/{onpage,links,related}.ts` (+ tests), `web/lib/server/seo/{gsc,toolkit}.ts` (+ test),
+  `app/admin/seo-actions.ts`, pages under `app/admin/seo/*`, `components/admin/SeoNav.tsx`.
+- 11.3 ✅ 404 beacon (`components/site/NotFoundBeacon.tsx` → `/api/events/404`), guide "Related" block,
+  `organizationLd` with `LocalBusiness` + `business_hours` setting, Vercel cron `30 21 * * *` (03:00 IST).
+- 11.4 ✅ First checker run scored our own pages 80: fixed the checker (streamed Suspense content, intro after the H1,
+  inbound links from header/footer/hubs) and the pages (related-link blocks; shorter titles for long university
+  names). Local average now 95; remaining warnings are content work (S-53 university intros, 6 very long names).
+- 11.5 ✅ Planner "Refresh due" also flags guides losing Search Console clicks (spec 13.4), with the reason shown; the
+  coverage/Core Web Vitals card links to the Search Console reports instead of promising data the API cannot export.
+- 11.6 ✅ `e2e/seo-toolkit.spec.ts` (5 flows) and an on-page error gate in `e2e/seo.spec.ts` (fails CI on any
+  error-level finding on a sitemap curated view or university page). JSON imports carry `with { type: "json" }` so
+  Playwright's ESM loader can import the checker.
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 183 unit tests, copy check) | ✅ |
+| `npm run db:gate` (web1–10 on the replica: 1046 security + 18+15+48+42+1+42+24+25+16 checks, shared unchanged, s03; local + 31 quality) | ✅ |
+| `npm run build` | ✅ |
+| Playwright | ✅ 142 passed in the full run; the one failure (home JSON-LD now `["EducationalOrganization","LocalBusiness"]`) was the test's expectation, updated; `seo.spec.ts` + `seo-toolkit.spec.ts` re-run on the final build: 10/10 |
+| Lighthouse CI mobile, median of 3, 13 paths (idle machine) | ✅ all assertions on the first run (machine otherwise idle). Medians: performance 0.94–0.98, accessibility 1.00, SEO 1.00 on every indexable page, LCP 1.65–1.80 s, TBT 110–252 ms, CLS ≤ 0.066 |
+
+### Self-review (Phase 11 row; spec 13.4)
+| Item | Status |
+|---|---|
+| Search Console integration: daily queries, impressions, clicks, CTR, position into `web_seo_*` | Done (service account; sample data until S-20, D-070) |
+| Dashboard: trends, top queries, top pages, rising/falling pages, low-CTR candidates | Done |
+| Index coverage and Core Web Vitals "where the API exposes them" | Done as far as the API allows: the Search Console API exports neither report (URL Inspection is per URL and quota-bound), so the dashboard links straight to both; lab Core Web Vitals are budgeted in CI |
+| Opportunity finder → one-click draft curated view; question queries → guide ideas | Done |
+| Keyword list: priority, mapped page, position tracking, cannibalisation flag | Done |
+| Content planner Idea → Brief → Draft → Review → Published → Refresh due | Done |
+| Claude-assisted briefs and drafts grounded in catalogue facts and approved claims | Done (template without S-14; Claude drafts rejected on banned claims, D-071) |
+| Named human author and reviewer before publishing; no mass-generated pages | Done (database constraint; drafts never self-publish) |
+| Refresh-due reminders (age or losing rankings) | Done (past refresh date, clicks down ≥30% from ≥5, or older than 9 months; reason shown per guide; `lib/seo/refresh.ts`) |
+| On-page checker on every curated view, university page, resource; before publish and on a schedule; score + fixes | Done (daily + on demand; "before publish" = editor preview + next run, D-072) |
+| Internal linking engine with editor approval; related-content blocks kept fresh | Done (D-073, D-075) |
+| Redirects and 404 monitor with one-click redirect, redirect-chain detection | Done |
+| Local SEO: `LocalBusiness`/`EducationalOrganization` with Indirapuram address, phone, hours; GBP/directory checklist | Done (hours once set, S-51; checklist tracked in admin, S-52) |
+| SEO checks in CI: structured data, sitemaps, canonical/robots, redirect map, Lighthouse SEO and performance budgets; fail on regressions | Done (`seo.spec.ts` incl. on-page gate, redirects in e2e, LHCI budgets in `website-ci.yml`) |
+
+### Phase 11 summary
+The SEO operation runs from the admin: Search Console data (sample until S-20), opportunities that become draft curated
+views or guide ideas, a keyword list with cannibalisation flags, a content planner whose briefs and drafts use catalogue
+facts only and can never publish without a named author and reviewer, a daily on-page checker, an approval-based
+internal-link engine, a 404 monitor with one-click 301s, and a local SEO checklist. CI fails on on-page errors. Owner
+items: S-20 (Search Console), S-50 (authors and reviewers), S-51 (hours), S-52 (Business Profile), S-53 (university intros).
