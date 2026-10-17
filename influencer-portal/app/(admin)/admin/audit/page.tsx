@@ -45,6 +45,7 @@ export default async function AuditPage({
   if (f.entity) q = q.eq("entity_type", f.entity);
   if (f.action) q = q.eq("action", f.action);
   if (f.actor) q = q.eq("actor_id", f.actor);
+  if (f.record) q = q.eq("entity_id", f.record);
   if (f.from) q = q.gte("at", istDayStart(f.from));
   if (f.to) q = q.lt("at", istDayEnd(f.to));
   if (f.before) q = q.lt("id", f.before);
@@ -58,12 +59,12 @@ export default async function AuditPage({
     const { data: people } = await supabase.from("staff_profiles").select("user_id, full_name").in("user_id", actorIds);
     for (const p of (people ?? []) as { user_id: string; full_name: string }[]) names.set(p.user_id, p.full_name);
   }
-  const filtered = Boolean(f.entity ?? f.action ?? f.actor ?? f.from ?? f.to);
+  const filtered = Boolean(f.entity ?? f.action ?? f.actor ?? f.record ?? f.from ?? f.to);
   return (
     <>
       <PageHeader title={t("nav.admin.audit")} description={t("audit.subtitle")} />
       <Card className="mb-4">
-        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" method="get">
+        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6" method="get">
           <Input
             name="entity"
             defaultValue={f.entity}
@@ -75,6 +76,12 @@ export default async function AuditPage({
             defaultValue={f.action}
             placeholder={t("audit.filters.action")}
             aria-label={t("audit.filters.action")}
+          />
+          <Input
+            name="record"
+            defaultValue={f.record}
+            placeholder={t("audit.filters.record")}
+            aria-label={t("audit.filters.record")}
           />
           <Input name="from" type="date" defaultValue={f.from} aria-label={t("audit.filters.from")} />
           <Input name="to" type="date" defaultValue={f.to} aria-label={t("audit.filters.to")} />
@@ -125,7 +132,13 @@ export default async function AuditPage({
                   <Td>
                     <Badge family="progress">{r.action}</Badge> <span className="text-sm">{r.entity_type}</span>
                     {r.entity_id ? (
-                      <span className="block max-w-48 truncate font-mono text-xs text-muted">{r.entity_id}</span>
+                      <Link
+                        href={`/admin/audit${auditQueryString({ record: r.entity_id })}`}
+                        className="block max-w-48 truncate font-mono text-xs text-muted hover:underline"
+                        title={t("audit.filters.recordHistory")}
+                      >
+                        {r.entity_id}
+                      </Link>
                     ) : null}
                   </Td>
                   <Td>

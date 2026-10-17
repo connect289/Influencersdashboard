@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { AccountPage } from "@/components/account/account-page";
 import { requireCreator } from "@/lib/auth/guards";
@@ -17,10 +18,20 @@ export default async function CreatorAccount() {
       email={me.email}
       showDevices={false}
       extra={
-        <div>
-          <dt className="text-muted">{t("account.handle")}</dt>
-          <dd className="font-medium">@{me.handle}</dd>
-        </div>
+        <>
+          <div>
+            <dt className="text-muted">{t("account.handle")}</dt>
+            <dd className="font-medium">@{me.handle}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">{t("privacy.title")}</dt>
+            <dd>
+              <Link href="/creator/account/privacy" className="font-medium text-primary hover:underline">
+                {t("privacy.open")}
+              </Link>
+            </dd>
+          </div>
+        </>
       }
     />
   );

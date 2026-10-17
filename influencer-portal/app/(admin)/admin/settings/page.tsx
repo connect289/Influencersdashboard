@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { SettingCard, type SettingRow } from "@/components/settings/setting-card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -36,6 +38,18 @@ export default async function SettingsPage() {
             <h2 id={`group-${g}`} className="text-sm font-semibold tracking-wide text-muted uppercase">
               {t(`settingGroups.${g}`)}
             </h2>
+            {g === "scorecard" && me.permissions.has("tier.manage") ? (
+              <Link
+                href="/admin/settings/tiers"
+                className="flex items-center justify-between rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)] hover:bg-surface-2"
+              >
+                <span>
+                  <span className="block font-medium">{t("insight.tiers.title")}</span>
+                  <span className="block text-sm text-muted">{t("insight.tiers.linkHint")}</span>
+                </span>
+                <ChevronRight className="size-4 text-muted" aria-hidden />
+              </Link>
+            ) : null}
             {rs.map((r) => (
               <SettingCard key={r.key} row={r} />
             ))}

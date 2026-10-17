@@ -3742,7 +3742,7 @@ isOneToOne: false
 { Args: { "p_disclosure": boolean,"p_live": boolean,"p_matches": boolean,"p_note"?: string,"p_post": string }; Returns: undefined
                            },
 "privacy_deletion_decide":
-{ Args: { "p_approve": boolean,"p_note": string,"p_purge_on": string,"p_request": string }; Returns: string
+{ Args: { "p_approve": boolean,"p_note": string,"p_purge_on"?: string,"p_request": string }; Returns: string
                            },
 "privacy_deletion_facts":
 { Args: { "p_request": string }; Returns: Json
@@ -3984,7 +3984,7 @@ isOneToOne: false
 { Args: { "p": Json }; Returns: string
                            },
 "tier_set_manual":
-{ Args: { "p_creator": string,"p_reason": string,"p_tier": string,"p_until": string }; Returns: undefined
+{ Args: { "p_creator": string,"p_reason": string,"p_tier"?: string,"p_until": string }; Returns: undefined
                            },
 "tier_status":
 { Args: { "p_creator": string }; Returns: Json

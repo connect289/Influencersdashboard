@@ -195,6 +195,22 @@ export const DEVELOPER: Guide = {
       ],
     },
     {
+      id: "insight",
+      title: "Scorecards, tiers and privacy",
+      blocks: [
+        {
+          list: [
+            "Scoring is pure: `lib/scorecards/score.ts` (sub-scores and composite from `inf.scorecard_facts`), `tiers.ts` (`decideTier`: up at once, down after `demote_after_months`, manual tier holds), `recommend.ts` (a `Recommender` interface; add an AI recommender beside `rulesRecommender`) and `uplift.ts`.",
+            "The `scorecards.run` job (queued monthly by `inf.scorecards_due`) saves through `inf.scorecard_save`, which applies the tier, writes `inf.tier_history` and notifies `tier.changed`. `scorecards` and `tier_history` are append-only.",
+            "Compliance obligations come from `inf.compliance_facts` through `lib/compliance/obligations.ts`.",
+            "Privacy: `lib/privacy/plan.ts` decides what a deletion erases and keeps; `inf.privacy_deletion_decide` does it (message text is blanked only under the `inf.privacy_erase` flag) and the action bans the auth user. Exports are built on each download by `/api/privacy/export/[requestId]` from `inf.privacy_export_data` after `inf.privacy_export_allowed`.",
+            "Retention: `inf.retention_run()` in the nightly prune; `audit_log` and `sign_in_log` deletes pass `retention_guard` only under the `inf.retention_purge` flag.",
+            "Read settings on the server with `readSetting(key)` (`lib/settings/read.ts`); `inf.setting()` is not granted to signed-in users.",
+          ],
+        },
+      ],
+    },
+    {
       id: "jobs",
       title: "Background jobs and notifications",
       blocks: [

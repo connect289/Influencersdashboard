@@ -81,6 +81,13 @@ import { INVOICE_PROBLEMS } from "@/lib/ledger/invoice";
 import { ENTRY_STATUSES, LEDGER_TYPES } from "@/lib/ledger/lifecycle";
 import { RECEIPT_STATUSES } from "@/lib/ledger/schemas";
 import { LEDGER_DB_ERRORS } from "@/lib/ledger/schemas";
+import { OBLIGATION_KINDS } from "@/lib/compliance/obligations";
+import { ERASED, RETAINED } from "@/lib/privacy/plan";
+import { myRequest } from "@/lib/privacy/data";
+import { RECOMMENDATION_CODES } from "@/lib/scorecards/recommend";
+import { INSIGHT_DB_ERRORS } from "@/lib/scorecards/schemas";
+import { SCORE_PARTS } from "@/lib/scorecards/score";
+import { entryRules, PAYOUT_CYCLES } from "@/lib/scorecards/tiers";
 import en from "@/messages/en.json";
 
 const root = join(import.meta.dirname, "..");
@@ -104,8 +111,15 @@ function has(key: string): boolean {
 describe("messages", () => {
   const sources = ["app", "components", "lib"].flatMap((d) => files(join(root, d)));
   const keys = new Set<string>();
-  for (const f of sources)
-    for (const m of readFileSync(f, "utf8").matchAll(/\bt\("([a-zA-Z0-9_.]+)"/g)) keys.add(m[1] ?? "");
+  for (const f of sources) {
+    const src = readFileSync(f, "utf8");
+    for (const m of src.matchAll(/\bt\("([a-zA-Z0-9_.]+)"/g)) keys.add(m[1] ?? "");
+    // Both branches of t(cond ? "a.b" : "c.d").
+    for (const m of src.matchAll(/\bt\([^"()]*\?\s*"(\w+\.[\w.]+)"\s*:\s*"(\w+\.[\w.]+)"/g)) {
+      keys.add(m[1] ?? "");
+      keys.add(m[2] ?? "");
+    }
+  }
 
   it("finds keys to check", () => expect(keys.size).toBeGreaterThan(100));
   it.each([...keys])("has %s", (k) => expect(has(k)).toBe(true));
@@ -301,6 +315,29 @@ describe("messages", () => {
       ...["approved", "firstApproval"].map((x) => `finance.payouts.${x}`),
       ...["accepted", "rejected"].map((x) => `finance.invoices.${x}`),
       ...INVOICE_PROBLEMS.map((x) => `earnings.invoice.problems.${x}`),
+    ];
+    for (const k of keys) expect(has(k), k).toBe(true);
+  });
+
+  it("labels every scorecard part, tier rule, recommendation, obligation and privacy value", () => {
+    const rules = Object.keys(entryRules.shape);
+    const keys = [
+      ...SCORE_PARTS.map((x) => `insight.parts.${x}`),
+      ...rules.flatMap((x) => [`insight.rules.${x}`, `insight.rulesShort.${x}`]),
+      ...rules.filter((x) => x !== "demote_after_months").map((x) => `insight.home.rules.${x}`),
+      ...PAYOUT_CYCLES.map((x) => `insight.cycles.${x}`),
+      ...["eligible", "below_rules", "manual", "manual_ended"].map((x) => `insight.history.${x}`),
+      ...RECOMMENDATION_CODES.flatMap((x) => [
+        `insight.recommend.codes.${x}.title`,
+        `insight.recommend.codes.${x}.why`,
+      ]),
+      ...INSIGHT_DB_ERRORS.map(([, k]) => `insight.errors.${k}`),
+      ...OBLIGATION_KINDS.map((x) => `compliance.kinds.${x}`),
+      ...["met", "missed", "open", "waived"].map((x) => `compliance.status.${x}`),
+      ...myRequest.shape.kind.options.flatMap((x) => [`privacy.kinds.${x}`, `privacy.requested.${x}`]),
+      ...myRequest.shape.status.options.map((x) => `privacy.statuses.${x}`),
+      ...[...ERASED, ...RETAINED].map((x) => `privacy.parts.${x}`),
+      ...["exportDaily", "deletionOpen", "openDeals", "balance", "decided", "reason"].map((x) => `privacy.errors.${x}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);
   });

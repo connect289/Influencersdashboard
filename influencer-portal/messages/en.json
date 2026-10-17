@@ -59,7 +59,8 @@
       "finance": "Finance",
       "analytics": "Analytics",
       "messages": "Messages",
-      "communication": "Communication"
+      "communication": "Communication",
+      "privacy": "Privacy requests"
     },
     "creator": {
       "home": "Home",
@@ -569,7 +570,9 @@
       "entity": "Record type (e.g. setting)",
       "action": "Action (e.g. update)",
       "from": "From date",
-      "to": "To date"
+      "to": "To date",
+      "record": "Record id",
+      "recordHistory": "Show this record's history"
     },
     "columns": {
       "when": "When (IST)",
@@ -1188,7 +1191,9 @@
       "deals": "Deals",
       "links": "Links",
       "analytics": "Analytics",
-      "messages": "Messages"
+      "messages": "Messages",
+      "scorecard": "Scorecard",
+      "compliance": "Compliance"
     },
     "overview": {
       "facts": "Summary",
@@ -4106,7 +4111,8 @@
       "pan": "PAN",
       "noPan": "Not verified (higher TDS rate)",
       "documents": "Documents",
-      "advice": "Payment advice"
+      "advice": "Payment advice",
+      "tierCycles": "Tier payout cycles: {list}. Prepare a batch for a tier's creators on its cycle."
     },
     "invoices": {
       "subtitle": "GST invoices from registered creators. A payout with GST is paid only after its invoice is accepted.",
@@ -4499,7 +4505,8 @@
     "areas": {
       "overview": "Overview",
       "campaigns": "Campaigns",
-      "finance": "Finance"
+      "finance": "Finance",
+      "scorecards": "Scorecards"
     },
     "export": "Export CSV",
     "includeTest": "Include test leads",
@@ -4921,6 +4928,300 @@
       },
       "attempts": "{count, plural, one {# attempt} other {# attempts}}",
       "nextAttempt": "next try {date}"
+    }
+  },
+  "insight": {
+    "noData": "Not enough data",
+    "noTier": "No tier",
+    "parts": {
+      "delivery": "Delivery",
+      "content": "Content",
+      "lead_quality": "Lead quality",
+      "economics": "Economics",
+      "compliance": "Compliance"
+    },
+    "figures": {
+      "on_time": "On time",
+      "revisions": "Revisions per deliverable",
+      "views": "Views vs baseline",
+      "qualification": "Qualification rate",
+      "enrolment": "Enrolment rate",
+      "cpe": "Cost per enrolment"
+    },
+    "rules": {
+      "min_score": "Minimum composite score",
+      "min_enrollments_90d": "Minimum enrolments in the last 90 days",
+      "min_months_active": "Minimum months since approval",
+      "min_compliance": "Minimum compliance score",
+      "demote_after_months": "Months below the rules before moving down"
+    },
+    "rulesShort": {
+      "min_score": "Score {value}+",
+      "min_enrollments_90d": "{value}+ enrolments in 90 days",
+      "min_months_active": "{value}+ months active",
+      "min_compliance": "Compliance {value}+",
+      "demote_after_months": "Moves down after {value} months below"
+    },
+    "benefits": {
+      "commission_uplift_pct": "Commission uplift (%)",
+      "upliftHint": "Suggested in the deal builder for new deals. Staff decide whether to apply it.",
+      "early_access_days": "Early access to open campaigns (days)",
+      "payout_cycle": "Payout cycle",
+      "cycleDefault": "Standard cycle",
+      "note": "Other benefit shown to the creator"
+    },
+    "benefitsShort": {
+      "uplift": "+{pct}% commission",
+      "early": "{days}-day early access",
+      "cycle": "{cycle} payouts"
+    },
+    "cycles": {
+      "weekly": "Weekly",
+      "fortnightly": "Fortnightly",
+      "monthly": "Monthly"
+    },
+    "tiers": {
+      "title": "Tiers",
+      "subtitle": "Entry rules and benefits for each creator tier. Tiers are re-evaluated after each monthly scorecard.",
+      "linkHint": "Entry rules, benefits and ranks for creator tiers",
+      "add": "Add tier",
+      "name": "Name",
+      "rank": "Rank",
+      "rankHint": "Higher rank means a higher tier. Each active tier needs its own rank.",
+      "rankLabel": "Rank {rank}",
+      "rules": "Entry rules",
+      "benefits": "Benefits",
+      "noRules": "No rules: every approved creator qualifies",
+      "noBenefits": "No benefits set",
+      "active": "Active",
+      "inactive": "Inactive",
+      "creators": "{count, plural, =0 {No creators} one {# creator} other {# creators}}",
+      "empty": "No tiers yet",
+      "emptyHint": "Add a tier to start ranking creators after each monthly scorecard.",
+      "saved": "Tier saved"
+    },
+    "tier": {
+      "title": "Tier",
+      "monthsBelow": "{count, plural, =0 {Meets the rules of this tier} one {Below this tier's rules for # month} other {Below this tier's rules for # months}}"
+    },
+    "history": {
+      "eligible": "Moved from {from} to {to} (met the rules)",
+      "below_rules": "Moved from {from} to {to} (below the rules)",
+      "manual": "Set by hand from {from} to {to}",
+      "manual_ended": "Manual tier ended: {from} to {to}"
+    },
+    "manual": {
+      "set": "Set tier by hand",
+      "hint": "A manual tier holds until its end date, then the monthly evaluation takes over again.",
+      "tier": "Tier",
+      "noTier": "No tier",
+      "until": "Holds until",
+      "reason": "Reason",
+      "active": "Set by hand until {date}: {reason}",
+      "clear": "Clear manual tier",
+      "saved": "Manual tier set",
+      "cleared": "Manual tier cleared"
+    },
+    "scorecard": {
+      "title": "Scorecard",
+      "composite": "Composite",
+      "none": "No scorecard yet",
+      "noneHint": "Scorecards are calculated on the 1st of each month, or run one now.",
+      "trend": "Monthly scorecards",
+      "noMonthly": "No monthly scorecards yet.",
+      "period": "Period",
+      "tierChange": "Tier",
+      "run": "Run scorecard now",
+      "ran": "Scorecard calculated",
+      "monthly": "Monthly scorecard for {period}, calculated {date}",
+      "onDemand": "Calculated on request for {period} so far, {date}"
+    },
+    "recommend": {
+      "title": "Recommendations",
+      "basis": "Based on the {period} scorecard. Suggestions only; nothing is applied automatically.",
+      "hint": "Suggestions appear once the creator has a scorecard.",
+      "codes": {
+        "hybrid_higher_commission": {
+          "title": "Offer a hybrid deal with a higher commission",
+          "why": "Enrolment rate is {enrollment_rate} across {leads} leads."
+        },
+        "fixed_awareness_only": {
+          "title": "Use fixed fees for awareness only",
+          "why": "Content scores {content} but enrolment rate is only {enrollment_rate}."
+        },
+        "require_concept_approval": {
+          "title": "Require concept approval before production",
+          "why": "Only {on_time_rate} of {due} deliverables went live on time."
+        },
+        "compliance_preapproval": {
+          "title": "Pre-approve every post for compliance",
+          "why": "Compliance score is {compliance}."
+        },
+        "clearer_briefs": {
+          "title": "Send clearer briefs",
+          "why": "Deliverables needed {avg_revisions} revisions on average."
+        },
+        "renew_longer_term": {
+          "title": "Renew for a longer term",
+          "why": "Economics score is {economics}."
+        },
+        "tier_benefit_uplift": {
+          "title": "Apply the tier commission uplift",
+          "why": "{tier} tier: +{uplift_pct}% commission is suggested for new deals."
+        },
+        "not_enough_data": {
+          "title": "Not enough data yet",
+          "why": "Run a scorecard once the creator has deliverables or leads."
+        }
+      }
+    },
+    "home": {
+      "tier": "You're in the {tier} tier",
+      "noTier": "No tier yet",
+      "score": "Score {score} ({period})",
+      "noScore": "Your first scorecard arrives on the 1st of next month.",
+      "next": "To reach {tier}",
+      "unlocks": "Unlocks: {list}",
+      "top": "You're in the top tier. Keep it up.",
+      "rules": {
+        "min_score": "Score {actual} of {required}",
+        "min_enrollments_90d": "{actual} of {required} enrolments in 90 days",
+        "min_months_active": "{actual} of {required} months active",
+        "min_compliance": "Compliance {actual} of {required}"
+      }
+    },
+    "programme": {
+      "title": "Scorecards",
+      "subtitle": "Monthly scorecards for every creator, with tier changes.",
+      "creator": "Creator",
+      "changed": "Tier change",
+      "periods": "Period",
+      "empty": "No scorecards for this period",
+      "emptyHint": "Monthly scorecards are calculated on the 1st of each month."
+    },
+    "uplift": {
+      "offer": "{tier} tier suggests +{pct}% commission for new deals.",
+      "apply": "Apply +{pct}%",
+      "applied": "Uplift applied to the draft. Review and save."
+    },
+    "errors": {
+      "rankTaken": "Another active tier already has this rank.",
+      "invalidTier": "Check the tier's rules and benefits.",
+      "pastDate": "Choose an end date in the future.",
+      "reason": "Say why (at least 3 characters)."
+    }
+  },
+  "compliance": {
+    "title": "Compliance",
+    "subtitle": "Obligations from every deal: going live on time, disclosure, metrics and brief acknowledgement.",
+    "rate": "{pct}% met",
+    "metOf": "{met} of {total}",
+    "list": "Obligations",
+    "deliverable": "Deliverable",
+    "obligation": "Obligation",
+    "due": "Due",
+    "statusLabel": "Status",
+    "empty": "No obligations yet",
+    "emptyHint": "Obligations appear once the creator has deliverables.",
+    "kinds": {
+      "live_on_time": "Live on time",
+      "disclosure": "Disclosure",
+      "metrics_reported": "Metrics reported",
+      "brief_acknowledged": "Brief acknowledged"
+    },
+    "status": {
+      "met": "Met",
+      "missed": "Missed",
+      "open": "Open",
+      "waived": "Waived"
+    }
+  },
+  "privacy": {
+    "title": "Privacy and data",
+    "subtitle": "Download your data, review your communication consents or ask us to delete your account.",
+    "open": "Manage my data",
+    "history": "Requests",
+    "kinds": {
+      "export": "Data export",
+      "deletion": "Account deletion"
+    },
+    "statuses": {
+      "requested": "Requested",
+      "ready": "Ready",
+      "completed": "Completed",
+      "rejected": "Rejected",
+      "expired": "Expired",
+      "purged": "Purged"
+    },
+    "parts": {
+      "profile": "profile",
+      "platforms": "platforms",
+      "media_kit": "media kit",
+      "avatar": "photo",
+      "notification_preferences": "notification preferences",
+      "messages": "message text",
+      "ledger": "earnings ledger",
+      "payouts": "payouts",
+      "invoices": "invoices",
+      "tds": "TDS records",
+      "contracts": "signed contracts",
+      "kyc": "KYC (PAN and bank)"
+    },
+    "export": {
+      "title": "Download my data",
+      "hint": "A JSON file with your profile, deals, contracts, content, links, lead counts, earnings, payouts and messages. One export a day; the download link lasts 7 days.",
+      "request": "Prepare my data",
+      "download": "Download",
+      "expires": "Available until {date}"
+    },
+    "deletion": {
+      "title": "Delete my account",
+      "hint": "We erase your profile, platforms, media kit, photo and message text, and you can no longer sign in. Earnings, payouts, invoices, tax records and signed contracts are kept for as long as the law requires, then removed. Open deals and money owed must be settled first.",
+      "request": "Request deletion",
+      "reason": "Why are you leaving? (optional)",
+      "confirmTitle": "Request account deletion?",
+      "confirmHint": "Our team reviews the request and lets you know the outcome. You can keep using the portal until then.",
+      "pending": "Deletion requested on {date}. Our team will let you know the outcome."
+    },
+    "consents": {
+      "title": "Communication consents",
+      "hint": "Every change to your notification and digest choices, newest first.",
+      "none": "No changes yet. You get the default notifications.",
+      "digest": "Digest ({frequency})",
+      "on": "On",
+      "off": "Off"
+    },
+    "requested": {
+      "export": "Your data is ready to download.",
+      "deletion": "Deletion requested. Our team will let you know the outcome."
+    },
+    "errors": {
+      "exportDaily": "You can prepare one export a day. Use today's download.",
+      "deletionOpen": "A deletion request is already open.",
+      "openDeals": "Finish or end the open deals first.",
+      "balance": "Money is still owed either way. Settle it first.",
+      "decided": "This request has already been decided.",
+      "reason": "Add a note (at least 3 characters)."
+    },
+    "staff": {
+      "title": "Privacy requests",
+      "subtitle": "Data exports and deletion requests under the DPDP Act. Deletion requests wait here for a decision.",
+      "review": "Review",
+      "reviewTitle": "Deletion request from {name}",
+      "blockedDeals": "{count, plural, one {# deal is} other {# deals are}} still open. End them before approving.",
+      "blockedBalance": "{amount} is still owed. Settle it before approving.",
+      "erase": "Erased now",
+      "retain": "Kept",
+      "retainUntil": "{list}, until {date}",
+      "retainNone": "Nothing is kept.",
+      "note": "Note to the creator",
+      "approve": "Approve and erase",
+      "reject": "Reject",
+      "done": "Account erased and sign-in blocked",
+      "rejected": "Request rejected",
+      "purgeOn": "retained records purged on {date}",
+      "empty": "No privacy requests",
+      "emptyHint": "Requests appear here when creators ask for their data or to delete their account."
     }
   }
 }

@@ -374,9 +374,44 @@ export const SUPER_ADMIN: Guide = {
         {
           list: [
             "[System status](/admin/system): the job queue (notifications, deal creation after accepted offers…), scheduled tasks and sending providers. A job that keeps failing is retried with back-off; you can retry a dead job by hand.",
-            "[Audit log](/admin/audit): filter by person, entity and date. PAN and bank numbers are redacted in the log itself.",
+            "[Audit log](/admin/audit): filter by person, record type, action, record id and date; select a record id to see that record's whole history. PAN and bank numbers are redacted in the log itself.",
           ],
         },
+      ],
+    },
+    {
+      id: "tiers",
+      title: "Tiers and scorecards",
+      blocks: [
+        {
+          p: "[Settings → Tiers](/admin/settings/tiers) defines the creator tiers. The scorecard weights and thresholds are in the **Tiers and scorecard** group of [Settings](/admin/settings).",
+        },
+        {
+          list: [
+            "Each tier has a **rank** (higher is better; each active tier needs its own), **entry rules** (minimum composite score, enrolments in the last 90 days, months since approval, compliance score) and **benefits** (commission uplift suggested for new deals, early access to open campaigns, a payout cycle shown to Finance, and a note for the creator).",
+            "Scorecards run on the 1st of each month for every approved creator. A creator moves **up** at once to the highest tier whose rules they meet and moves **down** only after missing their tier's rules for the set number of months in a row (2 by default).",
+            "Early access: an open campaign is shown to creators in a tier with early access at once and to everyone else after that many days.",
+            "Turning a tier **inactive** stops new creators from reaching it; creators already in it move at the next monthly evaluation.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "privacy-requests",
+      title: "Privacy requests (DPDP)",
+      blocks: [
+        {
+          p: "[Privacy requests](/admin/privacy) (needs the privacy permission) lists every data export and deletion request. Exports are ready for the creator at once and need nothing from you.",
+        },
+        {
+          list: [
+            "**Review** a deletion request to see what would be erased now (profile, platforms, media kit, photo, preferences and the creator's message text) and what is kept until the legal retention period ends (earnings ledger, payouts, invoices, TDS, signed contracts and the KYC they need).",
+            "A request is **blocked** while a deal is still open or money is owed either way: end the deals or settle the balance first.",
+            "**Approve and erase** needs a note to the creator; the account is erased, signed out and can no longer sign in. **Reject** also needs a note. Both are recorded in the audit log and the creator is notified.",
+            "Retention runs nightly: click details are anonymised, old sign-in records and audit entries removed, and kept KYC removed on the purge date (Settings → Retention and privacy).",
+          ],
+        },
+        { warning: "Erasing cannot be undone. Check the creator has no dispute or open claim before approving." },
       ],
     },
     {
@@ -436,6 +471,25 @@ export const INFLUENCER_MANAGER: Guide = {
             "**Invite** the creator to sign up; they get an email and land in the onboarding wizard.",
             "**Start a deal** from the Deals tab.",
             "Download the **media kit** (PDF) to share with partners.",
+            "Check the **Scorecard** and **Compliance** tabs before a renewal (see [Scorecards](#scorecards)).",
+          ],
+        },
+      ],
+    },
+    {
+      id: "scorecards",
+      title: "Scorecards, compliance and recommendations",
+      blocks: [
+        {
+          p: "Every approved creator gets a scorecard on the 1st of each month for the month before: delivery, content, lead quality, economics and compliance, each 0–100, and a weighted composite. A part with no data is left out rather than scored zero.",
+        },
+        {
+          list: [
+            "The creator's **Scorecard** tab shows the latest scores, the figures behind them, the monthly trend and tier changes. **Run scorecard now** calculates a fresh one (it doesn't change the tier).",
+            "**Set tier by hand** (with a reason and an end date) for special cases; the monthly evaluation takes over again after that date. The tier history lists every change and why.",
+            "The **Compliance** tab lists each deliverable's obligations: live on time, disclosure, metrics reported and brief acknowledged, each met, missed, open or waived.",
+            "[Analytics → Scorecards](/admin/analytics/scorecards) lists every creator's monthly scorecard and tier change for a chosen month.",
+            "When you draft a new deal, the **Terms** tab shows **Recommendations** from the latest scorecard (for example a hybrid deal with a higher commission when enrolments are strong, or concept approval when deliverables run late) and, for a tier with a commission uplift, a button to apply it. They are suggestions; nothing changes until you save.",
           ],
         },
       ],
@@ -984,6 +1038,7 @@ export const FINANCE: Guide = {
         },
         {
           list: [
+            "If tiers have a payout cycle (Settings → Tiers), the prepare card lists them, so you can run batches for faster-cycle tiers more often. Nothing is paid automatically.",
             "Marking paid posts the TDS, GST and payout lines, records TDS for the quarter, and sends the creator a payment advice PDF and a notification.",
             "A draft or approved batch can be **cancelled** with a reason until it is sent to the bank.",
             "References: batches `PB-<FY>-0001`, payouts `PO-<FY>-00001`.",

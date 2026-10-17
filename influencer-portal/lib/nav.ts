@@ -99,6 +99,7 @@ export const STAFF_NAV: StaffNavItem[] = [
     icon: "settings",
     anyOf: ["settings.read", "settings.write", "tax.manage", "tier.manage"],
   },
+  { href: "/admin/privacy", labelKey: "nav.admin.privacy", icon: "shield", anyOf: ["privacy.manage"] },
   { href: "/admin/audit", labelKey: "nav.admin.audit", icon: "scroll", anyOf: ["audit.read"] },
   { href: "/admin/system", labelKey: "nav.admin.system", icon: "activity", anyOf: ["system.read"] },
   { href: "/admin/help", labelKey: "nav.admin.help", icon: "help" },

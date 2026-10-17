@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { useAction } from "@/components/ui/use-action";
+import { applyCommissionUplift } from "@/lib/scorecards/uplift";
 import { savePreset, updateDeal } from "@/lib/actions/deals";
 import type { EngineContext } from "@/lib/compensation/engine";
 import { compConfig, type CompConfig } from "@/lib/compensation/schema";
@@ -112,10 +113,13 @@ export function TermsEditor({
   initial,
   target,
   simulator,
+  uplift = null,
 }: {
   initial: CompConfig;
   target: EditorTarget;
   simulator: SimulatorProps;
+  /** The creator's tier commission uplift, offered for new deals (staff apply it, then save). */
+  uplift?: { tier: string; pct: number } | null;
 }) {
   const t = useTranslations();
   const router = useRouter();
@@ -127,6 +131,7 @@ export function TermsEditor({
   const valid = useMemo(() => (issues.length ? null : compConfig.parse(config)), [issues, config]);
   const invalidSections = useMemo(() => new Set(issues.map((i) => i.section)), [issues]);
   const dirty = JSON.stringify(config) !== JSON.stringify(initial);
+  const [upliftApplied, setUpliftApplied] = useState(false);
 
   const save = () => {
     if (!valid) return;
@@ -163,6 +168,23 @@ export function TermsEditor({
                 />
               </Field>
             </div>
+          </Card>
+        ) : null}
+        {uplift && config.commission.length > 0 ? (
+          <Card className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm">{t("insight.uplift.offer", { tier: uplift.tier, pct: uplift.pct })}</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={upliftApplied}
+              onClick={() => {
+                setConfig((c) => applyCommissionUplift(c, uplift.pct));
+                setUpliftApplied(true);
+              }}
+            >
+              {upliftApplied ? t("insight.uplift.applied") : t("insight.uplift.apply", { pct: uplift.pct })}
+            </Button>
           </Card>
         ) : null}
         <IssueList issues={issues} />

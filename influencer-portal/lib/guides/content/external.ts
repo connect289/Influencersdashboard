@@ -86,6 +86,7 @@ export const CREATOR: Guide = {
             "**Export CSV** downloads these figures (counts only, never students' details).",
             "Test enquiries are not counted. Your figures update within minutes of a new lead.",
             "Turn on **Show me on the leaderboard** in your profile to see your position by enrolments among the creators who also show theirs. You only ever see your own position and figures.",
+            "**Your tier** shows your current tier, your latest score and what you still need for the next tier. Tiers are reviewed after each monthly scorecard: you move up as soon as you qualify and only move down after missing your tier's rules for a couple of months in a row. Higher tiers can bring early access to new campaigns, a higher commission on new deals and a faster payout cycle.",
           ],
         },
       ],
@@ -351,11 +352,27 @@ export const CREATOR: Guide = {
       ],
     },
     {
+      id: "my-data",
+      title: "Your data and privacy",
+      blocks: [
+        {
+          p: "[Account → Manage my data](/creator/account/privacy) is where you control your own data under India's DPDP Act.",
+        },
+        {
+          list: [
+            "**Download my data** prepares a JSON file with your profile, platforms, deals, contracts, content, links, lead counts, earnings, payouts, messages and notifications. It is ready at once and can be downloaded for 7 days; you can prepare one a day. It never contains students' contact details.",
+            "**Communication consents** lists every change you have made to your notification channels and digest, newest first. Change them in notification settings.",
+            "**Request deletion** asks our team to delete your account. Open deals must end and any money owed must be settled first. We then erase your profile, platforms, media kit, photo and message text and you can no longer sign in. Earnings, payouts, invoices, tax records and signed contracts are kept for as long as the law requires, then removed.",
+          ],
+        },
+      ],
+    },
+    {
       id: "account",
       title: "Your account",
       blocks: [
         {
-          p: "[Account](/creator/account) shows where you are signed in. Sign out any device you do not recognise.",
+          p: "[Account](/creator/account) shows where you are signed in. Sign out any device you do not recognise. **Manage my data** opens [your data and privacy](#my-data).",
         },
       ],
     },

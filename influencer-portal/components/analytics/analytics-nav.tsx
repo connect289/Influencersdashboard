@@ -7,6 +7,7 @@ const AREAS = [
   { key: "overview", href: "/admin/analytics", perms: ["analytics.read"] },
   { key: "campaigns", href: "/admin/analytics/campaigns", perms: ["analytics.read"] },
   { key: "finance", href: "/admin/analytics/finance", perms: ["analytics.read", "ledger.read"] },
+  { key: "scorecards", href: "/admin/analytics/scorecards", perms: ["analytics.read", "creator.read"] },
 ] as const satisfies readonly { key: string; href: string; perms: readonly Permission[] }[];
 
 export async function AnalyticsNav({

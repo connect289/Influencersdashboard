@@ -2,8 +2,8 @@
 
 ## Now
 
-- **Current phase:** Phase 10 (Scorecards, tiers, compliance and polish), step 10.1 (plan). Phase 9 (Communication)
-  complete and tagged `phase-9-done`.
+- **Current phase:** Phase 10 (Scorecards, tiers, compliance and polish), step 10.4 (passes). Steps 10.1 to 10.3
+  done. Phase 9 (Communication) complete and tagged `phase-9-done`.
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
 - **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.

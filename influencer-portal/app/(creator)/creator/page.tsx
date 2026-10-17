@@ -1,3 +1,5 @@
+import { TierCard } from "@/components/scorecards/tier-card";
+import { loadTierStatus } from "@/lib/scorecards/data";
 import { AnnouncementsCard } from "@/components/notifications/announcements-card";
 import { loadMyAnnouncements } from "@/lib/messaging/data";
 import Link from "next/link";
@@ -62,12 +64,13 @@ export default async function CreatorHome({
   const t = await getTranslations();
   const today = istToday();
   const range = parseRange(await searchParams, today);
-  const [terms, onboarding, dash, earnings, announcements] = await Promise.all([
+  const [terms, onboarding, dash, earnings, announcements, tierStatus] = await Promise.all([
     supabase.rpc("terms_pending"),
     supabase.rpc("onboarding_state"),
     loadCreatorDashboard(supabase, me.creatorId, range).catch(() => null),
     loadEarnings(supabase, me.creatorId).catch(() => null),
     loadMyAnnouncements(supabase, 3),
+    loadTierStatus(supabase, me.creatorId),
   ]);
   const state = onboardingState.safeParse(onboarding.data);
   const approved = !(state.success && !state.data.approved);
@@ -127,6 +130,7 @@ export default async function CreatorHome({
       />
       <div className="flex flex-col gap-4">
         <AnnouncementsCard rows={announcements} />
+        {approved ? <TierCard status={tierStatus} /> : null}
         <Card>
           <CardHeader
             title={t("home.actionCentre")}

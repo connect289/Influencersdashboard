@@ -23,6 +23,7 @@ describe("staff navigation", () => {
       "/admin/kyc",
       "/admin/staff",
       "/admin/settings",
+      "/admin/privacy",
       "/admin/audit",
       "/admin/system",
       "/admin/help",

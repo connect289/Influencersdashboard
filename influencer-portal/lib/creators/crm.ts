@@ -424,6 +424,8 @@ export const CREATOR_TABS = [
   "deals",
   "links",
   "analytics",
+  "scorecard",
+  "compliance",
   "agencies",
   "history",
 ] as const;

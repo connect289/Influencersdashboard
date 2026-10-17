@@ -1,3 +1,5 @@
+import { CompliancePanel } from "@/components/compliance/compliance-panel";
+import { ScorecardPanel } from "@/components/scorecards/scorecard-panel";
 import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -58,7 +60,9 @@ export default async function Creator360({
       (x !== "messages" || p.has("message.read")) &&
       (x !== "deals" || p.has("deal.read")) &&
       (x !== "links" || p.has("creator.read")) &&
-      (x !== "analytics" || p.has("analytics.read")),
+      (x !== "analytics" || p.has("analytics.read")) &&
+      (x !== "scorecard" || p.has("creator.read")) &&
+      (x !== "compliance" || p.has("creator.read")),
   );
   const search = await searchParams;
   const requested = search.tab as CreatorTab | undefined;
@@ -349,6 +353,17 @@ export default async function Creator360({
         </p>
       </div>
     );
+  } else if (tab === "scorecard") {
+    body = (
+      <ScorecardPanel
+        db={supabase}
+        creatorId={creatorId}
+        canRun={p.has("creator.write")}
+        canManageTier={p.has("tier.manage")}
+      />
+    );
+  } else if (tab === "compliance") {
+    body = <CompliancePanel db={supabase} creatorId={creatorId} hrefBase="/admin/content" />;
   } else if (tab === "analytics") {
     body = <CreatorAnalytics supabase={supabase} creatorId={creatorId} search={search} />;
   } else if (tab === "links") {

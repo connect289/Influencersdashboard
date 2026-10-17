@@ -1,3 +1,5 @@
+import { Recommendations } from "@/components/scorecards/recommendations";
+import { loadCreatorScorecards, loadTierStatus } from "@/lib/scorecards/data";
 import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -98,10 +100,28 @@ export default async function DealPage({
   if (tab === "terms") {
     const sim = await simulatorProps();
     if (draft && canWrite && !pending) {
+      // At renewal and for new deals: the creator's tier uplift and the scorecard's suggestions (staff decide).
+      const [scorecards, tierStatus] = await Promise.all([
+        amendmentDraft ? Promise.resolve(null) : loadCreatorScorecards(supabase, deal.creator_id).catch(() => null),
+        loadTierStatus(supabase, deal.creator_id),
+      ]);
+      const tier = tierStatus?.tiers.find((x) => x.id === tierStatus.tier_id) ?? null;
       body = (
         <div className="flex flex-col gap-4">
           {amendmentDraft ? <Banner tone="info">{t("deals.amendmentDraft")}</Banner> : null}
-          <TermsEditor initial={draft} target={{ kind: "deal", dealId: deal.id }} simulator={sim} />
+          {scorecards && scorecards.cards.length ? (
+            <Recommendations data={scorecards} tiers={tierStatus?.tiers ?? []} />
+          ) : null}
+          <TermsEditor
+            initial={draft}
+            target={{ kind: "deal", dealId: deal.id }}
+            simulator={sim}
+            uplift={
+              !amendmentDraft && tier?.benefits.commission_uplift_pct
+                ? { tier: tier.name, pct: tier.benefits.commission_uplift_pct }
+                : null
+            }
+          />
         </div>
       );
     } else {

@@ -224,7 +224,8 @@ create or replace function inf.tiers_list() returns jsonb
 language sql stable security definer set search_path = '' as $$
   select coalesce(jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name, 'rank', t.rank, 'rules', t.entry_rules,
                                                'benefits', t.benefits, 'active', t.active,
-                                               'creators', (select count(*) from inf.creators c where c.tier_id = t.id))
+                                               'creators', case when inf.has_perm('creator.read')
+                                                                then (select count(*) from inf.creators c where c.tier_id = t.id) end)
                             order by t.rank), '[]')
     from inf.tiers t
    where (t.active or inf.has_perm('tier.manage'))
@@ -301,7 +302,7 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- A manual tier (staff with tier.manage), holding until a date; null tier = no tier.
-create or replace function inf.tier_set_manual(p_creator uuid, p_tier uuid, p_until date, p_reason text) returns void
+create or replace function inf.tier_set_manual(p_creator uuid, p_until date, p_reason text, p_tier uuid default null) returns void
 language plpgsql security definer set search_path = '' as $$
 declare v_before uuid;
 begin
@@ -654,7 +655,7 @@ create trigger messages_append_only before update or delete on inf.messages for 
 -- platforms, media kit, preferences and the creator's message text, blocks the account and ends its sessions; keeps
 -- financial and contract records (with the KYC they need) until purge_on, when the nightly job purges the KYC. The
 -- server action then removes the sign-in account.
-create or replace function inf.privacy_deletion_decide(p_request uuid, p_approve boolean, p_note text, p_purge_on date) returns uuid
+create or replace function inf.privacy_deletion_decide(p_request uuid, p_approve boolean, p_note text, p_purge_on date default null) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare r inf.privacy_requests; v_user uuid; f jsonb;
 begin
@@ -708,6 +709,9 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- ---------------------------------------------------------------------------------------------------------------
+-- The audit viewer's record filter (one record's whole history, newest first).
+create index if not exists audit_log_record_idx on inf.audit_log (entity_id, id desc);
+
 -- Retention (setting retention.privacy), run nightly
 -- ---------------------------------------------------------------------------------------------------------------
 -- The audit and sign-in logs are append-only; only the retention run (transaction flag inf.retention_purge) may delete
@@ -822,7 +826,7 @@ insert into inf.client_grants (object_type, object_name, grantee, privilege) val
   ('function', 'inf.tiers_list()', 'authenticated', 'execute'),
   ('function', 'inf.scorecard_facts(uuid, date, date)', 'authenticated', 'execute'),
   ('function', 'inf.scorecard_save(jsonb)', 'authenticated', 'execute'),
-  ('function', 'inf.tier_set_manual(uuid, uuid, date, text)', 'authenticated', 'execute'),
+  ('function', 'inf.tier_set_manual(uuid, date, text, uuid)', 'authenticated', 'execute'),
   ('function', 'inf.tier_clear_manual(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.creator_scorecards(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.tier_status(uuid)', 'authenticated', 'execute'),

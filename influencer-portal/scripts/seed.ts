@@ -4,7 +4,8 @@
 // terms, a few notifications and jobs, and a demo deal with its contract, brief and deliverables. Later phases extend
 // it with leads (Phase 6: demo links and synthetic test leads, attributed by the real sweep) and ledger history
 // (Phase 7: Riya's verified KYC, ledger lines and one paid payout, made through the same database functions Finance uses)
-// and conversations, an announcement, a template and a webhook endpoint (Phase 9).
+// and conversations, an announcement, a template and a webhook endpoint (Phase 9), and three tiers with last month's
+// scorecards (Phase 10, through the monthly scorecard path).
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -18,6 +19,10 @@ import { DEFAULT_TDS_SECTIONS } from "@/lib/compensation/tax";
 import type { Database } from "@/lib/database.types";
 import { buildPayout } from "@/lib/ledger/payout";
 import { runDealWith } from "@/lib/ledger/runner-core";
+import { istToday } from "@/lib/format";
+import { previousPeriod } from "@/lib/scorecards/period";
+import { runScorecardWith } from "@/lib/scorecards/run-core";
+import { SETTINGS } from "@/lib/settings/registry";
 
 function loadEnv(): Record<string, string> {
   const out: Record<string, string> = {};
@@ -276,6 +281,54 @@ async function seedCommunication(creatorId: string, dealId: string) {
   } finally {
     await sql.end();
   }
+}
+
+/**
+ * Phase 10: Bronze, Silver and Gold tiers (made by the Super Admin through inf.tier_save), then last month's scorecard
+ * for every active demo creator through the same runner and save as the monthly job, which also places them in a tier.
+ */
+async function seedInsight() {
+  const sql = new pg.Client({ connectionString: localDbUrl });
+  await sql.connect();
+  try {
+    const have = await sql.query("select 1 from inf.tiers limit 1");
+    if (!have.rowCount)
+      await asStaff(sql, "admin@example.test", async () => {
+        for (const t of [
+          { name: "Bronze", rank: 1, benefits: { note: "Access to every open campaign." } },
+          {
+            name: "Silver",
+            rank: 2,
+            entry_rules: { min_score: 55, min_months_active: 0 },
+            benefits: { commission_uplift_pct: 5, early_access_days: 3, payout_cycle: "fortnightly" },
+          },
+          {
+            name: "Gold",
+            rank: 3,
+            entry_rules: { min_score: 80, min_enrollments_90d: 10, min_compliance: 80 },
+            benefits: { commission_uplift_pct: 10, early_access_days: 7, payout_cycle: "weekly" },
+          },
+        ])
+          await sql.query("select inf.tier_save($1)", [JSON.stringify(t)]);
+      });
+  } finally {
+    await sql.end();
+  }
+  const today = istToday();
+  const period = previousPeriod(today);
+  // Demo creators are test accounts, which the monthly job skips (inf.scorecards_due), so pick the active ones here.
+  const active = await db.from("creators").select("id").eq("status", "active").not("approved_at", "is", null);
+  const done = await db.from("scorecards").select("creator_id").eq("kind", "monthly").eq("period", period);
+  const skip = new Set((done.data ?? []).map((r) => r.creator_id));
+  for (const { id: creatorId } of (active.data ?? []).filter((r) => !skip.has(r.id)))
+    await runScorecardWith({
+      db,
+      creatorId,
+      period,
+      kind: "monthly",
+      today,
+      weights: SETTINGS["scorecard.weights"].default,
+    });
 }
 
 async function seedFinance(creatorId: string, dealId: string) {
@@ -836,6 +889,7 @@ async function main() {
   if (riya.data && demo.data) {
     await seedFinance(riya.data.id, demo.data.id);
     await seedCommunication(riya.data.id, demo.data.id);
+    await seedInsight();
     // The demo deal's own ledger run (posts nothing until the contract is countersigned; records committed spend).
     await runDealWith(db, demo.data.id, new Date().toISOString());
   }

@@ -13,6 +13,12 @@ export const auditFilterSchema = z.object({
     .optional()
     .catch(undefined),
   actor: z.uuid().optional().catch(undefined),
+  /** One record's id (a creator, deal, payout…), for its whole history. */
+  record: z
+    .string()
+    .regex(/^[A-Za-z0-9_.:-]{1,80}$/)
+    .optional()
+    .catch(undefined),
   from: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)

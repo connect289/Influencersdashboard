@@ -4,15 +4,17 @@
 import type { Scorecard } from "./score";
 import type { Tier } from "./tiers";
 
-export type RecommendationCode =
-  | "hybrid_higher_commission"
-  | "fixed_awareness_only"
-  | "require_concept_approval"
-  | "compliance_preapproval"
-  | "clearer_briefs"
-  | "renew_longer_term"
-  | "tier_benefit_uplift"
-  | "not_enough_data";
+export const RECOMMENDATION_CODES = [
+  "hybrid_higher_commission",
+  "fixed_awareness_only",
+  "require_concept_approval",
+  "compliance_preapproval",
+  "clearer_briefs",
+  "renew_longer_term",
+  "tier_benefit_uplift",
+  "not_enough_data",
+] as const;
+export type RecommendationCode = (typeof RECOMMENDATION_CODES)[number];
 
 export interface Recommendation {
   code: RecommendationCode;

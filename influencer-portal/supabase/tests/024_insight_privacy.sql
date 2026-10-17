@@ -3,7 +3,7 @@
 -- financial records and blanks only the creator's own message text, and that append-only tables stay append-only.
 begin;
 \ir _helpers.psql
-select plan(60);
+select plan(61);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('sam', array['super_admin']);
@@ -60,6 +60,8 @@ insert into ids select 'gold', inf.tier_save('{"name":"Gold","rank":3,"entry_rul
 select throws_ok($$ select inf.tier_save('{"name":"Clash","rank":2}') $$, '22023', null, 'two active tiers cannot share a rank');
 select tests.as_person('riya');
 select is(jsonb_array_length(inf.tiers_list()) >= 3, true, 'creators read the active tiers');
+select is((select count(*) from jsonb_array_elements(inf.tiers_list()) e where e ->> 'creators' is not null), 0::bigint,
+          'creators do not see how many creators are in each tier');
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- Scorecard facts and saving
@@ -106,7 +108,7 @@ select is((select tier_id from inf.creators where id = (select id from ids where
 select tests.as_person('mona');
 select is(jsonb_array_length(inf.creator_scorecards((select id from ids where label = 'riya')) -> 'cards'), 2, 'staff see the creator''s cards');
 select is(inf.programme_scorecards((select label from per)) -> 0 ->> 'tier', 'Silver', 'and the programme list for a month');
-select throws_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), (select id from ids where label = 'gold'), current_date + 30, 'VIP') $$,
+select throws_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), current_date + 30, 'VIP', (select id from ids where label = 'gold')) $$,
                  '42501', null, 'manual tiers need tier.manage');
 
 select tests.as_person('riya');
@@ -118,10 +120,10 @@ select tests.as_person('arjun');
 select throws_ok($$ select inf.tier_status((select id from ids where label = 'riya')) $$, '42501', null, 'nor anyone else''s');
 
 select tests.as_person('sam');
-select throws_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), (select id from ids where label = 'gold'), current_date + 30, 'x') $$,
+select throws_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), current_date + 30, 'x', (select id from ids where label = 'gold')) $$,
                  '22023', null, 'a manual tier needs a reason');
-select lives_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), (select id from ids where label = 'gold'), current_date + 30,
-                     'Flagship partner this quarter') $$, 'the Super Admin sets a manual tier');
+select lives_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), current_date + 30, 'Flagship partner this quarter',
+                     (select id from ids where label = 'gold')) $$, 'the Super Admin sets a manual tier');
 select tests.reset();
 select is((select reason || ':' || note from inf.tier_history where creator_id = (select id from ids where label = 'riya') order by id desc limit 1),
           'manual:Flagship partner this quarter', 'with its reason in the history');
@@ -130,7 +132,7 @@ select is((select reason || ':' || note from inf.tier_history where creator_id =
 -- Early campaign access (Gold has none, Silver 3 days: the longest is 3)
 -- ---------------------------------------------------------------------------------------------------------------
 select tests.as_person('sam');
-select inf.tier_set_manual((select id from ids where label = 'riya'), (select id from ids where label = 'silver'), current_date + 30, 'Back to Silver');
+select inf.tier_set_manual((select id from ids where label = 'riya'), current_date + 30, 'Back to Silver', (select id from ids where label = 'silver'));
 select tests.reset();
 insert into inf.campaigns (id, name, objective, status, visibility, created_by)
 values ((select id from ids where label = 'campaign'), 'Early access drive', 'leads', 'open', 'open', (select user_id from tests.people where label = 'mona'));
