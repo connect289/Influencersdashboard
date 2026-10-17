@@ -1,0 +1,317 @@
+/*
+ * Eduwit design tokens (spec 10.2, 10.5).
+ * Brand: navy #062F5B and amber #F3A503, sampled from the logo (D-007).
+ * Two first-class themes: dark "luminous" and light "daylight" ([data-theme]).
+ * Two design concepts ([data-concept="a" | "b"]) share the semantic tokens; concepts change type, radius, depth and
+ * atmosphere, not meaning. Every text/background pair below is contrast-checked to WCAG 2.1 AA (docs/design/TOKENS.md).
+ */
+
+:root {
+  /* ---------- Brand scales (theme independent) ---------- */
+  --navy-50: #eef5fe;
+  --navy-100: #d6e7fb;
+  --navy-200: #a9cdf7;
+  --navy-300: #73aef0;
+  --navy-400: #3d8be0;
+  --navy-500: #1d6bc0;
+  --navy-600: #155ea8;
+  --navy-700: #0b3f78;
+  --navy-800: #062f5b; /* brand */
+  --navy-900: #041a33;
+  --navy-950: #030913;
+
+  --amber-50: #fff8eb;
+  --amber-100: #fff0d1;
+  --amber-200: #ffdf9e;
+  --amber-300: #ffcc66;
+  --amber-400: #ffba2e;
+  --amber-500: #f3a503; /* brand */
+  --amber-600: #c48000;
+  --amber-700: #94600a; /* amber ink: the only amber allowed as text on light surfaces */
+  --amber-800: #8a5a00;
+  --amber-900: #5c3b00;
+
+  /* Luminous accents for light effects (gradients, glows, shader uniforms). Never used for body text. */
+  --lumen-amber: #ffb81f;
+  --lumen-gold: #ffe3a1;
+  --lumen-azure: #4c9bff;
+  --lumen-ice: #8fdcff;
+  --lumen-indigo: #2a3a8f;
+
+  /* ---------- Type ---------- */
+  --font-display: var(--font-bricolage), "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter), "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Fluid type scale, 360px → 1440px viewports (mobile first). */
+  --text-2xs: 0.6875rem; /* 11 */
+  --text-xs: 0.75rem; /* 12 */
+  --text-sm: 0.875rem; /* 14 */
+  --text-base: 1rem; /* 16 */
+  --text-lg: 1.125rem; /* 18 */
+  --text-xl: clamp(1.25rem, 1.16rem + 0.37vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1.33rem + 0.74vw, 2rem);
+  --text-3xl: clamp(1.875rem, 1.56rem + 1.39vw, 2.75rem);
+  --text-4xl: clamp(2.25rem, 1.7rem + 2.41vw, 3.75rem);
+  --text-5xl: clamp(2.625rem, 1.78rem + 3.7vw, 5rem);
+  --text-6xl: clamp(3rem, 1.75rem + 5.56vw, 6.5rem);
+
+  --leading-tight: 1.04;
+  --leading-snug: 1.18;
+  --leading-normal: 1.55;
+  --tracking-display: -0.035em;
+  --tracking-tight: -0.015em;
+  --tracking-caps: 0.12em;
+
+  /* ---------- Space (4px grid) ---------- */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
+  --gutter: clamp(1rem, 0.6rem + 1.8vw, 2rem); /* 16px side gutter on phones */
+  --content-max: 76rem;
+
+  /* ---------- Radius ---------- */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-2xl: 36px;
+  --radius-pill: 999px;
+
+  /* ---------- Blur ---------- */
+  --blur-sm: 8px;
+  --blur-md: 16px;
+  --blur-lg: 28px;
+  --blur-xl: 48px;
+
+  /* ---------- Motion ---------- */
+  --dur-instant: 80ms;
+  --dur-fast: 160ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+  --dur-slower: 700ms;
+  --dur-cinematic: 1100ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1.15);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: linear(
+    0,
+    0.009,
+    0.035 2.1%,
+    0.141,
+    0.281 6.7%,
+    0.723 12.9%,
+    0.938 16.7%,
+    1.017,
+    1.077,
+    1.121,
+    1.149 24.3%,
+    1.159,
+    1.163,
+    1.161,
+    1.154 29.9%,
+    1.129 32.8%,
+    1.051 39.6%,
+    1.017 43.1%,
+    0.991,
+    0.977 51%,
+    0.974 53.8%,
+    0.975 57.1%,
+    0.997 69.8%,
+    1.003 76.9%,
+    1
+  );
+
+  /* ---------- Z layers ---------- */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 100;
+  --z-header: 200;
+  --z-dock: 300; /* mobile bottom action bar, Witty chat head */
+  --z-overlay: 400;
+  --z-panel: 500; /* detail panel, bottom sheets */
+  --z-modal: 600;
+  --z-toast: 700;
+  --z-skip: 800;
+}
+
+/* ---------- Dark "luminous" theme ---------- */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --show-dark: inline-flex;
+  --show-light: none;
+  --bg: #030913;
+  --bg-elev: #07111f;
+  --bg-sunken: #02060d;
+  --surface: rgb(14 29 51 / 0.62); /* translucent panel; solid fallback below */
+  --surface-solid: #0e1d33;
+  --surface-hover: rgb(22 42 72 / 0.7);
+  --surface-strong: rgb(20 38 66 / 0.86);
+  --border: rgb(148 190 255 / 0.13);
+  --border-strong: rgb(148 190 255 / 0.26);
+  --hairline-lumen: linear-gradient(
+    135deg,
+    rgb(255 210 120 / 0.55),
+    rgb(120 180 255 / 0.25) 45%,
+    rgb(255 255 255 / 0.06)
+  );
+
+  --text: #eaf1fb;
+  --text-muted: #a6b6cc;
+  --text-subtle: #8597b0;
+  --text-inverse: #030913;
+
+  --primary: #f3a503;
+  --primary-hover: #ffb81f;
+  --on-primary: #1a1200;
+  --secondary: #1d6bc0;
+  --on-secondary: #ffffff;
+  --accent: #6aaef5;
+  --accent-soft: rgb(76 155 255 / 0.14);
+  --amber-soft: rgb(243 165 3 / 0.14);
+  --amber-text: #ffc44d;
+
+  --success: #3ddc97;
+  --success-soft: rgb(61 220 151 / 0.12);
+  --warning: #ffc44d;
+  --warning-soft: rgb(255 196 77 / 0.12);
+  --danger: #ff8a8a;
+  --danger-soft: rgb(255 138 138 / 0.12);
+  --info: #8fdcff;
+
+  --focus: #ffc94d;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-2: 0 8px 24px -8px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.4);
+  --shadow-3: 0 24px 60px -16px rgb(0 0 0 / 0.75), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+  --inner-light: inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 0 24px rgb(120 170 255 / 0.04);
+  --glow-amber: 0 0 0 1px rgb(243 165 3 / 0.35), 0 0 32px -4px rgb(243 165 3 / 0.45);
+  --glow-azure: 0 0 0 1px rgb(76 155 255 / 0.35), 0 0 32px -4px rgb(76 155 255 / 0.4);
+  --grain-opacity: 0.06;
+
+  --aurora-1: #ffb81f;
+  --aurora-2: #2a6fdb;
+  --aurora-3: #0b3f78;
+  --aurora-base: #030913;
+  --skeleton: linear-gradient(
+    100deg,
+    rgb(255 255 255 / 0.04) 30%,
+    rgb(255 196 77 / 0.1) 50%,
+    rgb(255 255 255 / 0.04) 70%
+  );
+}
+
+/* ---------- Light "daylight" theme ---------- */
+[data-theme="light"] {
+  color-scheme: light;
+  --show-dark: none;
+  --show-light: inline-flex;
+  --bg: #f6f8fc;
+  --bg-elev: #ffffff;
+  --bg-sunken: #eef2f8;
+  --surface: rgb(255 255 255 / 0.74);
+  --surface-solid: #ffffff;
+  --surface-hover: rgb(255 255 255 / 0.92);
+  --surface-strong: rgb(255 255 255 / 0.94);
+  --border: rgb(6 47 91 / 0.1);
+  --border-strong: rgb(6 47 91 / 0.2);
+  --hairline-lumen: linear-gradient(135deg, rgb(243 165 3 / 0.55), rgb(29 107 192 / 0.25) 45%, rgb(6 47 91 / 0.06));
+
+  --text: #0a1a30;
+  --text-muted: #41526a;
+  --text-subtle: #5b6b82;
+  --text-inverse: #ffffff;
+
+  --primary: #062f5b;
+  --primary-hover: #0b3f78;
+  --on-primary: #ffffff;
+  --secondary: #f3a503;
+  --on-secondary: #1a1200;
+  --accent: #155ea8;
+  --accent-soft: rgb(29 107 192 / 0.1);
+  --amber-soft: rgb(243 165 3 / 0.16);
+  --amber-text: #94600a;
+
+  --success: #0f7a4b;
+  --success-soft: rgb(15 122 75 / 0.1);
+  --warning: #8a5a00;
+  --warning-soft: #fff4dc;
+  --danger: #c2281d;
+  --danger-soft: rgb(194 40 29 / 0.08);
+  --info: #155ea8;
+
+  --focus: #155ea8;
+  --focus-ring: 0 0 0 2px var(--bg-elev), 0 0 0 4px var(--focus);
+
+  --shadow-1: 0 1px 2px rgb(6 47 91 / 0.08);
+  --shadow-2: 0 10px 30px -12px rgb(6 47 91 / 0.22), 0 2px 6px rgb(6 47 91 / 0.06);
+  --shadow-3: 0 30px 70px -24px rgb(6 47 91 / 0.32), 0 10px 24px -12px rgb(6 47 91 / 0.12);
+  --inner-light: inset 0 1px 0 rgb(255 255 255 / 0.9), inset 0 0 24px rgb(255 255 255 / 0.4);
+  --glow-amber: 0 0 0 1px rgb(243 165 3 / 0.45), 0 10px 32px -8px rgb(243 165 3 / 0.45);
+  --glow-azure: 0 0 0 1px rgb(29 107 192 / 0.3), 0 10px 32px -8px rgb(29 107 192 / 0.3);
+  --grain-opacity: 0.035;
+
+  --aurora-1: #ffcc66;
+  --aurora-2: #8fc2ff;
+  --aurora-3: #ffe3a1;
+  --aurora-base: #f6f8fc;
+  --skeleton: linear-gradient(100deg, rgb(6 47 91 / 0.05) 30%, rgb(243 165 3 / 0.14) 50%, rgb(6 47 91 / 0.05) 70%);
+}
+
+/* ---------- Concept B "Prism" overrides (light-first, editorial, crisper) ----------
+ * data-concept and data-theme may sit on <html> (the live site) or on a preview wrapper (/concepts, /styleguide), so
+ * every rule matches both "same element" and "ancestor theme" forms. */
+[data-concept="b"] {
+  --font-display: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-2xl: 28px;
+  --tracking-display: -0.025em;
+}
+[data-concept="b"][data-theme="dark"],
+[data-theme="dark"] [data-concept="b"]:not([data-theme]) {
+  --bg: #050c18;
+  --surface: rgb(16 30 52 / 0.78);
+  --hairline-lumen: linear-gradient(90deg, rgb(255 204 102 / 0.5), rgb(143 220 255 / 0.4), rgb(255 255 255 / 0.05));
+}
+[data-concept="b"][data-theme="light"],
+[data-theme="light"] [data-concept="b"]:not([data-theme]) {
+  --bg: #fbfaf7;
+  --bg-elev: #ffffff;
+  --surface: rgb(255 255 255 / 0.86);
+  --border: rgb(10 26 48 / 0.09);
+}
+
+/* Solid fallbacks where backdrop blur is unavailable or on the low capability tier. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --surface: var(--surface-solid);
+  }
+}
+[data-tier="low"] {
+  --surface: var(--surface-solid);
+  --grain-opacity: 0;
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border: var(--border-strong);
+    --text-subtle: var(--text-muted);
+    --surface: var(--surface-solid);
+  }
+}

@@ -1,0 +1,86 @@
+[
+  {
+    "path": "/concepts/a",
+    "performance": 91,
+    "accessibility": 96,
+    "bestPractices": 100,
+    "seo": 60,
+    "lcp": "3.5 s",
+    "tbt": "50 ms",
+    "cls": "0",
+    "fcp": "0.9 s",
+    "jsKb": 215
+  },
+  {
+    "path": "/concepts/b",
+    "performance": 91,
+    "accessibility": 96,
+    "bestPractices": 100,
+    "seo": 63,
+    "lcp": "3.5 s",
+    "tbt": "80 ms",
+    "cls": "0",
+    "fcp": "1.0 s",
+    "jsKb": 215
+  },
+  {
+    "path": "/concepts/a/finder",
+    "performance": 89,
+    "accessibility": 98,
+    "bestPractices": 100,
+    "seo": 60,
+    "lcp": "3.3 s",
+    "tbt": "240 ms",
+    "cls": "0",
+    "fcp": "0.8 s",
+    "jsKb": 215
+  },
+  {
+    "path": "/concepts/b/finder",
+    "performance": 90,
+    "accessibility": 98,
+    "bestPractices": 100,
+    "seo": 63,
+    "lcp": "3.2 s",
+    "tbt": "190 ms",
+    "cls": "0",
+    "fcp": "0.8 s",
+    "jsKb": 215
+  },
+  {
+    "path": "/concepts/a/chat",
+    "performance": 95,
+    "accessibility": 100,
+    "bestPractices": 100,
+    "seo": 60,
+    "lcp": "2.8 s",
+    "tbt": "80 ms",
+    "cls": "0",
+    "fcp": "0.8 s",
+    "jsKb": 215
+  },
+  {
+    "path": "/concepts/b/chat",
+    "performance": 95,
+    "accessibility": 100,
+    "bestPractices": 100,
+    "seo": 63,
+    "lcp": "3.0 s",
+    "tbt": "50 ms",
+    "cls": "0",
+    "fcp": "0.8 s",
+    "jsKb": 215
+  },
+  {
+    "path": "/styleguide",
+    "performance": 95,
+    "accessibility": 97,
+    "bestPractices": 100,
+    "seo": 60,
+    "lcp": "3.0 s",
+    "tbt": "50 ms",
+    "cls": "0",
+    "fcp": "0.9 s",
+    "jsKb": 210
+  }
+]

@@ -17,7 +17,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "lh": "node scripts/lighthouse.mjs",
+    "axe": "node scripts/axe.mjs",
+    "record:concepts": "node scripts/record-concepts.mjs",
+    "shoot": "node scripts/shoot.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -41,6 +45,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.20.5",
@@ -49,6 +54,7 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^10.13.0",
     "eslint-config-next": "^16.4.2",
+    "lighthouse": "^13.5.0",
     "pg": "^8.23.1",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",

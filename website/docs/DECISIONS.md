@@ -149,3 +149,33 @@ these at the end (spec Section 0).
 ### D-019 · Data minimisation on leads: no IP address is sent to `lead_intake`
 - **Why:** spec rule 5 (minimal data). Device type is sent; IP is used only transiently for rate limiting and stored only
   as a salted hash in `web_gate_attempts` for abuse analysis (deleted after 90 days).
+
+## Phase 1
+
+### D-020 · Fonts are self-hosted Latin subsets with `font-display: optional`
+- **Why:** measured on the production build: `next/font/google` declares every subset, so the ₹ sign (U+20B9, latin-ext)
+  pulled a second ~130 KB file; font swaps moved the LCP element and caused CLS. Self-hosting only Latin (₹ uses the
+  system font, present on Android/Windows/Apple) and `optional` display (text paints once in a metric-matched fallback;
+  the brand font applies when it arrives within the block period — always from cache on later pages) gave CLS 0 and
+  LCP 1.7 s (applied throttling). **Change:** `web/lib/fonts.ts`.
+
+### D-021 · Performance budgets are asserted with applied (DevTools) throttling; simulated scores are tracked too
+- **Why:** Lighthouse's simulated mode counts the framework JS (~165 KB gz, React DOM + Next runtime) requested before
+  LCP as LCP-blocking, although the LCP element is server HTML text painted at FCP (observed 0.2 s). Applied throttling
+  (slow 4G + 4× CPU) measures what a mid-range Android user actually experiences. Lighthouse CI asserts LCP < 2.5 s,
+  CLS < 0.1, TBT < 200 ms on applied throttling and records simulated scores for trend. **Change:** `lighthouserc` in CI.
+
+### D-022 · Default theme follows the visitor's system setting; Concept A was designed dark-first
+- **Why:** spec 10.2 — the non-default theme "stays available via a toggle and prefers-color-scheme". The site setting
+  `web_settings.default_theme` is `"system"`; the boot script falls back to dark when no preference is exposed. Owner can
+  set `"dark"` to always lead with the luminous theme. The visitor's own toggle choice always wins.
+
+### D-023 · Concept A (Luminous) chosen; Concept B (Prism) preserved and switchable
+- **Why / scoring:** `docs/design/CONCEPTS.md`. **Preserved:** all B tokens, layouts and pages stay in the codebase
+  (`data-concept="b"`, `/concepts/b/*`), selectable via `web_settings.design_concept`; also a local branch `concept-b`
+  at the Phase 1 commit. That branch is **not pushed**: this session may only push `claude/inspiring-babbage-8asj1y`
+  (push it with `git push origin concept-b` if wanted).
+
+### D-024 · Concept B uses Inter's display optical size instead of Roboto Flex
+- **Why:** Roboto Flex's variable file is 190 KB (Latin); Inter (already the body face) has an optical-size axis whose
+  large sizes form a display cut — one 71 KB file serves the whole concept with the same kinetic weight shifts.
