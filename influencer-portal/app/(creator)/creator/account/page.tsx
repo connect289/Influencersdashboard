@@ -26,7 +26,7 @@ export default async function CreatorAccount() {
           <div>
             <dt className="text-muted">{t("privacy.title")}</dt>
             <dd>
-              <Link href="/creator/account/privacy" className="font-medium text-primary hover:underline">
+              <Link href="/creator/account/privacy" className="font-medium text-primary underline underline-offset-2">
                 {t("privacy.open")}
               </Link>
             </dd>

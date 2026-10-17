@@ -2,11 +2,12 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { AnalyticsNav } from "@/components/analytics/analytics-nav";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { requireStaff } from "@/lib/auth/guards";
-import { loadProgrammeScorecards, loadScorecardPeriods } from "@/lib/scorecards/data";
+import { loadProgrammeScorecards, loadScorecardPeriods, PROGRAMME_PAGE_SIZE } from "@/lib/scorecards/data";
 import { SCORE_PARTS } from "@/lib/scorecards/score";
 import { cn } from "@/lib/utils";
 
@@ -19,14 +20,20 @@ export async function generateMetadata() {
 export default async function ProgrammeScorecardsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; page?: string }>;
 }) {
   const { supabase, me } = await requireStaff("analytics.read");
   const t = await getTranslations();
   const periods = await loadScorecardPeriods(supabase);
   const sp = await searchParams;
   const period = periods.find((p) => p === sp.period) ?? periods[0] ?? null;
-  const rows = period ? await loadProgrammeScorecards(supabase, period).catch(() => null) : [];
+  const page = Math.max(1, Math.floor(Number(sp.page)) || 1);
+  const result = period
+    ? await loadProgrammeScorecards(supabase, period, page).catch(() => null)
+    : { total: 0, items: [] };
+  const rows = result?.items ?? null;
+  const total = result?.total ?? 0;
+  const pageHref = (n: number) => `/admin/analytics/scorecards?period=${period ?? ""}&page=${n}`;
   return (
     <>
       <PageHeader
@@ -101,6 +108,25 @@ export default async function ProgrammeScorecardsPage({
               ))}
             </tbody>
           </table>
+          {total > PROGRAMME_PAGE_SIZE ? (
+            <nav className="mt-3 flex items-center justify-between text-sm" aria-label={t("common.pagination")}>
+              <span className="text-muted">
+                {t("deals.pageOf", { page, pages: Math.ceil(total / PROGRAMME_PAGE_SIZE), total })}
+              </span>
+              <div className="flex gap-2">
+                {page > 1 ? (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href={pageHref(page - 1)}>{t("common.previous")}</Link>
+                  </Button>
+                ) : null}
+                {page * PROGRAMME_PAGE_SIZE < total ? (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href={pageHref(page + 1)}>{t("common.next")}</Link>
+                  </Button>
+                ) : null}
+              </div>
+            </nav>
+          ) : null}
         </Card>
       )}
     </>

@@ -108,7 +108,7 @@ export function NotificationList({
                     {n.title}
                   </span>
                   {n.body ? <span className="mt-0.5 line-clamp-2 block text-sm text-muted">{n.body}</span> : null}
-                  <span className="mt-1 flex items-center gap-2 text-xs text-faint">
+                  <span className="mt-1 flex items-center gap-2 text-xs text-muted">
                     <time dateTime={n.created_at} title={formatDateTime(n.created_at)}>
                       {formatRelative(n.created_at)}
                     </time>

@@ -4,7 +4,11 @@ import { cn } from "@/lib/utils";
 /** Plain accessible table with sticky header; on phones it scrolls horizontally inside its card. */
 export function Table({ className, ...props }: ComponentProps<"table">) {
   return (
-    <div className="-mx-4 overflow-x-auto md:mx-0">
+    // Focusable so keyboard users can scroll a wide table sideways.
+    <div
+      tabIndex={0}
+      className="-mx-4 overflow-x-auto focus-visible:outline-2 focus-visible:outline-[var(--focus)] md:mx-0"
+    >
       <table className={cn("w-full min-w-[640px] border-collapse text-sm", className)} {...props} />
     </div>
   );

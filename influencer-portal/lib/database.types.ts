@@ -3760,7 +3760,7 @@ isOneToOne: false
 { Args: { "p_status"?: string }; Returns: Json
                            },
 "programme_scorecards":
-{ Args: { "p_period": string }; Returns: Json
+{ Args: { "p_limit"?: number,"p_offset"?: number,"p_period": string }; Returns: Json
                            },
 "public_creator":
 { Args: { "p_handle": string }; Returns: Json

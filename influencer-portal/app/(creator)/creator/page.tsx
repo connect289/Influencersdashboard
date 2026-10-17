@@ -339,7 +339,7 @@ export default async function CreatorHome({
                     <p className="text-sm text-muted">
                       {dash.opt_in ? t("home.rankNone") : t("home.leaderboardOptIn")}{" "}
                       {dash.opt_in ? null : (
-                        <Link href="/creator/profile" className="text-primary hover:underline">
+                        <Link href="/creator/profile" className="text-primary underline underline-offset-2">
                           {t("home.openProfile")}
                         </Link>
                       )}

@@ -91,10 +91,20 @@ export const programmeRow = z.object({
 });
 export type ProgrammeRow = z.infer<typeof programmeRow>;
 
-export async function loadProgrammeScorecards(db: Db, period: string): Promise<ProgrammeRow[]> {
-  const { data, error } = await db.rpc("programme_scorecards", { p_period: period });
+export const PROGRAMME_PAGE_SIZE = 100;
+
+export async function loadProgrammeScorecards(
+  db: Db,
+  period: string,
+  page: number,
+): Promise<{ total: number; items: ProgrammeRow[] }> {
+  const { data, error } = await db.rpc("programme_scorecards", {
+    p_period: period,
+    p_offset: (page - 1) * PROGRAMME_PAGE_SIZE,
+    p_limit: PROGRAMME_PAGE_SIZE,
+  });
   if (error) throw new Error(error.message);
-  return z.array(programmeRow).parse(data ?? []);
+  return z.object({ total: z.number(), items: z.array(programmeRow) }).parse(data);
 }
 
 export async function loadScorecardPeriods(db: Db): Promise<string[]> {

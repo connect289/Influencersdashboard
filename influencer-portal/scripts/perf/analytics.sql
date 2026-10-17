@@ -1,4 +1,5 @@
--- Dashboard performance check (spec 12: under 2 seconds at p95 with 100k leads and 1,000 creators).
+-- Dashboard performance check (spec 12: under 2 seconds at p95 with 100k leads and 1,000 creators), plus the monthly
+-- scorecard facts for 1,000 creators and the programme scorecard list (Phase 10).
 -- LOCAL ONLY. Everything runs in one transaction that is rolled back, so the database is left as it was.
 -- Usage: psql "postgresql://postgres:postgres@127.0.0.1:54422/postgres" -f scripts/perf/analytics.sql
 \set ON_ERROR_STOP on
@@ -97,12 +98,43 @@ begin
   end loop;
 end $$;
 select tests.reset();
+
+-- Monthly scorecards at 1,000 creators (spec 15): the facts query for every creator, as the monthly job runs it, and
+-- the programme list over a month of cards. The job's total is the facts total plus one save per creator.
+insert into inf.scorecards (creator_id, kind, period, period_from, period_to, facts, scores, composite, weights)
+  select id, 'monthly', to_char(current_date - 31, 'YYYY-MM'), date_trunc('month', current_date - 31)::date,
+         (date_trunc('month', current_date - 31) + interval '1 month - 1 day')::date, '{}', '{}',
+         round((random() * 100)::numeric, 1), '{}'
+    from pc;
+grant select on pc to service_role;
+grant all on runs to service_role;
+select tests.act_as_service();
+do $$
+declare t0 timestamptz := clock_timestamp(); c uuid;
+begin
+  for c in select id from pc loop
+    perform inf.scorecard_facts(c, (current_date - 30), current_date);
+  end loop;
+  insert into runs values ('scorecard facts (1,000 creators, total)', extract(epoch from clock_timestamp() - t0) * 1000);
+end $$;
+select tests.reset();
+select tests.as_person('perfstaff');
+do $$
+declare t0 timestamptz; i int;
+begin
+  for i in 1 .. 10 loop
+    t0 := clock_timestamp();
+    perform inf.programme_scorecards(to_char(current_date - 31, 'YYYY-MM'), 0, 100);
+    insert into runs values ('programme scorecards (page of 100)', extract(epoch from clock_timestamp() - t0) * 1000);
+  end loop;
+end $$;
+select tests.reset();
 \echo
-\echo == Dashboard queries, 10 runs each (ms)
+\echo == Dashboard queries, 10 runs each (ms); scorecard facts is one run over all 1,000 creators
 select name, round((percentile_cont(0.5) within group (order by ms))::numeric, 1) as p50,
        round((percentile_cont(0.95) within group (order by ms))::numeric, 1) as p95, round(max(ms), 1) as max
   from runs group by name order by max desc;
 select (select count(*) from inf.lead_attributions where code = 'PERF') as attributions,
        (select count(*) from inf.creators where handle like 'perf%') as creators,
-       (select max(ms) from runs) < 2000 as all_under_2s;
+       (select max(ms) from runs where name not like 'scorecard facts%') < 2000 as all_under_2s;
 rollback;

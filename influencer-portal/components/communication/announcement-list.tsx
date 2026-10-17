@@ -35,7 +35,7 @@ export function AnnouncementList({ rows }: { rows: AnnouncementAdminRow[] }) {
                 <StatusBadge status={a.status} label={t(`communication.announcements.statuses.${a.status}`)} />
               </p>
               <p className="mt-0.5 line-clamp-2 text-sm text-muted">{a.body}</p>
-              <p className="mt-1 text-xs text-faint">
+              <p className="mt-1 text-xs text-muted">
                 {a.status === "sent" && a.sent_at
                   ? t("communication.announcements.sentLine", {
                       date: formatDateTime(a.sent_at),

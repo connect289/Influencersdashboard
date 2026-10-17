@@ -32,7 +32,7 @@ export function SubmitStep({
             {steps[s] ? (
               <CheckCircle2 className="size-5 text-success" aria-label={t("overview.done")} />
             ) : (
-              <Circle className="size-5 text-faint" aria-label={t("overview.todo")} />
+              <Circle className="size-5 text-muted" aria-label={t("overview.todo")} />
             )}
             {steps[s] ? (
               t(`onboarding.steps.${s}`)

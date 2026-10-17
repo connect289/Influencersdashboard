@@ -24,7 +24,7 @@ export async function AnnouncementsCard({ rows }: { rows: AnnouncementRow[] }) {
           <li key={a.id} className={cn("rounded-xl p-3", a.read_at ? "bg-surface-2" : "bg-accent-soft")}>
             <p className="text-sm font-semibold">{a.title}</p>
             {a.body ? <p className="mt-0.5 text-sm whitespace-pre-line text-muted">{a.body}</p> : null}
-            <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-faint">
+            <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted">
               <time dateTime={a.created_at}>{formatDate(a.created_at)}</time>
               {a.link ? (
                 <Link href={a.link} className="text-primary hover:underline">

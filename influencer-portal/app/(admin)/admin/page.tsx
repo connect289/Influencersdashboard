@@ -128,7 +128,7 @@ export default async function AdminOverview() {
                 {c.done ? (
                   <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" aria-label={t("overview.done")} />
                 ) : (
-                  <Circle className="mt-0.5 size-5 shrink-0 text-faint" aria-label={t("overview.todo")} />
+                  <Circle className="mt-0.5 size-5 shrink-0 text-muted" aria-label={t("overview.todo")} />
                 )}
                 <div className="min-w-0">
                   {c.href && !c.done ? (

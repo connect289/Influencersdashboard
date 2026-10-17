@@ -55,7 +55,7 @@ export async function InboxList({
                 <time
                   dateTime={r.last_message_at}
                   title={formatDateTime(r.last_message_at)}
-                  className="text-xs text-faint"
+                  className="text-xs text-muted"
                 >
                   {formatRelative(r.last_message_at)}
                 </time>

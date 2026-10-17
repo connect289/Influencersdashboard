@@ -3,7 +3,7 @@
 -- financial records and blanks only the creator's own message text, and that append-only tables stay append-only.
 begin;
 \ir _helpers.psql
-select plan(61);
+select plan(62);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('sam', array['super_admin']);
@@ -107,7 +107,8 @@ select is((select tier_id from inf.creators where id = (select id from ids where
           'an on-demand card never changes the tier');
 select tests.as_person('mona');
 select is(jsonb_array_length(inf.creator_scorecards((select id from ids where label = 'riya')) -> 'cards'), 2, 'staff see the creator''s cards');
-select is(inf.programme_scorecards((select label from per)) -> 0 ->> 'tier', 'Silver', 'and the programme list for a month');
+select is(inf.programme_scorecards((select label from per)) -> 'items' -> 0 ->> 'tier', 'Silver', 'and the programme list for a month');
+select is((inf.programme_scorecards((select label from per), 0, 1) ->> 'total')::int >= 1, true, 'which is paginated with a total');
 select throws_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), current_date + 30, 'VIP', (select id from ids where label = 'gold')) $$,
                  '42501', null, 'manual tiers need tier.manage');
 

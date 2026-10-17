@@ -385,14 +385,23 @@ begin
 end $$;
 
 -- The programme's latest monthly scorecards (staff with creator.read), best first.
-create or replace function inf.programme_scorecards(p_period text) returns jsonb
+create or replace function inf.programme_scorecards(p_period text, p_offset int default 0, p_limit int default 100) returns jsonb
 language sql stable security definer set search_path = '' as $$
-  select coalesce(jsonb_agg(jsonb_build_object('creator_id', c.id, 'display_name', c.display_name, 'handle', c.handle,
-                                               'tier', t.name, 'composite', s.composite, 'scores', s.scores, 'period', s.period,
-                                               'changed', s.tier_before is distinct from s.tier_after)
-                            order by s.composite desc nulls last, c.display_name), '[]')
-    from inf.scorecards s join inf.creators c on c.id = s.creator_id left join inf.tiers t on t.id = c.tier_id
-   where inf.has_perm('creator.read') and s.kind = 'monthly' and s.period = p_period
+  with cards as (
+    select c.id, c.display_name, c.handle, t.name as tier, s.composite, s.scores, s.period,
+           s.tier_before is distinct from s.tier_after as changed
+      from inf.scorecards s join inf.creators c on c.id = s.creator_id left join inf.tiers t on t.id = c.tier_id
+     where inf.has_perm('creator.read') and s.kind = 'monthly' and s.period = p_period
+  ), page as (
+    select * from cards order by composite desc nulls last, display_name, id
+     offset greatest(coalesce(p_offset, 0), 0) limit least(greatest(coalesce(p_limit, 100), 1), 200)
+  )
+  select jsonb_build_object(
+    'total', (select count(*) from cards),
+    'items', coalesce((select jsonb_agg(jsonb_build_object('creator_id', p.id, 'display_name', p.display_name, 'handle', p.handle,
+                                                           'tier', p.tier, 'composite', p.composite, 'scores', p.scores,
+                                                           'period', p.period, 'changed', p.changed)
+                                        order by p.composite desc nulls last, p.display_name, p.id) from page p), '[]'))
 $$;
 
 -- Periods that have monthly scorecards, newest first (staff).
@@ -546,8 +555,8 @@ language sql stable security definer set search_path = '' as $$
                                                'file_ready', r.kind = 'export' and r.status = 'ready' and r.file_expires_at > now(),
                                                'file_expires_at', r.file_expires_at, 'purge_on', r.purge_on)
                             order by r.requested_at desc), '[]')
-    from inf.privacy_requests r
-   where r.creator_id = inf.current_creator_id() and inf.session_ok()
+    from (select * from inf.privacy_requests x where x.creator_id = inf.current_creator_id() and inf.session_ok()
+           order by x.requested_at desc limit 50) r
 $$;
 
 -- Everything the export contains, by section (service role, for the download route after inf.privacy_export_allowed). Contact details of students are never in it:
@@ -703,9 +712,11 @@ language sql stable security definer set search_path = '' as $$
                                                'purge_on', r.purge_on, 'creator_id', r.creator_id, 'creator', c.display_name,
                                                'handle', c.handle,
                                                'decided_by', (select sp.full_name from inf.staff_profiles sp where sp.user_id = r.decided_by))
-                            order by r.requested_at desc), '[]')
-    from inf.privacy_requests r join inf.creators c on c.id = r.creator_id
-   where inf.has_perm('privacy.manage') and (p_status is null or r.status = p_status)
+                            order by r.status = 'requested' desc, r.requested_at desc), '[]')
+    from (select * from inf.privacy_requests x
+           where inf.has_perm('privacy.manage') and (p_status is null or x.status = p_status)
+           order by x.status = 'requested' desc, x.requested_at desc limit 300) r
+    join inf.creators c on c.id = r.creator_id
 $$;
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -830,7 +841,7 @@ insert into inf.client_grants (object_type, object_name, grantee, privilege) val
   ('function', 'inf.tier_clear_manual(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.creator_scorecards(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.tier_status(uuid)', 'authenticated', 'execute'),
-  ('function', 'inf.programme_scorecards(text)', 'authenticated', 'execute'),
+  ('function', 'inf.programme_scorecards(text, int, int)', 'authenticated', 'execute'),
   ('function', 'inf.scorecard_periods()', 'authenticated', 'execute'),
   ('function', 'inf.compliance_facts(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.my_consents()', 'authenticated', 'execute'),
