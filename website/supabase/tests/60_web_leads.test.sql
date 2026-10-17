@@ -27,8 +27,11 @@ insert into r select (select (val->>'lead_id') is not null from v where k = 'ver
 -- the lead, as lead_intake wrote it
 insert into v select 'lead', to_jsonb(l) from public.student_leads l where id = (select (val->>'lead_id')::bigint from v where k = 'verify');
 -- web11: the payload also carries the verification time and, for applications, the exact programme (kept once s01 is approved)
-insert into r select (p->'lead') ? 'email_verified_at' and (p->'lead') ? 'final_program_id', 'lead payload carries email_verified_at and final_program_id'
-  from (select public.web_lead_payload(a, null, 'lead.verified') p from public.web_gate_attempts a
+-- (final_program_id only when the offering is in the read model; the replica's minimal catalogue may not have it)
+insert into r select (p->'lead') ? 'email_verified_at'
+    and ((p->'lead') ? 'final_program_id') = exists (select 1 from public.web_offering_search o where o.id = (ctx->>'offering_id')::bigint),
+  'lead payload carries email_verified_at and, for a known offering, final_program_id'
+  from (select public.web_lead_payload(a, null, 'lead.verified') p, a.context ctx from public.web_gate_attempts a
          where a.id = (select (val->>'attempt_id')::uuid from v where k = 'start')) x;
 insert into r select (select val->>'lead_source' = 'website_form' and val->>'channel' = 'web_form' from v where k = 'lead'), 'form lead: lead_source website_form, channel web_form (D-009)';
 insert into r select (select val->>'student_name' = 'Asha Rao' and val->>'email_id' = 'asha.rao@example.com' and (val->>'email_confirmed')::boolean from v where k = 'lead'), 'name, email and email-confirmed flag';
