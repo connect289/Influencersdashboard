@@ -21,7 +21,13 @@
     "lh": "node scripts/lighthouse.mjs",
     "axe": "node scripts/axe.mjs",
     "record:concepts": "node scripts/record-concepts.mjs",
-    "shoot": "node scripts/shoot.mjs"
+    "shoot": "node scripts/shoot.mjs",
+    "db:start": "supabase --workdir .. start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor",
+    "db:reset": "supabase --workdir .. db reset",
+    "db:test": "../scripts/db/test.sh",
+    "db:seed:regen": "node ../scripts/db/make-seed.mjs",
+    "db:snapshot:regen": "../scripts/db/make-min-snapshot.sh",
+    "db:gate": "../scripts/db/build-replica.sh && ../scripts/db/apply-web-migrations.sh && ../scripts/db/test.sh postgresql://postgres:postgres@localhost:54330/postgres && ../scripts/db/check-shared-unchanged.sh && npm run db:reset && npm run db:test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -58,6 +64,7 @@
     "pg": "^8.23.1",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
+    "supabase": "^2.121.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "vitest": "^5.0.5"
