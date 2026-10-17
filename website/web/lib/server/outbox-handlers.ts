@@ -2,7 +2,8 @@ import "server-only";
 import { whatsappLink } from "@/content/site";
 import { sendCapi } from "./capi";
 import { email } from "./email";
-import { privacyRequestEmail, submissionConfirmationEmail } from "./email/templates";
+import { catalogUnmappedEmail, privacyRequestEmail, submissionConfirmationEmail } from "./email/templates";
+import { siteUrl } from "./env";
 import { log } from "./log";
 import { registerOutboxHandler } from "./outbox";
 import { getSettings } from "./settings";
@@ -50,6 +51,14 @@ async function capiJob(name: "Lead" | "SubmitApplication", payload: Record<strin
     sourcePath: a.landing_url,
   });
 }
+
+// New catalogue rows the website cannot map yet: one email per batch to every active super admin (D-081).
+registerOutboxHandler("catalog_alert", async (job) => {
+  const p = job.payload as { to?: string[]; count: number; total_unmapped: number; examples?: { programme?: string; course?: string; university?: string }[] };
+  const msg = catalogUnmappedEmail({ count: p.count, total: p.total_unmapped, examples: p.examples ?? [], adminUrl: siteUrl("/admin/taxonomy") });
+  for (const to of p.to ?? []) await email().send(to, msg, { idempotencyKey: `${job.dedupe_key}:${to}` });
+  log("info", "catalog.unmapped_alert_sent", { count: p.count, recipients: (p.to ?? []).length });
+});
 
 registerOutboxHandler("capi_lead", (job) => capiJob("Lead", job.payload));
 registerOutboxHandler("capi_submit_application", (job) => capiJob("SubmitApplication", job.payload));

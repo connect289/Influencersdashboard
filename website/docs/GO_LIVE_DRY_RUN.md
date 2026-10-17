@@ -25,7 +25,8 @@ other products may have migrated in the meantime.
 | web9_admin | 85 ms | none |
 | web10_seo_toolkit | 98 ms | none |
 | web11_hardening | 75 ms | none |
-| **Total** | **1.24 s** | |
+| web12_catalog_sync | 74 ms | none |
+| **Total** | **1.21 s** (re-run with web12) | |
 
 The website migrations only read shared tables (the read model is built from `catalog_*`); they never lock them
 against writes, so Witty and the CRMs keep working during the apply. Times are on the replica's empty catalogue copy

@@ -93,3 +93,18 @@ export function privacyRequestEmail(o: { name?: string | null; request: string }
   );
   return { subject, text, html };
 }
+
+/** Staff alert: new catalogue rows the website cannot map yet (hidden from the finder until mapped; D-081). */
+export function catalogUnmappedEmail(o: { count: number; total: number; examples: { programme?: string | null; course?: string | null; university?: string | null }[]; adminUrl: string }): Rendered {
+  const subject = `${o.count} new catalogue programme${o.count === 1 ? "" : "s"} need${o.count === 1 ? "s" : ""} a mapping on the website`;
+  const lines = o.examples.map((e) => `${e.programme || e.course || "Programme"} — ${e.university || "university"}`);
+  const text = `${o.count} programme(s) added to the shared catalogue are hidden on eduwit.in until they are mapped to a programme and specialisation (Witty and the CRMs already show them).\n\n${lines.map((l) => `- ${l}`).join("\n")}${o.total > o.count ? `\n\n${o.total} are waiting in total.` : ""}\n\nMap them: ${o.adminUrl}`;
+  const html = layout(
+    subject,
+    `<p style="margin:0 0 12px">${esc(String(o.count))} programme(s) added to the shared catalogue are hidden on eduwit.in until they are mapped to a programme and specialisation. Witty and the CRMs already show them.</p>
+<ul style="margin:0 0 12px;padding-left:20px">${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>
+${o.total > o.count ? `<p style="margin:0 0 12px;color:#5b6b82">${esc(String(o.total))} are waiting in total.</p>` : ""}
+<p style="margin:0"><a href="${esc(o.adminUrl)}" style="color:#062f5b;font-weight:600">Open the taxonomy mapping tool</a></p>`,
+  );
+  return { subject, text, html };
+}

@@ -126,3 +126,24 @@ export async function resetAdminCodes() {
   });
   if (!res.ok) throw new Error(`reset admin codes failed ${res.status}`);
 }
+
+/** Updates rows in the LOCAL database through PostgREST (test fixtures only; refuses non-local, see secretKey). */
+export async function dbPatch(table: string, filter: string, row: Record<string, unknown>) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
+    method: "PATCH",
+    headers: { apikey: secretKey(), authorization: `Bearer ${secretKey()}`, "content-type": "application/json", prefer: "return=minimal" },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) throw new Error(`patch ${table} failed ${res.status} ${await res.text()}`);
+}
+
+/** Calls a function in the LOCAL database (as pg_cron would). */
+export async function dbRpc<T = unknown>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: { apikey: secretKey(), authorization: `Bearer ${secretKey()}`, "content-type": "application/json" },
+    body: JSON.stringify(args),
+  });
+  if (!res.ok) throw new Error(`rpc ${fn} failed ${res.status} ${await res.text()}`);
+  return (await res.json()) as T;
+}

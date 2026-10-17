@@ -560,3 +560,16 @@ these at the end (spec Section 0).
   platform's shared cache across server instances (in-memory locally); (4) optional `SUPABASE_READ_REPLICA_URL` sends
   read-only catalogue calls to a Supabase read replica (S-54). Details and numbers: `docs/LOAD_TESTS.md`.
   **To change:** the env variables above; remove `: remote` to fall back to per-instance caching.
+
+### D-081 · The programme list follows the shared catalogue whoever edits it
+- **Why:** Witty and the CRMs read the shared `catalog_*` tables directly; the website reads a fast copy (read model)
+  that is rebuilt when the catalogue changes. The change detector trusted `updated_at` and `catalog_version`, which only
+  Witty's loader (`catalog_commit`) maintains, so a direct edit (a fee fixed in the Supabase table editor, a future CRM
+  screen, Witty's synonym re-mapping) never reached the website. It now hashes the content of every catalogue programme,
+  university and synonym row (≈ 10 ms at 715 rows, 75 ms at 10,000, once a minute). University names that were
+  unedited copies follow catalogue renames; names an editor set on purpose stay. A new catalogue row the website cannot
+  map (a brand-new course) stays hidden as the spec requires, but super admins get one email per new batch and the admin
+  dashboard and health show the count. Freshness: a catalogue change is on the website within about 2 minutes (poll
+  every minute, then the outbox worker revalidates the pages; cached search responses expire within 60 s more).
+  Tested in `40_web_search` and `e2e/catalog-sync.spec.ts`. **Requires** the poll and the outbox worker to run every
+  minute: pg_cron (A-CRON-1) and Vercel Pro crons (S-47), or pg_cron + pg_net for both.

@@ -789,3 +789,12 @@ The site is hardened (security and accessibility findings fixed), load-tested wi
 database, and its production rollout is rehearsed end to end on a production-schema replica with a full rollback.
 Go-live now waits on the owner: approval itself, the two blocking approvals (A-B2B-1, A-CONSENT-1 after S-44), the
 legal texts (S-01) and the go-live setup items.
+
+## After Phase 12 — catalogue sync (owner request, 17 Oct 2026)
+- Found: direct catalogue edits (table editor, CRM screens, synonym re-mapping) never reached the website, because the
+  change detector trusted `updated_at`/`catalog_version`; university renames were masked by copied display names; brand-new
+  courses were hidden silently.
+- Fixed in `20261017101100_web12_catalog_sync.sql` (content fingerprint, university-name sync, unmapped alert, health
+  fields) + alert email, health `checks.catalog`, dashboard "Programme list sync" card (D-081).
+- Tests: `40_web_search` (+4 checks), `e2e/catalog-sync.spec.ts` (direct edit → API and university page), email unit
+  test. Gate: check ✅ (188 tests), db:gate ✅, dry run ✅ (web12 74 ms, no shared locks).

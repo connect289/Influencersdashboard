@@ -17,6 +17,14 @@ rollback), and what to do when something breaks. Companion docs: `GO_LIVE_CHECKL
 | Errors | Sentry (S-19) + Vercel logs | logs are JSON with `requestId`; no personal data (scrubbed) |
 | Witty on the website | `/api/witty` (internal name `web_advisor`) | **off** until A-AGENT-1 and S-14; flag `web_advisor_enabled` |
 
+### Programme list sync (D-081)
+Witty, the CRMs and the website all use the same shared catalogue tables. The website keeps a fast copy that the
+`web_catalog_poll` job rebuilds within a minute of any catalogue change (by any route), and the outbox worker then
+refreshes cached pages: changes show on the website within about 2 minutes. New catalogue programmes with a course the
+website has never seen stay hidden until a super admin maps them in Admin → Taxonomy mapping (they get an email).
+Admin → Dashboard → "Programme list sync" and `/api/health` (detail, `checks.catalog`) show when it last ran; more than
+10 minutes means the poll has stopped (check the pg_cron job `web_catalog_poll` and the Vercel crons).
+
 ## 2. Secrets and settings
 
 Set in Vercel → Project → Settings → Environment Variables, for **Production and Preview** (preview refuses the dev
@@ -136,7 +144,8 @@ After 14 stable days: raise the TTL back to 3600 s and retire the Hostinger site
 | Outbox dead letters growing | a downstream (email, CAPI, CRM write) failing | Admin → Outbox shows the error; fix the cause, then retry; leads themselves are written synchronously through `lead_intake` and are not lost |
 | Gate/forms refuse everyone ("verification failed") | Turnstile keys wrong or Turnstile down (fails closed in production) | check the keys and the site's hostnames in the Turnstile dashboard (S-13); Cloudflare status |
 | Witty answers "couldn't answer just now" / hero shows the finder | AI provider errors → breaker open (5 failures in 2 min → 60 s) | provider status; it recovers automatically; to stop it entirely turn `web_advisor_enabled` off |
-| Wrong fees or programmes | catalogue data (owned by Witty/catalogue) or a stale read model | Admin → Data quality; force a refresh with `POST /api/internal/catalog-poll` (bearer); content edits revalidate immediately |
+| Wrong fees or programmes | catalogue data (owned by Witty/catalogue) or the sync stopped | Admin → Dashboard "Programme list sync": if it says the check has not run, fix the pg_cron job / Vercel cron; force a sync with `POST /api/internal/catalog-poll` then `POST /api/internal/outbox` (bearer). If the catalogue itself is wrong, fix it at the source (Witty's catalogue) — the website follows within ~2 minutes |
+| A new programme is in Witty/CRM but not on the website | a course the website taxonomy has never seen (hidden until mapped, spec 5.3) | Admin → Taxonomy mapping: map it to a programme and specialisation (super admins got an email); it appears within ~2 minutes |
 | Lead missing in the CRM | `lead_intake` error, or routing held (A-B2B-1 not applied) | Admin → Outbox / logs (`lead.*` events, request id); B2B "unqualified: phone_not_verified" means A-B2B-1 is not live |
 | A shared function changed under the website (after another product's release) | another product's migration | rebuild the replica and run `npm run db:gate`; `check-shared-unchanged.sh` names what changed |
 | Suspected abuse (floods of enquiries) | bots | rate limits and Turnstile hold; Admin → Insights shows junk scores; lower limits in `web/lib/server/rate-limit.ts` and redeploy if needed |

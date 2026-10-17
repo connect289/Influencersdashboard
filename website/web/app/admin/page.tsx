@@ -19,7 +19,11 @@ interface Overview {
 
 async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const [s, sp] = await Promise.all([requireAdmin("viewer"), searchParams]);
-  const o = await rpc<Overview>("web_admin_overview");
+  const [o, h] = await Promise.all([
+    rpc<Overview>("web_admin_overview"),
+    rpc<{ catalog_checked_seconds_ago: number | null; catalog_refreshed_at: string | null; catalog_unmapped: number }>("web_health"),
+  ]);
+  const syncOk = h.catalog_checked_seconds_ago !== null && h.catalog_checked_seconds_ago < 600;
   return (
     <AdminShell session={s} title="Website admin">
       {sp.denied ? (
@@ -37,6 +41,14 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: st
         <Stat label="Offerings without a mapping" value={o.unmapped + o.needs_review} href="/admin/taxonomy" />
         <Stat label="Open privacy requests" value={o.privacy_requests_open} href="/admin/privacy" />
       </div>
+      <Card title="Programme list sync">
+        <p className={`text-sm ${syncOk ? "text-muted" : "text-danger"}`} role={syncOk ? undefined : "alert"}>
+          {syncOk
+            ? `In sync with the shared catalogue (the one Witty and the CRMs use). Checked ${h.catalog_checked_seconds_ago} s ago; last change applied ${h.catalog_refreshed_at ? new Date(h.catalog_refreshed_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "never"}.`
+            : "The catalogue check has not run for over 10 minutes, so catalogue changes are not reaching the website. Check the pg_cron job web_catalog_poll and the /api/internal/catalog-poll cron (runbook §8)."}
+          {h.catalog_unmapped ? ` ${h.catalog_unmapped} new catalogue programme(s) are hidden until mapped — open Taxonomy mapping.` : ""}
+        </p>
+      </Card>
       <Card title="What you can do here">
         <p className="text-muted text-sm">
           Edit content, curated finder views, SEO overrides and redirects; switch features on or off; map catalogue rows to the

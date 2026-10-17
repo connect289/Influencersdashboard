@@ -105,6 +105,32 @@ select public.web_search_log_add('[{"q":"Online MBA","results":3,"source":"api"}
 select public.web_search_log_add('{"q":"bca","results":5}');
 insert into r select (select count(*) from public.web_search_log) - (select n from sl0) = 3, 'search log accepts a batch and a single entry';
 
+-- web12 catalogue sync: any change to the shared catalogue reaches the read model, whoever makes it.
+create temp table cs (k text primary key, v text) on commit drop;
+select public.web_catalog_poll();
+insert into cs select 'idle', public.web_catalog_poll()->>'changed';
+insert into cs select 'pid', min(o.id)::text from public.web_offering_search o where o.visible and o.fee_total is not null;
+update public.catalog_programs set fee_total = 987654 where id = (select v::bigint from cs where k = 'pid');  -- no updated_at, no catalog_version
+insert into cs select 'fee', public.web_catalog_poll()->>'changed';
+insert into r select (select v from cs where k = 'idle') = 'false', 'catalogue poll: no change, no rebuild';
+insert into r select (select v from cs where k = 'fee') = 'true'
+  and (select fee_total from public.web_offering_search where id = (select v::bigint from cs where k = 'pid')) = 987654,
+  'catalogue poll: a direct edit (no updated_at, no catalog_version) reaches the website';
+insert into cs select 'uid', u.id::text from public.catalog_universities u join public.web_university_profiles p on p.catalog_university_id = u.id
+ where p.display_name = u.name and exists (select 1 from public.web_offering_search o where o.university_id = u.id) order by u.id limit 1;
+update public.catalog_universities set name = name || ' Renamed' where id = (select v::int from cs where k = 'uid');
+insert into cs select 'ren', public.web_catalog_poll()->>'changed';
+insert into r select (select v from cs where k = 'ren') = 'true'
+  and (select uni_name from public.web_offering_search where university_id = (select v::int from cs where k = 'uid') limit 1) like '% Renamed',
+  'catalogue rename reaches the website when the website name was an unedited copy';
+insert into public.catalog_programs (university_id, level, level_raw, course, course_key, specialization, program_name, mode, fee_total, active, program_key)
+values ((select v::int from cs where k = 'uid'), 'UG', 'Undergraduate', 'Bachelor of Zymurgy', 'bzym', 'Brewing', 'Online B.Zym', 'Online', 99000, true, 'test-sync-new');
+insert into cs select 'new', public.web_catalog_poll()->>'changed';
+insert into r select (select v from cs where k = 'new') = 'true'
+  and (select o.hidden_reason from public.web_offering_search o join public.catalog_programs c on c.id = o.id where c.program_key = 'test-sync-new') = 'unmapped'
+  and exists (select 1 from public.web_outbox where kind = 'catalog_alert' and (payload->>'count')::int >= 1),
+  'a new course the website cannot map stays hidden and super admins are alerted';
+
 do $$ begin
   if exists (select 1 from r where not ok) then
     raise exception 'FAILED (%): %', (select count(*) from r where not ok), (select string_agg(name, ' | ') from r where not ok);

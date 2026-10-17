@@ -20,6 +20,7 @@ nothing deployed, no DNS changed.** Branch `claude/inspiring-babbage-8asj1y`, ph
 | 9 Technical SEO | Curated-only indexing, sitemaps by type, canonical rules, OG images, analytics events with server/browser de-duplication, performance budgets in CI |
 | 10 Admin | Content editor for 15 content types, flags, funnels and Witty insights, data quality, taxonomy mapping, outbox monitor, privacy requests, audit log, roles |
 | 11 SEO toolkit | Search Console dashboard, opportunity finder, keywords, content planner with grounded briefs/drafts and mandatory author + reviewer, on-page checker, internal links, 404 monitor, local SEO |
+| Catalogue sync (after Phase 12) | The programme list follows the shared catalogue Witty and the CRMs use, whoever edits it: any change is on the website within ~2 minutes; brand-new courses alert super admins until mapped (D-081) |
 | 12 Hardening | Security review and fixes, accessibility audit, load tests and database protection, production migration dry run with rollbacks, runbook, DNS plan, go-live checklist |
 
 ## 2. Test and quality results (final build, 17 Oct 2026)
