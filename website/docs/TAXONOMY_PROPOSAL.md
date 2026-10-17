@@ -46,7 +46,7 @@ web_tax_offering_map    catalog_programs.id + program_key → programme_id, spec
                         format (standard | work-integrated | apprenticeship | work-linked | executive),
                         attributes (honours, pay_after_placement, internship, dual_specialisation, medium),
                         mapped_by (rule | admin), rule_id, confidence, reviewed_at, reviewed_by
-web_tax_mapping_rules   ordered, data-driven rules used by the auto-mapper (regex on course/specialization/program_name)
+web_tax_rules_programme / _attribute / _format   ordered, data-driven rules used by the auto-mapper (built as three typed tables)
 ```
 Everything is data editable in the admin (Phase 10), never code. Goal and career tags attach to programmes and
 specialisations (`web_tax_tag_links`).
@@ -70,8 +70,12 @@ finder, listed in the unmapped-rows report, never lost).
    `web_tax_synonyms`, then trigram similarity ≥ 0.6 against canonical names (marked `confidence = fuzzy` for review).
 6. **Dual specialisations** (`Marketing & HR`, `Finance & Systems`) → two specialisation ids.
 
-Expected first-run coverage (dry run on the export, Phase 3 will record the real number): ≥ 95% of rows mapped
-automatically, the rest in the review queue.
+**Phase 3 result (17 Oct 2026, 715 catalogue rows):** 100% mapped automatically, none fuzzy, none in the review queue —
+416 exact, 277 through synonyms, 19 dual specialisations split, 3 from the programme name. 708 visible in the finder
+(7 Regular-mode rows hidden, D-013). 197 programme + specialisation groups across 21 programmes. Derived duration: 45
+from an explicit statement, 327 from agreeing fee-schedule signals, 336 unknown (not shown). Implemented as data:
+`web_tax_rules_programme`, `web_tax_rules_attribute`, `web_tax_rules_format`, `web_tax_synonyms` (admin-editable);
+`web_tax_automap()`, `web_tax_unmapped()`, `web_tax_set_mapping()`; tests in `supabase/tests/30_web_taxonomy.test.sql`.
 
 ### Sample mappings
 | catalogue `course` / `specialization` / `program_name` | → programme | specialisation(s) | attributes |

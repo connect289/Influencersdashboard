@@ -35,6 +35,8 @@ const sql = [
   "select setval(pg_get_serial_sequence('public.catalog_universities','id'), (select max(id) from public.catalog_universities));",
   "select setval(pg_get_serial_sequence('public.catalog_programs','id'), (select max(id) from public.catalog_programs));",
   "insert into public.w2_meta (key, value) values ('catalog_version', '6'::jsonb) on conflict do nothing;",
+  "-- Website: map the catalogue and build the search read model (production does this via web_catalog_poll).",
+  "select public.web_refresh_read_model();",
   "",
 ].join("\n\n");
 writeFileSync(path.join(root, "supabase/seed.sql"), sql);

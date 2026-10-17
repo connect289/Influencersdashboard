@@ -72,12 +72,15 @@ erDiagram
 ### 2.2 Taxonomy and catalogue read model (Phase 3)
 | Object | Purpose |
 |---|---|
-| `web_tax_levels`, `web_tax_categories`, `web_tax_programmes`, `web_tax_specialisations`, `web_tax_programme_specialisations`, `web_tax_goal_tags`, `web_tax_career_tags`, `web_tax_tag_links`, `web_tax_synonyms`, `web_tax_mapping_rules` | Canonical taxonomy (see `TAXONOMY_PROPOSAL.md`) |
+| `web_tax_levels`, `web_tax_categories`, `web_tax_programmes` (+ `search_prior`), `web_tax_specialisations`, `web_tax_formats`, `web_tax_goal_tags`, `web_tax_career_tags`, `web_tax_tag_links`, `web_tax_synonyms` (generated `alias_norm`/`alias_compact`), `web_tax_rules_programme`, `web_tax_rules_attribute`, `web_tax_rules_format` | Canonical taxonomy (see `TAXONOMY_PROPOSAL.md`). Programme↔specialisation hierarchy is derived from the offering map (facet counts), not stored separately. |
+| `web_university_defaults` | slug, display name and aliases for known catalogue universities; `web_tax_sync_catalog()` creates profiles/aliases for new universities |
 | `web_tax_offering_map` | `catalog_program_id pk`, `program_key`, `programme_id`, `specialisation_ids int[]`, `format`, `attributes jsonb`, `mapped_by`, `rule_id`, `confidence`, `reviewed_at/by`, `hidden_reason` |
 | `web_university_profiles` | `catalog_university_id pk`, `slug unique`, `display_name`, `logo_path`, `logo_permitted bool default false`, `about_blocks`, `state`, `city`, `website_url`, `seo jsonb`, `published` |
 | `web_offering_search` (materialised view) | one row per visible offering: catalogue id, program_key, university (id, slug, name, short, logo if permitted, state, type), level, category, programme, specialisation(s), format/attributes, mode, fees (total/yearly/semester/exam/registration, EMI present + amount), derived duration (+source), eligibility (min qualification, min %, work-ex, entrance exam), approvals (UGC-DEB, NAAC grade + rank value, NIRF, AICTE), last verified, popularity, weighted `tsvector` (A: programme/specialisation names + synonyms, B: university names, C: program_name/format, D: eligibility snippets), trigram text columns, facet keys. **Built from an explicit column allow-list; no commission, partner or internal columns.** Unique index on catalogue id for `REFRESH … CONCURRENTLY`. |
-| `web_university_facts_v` | parsed NAAC/UGC-DEB/NIRF/AICTE per university with source snippets |
-| `web_catalog_state` | last seen catalogue fingerprint; `web_refresh_jobs` queue (refresh + revalidation) |
+| `web_university_facts(text, text[])` | function: parsed NAAC/UGC-DEB/NIRF/AICTE per university with source statements (merged with `facts_override`) |
+| `web_facet_values` (materialised view) | facet options present in the visible catalogue (zero-count options are shown disabled) |
+| `web_catalog_state` | last seen catalogue fingerprint and refresh result; revalidation goes through `web_outbox` (`revalidate`) |
+| `web_offering_popularity` | popularity tie-break per offering (filled from anonymous panel opens / applications later) |
 | `web_search_log` | normalised query, parsed filters, result count, latency, zero-result flag (no PII; free text is stored only after PII scrubbing — emails/phones removed) |
 
 ### 2.3 Students, verification, leads (Phase 7)
@@ -120,9 +123,11 @@ erDiagram
 | `web_seo_tasks` | local SEO / GBP checklist items with status |
 
 ## 3. Functions (all `web_*`, security definer, `search_path = ''`, service role only)
-- **Read model:** `web_search(p jsonb)` → `{results|groups, facets, total, applied, relaxations}` in one call;
+- **Read model (built in Phase 3):** `web_search(p jsonb)` → `{items (groups|offerings), facets, total, total_groups, resolved, relaxations, without_query, closest}` in one call;
+  `web_resolve_query(q)` (aliases, stopwords, typo correction), `web_offering_card`, `web_universities()`, `web_browse()`,
+  `web_search_log_add(p)`, `web_data_quality()`, `web_derive_duration(...)`, `web_eligibility(qual, level, min_q)`;
   `web_suggest(p_q text)` → grouped suggestions (programmes, specialisations, universities, guides);
-  `web_offering_details(p_id)`, `web_programme_group(p jsonb)`, `web_compare_offerings(p_ids int[])`,
+  `web_offering_details(p_id, p_qual)`, programme groups via `web_search({group_key, include_offerings})`, `web_compare_offerings(p_ids, p_qual)`,
   `web_university_details(p_slug)`, `web_catalog_stats()` (live trust-line numbers), `web_refresh_read_model()`,
   `web_catalog_poll()` (detect changes → enqueue refresh + revalidation).
 - **Taxonomy:** `web_tax_automap(p_dry_run bool)`, `web_tax_unmapped()`, `web_tax_set_mapping(p jsonb)`,

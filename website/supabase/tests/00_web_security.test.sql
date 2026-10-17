@@ -16,10 +16,14 @@ select not has_table_privilege(role, c.oid, priv), format('%s has no %s on %s', 
  where n.nspname = 'public' and c.relname like 'web\_%' and c.relkind in ('r', 'p', 'v', 'm');
 
 -- Every web_ function: SECURITY DEFINER with a pinned search_path, and not executable by public/anon/authenticated.
+-- Exception: pure IMMUTABLE SQL helpers (no table access) are plain functions without a SET clause so the planner can
+-- inline them into per-row expressions (definer/SET would turn each call into a nested statement).
 insert into r
-select p.prosecdef and coalesce(array_to_string(p.proconfig, ',') like '%search_path=%', false),
-       'definer + search_path on ' || p.oid::regprocedure
-  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+select (p.prosecdef and coalesce(array_to_string(p.proconfig, ',') like '%search_path=%', false))
+       or (not p.prosecdef and p.provolatile = 'i' and l.lanname = 'sql' and p.proconfig is null
+           and p.prosrc !~* '\m(from|into|update|delete|insert)\M'),
+       'definer + search_path (or pure inlinable helper) on ' || p.oid::regprocedure
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace join pg_language l on l.oid = p.prolang
  where n.nspname = 'public' and p.proname like 'web\_%' and p.prokind = 'f'
    and p.prorettype <> 'trigger'::regtype;
 

@@ -13,6 +13,7 @@ const schema = z.object({
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(10).optional(),
   WEB_SESSION_SECRET: z.string().min(32).optional(),
   WEB_INTERNAL_KEY: z.string().min(24).optional(),
+  CRON_SECRET: z.string().min(16).optional(), // set by Vercel Cron; accepted on /api/internal/* like WEB_INTERNAL_KEY
   EMAIL_PROVIDER: z.enum(["console", "smtp", "resend"]).default("console"),
   EMAIL_FROM: z.string().default("Eduwit <no-reply@eduwit.in>"),
   EMAIL_SMTP_HOST: z.string().optional(),
@@ -74,6 +75,9 @@ export function sessionSecret(): string {
 }
 export function internalKey(): string {
   return env().WEB_INTERNAL_KEY ?? "dev-only-internal-key-0000000001";
+}
+export function cronSecret(): string | undefined {
+  return env().CRON_SECRET;
 }
 
 /** For tests. */

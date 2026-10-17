@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 3 — Catalogue and taxonomy. Current step: 3.1 (plan).**
+**Current phase: 4 — Programme finder. Current step: 4.1 (plan).**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -19,6 +19,8 @@ self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-
 - Stopping the prod server: `fuser -k 3100/tcp` (never `pkill -f "next …"` — it matches the calling shell).
 - Chromium for Playwright: `/opt/pw-browsers/chromium` (pass `executablePath`; do not run `playwright install`).
 - `eduwit.in` is blocked by the environment's network policy (D-006, S-01).
+- Superuser for profiling the local DB: `postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres` (auto_explain).
+- Re-apply one migration without a full reset: `scripts/db/reapply.sh <file>` (drops the read model first).
 
 ---
 
@@ -70,8 +72,8 @@ self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-
   `web_redirects`).
 - Curated finder views: `/programmes/<slug>` e.g. `online-mba`, `online-mba-marketing`, `online-bca` (admin-created).
 - Resources: `/resources/<slug>` from the title (unique, editable with redirect).
-- Offering deep link: `/programmes?…&offering=<catalog_programs.id>` (numeric id; `program_key` fallback resolves renamed
-  rows).
+- Offering deep link: `/programmes?…&offering=<catalog_programs.id>` (numeric id; a replaced/renamed row resolves to the
+  current offering of the same university + programme + specialisation + mode — D-030).
 - Creator pages: `/c/<handle>` lower-case, `[a-z0-9-]{2,40}`.
 
 ### Phase 0 summary
@@ -230,3 +232,62 @@ and all layout shift.
 | Admin auth (Supabase Auth + second factor + roles) | Done (Google provider needs S-21; email sign-in works) |
 | CI with Lighthouse/axe gates | Done (workflow runs on PRs touching `website/**`; not yet observed on GitHub runners) |
 | Preview deploys on Vercel | Deferred — needs S-10 (Vercel project) |
+
+---
+
+## Phase 3 — Catalogue and taxonomy ✅ `website-phase-3-done`
+
+### Plan
+1. `web3_taxonomy`: canonical levels/categories/programmes/specialisations/formats, goal and career tags, synonyms
+   (generated normalised + compact forms), data-driven mapping rules, offering map, university profiles; auto-mapper,
+   unmapped report, admin override (audited).
+2. `web4_read_model`: derived facts (duration, NAAC/UGC-DEB/NIRF/AICTE parsers, eligibility), `web_offering_search`
+   materialised view (allow-listed columns, weighted tsvector, trigram), facet values, polling refresh + revalidation,
+   query resolver, `web_search` (results + facets in one call), suggest, details, compare, universities, stats, browse,
+   search log, data-quality report.
+3. SQL tests (taxonomy rules, parsers, eligibility, facet logic, zero results, allow-list, polling).
+4. 10k benchmark and tuning (target p95 < 150 ms).
+5. TypeScript: URL state, deterministic NL parser, eligibility mirror, SearchAdapter (cached, tagged), API routes,
+   outbox worker for revalidation, Vercel Cron fallback.
+6. Shared-taxonomy proposal (A-TAX-1) checked on the replica; docs; gate.
+
+### Step log
+- 3.1 ✅ `20261017100200_web3_taxonomy.sql`: 21 programmes, 64 specialisations with ~330 aliases, Hinglish stopwords,
+  university aliases via `web_tax_sync_catalog()`; first run maps **715/715** rows (416 exact, 277 synonym, 19 split,
+  3 from the name, 0 fuzzy).
+- 3.2 ✅ `20261017100300_web4_read_model.sql`: read model (708 visible; 7 Regular hidden), 197 groups; parsers verified
+  against all 29 universities (NAAC for 28, UGC-DEB for 25, NIRF ranks/bands for 15); duration known for 372 rows.
+- 3.3 ✅ SQL tests: `30_web_taxonomy` (48 checks), `40_web_search` (41 checks); security test now 460 checks.
+- 3.4 ✅ Benchmark `npm run db:bench` (10k offerings, rolled back): first version 487 ms unfiltered → nested-statement
+  overhead from definer helpers (D-029) and wide CTE rows → grouping-set facet counts, narrow rows, precomputed
+  goal ids: **filtered 20–55 ms, typo 22 ms, suggest 23 ms, unfiltered grouped 145 ms, flat 130 ms** (both edge-cached).
+  Real catalogue: 5–35 ms. Known slow edge: zero-results at 10k (~235 ms, recomputes the query-less count).
+- 3.5 ✅ `lib/search/{types,params,parse}.ts`, `lib/finder/eligibility.ts` (+29 unit tests), `lib/server/search.ts`,
+  `lib/server/outbox.ts`, routes `/api/search`, `/api/suggest`, `/api/offerings/[id]`, `/api/internal/{revalidate,
+  outbox,catalog-poll}`, `vercel.json` crons, `CRON_SECRET` accepted on internal routes.
+- 3.6 ✅ `supabase/migrations-shared/s03_shared_taxonomy.sql` + `scripts/db/check-shared-proposals.sh` (part of
+  `db:gate`); docs: D-028…D-034, A-CRON-1, S-46/S-47, TAXONOMY_PROPOSAL result, SCHEMA_PLAN.
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 83 unit tests, copy check) | ✅ |
+| `npm run db:gate` (replica: web1–4 applied, 460+18+15+48+41 SQL checks, shared objects unchanged vs production, s03 proposal applies and rolls back; local reset + same tests) | ✅ |
+| `npm run build` | ✅ |
+| Playwright (smoke, axe both themes, admin auth, catalogue API) | ✅ 30 passed, 6 skipped (single-project checks) |
+
+### Self-review (spec Section 17 Phase 3 row; 5; 3A read path; 6.3–6.4 data side)
+| Item | Status |
+|---|---|
+| `web_` taxonomy tables keyed to catalogue ids + mapping; editable data, not code | Done |
+| Shared version queued (A-TAX-1, `s03_shared_taxonomy.sql`, verified on replica) | Done |
+| Search read model (MV, allow-listed columns, weighted tsvector, trigram) | Done |
+| Catalogue read views/functions (details, compare, universities, stats, browse) | Done |
+| Synonyms, typo tolerance, prefix matching, relevance order (programme/spec > university > text, popularity tie-break) | Done |
+| Facet functions: counts exclude own selection, zero-count options kept, hierarchy-aware | Done |
+| NL parsing without an LLM | Done (budget, duration, qualification, goals in TS; entities in SQL) |
+| Revalidation hooks: polling (pg_cron, A-CRON-1) → refresh → outbox `revalidate` → `revalidateTag` | Done |
+| Unmapped-rows tooling | Done in DB (`web_tax_unmapped`, `web_tax_set_mapping`, `npm run tax:report`); admin UI in Phase 10 |
+| p95 < 150 ms at 10k | Done for filtered queries; unfiltered default ~145 ms DB time and served from the edge cache; measured again in Phase 12 load test |
+| Intakes facet | Deferred — no data in the catalogue (A-TAX-2); facet hidden |
+| University state facet | Deferred — needs S-46; facet appears automatically when data exists |

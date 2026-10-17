@@ -110,10 +110,18 @@ affected. Status: ☐ awaiting owner · ☑ approved · ✗ declined.
 
 ## Extensions
 
+### A-CRON-1 · One website-owned pg_cron job in production (at go-live)
+- **What:** `cron.schedule('web_catalog_poll', '* * * * *', 'select public.web_catalog_poll()')` — created by the website
+  migration `web4_read_model` when pg_cron is present. It reads the catalogue fingerprint (a few aggregate queries) and
+  refreshes the website's own read model only when the catalogue changed (D-031).
+- **Why:** keeps the finder in step with catalogue edits without adding a trigger to shared tables.
+- **Risk:** a materialised-view refresh every time the catalogue changes (~2–3 s for 715 rows, `CONCURRENTLY`, so reads
+  never block); no effect on other products. **Fallback:** Vercel Cron → `/api/internal/catalog-poll`. **Status:** ☐
+
 ### A-EXT-1 · Install `unaccent` (optional)
 - **What:** `create extension if not exists unaccent with schema extensions;` (available, not installed in production).
-- **Why:** spec 3 lists `unaccent` for search. **Fallback in place:** `web_normalise(text)` (lower-case, `translate()` of
-  common Latin diacritics, punctuation folding) — English/Hinglish queries rarely carry accents, so search quality is
+- **Why:** spec 3 lists `unaccent` for search. **Fallback in place:** `web_norm(text)` (lower-case, punctuation folding,
+  `&` → `and`, dots removed) — English/Hinglish queries rarely carry accents, so search quality is
   unaffected. **Risk:** none for other products (new extension only). **Status:** ☐ (not needed for launch)
 
 ## Auth

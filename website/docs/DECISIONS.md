@@ -207,3 +207,48 @@ these at the end (spec Section 0).
   another product) and `ANTHROPIC_BASE_URL`. The website reads `EMAIL_SMTP_*` and passes the Anthropic base URL
   explicitly (`WEB_ANTHROPIC_BASE_URL`, optional), so local tests can never send real email through another product's
   relay or route AI calls through an inherited endpoint.
+
+## Phase 3
+
+### D-028 · Canonical levels: integrated degrees under UG; PGDM, PGDBA and PGCM under "PG Diploma / Certificate"
+- **Why:** the catalogue stores BBA+MBA, BCA+MCA and B.Com+MBA as `PG`, but students join them after Class 12, so they
+  are browsed with UG programmes (their `min_qualification = BACHELOR` is flagged like the other UG contradictions and
+  shown as "Check eligibility"). Post Graduate Diplomas in Business Administration are stored as `DIPLOMA`; they are
+  postgraduate, so they map to programme `pgdba` at level `pg_diploma` with PGDM and PGCM. **Change:** `web_tax_programmes`,
+  `web_tax_rules_programme` (editable data).
+
+### D-029 · Pure immutable SQL helpers are plain (inlinable) functions
+- **Why:** `SECURITY DEFINER` and `SET search_path` stop Postgres from inlining a function, so per-row helpers
+  (`web_norm`, `web_eligibility`, `web_duration_bucket`, `web_naac_rank`, `web_jarr`, `web_slugify`) ran as ~200k nested
+  statements per search at 10k offerings (487 ms). They read no tables, so definer rights add nothing; they stay
+  non-executable by `anon`/`authenticated`. The security test enforces this exact exception (immutable, SQL, no SET, no
+  table access). Search at 10k offerings: 20–55 ms filtered, ~145 ms unfiltered (served from the edge cache).
+
+### D-030 · Old offering deep links resolve by university + programme + specialisation + mode
+- **Why:** the catalogue replaces a renamed row with a new id and a new `program_key` (the key hashes the name), so
+  neither is stable. `web_offering_details` falls back to the current visible offering of the same university, canonical
+  group and mode, and reports `moved_from` so the page can update the URL. **Change:** `web_offering_details`.
+
+### D-031 · Catalogue changes are detected by polling; the website adds one pg_cron job
+- **Why:** adding a trigger to `catalog_programs` would alter a shared table. `web_catalog_poll()` compares a fingerprint
+  (row counts, max `updated_at`, `w2_meta.catalog_version`, taxonomy edits) every minute and refreshes the read model
+  only on change, then queues a `revalidate` job in the outbox. Production gets one website-owned pg_cron job
+  (`web_catalog_poll`, listed in `APPROVALS_NEEDED.md` A-CRON-1); Vercel Cron calls `/api/internal/catalog-poll` every
+  5 minutes as a fallback and `/api/internal/outbox` every minute (per-minute crons need a Vercel Pro plan; otherwise the
+  short cache TTL keeps data within 5 minutes). Local stacks without pg_cron skip the schedule.
+
+### D-032 · University facts are parsed only from explicit statements; state stays empty until supplied
+- **Why:** no invented facts. NAAC grade, UGC-DEB status, AICTE and NIRF come from the catalogue's structured
+  `accreditation_text` (other ranking agencies are never shown as NIRF; NIRF bands such as "Top 200" are shown as bands).
+  Every value carries its source statement for the panel and the admin. University state/city are not in the catalogue,
+  so the state facet stays hidden until the owner fills `web_university_profiles` (S-46). Admin corrections go in
+  `facts_override` with a source note.
+
+### D-033 · "Online" and "distance" in a query are a study-mode filter
+- **Why:** spec 6.4's example ("bca online for working professionals") expects structured filters. The catalogue's
+  synonyms `onlinemba`/`distancemba` would swallow the mode word, so they are not imported as programme aliases.
+
+### D-034 · A query made only of unknown words returns zero results (with closest matches), not everything
+- **Why:** returning the whole catalogue for "zzzz" looks broken. Unknown words next to known ones ("mba xyzzy") are
+  ignored and reported ("We ignored: xyzzy"); a query with nothing recognisable goes to the zero-results path: closest
+  matches by trigram distance, the count without the query, and "Ask Witty" (spec 6.4).

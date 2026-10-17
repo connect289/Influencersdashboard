@@ -27,9 +27,11 @@
     "db:test": "../scripts/db/test.sh",
     "db:seed:regen": "node ../scripts/db/make-seed.mjs",
     "db:snapshot:regen": "../scripts/db/make-min-snapshot.sh",
-    "db:gate": "../scripts/db/build-replica.sh && ../scripts/db/apply-web-migrations.sh && ../scripts/db/test.sh postgresql://postgres:postgres@localhost:54330/postgres && ../scripts/db/check-shared-unchanged.sh && npm run db:reset && npm run db:test",
+    "db:gate": "../scripts/db/build-replica.sh && ../scripts/db/apply-web-migrations.sh && ../scripts/db/test.sh postgresql://postgres:postgres@localhost:54330/postgres && ../scripts/db/check-shared-unchanged.sh && ../scripts/db/check-shared-proposals.sh && npm run db:reset && npm run db:test",
     "e2e:laptop": "playwright test --project=laptop",
-    "check:copy": "node scripts/check-banned-phrases.mjs"
+    "check:copy": "node scripts/check-banned-phrases.mjs",
+    "db:bench": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f ../scripts/db/bench-10k.sql",
+    "tax:report": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c \"select * from public.web_tax_unmapped()\" -c \"select jsonb_pretty(public.web_data_quality())\""
   },
   "dependencies": {
     "@sentry/nextjs": "^11.8.0",

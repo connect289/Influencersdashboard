@@ -40,3 +40,5 @@ Status: ☐ needed · ◐ partly · ☑ done
 | S-43 | Influencer Portal public creator API (display name, photo, featured programmes) — not specified yet | ☐ |
 | S-44 | Lawyer review of the updated consent text and Privacy Policy edits (see `docs/legal/`) | ☐ |
 | S-45 | Real photography of Indian learners (licensed), or approval of generated abstract imagery | ☐ |
+| S-46 | University state, city and official website for each university (`web_university_profiles`; enables the state facet) — not in the catalogue | ☐ |
+| S-47 | Vercel plan: per-minute Vercel Cron (outbox worker) needs Pro; on Hobby, pg_cron + pg_net can call the worker instead (Phase 7 decides) | ☐ |
