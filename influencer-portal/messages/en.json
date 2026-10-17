@@ -72,7 +72,8 @@
       "briefs": "Briefs",
       "deliverables": "Deliverables",
       "leads": "Leads",
-      "links": "Links"
+      "links": "Links",
+      "earnings": "Earnings"
     },
     "agency": {
       "home": "Creators",
@@ -871,7 +872,9 @@
     "briefFor": "Brief: {deal}",
     "leadsHint": "Leads from this creator's links, with phone and email masked.",
     "openLeads": "Open leads",
-    "linksHint": "Tracking links and QR codes. With the negotiate and sign permission you can make new ones."
+    "linksHint": "Tracking links and QR codes. With the negotiate and sign permission you can make new ones.",
+    "earningsHint": "What this creator has earned, what is due and their payouts. Bank details are never shown.",
+    "openEarnings": "Open earnings"
   },
   "agencies": {
     "subtitle": "Talent agencies and managers, their team, and the creators who granted them access.",
@@ -4103,7 +4106,112 @@
         "gstin_mismatch": "Use your verified GSTIN.",
         "taxable_mismatch": "The taxable value must match the payout.",
         "gst_mismatch": "The GST must match the payout."
+      },
+      "upload": "Upload GST invoice",
+      "again": "Upload again",
+      "title": "GST invoice for {ref}",
+      "hint": "Raise your tax invoice to Eduwit for a taxable value of {taxable} plus GST of {gst}, then upload it here.",
+      "number": "Invoice number",
+      "date": "Invoice date",
+      "taxable": "Taxable value (₹)",
+      "gst": "GST (₹)",
+      "file": "Invoice file",
+      "fileRule": "PDF, JPG or PNG, up to 10 MB.",
+      "fileMissing": "Choose the invoice file.",
+      "uploadFailed": "The file didn't upload. Please try again.",
+      "submit": "Send to Eduwit"
+    },
+    "subtitle": "What you've earned, what's on its way, and every payout with its advice and tax documents.",
+    "agencySubtitle": "Earnings and payouts for {name}.",
+    "invoiceNeeded": "{count, plural, one {A payout is waiting for your GST invoice} other {# payouts are waiting for your GST invoice}}",
+    "invoiceNeededHint": "Upload the invoice below so Finance can release the payment.",
+    "invoiceNeededAgency": "The creator needs to upload their GST invoice before Finance can release the payment.",
+    "totals": {
+      "title": "Totals",
+      "payable": "Due to you",
+      "payableHint": "Goes out in the next payout run.",
+      "confirmed": "Confirmed",
+      "confirmedHint": "Approved, due on a later date.",
+      "pending": "Pending",
+      "pendingHint": "Earned, waiting for confirmation.",
+      "paid": "Paid",
+      "paidHint": "Settled, before TDS.",
+      "month": "This month",
+      "fy": "This financial year",
+      "lifetime": "Lifetime",
+      "nextPayout": "Next payout run"
+    },
+    "cycle": {
+      "weekly": "Payouts run every Monday.",
+      "fortnightly": "Payouts run every two weeks.",
+      "monthly": "Payouts run once a month."
+    },
+    "payouts": {
+      "title": "Payouts",
+      "hint": "Each payout, what was deducted, and the payment advice once it is paid.",
+      "empty": "No payouts yet",
+      "emptyHint": "Your first payout appears here once confirmed earnings are due.",
+      "gross": "Gross {amount}",
+      "tds": "TDS {amount}",
+      "gst": "GST {amount}",
+      "paid": "Paid on {date} · UTR {utr}",
+      "advice": "Payment advice",
+      "invoice": {
+        "creator_gst_invoice": "GST invoice {number}",
+        "payout_statement": "Payout statement {number}"
       }
+    },
+    "deals": {
+      "title": "By deal",
+      "hint": "What each deal has earned so far, net of penalties and clawbacks.",
+      "leads": "Lead status",
+      "empty": "No earnings yet",
+      "emptyHint": "Earnings appear once a signed deal starts paying out.",
+      "other": "Adjustments",
+      "leadCount": "{count, plural, one {# lead} other {# leads}}",
+      "pending": "Pending {amount}",
+      "owed": "Owed {amount}",
+      "paid": "Paid {amount}"
+    },
+    "statements": {
+      "title": "Monthly statements",
+      "hint": "Opening balance, every line posted that month and the closing balance.",
+      "empty": "No statements yet",
+      "download": "Download the statement for {month}"
+    },
+    "tds": {
+      "title": "TDS and Form 16A",
+      "hint": "Tax deducted from your payouts each quarter. Certificates appear when Finance uploads them.",
+      "empty": "No TDS deducted yet",
+      "quarter": "FY {fy} · {quarter}",
+      "certificate": "Form 16A",
+      "certificatePending": "Certificate not yet issued"
+    },
+    "entries": {
+      "title": "All entries",
+      "hint": "Every line in your ledger, newest first.",
+      "limited": "The latest {count} lines. Download a monthly statement for the rest.",
+      "empty": "Nothing in your ledger yet",
+      "emptyHint": "Entries appear as your deals earn."
+    },
+    "pdf": {
+      "advice": "Payment advice",
+      "statement": "Earnings statement",
+      "payee": "Payee",
+      "name": "Creator",
+      "paidOn": "Paid on",
+      "date": "Date",
+      "description": "Description",
+      "amount": "Amount",
+      "opening": "Opening balance",
+      "closing": "Closing balance",
+      "earned": "Earned this month",
+      "tds": "TDS withheld",
+      "paidOut": "Paid out",
+      "empty": "No entries this month.",
+      "adviceNote": "This is a computer-generated advice and needs no signature. TDS deducted is deposited against your PAN and shown in your Form 26AS; the quarterly Form 16A is in Earnings.",
+      "statementNote": "The balance is what Eduwit owes you: earnings (including amounts not yet confirmed) and GST, less TDS withheld and payouts made. Figures come straight from your ledger.",
+      "page": "Page {n} of {of}"
     }
   }
 }

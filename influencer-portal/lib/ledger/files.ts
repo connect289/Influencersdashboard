@@ -1,4 +1,3 @@
-import "server-only";
 // Finance files: creators' GST invoices in the private inf-invoices bucket (<creator>/<payout>/<file>), payment
 // advice PDFs and Form 16A certificates in inf-documents (advice/<creator>/…, form16a/<creator>/…). Uploads are
 // one-time signed URLs; downloads go through /api/finance/file after inf.finance_file_allowed() for the caller.

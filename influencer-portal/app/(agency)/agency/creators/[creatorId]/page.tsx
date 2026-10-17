@@ -168,6 +168,19 @@ export default async function AgencyCreatorPage({ params }: { params: Promise<{ 
               }
             />
           </Card>
+          {link.can_view_earnings ? (
+            <Card>
+              <CardHeader
+                title={t("nav.creator.earnings")}
+                description={t("agencyPortal.earningsHint")}
+                actions={
+                  <Button asChild size="sm" variant="secondary">
+                    <Link href={`/agency/creators/${creatorId}/earnings`}>{t("agencyPortal.openEarnings")}</Link>
+                  </Button>
+                }
+              />
+            </Card>
+          ) : null}
           <Card>
             <CardHeader title={t("nav.creator.links")} description={t("agencyPortal.linksHint")} />
             <LinksPanel supabase={supabase} creatorId={creatorId} canCreate={negotiates} staff={false} />

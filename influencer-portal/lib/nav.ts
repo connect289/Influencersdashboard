@@ -110,6 +110,7 @@ export const CREATOR_NAV: CreatorNavItem[] = [
   { href: "/creator/leads", labelKey: "nav.creator.leads", icon: "target" },
   { href: "/creator/links", labelKey: "nav.creator.links", icon: "link" },
   { href: "/creator/deals", labelKey: "nav.creator.deals", icon: "handshake" },
+  { href: "/creator/earnings", labelKey: "nav.creator.earnings", icon: "wallet" },
   { href: "/creator/briefs", labelKey: "nav.creator.briefs", icon: "clipboard" },
   { href: "/creator/contracts", labelKey: "nav.creator.contracts", icon: "signature" },
   { href: "/creator/profile", labelKey: "nav.creator.profile", icon: "idCard" },

@@ -4,6 +4,7 @@ import { dealFromApplication } from "./deal-from-application";
 import { ledgerRun } from "./ledger";
 import { leadsBackfill, leadsRerun } from "./leads";
 import { notifyDeliver } from "./notify-deliver";
+import { payoutAdvice } from "./payout-advice";
 import { penaltiesRefresh } from "./penalties-refresh";
 import type { JobHandler } from "./types";
 
@@ -16,4 +17,5 @@ export const JOB_HANDLERS: Record<string, JobHandler> = {
   "leads.rerun": leadsRerun,
   "leads.backfill": leadsBackfill,
   "ledger.run": ledgerRun,
+  "payout.advice": payoutAdvice,
 };

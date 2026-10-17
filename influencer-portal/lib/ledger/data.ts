@@ -162,6 +162,19 @@ const section = z.object({
   tds_paise: paise,
   borne_by: z.enum(["creator", "eduwit"]),
 });
+/** Settings → Organisation → Legal entity, as printed on statements and payment advice. */
+export const organisation = z
+  .object({
+    legal_name: z.string().catch("Eduwit"),
+    trade_name: z.string().catch(""),
+    address: z.string().catch(""),
+    gstin: z.string().catch(""),
+    pan: z.string().catch(""),
+    support_email: z.string().catch(""),
+  })
+  .catch({ legal_name: "Eduwit", trade_name: "", address: "", gstin: "", pan: "", support_email: "" });
+export type Organisation = z.infer<typeof organisation>;
+
 export const payoutDetail = z.object({
   id: z.uuid(),
   ref: z.string(),
@@ -215,7 +228,7 @@ export const payoutDetail = z.object({
       created_at: ts,
     }),
   ),
-  organisation: z.record(z.string(), z.unknown()).nullable(),
+  organisation,
 });
 export type PayoutDetail = z.infer<typeof payoutDetail>;
 
@@ -417,7 +430,7 @@ export const earningsPayout = z.object({
   paid_on: z.string().nullable(),
   created_at: ts,
   needs_invoice: z.boolean(),
-  advice: z.boolean(),
+  advice_path: z.string().nullable(),
   invoice: z
     .object({
       id: z.uuid(),
@@ -433,9 +446,13 @@ export type EarningsPayout = z.infer<typeof earningsPayout>;
 export const earnings = z.object({
   entries: z.array(earningsEntry),
   payouts: z.array(earningsPayout),
-  certificates: z.array(z.object({ id: z.uuid(), fy: z.string(), quarter: z.string(), uploaded_at: ts })),
+  certificates: z.array(
+    z.object({ id: z.uuid(), fy: z.string(), quarter: z.string(), path: z.string(), uploaded_at: ts }),
+  ),
   tds: z.array(z.object({ fy: z.string(), quarter: z.string(), section: z.string(), amount_paise: paise })),
   gst: z.object({ charges_gst: z.boolean(), gstin: z.string().nullable() }).nullable(),
+  creator: z.object({ name: z.string(), legal_name: z.string().nullable(), handle: z.string() }),
+  organisation: organisation,
   settings: z.object({
     cycle: z.enum(["weekly", "fortnightly", "monthly"]).catch("monthly"),
     payout_day_of_month: z.number().int().catch(10),

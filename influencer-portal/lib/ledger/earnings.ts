@@ -143,3 +143,59 @@ export function monthStatement(entries: readonly (EarningEntry & { label: string
     paid_out_paise: -of(["payout"]),
   };
 }
+
+export interface DealEarning {
+  deal_id: string | null;
+  title: string | null;
+  /** Net of debits and reversals; excludes settlement lines. */
+  earned_paise: number;
+  pending_paise: number;
+  paid_paise: number;
+  /** Confirmed and not yet paid. */
+  owed_paise: number;
+  leads: number;
+}
+
+/** Per-deal earnings, biggest first; adjustments without a deal are grouped under deal_id null. */
+export function dealEarnings(
+  entries: readonly (EarningEntry & {
+    deal_id: string | null;
+    deal_title: string | null;
+    attribution_id: string | null;
+  })[],
+): DealEarning[] {
+  const by = new Map<string, DealEarning & { attributions: Set<string> }>();
+  for (const e of entries.filter(isEarning)) {
+    const key = e.deal_id ?? "";
+    const d = by.get(key) ?? {
+      deal_id: e.deal_id,
+      title: e.deal_title,
+      earned_paise: 0,
+      pending_paise: 0,
+      paid_paise: 0,
+      owed_paise: 0,
+      leads: 0,
+      attributions: new Set<string>(),
+    };
+    const s = sign(e);
+    d.earned_paise += s * e.amount_paise;
+    d.paid_paise += s * e.paid_paise;
+    if (e.type !== "reversal" && e.status !== "reversed" && e.status !== "clawed_back") {
+      d.pending_paise += s * Math.max(e.amount_paise - e.confirmed_paise, 0);
+      d.owed_paise += s * Math.max(e.confirmed_paise - e.paid_paise, 0);
+    } else if (e.type === "reversal") d.owed_paise += s * Math.max(e.confirmed_paise - e.paid_paise, 0);
+    if (e.attribution_id) d.attributions.add(e.attribution_id);
+    by.set(key, d);
+  }
+  return [...by.values()]
+    .map(({ attributions, ...d }) => ({ ...d, leads: attributions.size }))
+    .sort((a, b) => b.earned_paise - a.earned_paise || (a.title ?? "").localeCompare(b.title ?? ""));
+}
+
+/** IST months (YYYY-MM) that have ledger activity, newest first, for the statement picker. */
+export function statementMonths(entries: readonly Pick<EarningEntry, "posted_at">[]): string[] {
+  const months = new Set(
+    entries.map((e) => new Date(Date.parse(e.posted_at) + 330 * 60_000).toISOString().slice(0, 7)),
+  );
+  return [...months].sort().reverse();
+}

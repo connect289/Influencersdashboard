@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { earningTotals, monthStatement, nextPayoutDate, type EarningEntry } from "./earnings";
+import {
+  dealEarnings,
+  earningTotals,
+  monthStatement,
+  nextPayoutDate,
+  statementMonths,
+  type EarningEntry,
+} from "./earnings";
 import { reconcile } from "./reconcile";
 
 const e = (over: Partial<EarningEntry>): EarningEntry & { label: string } => ({
@@ -150,5 +157,58 @@ describe("reconciliation", () => {
       "2026-11-15T00:00:00.000Z",
     );
     expect(rows[0]?.flag).toBeNull();
+  });
+});
+
+describe("deal earnings", () => {
+  const d = (over: Partial<Parameters<typeof dealEarnings>[0][number]>) => ({
+    ...e({}),
+    deal_id: "d1",
+    deal_title: "MBA push",
+    attribution_id: null,
+    ...over,
+  });
+
+  it("groups by deal with what is pending, owed and paid", () => {
+    const rows = dealEarnings([
+      d({ attribution_id: "a1" }),
+      d({ attribution_id: "a1", confirmed_paise: 10_000, status: "payable" }),
+      d({ attribution_id: "a2", confirmed_paise: 10_000, paid_paise: 10_000, status: "paid" }),
+      d({ type: "penalty", direction: "debit", amount_paise: 2_000, confirmed_paise: 2_000, status: "payable" }),
+      d({ type: "tds", direction: "debit", amount_paise: 1_000, confirmed_paise: 1_000, paid_paise: 1_000 }),
+      d({ deal_id: null, deal_title: null, type: "adjustment", amount_paise: 500 }),
+    ]);
+    expect(rows).toEqual([
+      {
+        deal_id: "d1",
+        title: "MBA push",
+        earned_paise: 28_000,
+        pending_paise: 10_000,
+        paid_paise: 10_000,
+        owed_paise: 8_000,
+        leads: 2,
+      },
+      { deal_id: null, title: null, earned_paise: 500, pending_paise: 500, paid_paise: 0, owed_paise: 0, leads: 0 },
+    ]);
+  });
+
+  it("counts a reversal still to recover against what is owed", () => {
+    const [row] = dealEarnings([
+      d({ confirmed_paise: 10_000, paid_paise: 10_000, status: "reversed" }),
+      d({ type: "reversal", direction: "debit", confirmed_paise: 10_000, status: "payable" }),
+    ]);
+    expect(row).toMatchObject({ earned_paise: 0, pending_paise: 0, owed_paise: -10_000, paid_paise: 10_000 });
+  });
+});
+
+describe("statement months", () => {
+  it("lists IST months with activity, newest first", () => {
+    expect(
+      statementMonths([
+        { posted_at: "2026-10-31T19:00:00.000Z" },
+        { posted_at: "2026-10-05T06:00:00.000Z" },
+        { posted_at: "2026-09-30T10:00:00.000Z" },
+      ]),
+    ).toEqual(["2026-11", "2026-10", "2026-09"]);
   });
 });

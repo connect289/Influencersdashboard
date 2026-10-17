@@ -1258,14 +1258,15 @@ language sql stable security definer set search_path = '' as $$
     'payouts', coalesce((select jsonb_agg(jsonb_build_object(
                            'id', p.id, 'ref', p.ref, 'status', p.status, 'gross_paise', p.gross_paise, 'gst_base_paise', p.gst_base_paise,
                            'gst_paise', p.gst_paise, 'tds_paise', p.tds_paise, 'net_paise', p.net_paise, 'utr', p.utr, 'paid_on', p.paid_on,
-                           'created_at', p.created_at, 'needs_invoice', p.needs_invoice, 'advice', p.advice_path is not null,
+                           'created_at', p.created_at, 'needs_invoice', p.needs_invoice, 'advice_path', p.advice_path,
                            'invoice', (select jsonb_build_object('id', i.id, 'kind', i.kind, 'number', i.number, 'status', i.status,
                                                                  'review_note', i.review_note)
                                          from inf.invoices i where i.payout_id = p.id order by i.created_at desc limit 1))
                            order by p.created_at desc)
                           from inf.payouts p join inf.payout_batches b on b.id = p.batch_id
                          where p.creator_id = p_creator and p.status in ('pending', 'paid') and b.status <> 'cancelled'), '[]'),
-    'certificates', coalesce((select jsonb_agg(jsonb_build_object('id', t.id, 'fy', t.fy, 'quarter', t.quarter, 'uploaded_at', t.uploaded_at)
+    'certificates', coalesce((select jsonb_agg(jsonb_build_object('id', t.id, 'fy', t.fy, 'quarter', t.quarter, 'path', t.file_path,
+                                                                  'uploaded_at', t.uploaded_at)
                                                order by t.fy desc, t.quarter desc)
                                from inf.tds_certificates t where t.creator_id = p_creator), '[]'),
     'tds', coalesce((select jsonb_agg(jsonb_build_object('fy', t.fy, 'quarter', t.quarter, 'section', t.section, 'amount_paise', t.amount))
@@ -1273,6 +1274,9 @@ language sql stable security definer set search_path = '' as $$
                               where r.creator_id = p_creator and r.borne_by = 'creator' group by r.fy, r.quarter, r.section) t), '[]'),
     'gst', (select jsonb_build_object('charges_gst', coalesce(k.gst_status = 'registered' and k.gstin_verified, false), 'gstin', k.gstin)
               from inf.creator_kyc k where k.creator_id = p_creator),
+    'creator', (select jsonb_build_object('name', c.display_name, 'legal_name', c.legal_name, 'handle', c.handle)
+                  from inf.creators c where c.id = p_creator),
+    'organisation', inf.setting('organisation.profile'),
     'settings', jsonb_build_object('cycle', inf.setting('finance.payouts') ->> 'cycle',
                                    'payout_day_of_month', (inf.setting('finance.payouts') ->> 'payout_day_of_month')::int))
    where inf.can_view_earnings(p_creator)
