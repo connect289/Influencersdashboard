@@ -38,6 +38,8 @@ export const feedRow = z.object({
   deal_title: z.string().nullable(),
   deliverable_id: z.uuid().nullable(),
   deliverable_title: z.string().nullable(),
+  programme_id: z.number().int().nullable(),
+  programme_name: z.string().nullable(),
   stage_timeline: timeline,
   earning_status: z.enum(["none", "pending", "accrued", "confirmed", "paid", "clawed_back"]),
   is_test: z.boolean(),
@@ -56,6 +58,7 @@ export const leadFilters = z.object({
   deal: z.uuid().nullable().catch(null),
   deliverable: z.uuid().nullable().catch(null),
   link: z.uuid().nullable().catch(null),
+  programme: z.coerce.number().int().positive().nullable().catch(null),
   temperature: z.enum(TEMPERATURES).nullable().catch(null),
   city: z.string().trim().max(60).nullable().catch(null),
   from: z.iso.date().nullable().catch(null),
@@ -72,6 +75,7 @@ export function parseFilters(sp: Record<string, string | undefined>): LeadFilter
     deal: v("deal"),
     deliverable: v("deliverable"),
     link: v("link"),
+    programme: v("programme"),
     temperature: v("temperature"),
     city: v("city"),
     from: v("from"),
@@ -98,6 +102,7 @@ export async function loadFeed(
   if (f.deal) q = q.eq("deal_id", f.deal);
   if (f.deliverable) q = q.eq("deliverable_id", f.deliverable);
   if (f.link) q = q.eq("link_id", f.link);
+  if (f.programme) q = q.eq("programme_id", f.programme);
   if (f.temperature) q = q.eq("temperature", f.temperature);
   if (f.city)
     q = q.or(

@@ -9,10 +9,12 @@ import { cryptoRandom, suggestCode } from "@/lib/attribution/codes";
 import {
   ATTRIBUTION_DB_ERRORS,
   backfillInput,
+  campaignAttributionInput,
   fraudDecisionInput,
   linkInput,
   overrideInput,
   stageRuleInput,
+  type CampaignAttributionInput,
   type LinkInput,
   type OverrideInput,
   type StageRuleInput,
@@ -176,5 +178,20 @@ export async function saveStageRule(input: StageRuleInput): Promise<ActionResult
     if (error) return dbFail(error, t);
     revalidatePath("/admin/leads/stages");
     return { ok: true, message: t("leads.stages.saved") };
+  });
+}
+
+export async function saveCampaignAttribution(
+  input: CampaignAttributionInput,
+): Promise<ActionResult> {
+  return act(campaignAttributionInput, input, async (db, v, t) => {
+    const { error } = await db.rpc("campaign_attribution_save", {
+      p_campaign: v.campaignId,
+      p_model: v.model,
+      p_message: v.message,
+    });
+    if (error) return dbFail(error, t);
+    revalidatePath(`/admin/campaigns/${v.campaignId}`);
+    return { ok: true, message: t("campaigns.tracking.saved") };
   });
 }

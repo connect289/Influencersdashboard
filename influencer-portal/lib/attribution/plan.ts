@@ -6,6 +6,7 @@ import {
   type EvidenceSource,
   type Existing,
   type LeadFacts,
+  type Model,
   type Reason,
   type Rules,
   type TouchKind,
@@ -50,12 +51,27 @@ export interface PlannedLead {
   unmapped: number;
 }
 
+/**
+ * The model for a lead: the override of the campaign behind its earliest touch (spec 9.2 "optional overrides per
+ * campaign"), otherwise the global one.
+ */
+export function modelFor(
+  lead: Pick<LeadFacts, "touches">,
+  global: Model,
+  campaignModels: Readonly<Record<string, Model>>,
+): Model {
+  const first = [...lead.touches].sort((a, b) => a.at.localeCompare(b.at))[0];
+  return (first?.campaign_id ? campaignModels[first.campaign_id] : undefined) ?? global;
+}
+
 export function planLead(
   lead: CandidateLead,
   rules: Rules,
   stageRules: readonly MappingRule[],
+  campaignModels: Readonly<Record<string, Model>> = {},
 ): PlannedLead {
-  const fresh: Omit<PlannedDecision, "stage">[] = decide(lead, rules, lead.existing);
+  const model = modelFor(lead, rules.model, campaignModels);
+  const fresh: Omit<PlannedDecision, "stage">[] = decide(lead, { ...rules, model }, lead.existing);
   // Rows with no touch in the current evidence (a manual credit, or evidence that went away) are carried forward as
   // they are, so their stage still follows the CRM.
   const covered = new Set(fresh.map((d) => d.creator_id));

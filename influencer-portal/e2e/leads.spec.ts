@@ -198,6 +198,32 @@ test.describe.serial("links and leads", () => {
     await expect(page.getByRole("dialog")).toContainText("910000000102");
   });
 
+  test("staff see the pipeline as a board", async ({ page }) => {
+    await staffLogin(page, "manager@example.test");
+    await page.goto("/admin/leads?test=1");
+    await page.getByRole("link", { name: "Board", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Applied" })).toContainText("Kabir N.");
+    await expect(page.getByRole("region", { name: "Applied" })).toContainText("Riya Sharma");
+  });
+
+  test("a campaign can set its own model and WhatsApp message", async ({ page }) => {
+    await staffLogin(page, "manager@example.test");
+    await page.goto("/admin/campaigns");
+    await page.getByRole("link", { name: "Online MBA winter push (demo)" }).click();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
+    await page.getByLabel("Attribution model").selectOption("last_touch");
+    const message = page.getByLabel("WhatsApp message");
+    await message.fill("Hi Eduwit, tell me about the MBA");
+    await expect(
+      page.getByText("Include {code} so the creator's code reaches Witty."),
+    ).toBeVisible();
+    await message.fill("Hi Eduwit! {creator_name} sent me. Code {code}");
+    await page.getByRole("button", { name: "Save", exact: true }).last().click();
+    await expect(
+      page.getByText("Tracking settings saved. New clicks and the next sync use them."),
+    ).toBeVisible();
+  });
+
   test("a manager clears a fraud flag with a reason", async ({ page }) => {
     const db = service().schema("inf" as never) as unknown as ReturnType<typeof service>;
     const att = await db

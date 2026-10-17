@@ -39,7 +39,6 @@ import { DEAL_STATUSES } from "@/lib/deals/schemas";
 import { formatCompact, formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-
 export async function generateMetadata() {
   const t = await getTranslations();
   return { title: t("nav.admin.creators") };

@@ -228,6 +228,8 @@ create table inf.creator_lead_feed (
   deal_title          text,
   deliverable_id      uuid,
   deliverable_title   text,
+  programme_id        bigint,
+  programme_name      text,
   stage_timeline      jsonb not null default '[]'::jsonb check (jsonb_typeof(stage_timeline) = 'array'),
   earning_status      text not null default 'pending' check (earning_status in ('none', 'pending', 'accrued', 'confirmed', 'paid', 'clawed_back')),
   is_test             boolean not null default false,
@@ -244,6 +246,23 @@ create table inf.sync_state (
   detail      jsonb not null default '{}'::jsonb,
   updated_at  timestamptz not null default now()
 );
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- Per-campaign attribution (spec 9.1 "message text configurable per campaign", 9.2 "optional overrides per campaign").
+-- Null means the global setting. The message must keep {code} so Witty can read the creator code.
+-- ---------------------------------------------------------------------------------------------------------------
+alter table inf.campaigns
+  add column attribution_model text check (attribution_model in ('first_touch', 'last_touch', 'first_touch_with_assisted')),
+  add column link_message text check (char_length(link_message) between 10 and 500 and position('{code}' in link_message) > 0);
+
+create or replace function inf.campaign_attribution_save(p_campaign uuid, p_model text, p_message text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not inf.has_perm('campaign.write') then raise exception 'not allowed' using errcode = '42501'; end if;
+  update inf.campaigns set attribution_model = nullif(p_model, ''), link_message = nullif(trim(p_message), '')
+   where id = p_campaign;
+  if not found then raise exception 'no such campaign' using errcode = '22023'; end if;
+end $$;
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- Links
@@ -382,7 +401,8 @@ language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
            'id', l.id, 'code', l.code, 'active', l.active and c.status not in ('blocked', 'archived'), 'destination', l.destination,
            'custom_url', l.custom_url, 'platform', l.platform, 'creator_name', c.display_name, 'handle', c.handle,
-           'campaign_slug', cp.name, 'programme', (select p.program_name from public.catalog_programs p where p.id = l.programme_id))
+           'campaign_slug', cp.name, 'message', cp.link_message,
+           'programme', (select p.program_name from public.catalog_programs p where p.id = l.programme_id))
     from inf.tracking_links l join inf.creators c on c.id = l.creator_id left join inf.campaigns cp on cp.id = l.campaign_id
    where upper(l.code) = upper(trim(p_code)) and coalesce(auth.role(), '') = 'service_role';
 $$;
@@ -554,6 +574,8 @@ begin
                             'last_id', (select max(x) from unnest(v_ids) x),
                             'watermark', to_char(v_max at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
                             'rules', v_rules,
+                            'campaign_models', coalesce((select jsonb_object_agg(cp.id, cp.attribution_model) from inf.campaigns cp
+                                                          where cp.attribution_model is not null), '{}'),
                             'stage_rules', coalesce((select jsonb_agg(jsonb_build_object('priority', m.priority, 'conditions', m.conditions,
                                                                                          'creator_stage', m.creator_stage, 'reason_category', m.reason_category,
                                                                                          'flag', m.flag) order by m.priority)
@@ -612,7 +634,7 @@ begin
   insert into inf.creator_lead_feed (attribution_id, creator_id, lead_ref, display_name, phone_masked, email_masked, fields, creator_stage,
                                      reason_category, flags, temperature, attribution_status, attribution_reason, touch, code, link_id,
                                      link_label, campaign_id, campaign_name, deal_id, deal_title, deliverable_id, deliverable_title,
-                                     stage_timeline, is_test, removed, lead_at, stage_changed_at, updated_at)
+                                     programme_id, programme_name, stage_timeline, is_test, removed, lead_at, stage_changed_at, updated_at)
   select a.id, a.creator_id, inf.lead_ref(l.id),
          case when v_removed then null when 'display_name' = any (v_fields) then v_name end,
          case when v_removed then 'XXXXXXXXXX' else inf.mask_phone(l.whatsapp_number) end,
@@ -621,6 +643,7 @@ begin
          coalesce(a.creator_stage, 'new'), a.stage_reason, a.stage_flags,
          case when v_removed then null when upper(l.lead_status) in ('HOT', 'WARM', 'COLD') then upper(l.lead_status) end,
          a.status, a.reason, a.touch, a.code, a.link_id, k.label, a.campaign_id, cp.name, a.deal_id, d.title, a.deliverable_id, x.title,
+         k.programme_id, (select pr.program_name from public.catalog_programs pr where pr.id = k.programme_id),
          coalesce((select jsonb_agg(jsonb_build_object('stage', e.creator_stage, 'reason', e.reason_category, 'flags', to_jsonb(e.flags),
                                                        'at', e.occurred_at) order by e.occurred_at, e.id)
                      from inf.lead_stage_events e where e.attribution_id = a.id), '[]'),
@@ -639,7 +662,8 @@ begin
     attribution_status = excluded.attribution_status, attribution_reason = excluded.attribution_reason, touch = excluded.touch,
     code = excluded.code, link_id = excluded.link_id, link_label = excluded.link_label, campaign_id = excluded.campaign_id,
     campaign_name = excluded.campaign_name, deal_id = excluded.deal_id, deal_title = excluded.deal_title,
-    deliverable_id = excluded.deliverable_id, deliverable_title = excluded.deliverable_title, stage_timeline = excluded.stage_timeline,
+    deliverable_id = excluded.deliverable_id, deliverable_title = excluded.deliverable_title,
+    programme_id = excluded.programme_id, programme_name = excluded.programme_name, stage_timeline = excluded.stage_timeline,
     is_test = excluded.is_test, removed = excluded.removed, lead_at = excluded.lead_at, stage_changed_at = excluded.stage_changed_at,
     updated_at = now();
 end $$;
@@ -1112,5 +1136,6 @@ insert into inf.client_grants (object_type, object_name, grantee, privilege) val
   ('function', 'inf.attribution_overview()', 'authenticated', 'execute'),
   ('function', 'inf.lead_view_save(text, jsonb, boolean)', 'authenticated', 'execute'),
   ('function', 'inf.lead_view_delete(uuid)', 'authenticated', 'execute'),
-  ('function', 'inf.lead_views()', 'authenticated', 'execute');
+  ('function', 'inf.lead_views()', 'authenticated', 'execute'),
+  ('function', 'inf.campaign_attribution_save(uuid, text, text)', 'authenticated', 'execute');
 call inf.apply_client_grants();

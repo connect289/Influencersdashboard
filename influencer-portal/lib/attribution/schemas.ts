@@ -41,6 +41,19 @@ export const backfillInput = z
   .object({ from: z.iso.date(), to: z.iso.date() })
   .refine((v) => v.to >= v.from, { path: ["to"] });
 
+/** A campaign's own attribution model and WhatsApp message (empty = the global setting). */
+export const campaignAttributionInput = z.object({
+  campaignId: uuid,
+  model: z.enum(["", "first_touch", "last_touch", "first_touch_with_assisted"]).default(""),
+  message: z
+    .string()
+    .trim()
+    .max(500)
+    .default("")
+    .refine((m) => m === "" || (m.length >= 10 && m.includes("{code}")), { message: "code" }),
+});
+export type CampaignAttributionInput = z.input<typeof campaignAttributionInput>;
+
 export const stageRuleInput = z.object({
   id: uuid.nullable().default(null),
   priority: z.number().int().min(1).max(9999),

@@ -33,6 +33,8 @@ const linkSchema = z.object({
   creator_name: z.string(),
   handle: z.string(),
   campaign_slug: z.string().nullable(),
+  /** The campaign's own message template, when it has one. */
+  message: z.string().nullable().catch(null),
   programme: z.string().nullable(),
 });
 
@@ -122,7 +124,7 @@ export async function resolveRedirect(
         log.warn("redirect.witty_issue_failed", { code: l.code, error: errorMessage(e) });
       }
     }
-    const text = renderMessage(s.deep_link_template, {
+    const text = renderMessage(l.message ?? s.deep_link_template, {
       creator_name: l.creator_name,
       programme: l.programme ?? "online programmes",
       code: l.code,

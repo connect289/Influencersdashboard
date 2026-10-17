@@ -11,19 +11,9 @@ import { useAction } from "@/components/ui/use-action";
 import { deleteLeadView, saveLeadView } from "@/lib/actions/leads";
 import { CREATOR_STAGES } from "@/lib/attribution/stages";
 import type { SavedView } from "@/lib/leads/data";
+import { LEAD_FILTER_KEYS } from "@/lib/leads/filters";
 
-const KEYS = [
-  "stage",
-  "campaign",
-  "deal",
-  "deliverable",
-  "link",
-  "temperature",
-  "city",
-  "from",
-  "to",
-  "q",
-] as const;
+const KEYS = LEAD_FILTER_KEYS;
 
 export function LeadFilters({
   options,
@@ -35,6 +25,7 @@ export function LeadFilters({
     deals: [string, string][];
     deliverables: [string, string][];
     links: [string, string][];
+    programmes: [string, string][];
   };
   views: SavedView[];
   canShare: boolean;
@@ -140,6 +131,7 @@ export function LeadFilters({
           {select("deal", t("leads.filters.deal"), options.deals)}
           {select("deliverable", t("leads.filters.deliverable"), options.deliverables)}
           {select("link", t("leads.filters.link"), options.links)}
+          {select("programme", t("leads.filters.programme"), options.programmes)}
           <Field id="lf-city" label={t("leads.filters.city")}>
             <Input
               id="lf-city"

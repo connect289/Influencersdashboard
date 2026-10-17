@@ -1,5 +1,6 @@
 "use server";
 // Saved views for the lead pipeline (each person's own; staff may share theirs with other staff).
+import { LEAD_FILTER_KEYS } from "@/lib/leads/filters";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { fetchMe } from "@/lib/auth/guards";
@@ -8,21 +9,7 @@ import { fail, type ActionResult } from "./result";
 
 const viewInput = z.object({
   name: z.string().trim().min(1).max(60),
-  filters: z.partialRecord(
-    z.enum([
-      "stage",
-      "campaign",
-      "deal",
-      "deliverable",
-      "link",
-      "temperature",
-      "city",
-      "from",
-      "to",
-      "q",
-    ]),
-    z.string().max(80),
-  ),
+  filters: z.partialRecord(z.enum(LEAD_FILTER_KEYS), z.string().max(80)),
   shared: z.boolean(),
 });
 

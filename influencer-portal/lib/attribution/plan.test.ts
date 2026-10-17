@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planLead, type CandidateLead, type ExistingRow } from "./plan";
+import { modelFor, planLead, type CandidateLead, type ExistingRow } from "./plan";
 import type { Rules } from "./rules";
 import { DEFAULT_STAGE_RULES } from "./stage-rules";
 
@@ -135,5 +135,38 @@ describe("planLead", () => {
       status: "fraud_suspected",
       stage: { stage: "qualified", flags: ["under_review"] },
     });
+  });
+});
+
+describe("campaign model overrides", () => {
+  const inCampaign = (creator: string, at: string, campaign: string | null) => ({
+    ...touch(creator, at),
+    campaign_id: campaign,
+  });
+  it("uses the override of the campaign behind the earliest touch", () => {
+    const l = lead({
+      touches: [
+        inCampaign("arjun", "2026-11-01T10:02:00.000Z", null),
+        inCampaign("riya", "2026-11-01T10:00:00.000Z", "c1"),
+      ],
+    });
+    expect(modelFor(l, "first_touch", { c1: "last_touch" })).toBe("last_touch");
+    expect(modelFor(l, "first_touch", { c2: "last_touch" })).toBe("first_touch");
+    expect(modelFor(lead({ touches: [] }), "first_touch", { c1: "last_touch" })).toBe(
+      "first_touch",
+    );
+  });
+
+  it("credits by the overridden model", () => {
+    const l = lead({
+      touches: [
+        inCampaign("riya", "2026-11-01T10:00:00.000Z", "c1"),
+        inCampaign("arjun", "2026-11-01T10:02:00.000Z", "c1"),
+      ],
+    });
+    const byGlobal = planLead(l, rules, DEFAULT_STAGE_RULES);
+    expect(byGlobal.decisions.find((d) => d.status === "credited")?.creator_id).toBe("riya");
+    const byCampaign = planLead(l, rules, DEFAULT_STAGE_RULES, { c1: "last_touch" });
+    expect(byCampaign.decisions.find((d) => d.status === "credited")?.creator_id).toBe("arjun");
   });
 });

@@ -1,6 +1,7 @@
 // Every translation key used in code exists in messages/en.json, and every setting field has a label.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import { SETTING_KEYS, settingJsonSchema } from "@/lib/settings/registry";
 import { STAFF_ROLES } from "@/lib/auth/permissions";
@@ -305,6 +306,12 @@ describe("messages", () => {
       ...ATTRIBUTION_DB_ERRORS.map(([, k]) => `leads.errors.${k}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);
+  });
+
+  it("shows template placeholders literally where a hint explains them", () => {
+    const tr = createTranslator({ locale: "en", messages: en });
+    expect(tr("campaigns.tracking.messageHint")).toContain("{code}");
+    expect(tr("campaigns.tracking.needsCode")).toContain("{code}");
   });
 
   it("describes every role", () => {

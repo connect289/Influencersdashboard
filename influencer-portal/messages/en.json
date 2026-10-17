@@ -1716,6 +1716,16 @@
       "feeRequired": "Enter the fixed fee.",
       "dates": "The end date is before the start date.",
       "applyBy": "The apply-by date is after the end date."
+    },
+    "tracking": {
+      "title": "Tracking for this campaign",
+      "hint": "Leave a field empty to use the global attribution settings.",
+      "model": "Attribution model",
+      "useGlobal": "Use the global setting",
+      "message": "WhatsApp message",
+      "messageHint": "Pre-filled when a student opens a creator's WhatsApp link. You can use '{creator_name}', '{programme}', '{code}' and '{access_code}'; '{code}' is required so Witty can read the creator code.",
+      "needsCode": "Include '{code}' so the creator's code reaches Witty.",
+      "saved": "Tracking settings saved. New clicks and the next sync use them."
     }
   },
   "mediaKit": {
@@ -3644,7 +3654,8 @@
       "search": "Search",
       "from": "From",
       "to": "To",
-      "clear": "Clear filters"
+      "clear": "Clear filters",
+      "programme": "Programme"
     },
     "views": {
       "open": "Saved views",

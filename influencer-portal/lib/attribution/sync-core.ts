@@ -82,6 +82,9 @@ const candidatesSchema = z.object({
   watermark: z.string().nullable(),
   rules: rulesSchema,
   stage_rules: z.array(stageRuleSchema),
+  campaign_models: z
+    .record(z.string(), z.enum(["first_touch", "last_touch", "first_touch_with_assisted"]))
+    .catch({}),
 });
 
 export type SyncMode =
@@ -109,7 +112,7 @@ export async function syncBatchWith(
   const { data, error } = await db.rpc("lead_sync_candidates", { p: { ...mode, limit: BATCH } });
   if (error) throw new Error(error.message);
   const c = candidatesSchema.parse(data);
-  const planned = c.leads.map((l) => planLead(l, c.rules, c.stage_rules));
+  const planned = c.leads.map((l) => planLead(l, c.rules, c.stage_rules, c.campaign_models));
   const payload = {
     source,
     watermark: "since" in mode ? c.watermark : null,

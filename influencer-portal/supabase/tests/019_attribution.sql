@@ -3,7 +3,7 @@
 -- history, stage events, the masked creator feed), masking proofs, overrides, fraud review and who sees what.
 begin;
 \ir _helpers.psql
-select plan(72);
+select plan(76);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('asha', array['super_admin']);
@@ -39,6 +39,21 @@ select is(inf.mask_email('nope', array['gmail.com']), null, 'email: invalid is d
 select matches(inf.lead_ref(42), '^L-[0-9A-F]{10}$', 'lead reference format');
 select is(inf.lead_ref(42), inf.lead_ref(42), 'lead reference is stable');
 select isnt(inf.lead_ref(42), inf.lead_ref(43), 'and differs per lead');
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- Per-campaign attribution settings
+-- ---------------------------------------------------------------------------------------------------------------
+insert into ids values ('camp', gen_random_uuid());
+insert into inf.campaigns (id, name, objective, created_by)
+select (select id from ids where label = 'camp'), 'Diwali push', 'leads', (select user_id from tests.people where label = 'mona');
+select tests.as_person('fin');
+select throws_ok($$ select inf.campaign_attribution_save((select id from ids where label = 'camp'), 'last_touch', '') $$, '42501', null,
+  'finance does not change campaign tracking');
+select tests.as_person('mona');
+select throws_ok($$ select inf.campaign_attribution_save((select id from ids where label = 'camp'), '', 'Hello, tell me more please') $$, '23514', null,
+  'a campaign message must keep the creator code');
+select lives_ok($$ select inf.campaign_attribution_save((select id from ids where label = 'camp'), 'last_touch', 'Hi Eduwit, {creator_name} sent me. Code {code}') $$,
+  'a manager sets the campaign model and message');
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- Links
@@ -110,6 +125,8 @@ select ok((select jsonb_array_length(x -> 'touches') >= 1 from cand, jsonb_array
 select is((select x -> 'self_referral_creators' ->> 0 from cand, jsonb_array_elements(c -> 'leads') x where (x ->> 'id')::bigint = (select id from leads where label = 'self'))::uuid,
           (select id from ids where label = 'arjun'), 'a creator''s own number is a self-referral');
 select ok((select jsonb_array_length(c -> 'stage_rules') > 20 from cand), 'the stage rules come with the facts');
+select is((select c -> 'campaign_models' ->> (select id::text from ids where label = 'camp') from cand), 'last_touch',
+          'campaign model overrides come with the facts');
 select isnt((select c ->> 'watermark' from cand), null, 'a watermark is returned');
 
 -- The app applies the pure rules; here the decisions are written as it would send them.

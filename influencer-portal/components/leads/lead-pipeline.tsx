@@ -67,6 +67,11 @@ export async function LeadPipeline({
       (r) => r.deliverable_id,
       (r) => r.deliverable_title,
     ),
+    programmes: pairs(
+      all,
+      (r) => (r.programme_id === null ? null : String(r.programme_id)),
+      (r) => r.programme_name,
+    ),
     links: pairs(
       all,
       (r) => r.link_id,

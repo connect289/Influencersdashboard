@@ -6,6 +6,7 @@ import { z } from "zod";
 import { CampaignDetails } from "@/components/campaigns/campaign-details";
 import { CampaignForm } from "@/components/campaigns/campaign-form";
 import { CampaignStatusActions } from "@/components/campaigns/campaign-status";
+import { CampaignTracking } from "@/components/campaigns/campaign-tracking";
 import { InviteDialog } from "@/components/campaigns/invite-dialog";
 import { WithdrawInviteButton } from "@/components/campaigns/withdraw-invite";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import { loadBriefTemplates } from "@/lib/content/data";
 import { templateOptions } from "@/lib/contracts/data";
 import { loadPickers } from "@/lib/creators/staff-data";
 import { presetOptions } from "@/lib/deals/data";
+import { SETTINGS } from "@/lib/settings/registry";
 import { formatCompact, formatDateTime, formatPaise, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -212,21 +214,32 @@ export default async function CampaignPage({
       </Card>
     );
   } else {
-    const [{ owners }, presets, templates, briefTemplates] = await Promise.all([
+    const [{ owners }, presets, templates, briefTemplates, links] = await Promise.all([
       loadPickers(supabase),
       presetOptions(supabase),
       templateOptions(supabase),
       loadBriefTemplates(supabase).then((r) => r.map((x) => ({ id: x.id, name: x.name }))),
-      loadBriefTemplates(supabase).then((r) => r.map((x) => ({ id: x.id, name: x.name }))),
+      supabase.rpc("setting", { p_key: "attribution.links" }),
     ]);
+    const linkSettings = SETTINGS["attribution.links"].schema
+      .catch(SETTINGS["attribution.links"].default)
+      .parse(links.data);
     body = (
-      <CampaignForm
-        initial={formValuesOf(c, programmes)}
-        owners={owners}
-        presets={presets}
-        templates={templates}
-        briefTemplates={briefTemplates}
-      />
+      <div className="flex flex-col gap-4">
+        <CampaignForm
+          initial={formValuesOf(c, programmes)}
+          owners={owners}
+          presets={presets}
+          templates={templates}
+          briefTemplates={briefTemplates}
+        />
+        <CampaignTracking
+          campaignId={campaignId}
+          model={c.attribution_model}
+          message={c.link_message}
+          globalMessage={linkSettings.deep_link_template}
+        />
+      </div>
     );
   }
 

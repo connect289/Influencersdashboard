@@ -209,7 +209,7 @@ export const CREATOR: Guide = {
           list: [
             "The board groups leads by stage: new, qualifying (talking to the WhatsApp bot), qualified, allocated to a counsellor, in counselling, applied and enrolled. Closed leads (lost, duplicate, junk) sit in the last column.",
             "Stages only move forward. HOT, WARM and COLD show how ready the student is.",
-            "Open a lead to see the stage timeline, which link and post it came from, the programme and your earning status. Filter by stage, campaign, deal, post, link, city or date, and save filters as a view.",
+            "Open a lead to see the stage timeline, which link and post it came from, the programme and your earning status. Filter by stage, campaign, deal, post, link, programme, city or date, and save filters as a view.",
             "Not every lead earns: if the student had already enquired, came through another creator first, enquired after the attribution window (90 days by default) or is your own contact, the lead says why.",
             "A lead marked **Under review** is being checked by Eduwit; most are cleared quickly.",
             "Export your list as a spreadsheet (contacts stay masked).",

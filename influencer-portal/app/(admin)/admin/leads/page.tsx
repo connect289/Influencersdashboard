@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { LeadDetailView } from "@/components/leads/lead-detail";
 import { LeadDrawer } from "@/components/leads/lead-drawer";
 import { LeadsNav } from "@/components/leads/leads-nav";
-import { LeadTable } from "@/components/leads/lead-views";
+import { LeadBoard, LeadTable } from "@/components/leads/lead-views";
 import { OverrideForm } from "@/components/leads/override-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ export default async function AdminLeadsPage({
   const q = (sp.q ?? "").slice(0, 60);
   const page = Math.max(Number.parseInt(sp.page ?? "1", 10) || 1, 1);
   const includeTest = sp.test === "1";
+  const board = sp.layout === "board";
   const [list, overview, lead] = await Promise.all([
     listLeads(supabase, { status: status ? [status] : [], stage, q, page, includeTest }).catch(
       () => null,
@@ -135,11 +136,29 @@ export default async function AdminLeadsPage({
           <input type="checkbox" name="test" value="1" defaultChecked={includeTest} />{" "}
           {t("leads.includeTest")}
         </label>
+        {board ? <input type="hidden" name="layout" value="board" /> : null}
         <Button type="submit" variant="secondary" aria-label={t("leads.filters.search")}>
           <Search />
         </Button>
+        <span className="ml-auto flex gap-1">
+          {(["table", "board"] as const).map((l) => (
+            <Link
+              key={l}
+              href={href({ layout: l === "board" ? "board" : null })}
+              aria-current={(l === "board") === board ? "page" : undefined}
+              className={cn(
+                "rounded-lg px-3 py-2 text-sm",
+                (l === "board") === board
+                  ? "bg-primary-soft font-medium text-primary"
+                  : "text-muted hover:bg-surface-2",
+              )}
+            >
+              {t(`leads.layout.${l}`)}
+            </Link>
+          ))}
+        </span>
       </form>
-      <Card>
+      <Card className={board ? "bg-transparent p-0 shadow-none" : undefined}>
         {list === null ? (
           <ErrorState title={t("errors.loadFailed")} />
         ) : list.rows.length === 0 ? (
@@ -148,6 +167,8 @@ export default async function AdminLeadsPage({
           ) : (
             <EmptyState title={t("leads.staffEmpty")} description={t("leads.staffEmptyHint")} />
           )
+        ) : board ? (
+          <LeadBoard rows={list.rows} base="/admin/leads" query={query} />
         ) : (
           <LeadTable rows={list.rows} base="/admin/leads" query={query} staff />
         )}
