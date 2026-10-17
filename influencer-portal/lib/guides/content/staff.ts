@@ -329,6 +329,45 @@ export const SUPER_ADMIN: Guide = {
       ],
     },
     {
+      id: "communication",
+      title: "Notification templates",
+      blocks: [
+        {
+          p: "[Communication → Templates](/admin/communication/templates) lists every notification the portal sends. Without a custom template, the notification's own title and text go out by email; WhatsApp needs a template.",
+        },
+        {
+          list: [
+            "Write the email subject and text with **variables** such as `{{name}}`, `{{amount}}` or `{{campaign}}`. Only the variables listed for that notification are allowed; anything else is refused when you save.",
+            "For WhatsApp, enter the **approved template name** from the WhatsApp Business account and one variable per line, in the template's order. Approval of templates happens in that account (an external step before go-live).",
+            "Each save is a new **version**; the history shows who changed what. **Use built-in text** goes back to the default; old versions stay.",
+            "The **preview** uses sample values. **Send me a test** emails the draft to you, only once live sending is on.",
+          ],
+        },
+        {
+          warning:
+            "Notifications about contracts, payments and KYC are required: people can't turn them off, so keep their wording precise.",
+        },
+      ],
+    },
+    {
+      id: "webhooks",
+      title: "Webhooks",
+      blocks: [
+        {
+          p: "[Communication → Webhooks](/admin/communication/webhooks) sends events to other systems: a lead credited or enrolled, a contract signed, a post live, a payout paid, a creator approved.",
+        },
+        {
+          list: [
+            "Add a **public HTTPS** address and choose events. Private, internal and cloud-metadata addresses are refused, also when a name resolves to one.",
+            "The **signing secret** is shown once: store it in the receiving system. Each request has an `X-Eduwit-Signature` header (`t=` timestamp, `v1=` HMAC-SHA256 of `timestamp.body`); receivers should reject anything older than 5 minutes. **New secret** replaces it at once.",
+            "Payloads carry ids, handles, amounts and references only, never students' phone numbers or emails.",
+            "Failed deliveries retry after 1, 5 and 30 minutes, then 2, 6 and 24 hours (7 tries). The last 20 deliveries show status, HTTP code and error. **Send test event** queues a sample.",
+            "Nothing leaves the system until live sending is on; deliveries are logged as not sent.",
+          ],
+        },
+      ],
+    },
+    {
       id: "monitoring",
       title: "Monitoring and the audit log",
       blocks: [
@@ -435,6 +474,22 @@ export const INFLUENCER_MANAGER: Guide = {
           p: "When an offer is accepted, the deal is created at once with the agreed terms (version 1, already accepted by both sides). Open it from the application with **Open deal**.",
         },
         { warning: "Creators never see the budget or internal notes of a campaign." },
+      ],
+    },
+    {
+      id: "announcements",
+      title: "Announcements",
+      blocks: [
+        {
+          p: "[Communication → Announcements](/admin/communication/announcements) sends a message to every active creator or a segment: by tier, platform, campaign (creators with a deal or a live application) or language. The count of creators updates as you choose.",
+        },
+        {
+          list: [
+            "Announcements always appear in the portal and on creators' home page; tick email or WhatsApp to send those too (creators who turned announcements off for a channel aren't messaged there).",
+            "**Save draft**, **Schedule** for a time in IST, or **Send now**. Drafts and scheduled ones can be edited or cancelled until they go out; scheduled ones are sent within five minutes of their time.",
+            "Sent announcements show how many creators received them.",
+          ],
+        },
       ],
     },
     {

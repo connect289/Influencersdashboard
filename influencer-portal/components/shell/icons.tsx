@@ -18,6 +18,7 @@ import {
   Inbox,
   Link2,
   ScrollText,
+  Send,
   Settings,
   Shield,
   Target,
@@ -54,4 +55,5 @@ export const ICONS: Record<IconName, LucideIcon> = {
   wallet: Wallet,
   chart: BarChart3,
   messages: MessagesSquare,
+  send: Send,
 };
