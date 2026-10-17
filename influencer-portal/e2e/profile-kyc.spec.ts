@@ -78,6 +78,8 @@ test.describe.serial("creator profile and KYC", () => {
     await page.getByRole("button", { name: "Mark verified" }).click();
     await expect(page.getByText("KYC verified. The creator has been told.")).toBeVisible();
     await page.goto("/admin/kyc");
-    await expect(page.getByText("Nothing to review")).toBeVisible();
+    // Other journeys may have KYC waiting too; Arjun's is no longer in the queue.
+    await expect(page.getByRole("heading", { name: "KYC review" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Arjun/ })).toHaveCount(0);
   });
 });

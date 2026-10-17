@@ -4,7 +4,6 @@ create sequence if not exists catalog_universities_id_seq;
 
 create sequence if not exists enrollments_id_seq;
 
-create sequence if not exists student_leads_id_seq;
 
 create sequence if not exists touchpoints_id_seq;
 

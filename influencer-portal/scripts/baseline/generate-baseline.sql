@@ -15,7 +15,7 @@ fns(name, ord) as (values
   ('lead_intake', 6), ('w2_issue_code', 7), ('w2_redeem_code', 8)),
 seqs as (
   select distinct 100 as ord, format('create sequence if not exists %s;', s.seqrelid::regclass) as ddl
-    from pg_sequence s join pg_depend d on d.objid = s.seqrelid and d.deptype in ('a', 'i')
+    from pg_sequence s join pg_depend d on d.objid = s.seqrelid and d.deptype = 'a'  -- not identity sequences (deptype 'i'): the column creates those
     join tbls t on t.rel = d.refobjid),
 cols as (
   select 200 + t.ord as ord,

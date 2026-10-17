@@ -5,7 +5,10 @@ test("creator portal on a phone uses the bottom navigation", async ({ page }) =>
   await creatorLogin(page, "riya.creator@example.test");
   const bottom = page.getByRole("navigation", { name: "Main navigation" }).last();
   await expect(bottom).toBeVisible();
-  await bottom.getByRole("link", { name: "Account" }).click();
+  // Campaigns is a tab; Account sits in the "More" sheet once there are more than five items.
+  await expect(bottom.getByRole("link", { name: "Campaigns" })).toBeVisible();
+  await bottom.getByRole("button", { name: "More" }).click();
+  await page.getByRole("dialog").getByRole("link", { name: "Account" }).click();
   await expect(page).toHaveURL(/\/creator\/account/);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);

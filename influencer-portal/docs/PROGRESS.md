@@ -2,13 +2,16 @@
 
 ## Now
 
-- **Current phase:** Phase 2 (Creators and campaigns), starting.
-- **Phase 1:** complete and tagged `phase-1-done` (summary below).
+- **Current phase:** Phase 3 (Deals and the compensation engine), starting.
+- **Phase 2:** complete and tagged `phase-2-done` (summary below).
+- **Phase 1:** complete and tagged `phase-1-done`.
+- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done`, `phase-1-done` and `phase-2-done`
+  exist in the local repository only. Push them from a normal clone with `git push origin --tags`.
 - **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
   the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
   first name + initial, the stage mapping and the integration contracts. Tagged `phase-0-done`.
-- **Blockers:** none for Phase 1. Provider credentials, domain, Vercel and Sentry are needed later (HARD STOP 4); Phase 1
-  uses mock providers.
+- **Blockers:** none. Provider credentials, domain, Vercel, Sentry, a Google OAuth client and (optionally) CAPTCHA keys are
+  needed later (HARD STOP 4); everything runs on mock providers until then.
 
 ## Phase 1: Foundation
 
@@ -76,6 +79,55 @@
 | 2.5 | Campaigns (builder, programmes from catalog, eligibility rules, visibility, slots, budget), marketplace for eligible creators, invites (accept/decline/counter), applications (pitch, proposed terms, samples), review (shortlist/accept/reject with reason templates/counter) with negotiation threads and structured counter-offers | `app/(admin)/admin/campaigns/*`, `app/(creator)/creator/campaigns/*` | pgTAP: eligibility-limited marketplace visibility; Playwright: apply → counter → accept (deal auto-creation lands in Phase 3) |
 | 2.6 | Media kit (web page + PDF) from profile data | `app/(admin)/admin/creators/[id]/media-kit`, `lib/pdf/*` | unit snapshot of PDF data |
 | 2.7 | Phase gate | | |
+
+### Phase 2 requirement checklist (spec Section 22 Phase 2, and spec 4, 5, 7, 13, 16, 17)
+
+| Requirement | Status | Where / note |
+| --- | --- | --- |
+| Creator profile: identity, platforms (followers, views, engagement, audience JSON, source), rate cards, portfolio | Done | `20261018000100_inf_creator_profile_kyc.sql`; Profile screen; Creator 360 Profile tab |
+| Linked family/team numbers and emails for self-referral checks | Done | Stored as keyed HMAC hashes + last two digits only (D-38) |
+| KYC: PAN and bank account encrypted, masked display, Finance reveal (audited), verification with who/when, proof file | Done | Vault key `inf_pii_key` (D-36), `kyc_view` / `kyc_reveal` / `kyc_verify`, private bucket with signed upload (D-39); re-verification on change (D-37) |
+| GST status and GSTIN (embedding the PAN) | Done | Validated in zod and in SQL |
+| Agencies, members, creator-granted permissions (view, act on deliverables, negotiate/sign, view earnings) | Done | `20261018000200_inf_agencies.sql`, agency portal, creator Manager page (D-42–D-44). "Act on deliverables" and "view earnings" grants are stored and enforced by `agency_can()`; the screens they unlock arrive with deliverables (Phase 5) and earnings (Phase 7) |
+| Payout bank details always the creator's | Done | Agencies never read KYC or creator contact details (pgTAP 010) |
+| Pipeline Prospect → … → Archived, Blocked flag, Dormant auto-flag after N days | Done | Stage moves with status sync (D-47); nightly dormancy with reactivation (D-46) |
+| Kanban and table views with saved filters | Done | dnd-kit board (keyboard accessible), TanStack server-paginated table, URL filters, saved and shared views (D-45) |
+| Filters: platform, followers, niche, language, city/state, tier, owner, status | Done | `inf.creator_rows` |
+| Filters: deal type, performance | Deferred | Need deals (Phase 3) and scorecards (Phase 9) (D-49) |
+| Creator 360°: profile, platforms, KYC, outreach timeline, tasks, agency, audit history | Done | Tabs shown only for modules that exist |
+| Creator 360°: deals, contracts, briefs, deliverables, leads (unmasked for authorised staff), earnings, scorecard, messages, documents | Deferred | Added by Phases 3–9 as those modules are built (no placeholders, D-49) |
+| Bulk CSV import with validation, de-duplication (handle, phone, email, platform handle), error report | Done | Check-then-import, downloadable report, history (D-48) |
+| Bulk invite, tag, assign owner (and move stage) | Done | Table bulk toolbar |
+| Outreach log, follow-up reminders, task assignment, "Overdue follow-ups" widget | Done | Creator 360 Outreach/Tasks, Tasks page, overview widgets, assignee notifications |
+| Media kit: shareable web page and PDF | Done | `/m/<handle>` + PDF (public, opt-in, no contact details), internal PDF with rates, creator Media kit page, profile photo |
+| Invitations and self sign-up | Done | Staff invites (email + auth account), public `/signup` with honeypot and rate limits (D-50, D-53) |
+| Onboarding wizard: profile, platforms, KYC, terms, compliance mini-course with quiz | Done | Course v1 with hidden answers, graded in the database (D-51); legal review before go-live (RUNBOOK) |
+| Admin approval with configurable auto-approval | Done | Approvals queue, approve / ask for changes / decline, `creators.lifecycle` settings (D-52) |
+| Campaign builder: objective, programmes, budget, slots, dates, eligibility, deliverables, visibility | Done | Programmes from the catalogue as soft references (D-55) |
+| Campaign builder: deal presets, brief/contract/deliverable templates | Deferred | Presets arrive with the compensation engine (Phase 3), contract templates (Phase 4), brief and deliverable templates (Phase 5); the builder shows a compensation summary meanwhile |
+| Marketplace for eligible creators (cards with programme, deliverables, compensation summary, deadline, slots left) | Done | Creator-safe projection without budget or notes (D-56) |
+| Invite-only campaigns: invite, accept, decline, counter | Done | Agencies with the negotiate grant can answer for the creator (D-59) |
+| Application review: shortlist, accept, reject with reason templates, counter; negotiation thread and structured counter-offers | Done | One open offer at a time, the other side accepts (D-57, D-60) |
+| On acceptance, auto-generate deal, contract, brief and deliverables | Partial | Acceptance records the agreed terms and emits `application.accepted`; Phase 3 consumes it to create the deal, Phases 4–5 the contract, brief and deliverables (D-58). Blocked only by those modules not existing yet |
+| RLS on every new table, tests per role; no creator/agency path to student phone or email | Done | 7 Phase 2 migrations, pgTAP 009–014; anon allow-list test updated for the public media kit only |
+| Every screen: empty, loading, error, mobile states | Done | Shared state components on every list; creator portal mobile-first with the "More" sheet (D-40) |
+| Gate: migrations on a fresh database and on the production-schema copy | Done | Fresh reset each run. Production re-checked read-only on 17 Oct 2026: all 101 shared objects the portal reads are identical to the local copy (one local-only sequence-name artefact fixed); production has no `inf` schema |
+| Gate: typecheck, lint, format, unit, RLS, Playwright | Done | 1,190 unit tests, 317 pgTAP assertions (14 files), 37 Playwright journeys (2 screenshot specs skipped by design) |
+| Gate: seed works | Done | Idempotent; adds a demo agency, demo catalogue programmes (local only) and two demo campaigns |
+| Gate: docs updated | Done | `DECISIONS.md` D-36–D-62, this file, `RUNBOOK.md` (started), `CLAUDE.md` conventions |
+
+### Phase 2 summary
+
+- **Built:** creator profiles with encrypted KYC and an audited Finance reveal; agencies with creator-granted
+  permissions and their own portal; the admin creator CRM (table and pipeline board, saved views, Creator 360, CSV
+  import, outreach, follow-ups, tasks, bulk actions, ⌘K creator search); invitations, public sign-up, the onboarding
+  wizard with the compliance course, and approvals; campaigns with the catalogue programme picker, the marketplace,
+  invitations, applications, structured negotiation and acceptance; media kits as public pages and PDFs.
+- **Fixed along the way:** a staff sign-in on a trusted device no longer asks for a code (D-61); a function prop passed
+  from a server page to a client component (caught by e2e); null-unsafe ownership checks (D-41).
+- **Decisions:** D-36 to D-62.
+- **Not done in Phase 2, by design:** deal/contract/brief generation on acceptance (Phases 3–5), the extra Creator 360
+  tabs and filters that depend on later modules, CAPTCHA on sign-up (needs keys).
 
 ## Phase 0: Discovery and design
 

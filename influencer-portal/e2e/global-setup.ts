@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { localEnv } from "./env";
@@ -12,6 +13,8 @@ export default async function globalSetup() {
   const url = env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(url))
     throw new Error("e2e runs only against the local Supabase stack");
+  // Sessions saved by staffLogin() belong to one run.
+  rmSync(join(import.meta.dirname, ".auth"), { recursive: true, force: true });
   if (process.env.E2E_RESET !== "0") {
     execFileSync("node", [join(import.meta.dirname, "..", "scripts", "db.mjs"), "reset"], { stdio: "inherit" });
   }

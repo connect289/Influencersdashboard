@@ -101,6 +101,9 @@ export async function staffSignIn(_: FormState, form: FormData): Promise<FormSta
     return { error: e instanceof SetupError ? t("auth.errors.setup") : t("auth.errors.unavailable") };
   }
   await record(email, "staff", "password", "ok", null, data.user.id);
+  // A trusted device (ticked at an earlier sign-in) verifies the new session without a code.
+  const device = (await cookies()).get(DEVICE_COOKIE)?.value;
+  if (device && (await supabase.rpc("device_trust_check", { p_token: device })).data === true) redirect(next);
   redirect(`/verify?next=${encodeURIComponent(next)}`);
 }
 

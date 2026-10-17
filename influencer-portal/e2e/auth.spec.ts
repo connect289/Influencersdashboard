@@ -43,7 +43,7 @@ test.describe("staff", () => {
   });
 
   test("password plus emailed code reaches the console", async ({ page }) => {
-    await staffLogin(page, "admin@example.test");
+    await staffLogin(page, "admin@example.test", { fresh: true });
     await expect(page.getByRole("heading", { name: /Hello, Asha/ })).toBeVisible();
     await expect(
       page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Staff and roles" }),
@@ -65,7 +65,7 @@ test.describe("staff", () => {
   });
 
   test("a Viewer doesn't see or reach admin screens", async ({ page }) => {
-    await staffLogin(page, "viewer@example.test");
+    await staffLogin(page, "viewer@example.test", { fresh: true });
     const nav = page.getByRole("navigation", { name: "Main navigation" });
     await expect(nav.getByRole("link", { name: "Overview" })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Staff and roles" })).toHaveCount(0);
@@ -128,8 +128,8 @@ test.describe("creators", () => {
     // Two staff sessions for one person (creator OTPs to one address are throttled by Supabase Auth).
     const a = await (await browser.newContext()).newPage();
     const b = await (await browser.newContext()).newPage();
-    await staffLogin(a, "reviewer@example.test");
-    await staffLogin(b, "reviewer@example.test");
+    await staffLogin(a, "reviewer@example.test", { fresh: true });
+    await staffLogin(b, "reviewer@example.test", { fresh: true });
     await b.goto("/admin/account");
     await b.getByRole("button", { name: "Sign out", exact: true }).first().click();
     await expect(b.getByText("That device has been signed out.")).toBeVisible();

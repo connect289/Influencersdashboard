@@ -62,25 +62,31 @@ This repository holds three separate Eduwit products that share one Supabase pro
 - No TODOs, placeholder screens or fake data in production code paths; mock data only in the seed script, which
   refuses to run against production.
 
-## Folder structure (planned, `influencer-portal/`)
+## Folder structure (`influencer-portal/`; modules marked "later" arrive in their phase)
 
 ```
 influencer-portal/
   app/(admin)/admin/…      staff console
   app/(creator)/creator/…  creator portal (mobile-first, PWA)
-  app/(auth)/…             sign-in, verify code
-  app/r/[code]/route.ts    tracking redirect
+  app/(agency)/agency/…    agency portal (creator-granted access)
+  app/(auth)/…             sign-in, verify code, self sign-up
+  app/m/[handle]/…         public media kit page and PDF
+  app/legal/…              public terms
+  app/r/[code]/route.ts    tracking redirect (later)
   app/api/…                health, metrics, public API, internal jobs
-  lib/compensation/        pure engine + tests
-  lib/attribution/         pure rules + tests
+  lib/compensation/        pure engine + tests (later)
+  lib/attribution/         pure rules + tests (later)
+  lib/actions/             server actions (validate → one RPC → ActionResult)
+  lib/<domain>/            zod schemas, loaders and helpers (creators, agencies, campaigns, media-kit)
   lib/auth/permissions.ts  permission matrix (single source of truth)
   lib/supabase/            server / browser / admin clients
   components/              ui kit and domain components
   messages/                next-intl strings
   supabase/migrations/     inf schema migrations
   supabase/tests/          pgTAP (RLS per role, masking proofs)
-  supabase/baseline/       generated shared-objects baseline (local only, never applied to production)
-  e2e/                     Playwright journeys + seed
+  scripts/baseline/        generator + parts of the shared-objects baseline (local only, never applied to production)
+  scripts/seed.ts          local demo data
+  e2e/                     Playwright journeys
   docs/                    spec, progress, decisions, findings, runbook, guides
 ```
 
