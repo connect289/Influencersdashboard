@@ -10,7 +10,9 @@ import { SavedCount } from "./SavedCount";
  * "Ask Witty" (or "Get free counselling" while Witty is off), Account. The phone menu uses the native popover API
  * (no JavaScript: top layer, light dismiss, Escape to close).
  */
-export function SiteHeader({ advisorEnabled }: { advisorEnabled: boolean }) {
+export function SiteHeader({ advisorEnabled, hasResources = true }: { advisorEnabled: boolean; hasResources?: boolean }) {
+  // Guides appear in the navigation once at least one is published.
+  const nav = NAV.filter((n) => hasResources || n.href !== "/resources");
   const cta = advisorEnabled
     ? { href: "/witty", label: "Ask Witty" }
     : { href: "/contact#enquiry", label: "Free counselling" };
@@ -21,7 +23,7 @@ export function SiteHeader({ advisorEnabled }: { advisorEnabled: boolean }) {
           <Logo height={30} priority />
         </Link>
         <nav aria-label="Main" className="ml-6 hidden items-center gap-1 lg:flex">
-          {NAV.map((n) => (
+          {nav.map((n) => (
             <Link
               key={n.href}
               href={n.href}
@@ -86,7 +88,7 @@ export function SiteHeader({ advisorEnabled }: { advisorEnabled: boolean }) {
         </div>
         <ul className="grid gap-1 p-3">
           {[
-            ...NAV,
+            ...nav,
             { href: "/compare", label: "Compare" },
             { href: "/account", label: "Account" },
             { href: "/how-it-works", label: "How it works" },

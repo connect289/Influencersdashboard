@@ -10,9 +10,11 @@ import { COMPANY, FEE_DISCLAIMER, LEGAL_PAGES } from "@/content/site";
 export function SiteFooter({
   programmes = [],
   universities = [],
+  hasResources = true,
 }: {
   programmes?: { href: string; label: string }[];
   universities?: { href: string; label: string }[];
+  hasResources?: boolean;
 }) {
   const a = COMPANY.address;
   return (
@@ -58,7 +60,7 @@ export function SiteFooter({
           links={[
             { href: "/about", label: "About" },
             { href: "/how-it-works", label: "How it works" },
-            { href: "/resources", label: "Resources" },
+            ...(hasResources ? [{ href: "/resources", label: "Guides" }] : []),
             { href: "/contact", label: "Contact" },
             ...LEGAL_PAGES.map((l) => ({ href: `/legal/${l.slug}`, label: l.title })),
           ]}

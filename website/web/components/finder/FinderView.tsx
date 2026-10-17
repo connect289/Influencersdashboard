@@ -45,6 +45,7 @@ export function FinderView({
   basePath = "/programmes",
   intro,
   heading,
+  initialGuided = false,
 }: {
   params: FinderParams;
   result: SearchResult;
@@ -54,13 +55,15 @@ export function FinderView({
   intro?: React.ReactNode;
   /** Fixed H1 (curated views); otherwise derived from the filters. */
   heading?: string;
+  /** Opens the guided finder on load (`?guided=1` from the homepage). */
+  initialGuided?: boolean;
 }) {
   const { go, href, pending, optimistic } = useFinderNavigation(params, basePath);
   const [sheet, setSheet] = useState(false);
   // The desktop rail is mounted only on wide screens: phones never pay for hydrating it (its column is reserved, so
   // nothing shifts when it appears).
   const wide = useMediaQuery("(min-width: 1024px)");
-  const [guided, setGuided] = useState(false);
+  const [guided, setGuided] = useState(initialGuided);
   const chips = appliedFilters(params, result.facets);
   const nFilters = activeFilterCount(params);
   const open = (o: OfferingCard) => setOfferingParam(o.id, "push");

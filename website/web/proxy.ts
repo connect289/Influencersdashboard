@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { encodeTouch, touchFromUrl } from "@/lib/attribution";
 import { BOOT_SCRIPT } from "@/lib/client/boot-script";
 import { buildCsp } from "@/lib/security/csp";
+import { findRedirect, recordRedirectHit } from "@/lib/server/redirects";
 import { createHash } from "node:crypto";
 
 const BOOT_HASH = `sha256-${createHash("sha256").update(BOOT_SCRIPT).digest("base64")}`;
@@ -18,6 +19,13 @@ const NONCE_AREAS = /^\/(account|admin)(\/|$)/;
 const MAX_AGE = 60 * 60 * 24 * 90;
 
 export async function proxy(req: NextRequest) {
+  // Admin-managed redirects (old URLs, renamed slugs) before anything else.
+  const redirect = await findRedirect(req.nextUrl.pathname);
+  if (redirect) {
+    recordRedirectHit(req.nextUrl.pathname.replace(/\/+$/, "") || "/");
+    const to = redirect.to.startsWith("/") ? new URL(redirect.to + req.nextUrl.search, req.url) : new URL(redirect.to);
+    return NextResponse.redirect(to, redirect.code);
+  }
   const requestId = req.headers.get("x-request-id") ?? req.headers.get("x-vercel-id") ?? crypto.randomUUID();
   const reqHeaders = new Headers(req.headers);
   reqHeaders.set("x-request-id", requestId);

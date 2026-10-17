@@ -311,3 +311,20 @@ these at the end (spec Section 0).
 - **Why:** phones hid the rail with CSS but still hydrated it (~100 ms of main-thread work on a mid-range Android). The
   rail's column is reserved and shows placeholders until hydration on desktop (no layout shift); phones use the
   filter sheet. Finder TBT on the throttled phone profile: 160–260 ms (budget 300).
+
+## Phase 6
+
+### D-044 · Interim copy until the current site can be crawled; nothing invented
+- **Why:** the environment blocks eduwit.in (D-006, S-01), so the current hero, "bridge between students and
+  universities" text, service descriptions, About page, testimonials and legal pages cannot be reused verbatim yet.
+  The homepage, About and How it works use plain descriptions of Eduwit's service drawn from the spec's business
+  context (`content/home.ts`, `content/about.ts`, flagged for the owner) with numbers from the live catalogue; no claims
+  about universities beyond the catalogue ("UGC-DEB entitled" is not claimed for all, D-014). Testimonials, guides and
+  stories render only when real, consented rows exist (sections and the Resources nav item hide otherwise). Legal pages
+  keep their URLs and show a "being moved — email us" notice with `noindex` until `scripts/import-legacy.mjs` imports
+  the verbatim text from the crawl. **Go-live blocker:** the legal pages must be migrated before launch (S-01).
+
+### D-045 · Runtime redirects in the proxy, cached per instance
+- **Why:** admin-managed redirects (renamed slugs, old URLs, 404-monitor fixes) must work without a redeploy. The proxy
+  reads `web_redirects` through `web_redirects_all()` (cached 60 s in memory, 1.5 s timeout, last good map kept on
+  error) and counts hits asynchronously. The legacy URL map stays static in `next.config.ts`.

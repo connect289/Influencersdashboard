@@ -1,6 +1,6 @@
 // Lighthouse CI budgets (spec 3A/12): mobile form factor, applied (DevTools) throttling — slow 4G + 4x CPU — which is
 // what D-021 measures against. Runs against `next start` on :3100 with the local Supabase stack.
-const paths = ["/", "/programmes", "/programmes?programme=mba&spec=marketing", "/programmes/online-mba", "/universities", "/universities/nmims", "/thank-you", "/admin/login"];
+const paths = ["/", "/programmes", "/programmes?programme=mba&spec=marketing", "/programmes/online-mba", "/universities", "/universities/nmims", "/about", "/contact", "/thank-you", "/admin/login"];
 module.exports = {
   ci: {
     collect: {

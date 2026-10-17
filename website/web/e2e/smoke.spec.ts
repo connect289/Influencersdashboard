@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-const KEY_PAGES = ["/", "/thank-you", "/styleguide"];
+const KEY_PAGES = ["/", "/thank-you", "/styleguide", "/about", "/how-it-works", "/contact", "/legal/privacy-policy", "/universities", "/programmes/online-mba", "/compare", "/shortlist"];
 
 test.describe("site shell", () => {
   test("home renders real text as LCP, header and footer facts", async ({ page, isMobile }) => {

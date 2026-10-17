@@ -86,7 +86,8 @@ export function ApplicationForm({
   const [reference, setReference] = useState<string | null>(null);
   const [verifiedRef, setVerifiedRef] = useState<string | null>(null);
   const [resendIn, setResendIn] = useState(0);
-  const idem = useRef(newKey());
+  // One idempotency key per form instance, created on the first submit (never during render or prerender).
+  const idem = useRef<string | null>(null);
   const top = useRef<HTMLDivElement>(null);
 
   const [contact, setContact] = useState<ContactInput & { marketing: boolean }>({ name: "", phone: "", email: "", consent: false, marketing: false });
@@ -157,7 +158,7 @@ export function ApplicationForm({
           email: normaliseEmail(contact.email)!,
           consentVersion: CONSENT.form.version,
           marketing: contact.marketing,
-          idempotencyKey: idem.current,
+          idempotencyKey: (idem.current ??= newKey()),
         });
         if (r.status === "error") return setMessage(r.message);
         setAttemptId(r.attemptId);

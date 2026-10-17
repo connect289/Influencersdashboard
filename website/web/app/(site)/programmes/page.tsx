@@ -19,12 +19,13 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 export const instant = false;
 
 async function load(searchParams: Props["searchParams"]) {
-  const raw = parseFinderParams(await searchParams);
+  const sp = await searchParams;
+  const raw = parseFinderParams(sp);
   const params = raw.q ? mergeParsed(raw, parseQuery(raw.q)) : raw;
   // "Show more" keeps earlier pages on screen: page N renders the first N pages in one request (back/forward restore).
   const page = params.page ?? 1;
   const result = await searchOfferings({ ...params, page: undefined }, { page_size: Math.min(96, PAGE_SIZE * page) });
-  return { raw, params, result };
+  return { raw, params, result, guided: sp.guided === "1" };
 }
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
@@ -44,8 +45,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 async function Finder({ searchParams }: Props) {
-  const [{ params, result }, settings] = await Promise.all([load(searchParams), getSettings()]);
-  return <FinderView params={params} result={result} advisorEnabled={settings.web_advisor_enabled} whatsapp={settings.counsellor_whatsapp} />;
+  const [{ params, result, guided }, settings] = await Promise.all([load(searchParams), getSettings()]);
+  return <FinderView params={params} result={result} initialGuided={guided} advisorEnabled={settings.web_advisor_enabled} whatsapp={settings.counsellor_whatsapp} />;
 }
 
 function FinderSkeleton() {

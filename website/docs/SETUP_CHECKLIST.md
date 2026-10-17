@@ -8,7 +8,7 @@ Status: ☐ needed · ◐ partly · ☑ done
 ## Access for the build environment
 | # | Item | Why | Status |
 |---|---|---|---|
-| S-01 | Allow `eduwit.in`, `www.eduwit.in`, `horizons-cdn.hostinger.com` in the cloud environment's Network access (Allowed domains) | Crawl the current site to migrate its copy, legal pages, testimonials, images and every URL (D-006) | ☐ |
+| S-01 | Allow `eduwit.in`, `www.eduwit.in`, `horizons-cdn.hostinger.com` in the cloud environment's Network access (Allowed domains) | Crawl the current site to migrate its copy, legal pages, testimonials, images and every URL (D-006). **Go-live blocker:** the six legal pages are migrated verbatim from this crawl (`scripts/crawl-legacy-site.mjs` → `scripts/import-legacy.mjs` → review `supabase/seed-legacy.sql`) | ☐ |
 | S-02 | Witty n8n workflow export (JSON) or n8n API access (the n8n connector failed to connect) | Confirm the live agent pipeline exactly; today it is reconstructed from `b2b-crm/witty/patch_nodes.py`, docs and `w2_prompts` | ☐ |
 
 ## Accounts and keys
@@ -38,7 +38,10 @@ Status: ☐ needed · ◐ partly · ☑ done
 | S-41 | Which university logos and names Eduwit may use (`web_university_profiles.logo_permitted`) | ☐ |
 | S-42 | WhatsApp number for "Talk to a counsellor" (default: Witty's +91 96439 77407 until told otherwise) | ☐ |
 | S-43 | Influencer Portal public creator API (display name, photo, featured programmes) — not specified yet | ☐ |
-| S-44 | Lawyer review of the updated consent text and Privacy Policy edits (see `docs/legal/`) | ☐ |
+| S-44 | Lawyer review of the updated consent text and Privacy Policy additions (`docs/legal/consent-texts.md`, `docs/legal/privacy-policy-proposed-additions.md`) | ☐ |
+| S-48 | Review the interim homepage / About / How it works copy (`content/home.ts`, `content/about.ts`) — replaced by the current site's copy after the crawl, or approved as is (D-044) | ☐ |
+| S-49 | Testimonials: confirm each student agreed to be quoted (the importer adds them unpublished) | ☐ |
+| S-50 | Named authors and reviewers for guides (spec 13.4) — needed before any guide is published | ☐ |
 | S-45 | Real photography of Indian learners (licensed), or approval of generated abstract imagery | ☐ |
 | S-46 | University state, city and official website for each university (`web_university_profiles`; enables the state facet) — not in the catalogue | ☐ |
 | S-47 | Vercel plan: per-minute Vercel Cron (outbox worker) needs Pro; on Hobby, pg_cron + pg_net can call the worker instead (Phase 7 decides) | ☐ |

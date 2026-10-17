@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 6 — Content and migration. Current step: 6.1 (plan).**
+**Current phase: 7 — Gate, email verification, accounts, forms. Current step: 7.1 (plan).**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -401,3 +401,47 @@ and all layout shift.
 | Form context: offering / group / university / compare | Done (compare links to "Details and apply"); advisor context in Phase 8 |
 | Admin-configurable fields | Prop-level config in place (`FormConfig`); admin UI + settings key in Phase 10 |
 | Document upload behind a setting (off) | Deferred to Phase 7 (setting `document_upload_enabled` exists, default off) |
+
+---
+
+## Phase 6 — Content and migration ✅ `website-phase-6-done` (verbatim migration blocked on S-01)
+
+### Plan
+1. `web6_content`: legal pages, testimonials, FAQs, authors + resources (author/reviewer required to publish), popular
+   searches, runtime redirects, page SEO overrides; read functions.
+2. Homepage (spec 8 order; Witty off → search + guided finder + free counselling; live trust line; sections toggled).
+3. About, How it works, Contact (+ enquiry form), Resources (list + article with bylines), six legal pages at their URLs.
+4. Legacy import path (crawl → reviewable SQL), Privacy Policy proposed additions, runtime redirects.
+5. Tests, Lighthouse, gate.
+
+### Step log
+- 6.1 ✅ `20261017100500_web6_content.sql` (8 tables, 8 functions; seeded legal-page shells, 8 FAQs, 8 popular searches).
+- 6.2 ✅ `HomeHero` (flag-aware), `components/home/HomeSections.tsx`, `/` with Organization + FAQPage JSON-LD.
+- 6.3 ✅ `/about`, `/how-it-works`, `/contact` (`EnquiryForm`, mock transport), `/resources`, `/resources/[slug]`
+  (Article JSON-LD with author and reviewer), `/legal/[slug]` (`Blocks` renderer; pending notice + noindex);
+  data-driven footer hubs; Resources hidden from navigation until a guide is published; `?guided=1`.
+- 6.4 ✅ `scripts/import-legacy.mjs` + `scripts/lib/legacy-blocks.mjs` (+ tests), `docs/legal/privacy-policy-proposed-additions.md`,
+  `lib/server/redirects.ts` + proxy (D-045).
+- 6.5 ✅ `e2e/content.spec.ts` (home, guided link, about/how/contact, enquiry flow, legal pages, guides empty state,
+  redirects); axe now covers 11 pages × 2 themes × 2 devices; the banned-phrase check caught a negated quote (fixed).
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 103 unit tests, copy check) | ✅ |
+| `npm run db:gate` (web1–6 on the replica: 595+18+15+48+42 checks, shared unchanged, s03; local + 31 quality) | ✅ |
+| `npm run build` | ✅ (all content pages prerendered) |
+| Playwright | ✅ 102 passed |
+| Lighthouse CI mobile | ✅ `/` 93–94 (LCP 1.8 s, TBT ≤ 270 ms), finder 96–98, curated 96, universities 93–98, about 96–97, contact 96–98; CLS 0; a11y 100; SEO 100 |
+
+### Self-review (Phase 6 row; spec 8, 9.1, 14)
+| Item | Status |
+|---|---|
+| Home without live AI (flag off) in spec 8 order | Done (stories/resources hidden until real content) |
+| About, How it works, Contact | Done with interim copy (D-044, S-48) |
+| Resources | Done (empty state; guides need named author + reviewer — S-50, Phase 11 planner) |
+| Legal pages migrated verbatim | **Blocked** on S-01 (crawl). Pages live at the same URLs with a notice + noindex; importer ready |
+| Testimonials | Table + section ready; legacy ones need the crawl and consent confirmation (S-49) |
+| FAQs (with FAQPage schema) | Done |
+| Redirects | Done (legacy static map + admin runtime map); CI redirect tests extended in Phase 9 |
+| Privacy Policy edits as a separate reviewable diff | Done (`docs/legal/privacy-policy-proposed-additions.md`) |
