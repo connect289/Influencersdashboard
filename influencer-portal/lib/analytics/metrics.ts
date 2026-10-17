@@ -45,7 +45,7 @@ export const METRICS = {
     unit: "count",
     polarity: "up_is_good",
     formula:
-      "Credited leads (first touch, plus last touch under the last-touch model) by enquiry date (IST); the same leads a creator sees in their pipeline",
+      "Credited leads (first touch, or last touch under the last-touch model) by enquiry date (IST). Duplicates and rejected enquiries (which a creator also sees in the Closed column of their pipeline) and test leads are not counted",
     source: LEADS,
     basis: "period",
   }),

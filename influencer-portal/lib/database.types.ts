@@ -101,6 +101,24 @@ isOneToOne: false
       foreignKeyName: "attribution_decisions_attribution_id_fkey"
       columns: ["attribution_id"]
 isOneToOne: false
+      referencedRelation: "an_leads"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "attribution_decisions_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
+      referencedRelation: "an_leads_live"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "attribution_decisions_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
+      referencedRelation: "an_revenue"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "attribution_decisions_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
       referencedRelation: "lead_attributions"
       referencedColumns: ["id"]
     }
@@ -839,6 +857,24 @@ isOneToOne: true
       foreignKeyName: "creator_lead_feed_attribution_id_fkey"
       columns: ["attribution_id"]
 isOneToOne: true
+      referencedRelation: "an_leads"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "creator_lead_feed_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: true
+      referencedRelation: "an_leads_live"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "creator_lead_feed_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: true
+      referencedRelation: "an_revenue"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "creator_lead_feed_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: true
       referencedRelation: "lead_attributions"
       referencedColumns: ["id"]
     },{
@@ -997,14 +1033,14 @@ isOneToOne: false
                   ]
                 },"deals": {
                   Row: {
-                    "activated_at": string | null,"agreed_at": string | null,"agreed_terms": Json | null,"application_id": string | null,"campaign_id": string | null,"closed_at": string | null,"code": string,"created_at": string,"created_by": string | null,"creator_id": string,"current_version_id": string | null,"deal_model": string,"draft_config": Json | null,"ends_on": string | null,"id": string,"internal_notes": string | null,"owner_id": string | null,"preset_id": string | null,"renewal_of": string | null,"starts_on": string,"status": string,"status_reason": string | null,"title": string,"updated_at": string
+                    "activated_at": string | null,"agreed_at": string | null,"agreed_terms": Json | null,"application_id": string | null,"campaign_id": string | null,"closed_at": string | null,"code": string,"committed_at": string | null,"committed_paise": number | null,"created_at": string,"created_by": string | null,"creator_id": string,"current_version_id": string | null,"deal_model": string,"draft_config": Json | null,"ends_on": string | null,"id": string,"internal_notes": string | null,"owner_id": string | null,"preset_id": string | null,"renewal_of": string | null,"starts_on": string,"status": string,"status_reason": string | null,"title": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "activated_at"?: string | null,"agreed_at"?: string | null,"agreed_terms"?: Json | null,"application_id"?: string | null,"campaign_id"?: string | null,"closed_at"?: string | null,"code"?: string,"created_at"?: string,"created_by"?: string | null,"creator_id": string,"current_version_id"?: string | null,"deal_model"?: string,"draft_config"?: Json | null,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"owner_id"?: string | null,"preset_id"?: string | null,"renewal_of"?: string | null,"starts_on": string,"status"?: string,"status_reason"?: string | null,"title": string,"updated_at"?: string
+                    "activated_at"?: string | null,"agreed_at"?: string | null,"agreed_terms"?: Json | null,"application_id"?: string | null,"campaign_id"?: string | null,"closed_at"?: string | null,"code"?: string,"committed_at"?: string | null,"committed_paise"?: number | null,"created_at"?: string,"created_by"?: string | null,"creator_id": string,"current_version_id"?: string | null,"deal_model"?: string,"draft_config"?: Json | null,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"owner_id"?: string | null,"preset_id"?: string | null,"renewal_of"?: string | null,"starts_on": string,"status"?: string,"status_reason"?: string | null,"title": string,"updated_at"?: string
                   }
                   Update: {
-                    "activated_at"?: string | null,"agreed_at"?: string | null,"agreed_terms"?: Json | null,"application_id"?: string | null,"campaign_id"?: string | null,"closed_at"?: string | null,"code"?: string,"created_at"?: string,"created_by"?: string | null,"creator_id"?: string,"current_version_id"?: string | null,"deal_model"?: string,"draft_config"?: Json | null,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"owner_id"?: string | null,"preset_id"?: string | null,"renewal_of"?: string | null,"starts_on"?: string,"status"?: string,"status_reason"?: string | null,"title"?: string,"updated_at"?: string
+                    "activated_at"?: string | null,"agreed_at"?: string | null,"agreed_terms"?: Json | null,"application_id"?: string | null,"campaign_id"?: string | null,"closed_at"?: string | null,"code"?: string,"committed_at"?: string | null,"committed_paise"?: number | null,"created_at"?: string,"created_by"?: string | null,"creator_id"?: string,"current_version_id"?: string | null,"deal_model"?: string,"draft_config"?: Json | null,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"owner_id"?: string | null,"preset_id"?: string | null,"renewal_of"?: string | null,"starts_on"?: string,"status"?: string,"status_reason"?: string | null,"title"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -1175,6 +1211,24 @@ isOneToOne: false
       foreignKeyName: "fraud_flags_attribution_id_fkey"
       columns: ["attribution_id"]
 isOneToOne: false
+      referencedRelation: "an_leads"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "fraud_flags_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
+      referencedRelation: "an_leads_live"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "fraud_flags_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
+      referencedRelation: "an_revenue"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "fraud_flags_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
       referencedRelation: "lead_attributions"
       referencedColumns: ["id"]
     },{
@@ -1285,6 +1339,24 @@ isOneToOne: false
       foreignKeyName: "lead_stage_events_attribution_id_fkey"
       columns: ["attribution_id"]
 isOneToOne: false
+      referencedRelation: "an_leads"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "lead_stage_events_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
+      referencedRelation: "an_leads_live"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "lead_stage_events_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
+      referencedRelation: "an_revenue"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "lead_stage_events_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
       referencedRelation: "lead_attributions"
       referencedColumns: ["id"]
     }
@@ -1302,6 +1374,24 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
+      foreignKeyName: "ledger_entries_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
+      referencedRelation: "an_leads"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "ledger_entries_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
+      referencedRelation: "an_leads_live"
+      referencedColumns: ["attribution_id"]
+    },{
+      foreignKeyName: "ledger_entries_attribution_id_fkey"
+      columns: ["attribution_id"]
+isOneToOne: false
+      referencedRelation: "an_revenue"
+      referencedColumns: ["attribution_id"]
+    },{
       foreignKeyName: "ledger_entries_attribution_id_fkey"
       columns: ["attribution_id"]
 isOneToOne: false
@@ -2158,7 +2248,167 @@ isOneToOne: false
                 }
           }
           Views: {
-            [_ in never]: never
+            "an_clicks_daily": {
+                  Row: {
+                    "bot_clicks": number | null,"campaign_id": string | null,"clicks": number | null,"content_type": string | null,"creator_id": string | null,"day": string | null,"deal_id": string | null,"deal_model": string | null,"deliverable_id": string | null,"link_id": string | null,"platform": string | null,"programme_id": number | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "link_clicks_link_id_fkey"
+      columns: ["link_id"]
+isOneToOne: false
+      referencedRelation: "tracking_links"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tracking_links_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tracking_links_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tracking_links_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"an_leads": {
+                  Row: {
+                    "allocated": boolean | null,"applied": boolean | null,"attribution_id": string | null,"campaign_id": string | null,"content_type": string | null,"creator_id": string | null,"credited": boolean | null,"day": string | null,"deal_id": string | null,"deal_model": string | null,"deliverable_id": string | null,"duplicate": boolean | null,"enrolled": boolean | null,"is_test": boolean | null,"junk": boolean | null,"link_id": string | null,"platform": string | null,"programme_id": number | null,"qualified": boolean | null,"student_lead_id": number | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "lead_attributions_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "lead_attributions_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "lead_attributions_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "lead_attributions_link_id_fkey"
+      columns: ["link_id"]
+isOneToOne: false
+      referencedRelation: "tracking_links"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"an_leads_live": {
+                  Row: {
+                    "allocated": boolean | null,"applied": boolean | null,"attribution_id": string | null,"campaign_id": string | null,"content_type": string | null,"creator_id": string | null,"credited": boolean | null,"day": string | null,"deal_id": string | null,"deal_model": string | null,"deliverable_id": string | null,"duplicate": boolean | null,"enrolled": boolean | null,"is_test": boolean | null,"junk": boolean | null,"link_id": string | null,"platform": string | null,"programme_id": number | null,"qualified": boolean | null,"student_lead_id": number | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "lead_attributions_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "lead_attributions_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "lead_attributions_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "lead_attributions_link_id_fkey"
+      columns: ["link_id"]
+isOneToOne: false
+      referencedRelation: "tracking_links"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"an_revenue": {
+                  Row: {
+                    "attribution_id": string | null,"campaign_id": string | null,"content_type": string | null,"creator_id": string | null,"day": string | null,"deal_id": string | null,"deal_model": string | null,"deliverable_id": string | null,"enrollment_ref": string | null,"expected_net_paise": number | null,"is_test": boolean | null,"link_id": string | null,"platform": string | null,"programme_id": number | null,"received_net_paise": number | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "lead_attributions_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "lead_attributions_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "lead_attributions_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "lead_attributions_link_id_fkey"
+      columns: ["link_id"]
+isOneToOne: false
+      referencedRelation: "tracking_links"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"an_spend_daily": {
+                  Row: {
+                    "accrued_paise": number | null,"campaign_id": string | null,"content_type": string | null,"creator_id": string | null,"day": string | null,"deal_id": string | null,"deal_model": string | null,"deliverable_id": string | null,"k": string | null,"link_id": string | null,"platform": string | null,"programme_id": number | null,"type": string | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "lead_attributions_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "lead_attributions_link_id_fkey"
+      columns: ["link_id"]
+isOneToOne: false
+      referencedRelation: "tracking_links"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ledger_entries_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ledger_entries_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    }
+                  ]
+                }
           }
           Functions: {
             "actor_role":
@@ -2198,6 +2448,39 @@ isOneToOne: false
                            },
 "agency_set_status":
 { Args: { "p_agency": string,"p_reason": string,"p_status": string }; Returns: undefined
+                           },
+"an_bucket":
+{ Args: { "p_bucket": string,"p_day": string }; Returns: string
+                           },
+"an_key":
+{ Args: { "p_bucket": string,"p_campaign": string,"p_content_type": string,"p_creator": string,"p_day": string,"p_deal": string,"p_deal_model": string,"p_dim": string,"p_platform": string,"p_programme": number }; Returns: string
+                           },
+"an_stage_rank":
+{ Args: { "p": string }; Returns: number
+                           },
+"analytics_creators":
+{ Args: { "p": Json }; Returns: Json
+                           },
+"analytics_finance":
+{ Args: { "p": Json }; Returns: Json
+                           },
+"analytics_health":
+{ Args: { "p": Json }; Returns: Json
+                           },
+"analytics_meta":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"analytics_operations":
+{ Args: { "p_campaign"?: string }; Returns: Json
+                           },
+"analytics_refresh":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"analytics_spend":
+{ Args: { "p": Json }; Returns: Json
+                           },
+"analytics_totals":
+{ Args: { "p": Json }; Returns: Json
                            },
 "application_deal_source":
 { Args: { "p_app": string }; Returns: Json
@@ -2495,6 +2778,9 @@ isOneToOne: false
 "creator_contact_delete":
 { Args: { "p_creator": string,"p_id": string }; Returns: undefined
                            },
+"creator_dashboard":
+{ Args: { "p": Json,"p_creator": string }; Returns: Json
+                           },
 "creator_delete_draft":
 { Args: { "p_creator": string }; Returns: undefined
                            },
@@ -2560,6 +2846,9 @@ isOneToOne: false
                            },
 "current_session_id":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"deal_committed_set":
+{ Args: { "p_deal": string,"p_paise": number }; Returns: undefined
                            },
 "deal_content_facts":
 { Args: { "p_deal": string }; Returns: Json

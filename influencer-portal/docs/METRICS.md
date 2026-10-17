@@ -36,7 +36,7 @@ Students who enquired through a creator's link or code and were credited to them
 
 | | |
 | --- | --- |
-| Formula | Credited leads (first touch, plus last touch under the last-touch model) by enquiry date (IST); the same leads a creator sees in their pipeline |
+| Formula | Credited leads (first touch, or last touch under the last-touch model) by enquiry date (IST). Duplicates and rejected enquiries (which a creator also sees in the Closed column of their pipeline) and test leads are not counted |
 | Unit | Count |
 | Period | In the selected date range |
 | Direction | Higher is better |

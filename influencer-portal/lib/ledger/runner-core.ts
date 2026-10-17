@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { compConfig } from "@/lib/compensation/schema";
 import type { Database } from "@/lib/database.types";
+import { committedPaise } from "./committed";
 import { planDeal, type DealPlan } from "./plan";
 
 export type RunnerClient = SupabaseClient<Database, "inf">;
@@ -187,5 +188,14 @@ export async function runDealWith(db: RunnerClient, dealId: string, asOf: string
   const r = z
     .object({ created: z.number(), confirmed: z.number(), reversed: z.number(), other: z.number() })
     .parse(data);
+  // Committed spend for the dashboards: the latest terms with no leads at all over the deal's term.
+  const latest = [...facts.versions].sort((a, b) => a.effective_from.localeCompare(b.effective_from)).at(-1);
+  if (latest) {
+    const committed = await db.rpc("deal_committed_set", {
+      p_deal: dealId,
+      p_paise: committedPaise(latest.config, facts.deal.starts_on, facts.deal.ends_on, facts.context),
+    });
+    if (committed.error) throw new Error(committed.error.message);
+  }
   return { ...r, deferred: plan.deferred.length };
 }

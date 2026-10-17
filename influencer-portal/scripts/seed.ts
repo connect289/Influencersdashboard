@@ -16,6 +16,7 @@ import { syncBatchWith } from "@/lib/attribution/sync-core";
 import { DEFAULT_TDS_SECTIONS } from "@/lib/compensation/tax";
 import type { Database } from "@/lib/database.types";
 import { buildPayout } from "@/lib/ledger/payout";
+import { runDealWith } from "@/lib/ledger/runner-core";
 
 function loadEnv(): Record<string, string> {
   const out: Record<string, string> = {};
@@ -736,7 +737,21 @@ async function main() {
     await syncBatchWith(db, { lead_ids: ids }, "backfill");
   }
 
-  if (riya.data && demo.data) await seedFinance(riya.data.id, demo.data.id);
+  if (riya.data && demo.data) {
+    await seedFinance(riya.data.id, demo.data.id);
+    // The demo deal's own ledger run (posts nothing until the contract is countersigned; records committed spend).
+    await runDealWith(db, demo.data.id, new Date().toISOString());
+  }
+  // Dashboards read summary views refreshed every 15 minutes; refresh them now so the demo shows the seeded data.
+  {
+    const sql = new pg.Client({ connectionString: localDbUrl });
+    await sql.connect();
+    try {
+      await sql.query("select inf.analytics_refresh()");
+    } finally {
+      await sql.end();
+    }
+  }
 
   const terms = await db.from("terms_versions").select("kind");
   const have = new Set((terms.data ?? []).map((t) => t.kind));
