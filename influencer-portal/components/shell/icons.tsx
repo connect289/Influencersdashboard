@@ -14,9 +14,11 @@ import {
   Home,
   IdCard,
   Inbox,
+  Link2,
   ScrollText,
   Settings,
   Shield,
+  Target,
   User,
   Users,
   type LucideIcon,
@@ -44,4 +46,6 @@ export const ICONS: Record<IconName, LucideIcon> = {
   help: CircleHelp,
   clipboard: ClipboardList,
   clapperboard: Clapperboard,
+  target: Target,
+  link: Link2,
 };

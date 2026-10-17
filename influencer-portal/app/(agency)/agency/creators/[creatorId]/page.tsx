@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { GrantBadges } from "@/components/agency/grant-badges";
 import { MyDeliverables } from "@/components/content/my-deliverables";
+import { LinksPanel } from "@/components/links/links-panel";
 import { ContractList } from "@/components/contracts/contract-list";
 import { DealList } from "@/components/deals/deal-list";
 import { PlatformsCard } from "@/components/creator-profile/platforms-card";
@@ -177,6 +178,28 @@ export default async function AgencyCreatorPage({
               )}
             </Card>
           ) : null}
+          <Card>
+            <CardHeader
+              title={t("nav.creator.leads")}
+              description={t("agencyPortal.leadsHint")}
+              actions={
+                <Button asChild size="sm" variant="secondary">
+                  <Link href={`/agency/creators/${creatorId}/leads`}>
+                    {t("agencyPortal.openLeads")}
+                  </Link>
+                </Button>
+              }
+            />
+          </Card>
+          <Card>
+            <CardHeader title={t("nav.creator.links")} description={t("agencyPortal.linksHint")} />
+            <LinksPanel
+              supabase={supabase}
+              creatorId={creatorId}
+              canCreate={negotiates}
+              staff={false}
+            />
+          </Card>
           {negotiates ? (
             <Card>
               <CardHeader

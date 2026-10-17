@@ -23,6 +23,8 @@ export const ICON_NAMES = [
   "help",
   "clipboard",
   "clapperboard",
+  "target",
+  "link",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 
@@ -68,6 +70,7 @@ export const STAFF_NAV: StaffNavItem[] = [
     icon: "clapperboard",
     anyOf: ["deliverable.read"],
   },
+  { href: "/admin/leads", labelKey: "nav.admin.leads", icon: "target", anyOf: ["lead.read"] },
   { href: "/admin/tasks", labelKey: "nav.admin.tasks", icon: "checklist" },
   {
     href: "/admin/agencies",
@@ -102,6 +105,8 @@ export const CREATOR_NAV: CreatorNavItem[] = [
   { href: "/creator", labelKey: "nav.creator.home", icon: "home" },
   { href: "/creator/campaigns", labelKey: "nav.creator.campaigns", icon: "megaphone" },
   { href: "/creator/deliverables", labelKey: "nav.creator.deliverables", icon: "clapperboard" },
+  { href: "/creator/leads", labelKey: "nav.creator.leads", icon: "target" },
+  { href: "/creator/links", labelKey: "nav.creator.links", icon: "link" },
   { href: "/creator/deals", labelKey: "nav.creator.deals", icon: "handshake" },
   { href: "/creator/briefs", labelKey: "nav.creator.briefs", icon: "clipboard" },
   { href: "/creator/contracts", labelKey: "nav.creator.contracts", icon: "signature" },

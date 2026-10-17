@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
+import { LinksPanel } from "@/components/links/links-panel";
 import { requireStaff } from "@/lib/auth/guards";
 import type { CreatorStatus, PipelineStage } from "@/lib/creators/crm";
 import { loadCreatorProfile, loadKyc } from "@/lib/creators/load";
@@ -40,6 +41,7 @@ const TABS = [
   "outreach",
   "tasks",
   "deals",
+  "links",
   "agencies",
   "history",
 ] as const;
@@ -68,7 +70,8 @@ export default async function Creator360({
       (x !== "kyc" || p.has("kyc.read_masked")) &&
       (x !== "history" || p.has("audit.read")) &&
       (x !== "tasks" || p.has("task.write")) &&
-      (x !== "deals" || p.has("deal.read")),
+      (x !== "deals" || p.has("deal.read")) &&
+      (x !== "links" || p.has("creator.read")),
   );
   const requested = (await searchParams).tab as Tab | undefined;
   const tab: Tab = requested && visible.includes(requested) ? requested : "overview";
@@ -377,6 +380,15 @@ export default async function Creator360({
           </ul>
         )}
       </Card>
+    );
+  } else if (tab === "links") {
+    body = (
+      <LinksPanel
+        supabase={supabase}
+        creatorId={creatorId}
+        canCreate={p.has("creator.write")}
+        staff
+      />
     );
   } else if (tab === "agencies") {
     const { data: links } = await supabase

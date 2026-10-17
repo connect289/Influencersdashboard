@@ -164,13 +164,17 @@ export const leadDetail = feedRow.extend({
     .nullable(),
   touch_at: ts,
   evidence_source: z.string(),
+  /** When it was loaded (for "days in the current stage"). */
+  as_of: ts,
 });
 export type LeadDetail = z.infer<typeof leadDetail>;
 
 export async function loadLead(db: Db, attributionId: string): Promise<LeadDetail | null> {
   const { data, error } = await db.rpc("lead_detail", { p_attribution: attributionId });
   if (error) throw new Error(error.message);
-  return leadDetail.nullable().parse(data);
+  return leadDetail
+    .nullable()
+    .parse(data === null ? null : { ...(data as object), as_of: new Date().toISOString() });
 }
 
 export const staffLeadRow = feedRow.extend({

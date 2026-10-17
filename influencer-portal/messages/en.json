@@ -54,7 +54,8 @@
       "help": "Help",
       "contracts": "Contracts",
       "briefs": "Briefs",
-      "content": "Content"
+      "content": "Content",
+      "leads": "Leads"
     },
     "creator": {
       "home": "Home",
@@ -68,7 +69,9 @@
       "help": "Help",
       "contracts": "Contracts",
       "briefs": "Briefs",
-      "deliverables": "Deliverables"
+      "deliverables": "Deliverables",
+      "leads": "Leads",
+      "links": "Links"
     },
     "agency": {
       "home": "Creators",
@@ -859,7 +862,10 @@
     "dealsHint": "Deals and terms for this creator. With the negotiate grant you can accept or decline proposed terms.",
     "contractsHint": "Contracts to review, comment on and sign for this creator.",
     "deliverablesHint": "Briefs and content you can act on for this creator.",
-    "briefFor": "Brief: {deal}"
+    "briefFor": "Brief: {deal}",
+    "leadsHint": "Leads from this creator's links, with phone and email masked.",
+    "openLeads": "Open leads",
+    "linksHint": "Tracking links and QR codes. With the negotiate and sign permission you can make new ones."
   },
   "agencies": {
     "subtitle": "Talent agencies and managers, their team, and the creators who granted them access.",
@@ -3404,6 +3410,319 @@
         "not_https": "The link must start with https://",
         "wrong_platform": "That link is for a different platform."
       }
+    }
+  },
+  "links": {
+    "subtitle": "Make a link or QR code for each post. Every lead that comes through it is credited to you.",
+    "builder": {
+      "title": "New link",
+      "hint": "Pick the deal (and, if you like, the post and programme). We create the code for you.",
+      "deal": "Deal",
+      "noDeal": "No deal (general link)",
+      "deliverable": "Post",
+      "anyDeliverable": "Any post",
+      "programme": "Programme",
+      "anyProgramme": "Any programme",
+      "destination": "Where it goes",
+      "customUrl": "Web address",
+      "platform": "Where you'll share it",
+      "platformHint": "Used in the code and the UTM medium.",
+      "noPlatform": "Not specified",
+      "label": "Label",
+      "labelHint": "Only for you, e.g. \"Diwali reel\".",
+      "create": "Create link"
+    },
+    "destinations": {
+      "whatsapp_witty": "WhatsApp (Witty)",
+      "website_landing": "Website page",
+      "custom_url": "Custom web address"
+    },
+    "destinationHints": {
+      "whatsapp_witty": "Opens WhatsApp with a message to Eduwit's counsellor bot.",
+      "website_landing": "Your co-branded page on the Eduwit website.",
+      "custom_url": "Any https page, with UTMs added."
+    },
+    "created": "Link {code} created.",
+    "activated": "Link switched on.",
+    "deactivated": "Link switched off. Visitors see a \"link no longer active\" page.",
+    "active": "Active",
+    "inactiveBadge": "Off",
+    "copy": "Copy",
+    "copied": "Link copied.",
+    "stats": "{clicks} clicks · {leads} leads",
+    "createdOn": "created {date}",
+    "noDetails": "General link",
+    "empty": "No links yet",
+    "emptyHint": "Create a link for your next post.",
+    "needsDeal": "You can make links once a deal is agreed.",
+    "inactive": {
+      "title": "This link is no longer active",
+      "body": "The link you followed has been switched off. You can still reach Eduwit's counsellors on the website.",
+      "cta": "Go to eduwit.in"
+    }
+  },
+  "leads": {
+    "subtitle": "Everyone who enquired through your links. Phone numbers and emails are always masked.",
+    "agencySubtitle": "{name}'s leads, masked exactly as the creator sees them.",
+    "staffSubtitle": "Every attributed lead across creators: status, stage, overrides and fraud flags.",
+    "areaNav": "Lead sections",
+    "area": {
+      "all": "All leads",
+      "fraud": "Fraud review",
+      "stages": "Stage rules",
+      "tools": "Tools"
+    },
+    "empty": "No leads yet",
+    "emptyHint": "Share your links: leads appear here within a minute of a student enquiring.",
+    "noResults": "No leads match these filters.",
+    "staffEmpty": "No attributed leads yet",
+    "staffEmptyHint": "Leads appear when students enquire through creators' links or codes.",
+    "staffSearch": "Lead ref, code or creator",
+    "includeTest": "Include test leads",
+    "export": "Export CSV",
+    "removed": "Removed at the student's request",
+    "assisted": "Assisted (not paid)",
+    "openFlags": "{count, plural, one {# open flag} other {# open flags}}",
+    "unmappedBanner": "{count, plural, one {# lead has} other {# leads have}} a CRM stage no rule maps. Check the stage rules.",
+    "lastSync": "Last sync {at}",
+    "layout": {
+      "board": "Board",
+      "table": "Table"
+    },
+    "columns": {
+      "new": "New",
+      "qualifying": "Qualifying",
+      "qualified": "Qualified",
+      "allocated": "Allocated",
+      "counselling": "In counselling",
+      "applied": "Applied",
+      "enrolled": "Enrolled",
+      "closed": "Closed"
+    },
+    "stages": {
+      "names": {
+        "new": "New",
+        "qualifying": "Qualifying (Witty)",
+        "qualified": "Qualified",
+        "allocated": "Allocated",
+        "counselling": "In counselling",
+        "applied": "Applied",
+        "enrolled": "Enrolled",
+        "lost": "Lost",
+        "duplicate": "Duplicate",
+        "junk": "Junk",
+        "not_attributed": "Not attributed"
+      },
+      "subtitle": "How CRM data becomes the stage creators see. Rules run in priority order; the first match wins.",
+      "add": "Add rule",
+      "edit": "Edit rule",
+      "priority": "Priority",
+      "priorityHint": "Lower numbers run first.",
+      "conditions": "When all of these match",
+      "field": "Field",
+      "mode": "Test",
+      "values": "Values",
+      "valuesHint": "Comma-separated",
+      "modes": {
+        "in": "is one of",
+        "present": "is set",
+        "empty": "is empty",
+        "is_true": "is true"
+      },
+      "fields": {
+        "attribution_status": "Attribution status",
+        "stage": "CRM stage",
+        "lost_reason": "Lost reason",
+        "enrollment_status": "Enrolment status",
+        "applied_at": "Applied date",
+        "is_sales_ready": "Witty qualified",
+        "b2c_stage": "B2C stage",
+        "b2c_closed_reason": "B2C closed reason"
+      },
+      "creatorStage": "Creator stage",
+      "keepEvaluating": "Only add the flag",
+      "reason": "Reason shown",
+      "flag": "Flag",
+      "active": "Active",
+      "saved": "Stage rule saved. Leads update on the next sync."
+    },
+    "flags": {
+      "cancelled": "Cancelled",
+      "under_review": "Under review"
+    },
+    "status": {
+      "credited": "Credited",
+      "duplicate": "Duplicate",
+      "outside_window": "Outside window",
+      "self_referral": "Self-referral",
+      "fraud_suspected": "Under review",
+      "manually_rejected": "Rejected",
+      "manually_credited": "Credited by Eduwit"
+    },
+    "reasons": {
+      "existing_lead": "This student had already enquired before your link, so the lead isn't credited.",
+      "another_creator": "Another creator's link was used for this student, so the lead is credited to them.",
+      "outside_window": "The enquiry came after the attribution window from your link.",
+      "self_referral": "This enquiry matches your own or a family contact, so it isn't credited."
+    },
+    "actor": {
+      "system": "Rules",
+      "staff": "Eduwit"
+    },
+    "earning": {
+      "none": "No earning",
+      "pending": "Pending",
+      "accrued": "Accrued",
+      "confirmed": "Confirmed",
+      "paid": "Paid",
+      "clawed_back": "Clawed back"
+    },
+    "fields": {
+      "city": "City",
+      "state": "State",
+      "country": "Country",
+      "preferred_language": "Language",
+      "enquirer_relation": "Enquiring for",
+      "interested_course": "Course",
+      "interested_specialization": "Specialisation",
+      "field_of_interest": "Field",
+      "interested_university": "University of interest",
+      "university_preference": "University preference",
+      "program_level": "Level",
+      "programme_segment": "Segment",
+      "study_mode_preference": "Study mode",
+      "highest_qualification": "Highest qualification",
+      "current_study": "Studying now",
+      "experience_band": "Work experience (years)",
+      "enrollment_timeline": "Plans to enrol",
+      "eligibility_status": "Eligibility",
+      "admission_readiness": "Readiness",
+      "first_touch_at": "First contact",
+      "applied_at": "Applied",
+      "enrolled_program": "Enrolled programme",
+      "enrolled_university": "Enrolled university",
+      "enrollment_date": "Enrolment date"
+    },
+    "detail": {
+      "ref": "Lead",
+      "phone": "Phone",
+      "email": "Email",
+      "name": "Name",
+      "source": "Source",
+      "touched": "Link used {at}",
+      "timeline": "Stages",
+      "days": "{count, plural, one {# day} other {# days}}",
+      "earning": "Your earning for this lead",
+      "earningHint": "Earnings follow your deal and update when payouts start (statements are coming).",
+      "others": "Other creators on this lead",
+      "history": "Attribution history"
+    },
+    "table": {
+      "lead": "Lead",
+      "creator": "Creator",
+      "stage": "Stage",
+      "programme": "Programme",
+      "source": "Source",
+      "date": "Date"
+    },
+    "filters": {
+      "title": "Filters and saved views",
+      "all": "All",
+      "allStages": "All stages",
+      "stage": "Stage",
+      "temperature": "HOT / WARM / COLD",
+      "campaign": "Campaign",
+      "deal": "Deal",
+      "deliverable": "Post",
+      "link": "Link",
+      "city": "City or state",
+      "search": "Search",
+      "from": "From",
+      "to": "To",
+      "clear": "Clear filters"
+    },
+    "views": {
+      "open": "Saved views",
+      "name": "Save these filters as",
+      "save": "Save view",
+      "saveShared": "Save and share with staff",
+      "saved": "View saved.",
+      "shared": "shared"
+    },
+    "override": {
+      "title": "Override",
+      "reason": "Reason",
+      "credit": "Credit this creator",
+      "reject": "Reject this attribution",
+      "credited": "Credited by hand. The lead is re-checked shortly.",
+      "rejected": "Attribution rejected. The lead is re-checked shortly."
+    },
+    "signals": {
+      "velocity": "Lead spike",
+      "same_device": "Same device",
+      "no_witty_reply": "Never answered Witty",
+      "off_hours_burst": "Off-hours burst",
+      "junk_rate": "High junk rate"
+    },
+    "signalDetail": {
+      "velocity": "{leads} leads in an hour (limit {max})",
+      "same_device": "{leads} leads from one device (limit {max})",
+      "no_witty_reply": "No reply after {hours} hours",
+      "off_hours_burst": "{leads} leads at night (threshold {threshold})",
+      "junk_rate": "{pct}% junk over {sample} closed leads (threshold {threshold}%)"
+    },
+    "fraud": {
+      "subtitle": "Signals that need a person to look. Nothing is rejected automatically; lead-level signals hold the credit until you decide.",
+      "filter": "Filter flags",
+      "statuses": {
+        "open": "Open",
+        "cleared": "Cleared",
+        "confirmed": "Confirmed",
+        "all": "All"
+      },
+      "columns": {
+        "signal": "Signal",
+        "creator": "Creator",
+        "lead": "Lead",
+        "status": "Decision"
+      },
+      "creatorLevel": "Whole creator",
+      "clear": "Clear",
+      "clearTitle": "Clear this flag?",
+      "clearHint": "The credit stands. Your reason is recorded.",
+      "confirm": "Confirm",
+      "confirmTitle": "Confirm this flag?",
+      "confirmHint": "The attribution is rejected and the creator sees \"rejected after review\".",
+      "cleared": "Flag cleared.",
+      "confirmed": "Flag confirmed; the attribution is rejected.",
+      "empty": "Nothing to review",
+      "emptyHint": "Flags appear when lead patterns look unusual."
+    },
+    "backfill": {
+      "title": "Re-run attribution",
+      "hint": "Re-checks every lead created in the range with today's rules (manual decisions are kept). Runs in the background.",
+      "from": "From",
+      "to": "To",
+      "run": "Re-run",
+      "queued": "Re-run queued. Results appear within a few minutes."
+    },
+    "tools": {
+      "subtitle": "Sync status and re-running attribution.",
+      "syncTitle": "Lead sync",
+      "syncHint": "Every minute the portal reads new and changed leads (read-only) and updates attributions and stages.",
+      "neverSynced": "No sync has run yet."
+    },
+    "errors": {
+      "codeTaken": "That code is taken. Try again.",
+      "needsDeal": "Links need an agreed deal.",
+      "programme": "That programme isn't part of this campaign.",
+      "invalidTarget": "That deal, post or programme isn't available.",
+      "reasonRequired": "A reason is required.",
+      "nothingToReject": "There is no attribution to reject.",
+      "noLead": "That lead doesn't exist.",
+      "alreadyDecided": "This has already been decided.",
+      "range": "Choose a range of up to 400 days.",
+      "priorityTaken": "Another rule has this priority."
     }
   }
 }

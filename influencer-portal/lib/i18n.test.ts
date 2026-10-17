@@ -76,6 +76,13 @@ import {
 } from "@/lib/content/data";
 import { CONTENT_DB_ERRORS } from "@/lib/content/schemas";
 import { ACTIONS, DELIVERABLE_STATUSES, DUE_STAGES, STAGES } from "@/lib/content/workflow";
+import { ATTRIBUTION_STATUSES, REASONS } from "@/lib/attribution/rules";
+import { CREATOR_STAGES, OPEN_STAGES, STAGE_FIELDS } from "@/lib/attribution/stages";
+import { DESTINATIONS } from "@/lib/attribution/links";
+import { FRAUD_SIGNALS } from "@/lib/attribution/fraud";
+import { ATTRIBUTION_DB_ERRORS } from "@/lib/attribution/schemas";
+import { LEAD_FIELD_ORDER } from "@/components/leads/lead-detail";
+import { feedRow } from "@/lib/leads/data";
 import en from "@/messages/en.json";
 
 const root = join(import.meta.dirname, "..");
@@ -276,6 +283,27 @@ describe("messages", () => {
       ),
       ...CONTENT_DB_ERRORS.map(([, k]) => `content.errors.${k}`),
       ...["invalid", "not_https", "wrong_platform"].map((x) => `content.errors.url.${x}`),
+    ];
+    for (const k of keys) expect(has(k), k).toBe(true);
+  });
+
+  it("labels every lead stage, status, reason, field, signal and error", () => {
+    const keys = [
+      ...[...OPEN_STAGES, "enrolled", "closed"].map((x) => `leads.columns.${x}`),
+      ...CREATOR_STAGES.map((x) => `leads.stages.names.${x}`),
+      ...ATTRIBUTION_STATUSES.map((x) => `leads.status.${x}`),
+      ...REASONS.map((x) => `leads.reasons.${x}`),
+      ...feedRow.shape.earning_status.options.map((x) => `leads.earning.${x}`),
+      ...LEAD_FIELD_ORDER.map((x) => `leads.fields.${x}`),
+      ...STAGE_FIELDS.map((x) => `leads.stages.fields.${x}`),
+      ...["in", "present", "empty", "is_true"].map((x) => `leads.stages.modes.${x}`),
+      ...FRAUD_SIGNALS.flatMap((x) => [`leads.signals.${x}`, `leads.signalDetail.${x}`]),
+      ...["open", "cleared", "confirmed", "all"].map((x) => `leads.fraud.statuses.${x}`),
+      ...["all", "fraud", "stages", "tools"].map((x) => `leads.area.${x}`),
+      ...["cancelled", "under_review"].map((x) => `leads.flags.${x}`),
+      ...["staff", "system"].map((x) => `leads.actor.${x}`),
+      ...DESTINATIONS.flatMap((x) => [`links.destinations.${x}`, `links.destinationHints.${x}`]),
+      ...ATTRIBUTION_DB_ERRORS.map(([, k]) => `leads.errors.${k}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);
   });
