@@ -688,10 +688,11 @@ async function main() {
 
   // A demo contract for the demo deal, sent to Riya for review (generated exactly as the app does).
   const demo = await db.from("deals").select("id").eq("title", dealTitle).maybeSingle();
+  // Any contract counts (the e2e suite adds amendments), so a second run never makes another.
   const hasContract = demo.data
-    ? await db.from("contracts").select("id").eq("deal_id", demo.data.id).maybeSingle()
-    : { data: null };
-  if (demo.data && !hasContract.data) {
+    ? ((await db.from("contracts").select("id").eq("deal_id", demo.data.id).limit(1)).data ?? []).length > 0
+    : false;
+  if (demo.data && !hasContract) {
     const created = await db.rpc("contract_create", { p: { deal_id: demo.data.id } });
     if (created.error) throw new Error(`contract: ${created.error.message}`);
     const row = await db.from("contracts").select("number, template_id").eq("id", created.data).single();
