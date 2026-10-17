@@ -77,7 +77,13 @@ export function safeHttpsUrl(raw: string): URL | null {
   }
   if (u.protocol !== "https:" || u.username || u.password) return null;
   const h = u.hostname.toLowerCase();
-  if (!h.includes(".") || h === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(h) || h.startsWith("[") || h.endsWith(".local"))
+  if (
+    !h.includes(".") ||
+    h === "localhost" ||
+    /^\d+\.\d+\.\d+\.\d+$/.test(h) ||
+    h.startsWith("[") ||
+    h.endsWith(".local")
+  )
     return null;
   return u;
 }
@@ -85,7 +91,7 @@ export function safeHttpsUrl(raw: string): URL | null {
 /** The URL with the UTMs set (replacing any existing ones). */
 export function withUtm(url: URL, utm: Utm): string {
   const u = new URL(url.toString());
-  for (const [k, v] of Object.entries(utm)) u.searchParams.set(k, v);
+  for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_content"] as const) u.searchParams.set(k, utm[k]);
   return u.toString();
 }
 

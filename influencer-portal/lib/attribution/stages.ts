@@ -19,7 +19,14 @@ export const CREATOR_STAGES = [
 ] as const;
 export type CreatorStage = (typeof CREATOR_STAGES)[number];
 
-export const OPEN_STAGES: readonly CreatorStage[] = ["new", "qualifying", "qualified", "allocated", "counselling", "applied"];
+export const OPEN_STAGES: readonly CreatorStage[] = [
+  "new",
+  "qualifying",
+  "qualified",
+  "allocated",
+  "counselling",
+  "applied",
+];
 export const CLOSED_STAGES: readonly CreatorStage[] = ["lost", "duplicate", "junk", "not_attributed"];
 const RANK: Record<CreatorStage, number> = {
   new: 1,

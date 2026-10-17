@@ -5,16 +5,23 @@ const T = "Hi Eduwit! I saw {creator_name}'s post about {programme}. My access c
 
 describe("links", () => {
   it("renders the WhatsApp message with an access code", () => {
-    expect(renderMessage(T, { creator_name: "Riya", programme: "the online MBA", code: "RIYA-IG-7K", access_code: "K7QM2X" })).toBe(
-      "Hi Eduwit! I saw Riya's post about the online MBA. My access code is K7QM2X (ref RIYA-IG-7K)",
-    );
+    expect(
+      renderMessage(T, {
+        creator_name: "Riya",
+        programme: "the online MBA",
+        code: "RIYA-IG-7K",
+        access_code: "K7QM2X",
+      }),
+    ).toBe("Hi Eduwit! I saw Riya's post about the online MBA. My access code is K7QM2X (ref RIYA-IG-7K)");
   });
 
   it("drops the access-code sentence when Witty gave none, keeping the creator code", () => {
     expect(renderMessage(T, { creator_name: "Riya", programme: "MBA", code: "RIYA-IG-7K", access_code: null })).toBe(
       "Hi Eduwit! I saw Riya's post about MBA. (ref RIYA-IG-7K)",
     );
-    expect(renderMessage("Hello {access_code}", { creator_name: "", programme: "", code: "A-B", access_code: null })).toBe("(ref A-B)");
+    expect(
+      renderMessage("Hello {access_code}", { creator_name: "", programme: "", code: "A-B", access_code: null }),
+    ).toBe("(ref A-B)");
   });
 
   it("builds wa.me links with only digits and an encoded message", () => {
@@ -23,14 +30,26 @@ describe("links", () => {
 
   it("accepts only safe https destinations", () => {
     expect(safeHttpsUrl("https://eduwit.in/mba")?.toString()).toBe("https://eduwit.in/mba");
-    for (const bad of ["http://eduwit.in", "https://user:pw@eduwit.in", "https://localhost/x", "https://10.0.0.1/x", "javascript:alert(1)", "nope", "https://intranet/x", "https://printer.local/x", "https://[::1]/"])
+    for (const bad of [
+      "http://eduwit.in",
+      "https://user:pw@eduwit.in",
+      "https://localhost/x",
+      "https://10.0.0.1/x",
+      "javascript:alert(1)",
+      "nope",
+      "https://intranet/x",
+      "https://printer.local/x",
+      "https://[::1]/",
+    ])
       expect(safeHttpsUrl(bad), bad).toBeNull();
   });
 
   it("sets UTMs, replacing existing ones", () => {
     const utm = utmFor({ source: "influencer", platform: "instagram", campaign: "diwali-mba", code: "RIYA-IG-7K" });
     const u = withUtm(new URL("https://eduwit.in/mba?utm_source=old&x=1"), utm);
-    expect(u).toBe("https://eduwit.in/mba?utm_source=influencer&x=1&utm_medium=instagram&utm_campaign=diwali-mba&utm_content=RIYA-IG-7K");
+    expect(u).toBe(
+      "https://eduwit.in/mba?utm_source=influencer&x=1&utm_medium=instagram&utm_campaign=diwali-mba&utm_content=RIYA-IG-7K",
+    );
     expect(utmFor({ source: "influencer", platform: null, campaign: null, code: "A-B" })).toEqual({
       utm_source: "influencer",
       utm_medium: "creator",

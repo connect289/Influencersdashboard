@@ -85,10 +85,15 @@ const MIN = 60_000;
 const DAY = 86_400_000;
 const ms = (iso: string) => Date.parse(iso);
 
-type Judged = { touch: Touch; status: "eligible" | "duplicate" | "outside_window" | "self_referral"; reason: Reason | null };
+type Judged = {
+  touch: Touch;
+  status: "eligible" | "duplicate" | "outside_window" | "self_referral";
+  reason: Reason | null;
+};
 
 function judge(t: Touch, lead: LeadFacts, r: Rules): Judged {
-  if (lead.self_referral_creators.includes(t.creator_id)) return { touch: t, status: "self_referral", reason: "self_referral" };
+  if (lead.self_referral_creators.includes(t.creator_id))
+    return { touch: t, status: "self_referral", reason: "self_referral" };
   const grace = r.duplicate_grace_minutes * MIN;
   let leadAt = ms(lead.created_at);
   if (leadAt < ms(t.at) - grace) {
@@ -155,7 +160,8 @@ export function decide(lead: LeadFacts, r: Rules, existing: readonly Existing[] 
   const manualWinner = existing.find((e) => e.status === "manually_credited")?.creator_id ?? null;
   out = out.map((d) => {
     const s = sticky.get(d.creator_id);
-    if (s) return { ...d, status: s, touch: s === "manually_rejected" ? "none" : d.touch === "none" ? "first" : d.touch };
+    if (s)
+      return { ...d, status: s, touch: s === "manually_rejected" ? "none" : d.touch === "none" ? "first" : d.touch };
     if (manualWinner && d.status === "credited" && d.touch !== "assisted")
       return { ...d, touch: "none", status: "duplicate", reason: "another_creator" };
     return d;

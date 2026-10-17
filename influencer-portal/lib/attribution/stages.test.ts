@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_STAGE_RULES } from "./stage-rules";
-import { evaluate, mapStage, matches, type StageInputs } from "./stages";
+import { evaluate, mapStage, matches, type CreatorStage, type StageInputs } from "./stages";
 
 const map = (x: StageInputs) => evaluate(x, DEFAULT_STAGE_RULES);
 
@@ -52,7 +52,10 @@ describe("stage rules (STAGE_MAPPING.md §3)", () => {
   });
 
   it("a refunded enrolment shows as enrolled, cancelled", () => {
-    expect(map({ enrollment_status: "refunded", stage: "enrolled" })).toMatchObject({ stage: "enrolled", flags: ["cancelled"] });
+    expect(map({ enrollment_status: "refunded", stage: "enrolled" })).toMatchObject({
+      stage: "enrolled",
+      flags: ["cancelled"],
+    });
   });
 
   it("an unknown CRM stage is unmapped", () => {
@@ -68,7 +71,7 @@ describe("stage rules (STAGE_MAPPING.md §3)", () => {
 });
 
 describe("never backwards", () => {
-  const prev = (stage: Parameters<typeof mapStage>[2] extends infer P ? NonNullable<P>["stage"] : never) => ({ stage, reason: null });
+  const prev = (stage: CreatorStage) => ({ stage, reason: null });
   it("ignores a lower open stage", () => {
     expect(mapStage({ stage: "qualifying" }, DEFAULT_STAGE_RULES, prev("counselling")).stage).toBe("counselling");
   });
@@ -76,15 +79,25 @@ describe("never backwards", () => {
     expect(mapStage({ stage: "applied" }, DEFAULT_STAGE_RULES, prev("counselling")).stage).toBe("applied");
   });
   it("closed outcomes can always follow, and a closed lead can come back", () => {
-    expect(mapStage({ stage: "lost", lost_reason: "not interested" }, DEFAULT_STAGE_RULES, prev("applied")).stage).toBe("lost");
+    expect(mapStage({ stage: "lost", lost_reason: "not interested" }, DEFAULT_STAGE_RULES, prev("applied")).stage).toBe(
+      "lost",
+    );
     expect(mapStage({ stage: "qualifying" }, DEFAULT_STAGE_RULES, prev("lost")).stage).toBe("qualifying");
   });
   it("an enrolment stays enrolled", () => {
-    expect(mapStage({ stage: "lost", lost_reason: "not interested" }, DEFAULT_STAGE_RULES, prev("enrolled")).stage).toBe("enrolled");
-    expect(mapStage({ enrollment_status: "refunded" }, DEFAULT_STAGE_RULES, prev("enrolled"))).toMatchObject({ stage: "enrolled", flags: ["cancelled"] });
+    expect(
+      mapStage({ stage: "lost", lost_reason: "not interested" }, DEFAULT_STAGE_RULES, prev("enrolled")).stage,
+    ).toBe("enrolled");
+    expect(mapStage({ enrollment_status: "refunded" }, DEFAULT_STAGE_RULES, prev("enrolled"))).toMatchObject({
+      stage: "enrolled",
+      flags: ["cancelled"],
+    });
   });
   it("an unmapped value keeps the last known stage", () => {
-    expect(mapStage({ stage: "mystery" }, DEFAULT_STAGE_RULES, prev("allocated"))).toMatchObject({ stage: "allocated", unmapped: true });
+    expect(mapStage({ stage: "mystery" }, DEFAULT_STAGE_RULES, prev("allocated"))).toMatchObject({
+      stage: "allocated",
+      unmapped: true,
+    });
   });
   it("no previous stage: the rules decide", () => {
     expect(mapStage({ stage: "applied" }, DEFAULT_STAGE_RULES, null).stage).toBe("applied");

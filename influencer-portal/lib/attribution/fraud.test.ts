@@ -36,7 +36,9 @@ describe("creator signals", () => {
   it("flags velocity, off-hours bursts and a high junk rate", () => {
     expect(creatorSignals({ ...quiet, leads_last_hour: 31 }, s).map((x) => x.signal)).toEqual(["velocity"]);
     expect(creatorSignals({ ...quiet, off_hours_leads_24h: 5 }, s).map((x) => x.signal)).toEqual(["off_hours_burst"]);
-    expect(creatorSignals({ ...quiet, junk_30d: 8 }, s)).toEqual([{ signal: "junk_rate", detail: { pct: 40, threshold: 40, sample: 20 } }]);
+    expect(creatorSignals({ ...quiet, junk_30d: 8 }, s)).toEqual([
+      { signal: "junk_rate", detail: { pct: 40, threshold: 40, sample: 20 } },
+    ]);
   });
   it("needs a minimum sample before judging the junk rate", () => {
     expect(creatorSignals({ ...quiet, closed_30d: 9, junk_30d: 9 }, s)).toEqual([]);

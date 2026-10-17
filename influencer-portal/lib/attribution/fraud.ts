@@ -46,7 +46,10 @@ export function leadSignals(f: LeadFraudFacts, s: FraudSettings): Signal[] {
   if (f.same_device_leads > s.same_device_max_leads)
     out.push({ signal: "same_device", detail: { leads: f.same_device_leads, max: s.same_device_max_leads } });
   if (f.student_replied === false && f.age_hours >= s.no_witty_reply_hours)
-    out.push({ signal: "no_witty_reply", detail: { hours: Math.floor(f.age_hours), threshold: s.no_witty_reply_hours } });
+    out.push({
+      signal: "no_witty_reply",
+      detail: { hours: Math.floor(f.age_hours), threshold: s.no_witty_reply_hours },
+    });
   return out;
 }
 
@@ -58,7 +61,8 @@ export function creatorSignals(f: CreatorFraudFacts, s: FraudSettings): Signal[]
     out.push({ signal: "off_hours_burst", detail: { leads: f.off_hours_leads_24h, threshold: s.off_hours_burst } });
   if (f.closed_30d >= s.min_sample) {
     const pct = Math.round((f.junk_30d / f.closed_30d) * 100);
-    if (pct >= s.junk_rate_pct) out.push({ signal: "junk_rate", detail: { pct, threshold: s.junk_rate_pct, sample: f.closed_30d } });
+    if (pct >= s.junk_rate_pct)
+      out.push({ signal: "junk_rate", detail: { pct, threshold: s.junk_rate_pct, sample: f.closed_30d } });
   }
   return out;
 }
