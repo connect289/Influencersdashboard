@@ -56,7 +56,8 @@
       "briefs": "Briefs",
       "content": "Content",
       "leads": "Leads",
-      "finance": "Finance"
+      "finance": "Finance",
+      "analytics": "Analytics"
     },
     "creator": {
       "home": "Home",
@@ -633,8 +634,51 @@
       "onboarding": "Finish setting up your profile",
       "onboardingHint": "{pct}% done. You can apply to campaigns once you're approved.",
       "onboardingReview": "Your profile is being reviewed",
-      "onboardingReviewHint": "We'll let you know as soon as you're approved."
-    }
+      "onboardingReviewHint": "We'll let you know as soon as you're approved.",
+      "contracts": "{count, plural, one {A contract needs you} other {# contracts need you}}",
+      "contractsHint": "Review, comment or sign.",
+      "briefs": "{count, plural, one {A brief to acknowledge} other {# briefs to acknowledge}}",
+      "briefsHint": "Read it and confirm you have understood it to start your deliverables.",
+      "overdue": "{count, plural, one {A deliverable is overdue} other {# deliverables are overdue}}",
+      "overdueHint": "Post it as soon as you can, or message Eduwit if something is holding you up.",
+      "changesRequested": "{count, plural, one {Changes requested on a deliverable} other {Changes requested on # deliverables}}",
+      "changesRequestedHint": "See the comments and upload a new version.",
+      "dueSoon": "{count, plural, one {A deliverable is due this week} other {# deliverables are due this week}}",
+      "dueSoonHint": "Due in the next 7 days.",
+      "metricsDue": "{count, plural, one {Report metrics for a live post} other {Report metrics for # live posts}}",
+      "metricsDueHint": "Add views and reach with a screenshot of your insights.",
+      "invoices": "{count, plural, one {A payout is waiting for your GST invoice} other {# payouts are waiting for your GST invoice}}",
+      "invoicesHint": "Upload it from Earnings so the payment can go out.",
+      "kyc": "Complete your KYC",
+      "kycHint": "Payouts need a verified PAN and bank account."
+    },
+    "earnings": "Your earnings",
+    "allEarnings": "All earnings",
+    "fixed": "Fixed fees",
+    "fixedHint": "Fixed fees and milestones on your agreed and active deals: earned so far and still to come.",
+    "performance": "How your content is doing",
+    "funnel": "Lead funnel",
+    "funnelHint": "From clicks on your links to enrolments. Each step shows its share of the step before.",
+    "leadsOverTime": "Leads over time",
+    "noLeads": "No leads in this period",
+    "noLeadsHint": "Share your tracking links in your posts. Leads appear here within minutes.",
+    "topContent": "Top content",
+    "topContentHint": "Your posts and links that brought the most leads.",
+    "unknownContent": "Your creator code",
+    "enrolledNote": "{count, plural, =0 {no enrolments} one {# enrolled} other {# enrolled}}",
+    "programmes": "Programmes",
+    "noProgramme": "No programme set on the link",
+    "platforms": "Platforms",
+    "noPlatform": "Not set",
+    "activeDeals": "Active campaigns and deals",
+    "noDeals": "No active deals",
+    "noDealsHint": "Deals appear here once you accept terms and they become active.",
+    "leaderboard": "Leaderboard",
+    "rank": "#{rank} of {of}",
+    "rankHint": "{count, plural, =0 {No enrolments yet in this period} one {# enrolment in this period} other {# enrolments in this period}}, among creators who show their position.",
+    "rankNone": "Your position appears once the dashboards next refresh.",
+    "leaderboardOptIn": "Turn on “Show me on the leaderboard” in your profile to see your position among other creators.",
+    "openProfile": "Open profile"
   },
   "terms": {
     "title": "Terms and privacy",
@@ -1136,7 +1180,8 @@
       "agencies": "Agency",
       "history": "History",
       "deals": "Deals",
-      "links": "Links"
+      "links": "Links",
+      "analytics": "Analytics"
     },
     "overview": {
       "facts": "Summary",
@@ -4407,6 +4452,117 @@
         "label": "Flagged enrolments",
         "definition": "Enrolments whose creator commission has waited longer than the reconciliation period."
       }
-    }
+    },
+    "about": "About {metric}",
+    "vsPrevious": "Previous period: {value}",
+    "vsPreviousShort": "vs previous",
+    "showData": "Show data",
+    "chartSummary": "{title}: {total} from {from} to {to}; highest {max}.",
+    "thisPeriod": "This period",
+    "previousPeriod": "Previous period",
+    "date": "Date",
+    "ofPrevious": "{pct} of previous",
+    "range": {
+      "label": "Date range",
+      "preset": "Period",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "compare": "Compare with previous period",
+      "presets": {
+        "today": "Today",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "90d": "Last 90 days",
+        "this_month": "This month",
+        "last_month": "Last month",
+        "this_fy": "This financial year",
+        "custom": "Custom range"
+      }
+    },
+    "fresh": "The dashboards were refreshed in the last two minutes.",
+    "refreshed": "Dashboards refreshed.",
+    "refresh": "Refresh",
+    "updated": "Updated {when}",
+    "notRefreshed": "Not refreshed yet",
+    "areaNav": "Analytics sections",
+    "areas": {
+      "overview": "Overview",
+      "campaigns": "Campaigns",
+      "finance": "Finance"
+    },
+    "export": "Export CSV",
+    "includeTest": "Include test leads",
+    "noData": "Nothing in this period",
+    "noDataHint": "Try a longer date range.",
+    "notSplit": "Not split (deal-level)",
+    "pipeline": "Creator pipeline",
+    "name": "Name",
+    "breakdownBy": "By {dimension}",
+    "breakdownHint": "Spend tied to a lead (commission) follows that lead's post, platform and programme; fixed fees and milestones are deal-level and shown as not split.",
+    "dimensionNav": "Break down by",
+    "dimensions": {
+      "creator": "Creator",
+      "campaign": "Campaign",
+      "deal": "Deal",
+      "platform": "Platform",
+      "content_type": "Content type",
+      "programme": "Programme",
+      "deal_model": "Deal model"
+    },
+    "qualityByCreator": "Lead quality by creator",
+    "leaderboards": "Leaderboards",
+    "boards": {
+      "enrolled": "Most enrolments",
+      "enrolledHint": "Enrolments from leads in this period.",
+      "roi": "Best net ROI",
+      "roiHint": "Creators with spend and at least 5 leads.",
+      "on_time": "Most on time",
+      "on_timeHint": "Deliverables due in this period that went live by their due date (at least 2 due)."
+    },
+    "overview": {
+      "subtitle": "How the creator programme is doing: health, spend, unit economics, lead quality and what needs attention."
+    },
+    "spend": {
+      "byModel": "Spend by deal model",
+      "byModelHint": "Which kind of deal costs what. Committed is now; accrued and paid are in the period.",
+      "byCampaign": "Budget and actual by campaign",
+      "byCampaignHint": "Budget used is accrued spend to date against the campaign budget."
+    },
+    "campaigns": {
+      "title": "Campaign dashboard",
+      "subtitle": "Every campaign's results side by side, with budget against actual spend.",
+      "dashboardSubtitle": "This campaign's results, with every creator compared.",
+      "creators": "Creators compared",
+      "creatorsHint": "Each creator's leads, spend, revenue and unit economics in this campaign.",
+      "open": "Open the campaign"
+    },
+    "finance": {
+      "subtitle": "What Eduwit owes creators, payouts by period, TDS by quarter and reconciliation with Eduwit's own commission.",
+      "payouts": "Payouts by period",
+      "payoutsHint": "Payouts marked paid, grouped by week or month of payment.",
+      "noPayouts": "No payouts paid in this period",
+      "count": "Payouts",
+      "tds": "TDS by quarter",
+      "tdsHint": "TDS deducted from creators, by financial-year quarter and section, for the financial years in the range.",
+      "noTds": "No TDS deducted yet",
+      "quarter": "Quarter",
+      "section": "Section",
+      "amount": "Amount",
+      "creators": "Creators",
+      "recon": "Reconciliation status",
+      "reconHint": "Enrolments with creator commission, by the state of Eduwit's own commission.",
+      "noRecon": "No commission waiting on Eduwit's receipts",
+      "noReceipt": "No receipt yet",
+      "openRecon": "Open receipts and reconciliation"
+    },
+    "creator": {
+      "trend": "Leads over time",
+      "byDeal": "By deal",
+      "byContent": "By content type",
+      "quality": "Lead quality over time",
+      "qualityHint": "Each period's leads and how they turned out."
+    },
+    "open": "Open {metric}"
   }
 }

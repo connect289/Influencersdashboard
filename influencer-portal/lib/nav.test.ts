@@ -6,6 +6,7 @@ describe("staff navigation", () => {
   it("shows Super Admin everything", () => {
     expect(visibleStaffNav(permissionsFor({ roles: ["super_admin"], isSignatory: false })).map((i) => i.href)).toEqual([
       "/admin",
+      "/admin/analytics",
       "/admin/creators",
       "/admin/campaigns",
       "/admin/applications",
@@ -28,6 +29,7 @@ describe("staff navigation", () => {
   it("hides what a Viewer can't use", () => {
     expect(visibleStaffNav(permissionsFor({ roles: ["viewer"], isSignatory: false })).map((i) => i.href)).toEqual([
       "/admin",
+      "/admin/analytics",
       "/admin/tasks",
       "/admin/help",
     ]);

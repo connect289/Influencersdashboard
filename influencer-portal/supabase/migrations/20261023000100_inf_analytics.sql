@@ -351,18 +351,18 @@ begin
   return v_out;
 end $$;
 
--- Programme health (now, plus creators approved in the range).
+-- Programme health (now, plus creators approved in the range). Test creators only on request.
 create or replace function inf.analytics_health(p jsonb) returns jsonb
 language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
-    'active', (select count(*) from inf.creators c where c.status = 'active' and not c.is_test),
-    'dormant', (select count(*) from inf.creators c where c.pipeline_stage = 'dormant' and not c.is_test),
-    'new', (select count(*) from inf.creators c where not c.is_test
+    'active', (select count(*) from inf.creators c where c.status = 'active' and (coalesce((p ->> 'include_test')::boolean, false) or not c.is_test)),
+    'dormant', (select count(*) from inf.creators c where c.pipeline_stage = 'dormant' and (coalesce((p ->> 'include_test')::boolean, false) or not c.is_test)),
+    'new', (select count(*) from inf.creators c where (coalesce((p ->> 'include_test')::boolean, false) or not c.is_test)
              and inf.ist_date(c.approved_at) between (p ->> 'from')::date and (p ->> 'to')::date),
-    'new_previous', (select count(*) from inf.creators c where not c.is_test
+    'new_previous', (select count(*) from inf.creators c where (coalesce((p ->> 'include_test')::boolean, false) or not c.is_test)
              and inf.ist_date(c.approved_at) between (p ->> 'prev_from')::date and (p ->> 'prev_to')::date),
     'pipeline', coalesce((select jsonb_object_agg(x.pipeline_stage, x.n) from (
-                  select c.pipeline_stage, count(*) as n from inf.creators c where not c.is_test group by 1) x), '{}'))
+                  select c.pipeline_stage, count(*) as n from inf.creators c where (coalesce((p ->> 'include_test')::boolean, false) or not c.is_test) group by 1) x), '{}'))
    where inf.has_perm('analytics.read')
 $$;
 

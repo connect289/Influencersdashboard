@@ -26,6 +26,7 @@ export const ICON_NAMES = [
   "target",
   "link",
   "wallet",
+  "chart",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 
@@ -39,6 +40,7 @@ export interface StaffNavItem {
 
 export const STAFF_NAV: StaffNavItem[] = [
   { href: "/admin", labelKey: "nav.admin.overview", icon: "home" },
+  { href: "/admin/analytics", labelKey: "nav.admin.analytics", icon: "chart", anyOf: ["analytics.read"] },
   {
     href: "/admin/creators",
     labelKey: "nav.admin.creators",

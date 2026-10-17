@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Activity,
   BadgeCheck,
   Clapperboard,
@@ -50,4 +51,5 @@ export const ICONS: Record<IconName, LucideIcon> = {
   target: Target,
   link: Link2,
   wallet: Wallet,
+  chart: BarChart3,
 };

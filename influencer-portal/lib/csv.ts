@@ -71,7 +71,8 @@ function cell(v: unknown, delimiter = ","): string {
         : v === null || v === undefined
           ? ""
           : JSON.stringify(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  // A plain number ("-100.50") cannot run as a formula; anything else starting with a formula character is quoted.
+  if (/^[=+\-@\t\r]/.test(s) && !/^-\d+(\.\d+)?$/.test(s)) s = `'${s}`;
   return /["\r\n]/.test(s) || s.includes(delimiter) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

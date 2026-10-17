@@ -21,6 +21,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { LinksPanel } from "@/components/links/links-panel";
 import { requireStaff } from "@/lib/auth/guards";
+import { CreatorAnalytics } from "@/components/analytics/creator-analytics";
 import { CREATOR_TABS, type CreatorStatus, type CreatorTab, type PipelineStage } from "@/lib/creators/crm";
 import { loadCreatorProfile, loadKyc } from "@/lib/creators/load";
 import { loadPickers } from "@/lib/creators/staff-data";
@@ -41,7 +42,7 @@ export default async function Creator360({
   searchParams,
 }: {
   params: Promise<{ creatorId: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { creatorId } = await params;
   if (!z.uuid().safeParse(creatorId).success) notFound();
@@ -54,9 +55,11 @@ export default async function Creator360({
       (x !== "history" || p.has("audit.read")) &&
       (x !== "tasks" || p.has("task.write")) &&
       (x !== "deals" || p.has("deal.read")) &&
-      (x !== "links" || p.has("creator.read")),
+      (x !== "links" || p.has("creator.read")) &&
+      (x !== "analytics" || p.has("analytics.read")),
   );
-  const requested = (await searchParams).tab as CreatorTab | undefined;
+  const search = await searchParams;
+  const requested = search.tab as CreatorTab | undefined;
   const tab: CreatorTab = requested && visible.includes(requested) ? requested : "overview";
 
   const { data, error } = await loadCreatorProfile(supabase, creatorId);
@@ -328,6 +331,8 @@ export default async function Creator360({
         )}
       </Card>
     );
+  } else if (tab === "analytics") {
+    body = <CreatorAnalytics supabase={supabase} creatorId={creatorId} search={search} />;
   } else if (tab === "links") {
     body = <LinksPanel supabase={supabase} creatorId={creatorId} canCreate={p.has("creator.write")} staff />;
   } else if (tab === "agencies") {

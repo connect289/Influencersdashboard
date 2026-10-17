@@ -45,3 +45,9 @@ describe("toCsv", () => {
     expect(parseCsv(toCsv(["n", "m", "q"], rows)).rows).toEqual(rows);
   });
 });
+
+describe("negative numbers", () => {
+  it("keeps plain negative numbers as numbers but still neutralises formulas", () => {
+    expect(toCsv(["a", "b", "c"], [[-100.5, "-12.00", "-2+3"]])).toBe("a,b,c\r\n-100.5,-12.00,'-2+3\r\n");
+  });
+});

@@ -30,9 +30,11 @@ export default defineConfig({
   webServer: {
     // A production build: dev mode compiles on demand, which makes timing-sensitive flows flaky.
     command: "npm run build && npm run start",
-    url: `${BASE_URL}/api/health`,
+    // Readiness only: /api/health also reports a stuck job queue (503), which a stale local database can show
+    // before global setup resets it.
+    url: `${BASE_URL}/login`,
     reuseExistingServer: false,
-    timeout: 240_000,
+    timeout: 360_000,
     env: { ...localEnv(), NODE_ENV: "production" },
   },
 });
