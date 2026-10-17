@@ -258,6 +258,27 @@ export const SUPER_ADMIN: Guide = {
       ],
     },
     {
+      id: "stage-rules",
+      title: "Lead stage rules",
+      blocks: [
+        {
+          p: "[Stage rules](/admin/leads/stages) decide how CRM data becomes the stage creators see. Rules run by priority (lowest first) and the first match wins.",
+        },
+        {
+          list: [
+            "A rule matches when all its conditions hold: the CRM stage, lost reason, enrolment status, applied date, whether Witty qualified the lead, the B2C stage or closed reason, or the attribution status.",
+            "**Only add the flag** marks a lead (cancelled or under review) and keeps evaluating, so a later rule still sets the stage.",
+            "Changes apply on the next sync. Stages never move backwards for creators; closed outcomes can always follow.",
+            "When a new CRM stage appears, the leads list shows a banner until a rule maps it.",
+          ],
+        },
+        {
+          warning:
+            "The attribution links settings (Witty's number, the message, UTM source, short-link base and website address) change every new link, so check them before creators start sharing.",
+        },
+      ],
+    },
+    {
       id: "monitoring",
       title: "Monitoring and the audit log",
       blocks: [
@@ -566,6 +587,53 @@ export const INFLUENCER_MANAGER: Guide = {
             "**Approve** a proposal you agree with; it is applied with the deal's ledger and the creator is told.",
             "**Reject** with a reason when there is a good explanation.",
             "If the facts change (for example the due date is moved), the proposal is updated or withdrawn while it is still open.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "leads",
+      title: "Leads and attribution",
+      blocks: [
+        {
+          p: "[Leads](/admin/leads) lists every lead attributed to a creator, across all creators. Every minute the portal reads new and changed leads from the CRM (read-only), applies the attribution rules and updates the stage creators see.",
+        },
+        {
+          list: [
+            "The rules (in Settings, Attribution): self-referral first, then duplicates (a student who already enquired), then the attribution window (90 days by default). The default model credits the first creator and records later ones as assisted.",
+            "Open a lead to see its attribution history: every decision with the rule, the reason and who made it.",
+            "**Credit this creator** or **Reject this attribution** with a reason to override the rules. Manual decisions stick: re-runs never undo them. Rejecting moves the credit to the next eligible creator, if any.",
+            "Staff see the same masked contacts as creators. Only Super Admins see a student's phone and email, in the lead drawer.",
+            "A banner warns when leads carry a CRM stage no stage rule maps; a Super Admin should add a rule.",
+            "[Tools](/admin/leads/tools) shows when the sync last ran and re-runs attribution for a date range (up to 400 days) after a rule change.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "fraud",
+      title: "Fraud review",
+      blocks: [
+        {
+          p: "[Fraud review](/admin/leads/fraud) lists unusual patterns. Nothing is rejected automatically.",
+        },
+        {
+          table: {
+            head: ["Signal", "Meaning"],
+            rows: [
+              ["Lead spike", "More leads from one creator in an hour than the limit"],
+              ["Same device", "Several leads from one device"],
+              ["Never answered Witty", "The student never replied to the WhatsApp bot"],
+              ["Off-hours burst", "Many leads in the middle of the night"],
+              ["High junk rate", "A large share of the creator's closed leads are junk"],
+            ],
+          },
+        },
+        {
+          list: [
+            "Lead-level signals (same device, never answered) hold the credit and show **Under review** to the creator until you decide.",
+            '**Clear** keeps the credit; **Confirm** rejects the attribution and the creator sees "rejected after review". Both need a reason and are audited.',
+            "Thresholds are in Settings, Attribution (fraud signals).",
           ],
         },
       ],

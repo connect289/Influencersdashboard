@@ -146,6 +146,22 @@ export const DEVELOPER: Guide = {
       ],
     },
     {
+      id: "attribution",
+      title: "Links and attribution",
+      blocks: [
+        {
+          list: [
+            "Pure modules in `lib/attribution`: codes, links and UTMs, bot detection, the rules (`rules.ts`, `decide`), stage mapping (`stages.ts`, `mapStage`, never backwards), fraud signals and `plan.ts`, which plans one lead. All are unit-tested.",
+            "`/r/[code]` resolves a link (`inf.link_resolve`, service role), logs the click with a hashed IP (crawlers are not counted), asks Witty for an access code with a 1.5 s timeout and redirects. Inactive links go to `/link-inactive`.",
+            "The sweep: pg_cron `inf-lead-sync` calls `/api/internal/lead-sync` every minute. `inf.lead_sync_candidates` reads facts from `student_leads`, touchpoints, Witty codes and the B2C status view (read-only); `planLead` decides; `inf.lead_sync_apply` writes attributions, decisions, stage events, events and notifications and refreshes `inf.creator_lead_feed`. Then fraud facts → pure signals → `inf.fraud_apply`.",
+            "Creators and agencies read leads only from `inf.creator_lead_feed` and `SECURITY DEFINER` functions; phone and email are masked in the database (`inf.mask_phone`, `inf.mask_email`) and the lead reference is an HMAC (`inf.lead_ref`, Vault key `inf_lead_ref_key`).",
+            "Jobs `leads.rerun` and `leads.backfill` re-plan a range; manual decisions are sticky. Stage rules live in `inf.stage_mappings` (defaults generated from `stage-rules.ts`).",
+            "Public API: `GET /api/public/v1/creators/[handle]` returns public profile data only (rate limited, cacheable).",
+          ],
+        },
+      ],
+    },
+    {
       id: "jobs",
       title: "Background jobs and notifications",
       blocks: [

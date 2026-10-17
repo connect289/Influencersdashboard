@@ -175,6 +175,52 @@ export const CREATOR: Guide = {
       ],
     },
     {
+      id: "links",
+      title: "Your links and QR codes",
+      blocks: [
+        {
+          p: "[Links](/creator/links) is where you make a tracking link for each post. Every student who enquires through it is credited to you, so use a fresh link for each piece of content.",
+        },
+        {
+          steps: [
+            "Pick the deal, and if you like the post and the programme. Choose where the link goes: WhatsApp (Eduwit's counsellor bot, with a ready-made message), your page on the Eduwit website, or another https page.",
+            "Say where you'll share it (Instagram, YouTube and so on) and add a label only you see.",
+            "Tap **Create link**. Copy the short link, or download the QR code as PNG or SVG for videos, stories and print.",
+          ],
+        },
+        {
+          list: [
+            'Each link shows its clicks and leads. Switch a link off when a post comes down; visitors then see a polite "no longer active" page.',
+            "You can make links once a deal is agreed.",
+            "Clicks from link-preview bots are not counted.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "leads",
+      title: "Your leads",
+      blocks: [
+        {
+          p: "[Leads](/creator/leads) shows every student who enquired through your links or code, usually within a minute. Phone numbers and emails are always masked (for example 98XXXXXX21); Eduwit's counsellors contact the student, not you.",
+        },
+        {
+          list: [
+            "The board groups leads by stage: new, qualifying (talking to the WhatsApp bot), qualified, allocated to a counsellor, in counselling, applied and enrolled. Closed leads (lost, duplicate, junk) sit in the last column.",
+            "Stages only move forward. HOT, WARM and COLD show how ready the student is.",
+            "Open a lead to see the stage timeline, which link and post it came from, the programme and your earning status. Filter by stage, campaign, deal, post, link, city or date, and save filters as a view.",
+            "Not every lead earns: if the student had already enquired, came through another creator first, enquired after the attribution window (90 days by default) or is your own contact, the lead says why.",
+            "A lead marked **Under review** is being checked by Eduwit; most are cleared quickly.",
+            "Export your list as a spreadsheet (contacts stay masked).",
+          ],
+        },
+        {
+          warning:
+            "Never ask students to share their phone number or email with you, and never enquire through your own links: self-referrals are detected and not credited.",
+        },
+      ],
+    },
+    {
       id: "tax",
       title: "Tax on your earnings",
       blocks: [
@@ -300,6 +346,21 @@ export const AGENCY: Guide = {
             "Read and acknowledge briefs, and ask Eduwit questions, for the creator.",
             "Upload concepts and drafts (large videos resume if the connection drops), reply to Eduwit's comments, submit live links and report metrics.",
             "Everything you do is shown as done by the agency.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "leads",
+      title: "Leads and links",
+      blocks: [
+        {
+          p: "Open a creator from [Your creators](/agency) to see their leads and links. You see leads exactly as the creator does: stages, sources and earning status, with phone and email always masked.",
+        },
+        {
+          list: [
+            "With the negotiate and sign permission you can make tracking links and QR codes for the creator's deals.",
+            "Leads are credited to the creator, never to the agency.",
           ],
         },
       ],
