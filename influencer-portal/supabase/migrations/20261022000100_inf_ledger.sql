@@ -400,7 +400,9 @@ begin
              max(inf.ist_date(i.paid_at)) as received_on
         from public.enrollments e
         join leads l on l.student_lead_id = e.lead_id
-        left join b2b.earnings x on x.enrollment_id = e.id and x.kind = 'commission'
+        -- Eduwit's commission for the enrolment: the commission line and any tier settlement, never void lines. Refund
+        -- reversals are not netted here: a refunded enrolment is 'reversed' below.
+        left join b2b.earnings x on x.enrollment_id = e.id and x.kind in ('commission', 'tier_adjustment') and x.status <> 'void'
         left join b2b.invoices i on i.id = x.invoice_id
        where e.source_product = 'b2b'
        group by e.id, e.lead_id, e.status
@@ -419,7 +421,7 @@ begin
       select *, 'b2b' as source from b2b union all select *, 'b2c' from b2c
     )
     select s.*,
-           case when s.enrollment_status in ('refunded', 'cancelled') and s.received = 0 then 'reversed'
+           case when s.enrollment_status in ('refunded', 'cancelled') then 'reversed'
                 when s.received > 0 and s.received >= s.gross then 'received'
                 when s.received > 0 then 'partly_received'
                 else 'expected' end as status,
@@ -511,7 +513,8 @@ begin
                  'level', (select cp.level from public.catalog_programs cp where cp.id = e.programme_id),
                  'fee_paise', case when e.fee_amount_inr is not null then round(e.fee_amount_inr * 100)::bigint end,
                  'expected_commission_gross_paise', (select nullif(round(sum(x.gross_inr) * 100)::bigint, 0) from b2b.earnings x
-                                                      where x.enrollment_id = e.id and x.kind = 'commission'),
+                                                      where x.enrollment_id = e.id and x.kind in ('commission', 'tier_adjustment')
+                                                        and x.status <> 'void'),
                  'cancelled_at', case when e.status in ('refunded', 'cancelled')
                                       then to_char(coalesce(e.refunded_at, e.updated_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') end) as x
           from inf.lead_attributions a join public.enrollments e on e.lead_id = a.student_lead_id and e.source_product = 'b2b'

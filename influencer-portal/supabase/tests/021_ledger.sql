@@ -4,7 +4,7 @@
 -- invoices, receipts and the event wiring.
 begin;
 \ir _helpers.psql
-select plan(75);
+select plan(79);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('fin', array['finance']);
@@ -264,6 +264,39 @@ select is(inf.ledger_apply((select id from ids where label = 'deal'), jsonb_buil
 select is((select status from inf.ledger_entries where id = (select id from eids where label = 'fee')), 'clawed_back', 'it is clawed back');
 select is((select direction || ':' || confirmed_paise || ':' || status from inf.ledger_entries where reverses_id = (select id from eids where label = 'fee')),
   'debit:750000:payable', 'and the reversal recovers what was paid');
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- Eduwit's B2B commission from the CRM (b2b.earnings and b2b.invoices, read only)
+-- ---------------------------------------------------------------------------------------------------------------
+select tests.reset();
+create temp table rx (label text primary key, id bigint);
+with l as (insert into public.student_leads (whatsapp_number, student_name, stage) values ('910000009901', 'Receipt Student', 'new') returning id)
+insert into rx select 'lead', id from l;
+insert into inf.lead_attributions (student_lead_id, creator_id, code, touch, status, evidence_source, touch_at, lead_created_at)
+select (select id from rx where label = 'lead'), (select creator_id from tests.people where label = 'riya'), 'RIYA-RCPT', 'first', 'credited',
+       'referral_code', now(), now();
+with e as (insert into public.enrollments (lead_id, source_product, status, enrolled_on)
+           values ((select id from rx where label = 'lead'), 'b2b', 'verified', current_date) returning id)
+insert into rx select 'enr', id from e;
+with i as (insert into b2b.invoices (status, total_inr, received_inr) values ('partly_paid', 28320, 14160) returning id)
+insert into rx select 'inv', id from i;
+insert into b2b.earnings (enrollment_id, kind, status, gross_inr, invoice_id) values
+  ((select id from rx where label = 'enr'), 'commission', 'realised', 11800, (select id from rx where label = 'inv')),
+  ((select id from rx where label = 'enr'), 'tier_adjustment', 'realised', 2360, (select id from rx where label = 'inv')),
+  ((select id from rx where label = 'enr'), 'commission', 'void', 99999, null);
+select tests.act_as_service();
+select lives_ok($$ select inf.commission_receipts_sync() $$, 'the receipts sync reads the B2B CRM');
+select tests.reset();
+select is((select row(r.status, r.gross_paise, r.received_paise)::text from inf.receipts_effective() r
+            where r.enrollment_ref = 'b2b:' || (select id from rx where label = 'enr')),
+          '(partly_received,1416000,708000)',
+          'commission and tier settlement count, void lines do not, and a partly paid invoice counts pro rata');
+update public.enrollments set status = 'refunded', refunded_at = now() where id = (select id from rx where label = 'enr');
+select tests.act_as_service();
+select lives_ok($$ select inf.commission_receipts_sync() $$, 'the sync runs again after a refund');
+select tests.reset();
+select is((select r.status from inf.receipts_effective() r where r.enrollment_ref = 'b2b:' || (select id from rx where label = 'enr')),
+          'reversed', 'a refunded enrolment reverses the receipt even after Eduwit was paid');
 
 select * from finish();
 rollback;
