@@ -1,0 +1,79 @@
+// The default stage mapping rules (STAGE_MAPPING.md §3, approved in Phase 0). They seed inf.stage_mappings through
+// `npm run gen:sql`; after that a Super Admin edits the rows in the database. Pure data.
+import type { MappingRule } from "./stages";
+
+const lost = (reasons: string[], reason: string, priority: number): MappingRule => ({
+  priority,
+  conditions: [
+    { field: "stage", in: ["lost"] },
+    { field: "lost_reason", in: reasons },
+  ],
+  creator_stage: "lost",
+  reason_category: reason,
+  flag: null,
+});
+
+export const DEFAULT_STAGE_RULES: readonly MappingRule[] = [
+  { priority: 10, conditions: [{ field: "attribution_status", in: ["duplicate"] }], creator_stage: "duplicate", reason_category: "already enquired before your link", flag: null },
+  { priority: 11, conditions: [{ field: "attribution_status", in: ["outside_window"] }], creator_stage: "not_attributed", reason_category: "outside the attribution window", flag: null },
+  { priority: 12, conditions: [{ field: "attribution_status", in: ["self_referral"] }], creator_stage: "not_attributed", reason_category: "self-referral", flag: null },
+  { priority: 13, conditions: [{ field: "attribution_status", in: ["fraud_suspected"] }], creator_stage: null, reason_category: null, flag: "under_review" },
+  { priority: 14, conditions: [{ field: "attribution_status", in: ["manually_rejected"] }], creator_stage: "not_attributed", reason_category: "rejected after review", flag: null },
+  { priority: 20, conditions: [{ field: "enrollment_status", in: ["refunded", "cancelled"] }], creator_stage: "enrolled", reason_category: "enrollment cancelled", flag: "cancelled" },
+  { priority: 21, conditions: [{ field: "stage", in: ["enrolled", "verified", "commission_booked", "paid"] }], creator_stage: "enrolled", reason_category: null, flag: null },
+  { priority: 22, conditions: [{ field: "enrollment_status", in: ["reported", "verified"] }], creator_stage: "enrolled", reason_category: null, flag: null },
+  { priority: 23, conditions: [{ field: "b2c_stage", in: ["enrolled"] }], creator_stage: "enrolled", reason_category: null, flag: null },
+  {
+    priority: 30,
+    conditions: [{ field: "stage", in: ["lost"] }, { field: "lost_reason", in: ["duplicate"] }],
+    creator_stage: "duplicate",
+    reason_category: "duplicate enquiry",
+    flag: null,
+  },
+  {
+    priority: 31,
+    conditions: [{ field: "stage", in: ["lost"] }, { field: "lost_reason", in: ["junk or test"] }],
+    creator_stage: "junk",
+    reason_category: "invalid or test",
+    flag: null,
+  },
+  {
+    priority: 32,
+    conditions: [{ field: "stage", in: ["lost"] }, { field: "lost_reason", in: ["wrong number"] }],
+    creator_stage: "junk",
+    reason_category: "wrong number",
+    flag: null,
+  },
+  lost(["not reachable"], "not reachable", 33),
+  lost(["not interested"], "not interested", 34),
+  lost(["not eligible"], "not eligible", 35),
+  lost(["over budget"], "budget", 36),
+  lost(["chose another provider", "enrolled elsewhere"], "chose another option", 37),
+  lost(["cannot be served"], "programme not available", 38),
+  { priority: 39, conditions: [{ field: "stage", in: ["lost"] }], creator_stage: "lost", reason_category: "other", flag: null },
+  { priority: 40, conditions: [{ field: "b2c_stage", in: ["lost"] }], creator_stage: "lost", reason_category: "other", flag: null },
+  { priority: 50, conditions: [{ field: "stage", in: ["applied"] }], creator_stage: "applied", reason_category: null, flag: null },
+  { priority: 51, conditions: [{ field: "b2c_stage", in: ["applied"] }], creator_stage: "applied", reason_category: null, flag: null },
+  { priority: 52, conditions: [{ field: "applied_at", present: true }], creator_stage: "applied", reason_category: null, flag: null },
+  { priority: 60, conditions: [{ field: "stage", in: ["contacted", "counselled"] }], creator_stage: "counselling", reason_category: null, flag: null },
+  { priority: 61, conditions: [{ field: "b2c_stage", in: ["contacted", "counselled"] }], creator_stage: "counselling", reason_category: null, flag: null },
+  {
+    priority: 70,
+    conditions: [{ field: "stage", in: ["allocated", "sent_to_partner", "duplicate_at_partner", "routed_to_partner", "assigned"] }],
+    creator_stage: "allocated",
+    reason_category: null,
+    flag: null,
+  },
+  { priority: 71, conditions: [{ field: "stage", in: ["nurture", "dormant"] }], creator_stage: "allocated", reason_category: null, flag: null },
+  { priority: 72, conditions: [{ field: "b2c_stage", in: ["assigned"] }], creator_stage: "allocated", reason_category: null, flag: null },
+  {
+    priority: 80,
+    conditions: [{ field: "stage", in: ["qualifying"] }, { field: "is_sales_ready", is_true: true }],
+    creator_stage: "qualified",
+    reason_category: null,
+    flag: null,
+  },
+  { priority: 81, conditions: [{ field: "stage", in: ["qualifying"] }], creator_stage: "qualifying", reason_category: null, flag: null },
+  { priority: 90, conditions: [{ field: "stage", in: ["new"] }], creator_stage: "new", reason_category: null, flag: null },
+  { priority: 91, conditions: [{ field: "stage", empty: true }], creator_stage: "new", reason_category: null, flag: null },
+];

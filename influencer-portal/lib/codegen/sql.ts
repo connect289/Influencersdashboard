@@ -7,12 +7,18 @@ import { PERMISSIONS, ROLE_GRANTS, STAFF_ROLES, type Permission } from "@/lib/au
 import { z } from "zod";
 import { PRESET_KEYS, SYSTEM_PRESETS } from "@/lib/compensation/presets";
 import { compConfig } from "@/lib/compensation/schema";
+import { DEFAULT_STAGE_RULES } from "@/lib/attribution/stage-rules";
 import { docFromText } from "@/lib/contracts/doc";
 import { DEFAULT_TEMPLATE, SEED_CLAUSES } from "@/lib/contracts/library";
 import { SETTINGS, SETTING_KEYS, settingJsonSchema } from "@/lib/settings/registry";
 
 export type GeneratedKind =
-  "permission-matrix" | "settings-definitions" | "comp-config-schema" | "deal-presets" | "clause-library";
+  | "permission-matrix"
+  | "settings-definitions"
+  | "comp-config-schema"
+  | "deal-presets"
+  | "clause-library"
+  | "stage-mappings";
 
 export function sqlString(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
@@ -170,12 +176,30 @@ export function clauseLibrarySql(): { sql: string; hash: string } {
   return withHeader("clause-library", body);
 }
 
+/** The default creator-stage rules, inserted once; later edits happen in the database (Super Admin). */
+export function stageMappingsSql(): { sql: string; hash: string } {
+  const rows = DEFAULT_STAGE_RULES.map(
+    (r) =>
+      `  (${String(r.priority)}, ${jsonLiteral(r.conditions)}, ${r.creator_stage === null ? "null" : sqlString(r.creator_stage)}, ${r.reason_category === null ? "null" : sqlString(r.reason_category)}, ${r.flag === null ? "null" : sqlString(r.flag)})`,
+  );
+  const body = [
+    "insert into inf.stage_mappings (priority, conditions, creator_stage, reason_category, flag)",
+    "select * from (values",
+    rows.join(",\n"),
+    ") as v(priority, conditions, creator_stage, reason_category, flag)",
+    "where not exists (select 1 from inf.stage_mappings);",
+    "",
+  ].join("\n");
+  return withHeader("stage-mappings", body);
+}
+
 export const GENERATORS: Record<GeneratedKind, () => { sql: string; hash: string }> = {
   "permission-matrix": permissionMatrixSql,
   "settings-definitions": settingsDefinitionsSql,
   "comp-config-schema": compConfigSchemaSql,
   "deal-presets": dealPresetsSql,
   "clause-library": clauseLibrarySql,
+  "stage-mappings": stageMappingsSql,
 };
 
 /** The hash recorded in the newest migration of a kind (file names sort by timestamp). */

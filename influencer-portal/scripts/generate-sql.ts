@@ -16,6 +16,7 @@ const firstSlot: Record<GeneratedKind, string> = {
   "comp-config-schema": "20261018000650",
   "deal-presets": "20261018000710",
   "clause-library": "20261019000110",
+  "stage-mappings": "20261021000110",
 };
 
 /** The current UTC time, or one second after the newest migration if that is later, so new files always sort last. */
