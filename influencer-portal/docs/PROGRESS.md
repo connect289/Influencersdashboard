@@ -2,12 +2,12 @@
 
 ## Now
 
-- **Current phase:** Phase 6 (Tracking and attribution), step 6.1 (plan). Phase 5 (Briefs and deliverables) complete
-  and tagged `phase-5-done`.
+- **Current phase:** Phase 7 (Ledger, payouts and tax), step 7.1 (plan). Phase 6 (Attribution and lead pipeline)
+  complete and tagged `phase-6-done`.
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
 - **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.
-- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-5-done`
+- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-6-done`
   exist in the local repository only. Push them from a normal clone with `git push origin --tags`.
 - **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
   the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
@@ -380,3 +380,50 @@ runs against the local copy of the shared schema; connecting the sweep to live l
 | 6.5 | Creator lead pipeline: kanban, table with filters and saved views, lead drawer with timeline, Realtime, masked CSV export; agency view with the view grant | `app/(creator)/creator/leads/*` | Playwright |
 | 6.6 | Admin attribution console: all leads with role-based detail, attributions, manual override with reason, fraud review queue, stage mapping editor, backfill tool | `app/(admin)/admin/leads/*` | Playwright |
 | 6.7 | Guides, seed (test leads through the local `lead_intake()`), phase gate, go-live notes | | gate |
+
+### Phase 6 summary
+
+Tracking links (one created automatically for every deliverable, plus creator- and staff-made links for a deal, post
+and programme), the `/r/<code>` redirect (click log with an HMAC of the IP, crawler detection, Witty access code with a
+1.5 s fallback, inactive-link page), PNG and SVG QR codes and the public creator API for the website; the attribution
+sweep (read-only gather → pure rules and stage mapping → apply), with per-campaign model and message overrides, sticky
+manual decisions, fraud signals that only flag, and the `LEAD_SYNC` switch that keeps live leads untouched until
+go-live; the masked creator and agency pipeline (board, table, filters incl. programme, saved views, drawer with the
+stage timeline and days per stage, Realtime, masked CSV export); the staff console (all leads as table or board,
+contacts only for `lead.contacts`, credit and reject with a reason, fraud review, stage rule editor, re-run tool);
+guides for every role; seed links and test leads attributed through the same sweep code. Two real defects were found
+and fixed on the way: Witty's `w2_issue_code` needed a `search_path` (D-123) and zod 4 enum-keyed records rejected
+partial stage facts. Gate on 17 Oct 2026: typecheck, lint and Prettier clean; 2,730 unit tests; 629 pgTAP assertions
+(19 files) on a fresh database built from the production baseline; Playwright: the full suite of 86 journeys (result recorded with the tag); seed works and is idempotent;
+production re-checked read-only (all 101 shared objects identical, hash `685ba089…`; `b2c_lead_status_v` columns and
+`w2_issue_code` configuration match the local copy; no `inf` schema, no `inf-*` buckets). Nothing outside schema `inf`
+was created or changed: no trigger on `student_leads`, no new shared column, `lead_intake()` untouched (S-3, S-12).
+
+### Phase 6 requirement checklist (spec Section 22 Phase 6, spec 9)
+
+| Requirement | Status | Where / note |
+| --- | --- | --- |
+| A tracking code and link for every creator, deal, deliverable (and optional programme) | Done | Auto-created per deliverable (`inf.deliverable_link_auto`, D-127); link builder for extra links with deal, post and programme |
+| Witty deep link with a configurable message (per campaign) containing the code | Done | `attribution.links` setting; campaign override `link_message` (must keep `{code}`, D-128); `renderMessage` |
+| Website landing link with UTMs; public read-only creator API | Done | `landingUrl`; `GET /api/public/v1/creators/<handle>` (D-125) |
+| Custom URL with UTMs | Done | `withUtm`, https only |
+| `/r/<code>` logs the click and redirects; QR PNG and SVG for every link | Done | `app/r/[code]/route.ts` (D-116); `/api/links/<id>/qr` |
+| Creators generate links for programmes in their campaigns | Done | `inf.link_create` checks campaign programmes; agencies with negotiate and sign too |
+| Attribution window (default 90 days), model (first, last, first with assisted), per-campaign override | Done | `attribution.rules`; `decide`; `modelFor` (D-117, D-128) |
+| Duplicate rule with a PII-free reason shown to the creator | Done | `existing_lead` reason; grace and re-enquiry settings |
+| Self-referral (own KYC or contacts, flagged family numbers) | Done | Phone, email and declared contacts (hashed) in `inf.lead_sync_candidates` |
+| Fraud signals to review, never automatic rejection (velocity, device or IP hash, no Witty reply, off-hours, junk rate) | Done | `lib/attribution/fraud.ts`, `inf.fraud_apply`, review queue (D-120) |
+| Manual override with mandatory reason and audit entry | Done | `inf.attribution_override` (decision history plus `audit_row`) |
+| Implementation approved least-invasive, re-runnable for backfill | Done | Sweep, no trigger (D-04, S-3); `leads.rerun`, `leads.backfill`, Tools page; `LEAD_SYNC` gate (D-122) |
+| Creators see everything except phone and email, masked in the database; exports masked | Done | `inf.creator_lead_feed`, `mask_phone`, `mask_email` (D-119); `/api/leads/export` |
+| Approved field whitelist; internal fields hidden | Done | `lead_visibility.creator` setting (Phase 0 approval) |
+| Creator stages mapped via `stage_mappings` with reason categories for terminal states | Done | Editable rules, never backwards, unmapped alert (D-118) |
+| Kanban, table with filters (campaign, deal, deliverable, link, programme, stage, temperature, city or state, dates) and saved views | Done | `components/leads/*` (D-129) |
+| Drawer: stage timeline, source content, programme, days per stage, earning status | Done; earning values deferred to Phase 7 | Timeline, source, programme and days per stage are shown. The earning status reads "pending" until the Phase 7 ledger supplies accrued, confirmed, paid and clawed back (D-121); the ledger is Phase 7 scope |
+| Realtime on the creator-safe projection only | Done | Publication holds `inf.creator_lead_feed` only (S-6); `RealtimeRefresh` |
+| Staff see the same pipeline across creators, with details per role | Done | `/admin/leads` table and board; contacts only with `lead.contacts` |
+| Stage sync least coupled; the portal never writes CRM fields | Done | Read-only gather from `student_leads` and `b2c_lead_status_v`; writes only to `inf` |
+| Phase 5 carry-over: brief CTA with auto-inserted link, code and QR per deliverable | Done | Brief and deliverable page show each post's link and QR (D-127) |
+| Agency view with the view grant; links only with negotiate and sign | Done | `/agency/creators/<id>/leads`, Links card |
+| Guides for every audience | Done | Creator `#links`, `#leads`; agency `#leads`; influencer manager `#leads`, `#fraud`; super admin `#stage-rules`; developer `#attribution` |
+| Connecting attribution to live `student_leads` | Deferred (HARD STOP 6) | Ready; RUNBOOK G-14 to G-17 list the steps. Needs the owner's go-live approval |

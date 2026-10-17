@@ -106,7 +106,7 @@ influencer-portal/
 | `node scripts/db.mjs types` | Regenerate `lib/database.types.ts` after a schema change (CI checks drift) |
 | `npm run seed` | Local demo data (staff password `Local-Demo-Password-2026`; Mailpit at http://127.0.0.1:54424 shows emails) |
 | `npm run dev` | App on http://localhost:3200 (needs `.env.local`; copy `.env.example`, keys from `npx supabase status`) |
-| `npm run typecheck` · `npm run lint` · `npm run format` | Static checks |
+| `npm run typecheck` · `npm run lint` · `npm run format` | Static checks (format only with Prettier: `npx prettier --write <paths>`; no other formatter) |
 | `npm test` | Vitest (unit, codegen drift, message keys, contrast) |
 | `npm run test:db` | pgTAP files in `supabase/tests` via psql (local DB only) |
 | `npm run e2e` | Playwright against a production build; resets and seeds the local DB first (`E2E_RESET=0` to skip) |
