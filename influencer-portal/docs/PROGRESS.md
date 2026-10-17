@@ -2,17 +2,17 @@
 
 ## Now
 
-- **Current phase:** Phase 9 (Communication), step 9.1 (plan). Phase 8 (Dashboards and analytics) complete and tagged
-  `phase-8-done`.
+- **Current phase:** Phase 10 (Scorecards, tiers, compliance and polish), step 10.1 (plan). Phase 9 (Communication)
+  complete and tagged `phase-9-done`.
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
 - **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.
-- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-8-done`
+- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-9-done`
   exist in the local repository only. Push them from a normal clone with `git push origin --tags`.
 - **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
   the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
   first name + initial, the stage mapping and the integration contracts. Tagged `phase-0-done`.
-- **Owner question (HARD STOP 5, does not block Phase 9):** how a leaderboard-rank bonus ranks creators (measure, population, timing, ties). Until answered, rank bonuses never accrue (D-141, D-152).
+- **Owner question (HARD STOP 5, does not block Phase 10):** how a leaderboard-rank bonus ranks creators (measure, population, timing, ties). Until answered, rank bonuses never accrue (D-141, D-152).
 - **Blockers:** none. Provider credentials, domain, Vercel, Sentry, a Google OAuth client and (optionally) CAPTCHA keys are
   needed later (HARD STOP 4); everything runs on mock providers until then. Contracts need counsel's review of the
   clause library, consent text and stamp duty before go-live (RUNBOOK G-9 to G-11).
@@ -592,3 +592,52 @@ emails and WhatsApp messages go to the mock adapters, webhooks are delivered onl
 | 9.4 | Threads everywhere: one thread panel on each entity page for staff, creators and agencies (with their grants), support conversations, staff inbox with search | `components/threads/*` | Playwright |
 | 9.5 | Admin tools: template editor (variables, preview, test send), announcements (segment, schedule), digests, webhooks (endpoints, events, signing secret, delivery log, test) | `app/(admin)/admin/communication/*` | Playwright |
 | 9.6 | Guides, seed, phase gate | | gate |
+
+### Phase 9 summary
+
+Every notification the portal sends is in one catalogue (`lib/notify/catalogue.ts`, about 66 events) generated into
+the database, which decides required events and default channels (D-158, D-159). Everyone has a bell with a live unread
+count, a notification centre and settings where required notifications stay on and the digest can be chosen (D-164,
+D-167). Every application, campaign (one private conversation per creator), deal, contract, brief, deliverable and
+payout has a conversation at the bottom of its page for staff, the creator and agencies with the matching grant; leads
+carry staff-only notes; each creator has a support conversation (D-160 to D-162). Messages take files (D-163),
+@mentions for staff, read receipts and unread counts; staff have an inbox with search and filters, creators and agencies
+a Messages page. The admin Communication console has notification templates with variables, preview, versions and test
+send (D-165), announcements to all creators or a segment, now or scheduled, shown on the creator home (D-166), and signed
+outbound webhooks with retries, a delivery log and SSRF protection checked at connect time (D-168). The catalogue events
+still missing were added: "₹X earned", clawbacks, payable amounts, fraud flags and the daily staff nudges (D-169).
+Delivery jobs render templates, send WhatsApp only with an approved template (`notify.deliver`), build digests
+(`digest.run`) and deliver webhooks (`webhook.deliver`); nothing leaves the system while `LIVE_MODE` is off.
+
+Found and fixed during the phase: the notification template functions first reused the name of Phase 4's contract
+`template_save` (renamed `notification_template_*`); `inf.notify()`'s default channel argument would have emailed every
+event; a confirmation dialog submitted the form around it, so "Send now" also saved a draft (D-170); background server
+actions could hold up navigation, so they became route handlers (D-171).
+
+Gate on 17 Oct 2026: typecheck, lint and Prettier clean; 3,473 unit tests (75 files); 813 pgTAP assertions (23 files,
+74 new for communication) on a fresh database built from the production baseline; Playwright: 110 passed with 2
+screenshot specs skipped by design (11 new communication journeys); types regenerated with no drift; seed works and is
+idempotent (now with conversations, an announcement, a template and a webhook endpoint); production re-checked read-only
+(no `inf` schema, buckets or publication entries; shared baseline identical, 100 statements, hash `3f8bdfc5`). Nothing
+outside schema `inf` was created or changed: attachments use the existing `inf-documents` bucket and the bell uses the
+Phase 1 Realtime entry for `inf.notifications`.
+
+### Phase 9 requirement checklist (spec Section 22 Phase 9, spec 14 and the webhook part of 18)
+
+| Requirement | Status | Where / note |
+| --- | --- | --- |
+| Threads on campaign, application, deal, brief, deliverable, payout, lead (staff only) and support | Done | `inf.thread_*`, `components/messaging/*` on every entity page (D-160) |
+| Threads on contract clauses | Done (Phase 4) | Clause comments and change requests stay in the contract negotiation; a general contract thread sits beside them (D-161) |
+| Attachments, @mentions for staff, read receipts, unread counts, full-text search | Done | D-162, D-163; search over `inf.messages.search` in the staff inbox |
+| Notification centre (in-app, Realtime) | Done | Bell + `/…/notifications` for all portals (D-164) |
+| Email and WhatsApp templates with per-user channel preferences | Done | Template editor, `notify.deliver`, settings page (D-165) |
+| Mandatory events cannot be turned off | Done | D-159; database and form both enforce it |
+| Minimum event catalogue | Done | All listed events exist; added ones in D-169 |
+| Template editor with variables, preview and test send | Done | `/admin/communication/templates`; test send needs live sending |
+| Announcements to all or a segment (tier, campaign, platform, language) with scheduling | Done | `/admin/communication/announcements`, `inf-announcements` cron (D-166) |
+| Daily or weekly digest by email or WhatsApp for creators and staff | Done | `digest.run`, `inf-digests` cron (D-167); WhatsApp digests need an approved template (G-23) |
+| Outbound webhooks: HMAC-signed, retries, delivery log, the six events | Done | `/admin/communication/webhooks`, `webhook.deliver` (D-168) |
+| Idempotent notifications and webhook handlers | Done | Idempotency keys on every notify call, `(endpoint, event_id)` unique deliveries, one digest per person per day |
+| Guides for every audience | Done | Creator, agency and staff `#notifications` and `#messages`; Super Admin `#communication`, `#webhooks`; Influencer Manager `#announcements`; developer `#communication` |
+| Live email/WhatsApp providers, approved WhatsApp templates | Blocked (HARD STOP 4) | Mock adapters until credentials exist; listed in RUNBOOK G-23 |
+
