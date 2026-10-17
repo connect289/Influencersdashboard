@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { GrantBadges } from "@/components/agency/grant-badges";
 import { PlatformsCard } from "@/components/creator-profile/platforms-card";
 import { PortfolioCard, RateCardCard } from "@/components/creator-profile/profile-lists";
 import { Badge, StatusBadge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
@@ -49,7 +50,19 @@ export default async function AgencyCreatorPage({ params }: { params: Promise<{ 
       <Link href="/agency" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {t("agencyPortal.creators")}
       </Link>
-      <PageHeader title={link?.display_name ?? ""} description={link ? `@${link.handle}` : undefined} />
+      <PageHeader
+        title={link?.display_name ?? ""}
+        description={link ? `@${link.handle}` : undefined}
+        actions={
+          link ? (
+            <Button asChild variant="secondary" size="sm">
+              <a href={`/api/media-kit/${creatorId}`}>
+                <Download /> {t("mediaKit.pdf")}
+              </a>
+            </Button>
+          ) : null
+        }
+      />
       {failed || !link ? (
         <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
       ) : (

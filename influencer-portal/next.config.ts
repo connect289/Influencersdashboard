@@ -20,7 +20,14 @@ const config: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   typedRoutes: false,
-  experimental: { serverActions: { bodySizeLimit: "2mb" } },
+  // CSV imports send up to 2 MB of text to a server action.
+  experimental: { serverActions: { bodySizeLimit: "3mb" } },
+  // The media-kit PDF renders on the server with bundled Geist fonts (SIL OFL).
+  serverExternalPackages: ["@react-pdf/renderer"],
+  outputFileTracingIncludes: {
+    "/m/[handle]/pdf": ["./lib/media-kit/fonts/*.ttf"],
+    "/api/media-kit/[creatorId]": ["./lib/media-kit/fonts/*.ttf"],
+  },
   headers() {
     return Promise.resolve([{ source: "/:path*", headers: securityHeaders }]);
   },

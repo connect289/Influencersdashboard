@@ -12,8 +12,8 @@ select is(
 select is(
   (select coalesce(array_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text), '{}') from pg_proc p
     where p.pronamespace = 'inf'::regnamespace and has_function_privilege('anon', p.oid, 'execute')),
-  array['inf.health()', 'inf.rate_check(text,integer,integer)'],
-  'anon can execute only health() and rate_check()');
+  array['inf.health()', 'inf.media_kit_public(text)', 'inf.rate_check(text,integer,integer)'],
+  'anon can execute only health(), media_kit_public() and rate_check()');
 
 select is(
   (select count(*)::int from pg_class c cross join unnest(array['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) pr

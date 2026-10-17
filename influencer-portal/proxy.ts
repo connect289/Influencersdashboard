@@ -12,7 +12,7 @@ import { buildCsp, IDLE_LIMIT_SECONDS, isIdleExpired, safeNext, SEEN_COOKIE } fr
  */
 
 const PUBLIC_EXACT = new Set(["/", "/login", "/login/staff", "/login/code", "/signup", "/no-access", "/offline"]);
-const PUBLIC_PREFIX = ["/auth/", "/password/", "/legal/", "/api/health", "/api/public/", "/r/"];
+const PUBLIC_PREFIX = ["/auth/", "/password/", "/legal/", "/m/", "/api/health", "/api/public/", "/r/"];
 const isPublic = (path: string) => PUBLIC_EXACT.has(path) || PUBLIC_PREFIX.some((p) => path.startsWith(p));
 
 type Cookie = { name: string; value: string; options?: Parameters<NextResponse["cookies"]["set"]>[2] };

@@ -17,6 +17,7 @@ export const ICON_NAMES = [
   "checklist",
   "megaphone",
   "inbox",
+  "fileText",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 
@@ -62,6 +63,7 @@ export const CREATOR_NAV: CreatorNavItem[] = [
   { href: "/creator/campaigns", labelKey: "nav.creator.campaigns", icon: "megaphone" },
   { href: "/creator/profile", labelKey: "nav.creator.profile", icon: "idCard" },
   { href: "/creator/kyc", labelKey: "nav.creator.kyc", icon: "badgeCheck" },
+  { href: "/creator/media-kit", labelKey: "nav.creator.mediaKit", icon: "fileText" },
   { href: "/creator/agency", labelKey: "nav.creator.agency", icon: "building" },
   { href: "/creator/account", labelKey: "nav.creator.account", icon: "user" },
 ];

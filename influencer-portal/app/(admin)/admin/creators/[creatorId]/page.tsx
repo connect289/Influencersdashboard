@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { GrantBadges } from "@/components/agency/grant-badges";
@@ -77,50 +77,57 @@ export default async function Creator360({
       title={c.display_name}
       description={`@${c.handle}${c.city ? ` · ${c.city}` : ""}`}
       actions={
-        canWrite ? (
-          <>
-            <CreatorDialog
-              owners={pickers.owners}
-              tiers={pickers.tiers}
-              initial={{
-                id: c.id,
-                displayName: c.display_name,
-                legalName: c.legal_name ?? "",
-                handle: c.handle,
-                email: c.email ?? "",
-                phone: c.phone_e164 ?? "",
-                city: c.city ?? "",
-                state: c.state ?? "",
-                languages: c.languages.join(", "),
-                niches: c.niches.join(", "),
-                tags: c.tags.join(", "),
-                ownerId: c.owner_id ?? "",
-                tierId: c.tier_id ?? "",
-                source: c.source ?? "",
-                bio: c.bio ?? "",
-              }}
-              trigger={
-                <Button variant="secondary" size="sm">
-                  {t("common.edit")}
-                </Button>
-              }
-            />
-            {p.has("creator.import") &&
-            c.email &&
-            !hasAccount &&
-            !c.is_blocked &&
-            ["prospect", "invited"].includes(c.status) ? (
-              <InviteButton creatorId={c.id} name={c.display_name} email={c.email} resend={c.status === "invited"} />
-            ) : null}
-            <CreatorActions
-              creatorId={c.id}
-              name={c.display_name}
-              stage={c.pipeline_stage}
-              isBlocked={c.is_blocked}
-              canDelete={p.has("creator.delete_draft") && c.status === "prospect" && !hasAccount}
-            />
-          </>
-        ) : null
+        <>
+          <Button asChild variant="secondary" size="sm">
+            <a href={`/api/media-kit/${c.id}`}>
+              <Download /> {t("mediaKit.pdf")}
+            </a>
+          </Button>
+          {canWrite ? (
+            <>
+              <CreatorDialog
+                owners={pickers.owners}
+                tiers={pickers.tiers}
+                initial={{
+                  id: c.id,
+                  displayName: c.display_name,
+                  legalName: c.legal_name ?? "",
+                  handle: c.handle,
+                  email: c.email ?? "",
+                  phone: c.phone_e164 ?? "",
+                  city: c.city ?? "",
+                  state: c.state ?? "",
+                  languages: c.languages.join(", "),
+                  niches: c.niches.join(", "),
+                  tags: c.tags.join(", "),
+                  ownerId: c.owner_id ?? "",
+                  tierId: c.tier_id ?? "",
+                  source: c.source ?? "",
+                  bio: c.bio ?? "",
+                }}
+                trigger={
+                  <Button variant="secondary" size="sm">
+                    {t("common.edit")}
+                  </Button>
+                }
+              />
+              {p.has("creator.import") &&
+              c.email &&
+              !hasAccount &&
+              !c.is_blocked &&
+              ["prospect", "invited"].includes(c.status) ? (
+                <InviteButton creatorId={c.id} name={c.display_name} email={c.email} resend={c.status === "invited"} />
+              ) : null}
+              <CreatorActions
+                creatorId={c.id}
+                name={c.display_name}
+                stage={c.pipeline_stage}
+                isBlocked={c.is_blocked}
+                canDelete={p.has("creator.delete_draft") && c.status === "prospect" && !hasAccount}
+              />
+            </>
+          ) : null}
+        </>
       }
     />
   );

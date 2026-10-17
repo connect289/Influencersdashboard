@@ -415,14 +415,14 @@ isOneToOne: false
                   ]
                 },"creators": {
                   Row: {
-                    "approved_at": string | null,"approved_by": string | null,"avatar_path": string | null,"bio": string | null,"blocked_reason": string | null,"city": string | null,"created_at": string,"created_by": string | null,"display_name": string,"email": string | null,"handle": string,"id": string,"is_blocked": boolean,"is_test": boolean,"languages": (string)[],"last_activity_at": string | null,"last_contacted_at": string | null,"leaderboard_opt_in": boolean,"legal_name": string | null,"niches": (string)[],"onboarding_step": string,"onboarding_submitted_at": string | null,"owner_id": string | null,"phone_e164": string | null,"pipeline_stage": string,"public_page_enabled": boolean,"source": string | null,"state": string | null,"status": string,"tags": (string)[],"tier_id": string | null,"updated_at": string
+                    "approved_at": string | null,"approved_by": string | null,"avatar_path": string | null,"bio": string | null,"blocked_reason": string | null,"city": string | null,"created_at": string,"created_by": string | null,"display_name": string,"email": string | null,"handle": string,"id": string,"is_blocked": boolean,"is_test": boolean,"languages": (string)[],"last_activity_at": string | null,"last_contacted_at": string | null,"leaderboard_opt_in": boolean,"legal_name": string | null,"media_kit_show_rates": boolean,"niches": (string)[],"onboarding_step": string,"onboarding_submitted_at": string | null,"owner_id": string | null,"phone_e164": string | null,"pipeline_stage": string,"public_page_enabled": boolean,"source": string | null,"state": string | null,"status": string,"tags": (string)[],"tier_id": string | null,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name": string,"email"?: string | null,"handle": string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"last_contacted_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"onboarding_step"?: string,"onboarding_submitted_at"?: string | null,"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name": string,"email"?: string | null,"handle": string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"last_contacted_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"media_kit_show_rates"?: boolean,"niches"?: (string)[],"onboarding_step"?: string,"onboarding_submitted_at"?: string | null,"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string,"email"?: string | null,"handle"?: string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"last_contacted_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"niches"?: (string)[],"onboarding_step"?: string,"onboarding_submitted_at"?: string | null,"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"blocked_reason"?: string | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string,"email"?: string | null,"handle"?: string,"id"?: string,"is_blocked"?: boolean,"is_test"?: boolean,"languages"?: (string)[],"last_activity_at"?: string | null,"last_contacted_at"?: string | null,"leaderboard_opt_in"?: boolean,"legal_name"?: string | null,"media_kit_show_rates"?: boolean,"niches"?: (string)[],"onboarding_step"?: string,"onboarding_submitted_at"?: string | null,"owner_id"?: string | null,"phone_e164"?: string | null,"pipeline_stage"?: string,"public_page_enabled"?: boolean,"source"?: string | null,"state"?: string | null,"status"?: string,"tags"?: (string)[],"tier_id"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -952,6 +952,9 @@ isOneToOne: false
 "auth_user_id_by_email":
 { Args: { "p_email": string }; Returns: string
                            },
+"avatar_set":
+{ Args: { "p_creator": string,"p_path"?: string }; Returns: undefined
+                           },
 "bootstrap_super_admin":
 { Args: { "p_designation": string,"p_email": string,"p_full_name": string }; Returns: string
                            },
@@ -1187,6 +1190,18 @@ isOneToOne: false
                            },
 "me":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"media_kit":
+{ Args: { "p_creator": string }; Returns: Json
+                           },
+"media_kit_data":
+{ Args: { "p_creator": string,"p_rates": boolean }; Returns: Json
+                           },
+"media_kit_public":
+{ Args: { "p_handle": string }; Returns: Json
+                           },
+"media_kit_settings":
+{ Args: { "p_creator": string,"p_public": boolean,"p_show_rates": boolean }; Returns: undefined
                            },
 "mfa_issue":
 { Args: { "p_session": string,"p_user": string }; Returns: Json

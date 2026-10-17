@@ -5,6 +5,7 @@ import {
   Contact,
   ListChecks,
   Megaphone,
+  FileText,
   Home,
   IdCard,
   Inbox,
@@ -32,4 +33,5 @@ export const ICONS: Record<IconName, LucideIcon> = {
   checklist: ListChecks,
   megaphone: Megaphone,
   inbox: Inbox,
+  fileText: FileText,
 };
