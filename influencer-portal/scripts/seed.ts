@@ -2,19 +2,22 @@
 // Usage: npm run seed            (reads .env.local; idempotent: safe to run again)
 // Creates staff for every role, creators in several states (synthetic people, @example.test addresses), platform
 // terms, a few notifications and jobs, and a demo deal with its contract, brief and deliverables. Later phases extend
-// it with leads and ledger history.
+// it with leads (Phase 6: demo links and synthetic test leads, attributed by the real sweep) and ledger history.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { briefTemplateContent, buildBrief } from "@/lib/content/brief";
 import { planDeliverables } from "@/lib/content/plan";
 import { buildVersion, contractSource, templateSource } from "@/lib/contracts/build";
+import { syncBatchWith } from "@/lib/attribution/sync-core";
 import type { Database } from "@/lib/database.types";
 
 function loadEnv(): Record<string, string> {
   const out: Record<string, string> = {};
   try {
-    for (const line of readFileSync(join(import.meta.dirname, "..", ".env.local"), "utf8").split("\n")) {
+    for (const line of readFileSync(join(import.meta.dirname, "..", ".env.local"), "utf8").split(
+      "\n",
+    )) {
       const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
       if (m?.[1]) out[m[1]] = m[2] ?? "";
     }
@@ -29,7 +32,9 @@ const env = loadEnv();
 const url = env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const key = env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(url)) {
-  console.error(`Refusing to seed ${url || "(no URL)"}: the seed script only runs against a local Supabase.`);
+  console.error(
+    `Refusing to seed ${url || "(no URL)"}: the seed script only runs against a local Supabase.`,
+  );
   process.exit(2);
 }
 if (
@@ -41,14 +46,33 @@ if (
   process.exit(2);
 }
 
-const db = createClient<Database, "inf">(url, key, { auth: { persistSession: false }, db: { schema: "inf" } });
+const db = createClient<Database, "inf">(url, key, {
+  auth: { persistSession: false },
+  db: { schema: "inf" },
+});
 
 export const SEED_PASSWORD = "Local-Demo-Password-2026";
 
 const STAFF = [
-  { email: "admin@example.test", name: "Asha Admin", roles: ["super_admin"], signatory: true, designation: "Director" },
-  { email: "manager@example.test", name: "Manoj Manager", roles: ["influencer_manager"], signatory: false },
-  { email: "reviewer@example.test", name: "Rekha Reviewer", roles: ["content_reviewer"], signatory: false },
+  {
+    email: "admin@example.test",
+    name: "Asha Admin",
+    roles: ["super_admin"],
+    signatory: true,
+    designation: "Director",
+  },
+  {
+    email: "manager@example.test",
+    name: "Manoj Manager",
+    roles: ["influencer_manager"],
+    signatory: false,
+  },
+  {
+    email: "reviewer@example.test",
+    name: "Rekha Reviewer",
+    roles: ["content_reviewer"],
+    signatory: false,
+  },
   { email: "finance@example.test", name: "Farhan Finance", roles: ["finance"], signatory: false },
   { email: "viewer@example.test", name: "Vikram Viewer", roles: ["viewer"], signatory: false },
 ] as const;
@@ -166,11 +190,17 @@ async function main() {
       approved_at: c.status === "active" ? new Date().toISOString() : null,
       onboarding_step: c.status === "active" ? "done" : "profile",
     };
-    const up = await db.from("creators").upsert(row, { onConflict: "handle" }).select("id").single();
+    const up = await db
+      .from("creators")
+      .upsert(row, { onConflict: "handle" })
+      .select("id")
+      .single();
     if (up.error) throw new Error(`creator ${c.handle}: ${up.error.message}`);
     if (c.account) {
       const uid = await authUser(c.email, null, c.name);
-      await db.from("creator_accounts").upsert({ creator_id: up.data.id, user_id: uid }, { onConflict: "creator_id" });
+      await db
+        .from("creator_accounts")
+        .upsert({ creator_id: up.data.id, user_id: uid }, { onConflict: "creator_id" });
     } else if (c.status === "invited") {
       // Invited creators get an auth account (so the email OTP works) but link on first sign-in.
       await authUser(c.email, null, c.name);
@@ -276,7 +306,8 @@ async function main() {
       budget_paise: 500_000_00,
       deliverables: [{ platform: "instagram", format: "reel", count: 2 }],
       compensation_summary: "₹10,000–25,000 fixed fee plus commission per confirmed enrolment",
-      description: "DEMO: promote the Online MBA to working professionals. Two reels over four weeks.",
+      description:
+        "DEMO: promote the Online MBA to working professionals. Two reels over four weeks.",
       owner_id: owner?.user_id ?? null,
     },
     {
@@ -307,9 +338,15 @@ async function main() {
   const dealTitle = "Always-on MBA deal (demo)";
   const existingDeal = await db.from("deals").select("id").eq("title", dealTitle).maybeSingle();
   if (riya.data && !existingDeal.data) {
-    const preset = await db.from("deal_presets").select("id, comp_config").eq("key", "fixed_plus_commission").single();
+    const preset = await db
+      .from("deal_presets")
+      .select("id, comp_config")
+      .eq("key", "fixed_plus_commission")
+      .single();
     if (preset.error) throw new Error(`preset: ${preset.error.message}`);
-    const startsOn = new Date(Date.now() + 330 * 60_000 - 20 * 86_400_000).toISOString().slice(0, 10);
+    const startsOn = new Date(Date.now() + 330 * 60_000 - 20 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
     const deal = await db
       .from("deals")
       .insert({
@@ -351,7 +388,11 @@ async function main() {
 
   // Local demo only: the seed clauses are marked legally reviewed so demo contracts can be sent. In production a
   // Super Admin reviews each clause with counsel first (the legal-review gate blocks sending until then).
-  const admin = await db.from("staff_profiles").select("user_id").eq("email", "admin@example.test").single();
+  const admin = await db
+    .from("staff_profiles")
+    .select("user_id")
+    .eq("email", "admin@example.test")
+    .single();
   await db
     .from("clause_versions")
     .update({ reviewed_at: new Date().toISOString(), reviewed_by: admin.data?.user_id ?? null })
@@ -365,7 +406,11 @@ async function main() {
   if (demo.data && !hasContract.data) {
     const created = await db.rpc("contract_create", { p: { deal_id: demo.data.id } });
     if (created.error) throw new Error(`contract: ${created.error.message}`);
-    const row = await db.from("contracts").select("number, template_id").eq("id", created.data).single();
+    const row = await db
+      .from("contracts")
+      .select("number, template_id")
+      .eq("id", created.data)
+      .single();
     const [src, tpl] = await Promise.all([
       db.rpc("contract_source", { p_deal: demo.data.id }),
       db.rpc("template_source", { p_template: row.data?.template_id ?? "" }),
@@ -428,7 +473,11 @@ async function main() {
     });
     if (brief.error) throw new Error(`brief: ${brief.error.message}`);
     const start = new Date().toISOString();
-    const reel = planDeliverables([{ platform: "instagram", format: "reel", count: 1 }], start, template);
+    const reel = planDeliverables(
+      [{ platform: "instagram", format: "reel", count: 1 }],
+      start,
+      template,
+    );
     const story = planDeliverables([{ platform: "instagram", format: "story", count: 1 }], start, {
       ...template,
       stages: { ...template.stages, concept: false, draft: false, metrics: false },
@@ -437,7 +486,10 @@ async function main() {
       { ...reel[0], title: "Launch reel", config_ref: "reel1" },
       { ...story[0], title: "Story set" },
     ];
-    const made = await db.rpc("deliverables_create", { p_deal: demo.data.id, p_items: items as never });
+    const made = await db.rpc("deliverables_create", {
+      p_deal: demo.data.id,
+      p_items: items as never,
+    });
     if (made.error) throw new Error(`deliverables: ${made.error.message}`);
     const version = await db
       .from("brief_versions")
@@ -454,6 +506,109 @@ async function main() {
     await db.from("briefs").update({ current_version_id: version.data.id }).eq("id", brief.data);
   }
 
+  // Riya's demo tracking links and synthetic test leads (0000 numbers, is_test) entered through the local copy of
+  // public.lead_intake(), exactly as Witty would, then attributed by the same sweep code the app runs.
+  if (riya.data && demo.data) {
+    const reelRow = await db
+      .from("deliverables")
+      .select("id")
+      .eq("deal_id", demo.data.id)
+      .eq("title", "Launch reel")
+      .maybeSingle();
+    const links = [
+      {
+        code: "RIYA-MBA1",
+        destination: "whatsapp_witty",
+        platform: "instagram",
+        label: "Launch reel",
+        deliverable_id: reelRow.data?.id ?? null,
+      },
+      {
+        code: "RIYA-WEB1",
+        destination: "website_landing",
+        platform: "youtube",
+        label: "YouTube description",
+        deliverable_id: null,
+      },
+    ];
+    for (const l of links) {
+      const have = await db.from("tracking_links").select("id").eq("code", l.code).maybeSingle();
+      if (!have.data) {
+        const ins = await db
+          .from("tracking_links")
+          .insert({ ...l, creator_id: riya.data.id, deal_id: demo.data.id });
+        if (ins.error) throw new Error(`link ${l.code}: ${ins.error.message}`);
+      }
+    }
+    const leads = [
+      {
+        phone: "910000000101",
+        name: "Aarav Sharma",
+        city: "Pune",
+        state: "Maharashtra",
+        code: "RIYA-MBA1",
+        set: {},
+      },
+      {
+        phone: "910000000102",
+        name: "Isha Verma",
+        city: "Lucknow",
+        state: "Uttar Pradesh",
+        code: "RIYA-MBA1",
+        set: { stage: "qualifying", is_sales_ready: true, temperature: "hot" },
+      },
+      {
+        phone: "910000000103",
+        name: "Kabir Nair",
+        city: "Kochi",
+        state: "Kerala",
+        code: "RIYA-MBA1",
+        set: { stage: "applied", applied_at: new Date().toISOString(), temperature: "warm" },
+      },
+      {
+        phone: "910000000104",
+        name: "Meera Iyer",
+        city: "Chennai",
+        state: "Tamil Nadu",
+        code: "RIYA-WEB1",
+        set: { stage: "lost", lost_reason: "junk or test", lost_at: new Date().toISOString() },
+      },
+    ];
+    const ids: number[] = [];
+    for (const l of leads) {
+      const r = await pub.rpc(
+        "lead_intake" as never,
+        {
+          p: {
+            phone: l.phone,
+            source_system: "witty",
+            is_test: true,
+            attribution: { creator_code: l.code },
+            lead: {
+              student_name: l.name,
+              city: l.city,
+              state: l.state,
+              interested_course: "Online MBA",
+              referral_code: l.code,
+              email_id: `${l.name.split(" ")[0]?.toLowerCase() ?? "student"}@example.test`,
+            },
+          },
+        } as never,
+      );
+      if (r.error) throw new Error(`lead ${l.phone}: ${r.error.message}`);
+      const id = (r.data as { lead_id: number }).lead_id;
+      ids.push(id);
+      if (Object.keys(l.set).length) {
+        const up = await pub
+          .from("student_leads" as never)
+          .update(l.set as never)
+          .eq("id" as never, id);
+        if (up.error) throw new Error(`lead ${l.phone} stage: ${up.error.message}`);
+      }
+    }
+    await syncBatchWith(db, { lead_ids: ids }, "backfill");
+  }
+
   const terms = await db.from("terms_versions").select("kind");
   const have = new Set((terms.data ?? []).map((t) => t.kind));
   const demoTerms = [
@@ -468,7 +623,8 @@ async function main() {
       body: "DEMO TEXT for local testing only.\n\nEduwit processes your profile, KYC and payout details to run the creator programme, under India's DPDP Act. You can ask for a copy or deletion of your data from your account.",
     },
   ];
-  for (const t of demoTerms) if (!have.has(t.kind)) await db.from("terms_versions").insert({ ...t, version: 1 });
+  for (const t of demoTerms)
+    if (!have.has(t.kind)) await db.from("terms_versions").insert({ ...t, version: 1 });
 
   console.info(
     `Seeded ${STAFF.length} staff (password: ${SEED_PASSWORD}), ${CREATORS.length} creators and 1 agency (${ownerEmail}) on ${url}.`,
