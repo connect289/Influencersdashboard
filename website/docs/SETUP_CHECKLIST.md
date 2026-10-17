@@ -48,3 +48,5 @@ Status: ☐ needed · ◐ partly · ☑ done
 | S-51 | Business opening hours for local SEO (`business_hours` setting, e.g. Mon–Sat 10:00–19:00); shown in structured data only once set | ☐ |
 | S-52 | Google Business Profile: claim and verify for the Indirapuram office, then work through Admin → SEO toolkit → Local SEO | ☐ |
 | S-53 | Editorial intro ("About") for each university page in Admin → University profiles; the on-page checker flags pages without one | ☐ |
+| S-54 | Decide on a Supabase read replica for the website's catalogue reads (recommended before paid traffic; isolates search from Witty and the CRMs) — set `SUPABASE_READ_REPLICA_URL`; or size up the shared project's compute (`docs/LOAD_TESTS.md`) | ☐ |
+| S-55 | Before the first ad campaign: repeat the visitor and Witty load tests against a Vercel preview + Supabase branch with production-like compute and the real model key (`docs/LOAD_TESTS.md` §How to run) | ☐ |

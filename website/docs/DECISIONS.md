@@ -550,3 +550,13 @@ these at the end (spec Section 0).
 ### D-079 · Callback requests: one per day and slot, three a day (security review M2)
 - **Why:** each request updates the shared lead. A repeat of the same day and slot returns the existing booking without a
   new `lead_intake` call; a fourth request in 24 hours is refused with a pointer to WhatsApp.
+
+### D-080 · Protect the shared database during traffic spikes (load tests)
+- **Why:** the 1,000-visitor load test exhausted the PostgREST connection pool, which production shares with Witty and
+  the CRMs. Four changes: (1) a per-instance cap on concurrent database calls (`WEB_DB_MAX_CONCURRENCY`, default 16;
+  a request waits up to 3 s for a slot, then fails fast with a retryable 503), so the website sheds its own load rather
+  than starving other products; (2) the search log is written in batches (25 searches or 5 s per instance; an instance
+  that stops loses at most its buffer); (3) search, suggestions and offering details use `use cache: remote`, the
+  platform's shared cache across server instances (in-memory locally); (4) optional `SUPABASE_READ_REPLICA_URL` sends
+  read-only catalogue calls to a Supabase read replica (S-54). Details and numbers: `docs/LOAD_TESTS.md`.
+  **To change:** the env variables above; remove `: remote` to fall back to per-instance caching.

@@ -99,6 +99,12 @@ insert into r select (public.web_catalog_poll() ->> 'changed')::boolean, 'poll: 
 insert into r select (select (f->'fee'->>'total')::numeric from jsonb_array_elements(pg_temp.s('{"view":"flat","programme":["bca"]}') -> 'items') f) = 95000, 'poll: read model refreshed';
 insert into r select exists (select 1 from public.web_outbox where kind = 'revalidate' and payload @> '{"tags":["catalog"]}'), 'poll: revalidation queued in the outbox';
 
+-- web11 (load tests): the search log takes a batch as well as one entry.
+create temp table sl0 on commit drop as select count(*) n from public.web_search_log;
+select public.web_search_log_add('[{"q":"Online MBA","results":3,"source":"api"},{"q":"zzzz","results":0,"source":"api"}]');
+select public.web_search_log_add('{"q":"bca","results":5}');
+insert into r select (select count(*) from public.web_search_log) - (select n from sl0) = 3, 'search log accepts a batch and a single entry';
+
 do $$ begin
   if exists (select 1 from r where not ok) then
     raise exception 'FAILED (%): %', (select count(*) from r where not ok), (select string_agg(name, ' | ') from r where not ok);

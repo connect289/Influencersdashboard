@@ -32,6 +32,10 @@
     "e2e:laptop": "playwright test --project=laptop",
     "check:copy": "node scripts/check-banned-phrases.mjs",
     "db:bench": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f ../scripts/db/bench-10k.sql",
+    "load:seed": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f ../scripts/load/seed-10k.sql",
+    "load:sessions": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v n=200 -f ../scripts/load/sessions.sql",
+    "load:visitors": "node ../scripts/load/run.mjs visitors",
+    "load:witty": "node ../scripts/load/run.mjs witty",
     "tax:report": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c \"select * from public.web_tax_unmapped()\" -c \"select jsonb_pretty(public.web_data_quality())\""
   },
   "dependencies": {

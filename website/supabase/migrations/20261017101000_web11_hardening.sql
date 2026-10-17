@@ -109,3 +109,14 @@ begin
   if v.email is null or not v.active then return null; end if;
   return jsonb_build_object('email', v.email, 'role', v.role, 'display_name', v.display_name);
 end $$;
+
+-- Load tests (docs/LOAD_TESTS.md): the search log accepts a batch (a JSON array) as well as one entry, so each server
+-- instance writes its buffered searches in one call instead of taking a pooled connection per search (D-080).
+create or replace function public.web_search_log_add(p jsonb)
+returns void language sql volatile security definer set search_path = '' as $$
+  insert into public.web_search_log (q_norm, filters, results, latency_ms, source)
+  select left(public.web_norm(e->>'q'), 200), coalesce(e->'filters', '{}') - 'q', coalesce((e->>'results')::int, 0),
+         (e->>'latency_ms')::int, coalesce(e->>'source', 'finder')
+  from jsonb_array_elements(case when jsonb_typeof(p) = 'array' then p else jsonb_build_array(p) end) e
+  limit 500
+$$;

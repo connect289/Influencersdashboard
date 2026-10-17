@@ -1,0 +1,9 @@
+\set p random(1, 8)
+\set s random(0, 6)
+\set f random(0, 4)
+\set g random(1, 3)
+select length(public.web_search(jsonb_strip_nulls(jsonb_build_object(
+  'programme', jsonb_build_array((array['mba','bba','bca','mca','bcom','mcom','ma','ba'])[:p]),
+  'spec', case when :s > 0 then jsonb_build_array((array['marketing','finance','human-resource-management','business-analytics','information-technology','data-science'])[:s]) end,
+  'fee_max', case when :f > 0 then (array[100000,150000,200000,300000])[:f] end,
+  'page', :g)))::text);

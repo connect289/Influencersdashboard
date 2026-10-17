@@ -1,4 +1,5 @@
 import type { ModelProvider } from "./model";
+import { env } from "../env";
 
 /**
  * Scripted mock of the two model calls (S-14: no Anthropic key in development and CI). It follows the same JSON
@@ -131,6 +132,8 @@ export const mockProvider: ModelProvider = {
   },
   async counsel({ input, onText, signal }) {
     const text = mockReply(input as CounselorInput);
+    const ttft = env().WEB_ADVISOR_MOCK_TTFT_MS;
+    if (ttft) await sleep(ttft);
     for (let i = 0; i < text.length; i += 6) {
       if (signal.aborted) throw new Error("aborted");
       onText(text.slice(i, i + 6));

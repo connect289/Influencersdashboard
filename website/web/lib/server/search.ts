@@ -11,7 +11,7 @@ import type {
   UniversityDetails,
   UniversitySummary,
 } from "@/lib/search/types";
-import { dbConfigured, rpc } from "./db";
+import { dbConfigured, rpc, rpcRead } from "./db";
 import { errorFields, log } from "./log";
 
 /**
@@ -36,56 +36,59 @@ function catalogCache() {
   cacheTag("catalog");
 }
 
+// Search, suggestions and offering details depend on request-time filters, so they are cached in the platform's shared
+// remote cache (one entry for all server instances) to protect the shared database during ad spikes; locally and in CI
+// this falls back to the in-memory cache (D-080).
 export async function searchOfferings(
   params: FinderParams,
   extra: { page_size?: number; group_key?: string; include_offerings?: boolean } = {},
 ): Promise<SearchResult> {
-  "use cache";
+  "use cache: remote";
   catalogCache();
   if (!dbConfigured()) return EMPTY_RESULT;
-  return rpc<SearchResult>("web_search", { p: toSearchInput(params, extra) });
+  return rpcRead<SearchResult>("web_search", { p: toSearchInput(params, extra) });
 }
 
 export async function suggest(q: string): Promise<Suggestions> {
-  "use cache";
+  "use cache: remote";
   catalogCache();
   if (!dbConfigured() || !q.trim()) return { programmes: [], groups: [], universities: [] };
-  return rpc<Suggestions>("web_suggest", { p_q: q.slice(0, 80), p_limit: 5 });
+  return rpcRead<Suggestions>("web_suggest", { p_q: q.slice(0, 80), p_limit: 5 });
 }
 
 export async function offeringDetails(id: number, qual?: string): Promise<OfferingDetails | null> {
-  "use cache";
+  "use cache: remote";
   catalogCache();
   if (!dbConfigured()) return null;
-  return rpc<OfferingDetails | null>("web_offering_details", { p_id: id, p_qual: qual ?? null });
+  return rpcRead<OfferingDetails | null>("web_offering_details", { p_id: id, p_qual: qual ?? null });
 }
 
 export async function offeringCards(ids: number[], qual?: string): Promise<OfferingCard[]> {
-  "use cache";
+  "use cache: remote";
   catalogCache();
   if (!dbConfigured() || ids.length === 0) return [];
-  return rpc<OfferingCard[]>("web_offering_cards", { p_ids: ids.slice(0, 100), p_qual: qual ?? null });
+  return rpcRead<OfferingCard[]>("web_offering_cards", { p_ids: ids.slice(0, 100), p_qual: qual ?? null });
 }
 
 export async function compareOfferings(ids: number[], qual?: string): Promise<OfferingDetails[]> {
   "use cache";
   catalogCache();
   if (!dbConfigured() || ids.length === 0) return [];
-  return rpc<OfferingDetails[]>("web_compare_offerings", { p_ids: ids.slice(0, 4), p_qual: qual ?? null });
+  return rpcRead<OfferingDetails[]>("web_compare_offerings", { p_ids: ids.slice(0, 4), p_qual: qual ?? null });
 }
 
 export async function universities(): Promise<UniversitySummary[]> {
   "use cache";
   catalogCache();
   if (!dbConfigured()) return [];
-  return rpc<UniversitySummary[]>("web_universities");
+  return rpcRead<UniversitySummary[]>("web_universities");
 }
 
 export async function universityDetails(slug: string): Promise<UniversityDetails | null> {
   "use cache";
   catalogCache();
   if (!dbConfigured()) return null;
-  return rpc<UniversityDetails | null>("web_university_details", { p_slug: slug });
+  return rpcRead<UniversityDetails | null>("web_university_details", { p_slug: slug });
 }
 
 export async function catalogStats(): Promise<CatalogStats | null> {
@@ -93,7 +96,7 @@ export async function catalogStats(): Promise<CatalogStats | null> {
   catalogCache();
   if (!dbConfigured()) return null;
   try {
-    return await rpc<CatalogStats>("web_catalog_stats");
+    return await rpcRead<CatalogStats>("web_catalog_stats");
   } catch (err) {
     log("error", "catalog.stats_failed", errorFields(err));
     return null;
@@ -111,18 +114,28 @@ export async function browse(): Promise<Browse | null> {
   "use cache";
   catalogCache();
   if (!dbConfigured()) return null;
-  return rpc<Browse>("web_browse");
+  return rpcRead<Browse>("web_browse");
 }
 
 /** Records a search for the zero-result report and demand insights. Free text is scrubbed of emails and phone numbers. */
+/**
+ * Search log for the admin (popular and zero-result searches). Entries are buffered per server instance and written in
+ * one call every 25 searches or 5 seconds, so a traffic spike does not take a pooled database connection per search
+ * (load tests, D-080). An instance that stops loses at most its unwritten buffer — acceptable for analytics.
+ */
+const logBuffer = globalThis as unknown as { __ewSearchLog?: { rows: Record<string, unknown>[]; since: number } };
+
 export async function logSearch(entry: { q?: string; filters: Record<string, unknown>; results: number; latencyMs: number; source: "finder" | "suggest" | "advisor" | "api" }) {
   if (!dbConfigured()) return;
+  const buf = (logBuffer.__ewSearchLog ??= { rows: [], since: Date.now() });
+  buf.rows.push({ q: entry.q ? scrubString(entry.q) : null, filters: entry.filters, results: entry.results, latency_ms: entry.latencyMs, source: entry.source });
+  if (buf.rows.length < 25 && Date.now() - buf.since < 5000) return;
+  const rows = buf.rows.splice(0, buf.rows.length);
+  buf.since = Date.now();
   try {
-    await rpc("web_search_log_add", {
-      p: { q: entry.q ? scrubString(entry.q) : null, filters: entry.filters, results: entry.results, latency_ms: entry.latencyMs, source: entry.source },
-    });
+    await rpc("web_search_log_add", { p: rows });
   } catch (err) {
-    log("warn", "search.log_failed", errorFields(err));
+    log("warn", "search.log_failed", { rows: rows.length, ...errorFields(err) });
   }
 }
 

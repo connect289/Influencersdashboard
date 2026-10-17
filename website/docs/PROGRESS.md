@@ -745,3 +745,8 @@ items: S-20 (Search Console), S-50 (authors and reviewers), S-51 (hours), S-52 (
 - 12.2 ✅ Accessibility audit: `e2e/a11y.spec.ts` (30 checks: remaining pages, cookie banner, application form states,
   signed-in account, Witty gate and conversation, keyboard). Two focus bugs fixed (panel focus return, banner focus).
   `docs/ACCESSIBILITY.md`.
+- 12.3 ✅ Load tests (`docs/LOAD_TESTS.md`, scripts in `scripts/load/`): 10k offerings (search 29–145 ms, zero-result
+  255–287 ms; 56 uncached searches/s on 4 vCPU), 1,000 visitors (edge stand-in, ad mix: 359 req/s, pages p95 10 ms,
+  0.74% fast 503 on search misses), 200 Witty conversations (800/800 turns, TTFT p50 1.31 s incl. 800 ms model).
+  Found and fixed: shared connection pool exhaustion → per-instance DB concurrency cap, batched search log,
+  `use cache: remote` for search, optional read replica (D-080, S-54, S-55).
