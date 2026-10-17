@@ -60,6 +60,10 @@ This repository holds three separate Eduwit products that share one Supabase pro
   before any UI uses them.
 - Every screen has empty, loading, error and mobile states. The creator portal is mobile-first.
 - Every new feature updates the matching guide in `lib/guides/content` (a test checks guide links resolve).
+- The ledger is append-only: post with `inf.ledger_post()`, change status, confirmed or paid amounts only inside ledger
+  functions wrapped in `inf.ledger_writer_on()` / `inf.ledger_writer_restore()`, and keep `inf.ledger_status_of` and
+  `statusOf()` in step (`npm run gen:sql` regenerates the matrix test). No money moves automatically
+  (`PAYOUT_PROVIDER=bank_file`).
 - Attribution reads shared lead tables only through `inf.lead_sync_candidates` (service role) and only when
   `LEAD_SYNC=on`; production keeps it off until go-live approval (HARD STOP 6).
 - No TODOs, placeholder screens or fake data in production code paths; mock data only in the seed script, which
@@ -83,6 +87,8 @@ influencer-portal/
   lib/content/             workflow, compliance scan, URLs, brief document, penalty events (pure) + loaders, uploads
   lib/guides/              in-app guides (one per audience; update them with every feature)
   lib/attribution/         pure codes, links, bots, rules, stages, fraud, plan + tests; sweep (sync-core/sync), redirect
+  lib/ledger/              pure facts, plan, lifecycle, payout, prepare, bank file, provider, UTR, invoice, earnings,
+                           reconcile + tests; runner, loaders, PDFs (advice, statement), files
   lib/actions/             server actions (validate → one RPC → ActionResult)
   lib/<domain>/            zod schemas, loaders and helpers (creators, agencies, campaigns, media-kit, leads)
   lib/auth/permissions.ts  permission matrix (single source of truth)

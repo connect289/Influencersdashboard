@@ -2,12 +2,12 @@
 
 ## Now
 
-- **Current phase:** Phase 7 (Ledger, payouts and tax), step 7.1 (plan). Phase 6 (Attribution and lead pipeline)
-  complete and tagged `phase-6-done`.
+- **Current phase:** Phase 8 (Dashboards and analytics), step 8.1 (plan). Phase 7 (Ledger, payouts and tax) complete and
+  tagged `phase-7-done`.
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
 - **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.
-- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-6-done`
+- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-7-done`
   exist in the local repository only. Push them from a normal clone with `git push origin --tags`.
 - **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
   the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
@@ -446,3 +446,58 @@ marked paid by Finance; a payment-provider adapter interface is defined for late
 | 7.4 | Finance console: ledger with filters, adjustments and holds, receipts and reconciliation, payout batches (select, summary, approve with optional second approver, bank export, mark paid one by one or by CSV, cancel), GST invoice review, TDS summaries and Form 16A upload | `app/(admin)/admin/finance/*` | Playwright |
 | 7.5 | Creator and agency earnings: totals (lifetime, FY, month, pending, confirmed, payable, paid), next expected payout, per-deal and per-lead status (the lead feed's earning status), statements (monthly PDF), GST invoice upload, payment advice PDF and notification, TDS certificates | `app/(creator)/creator/earnings/*` | Playwright |
 | 7.6 | Guides, seed (posted ledger, a paid batch), phase gate | | gate |
+
+### Phase 7 summary
+
+The creator ledger and everything that pays it out. Each deal is replayed by the compensation engine from its facts
+(content, attributed leads, B2B and B2C enrolments, Eduwit's commission receipts, manual releases, breaches, campaign
+end and deal completion) and the difference is posted: new lines, growing confirmations, reversals and clawbacks, never
+edits (D-130, D-131). Runs are queued per deal by domain events and nightly; managers see a deal's ledger with a dry-run
+preview, manual milestone release and breach recording. Finance gets the ledger with adjustments and holds, payout
+batches (filters, skipped creators with reasons, gross / TDS / GST / net, two-person approval, the audited bank file
+through a payout-provider interface that moves no money, mark paid one by one or from the bank's CSV, failed payments
+back to payable), GST invoice review, TDS by quarter with Form 16A uploads, and commission receipts with
+reconciliation (D-132 to D-140, D-143). Creators get an Earnings page with every total, the next payout run, payouts
+with GST invoice upload and payment advice PDFs, earnings per deal, monthly statement PDFs and TDS certificates;
+agencies with the earnings grant see it read-only, and the lead feed's earning status is now real (D-142). Guides were
+written or updated for Finance, managers, creators, agencies and developers. The seed runs a real payout end to end as
+Finance staff (D-144).
+
+Found and fixed during the gate: the read-only production check showed that the B2B CRM also writes signed tier
+settlements and void lines per enrolment, so receipts now count commission plus tier settlement and skip void lines,
+and a refunded enrolment always reverses its receipt (D-139, pgTAP added); the self-review added the payout-provider
+interface the spec asks for and the payout statement number on the advice.
+
+Gate on 17 Oct 2026: typecheck, lint and Prettier clean; 3,085 unit tests (61 files); 710 pgTAP assertions (21 files)
+on a fresh database built from the production baseline, including the generated status matrix; Playwright 93 passed
+and 2 screenshot specs skipped by design (95 in total, 8 new finance journeys and a phone check of Earnings); types
+regenerated with no drift; seed works and is idempotent; production re-checked read-only (the 100 generated baseline
+statements hash to `3f8bdfc5…` on production and on the fresh local database; every `b2b.earnings`, `b2b.invoices`
+and `b2c_enrollment_money_v` column the ledger reads exists, with the status values it matches; no `inf` schema and no
+`inf-*` buckets). Nothing outside schema `inf` was created or changed: shared tables are only read, from security
+definer functions.
+
+### Phase 7 requirement checklist (spec Section 22 Phase 7, spec 11)
+
+| Requirement | Status | Where / note |
+| --- | --- | --- |
+| Engine runner and event wiring | Done | `lib/ledger/runner-core.ts`, `ledger.run` job, `inf.ledger_on_event`, nightly `inf.ledger_nightly` (D-131) |
+| Unified ledger per creator from engine output plus manual adjustments (Finance or Super Admin, with a reason) | Done | `inf.ledger_entries`, `inf.ledger_adjust` (`ledger.adjust`), Finance → Ledger |
+| Lifecycle accrued → confirmed → payable → in batch → paid; reversed, on hold, clawed back | Done | `inf.ledger_status_of` = `statusOf()` (generated matrix test), holds per line and per creator (D-130) |
+| TDS table per section, rate, per-transaction and FY thresholds, no-PAN rate, per component, "confirm with CA", Finance-only edits | Done | Phase 3 tax settings; applied at payout with FY aggregates and catch-up (D-132); CA confirmation is go-live work (G-18) |
+| Quarterly TDS summaries; Finance uploads Form 16A; creators download | Done | Finance → TDS, `inf.tds_summary`, `inf.tds_certificate_record`, Earnings → TDS and Form 16A |
+| GST for registered creators with a verified GSTIN; invoice upload validated (GSTIN format, amounts) before payout | Done | `lib/ledger/invoice.ts`, `inf.invoice_submit`, approval blocked until accepted (D-138) |
+| Payout statement for creators without GST | Done | `PS-…` record per payout, printed on the payment advice (D-138) |
+| Payout batches by filter with gross, TDS, GST and net; optional two-person approval | Done | Finance → Payouts (D-135) |
+| Bank bulk-upload file in a configurable column format | Done | `finance.payouts.bank_export`, audited and never stored (D-136) |
+| Mark paid with a UTR, one by one or by CSV | Done | `inf.payouts_mark_paid`, `lib/ledger/utr.ts` (D-137) |
+| Payment advice PDF per payout and creator notification | Done | `payout.advice` job, `lib/ledger/pdf.tsx`, `payout.paid` notification |
+| No automated money movement; payment-provider adapter interface | Done | `lib/ledger/provider.ts`, `PAYOUT_PROVIDER=bank_file` (D-136) |
+| Reconciliation against Eduwit's commission receipts; flag unpaid accrued commission after N days | Done | `inf.commission_receipts_sync` (B2B and B2C, read only), manual override, Finance → Receipts (D-139, D-140) |
+| Earnings view: lifetime, FY, month, pending, confirmed, payable, paid; next payout; per-deal; per-lead status; monthly statement PDF; invoices; TDS certificates | Done | `/creator/earnings`, `/api/earnings/<id>/statement`, lead feed earning status (D-142) |
+| Agency view of earnings with the earnings grant, never bank details | Done | `/agency/creators/<id>/earnings` (read only) |
+| Phase 6 carry-over: earning values in the lead drawer | Done | `inf.lead_feed_earnings` refreshed by every run (closes the Phase 6 deferral, D-121) |
+| Guides for every audience | Done | Finance `#ledger`, `#payouts`, `#invoices`, `#tds`, `#receipts`; manager `#deal-ledger`; creator `#earnings`; agency `#earnings`; developer `#ledger` |
+| Leaderboard-rank bonuses | Deferred to Phase 8 | Leaderboards are a Phase 8 deliverable (spec 12); the engine supports the bonus and receives rank events once they exist (D-141) |
+| Connecting receipts and payouts to live data | Deferred (HARD STOP 6) | Receipts read live CRM tables only with `LEAD_SYNC=on`; go-live steps in RUNBOOK G-14, G-18 to G-21 |
+

@@ -24,6 +24,10 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 | G-15 | **Back up `inf_lead_ref_key`** (Vault, created by migration 20261021000100 if missing) with `inf_pii_key`. Rotating it changes every lead reference creators and staff have seen | Phase 6 |
 | G-16 | Witty and the website (approved R-1, R-3, R-5): Witty validates typed creator codes with `inf.witty_resolve_code` and keeps issuing access codes with `w2_issue_code`; the website's co-branded page reads `GET /api/public/v1/creators/<handle>`. Set Settings → Attribution → Links and Witty (Witty's number, message template, UTM source, short-link base, website address) before creators share links | Phase 6 |
 | G-17 | Review the attribution defaults (window, model, duplicate grace, self-referral) and the fraud thresholds with the owner, and confirm the stage rules against the CRM's current stage list (Leads → Stage rules) | Phase 6 |
+| G-18 | **Tax with a CA before the first payout run:** confirm the TDS sections, rates and thresholds per component, that TDS is deducted when a payout is paid (D-132), the GST rate and SAC code, and the payout statement for creators without GST; then mark the settings confirmed. Until then keep `hold_until_tax_confirmed` in mind (Settings → Finance → Payouts) | Phase 7 |
+| G-19 | Finance set-up: payout cycle and day, two-person approval, minimum payout, agency-payee handling, the bank's bulk-upload column format (test one file with the bank before the first run) and the reconciliation flag days. Fill the organisation profile (printed on payment advice and statements) | Phase 7 |
+| G-20 | Private buckets `inf-invoices` and `inf-documents` are created by migration 20261017000600 (ops); confirm they exist and are not public after the migrations run. Payment advice and Form 16A files are kept for the retention period; never make these buckets public | Phase 7 |
+| G-21 | Optional (approved R-4): the B2B team publishes `public.b2b_enrollment_money_v`; the receipts sync then reads it instead of `b2b.earnings` and `b2b.invoices` (one function to change, `inf.commission_receipts_sync`). Until then the read is limited to those two tables, read only | Phase 7 |
 
 ## Operations
 
@@ -48,5 +52,15 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 - **Short links** (`/r/<code>`): an unknown or switched-off code goes to `/link-inactive`. If Witty is slow or failing,
   visitors still reach WhatsApp without an access code (log `redirect.witty_issue_failed`); attribution then relies on
   the code in the message.
+- **Ledger runs** (`ledger.run` jobs, queued per deal by domain events and nightly by `inf.ledger_nightly()`): a failed
+  run is retried with backoff; Finance or the deal owner can press **Run now** on the deal's Ledger tab. The tab's
+  **Next run** preview shows what a run would change without posting it.
+- **Payouts:** the bank file is generated on each download from `inf.payout_bank_rows()` (audited) and never stored.
+  If the bank rejects a payment, mark that payout failed: its lines return to payable for the next run. A batch can be
+  cancelled until it is exported. Payment advice PDFs are built by the `payout.advice` job; if one is missing, check the
+  job in System status (it is idempotent and safe to re-run).
+- **Receipts:** `inf.commission_receipts_sync()` runs after each lead sweep (so only with `LEAD_SYNC=on`). A manual
+  receipt overrides the CRM for that enrolment until it is withdrawn.
 - **Production schema drift check** (read-only): run `scripts/baseline/generate-baseline.sql` against production and
-  compare with `scripts/baseline/exact.sql` (or compare per-object md5 hashes as done at the Phase 2 gate).
+  compare with `scripts/baseline/exact.sql`, or compare one md5 over all generated statements (production and a fresh
+  local database must give the same hash; Phase 7 gate: 100 statements, `3f8bdfc5…`).
