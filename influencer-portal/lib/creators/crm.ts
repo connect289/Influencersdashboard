@@ -420,6 +420,7 @@ export const CREATOR_TABS = [
   "kyc",
   "outreach",
   "tasks",
+  "messages",
   "deals",
   "links",
   "analytics",

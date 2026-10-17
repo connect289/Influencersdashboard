@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { EarningsView } from "@/components/earnings/earnings-view";
+import { PayoutThreadDrawer } from "@/components/messaging/payout-thread";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState } from "@/components/ui/states";
 import { requireCreator } from "@/lib/auth/guards";
@@ -10,8 +11,9 @@ export async function generateMetadata() {
   return { title: t("nav.creator.earnings") };
 }
 
-export default async function CreatorEarningsPage() {
+export default async function CreatorEarningsPage({ searchParams }: { searchParams: Promise<{ payout?: string }> }) {
   const { supabase, me } = await requireCreator();
+  const sp = await searchParams;
   const t = await getTranslations();
   const data = await loadEarnings(supabase, me.creatorId).catch(() => null);
   return (
@@ -26,6 +28,7 @@ export default async function CreatorEarningsPage() {
       ) : (
         <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
       )}
+      <PayoutThreadDrawer db={supabase} payoutId={sp.payout} />
     </>
   );
 }

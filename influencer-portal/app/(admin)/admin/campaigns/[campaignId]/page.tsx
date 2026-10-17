@@ -1,3 +1,4 @@
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -15,6 +16,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { Table, Td, Th } from "@/components/ui/table";
 import { requireStaff } from "@/lib/auth/guards";
+import { loadInbox } from "@/lib/messaging/data";
 import type { CampaignStatus } from "@/lib/campaigns/schemas";
 import { deliverablesOf, eligibilityOf, formValuesOf, loadProgrammes } from "@/lib/campaigns/data";
 import { loadBriefTemplates } from "@/lib/content/data";
@@ -25,7 +27,7 @@ import { SETTINGS } from "@/lib/settings/registry";
 import { formatCompact, formatDateTime, formatPaise, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TABS = ["overview", "applications", "invites", "edit"] as const;
+const TABS = ["overview", "applications", "invites", "messages", "edit"] as const;
 
 export async function generateMetadata() {
   const t = await getTranslations();
@@ -37,15 +39,18 @@ export default async function CampaignPage({
   searchParams,
 }: {
   params: Promise<{ campaignId: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; thread?: string }>;
 }) {
   const { campaignId } = await params;
   if (!z.uuid().safeParse(campaignId).success) notFound();
   const { supabase, me } = await requireStaff("campaign.read");
   const t = await getTranslations();
   const canWrite = me.permissions.has("campaign.write");
-  const visible = TABS.filter((x) => x !== "edit" || canWrite);
-  const requested = (await searchParams).tab;
+  const visible = TABS.filter((x) =>
+    x === "edit" ? canWrite : x !== "messages" || me.permissions.has("message.read"),
+  );
+  const sp = await searchParams;
+  const requested = sp.tab;
   const tab = visible.find((x) => x === requested) ?? "overview";
   const { data: c, error } = await supabase.from("campaigns").select("*").eq("id", campaignId).maybeSingle();
   if (!error && !c) notFound();
@@ -196,6 +201,51 @@ export default async function CampaignPage({
           </ul>
         )}
       </Card>
+    );
+  } else if (tab === "messages") {
+    // One private thread per creator; open one with ?thread=<creator>.
+    const threads = (await loadInbox(supabase, { type: "campaign" }).catch(() => [])).filter(
+      (r) => r.entity_id === campaignId,
+    );
+    const open = z.uuid().safeParse(sp.thread);
+    body = (
+      <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+        <Card>
+          <CardHeader title={t("messaging.campaign.staffTitle")} description={t("messaging.campaign.staffHint")} />
+          {threads.length === 0 ? (
+            <p className="text-sm text-muted">{t("messaging.campaign.none")}</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {threads.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    href={`/admin/campaigns/${campaignId}?tab=messages&thread=${r.creator_id ?? ""}`}
+                    aria-current={open.success && r.creator_id === open.data ? "page" : undefined}
+                    className={cn(
+                      "flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm",
+                      open.success && r.creator_id === open.data
+                        ? "bg-primary-soft text-primary"
+                        : "hover:bg-surface-2",
+                    )}
+                  >
+                    <span className="truncate">{r.creator_name}</span>
+                    {r.unread > 0 ? (
+                      <span className="rounded-full bg-primary px-1.5 text-[11px] leading-[18px] text-on-primary">
+                        {r.unread}
+                      </span>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        {open.success ? (
+          <Thread db={supabase} thread={{ type: "campaign", entityId: campaignId, creatorId: open.data }} />
+        ) : (
+          <EmptyState title={t("messaging.campaign.pick")} />
+        )}
+      </div>
     );
   } else {
     const [{ owners }, presets, templates, briefTemplates, links] = await Promise.all([

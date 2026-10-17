@@ -11,6 +11,16 @@ export function escapeHtml(s: string): string {
 const SIGN_IN_FOOTER =
   "You received this because someone signed in to the Eduwit portal with your email. If it wasn't you, ignore this email and tell your Eduwit contact.";
 const CONTRACT_FOOTER = "You received this because you are a party to a contract on the Eduwit creator portal.";
+const NOTIFICATION_FOOTER =
+  "You received this because you have an account on the Eduwit creator portal. Choose what we send in your notification settings.";
+
+/** A business notification in the Eduwit email frame (body already HTML-escaped by the caller). */
+export function notificationLayout(title: string, bodyHtml: string, link: string | null, linkLabel: string): string {
+  const button = link
+    ? `<p style="margin:20px 0"><a href="${escapeHtml(link)}" style="background:#0B2F5E;color:#FFFFFF;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">${escapeHtml(linkLabel)}</a></p>`
+    : "";
+  return layout(title, bodyHtml + button, NOTIFICATION_FOOTER);
+}
 
 function layout(title: string, bodyHtml: string, footer: string = SIGN_IN_FOOTER): string {
   return `<!doctype html><html><body style="margin:0;background:#F2F4F7;font-family:Arial,Helvetica,sans-serif;color:#0E2240">

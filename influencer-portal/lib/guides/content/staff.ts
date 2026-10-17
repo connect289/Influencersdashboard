@@ -90,7 +90,37 @@ export const ALL_STAFF: Guide = {
       title: "Notifications",
       blocks: [
         {
-          p: "You get in-app and email notifications for work assigned to you: new applications on campaigns you own, creators accepting or declining deal terms, tasks assigned to you. Until the Super Admin turns on live sending, emails stay inside the system.",
+          p: "The bell at the top shows how many notifications you haven't read; it updates on its own. Open it for the [notification centre](/admin/notifications): newest first, **Unread** to filter, and **Mark all read**. Opening a notification takes you to the page it is about.",
+        },
+        {
+          list: [
+            "You are told about work that is yours: applications on campaigns you own, creators' replies on your deals, messages on your deals and contracts, @mentions, tasks, fraud flags (if you review them) and the daily queues (reviews waiting more than a day, negotiations with no answer for three days).",
+            "In [notification settings](/admin/notifications/settings) choose email per notification, and whether you want a daily or weekly **digest** of the queues (off by default for staff).",
+            "Until the Super Admin turns on live sending, emails and WhatsApp messages stay inside the system.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "messages",
+      title: "Messages",
+      blocks: [
+        {
+          p: "Every application, deal, contract, brief, deliverable and payout has a conversation with the creator (and their agency, if the creator gave it the matching permission). Each creator also has a support conversation, and each campaign has a private conversation per creator for questions before they apply.",
+        },
+        {
+          list: [
+            "[Messages](/admin/messages) lists every conversation you can read, newest first. Search by words, filter by type, **Unread** or **Mentions me**.",
+            "You can read a conversation if you have the messages permission and can read what it is about (a deal conversation needs deal access, a payout conversation payout access).",
+            "**@mention** a colleague with the mention picker: they get a notification. Creators and agencies can't mention staff.",
+            "Attach PDFs, images or CSV files (up to 5 per message, 25 MB each). They are stored privately; only people who can read the conversation can open them.",
+            '**Seen** under your last message means the creator side has read it. Creators see your first name and "(Eduwit)".',
+            "On a lead, the conversation is a set of **staff-only notes**: the creator and agencies never see them.",
+          ],
+        },
+        {
+          warning:
+            "Never put a student's phone number or email in a message: creators and agencies read these conversations. Use the lead's reference instead.",
         },
       ],
     },

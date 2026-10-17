@@ -2,7 +2,7 @@
 // and period, the next expected payout, payouts with their invoices and payment advice, earnings per deal, monthly
 // statements, TDS deducted with Form 16A certificates, and every ledger line. Only the creator uploads invoices.
 import Link from "next/link";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, MessageSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Amount, LedgerTable } from "@/components/ledger/ledger-table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -144,6 +144,13 @@ export function EarningsView({
                       <Download className="size-4" aria-hidden /> {t("earnings.payouts.advice")}
                     </a>
                   ) : null}
+                  <Link
+                    href={`?payout=${p.id}`}
+                    scroll={false}
+                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                  >
+                    <MessageSquare className="size-4" aria-hidden /> {t("messaging.payout.ask")}
+                  </Link>
                   {canUpload && waiting.some((w) => w.id === p.id) && gstin ? (
                     <InvoiceUpload payout={p} gstin={gstin} again={p.invoice?.status === "rejected"} />
                   ) : null}

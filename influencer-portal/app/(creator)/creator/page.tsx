@@ -1,3 +1,5 @@
+import { AnnouncementsCard } from "@/components/notifications/announcements-card";
+import { loadMyAnnouncements } from "@/lib/messaging/data";
 import Link from "next/link";
 import { ChevronRight, Download, FileCheck2, Trophy } from "lucide-react";
 import { getTranslations } from "next-intl/server";
@@ -60,11 +62,12 @@ export default async function CreatorHome({
   const t = await getTranslations();
   const today = istToday();
   const range = parseRange(await searchParams, today);
-  const [terms, onboarding, dash, earnings] = await Promise.all([
+  const [terms, onboarding, dash, earnings, announcements] = await Promise.all([
     supabase.rpc("terms_pending"),
     supabase.rpc("onboarding_state"),
     loadCreatorDashboard(supabase, me.creatorId, range).catch(() => null),
     loadEarnings(supabase, me.creatorId).catch(() => null),
+    loadMyAnnouncements(supabase, 3),
   ]);
   const state = onboardingState.safeParse(onboarding.data);
   const approved = !(state.success && !state.data.approved);
@@ -123,6 +126,7 @@ export default async function CreatorHome({
         help="/creator/help/creator#home"
       />
       <div className="flex flex-col gap-4">
+        <AnnouncementsCard rows={announcements} />
         <Card>
           <CardHeader
             title={t("home.actionCentre")}

@@ -157,13 +157,22 @@ export interface Preference {
 }
 
 /**
- * Whether a channel is on for an event: mandatory events are always on; in-app is always on; otherwise the person's
- * choice, falling back to the catalogue default.
+ * Whether a channel is on for an event, as inf.notify() decides: in-app is always on; a mandatory event always uses
+ * its default channels (and any other the person switched on); otherwise the person's choice, falling back to the
+ * catalogue default.
  */
 export function channelOn(key: string, channel: Channel, prefs: readonly Preference[]): boolean {
+  if (channel === "in_app") return true;
   const def = eventDef(key);
-  if (!def) return channel === "in_app";
-  if (def.mandatory || channel === "in_app") return true;
+  const isDefault = (def?.channels ?? ["email"]).includes(channel);
   const p = prefs.find((x) => x.event === key && x.channel === channel);
-  return p ? p.enabled : (def.channels as readonly string[]).includes(channel);
+  if (def?.mandatory) return isDefault || p?.enabled === true;
+  return p ? p.enabled : isDefault;
+}
+
+/** Whether the person may change a channel for an event (in-app and a mandatory event's default channels are fixed). */
+export function channelLocked(key: string, channel: Channel): boolean {
+  if (channel === "in_app") return true;
+  const def = eventDef(key);
+  return def?.mandatory === true && (def.channels as readonly string[]).includes(channel);
 }

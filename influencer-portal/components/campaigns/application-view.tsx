@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -13,7 +13,6 @@ import { useAction } from "@/components/ui/use-action";
 import {
   acceptOffer,
   makeOffer,
-  postApplicationMessage,
   rejectApplication,
   shortlistApplication,
   withdrawApplication,
@@ -49,7 +48,6 @@ export interface ApplicationDetail {
     status: string;
     created_at: string;
   }[];
-  messages: { id: string; author_side: string; body: string; created_at: string; mine: boolean }[];
 }
 
 const OPEN = ["submitted", "shortlisted", "countered"];
@@ -58,9 +56,12 @@ const OPEN = ["submitted", "shortlisted", "countered"];
 export function ApplicationView({
   app,
   templates = [],
+  thread,
 }: {
   app: ApplicationDetail;
   templates?: { label: string; body: string }[];
+  /** The application's conversation (a server-rendered thread panel). */
+  thread?: ReactNode;
 }) {
   const t = useTranslations();
   const { pending, run } = useAction();
@@ -72,7 +73,6 @@ export function ApplicationView({
   const mySide = isEduwit ? "eduwit" : "creator";
   const [draft, setDraft] = useState(() => draftFromTerms(open?.terms));
   const [counterMsg, setCounterMsg] = useState("");
-  const [message, setMessage] = useState("");
   const [template, setTemplate] = useState("");
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
@@ -175,54 +175,7 @@ export function ApplicationView({
             </ol>
           )}
         </Card>
-        <Card>
-          <CardHeader title={t("campaigns.application.messages")} />
-          {app.messages.length === 0 ? (
-            <p className="text-sm text-muted">{t("campaigns.application.noMessages")}</p>
-          ) : (
-            <ol className="flex flex-col gap-2">
-              {app.messages.map((m) => (
-                <li
-                  key={m.id}
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
-                    m.mine ? "self-end bg-primary text-on-primary" : "self-start bg-surface-2",
-                  )}
-                >
-                  <p className="whitespace-pre-line">{m.body}</p>
-                  <p className={cn("mt-1 text-[11px]", m.mine ? "text-on-primary/80" : "text-muted")}>
-                    {t(`campaigns.application.sides.${m.author_side as "eduwit"}`)} · {formatDateTime(m.created_at)}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          )}
-          {isEduwit || isCreatorSide ? (
-            <form
-              className="mt-3 flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                run(
-                  () => postApplicationMessage(app.id, message),
-                  () => setMessage(""),
-                );
-              }}
-            >
-              <Textarea
-                aria-label={t("campaigns.application.writeMessage")}
-                placeholder={t("campaigns.application.writeMessage")}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                maxLength={4000}
-                className="min-h-11"
-                rows={1}
-              />
-              <Button type="submit" disabled={pending || !message.trim()}>
-                {t("campaigns.application.send")}
-              </Button>
-            </form>
-          ) : null}
-        </Card>
+        {thread}
       </div>
       <div className="flex flex-col gap-4">
         <Card>

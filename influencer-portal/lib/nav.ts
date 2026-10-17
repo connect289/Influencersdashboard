@@ -27,6 +27,7 @@ export const ICON_NAMES = [
   "link",
   "wallet",
   "chart",
+  "messages",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 
@@ -75,6 +76,7 @@ export const STAFF_NAV: StaffNavItem[] = [
   },
   { href: "/admin/leads", labelKey: "nav.admin.leads", icon: "target", anyOf: ["lead.read"] },
   { href: "/admin/finance", labelKey: "nav.admin.finance", icon: "wallet", anyOf: ["ledger.read"] },
+  { href: "/admin/messages", labelKey: "nav.admin.messages", icon: "messages", anyOf: ["message.read"] },
   { href: "/admin/tasks", labelKey: "nav.admin.tasks", icon: "checklist" },
   {
     href: "/admin/agencies",
@@ -111,6 +113,7 @@ export const CREATOR_NAV: CreatorNavItem[] = [
   { href: "/creator/deliverables", labelKey: "nav.creator.deliverables", icon: "clapperboard" },
   { href: "/creator/leads", labelKey: "nav.creator.leads", icon: "target" },
   { href: "/creator/links", labelKey: "nav.creator.links", icon: "link" },
+  { href: "/creator/messages", labelKey: "nav.creator.messages", icon: "messages" },
   { href: "/creator/deals", labelKey: "nav.creator.deals", icon: "handshake" },
   { href: "/creator/earnings", labelKey: "nav.creator.earnings", icon: "wallet" },
   { href: "/creator/briefs", labelKey: "nav.creator.briefs", icon: "clipboard" },
@@ -125,6 +128,7 @@ export const CREATOR_NAV: CreatorNavItem[] = [
 
 export const AGENCY_NAV: CreatorNavItem[] = [
   { href: "/agency", labelKey: "nav.agency.home", icon: "users" },
+  { href: "/agency/messages", labelKey: "nav.agency.messages", icon: "messages" },
   { href: "/agency/team", labelKey: "nav.agency.team", icon: "building" },
   { href: "/agency/account", labelKey: "nav.agency.account", icon: "user" },
   { href: "/agency/help", labelKey: "nav.agency.help", icon: "help" },

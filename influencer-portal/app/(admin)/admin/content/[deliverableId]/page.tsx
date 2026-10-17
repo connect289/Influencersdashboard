@@ -1,3 +1,4 @@
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -20,7 +21,7 @@ import { DELIVERABLES_BUCKET, signedLinks } from "@/lib/content/files";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TABS = ["review", "live", "metrics", "history", "settings"] as const;
+const TABS = ["review", "live", "metrics", "history", "messages", "settings"] as const;
 
 export async function generateMetadata() {
   const t = await getTranslations();
@@ -36,11 +37,13 @@ export default async function DeliverablePage({
 }) {
   const { deliverableId } = await params;
   if (!z.uuid().safeParse(deliverableId).success) notFound();
-  const { supabase } = await requireStaff("deliverable.read");
+  const { supabase, me } = await requireStaff("deliverable.read");
   const t = await getTranslations();
   const d = await loadDeliverable(supabase, deliverableId);
   if (!d || d.side !== "eduwit") notFound();
-  const visible = TABS.filter((x) => x !== "settings" || d.can_edit);
+  const visible = TABS.filter((x) =>
+    x === "settings" ? d.can_edit : x !== "messages" || me.permissions.has("message.read"),
+  );
   const requested = (await searchParams).tab;
   const pendingPost = d.posts.some((p) => p.verification_status === "pending");
   const tab = visible.find((x) => x === requested) ?? (pendingPost ? "live" : "review");
@@ -124,6 +127,8 @@ export default async function DeliverablePage({
         <HistoryList transitions={d.transitions} />
       </Card>
     );
+  } else if (tab === "messages") {
+    body = <Thread db={supabase} thread={{ type: "deliverable", entityId: d.id }} />;
   } else {
     body = <DeliverableSettings d={d} />;
   }

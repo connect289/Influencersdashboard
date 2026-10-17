@@ -8,6 +8,7 @@ import {
   Contact,
   ListChecks,
   Megaphone,
+  MessagesSquare,
   FileSignature,
   FileText,
   Handshake,
@@ -52,4 +53,5 @@ export const ICONS: Record<IconName, LucideIcon> = {
   link: Link2,
   wallet: Wallet,
   chart: BarChart3,
+  messages: MessagesSquare,
 };

@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { ApplicationView } from "@/components/campaigns/application-view";
+import { Thread } from "@/components/messaging/thread";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState } from "@/components/ui/states";
 import { requireAgency } from "@/lib/auth/guards";
@@ -39,7 +40,10 @@ export default async function AgencyApplicationPage({ params }: { params: Promis
             title={app.campaign.name}
             description={t("agencyPortal.onBehalf", { name: app.creator.display_name })}
           />
-          <ApplicationView app={app} />
+          <ApplicationView
+            app={app}
+            thread={<Thread db={supabase} thread={{ type: "application", entityId: app.id }} />}
+          />
         </>
       )}
     </>

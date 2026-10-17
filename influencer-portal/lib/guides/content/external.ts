@@ -305,6 +305,43 @@ export const CREATOR: Guide = {
       ],
     },
     {
+      id: "notifications",
+      title: "Notifications and announcements",
+      blocks: [
+        {
+          p: "The bell at the top shows what's new. Open it for your [notifications](/creator/notifications): new campaigns and offers, contracts to sign, briefs, due work, leads that enrol, payments and messages. Tap one to go straight to it.",
+        },
+        {
+          list: [
+            "In [notification settings](/creator/notifications/settings) choose email and WhatsApp for each kind. Notifications about contracts, payments and KYC can't be turned off, because they carry something you must do or a record of money.",
+            "The **digest** sums up new leads, what you earned, work due soon and unread messages. It comes on Monday mornings by default; choose every morning or off.",
+            "Announcements from Eduwit also appear on your [home page](/creator).",
+          ],
+        },
+      ],
+    },
+    {
+      id: "messages",
+      title: "Messages",
+      blocks: [
+        {
+          p: "Every application, deal, contract, brief, deliverable and payout has its own conversation with the Eduwit team, at the bottom of its page. [Messages](/creator/messages) has your direct line to Eduwit and lists every conversation, with unread ones first.",
+        },
+        {
+          list: [
+            "On a campaign page you can ask questions before you apply; only you, your agency and Eduwit see them.",
+            "On [Earnings](/creator/earnings), **Ask about it** next to a payout opens a conversation with Finance.",
+            "Attach PDFs, images or CSV files (up to 5 per message, 25 MB each).",
+            "**Seen** under your last message means Eduwit has read it.",
+            "If you work with an agency, it sees the conversations its permissions cover (for example deliverables if you let it act on them).",
+          ],
+        },
+        {
+          warning: "Never send bank details, OTPs or passwords in a message. Eduwit will never ask for them here.",
+        },
+      ],
+    },
+    {
       id: "privacy",
       title: "Students' privacy",
       blocks: [
@@ -429,6 +466,31 @@ export const AGENCY: Guide = {
         {
           warning:
             "You never see a creator's bank details or KYC, and payouts always go to the creator's own account. Students' phone numbers and emails stay hidden.",
+        },
+      ],
+    },
+    {
+      id: "notifications",
+      title: "Notifications",
+      blocks: [
+        {
+          p: "The bell at the top shows what's new for the creators you manage, within your permissions: invitations and offers, contracts to sign, briefs and due work, and messages. Open it for your [notifications](/agency/notifications); choose email per kind in [notification settings](/agency/notifications/settings) (contract notifications can't be turned off).",
+        },
+      ],
+    },
+    {
+      id: "messages",
+      title: "Messages",
+      blocks: [
+        {
+          p: "[Messages](/agency/messages) has a support conversation with Eduwit for each creator who gave you view access, and lists the other conversations your permissions open: applications, deals and contracts (negotiate and sign), briefs and deliverables (act on deliverables) and payouts (view earnings).",
+        },
+        {
+          list: [
+            "The creator and Eduwit see everything you write; your messages show your name and your agency.",
+            "Each conversation is also at the bottom of the page it is about.",
+            "Attach PDFs, images or CSV files (up to 5 per message, 25 MB each).",
+          ],
         },
       ],
     },

@@ -1,3 +1,4 @@
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -167,6 +168,7 @@ export default async function BriefPage({
             )}
           </Card>
           <BriefQa briefId={b.id} threads={threads(b.questions)} canAsk={false} canAnswer={b.can_write} />
+          <Thread db={supabase} thread={{ type: "brief", entityId: b.id }} />
         </aside>
       </div>
     </>

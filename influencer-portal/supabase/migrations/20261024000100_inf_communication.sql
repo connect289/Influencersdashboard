@@ -178,6 +178,7 @@ declare
   v_owner uuid;
   v_admin_link text;
   v_creator_link text;
+  v_agency_link text;
   v_side text;
   v_read boolean := false;
   v_post boolean := false;
@@ -188,43 +189,45 @@ begin
              '/creator/applications/' || a.id
         into v_creator, v_subject, v_owner, v_admin_link, v_creator_link
         from inf.campaign_applications a join inf.campaigns c on c.id = a.campaign_id where a.id = p_entity;
-      v_staff_perm := 'campaign.read'; v_agency_grant := 'negotiate';
+      v_staff_perm := 'campaign.read'; v_agency_grant := 'negotiate'; v_agency_link := '/agency/applications/' || p_entity;
     when 'campaign' then
-      select p_creator, 'Campaign: ' || c.name, coalesce(c.owner_id, c.created_by), '/admin/campaigns/' || c.id, '/creator/campaigns/' || c.id
+      select p_creator, 'Campaign: ' || c.name, coalesce(c.owner_id, c.created_by), '/admin/campaigns/' || c.id || '?tab=messages&thread=' || p_creator,
+             '/creator/campaigns/' || c.id
         into v_creator, v_subject, v_owner, v_admin_link, v_creator_link
         from inf.campaigns c where c.id = p_entity and p_creator is not null;
       v_staff_perm := 'campaign.read'; v_agency_grant := 'negotiate';
+      v_agency_link := '/agency/creators/' || p_creator || '/campaigns/' || p_entity;
     when 'deal' then
       select d.creator_id, 'Deal: ' || d.title, d.owner_id, '/admin/deals/' || d.id, '/creator/deals/' || d.id
         into v_creator, v_subject, v_owner, v_admin_link, v_creator_link from inf.deals d where d.id = p_entity;
-      v_staff_perm := 'deal.read'; v_agency_grant := 'negotiate';
+      v_staff_perm := 'deal.read'; v_agency_grant := 'negotiate'; v_agency_link := '/agency/deals/' || p_entity;
     when 'contract' then
       select d.creator_id, 'Contract ' || k.number, d.owner_id, '/admin/contracts/' || k.id, '/creator/contracts/' || k.id
         into v_creator, v_subject, v_owner, v_admin_link, v_creator_link
         from inf.contracts k join inf.deals d on d.id = k.deal_id where k.id = p_entity;
-      v_staff_perm := 'contract.read'; v_agency_grant := 'negotiate';
+      v_staff_perm := 'contract.read'; v_agency_grant := 'negotiate'; v_agency_link := '/agency/contracts/' || p_entity;
     when 'brief' then
       select d.creator_id, 'Brief: ' || d.title, d.owner_id, '/admin/briefs/' || b.id, '/creator/briefs/' || b.id
         into v_creator, v_subject, v_owner, v_admin_link, v_creator_link
         from inf.briefs b join inf.deals d on d.id = b.deal_id where b.id = p_entity;
-      v_staff_perm := 'brief.read'; v_agency_grant := 'deliverables';
+      v_staff_perm := 'brief.read'; v_agency_grant := 'deliverables'; v_agency_link := '/agency/briefs/' || p_entity;
     when 'deliverable' then
       select d.creator_id, 'Deliverable: ' || x.title, d.owner_id, '/admin/content/' || x.id, '/creator/deliverables/' || x.id
         into v_creator, v_subject, v_owner, v_admin_link, v_creator_link
         from inf.deliverables x join inf.deals d on d.id = x.deal_id where x.id = p_entity;
-      v_staff_perm := 'deliverable.read'; v_agency_grant := 'deliverables';
+      v_staff_perm := 'deliverable.read'; v_agency_grant := 'deliverables'; v_agency_link := '/agency/deliverables/' || p_entity;
     when 'payout' then
-      select p.creator_id, 'Payout ' || p.ref, null, '/admin/finance/payouts/' || p.batch_id || '?payout=' || p.id, '/creator/earnings'
+      select p.creator_id, 'Payout ' || p.ref, null, '/admin/finance/payouts/' || p.batch_id || '?payout=' || p.id, '/creator/earnings?payout=' || p.id
         into v_creator, v_subject, v_owner, v_admin_link, v_creator_link from inf.payouts p where p.id = p_entity;
-      v_staff_perm := 'payout.read'; v_agency_grant := 'earnings';
+      v_staff_perm := 'payout.read'; v_agency_grant := 'earnings'; v_agency_link := '/agency/creators/' || v_creator || '/earnings?payout=' || p_entity;
     when 'lead' then
       select a.creator_id, 'Lead note', null, '/admin/leads?lead=' || a.id, null
         into v_creator, v_subject, v_owner, v_admin_link, v_creator_link from inf.lead_attributions a where a.id = p_entity;
       v_staff_perm := 'lead.read'; v_agency_grant := null; v_staff_only := true;
     when 'support' then
-      select c.id, 'Support: ' || c.display_name, c.owner_id, '/admin/creators/' || c.id, '/creator/messages'
+      select c.id, 'Support: ' || c.display_name, c.owner_id, '/admin/creators/' || c.id || '?tab=messages', '/creator/messages'
         into v_creator, v_subject, v_owner, v_admin_link, v_creator_link from inf.creators c where c.id = p_entity;
-      v_staff_perm := 'creator.read'; v_agency_grant := 'view';
+      v_staff_perm := 'creator.read'; v_agency_grant := 'view'; v_agency_link := '/agency/messages?creator=' || p_entity;
     else
       raise exception 'invalid thread type' using errcode = '22023';
   end case;
@@ -238,7 +241,7 @@ begin
   end if;
   return jsonb_build_object('creator_id', v_creator, 'subject', v_subject, 'side', v_side, 'can_read', v_read, 'can_post', v_post,
                             'staff_only', v_staff_only, 'owner_id', v_owner, 'admin_link', v_admin_link, 'creator_link', v_creator_link,
-                            'agency_grant', v_agency_grant);
+                            'agency_link', v_agency_link, 'agency_grant', v_agency_grant);
 end $$;
 
 -- A thread with its messages for whoever may read it (null when it has no messages yet but may be started).
@@ -288,7 +291,7 @@ $$;
 
 -- Post a message (with optional attachments uploaded beforehand under threads/<thread>/). Notifies the other side and
 -- anyone mentioned (staff only, and only on staff posts).
-create or replace function inf.thread_post(p_type text, p_entity uuid, p_creator uuid, p_body text, p_attachments jsonb default '[]')
+create or replace function inf.thread_post(p_type text, p_entity uuid, p_body text, p_attachments jsonb default '[]', p_creator uuid default null)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   r jsonb;
@@ -354,7 +357,7 @@ begin
                            'thread_message:' || v_msg || ':' || v_user);
       end if;
       perform inf.notify(am.user_id, 'thread.message', 'New message: ' || (r ->> 'subject'), left(v_plain, 300),
-                         replace(coalesce(r ->> 'creator_link', '/agency'), '/creator/', '/agency/'),
+                         coalesce(r ->> 'agency_link', '/agency'),
                          jsonb_build_object('thread_id', v_thread, 'subject', r ->> 'subject', 'sender', v_sender), false,
                          'thread_message:' || v_msg || ':' || am.user_id)
         from inf.agency_creator_links l join inf.agency_members am on am.agency_id = l.agency_id
@@ -435,7 +438,7 @@ begin
                  'id', t.id, 'entity_type', t.entity_type, 'entity_id', t.entity_id, 'creator_id', t.creator_id,
                  'creator_name', (select c.display_name from inf.creators c where c.id = t.creator_id),
                  'subject', r1.r ->> 'subject', 'link', case when v_staff then r1.r ->> 'admin_link'
-                                                           when v_agency is not null then replace(coalesce(r1.r ->> 'creator_link', '/agency'), '/creator/', '/agency/')
+                                                           when v_agency is not null then coalesce(r1.r ->> 'agency_link', '/agency')
                                                            else r1.r ->> 'creator_link' end,
                  'last_message_at', t.last_message_at,
                  'last_message', (select left(regexp_replace(m.body, '@\[([^\]]+)\]\(user:[0-9a-f-]{36}\)', '@\1', 'g'), 160)
@@ -485,7 +488,7 @@ $$;
 create or replace function inf.application_message(p_app uuid, p_body text) returns uuid
 language plpgsql security definer set search_path = '' as $$
 begin
-  return (inf.thread_post('application', p_app, null, p_body) ->> 'message_id')::uuid;
+  return (inf.thread_post('application', p_app, p_body) ->> 'message_id')::uuid;
 end $$;
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -714,7 +717,7 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- The facts a digest summarises (service role): a creator's last day or week, or the staff queues now.
-create or replace function inf.digest_facts(p_user uuid, p_kind text, p_creator uuid, p_days int) returns jsonb
+create or replace function inf.digest_facts(p_user uuid, p_kind text, p_days int, p_creator uuid default null) returns jsonb
 language sql stable security definer set search_path = '' as $$
   select case p_kind
     when 'creator' then jsonb_build_object(
@@ -946,7 +949,8 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- Records an attempt (service role). p_next_at is the next attempt (from lib/webhooks/sign.ts), or null to stop.
-create or replace function inf.webhook_delivery_result(p_id bigint, p_outcome text, p_status int, p_error text, p_next_at timestamptz)
+create or replace function inf.webhook_delivery_result(p_id bigint, p_outcome text, p_status int default null,
+                                                       p_error text default null, p_next_at timestamptz default null)
 returns void language plpgsql security definer set search_path = '' as $$
 declare d inf.webhook_deliveries;
 begin
@@ -1095,7 +1099,7 @@ insert into inf.client_grants (object_type, object_name, grantee, privilege) val
   ('function', 'inf.my_notifications_page(int, timestamptz, boolean)', 'authenticated', 'execute'),
   ('function', 'inf.notifications_mark_all_read()', 'authenticated', 'execute'),
   ('function', 'inf.thread_get(text, uuid, uuid)', 'authenticated', 'execute'),
-  ('function', 'inf.thread_post(text, uuid, uuid, text, jsonb)', 'authenticated', 'execute'),
+  ('function', 'inf.thread_post(text, uuid, text, jsonb, uuid)', 'authenticated', 'execute'),
   ('function', 'inf.thread_mark_read(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.thread_open(text, uuid, uuid)', 'authenticated', 'execute'),
   ('function', 'inf.thread_file_allowed(text)', 'authenticated', 'execute'),

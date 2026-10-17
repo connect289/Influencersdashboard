@@ -57,7 +57,8 @@
       "content": "Content",
       "leads": "Leads",
       "finance": "Finance",
-      "analytics": "Analytics"
+      "analytics": "Analytics",
+      "messages": "Messages"
     },
     "creator": {
       "home": "Home",
@@ -74,13 +75,15 @@
       "deliverables": "Deliverables",
       "leads": "Leads",
       "links": "Links",
-      "earnings": "Earnings"
+      "earnings": "Earnings",
+      "messages": "Messages"
     },
     "agency": {
       "home": "Creators",
       "team": "Team",
       "account": "Account",
-      "help": "Help"
+      "help": "Help",
+      "messages": "Messages"
     }
   },
   "shell": {
@@ -678,7 +681,9 @@
     "rankHint": "{count, plural, =0 {No enrolments yet in this period} one {# enrolment in this period} other {# enrolments in this period}}, among creators who show their position.",
     "rankNone": "Your position appears once the dashboards next refresh.",
     "leaderboardOptIn": "Turn on “Show me on the leaderboard” in your profile to see your position among other creators.",
-    "openProfile": "Open profile"
+    "openProfile": "Open profile",
+    "announcements": "From Eduwit",
+    "announcementOpen": "Open"
   },
   "terms": {
     "title": "Terms and privacy",
@@ -1181,7 +1186,8 @@
       "history": "History",
       "deals": "Deals",
       "links": "Links",
-      "analytics": "Analytics"
+      "analytics": "Analytics",
+      "messages": "Messages"
     },
     "overview": {
       "facts": "Summary",
@@ -1534,7 +1540,8 @@
       "overview": "Overview",
       "applications": "Applications",
       "invites": "Invitations",
-      "edit": "Edit"
+      "edit": "Edit",
+      "messages": "Messages"
     },
     "table": {
       "status": "Status",
@@ -1903,7 +1910,8 @@
       "dryRun": "Dry run",
       "details": "Details",
       "content": "Content",
-      "ledger": "Ledger"
+      "ledger": "Ledger",
+      "messages": "Messages"
     },
     "statuses": {
       "draft": "Draft",
@@ -2905,7 +2913,8 @@
       "live": "Live",
       "metrics": "Metrics",
       "history": "History",
-      "settings": "Settings"
+      "settings": "Settings",
+      "messages": "Messages"
     },
     "board": {
       "waiting_brief": "Waiting for brief",
@@ -4565,5 +4574,205 @@
     },
     "open": "Open {metric}",
     "section": "Section"
+  },
+  "messaging": {
+    "title": "Messages",
+    "loadFailed": "Messages couldn't load",
+    "empty": "No messages yet. Write the first one below.",
+    "emptyReadOnly": "No messages yet.",
+    "write": "Write a message",
+    "send": "Send",
+    "sending": "Sending…",
+    "attach": "Attach",
+    "files": "Files to send",
+    "removeFile": "Remove {name}",
+    "fileRule": "Files must be PDF, JPG, PNG or CSV, up to 25 MB each.",
+    "uploadFailed": "The file couldn't be uploaded. Try again.",
+    "mention": "Mention a colleague",
+    "seen": "Seen",
+    "staffOnly": "Staff-only notes: the creator and agencies never see these.",
+    "staffOnlyShort": "Staff only",
+    "errors": {
+      "empty": "Write a message or attach a file.",
+      "tooLong": "Messages can be up to 4,000 characters.",
+      "tooManyFiles": "Attach up to 5 files per message.",
+      "file": "That file can't be attached here.",
+      "mandatory": "This notification can't be turned off.",
+      "invalidInput": "Check the choice and try again."
+    },
+    "types": {
+      "application": "Application",
+      "campaign": "Campaign",
+      "deal": "Deal",
+      "contract": "Contract",
+      "brief": "Brief",
+      "deliverable": "Deliverable",
+      "payout": "Payout",
+      "lead": "Lead note",
+      "support": "Support"
+    },
+    "inbox": {
+      "title": "Messages",
+      "staffSubtitle": "Every conversation you can read, newest first. Search by words, filter by type, unread or mentions.",
+      "creatorSubtitle": "Talk to the Eduwit team, and find every conversation about your campaigns, deals and work.",
+      "agencySubtitle": "Talk to Eduwit about the creators you manage, and follow the conversations your access opens.",
+      "search": "Search messages",
+      "type": "Conversation type",
+      "allTypes": "All types",
+      "unreadOnly": "Unread",
+      "mentionsOnly": "Mentions me",
+      "apply": "Apply",
+      "empty": "No conversations yet",
+      "emptyHint": "Messages about applications, deals, contracts, briefs, deliverables and payouts show up here.",
+      "noResults": "No conversations match these filters",
+      "other": "Other conversations",
+      "unread": "{count, plural, one {# unread message} other {# unread messages}}"
+    },
+    "support": {
+      "title": "Talk to Eduwit",
+      "creatorHint": "Questions about anything else: your profile, payments, the programme. The Eduwit team replies here.",
+      "agencyTitle": "Support for {name}",
+      "agencyHint": "The creator and the Eduwit team see this conversation.",
+      "chooseCreator": "Choose a creator",
+      "noCreators": "No creators to message about yet",
+      "noCreatorsHint": "Once a creator links your agency with \"view\" access, you can talk to Eduwit about them here.",
+      "staffTitle": "Support conversation",
+      "staffHint": "The creator's direct line to Eduwit (agencies with view access see it too).",
+      "allThreads": "All conversations with this creator"
+    },
+    "campaign": {
+      "title": "Questions about this campaign",
+      "hint": "Ask the Eduwit team before or after you apply. Only you, your agency and Eduwit see this.",
+      "staffTitle": "Creators' questions",
+      "staffHint": "Each creator has a private conversation about the campaign.",
+      "none": "No questions yet.",
+      "pick": "Choose a creator to read their conversation"
+    },
+    "payout": {
+      "title": "About this payout",
+      "hint": "Ask Eduwit's finance team about this payout. Never share bank details in messages.",
+      "ask": "Ask about it"
+    },
+    "lead": {
+      "title": "Notes (staff only)"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Everything that needs your attention, newest first.",
+    "bell": "Notifications",
+    "bellUnread": "{count, plural, one {Notifications, # unread} other {Notifications, # unread}}",
+    "filter": "Show",
+    "all": "All",
+    "unread": "Unread",
+    "unreadMark": "Unread:",
+    "markAll": "Mark all read",
+    "allRead": "All notifications marked read",
+    "none": "No notifications yet",
+    "noneUnread": "You're all caught up",
+    "noneHint": "We'll tell you here when something needs you.",
+    "older": "Show older",
+    "important": "Important",
+    "channels": {
+      "in_app": "In app",
+      "email": "Email",
+      "whatsapp": "WhatsApp"
+    },
+    "groups": {
+      "account": "Account",
+      "campaigns": "Campaigns and applications",
+      "deals": "Deals",
+      "contracts": "Contracts",
+      "content": "Briefs and deliverables",
+      "leads": "Leads",
+      "money": "Money",
+      "messages": "Messages",
+      "announcements": "Announcements and digests",
+      "staff": "Work queues"
+    },
+    "prefs": {
+      "open": "Settings",
+      "title": "Notification settings",
+      "subtitle": "Choose how we reach you. Notifications about contracts, payments and KYC can't be turned off.",
+      "event": "Notification",
+      "required": "Required",
+      "switch": "{event}: {channel}",
+      "digest": "Digest",
+      "digestHint": "A summary of new leads, earnings, due work and unread messages.",
+      "frequency": "How often",
+      "channel": "Send by",
+      "frequencies": {
+        "off": "Off",
+        "daily": "Every morning",
+        "weekly": "Monday mornings"
+      },
+      "digestSaved": "Digest settings saved"
+    },
+    "events": {
+      "creator_approved": "Your profile is approved",
+      "creator_onboarding_changes": "Changes asked on your profile",
+      "creator_onboarding_submitted": "A creator submitted their profile",
+      "kyc_reviewed": "KYC reviewed",
+      "kyc_action_needed": "KYC needed to get paid",
+      "agency_link_requested": "An agency asks to manage you",
+      "task_assigned": "A task was assigned to you",
+      "campaign_invited": "Invited to a campaign",
+      "application_submitted": "New application",
+      "application_shortlisted": "Application shortlisted",
+      "application_countered": "New offer on an application",
+      "application_accepted": "Application accepted",
+      "application_rejected": "Application not selected",
+      "application_message": "Message on an application",
+      "deal_created": "Deal created",
+      "deal_proposed": "Deal proposed to you",
+      "deal_accepted": "Deal accepted",
+      "deal_declined": "Deal declined",
+      "deal_proposal_withdrawn": "Deal proposal withdrawn",
+      "deal_amendment_proposed": "Change to a deal proposed",
+      "contract_sent": "Contract sent for review",
+      "contract_updated": "Contract updated",
+      "contract_comment": "Comment on a contract",
+      "contract_change_requested": "Change requested on a contract",
+      "contract_change_rejected": "Contract change not accepted",
+      "contract_ready": "Contract ready to sign",
+      "contract_creator_signed": "Creator signed a contract",
+      "contract_awaiting_countersign": "Contract waiting for countersignature",
+      "contract_active": "Contract signed by both sides",
+      "contract_reminder": "Reminder to review or sign",
+      "contract_deadline_passed": "Contract deadline passed",
+      "contract_expiring": "Contract ending soon",
+      "brief_published": "New brief",
+      "brief_updated": "Brief updated",
+      "brief_acknowledged": "Brief acknowledged",
+      "brief_question": "Question on a brief",
+      "deliverable_submitted": "Work submitted for review",
+      "deliverable_due": "Deliverable due soon",
+      "deliverable_overdue": "Deliverable overdue",
+      "deliverable_changes_requested": "Changes requested",
+      "deliverable_approved": "Work approved",
+      "deliverable_comment": "Comment on a deliverable",
+      "deliverable_extension_requested": "Extra revision requested",
+      "deliverable_live": "Live post to verify",
+      "deliverable_live_rejected": "Live post needs fixing",
+      "deliverable_verified": "Live post verified",
+      "deliverable_metrics_due": "Post metrics due",
+      "deliverable_metrics_overdue": "Post metrics overdue",
+      "penalty_approved": "Penalty applied",
+      "lead_new": "New lead from your link",
+      "lead_enrolled": "A student enrolled",
+      "lead_clawed_back": "Commission no longer earned",
+      "ledger_payable": "Payment due to you",
+      "payout_paid": "Payout sent",
+      "invoice_rejected": "Invoice needs fixing",
+      "tds_certificate": "TDS certificate available",
+      "thread_message": "New message",
+      "thread_mention": "You were mentioned",
+      "announcement": "Announcements from Eduwit",
+      "digest_creator": "Your digest",
+      "digest_staff": "Your digest",
+      "fraud_flagged": "Fraud flag raised",
+      "staff_negotiation_pending": "Negotiations waiting on you",
+      "staff_review_pending": "Work waiting for review"
+    }
   }
 }

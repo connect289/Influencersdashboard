@@ -34,3 +34,23 @@ export function messageParts(body: string): MessagePart[] {
 export function plainText(body: string): string {
   return body.replace(TOKEN_RE, (_, name: string) => `@${name}`);
 }
+
+/**
+ * The composer shows "@Name" for a picked colleague; before sending, each "@Name" still in the text becomes a token
+ * (longest names first, so "@Asha Rao" wins over "@Asha"; a token starts "@[", so a shorter name never matches inside
+ * one). Names removed from the text are simply not mentioned.
+ */
+export function encodeMentions(body: string, picked: readonly { name: string; userId: string }[]): string {
+  return [...picked]
+    .sort((a, b) => b.name.length - a.name.length)
+    .reduce((out, p) => out.split(`@${p.name}`).join(mentionToken(p.name, p.userId)), body);
+}
+
+/** Whether a thread has messages from others newer than the reader's last visit. */
+export function hasUnread(
+  messages: readonly { mine: boolean; created_at: string }[],
+  myReadAt: string | null,
+): boolean {
+  const seen = myReadAt ? new Date(myReadAt).getTime() : -Infinity;
+  return messages.some((m) => !m.mine && new Date(m.created_at).getTime() > seen);
+}

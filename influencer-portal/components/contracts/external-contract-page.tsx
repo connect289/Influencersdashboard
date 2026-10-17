@@ -1,4 +1,5 @@
 // The contract page for the creator and their negotiating agency (same view, different back link and base path).
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -55,6 +56,9 @@ export async function ExternalContractPage({
         compare={{ from: search.from, to: search.to }}
         config={config}
       />
+      <div className="mt-4">
+        <Thread db={supabase} thread={{ type: "contract", entityId: c.id }} />
+      </div>
     </>
   );
 }

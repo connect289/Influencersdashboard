@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { EarningsView } from "@/components/earnings/earnings-view";
+import { PayoutThreadDrawer } from "@/components/messaging/payout-thread";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState } from "@/components/ui/states";
 import { requireAgency } from "@/lib/auth/guards";
@@ -15,8 +16,14 @@ export async function generateMetadata() {
 }
 
 /** A managed creator's earnings (agencies with the earnings grant). Read only: invoices are the creator's to raise. */
-export default async function AgencyEarningsPage({ params }: { params: Promise<{ creatorId: string }> }) {
-  const { creatorId } = await params;
+export default async function AgencyEarningsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ creatorId: string }>;
+  searchParams: Promise<{ payout?: string }>;
+}) {
+  const [{ creatorId }, sp] = await Promise.all([params, searchParams]);
   if (!z.uuid().safeParse(creatorId).success) notFound();
   const { supabase } = await requireAgency();
   const t = await getTranslations();
@@ -49,6 +56,7 @@ export default async function AgencyEarningsPage({ params }: { params: Promise<{
       ) : (
         <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
       )}
+      <PayoutThreadDrawer db={supabase} payoutId={sp.payout} />
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/brand/logo";
+import { NotificationBell } from "@/components/notifications/bell";
 import { BottomNav, SideNav, type NavLink } from "@/components/shell/nav-links";
 import { ServiceWorkerRegister } from "@/components/shell/sw-register";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
@@ -14,6 +15,9 @@ export async function PortalShell({
   name,
   subtitle,
   accountHref,
+  notificationsHref,
+  userId,
+  unread,
   children,
 }: {
   links: NavLink[];
@@ -22,6 +26,9 @@ export async function PortalShell({
   name: string;
   subtitle: string;
   accountHref: string;
+  notificationsHref: string;
+  userId: string;
+  unread: number;
   children: ReactNode;
 }) {
   const t = await getTranslations();
@@ -48,6 +55,7 @@ export async function PortalShell({
           </span>
           <span className="hidden text-sm text-muted md:block">{greeting}</span>
           <div className="flex items-center gap-1">
+            <NotificationBell href={notificationsHref} userId={userId} initial={unread} />
             <ThemeToggle label={t("shell.theme")} />
             <UserMenu
               name={name}

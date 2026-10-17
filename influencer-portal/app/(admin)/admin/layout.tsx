@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { Logo } from "@/components/brand/logo";
+import { NotificationBell } from "@/components/notifications/bell";
 import { CommandPalette } from "@/components/shell/command-palette";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { SideNav, type NavLink } from "@/components/shell/nav-links";
@@ -7,11 +8,12 @@ import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { UserMenu } from "@/components/shell/user-menu";
 import { requireStaff } from "@/lib/auth/guards";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
+import { loadUnreadCounts } from "@/lib/messaging/data";
 import { visibleStaffNav } from "@/lib/nav";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { me } = await requireStaff();
-  const t = await getTranslations();
+  const { supabase, me } = await requireStaff();
+  const [t, counts] = await Promise.all([getTranslations(), loadUnreadCounts(supabase)]);
   const links: NavLink[] = visibleStaffNav(me.permissions).map((i) => ({
     href: i.href,
     label: t(i.labelKey),
@@ -55,6 +57,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               searchCreatorsEnabled={me.permissions.has("creator.read")}
             />
           </div>
+          <NotificationBell href="/admin/notifications" userId={me.userId} initial={counts.notifications} />
           <ThemeToggle label={t("shell.theme")} />
           <UserMenu
             name={me.fullName}

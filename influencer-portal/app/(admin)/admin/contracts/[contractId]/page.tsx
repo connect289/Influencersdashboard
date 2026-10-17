@@ -1,3 +1,4 @@
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -68,6 +69,9 @@ export default async function AdminContractPage({
         compare={{ from: sp.from, to: sp.to }}
         config={src?.deal.comp_config ?? null}
       />
+      <div className="mt-4">
+        <Thread db={supabase} thread={{ type: "contract", entityId: c.id }} />
+      </div>
     </>
   );
 }

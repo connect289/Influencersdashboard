@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { allowedVars, channelOn, EVENT_KEYS, EVENTS, eventsFor } from "./catalogue";
+import { allowedVars, channelLocked, channelOn, EVENT_KEYS, EVENTS, eventsFor } from "./catalogue";
 
 const migrations = join(import.meta.dirname, "..", "..", "supabase", "migrations");
 
@@ -76,6 +76,15 @@ describe("channel preferences", () => {
     expect(
       channelOn("thread.message", "in_app", [{ event: "thread.message", channel: "in_app", enabled: false }]),
     ).toBe(true);
+    // A mandatory event's other channels are the person's choice (off unless switched on).
+    expect(channelOn("kyc.reviewed", "whatsapp", [])).toBe(false);
+    expect(channelOn("kyc.reviewed", "whatsapp", [{ event: "kyc.reviewed", channel: "whatsapp", enabled: true }])).toBe(
+      true,
+    );
+    expect(channelLocked("kyc.reviewed", "email")).toBe(true);
+    expect(channelLocked("kyc.reviewed", "whatsapp")).toBe(false);
+    expect(channelLocked("lead.enrolled", "email")).toBe(false);
+    expect(channelLocked("lead.enrolled", "in_app")).toBe(true);
   });
 
   it("uses the person's choice, else the catalogue default", () => {

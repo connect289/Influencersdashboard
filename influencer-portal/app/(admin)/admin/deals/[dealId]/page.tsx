@@ -1,3 +1,4 @@
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -25,7 +26,7 @@ import { commissionEstimate, loadCompContext, loadDeal, loadTdsSections, version
 import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TABS = ["terms", "versions", "content", "ledger", "dryRun", "details"] as const;
+const TABS = ["terms", "versions", "content", "ledger", "messages", "dryRun", "details"] as const;
 const EMPTY = compConfig.parse({ schema_version: 1 });
 
 export async function generateMetadata() {
@@ -70,7 +71,9 @@ export default async function DealPage({
         ? canContent
         : x === "ledger"
           ? me.permissions.has("ledger.read")
-          : x !== "details" || canWrite,
+          : x === "messages"
+            ? me.permissions.has("message.read")
+            : x !== "details" || canWrite,
   );
   const requested = (await searchParams).tab;
   const tab = visible.find((x) => x === requested) ?? "terms";
@@ -144,6 +147,8 @@ export default async function DealPage({
         permissions={me.permissions}
       />
     );
+  } else if (tab === "messages") {
+    body = <Thread db={supabase} thread={{ type: "deal", entityId: deal.id }} />;
   } else if (tab === "dryRun" && draft) {
     body = (
       <div className="flex flex-col gap-4">

@@ -313,15 +313,3 @@ export async function withdrawApplication(appId: string): Promise<ActionResult> 
   refreshAll(undefined, appId);
   return { ok: true, message: t("campaigns.apply.withdrawn") };
 }
-
-export async function postApplicationMessage(appId: string, body: string): Promise<ActionResult> {
-  const t = await getTranslations();
-  const b = z.string().trim().min(1).max(4000).safeParse(body);
-  if (!uuid.safeParse(appId).success || !b.success) return fail(t("errors.invalidInput"));
-  const supabase = await session();
-  if (!supabase) return fail(t("errors.sessionEnded"));
-  const { error } = await supabase.rpc("application_message", { p_app: appId, p_body: b.data });
-  if (error) return dbFail(error, t);
-  refreshAll(undefined, appId);
-  return { ok: true };
-}

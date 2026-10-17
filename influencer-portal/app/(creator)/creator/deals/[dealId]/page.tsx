@@ -1,3 +1,4 @@
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -33,6 +34,9 @@ export default async function CreatorDealPage({ params }: { params: Promise<{ de
       <PageHeader title={deal.title} />
       <DealContracts contracts={contracts} hrefBase="/creator/contracts" />
       <DealView deal={deal} />
+      <div className="mt-4">
+        <Thread db={supabase} thread={{ type: "deal", entityId: deal.id }} />
+      </div>
     </>
   );
 }

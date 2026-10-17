@@ -51,7 +51,7 @@ select tests.as_person('mona');
 select is(inf.thread_get('deal', (select id from ids where label = 'deal')) ->> 'side', 'eduwit', 'staff with message.read and deal.read open a deal thread');
 select is(inf.thread_get('deal', (select id from ids where label = 'deal')) ->> 'thread_id', null, 'nothing is created by reading');
 select tests.as_person('riya');
-select lives_ok($$ select inf.thread_post('deal', (select id from ids where label = 'deal'), null, 'When is the shoot?') $$, 'the creator writes on her deal');
+select lives_ok($$ select inf.thread_post('deal', (select id from ids where label = 'deal'), 'When is the shoot?') $$, 'the creator writes on her deal');
 select tests.reset();
 select is((select count(*)::int from inf.notifications n join tests.people p on p.user_id = n.user_id
             where p.label = 'mona' and n.event = 'thread.message' and n.data ->> 'subject' = 'Deal: Riya reel deal'), 1, 'the deal owner is told');
@@ -62,10 +62,10 @@ select tests.as_person('riya');
 select is(jsonb_array_length(inf.thread_get('deal', (select id from ids where label = 'deal')) -> 'messages'), 1, 'and she reads her thread');
 select tests.as_person('arjun');
 select throws_ok($$ select inf.thread_get('deal', (select id from ids where label = 'deal')) $$, '42501', null, 'another creator cannot read it');
-select throws_ok($$ select inf.thread_post('deal', (select id from ids where label = 'deal'), null, 'hi') $$, '42501', null, 'or write in it');
+select throws_ok($$ select inf.thread_post('deal', (select id from ids where label = 'deal'), 'hi') $$, '42501', null, 'or write in it');
 select tests.as_person('ola');
 select throws_ok($$ select inf.thread_get('deal', (select id from ids where label = 'deal')) $$, '42501', null, 'an agency without the negotiate grant cannot read deal threads');
-select lives_ok($$ select inf.thread_post('support', (select id from ids where label = 'riya'), null, 'Question about Riya''s profile') $$,
+select lives_ok($$ select inf.thread_post('support', (select id from ids where label = 'riya'), 'Question about Riya''s profile') $$,
                 'an agency with the view grant writes on the creator''s support thread');
 select tests.as_person('zed');
 select throws_ok($$ select inf.thread_get('support', (select id from ids where label = 'riya')) $$, '42501', null, 'an unlinked agency cannot');
@@ -76,7 +76,7 @@ select throws_ok($$ select inf.thread_get('deal', (select id from ids where labe
 
 -- Mentions, the other side, unread counts and receipts
 select tests.as_person('mona');
-select lives_ok(format($$ select inf.thread_post('deal', %L, null, %L) $$, (select id from ids where label = 'deal'),
+select lives_ok(format($$ select inf.thread_post('deal', %L, %L) $$, (select id from ids where label = 'deal'),
                        'Next Tuesday. @[Sam](user:' || (select user_id from tests.people where label = 'sam') || ') please book the studio.'),
                 'staff reply and mention a colleague');
 select tests.reset();
@@ -96,41 +96,41 @@ select is((inf.my_unread_counts() ->> 'messages')::int, 0, 'which clears the mes
 select tests.as_person('mona');
 select isnt(inf.thread_get('deal', (select id from ids where label = 'deal')) ->> 'other_read_at', null, 'staff see when the creator read the thread');
 select tests.as_person('riya');
-select lives_ok(format($$ select inf.thread_post('deal', %L, null, %L) $$, (select id from ids where label = 'deal'),
+select lives_ok(format($$ select inf.thread_post('deal', %L, %L) $$, (select id from ids where label = 'deal'),
                        'Thanks @[Sam](user:' || (select user_id from tests.people where label = 'sam') || ')'), 'a creator can type a mention token');
 select tests.reset();
 select is((select count(*)::int from inf.message_mentions mm join tests.people p on p.user_id = mm.user_id where p.label = 'sam'), 1, 'but only staff posts mention staff');
 
 -- Staff-only lead notes
 select tests.as_person('mona');
-select is(inf.thread_post('lead', (select id from ids where label = 'attribution'), null, 'Called twice, no answer') ? 'thread_id', true, 'staff keep notes on a lead');
+select is(inf.thread_post('lead', (select id from ids where label = 'attribution'), 'Called twice, no answer') ? 'thread_id', true, 'staff keep notes on a lead');
 select tests.as_person('riya');
 select throws_ok($$ select inf.thread_get('lead', (select id from ids where label = 'attribution')) $$, '42501', null, 'lead notes are staff-only');
 select is((select count(*)::int from jsonb_array_elements(inf.my_threads()) x where x ->> 'entity_type' = 'lead'), 0, 'and never listed for the creator');
 
 -- Campaign threads are per creator
 select tests.as_person('riya');
-insert into ids select 'riya_campaign_thread', (inf.thread_post('campaign', (select id from ids where label = 'campaign'), (select id from ids where label = 'riya'), 'Can I join?') ->> 'thread_id')::uuid;
+insert into ids select 'riya_campaign_thread', (inf.thread_post('campaign', (select id from ids where label = 'campaign'), 'Can I join?', '[]', (select id from ids where label = 'riya')) ->> 'thread_id')::uuid;
 select tests.as_person('arjun');
-insert into ids select 'arjun_campaign_thread', (inf.thread_post('campaign', (select id from ids where label = 'campaign'), (select id from ids where label = 'arjun'), 'Me too') ->> 'thread_id')::uuid;
+insert into ids select 'arjun_campaign_thread', (inf.thread_post('campaign', (select id from ids where label = 'campaign'), 'Me too', '[]', (select id from ids where label = 'arjun')) ->> 'thread_id')::uuid;
 select isnt((select id from ids where label = 'riya_campaign_thread'), (select id from ids where label = 'arjun_campaign_thread'), 'each creator has a private campaign thread');
 select throws_ok($$ select inf.thread_get('campaign', (select id from ids where label = 'campaign'), (select id from ids where label = 'riya')) $$, '42501', null,
                  'and cannot read another creator''s');
 
 -- Attachments
 select tests.as_person('riya');
-select throws_ok(format($$ select inf.thread_post('deal', %L, null, 'file', %L::jsonb) $$, (select id from ids where label = 'deal'),
+select throws_ok(format($$ select inf.thread_post('deal', %L, 'file', %L::jsonb) $$, (select id from ids where label = 'deal'),
                         jsonb_build_array(jsonb_build_object('path', 'threads/' || (select id from ids where label = 'arjun_campaign_thread') || '/' || gen_random_uuid() || '-x.pdf',
                                                              'name', 'x.pdf', 'mime', 'application/pdf', 'size_bytes', 10))::text),
                  '22023', null, 'files must be uploaded under the thread they are posted to');
 insert into ids values ('file', gen_random_uuid());
-select lives_ok(format($$ select inf.thread_post('deal', %L, null, '', %L::jsonb) $$, (select id from ids where label = 'deal'),
+select lives_ok(format($$ select inf.thread_post('deal', %L, '', %L::jsonb) $$, (select id from ids where label = 'deal'),
                        jsonb_build_array(jsonb_build_object('path', 'threads/' || (inf.thread_open('deal', (select id from ids where label = 'deal'))) || '/' || (select id from ids where label = 'file') || '-script.pdf',
                                                             'name', 'script.pdf', 'mime', 'application/pdf', 'size_bytes', 2048))::text),
                 'a file can be sent on its own');
 select ok(inf.thread_file_allowed('threads/' || inf.thread_open('deal', (select id from ids where label = 'deal')) || '/' || (select id from ids where label = 'file') || '-script.pdf'),
           'the creator may download it');
-select throws_ok($$ select inf.thread_post('deal', (select id from ids where label = 'deal'), null, '   ') $$, '22023', null, 'an empty message is refused');
+select throws_ok($$ select inf.thread_post('deal', (select id from ids where label = 'deal'), '   ') $$, '22023', null, 'an empty message is refused');
 select throws_ok($$ select count(*) from inf.message_attachments $$, '42501', null, 'attachment rows are closed to clients');
 select tests.as_person('arjun');
 select ok(not inf.thread_file_allowed(('threads/' || (select id from ids where label = 'deal_thread') || '/' || (select id from ids where label = 'file') || '-script.pdf')),
@@ -153,10 +153,10 @@ select is((select string_agg(p.label || ':' || r.frequency, ',' order by p.label
 select is((select string_agg(p.label || ':' || r.frequency, ',' order by p.label) from inf.digest_recipients(date '2026-10-19') r
              join tests.people p on p.user_id = r.user_id where p.label in ('riya', 'arjun', 'mona')),
           'arjun:weekly,riya:daily', 'on Monday creators get the weekly one by default');
-select ok(inf.digest_facts((select user_id from tests.people where label = 'riya'), 'creator', (select id from ids where label = 'riya'), 7) ?& array['new_leads', 'earned_paise', 'due_soon'],
+select ok(inf.digest_facts((select user_id from tests.people where label = 'riya'), 'creator', 7, (select id from ids where label = 'riya')) ?& array['new_leads', 'earned_paise', 'due_soon'],
           'the digest facts for a creator');
 select tests.as_person('riya');
-select throws_ok($$ select inf.digest_facts((select user_id from tests.people where label = 'riya'), 'creator', (select id from ids where label = 'riya'), 7) $$,
+select throws_ok($$ select inf.digest_facts((select user_id from tests.people where label = 'riya'), 'creator', 7, (select id from ids where label = 'riya')) $$,
                  '42501', null, 'only the job reads digest facts');
 
 -- ---------------------------------------------------------------------------------------------------------------

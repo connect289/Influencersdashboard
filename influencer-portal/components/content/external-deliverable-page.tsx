@@ -1,5 +1,6 @@
 // A deliverable for the creator and their agency (with "act on deliverables"): what to do next, the work submitted,
 // Eduwit's comments, the live post and metrics. Mobile-first.
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Clock } from "lucide-react";
@@ -220,6 +221,7 @@ export async function ExternalDeliverablePage({
             <HistoryList transitions={d.transitions} />
           </div>
         </details>
+        <Thread db={supabase} thread={{ type: "deliverable", entityId: d.id }} />
       </div>
     </>
   );

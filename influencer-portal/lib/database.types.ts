@@ -3121,7 +3121,7 @@ isOneToOne: false
 { Args: { "p_token": string }; Returns: boolean
                            },
 "digest_facts":
-{ Args: { "p_creator": string,"p_days": number,"p_kind": string,"p_user": string }; Returns: Json
+{ Args: { "p_creator"?: string,"p_days": number,"p_kind": string,"p_user": string }; Returns: Json
                            },
 "digest_preference_set":
 { Args: { "p_channel": string,"p_frequency": string }; Returns: undefined
@@ -3782,7 +3782,7 @@ isOneToOne: false
 { Args: { "p_creator"?: string,"p_entity": string,"p_type": string }; Returns: string
                            },
 "thread_post":
-{ Args: { "p_attachments"?: Json,"p_body": string,"p_creator": string,"p_entity": string,"p_type": string }; Returns: Json
+{ Args: { "p_attachments"?: Json,"p_body": string,"p_creator"?: string,"p_entity": string,"p_type": string }; Returns: Json
                            },
 "thread_resolve":
 { Args: { "p_creator"?: string,"p_entity": string,"p_type": string }; Returns: Json
@@ -3803,7 +3803,7 @@ isOneToOne: false
 { Args: { "p_id": number }; Returns: Json
                            },
 "webhook_delivery_result":
-{ Args: { "p_error": string,"p_id": number,"p_next_at": string,"p_outcome": string,"p_status": number }; Returns: undefined
+{ Args: { "p_error"?: string,"p_id": number,"p_next_at"?: string,"p_outcome": string,"p_status"?: number }; Returns: undefined
                            },
 "webhook_endpoint_create":
 { Args: { "p": Json }; Returns: string

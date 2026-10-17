@@ -1,3 +1,4 @@
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Download } from "lucide-react";
@@ -54,6 +55,7 @@ export default async function Creator360({
       (x !== "kyc" || p.has("kyc.read_masked")) &&
       (x !== "history" || p.has("audit.read")) &&
       (x !== "tasks" || p.has("task.write")) &&
+      (x !== "messages" || p.has("message.read")) &&
       (x !== "deals" || p.has("deal.read")) &&
       (x !== "links" || p.has("creator.read")) &&
       (x !== "analytics" || p.has("analytics.read")),
@@ -330,6 +332,22 @@ export default async function Creator360({
           </ul>
         )}
       </Card>
+    );
+  } else if (tab === "messages") {
+    body = (
+      <div className="flex flex-col gap-4">
+        <Thread
+          db={supabase}
+          thread={{ type: "support", entityId: creatorId }}
+          title={t("messaging.support.staffTitle")}
+          description={t("messaging.support.staffHint")}
+        />
+        <p className="text-sm">
+          <Link href={`/admin/messages?creator=${creatorId}`} className="text-primary hover:underline">
+            {t("messaging.support.allThreads")}
+          </Link>
+        </p>
+      </div>
     );
   } else if (tab === "analytics") {
     body = <CreatorAnalytics supabase={supabase} creatorId={creatorId} search={search} />;

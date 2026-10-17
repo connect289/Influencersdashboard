@@ -1,3 +1,4 @@
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Download } from "lucide-react";
@@ -190,7 +191,10 @@ export default async function PayoutBatchPage({
       </div>
       {detail ? (
         <LeadDrawer title={`${detail.ref} · ${detail.creator_name}`} param="payout">
-          <PayoutBreakdown p={detail} />
+          <div className="flex flex-col gap-4">
+            <PayoutBreakdown p={detail} />
+            <Thread db={supabase} thread={{ type: "payout", entityId: detail.id }} />
+          </div>
         </LeadDrawer>
       ) : null}
     </>

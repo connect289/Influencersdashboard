@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { ApplicationView } from "@/components/campaigns/application-view";
+import { Thread } from "@/components/messaging/thread";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState } from "@/components/ui/states";
@@ -63,7 +64,11 @@ export default async function AdminApplicationPage({ params }: { params: Promise
               ) : null
             }
           />
-          <ApplicationView app={app} templates={templates.data ?? []} />
+          <ApplicationView
+            app={app}
+            templates={templates.data ?? []}
+            thread={<Thread db={supabase} thread={{ type: "application", entityId: app.id }} />}
+          />
         </>
       )}
     </>

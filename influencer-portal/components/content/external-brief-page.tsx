@@ -1,4 +1,5 @@
 // The brief for the creator and their agency (with "act on deliverables"): read, acknowledge, ask questions.
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -60,6 +61,7 @@ export async function ExternalBriefPage({
           trackingLinks={trackingLinks}
         />
         <BriefQa briefId={b.id} threads={threads(b.questions)} canAsk canAnswer={false} />
+        <Thread db={supabase} thread={{ type: "brief", entityId: b.id }} />
       </div>
     </>
   );

@@ -1,3 +1,4 @@
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { getTranslations } from "next-intl/server";
@@ -194,6 +195,11 @@ export default async function AdminLeadsPage({
                 canReject={lead.attribution_status !== "manually_rejected"}
               />
             ) : null}
+            <Thread
+              db={supabase}
+              thread={{ type: "lead", entityId: lead.attribution_id }}
+              title={t("messaging.lead.title")}
+            />
           </div>
         </LeadDrawer>
       ) : null}

@@ -1,3 +1,4 @@
+import { Thread } from "@/components/messaging/thread";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -55,6 +56,12 @@ export default async function AgencyCampaignPage({
           endsOn={c.ends_on}
           applyBy={c.apply_by}
           programmes={programmes}
+        />
+        <Thread
+          db={supabase}
+          thread={{ type: "campaign", entityId: c.id, creatorId }}
+          title={t("messaging.campaign.title")}
+          description={t("messaging.campaign.hint")}
         />
       </div>
     </>
