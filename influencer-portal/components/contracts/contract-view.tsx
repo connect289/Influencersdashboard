@@ -10,15 +10,17 @@ import { Banner, EmptyState } from "@/components/ui/states";
 import { Button } from "@/components/ui/button";
 import type { CompConfig } from "@/lib/compensation/schema";
 import { counterItems, counterTerms, describeCounter } from "@/lib/contracts/counter";
-import { loadVersionContent, type ContractDetail, type Db } from "@/lib/contracts/data";
+import { loadVersionContent, type ContractDetail } from "@/lib/contracts/data";
 import { diffContents } from "@/lib/contracts/diff";
 import type { Block } from "@/lib/contracts/doc";
 import { formatDateTime } from "@/lib/format";
+import type { ServerSupabase } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { ClauseThread } from "./clause-thread";
 import { CounterOfferDialog } from "./counter-form";
 import { DocView } from "./doc-view";
 import { RequestCard } from "./request-card";
+import { SignSection } from "./sign-section";
 
 export const CONTRACT_TABS = ["document", "requests", "versions", "record"] as const;
 export type ContractTab = (typeof CONTRACT_TABS)[number];
@@ -33,7 +35,7 @@ export async function ContractView({
   config,
 }: {
   c: ContractDetail;
-  supabase: Db;
+  supabase: ServerSupabase;
   basePath: string;
   tab: ContractTab;
   compare: { from?: string; to?: string };
@@ -51,39 +53,43 @@ export async function ContractView({
 
   let body: React.ReactNode;
   if (tab === "document") {
+    const sign = await SignSection({ c, supabase });
     body = !c.current ? (
       <Card>
         <EmptyState title={t("contracts.noVersion")} description={t("contracts.noVersionHint")} />
       </Card>
     ) : (
-      <Card>
-        <article aria-label={c.current.content.title}>
-          <h2 className="text-lg font-semibold md:text-xl">{c.current.content.title}</h2>
-          <DocView blocks={c.current.content.header} className="mt-2 text-sm text-muted" />
-          {sections.map((s) => (
-            <section key={s.key} id={`clause-${s.key}`} className="mt-6 scroll-mt-20">
-              <h3 className="flex flex-wrap items-center gap-2 font-semibold">
-                <span>
-                  {s.number}. {s.title}
-                </span>
-                {s.negotiable ? <Badge family="progress">{t("contracts.flags.negotiable")}</Badge> : null}
-                {s.amended ? <Badge family="attention">{t("contracts.amendedBadge")}</Badge> : null}
-              </h3>
-              <DocView blocks={s.blocks} className="mt-1" />
-              <ClauseThread
-                contractId={c.id}
-                clauseKey={s.key}
-                comments={c.comments.filter((m) => m.clause_key === s.key)}
-                canComment={open && (staff ? c.can_write : true)}
-                canSuggest={open && !staff && s.negotiable && !s.locked}
-                hasPendingSuggestion={pending.some((r) => r.kind === "clause" && r.clause_key === s.key)}
-                blocks={s.blocks}
-              />
-            </section>
-          ))}
-          <DocView blocks={c.current.content.footer} className="mt-6 text-sm text-muted" />
-        </article>
-      </Card>
+      <>
+        {sign}
+        <Card>
+          <article aria-label={c.current.content.title}>
+            <h2 className="text-lg font-semibold md:text-xl">{c.current.content.title}</h2>
+            <DocView blocks={c.current.content.header} className="mt-2 text-sm text-muted" />
+            {sections.map((s) => (
+              <section key={s.key} id={`clause-${s.key}`} className="mt-6 scroll-mt-20">
+                <h3 className="flex flex-wrap items-center gap-2 font-semibold">
+                  <span>
+                    {s.number}. {s.title}
+                  </span>
+                  {s.negotiable ? <Badge family="progress">{t("contracts.flags.negotiable")}</Badge> : null}
+                  {s.amended ? <Badge family="attention">{t("contracts.amendedBadge")}</Badge> : null}
+                </h3>
+                <DocView blocks={s.blocks} className="mt-1" />
+                <ClauseThread
+                  contractId={c.id}
+                  clauseKey={s.key}
+                  comments={c.comments.filter((m) => m.clause_key === s.key)}
+                  canComment={open && (staff ? c.can_write : true)}
+                  canSuggest={open && !staff && s.negotiable && !s.locked}
+                  hasPendingSuggestion={pending.some((r) => r.kind === "clause" && r.clause_key === s.key)}
+                  blocks={s.blocks}
+                />
+              </section>
+            ))}
+            <DocView blocks={c.current.content.footer} className="mt-6 text-sm text-muted" />
+          </article>
+        </Card>
+      </>
     );
   } else if (tab === "requests") {
     const ordered = [...pending, ...c.requests.filter((r) => r.status !== "pending").reverse()];
@@ -271,6 +277,14 @@ export async function ContractView({
   return (
     <>
       {c.integrity_failed_at ? <Banner tone="danger">{t("contracts.integrityFailed")}</Banner> : null}
+      {c.file && !c.integrity_failed_at ? (
+        <div className="mb-2 flex flex-wrap items-center gap-3 rounded-xl bg-success-soft px-3 py-2 text-sm text-success">
+          <span>{t("contracts.signedBanner")}</span>
+          <a href={`/api/contracts/${c.id}/pdf`} className="font-medium underline">
+            {t("contracts.downloadPdf")}
+          </a>
+        </div>
+      ) : null}
       {staff && c.current?.missing_fields.length ? (
         <Banner tone="warning">{t("contracts.missingBanner", { fields: c.current.missing_fields.join(", ") })}</Banner>
       ) : null}

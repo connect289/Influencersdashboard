@@ -6,6 +6,14 @@ export interface EmailMessage {
   text: string;
   /** Deterministic key: providers that support it use it to drop duplicates. */
   idempotencyKey?: string;
+  /** Small files sent with the message (e.g. the signed contract PDF). */
+  attachments?: EmailAttachment[];
+}
+
+export interface EmailAttachment {
+  filename: string;
+  contentType: string;
+  content: Buffer;
 }
 
 export interface SendResult {

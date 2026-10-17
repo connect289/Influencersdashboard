@@ -1003,6 +1003,16 @@ begin
                             'file_path', f.storage_path, 'file_sha256', f.sha256, 'number', c.number, 'status', c.status);
 end $$;
 
+-- The download route found the stored PDF differs from the hash recorded for it (service role): flag the contract.
+create or replace function inf.contract_flag(p_contract uuid, p_reason text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if coalesce(auth.role(), '') <> 'service_role' then raise exception 'not allowed' using errcode = '42501'; end if;
+  update inf.contracts set integrity_failed_at = coalesce(integrity_failed_at, now()) where id = p_contract;
+  perform inf.emit_event('contract.integrity_failed', 'contract', p_contract::text, jsonb_build_object('reason', left(p_reason, 200)),
+                         'contract_integrity:' || p_contract);
+end $$;
+
 -- ---------------------------------------------------------------------------------------------------------------
 -- Reminders (nightly): open negotiations near their deadline, and active contracts nearing expiry (30/15/7 days).
 -- ---------------------------------------------------------------------------------------------------------------

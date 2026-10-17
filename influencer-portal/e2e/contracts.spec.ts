@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import { createHash } from "node:crypto";
 import { creatorLogin, staffLogin } from "./helpers";
+import { sixDigitCode, waitForEmail } from "./mail";
 
 async function openDemoContract(page: Page, base: string) {
   await page.goto(base);
@@ -8,6 +10,18 @@ async function openDemoContract(page: Page, base: string) {
     .first()
     .click();
   await expect(page).toHaveURL(new RegExp(`${base}/[0-9a-f-]{36}`));
+}
+
+async function signWithCode(page: Page, email: string, name: string, button: string) {
+  for (const box of await page.locator("fieldset").first().locator('input[type="checkbox"]').all()) await box.check();
+  await page.getByLabel("Full legal name").fill(name);
+  await page.getByText(/I have read this agreement in full/).click();
+  const since = new Date();
+  await page.getByRole("button", { name: "Send code" }).click();
+  await expect(page.getByText(/Code sent to/).first()).toBeVisible();
+  const code = sixDigitCode((await waitForEmail(email, since)).text);
+  await page.getByLabel(/6-digit code sent to/).fill(code);
+  await page.getByRole("button", { name: button, exact: true }).click();
 }
 
 test.describe.serial("contracts: library, templates, negotiation, versions", () => {
@@ -135,5 +149,61 @@ test.describe.serial("contracts: library, templates, negotiation, versions", () 
     await expect(page.getByText("₹18,000").first()).toBeVisible();
     await page.getByRole("link", { name: "Change requests" }).click();
     await expect(page.getByText("We can meet you at 18,000.")).toBeVisible();
+  });
+
+  test("the creator signs with a one-time code; a wrong code is refused", async ({ page }) => {
+    test.slow();
+    await creatorLogin(page, "riya.creator@example.test");
+    await expect(page).toHaveURL(/\/creator/);
+    await openDemoContract(page, "/creator/contracts");
+    await expect(page.getByRole("heading", { name: "Sign this contract" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Send code" })).toBeDisabled();
+    for (const box of await page.locator("fieldset").first().locator('input[type="checkbox"]').all()) await box.check();
+    await page.getByLabel("Full legal name").fill("Riya Sharma");
+    await page.getByText(/I have read this agreement in full/).click();
+    const since = new Date();
+    await page.getByRole("button", { name: "Send code" }).click();
+    await expect(page.getByText(/Code sent to r•••@example.test/).first()).toBeVisible();
+    const code = sixDigitCode((await waitForEmail("riya.creator@example.test", since)).text);
+    const wrong = code === "000000" ? "111111" : "000000";
+    await page.getByLabel(/6-digit code sent to/).fill(wrong);
+    await page.getByRole("button", { name: "Sign contract", exact: true }).click();
+    await expect(page.getByText(/That code isn't right. 4 tries left./)).toBeVisible();
+    await page.getByLabel(/6-digit code sent to/).fill(code);
+    await page.getByRole("button", { name: "Sign contract", exact: true }).click();
+    await expect(page.getByText("Signed. Eduwit's Authorised Signatory countersigns next.")).toBeVisible();
+    await expect(page.getByText("You've signed. Eduwit's Authorised Signatory countersigns next.")).toBeVisible();
+  });
+
+  test("the Authorised Signatory countersigns; the signed PDF verifies against its hash", async ({ page }) => {
+    test.slow();
+    await staffLogin(page, "admin@example.test");
+    await openDemoContract(page, "/admin/contracts");
+    await expect(page.getByRole("heading", { name: "Countersign for Eduwit" })).toBeVisible();
+    await signWithCode(page, "admin@example.test", "Asha Admin", "Countersign");
+    await expect(page.getByText(/Countersigned. The contract is active/)).toBeVisible();
+    await expect(page.getByText("Signed by both parties.")).toBeVisible();
+
+    await page.getByRole("link", { name: "Record" }).click();
+    await expect(page.getByText("Authorised Signatory, for Eduwit")).toBeVisible();
+    await expect(page.getByText("Riya Sharma", { exact: true })).toBeVisible();
+    const href = await page.getByRole("link", { name: "Download the signed PDF" }).getAttribute("href");
+    const res = await page.request.get(href ?? "");
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toBe("application/pdf");
+    const body = await res.body();
+    expect(body.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(createHash("sha256").update(body).digest("hex")).toBe(res.headers()["x-content-sha256"]);
+  });
+
+  test("the creator receives the signed copy and can download it", async ({ page }) => {
+    const mail = await waitForEmail("riya.creator@example.test", new Date(Date.now() - 5 * 60_000));
+    expect(mail.subject).toMatch(/Contract CT-\d+ is signed/);
+    await creatorLogin(page, "riya.creator@example.test");
+    await expect(page).toHaveURL(/\/creator/);
+    await openDemoContract(page, "/creator/contracts");
+    await expect(page.getByText("Active").first()).toBeVisible();
+    const href = await page.getByRole("link", { name: "Download the signed PDF" }).getAttribute("href");
+    expect((await page.request.get(href ?? "")).status()).toBe(200);
   });
 });

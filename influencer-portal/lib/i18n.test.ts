@@ -8,7 +8,8 @@ import { AGENCY_NAV, CREATOR_NAV, STAFF_NAV } from "@/lib/nav";
 import { CONTRACT_TABS } from "@/components/contracts/contract-view";
 import { CONTRACT_STATUSES } from "@/lib/contracts/data";
 import { SAMPLE_KINDS } from "@/lib/contracts/sample";
-import { CONTRACT_DB_ERRORS, EDITABLE_CATEGORIES } from "@/lib/contracts/schemas";
+import { CONTRACT_DB_ERRORS, EDITABLE_CATEGORIES, SIGN_ERRORS } from "@/lib/contracts/schemas";
+import { SIGN_CHANNELS } from "@/lib/contracts/signing";
 import {
   CONTACT_KINDS,
   CONTENT_FORMATS,
@@ -188,6 +189,8 @@ describe("messages", () => {
       ...["void", "terminated", "completed"].flatMap((x) => [`contracts.actions.${x}`, `contracts.actions.${x}Hint`]),
       ...CONTRACT_DB_ERRORS.map(([, k]) => `contracts.errors.${k}`),
       ...["unknown_item", "invalid_value", "no_change", "invalid_config"].map((x) => `contracts.errors.counter.${x}`),
+      ...SIGN_ERRORS.map((x) => `contracts.sign.errors.${x}`),
+      ...SIGN_CHANNELS.map((x) => `contracts.sign.channels.${x}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);
   });

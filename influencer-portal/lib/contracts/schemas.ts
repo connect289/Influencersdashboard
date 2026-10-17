@@ -175,3 +175,30 @@ export const CONTRACT_DB_ERRORS: [RegExp, string][] = [
   [/duplicate key value/i, "duplicateKey"],
   [/already reviewed/i, "alreadyReviewed"],
 ];
+
+export const signCodeInput = z.object({ contractId: z.uuid(), channel: z.enum(["email", "whatsapp"]) });
+export type SignCodeInput = z.input<typeof signCodeInput>;
+
+export const signInput = z.object({
+  contractId: z.uuid(),
+  versionId: z.uuid(),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  name: z.string().trim().min(2).max(160),
+  consentVersion: z.number().int().min(1),
+  code: z.string().regex(/^\d{6}$/),
+});
+export type SignInput = z.input<typeof signInput>;
+
+/** What inf.contract_sign_code_issue and inf.contract_sign answer when they refuse (message keys). */
+export const SIGN_ERRORS = [
+  "cannot_sign",
+  "channel",
+  "cooldown",
+  "too_many_codes",
+  "changed",
+  "consent",
+  "name",
+  "expired",
+  "too_many_attempts",
+  "wrong_code",
+] as const;

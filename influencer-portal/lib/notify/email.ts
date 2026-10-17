@@ -41,6 +41,11 @@ export class SmtpEmailProvider implements EmailProvider {
         html: m.html,
         text: m.text,
         headers: m.idempotencyKey ? { "X-Entity-Ref-ID": m.idempotencyKey } : undefined,
+        attachments: m.attachments?.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType,
+        })),
       })) as { messageId?: string };
       return { provider: this.name, id: info.messageId ?? null };
     } catch (e) {
@@ -82,7 +87,16 @@ export class ResendEmailProvider implements EmailProvider {
     const r = await postJson(
       "https://api.resend.com/emails",
       { authorization: `Bearer ${this.apiKey}`, ...(m.idempotencyKey ? { "idempotency-key": m.idempotencyKey } : {}) },
-      { from: this.from, to: [m.to], subject: m.subject, html: m.html, text: m.text },
+      {
+        from: this.from,
+        to: [m.to],
+        subject: m.subject,
+        html: m.html,
+        text: m.text,
+        ...(m.attachments?.length
+          ? { attachments: m.attachments.map((a) => ({ filename: a.filename, content: a.content.toString("base64") })) }
+          : {}),
+      },
       this.fetchImpl,
     );
     return { provider: this.name, id: typeof r.id === "string" ? r.id : null };
@@ -102,7 +116,16 @@ export class BrevoEmailProvider implements EmailProvider {
     const r = await postJson(
       "https://api.brevo.com/v3/smtp/email",
       { "api-key": this.apiKey },
-      { sender, to: [{ email: m.to }], subject: m.subject, htmlContent: m.html, textContent: m.text },
+      {
+        sender,
+        to: [{ email: m.to }],
+        subject: m.subject,
+        htmlContent: m.html,
+        textContent: m.text,
+        ...(m.attachments?.length
+          ? { attachment: m.attachments.map((a) => ({ name: a.filename, content: a.content.toString("base64") })) }
+          : {}),
+      },
       this.fetchImpl,
     );
     return { provider: this.name, id: typeof r.messageId === "string" ? r.messageId : null };

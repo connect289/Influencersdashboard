@@ -1518,6 +1518,9 @@ isOneToOne: false
 "contract_file_record":
 { Args: { "p_contract": string,"p_path": string,"p_sha256": string,"p_version": string }; Returns: undefined
                            },
+"contract_flag":
+{ Args: { "p_contract": string,"p_reason": string }; Returns: undefined
+                           },
 "contract_integrity":
 { Args: { "p_contract": string }; Returns: Json
                            },

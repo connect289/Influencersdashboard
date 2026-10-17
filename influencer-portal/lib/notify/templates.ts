@@ -8,14 +8,18 @@ export function escapeHtml(s: string): string {
   );
 }
 
-function layout(title: string, bodyHtml: string): string {
+const SIGN_IN_FOOTER =
+  "You received this because someone signed in to the Eduwit portal with your email. If it wasn't you, ignore this email and tell your Eduwit contact.";
+const CONTRACT_FOOTER = "You received this because you are a party to a contract on the Eduwit creator portal.";
+
+function layout(title: string, bodyHtml: string, footer: string = SIGN_IN_FOOTER): string {
   return `<!doctype html><html><body style="margin:0;background:#F2F4F7;font-family:Arial,Helvetica,sans-serif;color:#0E2240">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" style="max-width:520px;background:#FFFFFF;border-radius:14px;padding:28px" cellpadding="0" cellspacing="0">
 <tr><td style="font-size:20px;font-weight:bold;color:#0B2F5E;padding-bottom:4px">Eduwit <span style="color:#8A5A00">Creators</span></td></tr>
 <tr><td style="font-size:18px;font-weight:bold;padding:16px 0 8px">${escapeHtml(title)}</td></tr>
 <tr><td style="font-size:15px;line-height:1.5">${bodyHtml}</td></tr>
-<tr><td style="font-size:12px;color:#5C6F87;padding-top:24px">Eduwit Learning Services · You received this because someone signed in to the Eduwit portal with your email. If it wasn't you, ignore this email and tell your Eduwit contact.</td></tr>
+<tr><td style="font-size:12px;color:#5C6F87;padding-top:24px">Eduwit Learning Services · ${escapeHtml(footer)}</td></tr>
 </table></td></tr></table></body></html>`;
 }
 
@@ -67,5 +71,38 @@ export function creatorInviteEmail(loginUrl: string, name: string): Omit<EmailMe
 <p style="margin:20px 0"><a href="${escapeHtml(loginUrl)}" style="background:#0B2F5E;color:#FFFFFF;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">Get started</a></p>`,
     ),
     text: `Hi ${name},\n\nWe'd love to work with you. Sign in to the Eduwit creator portal with this email address (we'll email you a code):\n${loginUrl}\n`,
+  };
+}
+
+export function contractSignCodeEmail(
+  code: string,
+  name: string,
+  number: string,
+  minutes: number,
+): Omit<EmailMessage, "to"> {
+  const safe = /^\d{6}$/.test(code) ? code : "------";
+  return {
+    subject: `${safe} is your code to sign contract ${number}`,
+    html: layout(
+      "Your signing code",
+      `<p>Hi ${escapeHtml(name)},</p><p>Enter this code to sign contract ${escapeHtml(number)} on the Eduwit portal. It expires in ${String(minutes)} minutes and works once. Entering it is your electronic signature.</p>
+<p style="font-size:32px;letter-spacing:6px;font-weight:bold;color:#0B2F5E;margin:20px 0">${safe}</p>
+<p>If you didn't ask to sign this contract, don't share the code and tell your Eduwit contact.</p>`,
+      CONTRACT_FOOTER,
+    ),
+    text: `Hi ${name},\n\nYour code to sign contract ${number} is ${safe}. It expires in ${String(minutes)} minutes and works once. Entering it is your electronic signature.\n\nIf you didn't ask to sign this contract, don't share the code and tell your Eduwit contact.`,
+  };
+}
+
+export function contractSignedEmail(name: string, number: string, link: string): Omit<EmailMessage, "to"> {
+  return {
+    subject: `Contract ${number} is signed`,
+    html: layout(
+      "Your signed contract",
+      `<p>Hi ${escapeHtml(name)},</p><p>Contract ${escapeHtml(number)} has been signed by both parties. The signed PDF, with its signature certificate, is attached.</p>
+<p><a href="${escapeHtml(link)}" style="color:#0B2F5E">Open the contract on the portal</a></p>`,
+      CONTRACT_FOOTER,
+    ),
+    text: `Hi ${name},\n\nContract ${number} has been signed by both parties. The signed PDF, with its signature certificate, is attached.\n\nOpen it on the portal: ${link}`,
   };
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { contractFinalize } from "./contract-finalize";
 import { dealFromApplication } from "./deal-from-application";
 import { notifyDeliver } from "./notify-deliver";
 import type { JobHandler } from "./types";
@@ -7,4 +8,5 @@ import type { JobHandler } from "./types";
 export const JOB_HANDLERS: Record<string, JobHandler> = {
   "notify.deliver": notifyDeliver,
   "deal.from_application": dealFromApplication,
+  "contract.finalize": contractFinalize,
 };

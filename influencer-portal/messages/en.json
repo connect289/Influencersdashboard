@@ -2728,6 +2728,46 @@
       "reviewHint": "Read each clause. You can comment on any clause, suggest wording for negotiable ones, and propose different compensation under “Change requests”. Eduwit marks the contract ready to sign when everything is agreed.",
       "readyHint": "This version is final and ready for your signature.",
       "countersignHint": "You've signed. Eduwit's Authorised Signatory countersigns next."
+    },
+    "signedBanner": "Signed by both parties.",
+    "downloadPdf": "Download the signed PDF",
+    "sign": {
+      "title": "Sign this contract",
+      "countersignTitle": "Countersign for Eduwit",
+      "hint": "Confirm you've read each section, type your full legal name, accept the statement below, then confirm with a one-time code.",
+      "noChannel": "There's no way to send you a signing code: add an email address to your account, or ask Eduwit to check the signing settings.",
+      "sections": "Sections read: {done} of {total}",
+      "readSection": "I have read section {number}:",
+      "name": "Full legal name",
+      "nameHint": "As it appears on your PAN. This is recorded with your signature.",
+      "channel": "Send the code by",
+      "channels": {
+        "email": "Email",
+        "whatsapp": "WhatsApp"
+      },
+      "sendCode": "Send code",
+      "resend": "Send a new code",
+      "code": "6-digit code sent to {to}",
+      "codeSent": "Code sent to {to}. It expires in {minutes} minutes.",
+      "notReady": "Confirm every section, type your name and accept the statement to get a code.",
+      "sign": "Sign contract",
+      "countersign": "Countersign",
+      "signed": "Signed. Eduwit's Authorised Signatory countersigns next.",
+      "countersigned": "Countersigned. The contract is active and the signed PDF has been sent to everyone.",
+      "errors": {
+        "cannot_sign": "You can't sign this contract now.",
+        "channel": "That way of receiving the code isn't available.",
+        "cooldown": "A code was sent a moment ago. Wait a minute before asking for another.",
+        "too_many_codes": "Too many codes requested. Try again in an hour.",
+        "changed": "The contract changed since you opened it. Reload the page and review the new version.",
+        "consent": "The consent text was updated. Reload the page and accept the current text.",
+        "name": "Type your full legal name.",
+        "expired": "The code has expired or was already used. Ask for a new one.",
+        "too_many_attempts": "Too many wrong codes. Ask for a new one.",
+        "wrong_code": "That code isn't right. {left, plural, =0 {Ask for a new one.} one {# try left.} other {# tries left.}}",
+        "delivery": "The code couldn't be sent. Try again, or choose another way.",
+        "form": "Check the form: every section confirmed, your name, and the 6-digit code."
+      }
     }
   }
 }
