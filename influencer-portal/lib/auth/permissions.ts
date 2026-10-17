@@ -24,6 +24,7 @@ export const PERMISSIONS = {
   "audit.read": { area: "platform", label: "View the audit log" },
   "system.read": { area: "platform", label: "View system status and jobs" },
   "webhook.manage": { area: "platform", label: "Manage outbound webhooks" },
+  "privacy.manage": { area: "platform", label: "Handle data export and deletion requests" },
   "notification_template.write": { area: "platform", label: "Edit notification templates" },
   "dpdp.manage": { area: "platform", label: "Handle data export and deletion requests" },
   "export.data": { area: "platform", label: "Export data to CSV" },

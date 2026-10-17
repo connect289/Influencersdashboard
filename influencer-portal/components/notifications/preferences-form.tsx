@@ -40,12 +40,13 @@ export function PreferencesForm({
 }: {
   audience: Audience;
   initial: PreferencesView;
-  digestDefault: DigestFrequency;
+  /** The default digest frequency (setting notifications.delivery); null hides the digest choice (agencies). */
+  digestDefault: DigestFrequency | null;
   whatsappAvailable: boolean;
 }) {
   const t = useTranslations();
   const [prefs, setPrefs] = useState<Preference[]>(initial.prefs);
-  const [frequency, setFrequency] = useState<DigestFrequency>(initial.digest?.frequency ?? digestDefault);
+  const [frequency, setFrequency] = useState<DigestFrequency>(initial.digest?.frequency ?? digestDefault ?? "off");
   const [digestChannel, setDigestChannel] = useState<DeliveryChannel>(initial.digest?.channel ?? "email");
   const { pending, run } = useAction();
   const channels = DELIVERY_CHANNELS.filter((c) => c === "email" || whatsappAvailable);
@@ -63,51 +64,53 @@ export function PreferencesForm({
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardHeader title={t("notifications.prefs.digest")} description={t("notifications.prefs.digestHint")} />
-        <form
-          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
-          onSubmit={(e) => {
-            e.preventDefault();
-            run(() => setDigestPreference({ frequency, channel: digestChannel }));
-          }}
-        >
-          <Field id="digest-frequency" label={t("notifications.prefs.frequency")}>
-            <Select
-              id="digest-frequency"
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value as DigestFrequency)}
-            >
-              {DIGEST_FREQUENCIES.map((f) => (
-                <option key={f} value={f}>
-                  {t(`notifications.prefs.frequencies.${f}`)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field id="digest-channel" label={t("notifications.prefs.channel")}>
-            <Select
-              id="digest-channel"
-              value={digestChannel}
-              disabled={frequency === "off"}
-              onChange={(e) => setDigestChannel(e.target.value as DeliveryChannel)}
-            >
-              {channels.map((c) => (
-                <option key={c} value={c}>
-                  {t(`notifications.channels.${c}`)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <button
-            type="submit"
-            disabled={pending}
-            className="h-11 rounded-xl bg-primary px-4 text-sm font-medium text-on-primary disabled:opacity-60"
+      {digestDefault !== null ? (
+        <Card>
+          <CardHeader title={t("notifications.prefs.digest")} description={t("notifications.prefs.digestHint")} />
+          <form
+            className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+            onSubmit={(e) => {
+              e.preventDefault();
+              run(() => setDigestPreference({ frequency, channel: digestChannel }));
+            }}
           >
-            {t("common.save")}
-          </button>
-        </form>
-      </Card>
+            <Field id="digest-frequency" label={t("notifications.prefs.frequency")}>
+              <Select
+                id="digest-frequency"
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value as DigestFrequency)}
+              >
+                {DIGEST_FREQUENCIES.map((f) => (
+                  <option key={f} value={f}>
+                    {t(`notifications.prefs.frequencies.${f}`)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field id="digest-channel" label={t("notifications.prefs.channel")}>
+              <Select
+                id="digest-channel"
+                value={digestChannel}
+                disabled={frequency === "off"}
+                onChange={(e) => setDigestChannel(e.target.value as DeliveryChannel)}
+              >
+                {channels.map((c) => (
+                  <option key={c} value={c}>
+                    {t(`notifications.channels.${c}`)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <button
+              type="submit"
+              disabled={pending}
+              className="h-11 rounded-xl bg-primary px-4 text-sm font-medium text-on-primary disabled:opacity-60"
+            >
+              {t("common.save")}
+            </button>
+          </form>
+        </Card>
+      ) : null}
       {EVENT_GROUPS.map((g) => {
         const events = mine.filter((k) => EVENTS[k].group === g);
         if (events.length === 0) return null;

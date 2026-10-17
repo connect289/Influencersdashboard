@@ -1,4 +1,5 @@
 import { Thread } from "@/components/messaging/thread";
+import { readSetting } from "@/lib/settings/read";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -23,7 +24,6 @@ import { loadBriefTemplates } from "@/lib/content/data";
 import { templateOptions } from "@/lib/contracts/data";
 import { loadPickers } from "@/lib/creators/staff-data";
 import { presetOptions } from "@/lib/deals/data";
-import { SETTINGS } from "@/lib/settings/registry";
 import { formatCompact, formatDateTime, formatPaise, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -253,11 +253,9 @@ export default async function CampaignPage({
       presetOptions(supabase),
       templateOptions(supabase),
       loadBriefTemplates(supabase).then((r) => r.map((x) => ({ id: x.id, name: x.name }))),
-      supabase.rpc("setting", { p_key: "attribution.links" }),
+      readSetting("attribution.links"),
     ]);
-    const linkSettings = SETTINGS["attribution.links"].schema
-      .catch(SETTINGS["attribution.links"].default)
-      .parse(links.data);
+    const linkSettings = links;
     body = (
       <div className="flex flex-col gap-4">
         <CampaignForm

@@ -31,7 +31,7 @@ export default async function NotificationSettingsPage() {
         help="/agency/help/agency#notifications"
       />
       {prefs ? (
-        <PreferencesForm audience="agency" initial={prefs} digestDefault="weekly" whatsappAvailable={false} />
+        <PreferencesForm audience="agency" initial={prefs} digestDefault={null} whatsappAvailable={false} />
       ) : (
         <Card>
           <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />

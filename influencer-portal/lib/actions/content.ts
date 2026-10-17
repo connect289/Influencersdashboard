@@ -4,6 +4,7 @@
 // revision extensions and penalties. Creators and their agencies with "act on deliverables" acknowledge briefs, ask
 // questions, upload and submit work, schedule, go live and report metrics. Each action validates its input and calls
 // inf.* functions, which decide who may act.
+import { readSetting } from "@/lib/settings/read";
 import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
@@ -50,7 +51,6 @@ import {
 import { setupContentForDeal } from "@/lib/content/setup";
 import { checkPostUrl } from "@/lib/content/urls";
 import { log } from "@/lib/log";
-import { SETTINGS } from "@/lib/settings/registry";
 import { createClient, type ServerSupabase } from "@/lib/supabase/server";
 import { fail, type ActionResult } from "./result";
 
@@ -293,12 +293,11 @@ export async function deliverableUploadUrl(
   input: UploadRequest,
 ): Promise<ActionResult<{ path: string; token: string }>> {
   return act(uploadRequest, input, async (db, v, t) => {
-    const [allowed, setting] = await Promise.all([
+    const [allowed, limits] = await Promise.all([
       db.rpc("deliverable_upload_allowed", { p_id: v.deliverableId }),
-      db.rpc("setting", { p_key: "content.uploads" }),
+      readSetting("content.uploads"),
     ]);
     if (allowed.data !== true) return fail(t("errors.forbidden"));
-    const limits = SETTINGS["content.uploads"].schema.catch(SETTINGS["content.uploads"].default).parse(setting.data);
     const max = v.type.startsWith("video/")
       ? limits.max_video_mb
       : v.type.startsWith("image/")

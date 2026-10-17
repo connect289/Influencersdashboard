@@ -123,6 +123,11 @@ export const EVENTS = {
   // Messages
   "thread.message": e("messages", ALL, { vars: ["subject", "sender"] }),
   "thread.mention": e("messages", S, { vars: ["subject", "sender"] }),
+  // Tiers and privacy
+  "tier.changed": e("account", C, { vars: ["tier"] }),
+  "privacy.export_ready": e("account", C, { mandatory: true }),
+  "privacy.request_update": e("account", C, { mandatory: true }),
+  "staff.privacy_request": e("staff", S),
   // Announcements and digests
   announcement: e("announcements", C, { vars: [] }),
   "digest.creator": e("announcements", C, { vars: [] }),

@@ -30,7 +30,7 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 | G-21 | Optional (approved R-4): the B2B team publishes `public.b2b_enrollment_money_v`; the receipts sync then reads it instead of `b2b.earnings` and `b2b.invoices` (one function to change, `inf.commission_receipts_sync`). Until then the read is limited to those two tables, read only | Phase 7 |
 | G-22 | Analytics: the migration schedules pg_cron `inf-analytics` (every 15 minutes, `inf.analytics_refresh()`); confirm it runs in System status after go-live. Review the metric definitions in `docs/METRICS.md` with the owner (especially committed spend, revenue basis and how deal-level fees are shown by platform), and decide whether the staff dashboards' Viewer role should see revenue | Phase 8 |
 | G-23 | Communication providers (HARD STOP 4): a live email provider (SMTP, Resend or Brevo) for notifications and digests, and for WhatsApp a Meta WhatsApp Business account with approved templates for each event you want on WhatsApp (enter each approved name in Communication → Templates; one variable per line in the template's order). Creators need a phone number on their profile. Then set `LIVE_MODE=on` | Phase 9 |
-| G-24 | Review the notification catalogue with the owner (which events are required, default channels, the digest defaults) and the wording of the main templates (contract, payout, KYC). pg_cron schedules created by the migration: `inf-announcements` (every 5 minutes), `inf-comm-daily` (09:00 IST), `inf-digests` (08:00 IST); confirm they run in System status | Phase 9 |
+| G-24 | Review the notification catalogue with the owner (which events are required, default channels, the digest defaults) and the wording of the main templates (contract, payout, KYC). pg_cron schedules created by the migration: `inf-announcements` (every 5 minutes), `inf-comm-daily` (09:00 IST), `inf-digests` (hourly, sends at the digest hour in Settings → Notifications), `inf-scorecards` (1st of the month, 06:00 IST); confirm they run in System status | Phase 9 |
 | G-25 | Webhooks: register endpoints only after `LIVE_MODE=on`; give each receiving system its signing secret (shown once) and the verification rule (HMAC-SHA256 of `timestamp.body`, reject after 5 minutes). Point n8n at a public HTTPS address; internal addresses are refused by design | Phase 9 |
 
 ## Operations
@@ -73,7 +73,7 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
   copy marked skipped says why (`live_mode_off`, `no_template`, `no_number`). Message attachments live in
   `inf-documents/threads/<thread>/` and open through `/api/threads/file` after an access check. Announcements scheduled
   for a time go out within five minutes (`inf-announcements`); a stuck one can be cancelled until it is sent.
-- **Digests** (`digest.run`, queued daily at 08:00 IST by `inf-digests`) are idempotent per person and day; re-running
+- **Digests** (`digest.run`, queued once a day at the digest hour from Settings → Notifications by `inf-digests`) are idempotent per person and day; re-running
   the job for a date sends nothing twice.
 - **Webhooks:** each delivery is a `webhook.deliver` job; Communication → Webhooks shows the last 20 attempts with HTTP
   status and error. An endpoint that keeps failing is marked "failing since"; pause it from the same page. After the

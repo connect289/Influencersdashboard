@@ -149,10 +149,10 @@ select lives_ok($$ select inf.digest_preference_set('daily', 'email') $$, 'the c
 select tests.act_as_service();
 select is((select string_agg(p.label || ':' || r.frequency, ',' order by p.label) from inf.digest_recipients(date '2026-10-20') r
              join tests.people p on p.user_id = r.user_id where p.label in ('riya', 'arjun', 'mona')),
-          'riya:daily', 'on a Tuesday only daily digests go out (staff are off by default)');
+          'mona:daily,riya:daily', 'on a Tuesday only daily digests go out (staff default to daily, setting notifications.delivery)');
 select is((select string_agg(p.label || ':' || r.frequency, ',' order by p.label) from inf.digest_recipients(date '2026-10-19') r
              join tests.people p on p.user_id = r.user_id where p.label in ('riya', 'arjun', 'mona')),
-          'arjun:weekly,riya:daily', 'on Monday creators get the weekly one by default');
+          'arjun:weekly,mona:daily,riya:daily', 'on Monday creators get the weekly one by default');
 select ok(inf.digest_facts((select user_id from tests.people where label = 'riya'), 'creator', 7, (select id from ids where label = 'riya')) ?& array['new_leads', 'earned_paise', 'due_soon'],
           'the digest facts for a creator');
 select tests.as_person('riya');

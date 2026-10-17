@@ -95,7 +95,7 @@ export const ALL_STAFF: Guide = {
         {
           list: [
             "You are told about work that is yours: applications on campaigns you own, creators' replies on your deals, messages on your deals and contracts, @mentions, tasks, fraud flags (if you review them) and the daily queues (reviews waiting more than a day, negotiations with no answer for three days).",
-            "In [notification settings](/admin/notifications/settings) choose email per notification, and whether you want a daily or weekly **digest** of the queues (off by default for staff).",
+            "In [notification settings](/admin/notifications/settings) choose email per notification, and how often you get the **digest** of the queues (every morning by default; weekly or off if you prefer).",
             "Until the Super Admin turns on live sending, emails and WhatsApp messages stay inside the system.",
           ],
         },

@@ -7,6 +7,7 @@ import { leadsBackfill, leadsRerun } from "./leads";
 import { notifyDeliver } from "./notify-deliver";
 import { payoutAdvice } from "./payout-advice";
 import { penaltiesRefresh } from "./penalties-refresh";
+import { scorecardsRun } from "./scorecards";
 import { webhookDeliver } from "./webhook-deliver";
 import type { JobHandler } from "./types";
 
@@ -22,4 +23,5 @@ export const JOB_HANDLERS: Record<string, JobHandler> = {
   "payout.advice": payoutAdvice,
   "digest.run": digestRun,
   "webhook.deliver": webhookDeliver,
+  "scorecards.run": scorecardsRun,
 };

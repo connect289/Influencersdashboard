@@ -363,14 +363,14 @@ isOneToOne: false
                   ]
                 },"campaigns": {
                   Row: {
-                    "apply_by": string | null,"attribution_model": string | null,"brief_template_id": string | null,"budget_paise": number | null,"compensation_summary": string | null,"contract_template_id": string | null,"created_at": string,"created_by": string,"default_preset_id": string | null,"deliverables": NonNullable<Json>,"description": string | null,"eligibility": NonNullable<Json>,"ends_on": string | null,"id": string,"internal_notes": string | null,"link_message": string | null,"name": string,"objective": string,"owner_id": string | null,"slots": number | null,"starts_on": string | null,"status": string,"updated_at": string,"visibility": string
+                    "apply_by": string | null,"attribution_model": string | null,"brief_template_id": string | null,"budget_paise": number | null,"compensation_summary": string | null,"contract_template_id": string | null,"created_at": string,"created_by": string,"default_preset_id": string | null,"deliverables": NonNullable<Json>,"description": string | null,"eligibility": NonNullable<Json>,"ends_on": string | null,"id": string,"internal_notes": string | null,"link_message": string | null,"name": string,"objective": string,"opened_at": string | null,"owner_id": string | null,"slots": number | null,"starts_on": string | null,"status": string,"updated_at": string,"visibility": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "apply_by"?: string | null,"attribution_model"?: string | null,"brief_template_id"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"contract_template_id"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"link_message"?: string | null,"name": string,"objective": string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
+                    "apply_by"?: string | null,"attribution_model"?: string | null,"brief_template_id"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"contract_template_id"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"link_message"?: string | null,"name": string,"objective": string,"opened_at"?: string | null,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
                   }
                   Update: {
-                    "apply_by"?: string | null,"attribution_model"?: string | null,"brief_template_id"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"contract_template_id"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"link_message"?: string | null,"name"?: string,"objective"?: string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
+                    "apply_by"?: string | null,"attribution_model"?: string | null,"brief_template_id"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"contract_template_id"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"link_message"?: string | null,"name"?: string,"objective"?: string,"opened_at"?: string | null,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
                   }
                   Relationships: [
                     {
@@ -443,6 +443,20 @@ isOneToOne: false
                   }
                   Update: {
                     "grantee"?: string,"object_name"?: string,"object_type"?: string,"privilege"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"communication_consents": {
+                  Row: {
+                    "channel": string,"created_at": string,"detail": string | null,"granted": boolean,"id": number,"purpose": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "channel": string,"created_at"?: string,"detail"?: string | null,"granted": boolean,"id"?: never,"purpose": string,"user_id": string
+                  }
+                  Update: {
+                    "channel"?: string,"created_at"?: string,"detail"?: string | null,"granted"?: boolean,"id"?: never,"purpose"?: string,"user_id"?: string
                   }
                   Relationships: [
                     
@@ -956,6 +970,32 @@ isOneToOne: false
       columns: ["creator_id"]
 isOneToOne: false
       referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"creator_tier_state": {
+                  Row: {
+                    "creator_id": string,"manual_reason": string | null,"manual_tier_id": string | null,"manual_until": string | null,"months_below": number,"updated_at": string,"updated_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "creator_id": string,"manual_reason"?: string | null,"manual_tier_id"?: string | null,"manual_until"?: string | null,"months_below"?: number,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "creator_id"?: string,"manual_reason"?: string | null,"manual_tier_id"?: string | null,"manual_until"?: string | null,"months_below"?: number,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "creator_tier_state_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: true
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "creator_tier_state_manual_tier_id_fkey"
+      columns: ["manual_tier_id"]
+isOneToOne: false
+      referencedRelation: "tiers"
       referencedColumns: ["id"]
     }
                   ]
@@ -1797,6 +1837,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"privacy_requests": {
+                  Row: {
+                    "creator_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"file_expires_at": string | null,"id": string,"kind": string,"plan": Json | null,"purge_on": string | null,"reason": string | null,"requested_at": string,"requested_by": string,"status": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "creator_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"file_expires_at"?: string | null,"id"?: string,"kind": string,"plan"?: Json | null,"purge_on"?: string | null,"reason"?: string | null,"requested_at"?: string,"requested_by"?: string,"status"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "creator_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"file_expires_at"?: string | null,"id"?: string,"kind"?: string,"plan"?: Json | null,"purge_on"?: string | null,"reason"?: string | null,"requested_at"?: string,"requested_by"?: string,"status"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "privacy_requests_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"published_posts": {
                   Row: {
                     "created_at": string,"created_by": string | null,"deliverable_id": string,"disclosure_ok": boolean | null,"id": string,"live_url": string,"oembed": Json | null,"posted_on": string,"review_note": string | null,"verification": Json | null,"verification_status": string,"verified_at": string | null,"verified_by": string | null
@@ -1930,6 +1990,38 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"scorecards": {
+                  Row: {
+                    "composite": number | null,"created_at": string,"created_by": string | null,"creator_id": string,"facts": NonNullable<Json>,"figures": NonNullable<Json>,"id": string,"kind": string,"period": string,"period_from": string,"period_to": string,"scores": NonNullable<Json>,"tier_after": string | null,"tier_before": string | null,"weights": NonNullable<Json>
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "composite"?: number | null,"created_at"?: string,"created_by"?: string | null,"creator_id": string,"facts": NonNullable<Json>,"figures"?: NonNullable<Json>,"id"?: string,"kind": string,"period": string,"period_from": string,"period_to": string,"scores": NonNullable<Json>,"tier_after"?: string | null,"tier_before"?: string | null,"weights": NonNullable<Json>
+                  }
+                  Update: {
+                    "composite"?: number | null,"created_at"?: string,"created_by"?: string | null,"creator_id"?: string,"facts"?: NonNullable<Json>,"figures"?: NonNullable<Json>,"id"?: string,"kind"?: string,"period"?: string,"period_from"?: string,"period_to"?: string,"scores"?: NonNullable<Json>,"tier_after"?: string | null,"tier_before"?: string | null,"weights"?: NonNullable<Json>
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "scorecards_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "scorecards_tier_after_fkey"
+      columns: ["tier_after"]
+isOneToOne: false
+      referencedRelation: "tiers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "scorecards_tier_before_fkey"
+      columns: ["tier_before"]
+isOneToOne: false
+      referencedRelation: "tiers"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"setting_definitions": {
                   Row: {
@@ -2270,6 +2362,44 @@ isOneToOne: false
       columns: ["creator_id"]
 isOneToOne: false
       referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"tier_history": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"creator_id": string,"from_tier": string | null,"id": number,"note": string | null,"reason": string,"scorecard_id": string | null,"to_tier": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"creator_id": string,"from_tier"?: string | null,"id"?: never,"note"?: string | null,"reason": string,"scorecard_id"?: string | null,"to_tier"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"creator_id"?: string,"from_tier"?: string | null,"id"?: never,"note"?: string | null,"reason"?: string,"scorecard_id"?: string | null,"to_tier"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "tier_history_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tier_history_from_tier_fkey"
+      columns: ["from_tier"]
+isOneToOne: false
+      referencedRelation: "tiers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tier_history_scorecard_id_fkey"
+      columns: ["scorecard_id"]
+isOneToOne: false
+      referencedRelation: "scorecards"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tier_history_to_tier_fkey"
+      columns: ["to_tier"]
+isOneToOne: false
+      referencedRelation: "tiers"
       referencedColumns: ["id"]
     }
                   ]
@@ -2841,6 +2971,9 @@ isOneToOne: false
 "comp_run_record":
 { Args: { "p_as_of": string,"p_deal": string,"p_kind": string,"p_summary": Json,"p_version": string }; Returns: number
                            },
+"compliance_facts":
+{ Args: { "p_creator": string }; Returns: Json
+                           },
 "compliance_override":
 { Args: { "p_check": string,"p_reason": string }; Returns: undefined
                            },
@@ -2968,6 +3101,9 @@ isOneToOne: false
                            },
 "creator_save":
 { Args: { "p": Json }; Returns: string
+                           },
+"creator_scorecards":
+{ Args: { "p_creator": string }; Returns: Json
                            },
 "creator_self_signup":
 { Args: { "p": Json }; Returns: Json
@@ -3133,6 +3269,12 @@ isOneToOne: false
                            },
 "digest_send":
 { Args: { "p_body": string,"p_channel": string,"p_date": string,"p_kind": string,"p_title": string,"p_user": string }; Returns: string
+                           },
+"digests_enqueue":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"early_access_wait":
+{ Args: { "p_creator": string }; Returns: string
                            },
 "eligibility_gaps":
 { Args: { "p_campaign": string,"p_creator": string }; Returns: (string)[]
@@ -3426,6 +3568,9 @@ isOneToOne: false
 "my_briefs":
 { Args: { "p_creator": string }; Returns: Json
                            },
+"my_consents":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "my_contracts":
 { Args: { "p_creator": string }; Returns: Json
                            },
@@ -3455,6 +3600,9 @@ isOneToOne: false
                            },
 "my_notifications_page":
 { Args: { "p_before"?: string,"p_limit"?: number,"p_unread"?: boolean }; Returns: Json
+                           },
+"my_privacy_requests":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "my_sessions":
 { Args: Record<PropertyKey, never>; Returns: {
@@ -3593,6 +3741,27 @@ isOneToOne: false
 "post_verify":
 { Args: { "p_disclosure": boolean,"p_live": boolean,"p_matches": boolean,"p_note"?: string,"p_post": string }; Returns: undefined
                            },
+"privacy_deletion_decide":
+{ Args: { "p_approve": boolean,"p_note": string,"p_purge_on": string,"p_request": string }; Returns: string
+                           },
+"privacy_deletion_facts":
+{ Args: { "p_request": string }; Returns: Json
+                           },
+"privacy_export_allowed":
+{ Args: { "p_request": string }; Returns: boolean
+                           },
+"privacy_export_data":
+{ Args: { "p_request": string }; Returns: Json
+                           },
+"privacy_request_create":
+{ Args: { "p_kind": string,"p_reason"?: string }; Returns: string
+                           },
+"privacy_requests_list":
+{ Args: { "p_status"?: string }; Returns: Json
+                           },
+"programme_scorecards":
+{ Args: { "p_period": string }; Returns: Json
+                           },
 "public_creator":
 { Args: { "p_handle": string }; Returns: Json
                            },
@@ -3647,6 +3816,9 @@ isOneToOne: false
 "request_user_agent":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
+"retention_run":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "review_comment_add":
 { Args: { "p_body": string,"p_parent"?: string,"p_region"?: Json,"p_submission": string,"p_timestamp_ms"?: number }; Returns: string
                            },
@@ -3664,6 +3836,18 @@ isOneToOne: false
                            },
 "saved_view_save":
 { Args: { "p_filters": Json,"p_name": string,"p_shared": boolean }; Returns: string
+                           },
+"scorecard_facts":
+{ Args: { "p_creator": string,"p_from": string,"p_to": string }; Returns: Json
+                           },
+"scorecard_periods":
+{ Args: Record<PropertyKey, never>; Returns: string[]
+                           },
+"scorecard_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"scorecards_due":
+{ Args: { "p_period": string }; Returns: string[]
                            },
 "session_ok":
 { Args: Record<PropertyKey, never>; Returns: boolean
@@ -3789,6 +3973,24 @@ isOneToOne: false
                            },
 "thread_staff_followers":
 { Args: { "p_owner": string,"p_thread": string }; Returns: string[]
+                           },
+"tier_clear_manual":
+{ Args: { "p_creator": string }; Returns: undefined
+                           },
+"tier_json_ok":
+{ Args: { "p_benefits": Json,"p_rules": Json }; Returns: boolean
+                           },
+"tier_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"tier_set_manual":
+{ Args: { "p_creator": string,"p_reason": string,"p_tier": string,"p_until": string }; Returns: undefined
+                           },
+"tier_status":
+{ Args: { "p_creator": string }; Returns: Json
+                           },
+"tiers_list":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "valid_gstin":
 { Args: { "p": string }; Returns: boolean

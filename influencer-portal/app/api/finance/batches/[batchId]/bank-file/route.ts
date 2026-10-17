@@ -1,8 +1,8 @@
 import { z } from "zod";
+import { readSetting } from "@/lib/settings/read";
 import { env } from "@/lib/env";
 import { BANK_COLUMNS, type BankRow } from "@/lib/ledger/bank-file";
 import { payoutProvider } from "@/lib/ledger/provider";
-import { SETTINGS } from "@/lib/settings/registry";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -26,13 +26,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ bat
   const { batchId } = await params;
   if (!z.uuid().safeParse(batchId).success) return new Response("Not found", { status: 404 });
   const supabase = await createClient();
-  const [rows, batch, setting] = await Promise.all([
+  const [rows, batch, s] = await Promise.all([
     supabase.rpc("payout_bank_rows", { p_batch: batchId }),
     supabase.from("payout_batches").select("ref").eq("id", batchId).maybeSingle(),
-    supabase.rpc("setting", { p_key: "finance.payouts" }),
+    readSetting("finance.payouts"),
   ]);
   if (rows.error || !batch.data) return new Response("Not found", { status: 404 });
-  const s = SETTINGS["finance.payouts"].schema.catch(SETTINGS["finance.payouts"].default).parse(setting.data);
   const out = payoutProvider(env().PAYOUT_PROVIDER).dispatch(batch.data.ref, z.array(rowSchema).parse(rows.data), {
     delimiter: s.bank_export.delimiter,
     header: s.bank_export.header,
