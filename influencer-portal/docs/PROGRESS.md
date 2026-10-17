@@ -2,20 +2,19 @@
 
 ## Now
 
-- **Current phase:** Phase 4 (Contracts), step 4.1 done (template engine, clause seed); 4.2 database written.
-- **Phase 3:** complete and tagged `phase-3-done` (summary under Phase 3).
-- **Open item:** in two full Playwright runs on 17 Oct 2026 the CRM import journey failed because the manager's fresh
-  session was treated as revoked right after the emailed-code step; the next full run and isolated runs passed and no
-  session row was revoked. Re-check at the Phase 4 gate (trace evidence in `test-results` of those runs).
-- **Phase 2:** complete and tagged `phase-2-done` (summary below).
-- **Phase 1:** complete and tagged `phase-1-done`.
-- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-3-done`
+- **Current phase:** Phase 4 (Contracts) complete and tagged `phase-4-done` (summary under Phase 4). Next: Phase 5
+  (briefs, deliverables and content review).
+- **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
+  minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
+- **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.
+- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-4-done`
   exist in the local repository only. Push them from a normal clone with `git push origin --tags`.
 - **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
   the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
   first name + initial, the stage mapping and the integration contracts. Tagged `phase-0-done`.
 - **Blockers:** none. Provider credentials, domain, Vercel, Sentry, a Google OAuth client and (optionally) CAPTCHA keys are
-  needed later (HARD STOP 4); everything runs on mock providers until then.
+  needed later (HARD STOP 4); everything runs on mock providers until then. Contracts need counsel's review of the
+  clause library, consent text and stamp duty before go-live (RUNBOOK G-9 to G-11).
 
 ## Phase 1: Foundation
 
@@ -251,3 +250,50 @@ screen (Phase 7).
 | 4.5 | OTP click-sign and countersign: confirm each section, typed legal name, versioned consent, code by the configured channel(s), full signature evidence (version, document hash, IP, user agent, UTC/IST), final PDF with a signature certificate stored immutably and sent to all parties, hash re-verified on every download, deal activated on countersign | `lib/contracts/pdf.tsx`, routes | units + Playwright |
 | 4.6 | Amendments (new contract linked to the parent, from an accepted deal amendment), renewals (clone deal and contract), expiry reminders at 30/15/7 days, stamp duty note and reference field | jobs, nightly | pgTAP + units |
 | 4.7 | Guides updated for every role; phase gate | `lib/guides/content/*` | gate |
+
+### Phase 4 summary
+
+Built: a whitelisted rich-text document model rendered by our own code; a template language with variables and
+conditionals; the clause library (20 draft clauses, versions, flags, legal review by Super Admins) and a Tiptap
+template editor with a variable picker and a live preview per deal type; contracts generated from a deal's terms in
+force (drafted automatically for accepted campaign offers, campaign or default template); clause-anchored comments,
+suggested wording on negotiable clauses and structured compensation counter-offers, answered by accept / counter /
+decline, each round a new version with a word diff; OTP click-sign with section confirmations, typed legal name and
+versioned consent, countersignature by the Authorised Signatory, the signed PDF with a signature certificate stored
+write-once and emailed to every party, hash re-verification on every download; amendments, renewals, negotiation and
+expiry reminders; guides for every role. Gate on 17 Oct 2026: typecheck, lint and format clean; 2,010 unit tests; 429
+pgTAP assertions (16 files); 57 Playwright journeys passed (2 screenshot specs skipped by design); migrations apply on
+a fresh database built from the production baseline; seed works; production re-checked read-only (all 101 shared
+objects identical, hash `685ba089…`, no `inf` schema, no `inf-*` buckets). Nothing outside schema `inf` was added
+beyond the approved storage bucket (S-4).
+
+### Phase 4 requirement checklist (spec Section 22 Phase 4, and spec 8, 13 auto-generation, 14 campaign template)
+
+| Requirement | Status | Where / note |
+| --- | --- | --- |
+| Clause library CRUD with the 20 categories, flags (required, negotiable, locked, deal types), versioning (old contracts keep their version) | Done | `/admin/contracts/clauses`, `inf.clause_save` (new version on change) |
+| Template editor (Tiptap): insert clauses, variable picker, conditional blocks | Done | `components/contracts/template-editor.tsx`, `rich-editor.tsx` (D-81) |
+| Compensation sections generated from the deal config; never typed by hand | Done | Deal tables and texts in `lib/contracts/variables.ts`; counter-offers change the deal first (D-87) |
+| Seed draft clauses marked "DRAFT — requires legal review"; setting that blocks sending until a Super Admin reviews | Done | `lib/contracts/library.ts`, legal-review gate (D-84); seed marks reviewed locally only (D-85) |
+| Contract states Draft → … → Completed / Terminated / Expired, Void, Superseded | Done | `inf.contracts` status check; pgTAP 016 |
+| Creator review on mobile and desktop; comments on any clause | Done | `/creator/contracts/[id]`, `clause-thread.tsx` |
+| Edits only on negotiable clauses (suggestion mode) | Done | DB refuses others; D-86 |
+| Structured compensation counter-offer creating a deal version | Done | `counter.ts`, `inf.deal_version_from_counter` (D-87) |
+| Admin accepts, rejects or counters each request; every round a new version with a visual diff | Done | Change requests tab, Versions tab (D-88) |
+| Deadline and reminder schedule for negotiations | Done | `negotiation_deadline`, `inf.contracts_remind` (D-95) |
+| OTP click-sign: confirm each section, typed name, versioned consent, code on configured channel(s), enter code | Done | `sign-panel.tsx`, D-89 to D-91; WhatsApp via the mock adapter until credentials (HARD STOP 4) |
+| Signature evidence: signer, role, version, document SHA-256, typed name, consent version, channel and reference, IP, UA, UTC and IST | Done | `inf.signatures`; certificate page |
+| Countersign by the Authorised Signatory through the same flow | Done | E2E journey |
+| Final PDF with signature certificate, stored immutably, copy sent to all parties | Done | `finalize.ts`, `pdf.tsx`, `contract.finalize` job (D-92) |
+| Re-verify the hash on every download; flag the contract if it changed | Done | `/api/contracts/[id]/pdf`, `inf.contract_integrity`, `inf.contract_flag` |
+| OTP rules: 6 digits, 10-minute expiry, 5 attempts, rate-limited resend, logged | Done | Settings-driven; codes and attempts in `inf.contract_sign_codes`, audit on signatures |
+| Amendments linked to the parent; renewals clone the deal and contract; expiry reminders 30/15/7 | Done | D-93 to D-95 |
+| Stamp duty note in settings and nullable `stamp_duty_reference` | Done | D-97 |
+| Contract auto-generated on accepted campaign offers; campaign builder contract template | Done | D-96 |
+| Contracts in each state in the demo seed | Partial | The seed has a sent demo contract and Playwright drives the full lifecycle; seeding every state (needs the server-side PDF step) joins the demo-mode seed in Phase 10 |
+| Notifications: contract sent, changed, countered, ready to sign, signed, countersigned, expiring (mandatory) | Done | `inf.contract_notify` → `inf.notify` (in-app, with email copies queued; creator notices mandatory) |
+| Outbound webhook `contract.signed` | Deferred | Webhooks are Phase 10 (spec 19); the domain event `contract.countersigned` is emitted now |
+| Guides updated for every role | Done | Super Admin, Influencer Manager, creator, agency, developer guides |
+| RLS on every new table with tests per role; no creator/agency path to student data | Done | pgTAP 016 (58); contracts never touch lead data |
+| Every screen: empty, loading, error, mobile states | Done | Shared state components; creator contract pages mobile-first |
+

@@ -171,7 +171,9 @@ test.describe.serial("contracts: library, templates, negotiation, versions", () 
     await expect(page.getByText(/That code isn't right. 4 tries left./)).toBeVisible();
     await page.getByLabel(/6-digit code sent to/).fill(code);
     await page.getByRole("button", { name: "Sign contract", exact: true }).click();
-    await expect(page.getByText("Signed. Eduwit's Authorised Signatory countersigns next.")).toBeVisible();
+    await expect(
+      page.getByText("Signed. Eduwit's Authorised Signatory countersigns next.", { exact: true }),
+    ).toBeVisible();
     await expect(page.getByText("You've signed. Eduwit's Authorised Signatory countersigns next.")).toBeVisible();
   });
 
@@ -209,7 +211,9 @@ test.describe.serial("contracts: library, templates, negotiation, versions", () 
 
   test("an active contract is amended through a linked contract; the deal can be renewed", async ({ page }) => {
     await staffLogin(page, "manager@example.test");
-    await openDemoContract(page, "/admin/contracts");
+    // The list shows open contracts by default; the demo contract is active by now.
+    await page.goto("/admin/contracts?status=active");
+    await page.getByRole("link", { name: "CT-00001" }).click();
     await page.getByRole("link", { name: "Create amendment" }).click();
     await expect(page.getByText(/This amendment replaces contract CT-00001/)).toBeVisible();
     await page.getByRole("button", { name: "Generate draft" }).click();

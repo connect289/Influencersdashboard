@@ -101,7 +101,8 @@ test.describe.serial("deals: build, simulate, propose, negotiate, amend", () => 
     await expect(page.getByText(/You are preparing an amendment/)).toBeVisible();
     await page.locator("#fx-fee-amount").fill("25000");
     await page.getByRole("button", { name: "Save terms" }).click();
-    await expect(page.getByText("Saved.")).toBeVisible();
+    // Starting the amendment also toasts "Saved."; both can be on screen.
+    await expect(page.getByText("Saved.").last()).toBeVisible();
 
     await page.getByRole("link", { name: "Dry run" }).click();
     await page.getByRole("button", { name: "Run dry run" }).click();

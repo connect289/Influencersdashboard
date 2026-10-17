@@ -6,12 +6,16 @@ import { sixDigitCode, waitForEmail } from "./mail";
 
 const AUTH_DIR = join(import.meta.dirname, ".auth");
 const devicePath = (email: string) => join(AUTH_DIR, `${email.replace(/[^a-z0-9.@_-]/gi, "_")}.device.json`);
+const sessionPath = (email: string) => join(AUTH_DIR, `${email.replace(/[^a-z0-9.@_-]/gi, "_")}.session.json`);
+type Cookies = Parameters<BrowserContext["addCookies"]>[0];
 
 /**
  * Signs a staff member in with password and the emailed code. The first sign-in of a run ticks "Trust this device"
  * and keeps the device cookie; later sign-ins of that person present it and skip the code (the product's trusted
  * device flow), because a full run signs some people in more often than the code limit (5 per 10 minutes) allows.
- * Every call creates its own session. `fresh: true` always uses the code (tests of the sign-in flow itself).
+ * Later calls also reuse the person's session cookies while that session is live (D-98): the suite signs staff in
+ * more often than the per-IP sign-in limit (30 per 5 minutes) allows. `fresh: true` always signs in with the code
+ * (tests of the sign-in flow itself).
  */
 export async function staffLogin(
   page: Page,
@@ -19,17 +23,25 @@ export async function staffLogin(
   opts: { trust?: boolean; fresh?: boolean } = {},
 ): Promise<void> {
   const file = devicePath(email);
-  const known = !opts.fresh && existsSync(file);
-  if (known) {
-    const device = JSON.parse(readFileSync(file, "utf8")) as Parameters<BrowserContext["addCookies"]>[0];
-    await page.context().addCookies(device);
+  const session = sessionPath(email);
+  if (!opts.fresh && existsSync(session)) {
+    await page.context().addCookies(JSON.parse(readFileSync(session, "utf8")) as Cookies);
+    await page.goto("/admin");
+    await page.waitForLoadState("domcontentloaded");
+    if (/^\/admin(\/|$)/.test(new URL(page.url()).pathname)) return;
+    await page.context().clearCookies();
   }
+  const known = !opts.fresh && existsSync(file);
+  if (known) await page.context().addCookies(JSON.parse(readFileSync(file, "utf8")) as Cookies);
   await page.goto("/login/staff");
   await page.getByLabel("Work email").fill(email);
   await page.getByLabel("Password").fill(SEED_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(known ? /\/(admin|verify)/ : /\/verify/);
-  if (new URL(page.url()).pathname.startsWith("/admin")) return;
+  if (new URL(page.url()).pathname.startsWith("/admin")) {
+    if (!opts.fresh) writeFileSync(session, JSON.stringify(await page.context().cookies()));
+    return;
+  }
   const since = new Date();
   await page.getByRole("button", { name: "Email me a code" }).click();
   await expect(page.getByText(/A code is on its way/)).toBeVisible();
@@ -42,12 +54,11 @@ export async function staffLogin(
   await expect(page).toHaveURL(/\/admin/);
   if (!opts.fresh) {
     mkdirSync(AUTH_DIR, { recursive: true });
-    const device = (await page.context().cookies()).filter((c) => c.name === "inf_device");
-    writeFileSync(file, JSON.stringify(device));
+    const cookies = await page.context().cookies();
+    writeFileSync(file, JSON.stringify(cookies.filter((c) => c.name === "inf_device")));
+    writeFileSync(session, JSON.stringify(cookies));
   }
 }
-
-const sessionPath = (email: string) => join(AUTH_DIR, `${email.replace(/[^a-z0-9.@_-]/gi, "_")}.session.json`);
 
 /**
  * Signs a creator or agency user in with the emailed one-time code. Later calls in the same run reuse that session's
@@ -57,8 +68,7 @@ const sessionPath = (email: string) => join(AUTH_DIR, `${email.replace(/[^a-z0-9
 export async function creatorLogin(page: Page, email: string, opts: { fresh?: boolean } = {}): Promise<void> {
   const file = sessionPath(email);
   if (!opts.fresh && existsSync(file)) {
-    const saved = JSON.parse(readFileSync(file, "utf8")) as Parameters<BrowserContext["addCookies"]>[0];
-    await page.context().addCookies(saved);
+    await page.context().addCookies(JSON.parse(readFileSync(file, "utf8")) as Cookies);
     await page.goto("/creator");
     await page.waitForLoadState("domcontentloaded");
     if (/\/(creator|agency)(\/|$)/.test(new URL(page.url()).pathname)) return;

@@ -848,7 +848,7 @@
     "noCampaigns": "No open invitations or applications.",
     "onBehalf": "On behalf of {name}",
     "dealsHint": "Deals and terms for this creator. With the negotiate grant you can accept or decline proposed terms.",
-    "contractsHint": "Review, negotiate and sign contracts for this creator."
+    "contractsHint": "Contracts to review, comment on and sign for this creator."
   },
   "agencies": {
     "subtitle": "Talent agencies and managers, their team, and the creators who granted them access.",
