@@ -24,6 +24,7 @@ import {
   istLocalToIso,
   presetInput,
   proposeInput,
+  renewInput,
   respondInput,
   statusInput,
   type DealCreateInput,
@@ -166,6 +167,24 @@ export async function deleteDraftDeal(dealId: string): Promise<ActionResult> {
   if (error) return dbFail(error, t);
   refresh();
   return { ok: true, message: t("deals.deleted") };
+}
+
+/** A renewal: a new draft deal with the same terms and new dates, to propose and contract as usual. */
+export async function renewDeal(input: z.input<typeof renewInput>): Promise<ActionResult<{ id: string }>> {
+  const t = await getTranslations();
+  const parsed = renewInput.safeParse(input);
+  if (!parsed.success) return fail(t("deals.errors.dates"));
+  const s = await signedIn();
+  if (!s) return fail(t("errors.sessionEnded"));
+  const v = parsed.data;
+  const { data, error } = await s.supabase.rpc("deal_renew", {
+    p_deal: v.dealId,
+    p_starts_on: v.startsOn,
+    p_ends_on: v.endsOn || undefined,
+  });
+  if (error) return dbFail(error, t);
+  refresh(v.dealId);
+  return { ok: true, data: { id: data }, message: t("deals.renewed") };
 }
 
 export async function savePreset(input: z.input<typeof presetInput>): Promise<ActionResult<{ id: string }>> {

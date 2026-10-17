@@ -3,7 +3,7 @@
 -- attempts), countersign activating the deal, immutability, and who can see what.
 begin;
 \ir _helpers.psql
-select plan(53);
+select plan(58);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('asha', array['super_admin'], true, true);
@@ -170,6 +170,27 @@ insert into ids select 'amend', inf.contract_create(jsonb_build_object('deal_id'
 select tests.reset();
 select is((select kind || '/' || (template_id = (select id from inf.contract_templates where is_default))::text from inf.contracts where id = (select id from ids where label = 'amend')),
           'amendment/true', 'an amendment uses the default template when none is given');
+
+-- Expiry reminders (30/15/7 days) and expiry; renewals.
+update inf.contracts set expires_on = (now() at time zone 'Asia/Kolkata')::date + 30 where id = (select id from ids where label = 'contract');
+select ok(inf.contracts_remind() >= 1, 'the nightly run sends the 30-day expiry reminder');
+select ok(exists (select 1 from inf.notifications where event = 'contract.expiring'), 'the parties are told the contract expires');
+update inf.contracts set effective_on = current_date - 60, expires_on = (now() at time zone 'Asia/Kolkata')::date - 1 where id = (select id from ids where label = 'contract');
+select inf.contracts_remind();
+select is((select status from inf.contracts where id = (select id from ids where label = 'contract')), 'expired', 'past its expiry date the contract expires');
+select tests.as_person('mona');
+insert into ids select 'renewal', inf.deal_renew((select id from ids where label = 'deal'), current_date + 1, null);
+select tests.reset();
+select is((select renewal_of from inf.deals where id = (select id from ids where label = 'renewal')), (select id from ids where label = 'deal'), 'a renewal points at the deal it renews');
+insert into inf.deal_versions (deal_id, version, comp_config, config_hash, origin, effective_from, state, decided_at)
+select (select id from ids where label = 'renewal'), 1, p.comp_config, inf.config_hash(p.comp_config), 'renewal', now(), 'accepted', now()
+  from inf.deal_presets p where p.key = 'fixed_only';
+update inf.deals set status = 'agreed', current_version_id = (select id from inf.deal_versions where deal_id = (select id from ids where label = 'renewal'))
+ where id = (select id from ids where label = 'renewal');
+select tests.as_person('mona');
+insert into ids select 'rc', inf.contract_create(jsonb_build_object('deal_id', (select id from ids where label = 'renewal')));
+select tests.reset();
+select is((select kind from inf.contracts where id = (select id from ids where label = 'rc')), 'renewal', 'its contract is a renewal');
 
 select * from finish();
 rollback;

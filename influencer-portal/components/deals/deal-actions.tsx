@@ -10,7 +10,14 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { useAction } from "@/components/ui/use-action";
-import { deleteDraftDeal, proposeDeal, setDealStatus, updateDeal, withdrawProposal } from "@/lib/actions/deals";
+import {
+  deleteDraftDeal,
+  proposeDeal,
+  renewDeal,
+  setDealStatus,
+  updateDeal,
+  withdrawProposal,
+} from "@/lib/actions/deals";
 import type { CompConfig } from "@/lib/compensation/schema";
 import { DEAL_MOVES, type DealStatus } from "@/lib/deals/schemas";
 
@@ -60,6 +67,53 @@ function ProposeDialog({ dealId, amendment }: { dealId: string; amendment: boole
           <div className="flex justify-end">
             <Button type="submit" disabled={pending}>
               {t("deals.actions.send")}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RenewDialog({ dealId }: { dealId: string }) {
+  const t = useTranslations();
+  const router = useRouter();
+  const { pending, run } = useAction();
+  const [open, setOpen] = useState(false);
+  const [startsOn, setStartsOn] = useState("");
+  const [endsOn, setEndsOn] = useState("");
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="secondary">{t("deals.actions.renew")}</Button>
+      </DialogTrigger>
+      <DialogContent
+        title={t("deals.actions.renew")}
+        description={t("deals.actions.renewHint")}
+        closeLabel={t("common.close")}
+      >
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(
+              () => renewDeal({ dealId, startsOn, endsOn }),
+              (d) => {
+                setOpen(false);
+                if (d) router.push(`/admin/deals/${d.id}?tab=terms`);
+              },
+            );
+          }}
+        >
+          <Field id="rn-start" label={t("deals.new.startsOn")} required>
+            <Input id="rn-start" type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} required />
+          </Field>
+          <Field id="rn-end" label={t("deals.new.endsOn")}>
+            <Input id="rn-end" type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
+          </Field>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={pending || !startsOn}>
+              {t("deals.actions.renew")}
             </Button>
           </div>
         </form>
@@ -145,6 +199,7 @@ export function DealActions({
           }
         />
       ))}
+      {["active", "completed", "expired"].includes(status) && currentConfig ? <RenewDialog dealId={dealId} /> : null}
       {status === "draft" && !hasVersions ? (
         <ConfirmDialog
           trigger={<Button variant="ghost">{t("deals.actions.delete")}</Button>}

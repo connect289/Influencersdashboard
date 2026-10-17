@@ -182,6 +182,45 @@ export const SUPER_ADMIN: Guide = {
       ],
     },
     {
+      id: "contracts-setup",
+      title: "Contracts: clause library, legal review and signing",
+      blocks: [
+        {
+          p: "Contracts are assembled from the [Clause library](/admin/contracts/clauses) by [templates](/admin/contracts/templates), with every number filled in from the deal. The library ships with 20 professionally structured **draft** clauses, each starting with “DRAFT — requires legal review before use”.",
+        },
+        {
+          steps: [
+            "Have counsel review each clause. Edit the wording (remove the draft marker once approved) and save: every save is a new version, and contracts already generated keep the version they used.",
+            "On each clause, click **Mark as legally reviewed**. Only Super Admins can. The library's **Not reviewed** filter shows what is left.",
+            "While the **legal-review gate** is on (Settings → Contracts → Signing and reminders), a contract containing any unreviewed clause cannot be sent. Leave it on.",
+            "Check the default template in [Templates](/admin/contracts/templates): clause order, conditions (for example exclusivity only when the deal has an exclusivity fee) and the preview for each sample deal type.",
+            "Make sure an **Authorised Signatory** is named (Staff → edit → Authorised Signatory, with designation). Only they can countersign.",
+            "In Settings → Contracts, choose the signing-code channels (email, WhatsApp or both), code expiry and attempts, negotiation reminder days and expiry reminders (30, 15 and 7 days by default).",
+          ],
+        },
+        {
+          warning:
+            "Stamp duty and the enforceability of electronically signed contracts depend on the state and the type of contract. Confirm both with counsel; each contract has an optional stamp duty reference.",
+        },
+      ],
+    },
+    {
+      id: "countersign",
+      title: "Countersigning (Authorised Signatory)",
+      blocks: [
+        {
+          steps: [
+            "When a creator signs, you are notified. Open the contract from the notification or [Contracts](/admin/contracts) (status **Signed by creator**).",
+            "Read the document, tick each section, type your full name, accept the statement and click **Send code**. Enter the 6-digit code from your email and click **Countersign**.",
+            "The contract becomes **Active**, the deal becomes active, and the signed PDF with its signature certificate is stored and emailed to every party.",
+          ],
+        },
+        {
+          p: "Every download of a signed PDF re-checks two hashes: the document against the hash each signature recorded, and the PDF against the hash stored when it was made. If either differs the contract is flagged as invalid and nothing is served.",
+        },
+      ],
+    },
+    {
       id: "monitoring",
       title: "Monitoring and the audit log",
       blocks: [
@@ -215,9 +254,9 @@ export const SUPER_ADMIN: Guide = {
 export const INFLUENCER_MANAGER: Guide = {
   slug: "influencer-manager",
   audience: "influencer_manager",
-  title: "Influencer Manager: creators, campaigns and deals",
+  title: "Influencer Manager: creators, campaigns, deals and contracts",
   summary:
-    "Running the creator pipeline, onboarding and approving creators, building campaigns, negotiating, and setting up deals.",
+    "Running the creator pipeline, onboarding and approving creators, building campaigns, negotiating, setting up deals, and contracts.",
   sections: [
     {
       id: "pipeline",
@@ -341,7 +380,7 @@ export const INFLUENCER_MANAGER: Guide = {
             "**Save terms**, then **Send terms to creator** (add a note if useful). The deal moves to Proposed and the creator is notified.",
             "The creator, or their agency with the negotiate grant, **accepts** or **declines with a reason**. A decline puts the terms back in your builder (status Negotiating); revise and send again.",
             "Once accepted, the deal is **Agreed** and the terms are locked as a version.",
-            "The countersigned contract (Phase 4) makes the deal **Active**. For a contract signed outside the portal, use **Activate** and give the reason.",
+            "The countersigned contract makes the deal **Active** (see Contracts below). For a contract signed outside the portal, use **Activate** and give the reason.",
             "Close a deal with **Mark completed**, or **Terminate** with a reason.",
           ],
         },
@@ -362,6 +401,73 @@ export const INFLUENCER_MANAGER: Guide = {
           ],
         },
         { p: "The **Versions** tab lists every version with its terms, who answered and why." },
+      ],
+    },
+    {
+      id: "contracts",
+      title: "Contracts: generating and sending",
+      blocks: [
+        {
+          p: "A contract is generated from a deal's agreed terms. For an accepted campaign application the draft is created automatically; otherwise open the deal and click **Generate contract**.",
+        },
+        {
+          steps: [
+            "Choose the template (the campaign's template is preselected, else the default), who is paid (the creator, or an agency the creator allowed to negotiate and sign), the dates and, if counsel asked for it, a stamp duty reference.",
+            "**Generate draft**. Every amount, milestone, commission rule, bonus, penalty and fee is written from the deal: you never type numbers into a contract.",
+            "If details are missing (for example the creator's legal name or address) a banner lists them. Fix them on the creator's profile or KYC, then **Regenerate**.",
+            "**Send to creator**. The creator (and their negotiating agency) is notified and has until the negotiation deadline to respond; reminders go out automatically.",
+          ],
+        },
+        {
+          table: {
+            head: ["Status", "Meaning"],
+            rows: [
+              ["Draft", "Only Eduwit sees it"],
+              ["Sent / In negotiation", "The creator is reviewing, commenting or asking for changes"],
+              ["Ready to sign", "Every request answered; this version is final"],
+              ["Signed by creator", "Waiting for the Authorised Signatory"],
+              ["Active", "Both signed; the deal is active and the signed PDF is stored"],
+              ["Completed / Terminated / Expired", "Ended (a reason is recorded for termination)"],
+              ["Void / Superseded", "Withdrawn before signing, or replaced by a signed amendment"],
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "contract-negotiation",
+      title: "Contracts: negotiating",
+      blocks: [
+        {
+          list: [
+            "**Comments**: anyone can comment on any clause; reply and resolve threads under each clause on the Document tab.",
+            "**Suggested wording**: the creator can propose new wording for clauses flagged **negotiable**. On the Change requests tab you see a word-by-word diff.",
+            "**Compensation counter-offers**: the creator proposes new numbers (fee, rates, bonus amounts) through a structured form. You see each number from → to.",
+          ],
+        },
+        {
+          p: "For each request choose **Accept**, **Counter** (your own wording or numbers, with a message) or **Decline** (with a reason). Accepting or countering creates a new contract version straight away; for compensation, the deal's terms change first and the contract is regenerated from them, so the deal stays the single source of truth.",
+        },
+        {
+          p: "The **Versions** tab compares any two versions section by section. When every request is answered, click **Mark ready to sign**.",
+        },
+        {
+          tip: "Wording already agreed for a negotiable clause is kept when you regenerate the contract after other changes.",
+        },
+      ],
+    },
+    {
+      id: "contract-changes",
+      title: "Contracts: amendments, renewals and expiry",
+      blocks: [
+        {
+          list: [
+            "**Amendment**: first amend the deal's terms (Amend terms → propose → creator accepts). Then on the active contract click **Create amendment**: a new contract linked to the original. When both parties sign it, the original becomes **Superseded**.",
+            "**Renewal**: on an active or ended deal click **Renew**, pick the new dates, and send the copied terms to the creator. Once accepted, generate its contract; it is marked as a renewal.",
+            "**Expiry**: contracts with an expiry date send reminders 30, 15 and 7 days before (Settings → Contracts) and move to **Expired** after the date.",
+            "**Void** a contract that should not be signed, or **Terminate** / **Mark completed** an active one; each needs a reason.",
+          ],
+        },
       ],
     },
     {

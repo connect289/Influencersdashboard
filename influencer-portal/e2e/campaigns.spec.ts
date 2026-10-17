@@ -70,4 +70,14 @@ test.describe.serial("campaigns, applications and negotiation", () => {
     await expect(page.getByText("Terms in force (version 1)")).toBeVisible();
     await expect(page.getByText("₹12,000").first()).toBeVisible();
   });
+
+  test("the deal's contract is drafted automatically for Eduwit to review", async ({ page }) => {
+    await staffLogin(page, "manager@example.test");
+    await page.goto("/admin/contracts?status=draft");
+    const row = page.getByRole("row").filter({ hasText: name });
+    await expect(row.getByRole("link", { name: /CT-\d+/ })).toBeVisible();
+    await row.getByRole("link", { name: /CT-\d+/ }).click();
+    await expect(page.getByText("Draft").first()).toBeVisible();
+    await expect(page.getByText("₹12,000").first()).toBeVisible();
+  });
 });

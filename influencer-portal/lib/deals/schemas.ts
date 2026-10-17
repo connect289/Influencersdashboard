@@ -81,6 +81,10 @@ export const statusInput = z
     message: "reason",
   });
 
+export const renewInput = z
+  .object({ dealId: z.uuid(), startsOn: z.iso.date(), endsOn: z.iso.date().or(z.literal("")) })
+  .refine((v) => !v.endsOn || v.endsOn >= v.startsOn, { path: ["endsOn"], message: "dates" });
+
 export const presetInput = z.object({
   id: z.union([z.literal(""), z.uuid()]).default(""),
   name: z.string().trim().min(2).max(80),
@@ -110,4 +114,6 @@ export const DEAL_DB_ERRORS: [RegExp, string][] = [
   [/only unproposed drafts/i, "deleteDraft"],
   [/system presets/i, "systemPreset"],
   [/preset with this name/i, "presetName"],
+  [/only active or ended deals can be renewed/i, "renew"],
+  [/end before start/i, "dates"],
 ];

@@ -48,6 +48,7 @@ export const contractSource = z.object({
       .loose()
       .nullable(),
     current_version_id: z.uuid().nullable(),
+    renewal_of: z.uuid().nullable().default(null),
     comp_config: compConfig.nullable(),
   }),
   creator: z.object({

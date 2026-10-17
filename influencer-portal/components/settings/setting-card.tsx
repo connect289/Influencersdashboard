@@ -54,6 +54,12 @@ export function SettingCard({ row }: { row: SettingRow }) {
         description={row.description}
         actions={<HistoryButton settingKey={row.key} />}
       />
+      {row.key === "contracts.signing" ? (
+        // Spec 8.4: a standing note, shown whether or not the setting has been confirmed.
+        <div className="mb-4">
+          <Banner tone="info">{t("settings.stampDutyNote")}</Banner>
+        </div>
+      ) : null}
       {row.needs_confirmation && !row.confirmed_at ? (
         <div className="mb-4 flex flex-col gap-2">
           <Banner tone="warning">{row.needs_confirmation}</Banner>

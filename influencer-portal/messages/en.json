@@ -310,7 +310,8 @@
       "reason": "Give a reason of at least 3 characters.",
       "note": "Add a note of at least 3 characters.",
       "stale": "Someone else changed this setting. Refresh the page to see their version."
-    }
+    },
+    "stampDutyNote": "Stamp duty and the enforceability of electronically signed contracts depend on the state and the type of contract. Confirm both with counsel; record any stamp duty reference on the contract when you generate it."
   },
   "settingGroups": {
     "organisation": "Organisation",
@@ -1782,7 +1783,9 @@
       "systemPreset": "System presets can't be changed. Save a copy instead.",
       "presetName": "A preset with this name already exists.",
       "scenario": "Check the scenario numbers.",
-      "noTerms": "This deal has no terms yet."
+      "noTerms": "This deal has no terms yet.",
+      "renew": "Only active or ended deals can be renewed.",
+      "dates": "Check the dates: the end can't be before the start."
     },
     "subtitle": "Compensation terms per creator: build, simulate, propose and amend.",
     "filterByStatus": "Filter deals by status",
@@ -1891,7 +1894,9 @@
       "amend": "Amend terms",
       "reason": "Reason",
       "delete": "Delete draft",
-      "deleteHint": "Deletes this draft deal. Only drafts that were never proposed can be deleted."
+      "deleteHint": "Deletes this draft deal. Only drafts that were never proposed can be deleted.",
+      "renew": "Renew",
+      "renewHint": "Creates a new draft deal with the same terms and these dates. Its contract is generated as a renewal once the creator accepts the terms."
     },
     "respond": {
       "accept": "Accept terms",
@@ -2298,7 +2303,8 @@
       "noTermsYet": "No terms yet",
       "noTermsYetHint": "Eduwit will send the terms soon.",
       "viewDeal": "View my deal"
-    }
+    },
+    "renewed": "Renewal created as a draft with the same terms. Review the dates and terms, then send them to the creator."
   },
   "help": {
     "title": "Help and guides",

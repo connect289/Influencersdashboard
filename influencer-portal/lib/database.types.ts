@@ -767,14 +767,14 @@ isOneToOne: false
                   ]
                 },"deals": {
                   Row: {
-                    "activated_at": string | null,"agreed_at": string | null,"agreed_terms": Json | null,"application_id": string | null,"campaign_id": string | null,"closed_at": string | null,"code": string,"created_at": string,"created_by": string | null,"creator_id": string,"current_version_id": string | null,"deal_model": string,"draft_config": Json | null,"ends_on": string | null,"id": string,"internal_notes": string | null,"owner_id": string | null,"preset_id": string | null,"starts_on": string,"status": string,"status_reason": string | null,"title": string,"updated_at": string
+                    "activated_at": string | null,"agreed_at": string | null,"agreed_terms": Json | null,"application_id": string | null,"campaign_id": string | null,"closed_at": string | null,"code": string,"created_at": string,"created_by": string | null,"creator_id": string,"current_version_id": string | null,"deal_model": string,"draft_config": Json | null,"ends_on": string | null,"id": string,"internal_notes": string | null,"owner_id": string | null,"preset_id": string | null,"renewal_of": string | null,"starts_on": string,"status": string,"status_reason": string | null,"title": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "activated_at"?: string | null,"agreed_at"?: string | null,"agreed_terms"?: Json | null,"application_id"?: string | null,"campaign_id"?: string | null,"closed_at"?: string | null,"code"?: string,"created_at"?: string,"created_by"?: string | null,"creator_id": string,"current_version_id"?: string | null,"deal_model"?: string,"draft_config"?: Json | null,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"owner_id"?: string | null,"preset_id"?: string | null,"starts_on": string,"status"?: string,"status_reason"?: string | null,"title": string,"updated_at"?: string
+                    "activated_at"?: string | null,"agreed_at"?: string | null,"agreed_terms"?: Json | null,"application_id"?: string | null,"campaign_id"?: string | null,"closed_at"?: string | null,"code"?: string,"created_at"?: string,"created_by"?: string | null,"creator_id": string,"current_version_id"?: string | null,"deal_model"?: string,"draft_config"?: Json | null,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"owner_id"?: string | null,"preset_id"?: string | null,"renewal_of"?: string | null,"starts_on": string,"status"?: string,"status_reason"?: string | null,"title": string,"updated_at"?: string
                   }
                   Update: {
-                    "activated_at"?: string | null,"agreed_at"?: string | null,"agreed_terms"?: Json | null,"application_id"?: string | null,"campaign_id"?: string | null,"closed_at"?: string | null,"code"?: string,"created_at"?: string,"created_by"?: string | null,"creator_id"?: string,"current_version_id"?: string | null,"deal_model"?: string,"draft_config"?: Json | null,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"owner_id"?: string | null,"preset_id"?: string | null,"starts_on"?: string,"status"?: string,"status_reason"?: string | null,"title"?: string,"updated_at"?: string
+                    "activated_at"?: string | null,"agreed_at"?: string | null,"agreed_terms"?: Json | null,"application_id"?: string | null,"campaign_id"?: string | null,"closed_at"?: string | null,"code"?: string,"created_at"?: string,"created_by"?: string | null,"creator_id"?: string,"current_version_id"?: string | null,"deal_model"?: string,"draft_config"?: Json | null,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"owner_id"?: string | null,"preset_id"?: string | null,"renewal_of"?: string | null,"starts_on"?: string,"status"?: string,"status_reason"?: string | null,"title"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -812,6 +812,12 @@ isOneToOne: false
       columns: ["preset_id"]
 isOneToOne: false
       referencedRelation: "deal_presets"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deals_renewal_of_fkey"
+      columns: ["renewal_of"]
+isOneToOne: false
+      referencedRelation: "deals"
       referencedColumns: ["id"]
     }
                   ]
@@ -1678,7 +1684,7 @@ isOneToOne: false
 { Args: { "p_deal": string,"p_effective_from"?: string,"p_note"?: string }; Returns: string
                            },
 "deal_renew":
-{ Args: { "p_deal": string,"p_ends_on": string,"p_starts_on": string }; Returns: string
+{ Args: { "p_deal": string,"p_ends_on"?: string,"p_starts_on": string }; Returns: string
                            },
 "deal_set_status":
 { Args: { "p_deal": string,"p_reason"?: string,"p_status": string }; Returns: undefined

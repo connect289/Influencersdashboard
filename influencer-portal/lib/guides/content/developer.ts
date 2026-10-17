@@ -100,6 +100,23 @@ export const DEVELOPER: Guide = {
       ],
     },
     {
+      id: "contracts",
+      title: "Contracts",
+      blocks: [
+        {
+          list: [
+            "Document model (`lib/contracts/doc.ts`): a whitelisted subset of the Tiptap JSON (paragraphs, headings 2–4, lists, bold/italic/underline; tables only from deal data). We render it ourselves (`html.ts`, `pdf.tsx`, `components/contracts/doc-view.tsx`); stored HTML is never trusted.",
+            "Templates (`template.ts`): `{{path}}` variables from the catalogue in `variables.ts`, block and inline `{{#if}}…{{else}}…{{/if}}` / `{{#unless}}`. `assemble.ts` builds a version's content from a template, the clause versions and the deal context; `build.ts` adds the HTML. Pure and unit-tested.",
+            "Generation (`generate.ts`): loads `inf.contract_source(deal)` and `inf.template_source`, keeps agreed overrides of negotiable clauses, and calls `inf.contract_version_add`, which hashes the HTML (SHA-256) in the database. Missing values are stored on the version and block sending.",
+            "Counter-offers (`counter.ts`): stable keys for every number in a config; `applyCounter` returns a validated new config that becomes a deal version (`origin = counter_offer`).",
+            "Signing (`lib/actions/signing.ts`): the action authenticates the person and calls `contract_sign_code_issue` / `contract_sign` as the service role with that person's id, IP and user agent. Codes are hashed with a per-code salt; 5 attempts, 10-minute expiry, resend cooldown and an hourly cap.",
+            "After the countersignature `finalize.ts` renders the PDF with a signature certificate, uploads it write-once to the `inf-contracts` bucket and records its hash (`contract.finalize` job as the safety net). `/api/contracts/[id]/pdf` re-verifies both hashes on every download and flags the contract on a mismatch.",
+            "Clause seeds: `lib/contracts/library.ts` → `npm run gen:sql` (insert-only migration).",
+          ],
+        },
+      ],
+    },
+    {
       id: "jobs",
       title: "Background jobs and notifications",
       blocks: [

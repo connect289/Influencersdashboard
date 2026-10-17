@@ -20,6 +20,7 @@ export function NewContractForm({
   parent,
   startsOn,
   endsOn,
+  renewal,
 }: {
   dealId: string;
   templates: { id: string; name: string }[];
@@ -28,13 +29,15 @@ export function NewContractForm({
   parent: { id: string; number: string } | null;
   startsOn: string;
   endsOn: string | null;
+  /** The deal renews an earlier one: the contract is a renewal. */
+  renewal: boolean;
 }) {
   const t = useTranslations();
   const router = useRouter();
   const { pending, run } = useAction();
   const [templateId, setTemplateId] = useState(defaultTemplateId);
   const [payee, setPayee] = useState("");
-  const [kind, setKind] = useState<"original" | "renewal">("original");
+  const [kind, setKind] = useState<"original" | "renewal">(renewal ? "renewal" : "original");
   const [effectiveOn, setEffectiveOn] = useState(startsOn);
   const [expiresOn, setExpiresOn] = useState(endsOn ?? "");
   const [stamp, setStamp] = useState("");

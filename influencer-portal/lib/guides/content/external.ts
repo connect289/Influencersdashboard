@@ -98,6 +98,32 @@ export const CREATOR: Guide = {
       ],
     },
     {
+      id: "contracts",
+      title: "Your contracts: review, negotiate and sign",
+      blocks: [
+        {
+          p: "When your deal is agreed, Eduwit sends you its contract. [Contracts](/creator/contracts) lists them; **Your turn** marks the ones waiting for you. The numbers in the contract come straight from your deal.",
+        },
+        {
+          steps: [
+            "Read each clause. Tap **Comment** under any clause to ask a question.",
+            "On clauses marked **Negotiable**, tap **Suggest wording** and edit the clause as you'd like it to read.",
+            "To ask for different money (fee, rates, bonuses), open **Change requests** → **Propose different terms** and change the numbers.",
+            "Eduwit accepts, counters or declines each request. Every change makes a new version; **Versions** shows exactly what changed.",
+            "When the contract is **Ready to sign**, tick each section to confirm you've read it, type your full legal name (as on your PAN), accept the statement, tap **Send code**, and enter the 6-digit code we send you. That is your signature.",
+            "After Eduwit countersigns, you receive the signed PDF by email and can download it from the contract at any time.",
+          ],
+        },
+        {
+          list: [
+            "The signed PDF ends with a signature certificate: who signed, when (in IST and UTC), how the code was sent, and a fingerprint (SHA-256) of the exact document.",
+            "If a contract changes after you open it, signing is refused and you're asked to review the new version.",
+            "Respond before the deadline shown on the contract; you'll get reminders.",
+          ],
+        },
+      ],
+    },
+    {
       id: "tax",
       title: "Tax on your earnings",
       blocks: [
@@ -193,7 +219,7 @@ export const AGENCY: Guide = {
               ["Act on deliverables", "Handle content for their deals (from Phase 5)"],
               [
                 "Negotiate and sign",
-                "Answer invitations, apply to campaigns, counter-offer, accept or decline deal terms",
+                "Answer invitations, apply to campaigns, counter-offer, accept or decline deal terms, negotiate and sign contracts",
               ],
               ["View earnings", "See their deals and earnings"],
             ],
@@ -210,6 +236,8 @@ export const AGENCY: Guide = {
             "Open a creator to see their campaigns (invitations and applications you can handle) and their deals.",
             "Everything you do is shown to Eduwit and the creator as done by the agency.",
             "On a deal, you can accept or decline proposed terms with the negotiate permission, and use the earnings simulator.",
+            "With the negotiate and sign permission you also see the creator's contracts: comment on clauses, suggest wording on negotiable ones, send compensation counter-offers and sign. Your signature is recorded as signed by the agency for the creator, with your own name.",
+            "A contract can name your agency as the payee only if the creator gave you the negotiate and sign permission; it says so in the contract.",
           ],
         },
         {

@@ -122,6 +122,21 @@ test.describe.serial("deals: build, simulate, propose, negotiate, amend", () => 
     await expect(page.getByText("Terms in force (version 3)")).toBeVisible();
   });
 
+  test("the manager generates the deal's contract from the deal page and sends it", async ({ page }) => {
+    await staffLogin(page, "manager@example.test");
+    await page.goto(dealUrl);
+    await page.getByRole("link", { name: "Generate contract" }).click();
+    await expect(page.getByRole("heading", { name: "Generate contract" })).toBeVisible();
+    await page.getByRole("button", { name: "Generate draft" }).click();
+    await expect(page).toHaveURL(/\/admin\/contracts\/[0-9a-f-]{36}$/);
+    await expect(page.getByText("Draft").first()).toBeVisible();
+    // Every number comes from the deal's terms in force (the amended fee).
+    await expect(page.getByText("₹25,000").first()).toBeVisible();
+    await page.getByRole("button", { name: "Send to creator" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Send to creator" }).click();
+    await expect(page.getByText("Contract sent to the creator.")).toBeVisible();
+  });
+
   test("presets: system presets are read-only, staff save their own", async ({ page }) => {
     await staffLogin(page, "manager@example.test");
     await page.goto("/admin/deals/presets");

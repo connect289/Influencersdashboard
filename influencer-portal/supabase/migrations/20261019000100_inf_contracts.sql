@@ -101,6 +101,9 @@ create table inf.contract_templates (
 create unique index contract_templates_one_default_idx on inf.contract_templates (is_default) where is_default and archived_at is null;
 create unique index contract_templates_name_idx on inf.contract_templates (lower(name)) where archived_at is null;
 
+-- A renewal deal points at the deal it renews (its contract is generated as kind 'renewal').
+alter table inf.deals add column renewal_of uuid references inf.deals (id) on delete set null;
+
 -- The contract template a campaign's deals use (spec 14 campaign builder); null means the default template.
 alter table inf.campaigns add column contract_template_id uuid references inf.contract_templates (id) on delete set null;
 
@@ -481,7 +484,7 @@ begin
   select jsonb_build_object(
     'deal', jsonb_build_object('id', d.id, 'code', d.code, 'title', d.title, 'status', d.status, 'starts_on', d.starts_on,
                                'ends_on', d.ends_on, 'deal_model', d.deal_model, 'agreed_terms', d.agreed_terms,
-                               'current_version_id', d.current_version_id,
+                               'current_version_id', d.current_version_id, 'renewal_of', d.renewal_of,
                                'comp_config', (select v.comp_config from inf.deal_versions v where v.id = d.current_version_id)),
     'creator', (select jsonb_build_object('id', c.id, 'display_name', c.display_name, 'handle', c.handle, 'city', c.city,
                                           'state', c.state, 'email', c.email,
@@ -533,7 +536,8 @@ begin
                            where cp.id = d.campaign_id and t.archived_at is null),
                          (select t.id from inf.contract_templates t where t.is_default and t.archived_at is null)),
           v_parent.id,
-          case when v_parent.id is not null then 'amendment' else coalesce(nullif(p ->> 'kind', ''), 'original') end,
+          case when v_parent.id is not null then 'amendment'
+               else coalesce(nullif(p ->> 'kind', ''), case when d.renewal_of is not null then 'renewal' else 'original' end) end,
           nullif(p ->> 'payee_agency_id', '')::uuid, coalesce(nullif(p ->> 'effective_on', '')::date, d.starts_on),
           coalesce(nullif(p ->> 'expires_on', '')::date, d.ends_on), nullif(trim(p ->> 'stamp_duty_reference'), ''))
   returning id into v_id;
@@ -1026,7 +1030,12 @@ begin
   loop
     if r.status <> 'active' and r.negotiation_deadline is not null then
       v_days := ceil(extract(epoch from (r.negotiation_deadline - now())) / 86400)::int;
-      if v_days in (select (x)::int from jsonb_array_elements_text(v_set -> 'negotiation_reminder_days') x) or v_days = 0 then
+      if v_days = -1 then
+        -- The deadline passed yesterday: Eduwit decides whether to extend, chase or void.
+        perform inf.contract_notify(r.id, 'eduwit', 'contract.deadline_passed', 'Deadline passed: ' || r.number,
+                                    'The negotiation deadline has passed. Follow up, extend the conversation or void the contract.');
+        v_n := v_n + 1;
+      elsif v_days in (select (x)::int from jsonb_array_elements_text(v_set -> 'negotiation_reminder_days') x) or v_days = 0 then
         perform inf.contract_notify(r.id, case when r.status = 'signed_by_creator' then 'signatory' else 'all' end,
                                     'contract.reminder', 'Reminder: ' || r.number,
                                     case when r.status = 'signed_by_creator' then 'Waiting for the countersignature.'
@@ -1063,7 +1072,7 @@ begin
 end $$;
 
 -- Renewal: a new draft deal with the same terms and new dates (its contract is generated as kind 'renewal').
-create or replace function inf.deal_renew(p_deal uuid, p_starts_on date, p_ends_on date) returns uuid
+create or replace function inf.deal_renew(p_deal uuid, p_starts_on date, p_ends_on date default null) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare d inf.deals; v_cfg jsonb; v_id uuid;
 begin
@@ -1072,9 +1081,10 @@ begin
   if d.id is null or d.status not in ('active', 'completed', 'expired') then raise exception 'only active or ended deals can be renewed' using errcode = '22023'; end if;
   if p_ends_on is not null and p_ends_on < p_starts_on then raise exception 'end before start' using errcode = '22023'; end if;
   select comp_config into v_cfg from inf.deal_versions where id = d.current_version_id;
-  insert into inf.deals (creator_id, campaign_id, title, starts_on, ends_on, draft_config, preset_id, deal_model, owner_id, internal_notes)
+  insert into inf.deals (creator_id, campaign_id, title, starts_on, ends_on, draft_config, preset_id, deal_model, owner_id, internal_notes,
+                         renewal_of)
   values (d.creator_id, d.campaign_id, left('Renewal: ' || d.title, 120), p_starts_on, p_ends_on, v_cfg, d.preset_id, d.deal_model,
-          coalesce(d.owner_id, auth.uid()), 'Renewal of ' || d.code)
+          coalesce(d.owner_id, auth.uid()), 'Renewal of ' || d.code, d.id)
   returning id into v_id;
   perform inf.audit('deal', v_id::text, 'renewal_of', null, jsonb_build_object('deal_id', d.id, 'code', d.code));
   return v_id;

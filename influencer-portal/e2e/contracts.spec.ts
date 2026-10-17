@@ -206,4 +206,23 @@ test.describe.serial("contracts: library, templates, negotiation, versions", () 
     const href = await page.getByRole("link", { name: "Download the signed PDF" }).getAttribute("href");
     expect((await page.request.get(href ?? "")).status()).toBe(200);
   });
+
+  test("an active contract is amended through a linked contract; the deal can be renewed", async ({ page }) => {
+    await staffLogin(page, "manager@example.test");
+    await openDemoContract(page, "/admin/contracts");
+    await page.getByRole("link", { name: "Create amendment" }).click();
+    await expect(page.getByText(/This amendment replaces contract CT-00001/)).toBeVisible();
+    await page.getByRole("button", { name: "Generate draft" }).click();
+    await expect(page).toHaveURL(/\/admin\/contracts\/[0-9a-f-]{36}$/);
+    await expect(page.getByText("Amendment").first()).toBeVisible();
+    await expect(page.getByText("Amends CT-00001")).toBeVisible();
+
+    await page.getByRole("link", { name: /^DL-/ }).click();
+    await page.getByRole("button", { name: "Renew" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Starts on").fill("2027-04-01");
+    await dialog.getByRole("button", { name: "Renew" }).click();
+    await expect(page).toHaveURL(/\/admin\/deals\/[0-9a-f-]{36}\?tab=terms$/);
+    await expect(page.getByRole("heading", { name: "Renewal: Always-on MBA deal (demo)" })).toBeVisible();
+  });
 });

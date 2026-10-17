@@ -74,9 +74,10 @@ influencer-portal/
   app/m/[handle]/…         public media kit page and PDF
   app/legal/…              public terms
   app/r/[code]/route.ts    tracking redirect (later)
-  app/api/…                health, metrics, public API, internal jobs
+  app/api/…                health, metrics, signed-contract download, public API, internal jobs
   lib/compensation/        pure engine, simulator, tax estimate + tests
   lib/deals/               deal schemas, builder helpers, offer terms → config, dry-run, loaders
+  lib/contracts/           document model, template engine, assembly, counter-offers, generation, PDF, signing
   lib/guides/              in-app guides (one per audience; update them with every feature)
   lib/attribution/         pure rules + tests (later)
   lib/actions/             server actions (validate → one RPC → ActionResult)

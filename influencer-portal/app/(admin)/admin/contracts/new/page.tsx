@@ -86,6 +86,7 @@ export default async function NewContractPage({
             parent={parent}
             startsOn={src.deal.starts_on}
             endsOn={src.deal.ends_on}
+            renewal={src.deal.renewal_of !== null}
           />
         </div>
       )}
