@@ -93,6 +93,54 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"course_attempts": {
+                  Row: {
+                    "answers": NonNullable<Json>,"created_at": string,"creator_id": string,"id": string,"passed": boolean,"score_pct": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "answers": NonNullable<Json>,"created_at"?: string,"creator_id": string,"id"?: string,"passed": boolean,"score_pct": number
+                  }
+                  Update: {
+                    "answers"?: NonNullable<Json>,"created_at"?: string,"creator_id"?: string,"id"?: string,"passed"?: boolean,"score_pct"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "course_attempts_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"course_lessons": {
+                  Row: {
+                    "active": boolean,"body": string,"id": string,"position": number,"title": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"body": string,"id"?: string,"position": number,"title": string
+                  }
+                  Update: {
+                    "active"?: boolean,"body"?: string,"id"?: string,"position"?: number,"title"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"course_questions": {
+                  Row: {
+                    "active": boolean,"correct_index": number,"explanation": string | null,"id": string,"options": (string)[],"position": number,"prompt": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"correct_index": number,"explanation"?: string | null,"id"?: string,"options": (string)[],"position": number,"prompt": string
+                  }
+                  Update: {
+                    "active"?: boolean,"correct_index"?: number,"explanation"?: string | null,"id"?: string,"options"?: (string)[],"position"?: number,"prompt"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"creator_accounts": {
                   Row: {
                     "creator_id": string,"linked_at": string,"user_id": string
@@ -146,6 +194,26 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"creator_invitations": {
+                  Row: {
+                    "accepted_at": string | null,"creator_id": string,"email": string,"expires_at": string,"id": string,"sent_at": string,"sent_by": string,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_at"?: string | null,"creator_id": string,"email": string,"expires_at"?: string,"id"?: string,"sent_at"?: string,"sent_by"?: string,"status"?: string
+                  }
+                  Update: {
+                    "accepted_at"?: string | null,"creator_id"?: string,"email"?: string,"expires_at"?: string,"id"?: string,"sent_at"?: string,"sent_by"?: string,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "creator_invitations_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"creator_kyc": {
                   Row: {
@@ -681,6 +749,11 @@ isOneToOne: false
 "agency_set_status":
 { Args: { "p_agency": string,"p_reason": string,"p_status": string }; Returns: undefined
                            },
+"approvals_queue":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "creator_id": string,"display_name": string,"followers": number,"handle": string,"kyc_status": string,"owner_name": string,"source": string,"submitted_at": string
+            }[]
+                           },
 "audit":
 { Args: { "p_action": string,"p_after"?: Json,"p_before"?: Json,"p_entity_id": string,"p_entity_type": string }; Returns: undefined
                            },
@@ -699,8 +772,17 @@ isOneToOne: false
 "code_hash":
 { Args: { "p_code": string,"p_salt": string,"p_user": string }; Returns: string
                            },
+"course_content":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"course_submit":
+{ Args: { "p_answers": Json }; Returns: Json
+                           },
 "creator_account_link":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"creator_approve_internal":
+{ Args: { "p_by": string,"p_creator": string }; Returns: undefined
                            },
 "creator_contact_add":
 { Args: { "p_creator": string,"p_email": string,"p_kind": string,"p_label": string,"p_phone": string }; Returns: string
@@ -720,6 +802,9 @@ isOneToOne: false
 "creator_profile_update":
 { Args: { "p": Json,"p_creator": string }; Returns: undefined
                            },
+"creator_review":
+{ Args: { "p_creator": string,"p_decision": string,"p_reason": string }; Returns: undefined
+                           },
 "creator_rows":
 { Args: { "p": Json }; Returns: {
               "city": string,"display_name": string,"email": string,"followers": number,"handle": string,"has_account": boolean,"id": string,"is_blocked": boolean,"languages": (string)[],"last_activity_at": string,"last_contacted_at": string,"next_follow_up_at": string,"niches": (string)[],"owner_id": string,"owner_name": string,"pipeline_stage": string,"platforms": (string)[],"state": string,"status": string,"tags": (string)[],"tier_id": string,"tier_name": string,"updated_at": string
@@ -727,6 +812,9 @@ isOneToOne: false
                            },
 "creator_save":
 { Args: { "p": Json }; Returns: string
+                           },
+"creator_self_signup":
+{ Args: { "p": Json }; Returns: Json
                            },
 "creator_set_blocked":
 { Args: { "p_blocked": boolean,"p_creator": string,"p_reason": string }; Returns: undefined
@@ -744,6 +832,11 @@ isOneToOne: false
                            },
 "creators_flag_dormant":
 { Args: Record<PropertyKey, never>; Returns: number
+                           },
+"creators_invite":
+{ Args: { "p_ids": (string)[] }; Returns: {
+              "creator_id": string,"display_name": string,"email": string
+            }[]
                            },
 "cron_dispatch":
 { Args: { "p_path": string }; Returns: undefined
@@ -894,6 +987,12 @@ isOneToOne: false
                            },
 "notify":
 { Args: { "p_body": string,"p_channels"?: (string)[],"p_data": Json,"p_event": string,"p_idem_key": string,"p_link": string,"p_mandatory": boolean,"p_title": string,"p_user": string }; Returns: string
+                           },
+"onboarding_state":
+{ Args: { "p_creator"?: string }; Returns: Json
+                           },
+"onboarding_submit":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "outreach_log":
 { Args: { "p_channel": string,"p_creator": string,"p_direction": string,"p_next_follow_up"?: string,"p_notes": string,"p_outcome": string }; Returns: string

@@ -361,13 +361,21 @@ export const SETTINGS = {
   "creators.lifecycle": def({
     group: "creators",
     label: "Creator lifecycle",
-    description: "Dormancy flag and self sign-up approval.",
+    description: "Dormancy flag, onboarding requirements and self sign-up approval.",
     schema: z.strictObject({
       dormant_after_days: z.number().int().min(7).max(365),
       auto_approve_signups: z.boolean(),
       auto_approve_min_followers: z.number().int().min(0).max(100_000_000),
+      course_pass_pct: z.number().int().min(50).max(100),
+      require_kyc_to_submit: z.boolean(),
     }),
-    default: { dormant_after_days: 45, auto_approve_signups: false, auto_approve_min_followers: 10000 },
+    default: {
+      dormant_after_days: 45,
+      auto_approve_signups: false,
+      auto_approve_min_followers: 10000,
+      course_pass_pct: 80,
+      require_kyc_to_submit: true,
+    },
     edit: "settings.write",
   }),
   "scorecard.weights": def({

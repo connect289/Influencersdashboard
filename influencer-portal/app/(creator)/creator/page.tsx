@@ -5,6 +5,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { requireCreator } from "@/lib/auth/guards";
+import { onboardingState, progressPct } from "@/lib/creators/onboarding";
 
 interface Action {
   key: string;
@@ -22,9 +23,26 @@ export async function generateMetadata() {
 export default async function CreatorHome() {
   const { supabase, me } = await requireCreator();
   const t = await getTranslations();
-  const terms = await supabase.rpc("terms_pending");
+  const [terms, onboarding] = await Promise.all([supabase.rpc("terms_pending"), supabase.rpc("onboarding_state")]);
+  const state = onboardingState.safeParse(onboarding.data);
   const actions: Action[] = [];
-  if ((terms.data ?? []).length > 0)
+  if (state.success && !state.data.approved)
+    actions.push(
+      state.data.submitted_at
+        ? {
+            key: "onboarding",
+            title: t("home.actions.onboardingReview"),
+            hint: t("home.actions.onboardingReviewHint"),
+            href: "/creator/onboarding?step=submit",
+          }
+        : {
+            key: "onboarding",
+            title: t("home.actions.onboarding"),
+            hint: t("home.actions.onboardingHint", { pct: progressPct(state.data) }),
+            href: "/creator/onboarding",
+          },
+    );
+  if ((terms.data ?? []).length > 0 && !(state.success && !state.data.approved))
     actions.push({
       key: "terms",
       title: t("home.actions.terms"),

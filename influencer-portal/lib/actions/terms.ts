@@ -17,5 +17,6 @@ export async function acceptTerms(termsVersionId: string): Promise<ActionResult>
   }
   revalidatePath("/creator");
   revalidatePath("/creator/terms");
+  revalidatePath("/creator/onboarding");
   return { ok: true, message: t("terms.accepted") };
 }

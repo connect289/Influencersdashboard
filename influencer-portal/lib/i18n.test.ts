@@ -22,6 +22,7 @@ import {
   PIPELINE_STAGES,
   TASK_PRIORITIES,
 } from "@/lib/creators/crm";
+import { WIZARD_STEPS } from "@/lib/creators/onboarding";
 import en from "@/messages/en.json";
 
 const root = join(import.meta.dirname, "..");
@@ -77,6 +78,10 @@ describe("messages", () => {
       ...["overview", "profile", "kyc", "outreach", "tasks", "agencies", "history"].map((x) => `creators.tabs.${x}`),
       ...["tag_add", "tag_remove", "owner", "stage"].map((x) => `creators.bulk.${x}`),
       ...["open", "done", "cancelled"].map((x) => `tasks.statusDone.${x}`),
+      ...WIZARD_STEPS.map((x) => `onboarding.steps.${x}`),
+      ...["approve", "changes", "decline"].map((x) => `onboarding.review.done.${x}`),
+      ...["self", "invited"].map((x) => `onboarding.queue.source.${x}`),
+      ...["name", "email", "handle", "url", "followers", "consent", "generic"].map((x) => `auth.signup.errors.${x}`),
       ...["pending", "submitted", "verified", "rejected"].map((s) => `kyc.status.${s}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);

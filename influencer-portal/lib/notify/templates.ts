@@ -56,3 +56,16 @@ export function agencyInviteEmail(loginUrl: string, name: string, agencyName: st
     text: `Hi ${name},\n\nYou've been added to ${agencyName} on the Eduwit creator portal. Sign in with this email address (we'll email you a code):\n${loginUrl}\n`,
   };
 }
+
+export function creatorInviteEmail(loginUrl: string, name: string): Omit<EmailMessage, "to"> {
+  return {
+    subject: "You're invited to the Eduwit creator programme",
+    html: layout(
+      "Join Eduwit Creators",
+      `<p>Hi ${escapeHtml(name)},</p><p>We'd love to work with you. Sign in to the Eduwit creator portal with this email address to set up your profile, see campaigns and track your earnings.</p>
+<p>No password needed: we'll email you a code each time.</p>
+<p style="margin:20px 0"><a href="${escapeHtml(loginUrl)}" style="background:#0B2F5E;color:#FFFFFF;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">Get started</a></p>`,
+    ),
+    text: `Hi ${name},\n\nWe'd love to work with you. Sign in to the Eduwit creator portal with this email address (we'll email you a code):\n${loginUrl}\n`,
+  };
+}

@@ -12,7 +12,7 @@ export async function rateLimit(
   subject: string,
 ): Promise<{ ok: true } | { ok: false; retryAfter: number }> {
   const [limit, seconds] = RATE_LIMITS[scope];
-  const failClosed = /sign_in|otp|code|password/.test(scope);
+  const failClosed = /sign_in|signup|otp|code|password/.test(scope);
   try {
     const { data, error } = await adminClient().rpc("rate_check", {
       p_key: rateKey(scope, subject),

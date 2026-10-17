@@ -18,6 +18,7 @@ import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
 import { useAction } from "@/components/ui/use-action";
 import { bulkCreators } from "@/lib/actions/creators";
+import { inviteCreators } from "@/lib/actions/onboarding";
 import {
   creatorFiltersToQuery,
   PAGE_SIZES,
@@ -39,12 +40,14 @@ export function CreatorsTable({
   filters,
   owners,
   canWrite,
+  canInvite = false,
 }: {
   rows: CreatorListRow[];
   total: number;
   filters: CreatorFilters;
   owners: Option[];
   canWrite: boolean;
+  canInvite?: boolean;
 }) {
   const t = useTranslations();
   const path = usePathname();
@@ -201,6 +204,21 @@ export function CreatorsTable({
               {t(`creators.bulk.${k}`)}
             </Button>
           ))}
+          {canInvite ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={pending}
+              onClick={() =>
+                run(
+                  () => inviteCreators(selectedIds),
+                  () => setSelection({}),
+                )
+              }
+            >
+              {t("onboarding.invite.bulk")}
+            </Button>
+          ) : null}
           <Button size="sm" variant="ghost" onClick={() => setSelection({})}>
             {t("common.clear")}
           </Button>

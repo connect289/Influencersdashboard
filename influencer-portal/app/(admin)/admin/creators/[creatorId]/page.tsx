@@ -11,6 +11,8 @@ import { ContactsCard, PortfolioCard, RateCardCard } from "@/components/creator-
 import { CreatorActions } from "@/components/creators/creator-actions";
 import { CreatorDialog } from "@/components/creators/creator-dialog";
 import { OutreachPanel, type OutreachRow } from "@/components/creators/outreach-panel";
+import { InviteButton } from "@/components/onboarding/invite-button";
+import { ReviewActions } from "@/components/onboarding/review-actions";
 import { TaskList } from "@/components/creators/tasks";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,6 +105,13 @@ export default async function Creator360({
                 </Button>
               }
             />
+            {p.has("creator.import") &&
+            c.email &&
+            !hasAccount &&
+            !c.is_blocked &&
+            ["prospect", "invited"].includes(c.status) ? (
+              <InviteButton creatorId={c.id} name={c.display_name} email={c.email} resend={c.status === "invited"} />
+            ) : null}
             <CreatorActions
               creatorId={c.id}
               name={c.display_name}
@@ -163,6 +172,15 @@ export default async function Creator360({
     body = (
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-4">
+          {c.onboarding_submitted_at && !c.approved_at && c.status !== "archived" ? (
+            <Card className="bg-accent-soft">
+              <CardHeader
+                title={t("onboarding.review.panelTitle")}
+                description={t("onboarding.review.panelHint", { date: formatDateTime(c.onboarding_submitted_at) })}
+              />
+              {canWrite ? <ReviewActions creatorId={c.id} name={c.display_name} /> : null}
+            </Card>
+          ) : null}
           {c.is_blocked ? (
             <Card className="bg-danger-soft">
               <p className="text-sm font-medium text-danger">

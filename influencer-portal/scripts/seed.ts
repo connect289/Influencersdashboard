@@ -158,6 +158,9 @@ async function main() {
       owner_id: owner?.user_id ?? null,
       source: "seed",
       is_test: true,
+      // Active demo creators have finished onboarding and been approved.
+      approved_at: c.status === "active" ? new Date().toISOString() : null,
+      onboarding_step: c.status === "active" ? "done" : "profile",
     };
     const up = await db.from("creators").upsert(row, { onConflict: "handle" }).select("id").single();
     if (up.error) throw new Error(`creator ${c.handle}: ${up.error.message}`);

@@ -5,6 +5,7 @@ import { CreatorDialog } from "@/components/creators/creator-dialog";
 import { CreatorFilters } from "@/components/creators/creator-filters";
 import { CreatorsKanban } from "@/components/creators/creators-kanban";
 import { CreatorsTable } from "@/components/creators/creators-table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -43,8 +44,15 @@ export default async function CreatorsPage({
   const result = parsed?.success ? parsed.data : null;
   const canWrite = me.permissions.has("creator.write");
   const filtered = activeFilterCount(filters) > 0 || Boolean(filters.q);
+  const approvals = (await supabase.rpc("approvals_queue")).data?.length ?? 0;
   const actions = (
     <>
+      <Button asChild variant="secondary">
+        <Link href="/admin/creators/approvals">
+          {t("onboarding.queue.title")}
+          {approvals ? <Badge family="attention">{approvals}</Badge> : null}
+        </Link>
+      </Button>
       {me.permissions.has("creator.import") ? (
         <Button asChild variant="secondary">
           <Link href="/admin/creators/import">
@@ -96,6 +104,7 @@ export default async function CreatorsPage({
               filters={filters}
               owners={pickers.owners}
               canWrite={canWrite}
+              canInvite={me.permissions.has("creator.import")}
             />
           </div>
         </Card>

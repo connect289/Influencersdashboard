@@ -91,6 +91,8 @@ export const RATE_LIMITS = {
   code_send: [5, 600],
   code_verify: [10, 600],
   password_link: [3, 3600],
+  signup_ip: [10, 3600],
+  signup_email: [3, 3600],
   redirect: [120, 60],
   public_api: [60, 60],
   internal: [600, 60],

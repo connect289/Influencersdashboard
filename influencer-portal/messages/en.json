@@ -114,7 +114,9 @@
       "sendCode": "Email me a code",
       "sending": "Sending…",
       "staffPrompt": "Eduwit team member?",
-      "staffLink": "Staff sign-in"
+      "staffLink": "Staff sign-in",
+      "newPrompt": "New creator?",
+      "signupLink": "Sign up"
     },
     "code": {
       "title": "Check your email",
@@ -182,6 +184,32 @@
       "emailFormat": "Enter a valid email address.",
       "googleFailed": "Google sign-in didn't work. Try again or use email.",
       "domain": "Only Eduwit work accounts can sign in here."
+    },
+    "signup": {
+      "title": "Join Eduwit Creators",
+      "subtitle": "Create your profile in two minutes. We'll email you a code to confirm it's you.",
+      "name": "Your name",
+      "handle": "Choose your Eduwit handle",
+      "handleHint": "3–30 lower-case letters, digits, dots or underscores. Shown on your public page.",
+      "platform": "Main platform",
+      "url": "Profile link",
+      "followers": "Followers (approximate)",
+      "consent": "I agree to the creator terms and privacy notice.",
+      "consentLink": "Read them",
+      "submit": "Create my profile",
+      "creating": "Creating…",
+      "haveAccount": "Already have an account?",
+      "checkEmail": "Check your email for a code.",
+      "errors": {
+        "name": "Enter your name.",
+        "email": "Enter a valid email address.",
+        "handle": "Handles are 3–30 lower-case letters, digits, dots or underscores.",
+        "url": "Enter your profile link starting with https://",
+        "followers": "Followers must be a number.",
+        "consent": "Please agree to the terms to continue.",
+        "handleTaken": "That handle is taken. Try another.",
+        "generic": "Some details aren't valid. Check them and try again."
+      }
     }
   },
   "account": {
@@ -367,7 +395,9 @@
     "financial_records_years": "Keep financial and contract records (years)",
     "audit_log_years": "Keep the audit log (years)",
     "click_anonymise_days": "Anonymise link clicks after (days)",
-    "sign_in_log_days": "Keep the sign-in log (days)"
+    "sign_in_log_days": "Keep the sign-in log (days)",
+    "course_pass_pct": "Compliance quiz pass mark (%)",
+    "require_kyc_to_submit": "Require KYC before onboarding can be submitted"
   },
   "settingOptions": {
     "first_touch": "First touch",
@@ -564,7 +594,11 @@
     "noActionsHint": "When Eduwit sends you a contract, brief or campaign, it will appear here.",
     "actions": {
       "terms": "Accept the platform terms",
-      "termsHint": "Needed before you can take part in campaigns."
+      "termsHint": "Needed before you can take part in campaigns.",
+      "onboarding": "Finish setting up your profile",
+      "onboardingHint": "{pct}% done. You can apply to campaigns once you're approved.",
+      "onboardingReview": "Your profile is being reviewed",
+      "onboardingReviewHint": "We'll let you know as soon as you're approved."
     }
   },
   "terms": {
@@ -1219,6 +1253,98 @@
       "low": "Low",
       "normal": "Normal",
       "high": "High"
+    }
+  },
+  "legal": {
+    "title": "Creator terms and privacy",
+    "empty": "The terms are being finalised",
+    "emptyHint": "You'll be asked to accept them in the portal before you start."
+  },
+  "onboarding": {
+    "title": "Get started",
+    "subtitle": "{pct}% done. Finish each step, then submit your profile for approval.",
+    "progress": "Onboarding progress",
+    "stepsLabel": "Onboarding steps",
+    "steps": {
+      "profile": "Profile",
+      "platforms": "Platforms",
+      "kyc": "KYC",
+      "terms": "Terms",
+      "course": "Compliance course",
+      "submit": "Submit"
+    },
+    "next": "Next step",
+    "skipForNow": "Skip for now",
+    "profileHint": "Add your legal name, WhatsApp number, city and at least one topic.",
+    "kycOptional": "KYC is optional for now, but you'll need it before your first payout.",
+    "termsMissing": "The terms haven't been published yet. You can continue; you'll be asked to accept them later.",
+    "approvedTitle": "You're all set",
+    "approvedHint": "Your profile is approved. Explore campaigns from your home page.",
+    "course": {
+      "lessonsTitle": "Four rules for every post",
+      "lessonsHint": "Read these before the quiz. They protect you, students and Eduwit.",
+      "quizTitle": "Quiz",
+      "quizHint": "Answer every question. You need {pct}% to pass, and you can retry.",
+      "submit": "Check my answers",
+      "retry": "Try again",
+      "answered": "{answered} of {total} answered",
+      "passed": "Passed with {score}%. Well done!",
+      "failed": "You scored {score}%. You need {pct}%. Read the notes under the questions you missed and try again.",
+      "alreadyPassed": "You've already passed the quiz.",
+      "right": "Correct",
+      "wrong": "Incorrect",
+      "tooMany": "That's the limit for today. Try again tomorrow."
+    },
+    "submit": {
+      "title": "Submit for approval",
+      "hint": "Once every step is done, send your profile to the Eduwit team.",
+      "button": "Submit for approval",
+      "sent": "Submitted. We'll let you know when you're approved.",
+      "approved": "You're approved! Welcome aboard.",
+      "waiting": "Submitted. The Eduwit team is reviewing your profile."
+    },
+    "errors": {
+      "incomplete": "Finish every step before submitting.",
+      "alreadyApproved": "This creator is already approved."
+    },
+    "queue": {
+      "title": "Approvals",
+      "subtitle": "Creators who finished onboarding and are waiting for approval, oldest first.",
+      "empty": "Nobody is waiting",
+      "emptyHint": "Creators appear here when they submit their onboarding.",
+      "followers": "{count} followers",
+      "source": {
+        "self": "Signed up",
+        "invited": "Invited"
+      }
+    },
+    "review": {
+      "panelTitle": "Waiting for approval",
+      "panelHint": "Submitted {date}. Check the profile, platforms and KYC, then decide.",
+      "approve": "Approve",
+      "changes": "Ask for changes",
+      "changesTitle": "Ask {name} for changes",
+      "changesBody": "They get your note and the wizard reopens for them.",
+      "whatToChange": "What needs changing",
+      "decline": "Decline",
+      "declineTitle": "Decline {name}?",
+      "declineBody": "Their account is archived and their sessions end.",
+      "done": {
+        "approve": "Approved. The creator has been told.",
+        "changes": "Sent back with your note.",
+        "decline": "Declined."
+      }
+    },
+    "invite": {
+      "button": "Invite to portal",
+      "resend": "Resend invitation",
+      "title": "Invite {name} to the portal?",
+      "resendTitle": "Resend the invitation to {name}?",
+      "body": "We'll email {email} a link to sign in and set up their profile.",
+      "send": "Send invitation",
+      "bulk": "Invite to portal",
+      "none": "Nobody could be invited (an email is needed, and they mustn't have an account already).",
+      "sent": "{count, plural, one {# invitation} other {# invitations}} sent.{skipped, plural, =0 {} other { # skipped (no email or already signed up).}}{failed, plural, =0 {} other { # emails failed.}}"
     }
   }
 }

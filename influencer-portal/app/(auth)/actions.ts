@@ -23,6 +23,8 @@ import {
 import { adminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { linkPortalAccount, portalNext } from "@/lib/auth/link";
+import { HANDLE_RE } from "@/lib/creators/crm";
+import { PLATFORMS } from "@/lib/creators/schemas";
 
 export type FormState = { error?: string; notice?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -289,4 +291,103 @@ export async function creatorVerifyOtp(_: FormState, form: FormData): Promise<Fo
   await record(email, "creator", "email_otp", "ok", kind === "agency" ? "agency" : null, data.user.id);
   (await cookies()).delete({ name: OTP_EMAIL_COOKIE, path: "/login" });
   redirect(portalNext(kind, next));
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Creator self sign-up (spec 13): a public form that creates an onboarding creator, then signs them in by email code.
+// ---------------------------------------------------------------------------------------------------------------
+const signupSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  email: emailSchema.transform((v) => v.trim().toLowerCase()),
+  handle: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/^@/, "").toLowerCase())
+    .refine((v) => HANDLE_RE.test(v)),
+  platform: z.enum(PLATFORMS),
+  url: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((v) => /^https:\/\/\S{4,}$/.test(v)),
+  followers: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/[,\s]/g, ""))
+    .refine((v) => v === "" || /^\d{1,11}$/.test(v)),
+  consent: z.literal("on"),
+});
+
+export async function creatorSignUp(_: FormState, form: FormData): Promise<FormState> {
+  const t = await getTranslations();
+  // Honeypot: real people never see or fill this field.
+  if (formText(form, "website") !== "") return { notice: t("auth.signup.checkEmail") };
+  const parsed = signupSchema.safeParse({
+    name: formText(form, "name"),
+    email: formText(form, "email"),
+    handle: formText(form, "handle"),
+    platform: formText(form, "platform"),
+    url: formText(form, "url"),
+    followers: formText(form, "followers"),
+    consent: formText(form, "consent"),
+  });
+  if (!parsed.success) {
+    const field = String(parsed.error.issues[0]?.path[0] ?? "");
+    return {
+      error: t(
+        `auth.signup.errors.${["name", "email", "handle", "url", "followers", "consent"].includes(field) ? field : "generic"}` as "auth.signup.errors.generic",
+      ),
+    };
+  }
+  const v = parsed.data;
+  if (!(await rateLimit("signup_ip", await ipKey())).ok || !(await rateLimit("signup_email", v.email)).ok) {
+    return { error: t("auth.errors.tooManyCodes") };
+  }
+  const admin = adminClient();
+  const { data, error } = await admin.rpc("creator_self_signup", {
+    p: {
+      display_name: v.name,
+      email: v.email,
+      handle: v.handle,
+      platform: v.platform,
+      platform_url: v.url,
+      followers: v.followers,
+    },
+  });
+  if (error) {
+    log.error("signup.failed", { error: error.message });
+    return { error: t("errors.generic") };
+  }
+  const result = (data as { ok?: boolean; error?: string } | null) ?? {};
+  if (result.error === "handle_taken") return { error: t("auth.signup.errors.handleTaken") };
+  if (result.error === "invalid") return { error: t("auth.signup.errors.generic") };
+  if (result.ok) {
+    // The account must exist before the code can be sent (codes never create accounts, D-25).
+    const existing = (await admin.rpc("auth_user_id_by_email", { p_email: v.email })).data;
+    if (!existing) {
+      const created = await admin.auth.admin.createUser({
+        email: v.email,
+        email_confirm: true,
+        user_metadata: { full_name: v.name },
+      });
+      if (created.error) {
+        log.error("signup.create_user_failed", { error: created.error.message });
+        return { error: t("errors.generic") };
+      }
+    }
+  }
+  // Same response for a new sign-up and for an email that's already registered (no account discovery): send a code
+  // (it only arrives if the email has an account) and go to the code page.
+  const supabase = await createClient();
+  const sent = await supabase.auth.signInWithOtp({ email: v.email, options: { shouldCreateUser: false } });
+  if (sent.error?.status === 429) return { error: t("auth.errors.tooManyCodes") };
+  await record(v.email, "creator", "email_otp", "ok", result.ok ? "signup" : "signup_existing");
+  (await cookies()).set(OTP_EMAIL_COOKIE, v.email, {
+    httpOnly: true,
+    secure: env().NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/login",
+    maxAge: 15 * 60,
+  });
+  redirect(`/login/code?next=${encodeURIComponent("/creator/onboarding")}`);
 }
