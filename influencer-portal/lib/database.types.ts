@@ -179,17 +179,23 @@ isOneToOne: false
                   ]
                 },"campaigns": {
                   Row: {
-                    "apply_by": string | null,"budget_paise": number | null,"compensation_summary": string | null,"created_at": string,"created_by": string,"deliverables": NonNullable<Json>,"description": string | null,"eligibility": NonNullable<Json>,"ends_on": string | null,"id": string,"internal_notes": string | null,"name": string,"objective": string,"owner_id": string | null,"slots": number | null,"starts_on": string | null,"status": string,"updated_at": string,"visibility": string
+                    "apply_by": string | null,"budget_paise": number | null,"compensation_summary": string | null,"created_at": string,"created_by": string,"default_preset_id": string | null,"deliverables": NonNullable<Json>,"description": string | null,"eligibility": NonNullable<Json>,"ends_on": string | null,"id": string,"internal_notes": string | null,"name": string,"objective": string,"owner_id": string | null,"slots": number | null,"starts_on": string | null,"status": string,"updated_at": string,"visibility": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"created_at"?: string,"created_by"?: string,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name": string,"objective": string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
+                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name": string,"objective": string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
                   }
                   Update: {
-                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"created_at"?: string,"created_by"?: string,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name"?: string,"objective"?: string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
+                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name"?: string,"objective"?: string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "campaigns_default_preset_id_fkey"
+      columns: ["default_preset_id"]
+isOneToOne: false
+      referencedRelation: "deal_presets"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "campaigns_owner_id_fkey"
       columns: ["owner_id"]
 isOneToOne: false
@@ -210,6 +216,32 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"comp_runs": {
+                  Row: {
+                    "as_of": string,"created_at": string,"created_by": string | null,"deal_id": string,"deal_version_id": string | null,"id": number,"kind": string,"summary": NonNullable<Json>
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "as_of": string,"created_at"?: string,"created_by"?: string | null,"deal_id": string,"deal_version_id"?: string | null,"id"?: never,"kind": string,"summary"?: NonNullable<Json>
+                  }
+                  Update: {
+                    "as_of"?: string,"created_at"?: string,"created_by"?: string | null,"deal_id"?: string,"deal_version_id"?: string | null,"id"?: never,"kind"?: string,"summary"?: NonNullable<Json>
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "comp_runs_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "comp_runs_deal_version_id_fkey"
+      columns: ["deal_version_id"]
+isOneToOne: false
+      referencedRelation: "deal_versions"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"course_attempts": {
                   Row: {
@@ -436,6 +468,96 @@ isOneToOne: false
       columns: ["tier_id"]
 isOneToOne: false
       referencedRelation: "tiers"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"deal_presets": {
+                  Row: {
+                    "archived_at": string | null,"comp_config": NonNullable<Json>,"created_at": string,"created_by": string | null,"description": string | null,"id": string,"is_system": boolean,"key": string | null,"name": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"comp_config": NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"is_system"?: boolean,"key"?: string | null,"name": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"comp_config"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"is_system"?: boolean,"key"?: string | null,"name"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"deal_versions": {
+                  Row: {
+                    "comp_config": NonNullable<Json>,"config_hash": string,"deal_id": string,"decided_at": string | null,"decided_by": string | null,"decision_reason": string | null,"effective_from": string,"id": string,"is_signed": boolean,"note": string | null,"origin": string,"preset_id": string | null,"proposed_at": string,"proposed_by": string | null,"state": string,"version": number,"deal_version_json": Json | null
+                  }
+                  ComputedFields: "deal_version_json"
+                  Insert: {
+                    "comp_config": NonNullable<Json>,"config_hash": string,"deal_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_reason"?: string | null,"effective_from": string,"id"?: string,"is_signed"?: boolean,"note"?: string | null,"origin": string,"preset_id"?: string | null,"proposed_at"?: string,"proposed_by"?: string | null,"state"?: string,"version": number
+                  }
+                  Update: {
+                    "comp_config"?: NonNullable<Json>,"config_hash"?: string,"deal_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_reason"?: string | null,"effective_from"?: string,"id"?: string,"is_signed"?: boolean,"note"?: string | null,"origin"?: string,"preset_id"?: string | null,"proposed_at"?: string,"proposed_by"?: string | null,"state"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deal_versions_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deal_versions_preset_id_fkey"
+      columns: ["preset_id"]
+isOneToOne: false
+      referencedRelation: "deal_presets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"deals": {
+                  Row: {
+                    "activated_at": string | null,"agreed_at": string | null,"agreed_terms": Json | null,"application_id": string | null,"campaign_id": string | null,"closed_at": string | null,"code": string,"created_at": string,"created_by": string | null,"creator_id": string,"current_version_id": string | null,"deal_model": string,"draft_config": Json | null,"ends_on": string | null,"id": string,"internal_notes": string | null,"owner_id": string | null,"preset_id": string | null,"starts_on": string,"status": string,"status_reason": string | null,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "activated_at"?: string | null,"agreed_at"?: string | null,"agreed_terms"?: Json | null,"application_id"?: string | null,"campaign_id"?: string | null,"closed_at"?: string | null,"code"?: string,"created_at"?: string,"created_by"?: string | null,"creator_id": string,"current_version_id"?: string | null,"deal_model"?: string,"draft_config"?: Json | null,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"owner_id"?: string | null,"preset_id"?: string | null,"starts_on": string,"status"?: string,"status_reason"?: string | null,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "activated_at"?: string | null,"agreed_at"?: string | null,"agreed_terms"?: Json | null,"application_id"?: string | null,"campaign_id"?: string | null,"closed_at"?: string | null,"code"?: string,"created_at"?: string,"created_by"?: string | null,"creator_id"?: string,"current_version_id"?: string | null,"deal_model"?: string,"draft_config"?: Json | null,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"owner_id"?: string | null,"preset_id"?: string | null,"starts_on"?: string,"status"?: string,"status_reason"?: string | null,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deals_application_id_fkey"
+      columns: ["application_id"]
+isOneToOne: true
+      referencedRelation: "campaign_applications"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deals_campaign_id_fkey"
+      columns: ["campaign_id"]
+isOneToOne: false
+      referencedRelation: "campaigns"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deals_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deals_current_version_fk"
+      columns: ["current_version_id"]
+isOneToOne: false
+      referencedRelation: "deal_versions"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deals_owner_id_fkey"
+      columns: ["owner_id"]
+isOneToOne: false
+      referencedRelation: "staff_profiles"
+      referencedColumns: ["user_id"]
+    },{
+      foreignKeyName: "deals_preset_id_fkey"
+      columns: ["preset_id"]
+isOneToOne: false
+      referencedRelation: "deal_presets"
       referencedColumns: ["id"]
     }
                   ]
@@ -781,6 +903,20 @@ isOneToOne: false
       referencedColumns: ["user_id"]
     }
                   ]
+                },"tds_sections": {
+                  Row: {
+                    "borne_by": string,"code": string,"components": (string)[],"confirmed_by_ca": boolean,"fy_threshold_paise": number | null,"label": string,"no_pan_rate_bps": number,"position": number,"rate_bps": number,"single_threshold_paise": number | null,"updated_at": string,"updated_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "borne_by"?: string,"code": string,"components": (string)[],"confirmed_by_ca"?: boolean,"fy_threshold_paise"?: number | null,"label": string,"no_pan_rate_bps": number,"position"?: number,"rate_bps": number,"single_threshold_paise"?: number | null,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "borne_by"?: string,"code"?: string,"components"?: (string)[],"confirmed_by_ca"?: boolean,"fy_threshold_paise"?: number | null,"label"?: string,"no_pan_rate_bps"?: number,"position"?: number,"rate_bps"?: number,"single_threshold_paise"?: number | null,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"terms_acceptances": {
                   Row: {
                     "accepted_at": string,"id": number,"ip": unknown,"terms_version_id": string,"user_agent": string | null,"user_id": string
@@ -915,6 +1051,9 @@ isOneToOne: false
 "agency_set_status":
 { Args: { "p_agency": string,"p_reason": string,"p_status": string }; Returns: undefined
                            },
+"application_deal_source":
+{ Args: { "p_app": string }; Returns: Json
+                           },
 "application_detail":
 { Args: { "p_app": string }; Returns: Json
                            },
@@ -996,6 +1135,9 @@ isOneToOne: false
 "can_view_creator":
 { Args: { "p_creator": string }; Returns: boolean
                            },
+"can_view_deal_of":
+{ Args: { "p_creator": string }; Returns: boolean
+                           },
 "catalog_programmes_search":
 { Args: { "p_limit"?: number,"p_q": string }; Returns: {
               "fee_total": number,"id": number,"level": string,"mode": string,"program_name": string,"specialization": string,"university": string
@@ -1003,6 +1145,27 @@ isOneToOne: false
                            },
 "code_hash":
 { Args: { "p_code": string,"p_salt": string,"p_user": string }; Returns: string
+                           },
+"commission_estimate":
+{ Args: { "p_campaign": string }; Returns: number
+                           },
+"comp_config_errors":
+{ Args: { "p": Json }; Returns: (string)[]
+                           },
+"comp_config_schema":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"comp_config_valid":
+{ Args: { "p": Json }; Returns: boolean
+                           },
+"comp_context":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"comp_run_record":
+{ Args: { "p_as_of": string,"p_deal": string,"p_kind": string,"p_summary": Json,"p_version": string }; Returns: number
+                           },
+"config_hash":
+{ Args: { "p": Json }; Returns: string
                            },
 "course_content":
 { Args: Record<PropertyKey, never>; Returns: Json
@@ -1084,6 +1247,57 @@ isOneToOne: false
                            },
 "current_session_id":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"deal_create":
+{ Args: { "p": Json }; Returns: string
+                           },
+"deal_delete_draft":
+{ Args: { "p_deal": string }; Returns: undefined
+                           },
+"deal_detail":
+{ Args: { "p_deal": string }; Returns: Json
+                           },
+"deal_from_application":
+{ Args: { "p_app": string,"p_config": Json }; Returns: string
+                           },
+"deal_model":
+{ Args: { "p": Json }; Returns: string
+                           },
+"deal_notify":
+{ Args: { "p_body": string,"p_deal": string,"p_event": string,"p_title": string,"p_to": string }; Returns: undefined
+                           },
+"deal_preset_archive":
+{ Args: { "p_archived": boolean,"p_id": string }; Returns: undefined
+                           },
+"deal_preset_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"deal_presets_list":
+{ Args: { "p_include_archived"?: boolean }; Returns: Json
+                           },
+"deal_propose":
+{ Args: { "p_deal": string,"p_effective_from"?: string,"p_note"?: string }; Returns: string
+                           },
+"deal_set_status":
+{ Args: { "p_deal": string,"p_reason"?: string,"p_status": string }; Returns: undefined
+                           },
+"deal_update":
+{ Args: { "p": Json,"p_deal": string }; Returns: undefined
+                           },
+"deal_version_json":
+{ Args: { "v": Omit<Database["inf"]['Tables']["deal_versions"]['Row'], Database["inf"]['Tables']["deal_versions"]['ComputedFields']> }; Returns: Json
+                           },
+"deal_version_respond":
+{ Args: { "p_accept": boolean,"p_reason"?: string,"p_version": string }; Returns: undefined
+                           },
+"deal_version_withdraw":
+{ Args: { "p_version": string }; Returns: undefined
+                           },
+"deals_expire":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"deals_list":
+{ Args: { "p": Json }; Returns: Json
                            },
 "delivery_result":
 { Args: { "p_error"?: string,"p_id": number,"p_provider"?: string,"p_ref"?: string,"p_status": string }; Returns: undefined
@@ -1218,6 +1432,9 @@ isOneToOne: false
 { Args: { "p_creator"?: string }; Returns: {
               "campaign_id": string,"campaign_name": string,"created_at": string,"id": string,"open_offer_from": string,"source": string,"status": string,"updated_at": string
             }[]
+                           },
+"my_deals":
+{ Args: { "p_creator": string }; Returns: Json
                            },
 "my_devices":
 { Args: Record<PropertyKey, never>; Returns: {
@@ -1382,6 +1599,12 @@ isOneToOne: false
                            },
 "task_set_status":
 { Args: { "p_status": string,"p_task": string }; Returns: undefined
+                           },
+"tds_section_save":
+{ Args: { "p": Json }; Returns: undefined
+                           },
+"tds_sections_list":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "terms_accept":
 { Args: { "p_terms_version_id": string }; Returns: undefined

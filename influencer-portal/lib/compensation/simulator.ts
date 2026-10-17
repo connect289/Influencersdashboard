@@ -197,7 +197,7 @@ export function scenarioEvents(
 }
 
 /** Every rule in scope: the simulator models leads and enrolments generically, not per programme or link. */
-function simulationConfig(c: CompConfig): CompConfig {
+export function simulationConfig(c: CompConfig): CompConfig {
   return {
     ...c,
     commission: c.commission.map((r) => ({ ...r, scope: { type: "all" as const } })),

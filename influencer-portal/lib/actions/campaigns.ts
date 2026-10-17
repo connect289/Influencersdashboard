@@ -15,7 +15,8 @@ import {
   type CampaignInput,
   type OfferTerms,
 } from "@/lib/campaigns/schemas";
-import { log } from "@/lib/log";
+import { createDealFromApplication } from "@/lib/deals/from-application";
+import { errorMessage, log } from "@/lib/log";
 import { createClient, type ServerSupabase } from "@/lib/supabase/server";
 import { fail, type ActionResult } from "./result";
 
@@ -244,7 +245,15 @@ export async function acceptOffer(offerId: string, appId: string): Promise<Actio
   if (!supabase) return fail(t("errors.sessionEnded"));
   const { error } = await supabase.rpc("offer_accept", { p_offer: offerId });
   if (error) return dbFail(error, t);
+  // The deal follows at once; if this fails, the queued deal.from_application job retries it.
+  try {
+    await createDealFromApplication(appId);
+  } catch (e) {
+    log.warn("deals.from_application_failed", { appId, error: errorMessage(e) });
+  }
   refreshAll(undefined, appId);
+  revalidatePath("/admin/deals", "layout");
+  revalidatePath("/creator/deals", "layout");
   return { ok: true, message: t("campaigns.offers.accepted") };
 }
 

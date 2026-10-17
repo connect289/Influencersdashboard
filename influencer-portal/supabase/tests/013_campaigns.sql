@@ -2,7 +2,7 @@
 -- invites, applications, offers and acceptance, agency negotiation, isolation between creators.
 begin;
 \ir _helpers.psql
-select plan(38);
+select plan(39);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('rev', array['content_reviewer']);
@@ -78,6 +78,9 @@ select tests.as_person('riya');
 select is(jsonb_array_length(inf.application_detail((select id from ids where label = 'app')) -> 'offers'), 2, 'creator sees both offers');
 select is(inf.application_detail((select id from ids where label = 'app')) -> 'messages' -> 0 ->> 'author_side', 'eduwit', 'and the message');
 select lives_ok($$ select inf.offer_accept((select id from ids where label = 'offer')) $$, 'creator accepts the counter-offer');
+select tests.reset();
+select is((select count(*)::int from inf.jobs where kind = 'deal.from_application' and payload ->> 'application_id' = (select id from ids where label = 'app')::text), 1, 'acceptance queues the deal job');
+select tests.as_person('riya');
 select is(inf.application_detail((select id from ids where label = 'app')) ->> 'status', 'accepted', 'application accepted');
 select tests.reset();
 select is((select count(*)::int from inf.domain_events where type = 'application.accepted'), 1, 'application.accepted emitted for Phase 3');

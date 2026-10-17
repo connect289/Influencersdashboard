@@ -13,6 +13,7 @@ const firstSlot: Record<GeneratedKind, string> = {
   "permission-matrix": "20261017000300",
   "settings-definitions": "20261017000500",
   "comp-config-schema": "20261018000650",
+  "deal-presets": "20261018000710",
 };
 
 /** The current UTC time, or one second after the newest migration if that is later, so new files always sort last. */

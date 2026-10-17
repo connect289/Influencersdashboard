@@ -401,7 +401,8 @@
     "click_anonymise_days": "Anonymise link clicks after (days)",
     "sign_in_log_days": "Keep the sign-in log (days)",
     "course_pass_pct": "Compliance quiz pass mark (%)",
-    "require_kyc_to_submit": "Require KYC before onboarding can be submitted"
+    "require_kyc_to_submit": "Require KYC before onboarding can be submitted",
+    "eduwit_commission_gst_pct": "GST on Eduwit's partner commission (%)"
   },
   "settingOptions": {
     "first_touch": "First touch",
@@ -1709,6 +1710,40 @@
     "notFound": "Media kit not found",
     "errors": {
       "avatarType": "Upload a JPG, PNG or WebP image up to 2 MB."
+    }
+  },
+  "deals": {
+    "created": "Deal created.",
+    "saved": "Saved.",
+    "proposed": "Terms sent to the creator.",
+    "withdrawn": "Proposal withdrawn.",
+    "statusChanged": "Deal status updated.",
+    "deleted": "Draft deleted.",
+    "accepted": "Terms accepted.",
+    "declined": "Terms declined. Eduwit will revise them.",
+    "presets": {
+      "saved": "Preset saved.",
+      "archived": "Preset archived.",
+      "restored": "Preset restored."
+    },
+    "errors": {
+      "config": "Some compensation details are missing or invalid. Check the highlighted sections.",
+      "creator": "This creator can't take a deal (blocked or archived).",
+      "datesFixed": "Dates can't change once terms are proposed or agreed.",
+      "closed": "This deal is closed.",
+      "cannotPropose": "Terms can't be proposed in this status.",
+      "nothingToPropose": "There are no draft terms to propose.",
+      "proposalOpen": "A proposal is already waiting for the creator.",
+      "unchanged": "The terms are the same as the current version.",
+      "effectiveFrom": "An amendment must take effect after the current terms started.",
+      "proposalClosed": "This proposal is no longer open.",
+      "reason": "Give a reason (at least 3 characters).",
+      "transition": "That status change isn't allowed.",
+      "deleteDraft": "Only drafts that were never proposed can be deleted.",
+      "systemPreset": "System presets can't be changed. Save a copy instead.",
+      "presetName": "A preset with this name already exists.",
+      "scenario": "Check the scenario numbers.",
+      "noTerms": "This deal has no terms yet."
     }
   }
 }

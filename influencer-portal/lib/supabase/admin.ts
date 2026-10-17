@@ -14,7 +14,9 @@ let client: ReturnType<typeof make> | null = null;
 
 /**
  * Service-role client (bypasses RLS). Server only, and only for: signed-out flows (lockout, sign-in log, issuing the
- * emailed code), creating auth users for invited people, and machine endpoints that authenticate their caller first.
+ * emailed code), creating auth users for invited people, machine endpoints that authenticate their caller first, and
+ * system work that follows a person's completed action (the deal for an accepted offer; Eduwit-only simulator inputs
+ * that are never returned to a creator).
  * Everything a person does runs as that person through lib/supabase/server.ts.
  */
 export function adminClient() {
