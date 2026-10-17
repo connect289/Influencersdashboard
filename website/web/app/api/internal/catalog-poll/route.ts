@@ -5,8 +5,8 @@ import { runOutbox } from "@/lib/server/outbox";
 import { errorFields, log } from "@/lib/server/log";
 
 /**
- * Fallback catalogue poller for environments without pg_cron (production uses pg_cron every minute). Detects catalogue
- * changes, refreshes the read model if needed, then processes the queued revalidation.
+ * Manual "sync now" for the programme list (the pg_cron job web_catalog_poll does this every minute inside the database,
+ * D-081/D-082): detects catalogue changes, refreshes the read model if needed, then processes the queued revalidation.
  */
 async function handle(req: Request) {
   if (!isInternal(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

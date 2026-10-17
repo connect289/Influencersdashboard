@@ -11,7 +11,7 @@ rollback), and what to do when something breaks. Companion docs: `GO_LIVE_CHECKL
 |---|---|---|
 | Next.js app (`website/web`) | Vercel, region `bom1` (Mumbai) | Static/ISR pages and cached API responses from Vercel's edge; functions for everything else |
 | Database | the shared production Supabase project `xlseqwgyjuqhktrguhyc` | website objects are `public.web_*`; shared catalogue read-only; leads only through `lead_intake` |
-| Scheduled jobs | `vercel.json` crons + one pg_cron job | `/api/internal/outbox` every minute (Pro plan, S-47; else pg_cron + pg_net, D-048), `/api/internal/catalog-poll` every 5 min (fallback), `/api/internal/seo-daily` 21:30 UTC (03:00 IST); pg_cron `web_catalog_poll` every minute |
+| Scheduled jobs | Supabase pg_cron only (D-082; Vercel stays on Hobby, no Vercel crons) | `web_catalog_poll` every minute (inside the database); `web_outbox_worker` every minute → POST `/api/internal/outbox`; `web_seo_daily` 21:30 UTC / 03:00 IST → POST `/api/internal/seo-daily`. The two HTTP jobs use `web_settings.internal_base_url` and Vault secret `web_internal_key`; until both exist they send nothing |
 | Email | the provider in S-12 | verification codes, confirmations (through the outbox, retried) |
 | Rate limits, breaker | Upstash Redis (S-15) | without it: Postgres limiter for rate limits (D-077); the AI breaker is then per instance |
 | Errors | Sentry (S-19) + Vercel logs | logs are JSON with `requestId`; no personal data (scrubbed) |
@@ -23,19 +23,20 @@ Witty, the CRMs and the website all use the same shared catalogue tables. The we
 refreshes cached pages: changes show on the website within about 2 minutes. New catalogue programmes with a course the
 website has never seen stay hidden until a super admin maps them in Admin → Taxonomy mapping (they get an email).
 Admin → Dashboard → "Programme list sync" and `/api/health` (detail, `checks.catalog`) show when it last ran; more than
-10 minutes means the poll has stopped (check the pg_cron job `web_catalog_poll` and the Vercel crons).
+10 minutes means the poll has stopped (check the pg_cron job `web_catalog_poll`: `select * from cron.job_run_details where jobid = (select jobid from cron.job where jobname = 'web_catalog_poll') order by start_time desc limit 5`).
 
 ## 2. Secrets and settings
 
 Set in Vercel → Project → Settings → Environment Variables, for **Production and Preview** (preview refuses the dev
 fallbacks, L1). Full list with meanings: `web/.env.example`; required in production: `SUPABASE_SECRET_KEY`,
-`WEB_SESSION_SECRET`, `WEB_INTERNAL_KEY`, `CRON_SECRET`, `NEXT_PUBLIC_SITE_URL=https://eduwit.in`,
+`WEB_SESSION_SECRET`, `WEB_INTERNAL_KEY`, `NEXT_PUBLIC_SITE_URL=https://eduwit.in`,
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `APP_ENV=production`, email provider keys,
 Turnstile keys.
 
 **Rotating a secret:** set the new value in Vercel and redeploy. `WEB_SESSION_SECRET` rotation signs everyone out
-(students and admin second factor) — do it off-peak. `WEB_INTERNAL_KEY`: update the pg_cron job's header at the same
-time if pg_cron calls the worker (D-048).
+(students and admin second factor) — do it off-peak. `WEB_INTERNAL_KEY`: set the new value in Vercel and, at the same
+time, in the Vault secret the database jobs use: `select vault.update_secret((select id from vault.secrets where name =
+'web_internal_key'), '<new key>')` (D-082). (`CRON_SECRET` is not needed: there are no Vercel crons.)
 
 ## 3. Routine checks
 
@@ -82,7 +83,7 @@ Everything below is rehearsed by `scripts/db/go-live-dry-run.sh`.
 
 **Go-live day (quiet hour, e.g. 07:00 IST)**
 6. **Backup:** confirm Supabase point-in-time recovery is on, note the timestamp (restore point).
-7. **Apply website migrations** to production in order (`supabase/migrations/20261017100000_…` to `…101000_web11…`;
+7. **Apply website migrations** to production in order (`supabase/migrations/20261017100000_…` to `…101200_web13…`;
    never `00000000000000_prod_snapshot.sql`), each in its own transaction with `set lock_timeout = '5s'`. Expected
    ≈ 1–5 s in total plus the first read-model build (≈ 3 s). Then `scripts/db/check-shared-unchanged.sh <prod-url>`
    (read-only) must say "shared objects unchanged".
@@ -90,12 +91,20 @@ Everything below is rehearsed by `scripts/db/go-live-dry-run.sh`.
    transaction): s07 (or the B2B admin flips the routing setting in the CRM), s05 (then record the lawyer's approval
    date in the CRM), s01, s04, s06 (optional). **Not at go-live:** s02 (only together with the CRM reader changes,
    A-AGENT-2/3) and s03 (later, A-TAX-1).
+8a. **Connect the database jobs** (D-082): create the Vault secret with the same value as Vercel's `WEB_INTERNAL_KEY`,
+   `select vault.create_secret('<WEB_INTERNAL_KEY>', 'web_internal_key');` (run in the SQL editor; never commit it).
+   `internal_base_url` is set in step 10 once the site is deployed. Check the jobs exist:
+   `select jobname, schedule, active from cron.job where jobname like 'web\_%';` → `web_catalog_poll`,
+   `web_outbox_worker`, `web_seo_daily`.
 9. **First admin:** `connect@eduwit.in` is seeded as super admin; sign in at `/admin` with Google (S-21) or email +
    password, then the emailed code; add other staff in Admin → Content → Staff with their roles.
-10. **Deploy** the production build on Vercel (from the approved commit). Smoke test on the `*.vercel.app` URL against
+10. **Deploy** the production build on Vercel (from the approved commit). Point the jobs at it:
+    `update public.web_settings set value = '"https://<project>.vercel.app"' where key = 'internal_base_url';`
+    (Admin → Flags and settings shows it too). Within a minute Admin → Outbox shows the worker running. Smoke test on the `*.vercel.app` URL against
     production data: home, finder search, a university page, a curated view, the enquiry form end to end with a test
     phone (`is_test`), admin sign-in, `/api/health` = ok, outbox worker running (Admin → Outbox).
-11. **DNS cut-over (§6).**
+11. **DNS cut-over (§6).** Then switch the jobs to the real address:
+    `update public.web_settings set value = '"https://eduwit.in"' where key = 'internal_base_url';`
 12. **After cut-over (first 2 hours):** old URLs → 301 (`docs/URL_REDIRECT_MAP.md`; spot-check 10), `robots.txt` and
     `sitemap.xml` live, submit the sitemap in Search Console, a real enquiry reaches the CRM as a lead with source
     `website_form`, Sentry quiet, Lighthouse on `/` and `/programmes/online-mba`.
@@ -144,7 +153,8 @@ After 14 stable days: raise the TTL back to 3600 s and retire the Hostinger site
 | Outbox dead letters growing | a downstream (email, CAPI, CRM write) failing | Admin → Outbox shows the error; fix the cause, then retry; leads themselves are written synchronously through `lead_intake` and are not lost |
 | Gate/forms refuse everyone ("verification failed") | Turnstile keys wrong or Turnstile down (fails closed in production) | check the keys and the site's hostnames in the Turnstile dashboard (S-13); Cloudflare status |
 | Witty answers "couldn't answer just now" / hero shows the finder | AI provider errors → breaker open (5 failures in 2 min → 60 s) | provider status; it recovers automatically; to stop it entirely turn `web_advisor_enabled` off |
-| Wrong fees or programmes | catalogue data (owned by Witty/catalogue) or the sync stopped | Admin → Dashboard "Programme list sync": if it says the check has not run, fix the pg_cron job / Vercel cron; force a sync with `POST /api/internal/catalog-poll` then `POST /api/internal/outbox` (bearer). If the catalogue itself is wrong, fix it at the source (Witty's catalogue) — the website follows within ~2 minutes |
+| Confirmation emails late, dashboard says "Background jobs are not running" | the pg_cron job `web_outbox_worker` is not reaching the site | `select * from cron.job_run_details where jobid = (select jobid from cron.job where jobname = 'web_outbox_worker') order by start_time desc limit 5`; then `select * from net._http_response order by created desc limit 5` (401 → Vault key differs from Vercel's `WEB_INTERNAL_KEY`; connection errors → wrong `internal_base_url`). Run once by hand: `POST /api/internal/outbox` with the bearer key |
+| Wrong fees or programmes | catalogue data (owned by Witty/catalogue) or the sync stopped | Admin → Dashboard "Programme list sync": if it says the check has not run, fix the pg_cron job `web_catalog_poll`; force a sync with `POST /api/internal/catalog-poll` then `POST /api/internal/outbox` (bearer). If the catalogue itself is wrong, fix it at the source (Witty's catalogue) — the website follows within ~2 minutes |
 | A new programme is in Witty/CRM but not on the website | a course the website taxonomy has never seen (hidden until mapped, spec 5.3) | Admin → Taxonomy mapping: map it to a programme and specialisation (super admins got an email); it appears within ~2 minutes |
 | Lead missing in the CRM | `lead_intake` error, or routing held (A-B2B-1 not applied) | Admin → Outbox / logs (`lead.*` events, request id); B2B "unqualified: phone_not_verified" means A-B2B-1 is not live |
 | A shared function changed under the website (after another product's release) | another product's migration | rebuild the replica and run `npm run db:gate`; `check-shared-unchanged.sh` names what changed |

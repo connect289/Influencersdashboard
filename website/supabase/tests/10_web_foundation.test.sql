@@ -42,6 +42,23 @@ insert into r select (select context from public.web_funnel_events where anon_id
 -- health
 insert into r select (public.web_health() ->> 'db')::boolean and (public.web_health() ->> 'catalogue_rows')::int >= 0, 'health reports';
 
+-- web13: database jobs call the site only once internal_base_url AND the Vault key exist; only internal paths.
+update public.web_settings set value = 'null' where key = 'internal_base_url';
+insert into r select public.web_job_call('/api/internal/outbox') is null, 'job call sends nothing without internal_base_url';
+update public.web_settings set value = '"https://eduwit.example"' where key = 'internal_base_url';
+insert into r select public.web_job_call('/api/internal/outbox') is null or exists (select 1 from vault.decrypted_secrets where name = 'web_internal_key'),
+  'job call sends nothing without the Vault key';
+do $$ begin
+  begin perform public.web_job_call('/rest/v1/student_leads'); insert into r values (false, 'job call refuses non-internal paths');
+  exception when others then insert into r values (sqlerrm like '%unexpected path%', 'job call refuses non-internal paths'); end;
+end $$;
+do $$ declare n int := 3; begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') and exists (select 1 from pg_extension where extname = 'pg_net') then
+    execute $q$select count(*) from cron.job where jobname in ('web_outbox_worker', 'web_seo_daily', 'web_catalog_poll')$q$ into n;
+  end if;
+  insert into r values (n = 3, 'where pg_cron and pg_net exist, the three website jobs are scheduled');
+end $$;
+
 do $$ begin
   if exists (select 1 from r where not ok) then
     raise exception 'FAILED (%): %', (select count(*) from r where not ok), (select string_agg(name, ' | ') from r where not ok);

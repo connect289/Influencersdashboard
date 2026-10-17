@@ -44,7 +44,8 @@ Status: ☐ needed · ◐ partly · ☑ done
 | S-50 | Named authors and reviewers for guides (spec 13.4) — needed before any guide is published | ☐ |
 | S-45 | Real photography of Indian learners (licensed), or approval of generated abstract imagery | ☐ |
 | S-46 | University state, city and official website for each university (`web_university_profiles`; enables the state facet) — not in the catalogue | ☐ |
-| S-47 | Vercel plan: per-minute Vercel Cron (outbox worker) needs Pro; on Hobby, pg_cron + pg_net can call the worker instead (Phase 7 decides) | ☐ |
+| S-47 | Vercel plan: **Hobby is enough** — the owner chose Supabase pg_cron for every scheduled job (D-082); `vercel.json` has no crons | ☑ |
+| S-56 | At go-live: Vault secret `web_internal_key` (same value as Vercel's `WEB_INTERNAL_KEY`) and `web_settings.internal_base_url` (the `*.vercel.app` URL for the smoke test, then `https://eduwit.in`) — RUNBOOK §5 steps 8a, 10, 11 | ☐ |
 | S-51 | Business opening hours for local SEO (`business_hours` setting, e.g. Mon–Sat 10:00–19:00); shown in structured data only once set | ☐ |
 | S-52 | Google Business Profile: claim and verify for the Indirapuram office, then work through Admin → SEO toolkit → Local SEO | ☐ |
 | S-53 | Editorial intro ("About") for each university page in Admin → University profiles; the on-page checker flags pages without one | ☐ |

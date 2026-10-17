@@ -21,7 +21,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: st
   const [s, sp] = await Promise.all([requireAdmin("viewer"), searchParams]);
   const [o, h] = await Promise.all([
     rpc<Overview>("web_admin_overview"),
-    rpc<{ catalog_checked_seconds_ago: number | null; catalog_refreshed_at: string | null; catalog_unmapped: number }>("web_health"),
+    rpc<{ catalog_checked_seconds_ago: number | null; catalog_refreshed_at: string | null; catalog_unmapped: number; outbox_oldest_pending_seconds: number }>("web_health"),
   ]);
   const syncOk = h.catalog_checked_seconds_ago !== null && h.catalog_checked_seconds_ago < 600;
   return (
@@ -49,6 +49,12 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: st
           {h.catalog_unmapped ? ` ${h.catalog_unmapped} new catalogue programme(s) are hidden until mapped — open Taxonomy mapping.` : ""}
         </p>
       </Card>
+      {h.outbox_oldest_pending_seconds >= 600 ? (
+        <p role="alert" className="text-danger text-sm">
+          Background jobs are not running: the oldest queued job has waited {Math.round(h.outbox_oldest_pending_seconds / 60)} minutes, so confirmation emails and page
+          refreshes are delayed. Check the Supabase pg_cron job web_outbox_worker, the internal_base_url setting and the Vault secret web_internal_key (runbook §8).
+        </p>
+      ) : null}
       <Card title="What you can do here">
         <p className="text-muted text-sm">
           Edit content, curated finder views, SEO overrides and redirects; switch features on or off; map catalogue rows to the

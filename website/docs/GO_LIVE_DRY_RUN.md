@@ -26,7 +26,8 @@ other products may have migrated in the meantime.
 | web10_seo_toolkit | 98 ms | none |
 | web11_hardening | 75 ms | none |
 | web12_catalog_sync | 74 ms | none |
-| **Total** | **1.21 s** (re-run with web12) | |
+| web13_scheduled_jobs | 56 ms | `cron.job` row inserts only (`web_outbox_worker`, `web_seo_daily`, A-CRON-1) |
+| **Total** | **1.29 s** (re-run with web13) | |
 
 The website migrations only read shared tables (the read model is built from `catalog_*`); they never lock them
 against writes, so Witty and the CRMs keep working during the apply. Times are on the replica's empty catalogue copy

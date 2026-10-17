@@ -346,7 +346,7 @@ these at the end (spec Section 0).
   SHA-256 hashed; the event id is the attempt / application id, for de-duplication with the Pixel (Phase 9).
   **Change:** `lib/server/outbox-handlers.ts`.
 
-### D-048 · Outbox worker schedule: Vercel Cron every minute, pg_cron fallback
+### D-048 · Outbox worker schedule: Vercel Cron every minute, pg_cron fallback — superseded by D-082
 - **Why:** `vercel.json` calls `/api/internal/outbox` every minute (needs the Vercel Pro plan, S-47). On Hobby, use the
   documented pg_cron + pg_net call with `WEB_INTERNAL_KEY` (same endpoint, POST). The worker also runs
   `web_push_unverified()` (off unless `push_unverified_gate_leads` is on).
@@ -573,3 +573,14 @@ these at the end (spec Section 0).
   every minute, then the outbox worker revalidates the pages; cached search responses expire within 60 s more).
   Tested in `40_web_search` and `e2e/catalog-sync.spec.ts`. **Requires** the poll and the outbox worker to run every
   minute: pg_cron (A-CRON-1) and Vercel Pro crons (S-47), or pg_cron + pg_net for both.
+
+### D-082 · Every scheduled job runs from Supabase pg_cron; Vercel stays on Hobby (owner decision, 17 Oct 2026)
+- **Why:** Vercel Hobby only allows cron jobs once per day ("cron expressions that would run more frequently will fail
+  during deployment"), and the outbox worker must run every minute. The owner chose pg_cron over Vercel Pro. Jobs:
+  `web_catalog_poll` (every minute, in the database), `web_outbox_worker` (every minute, pg_net POST to
+  `/api/internal/outbox`) and `web_seo_daily` (03:00 IST, POST to `/api/internal/seo-daily`). The HTTP jobs follow the
+  B2C CRM's proven `b2c.job_call` pattern: address from `web_settings.internal_base_url`, key from Vault secret
+  `web_internal_key`; with either missing they send nothing, so the migration is safe before deployment. `vercel.json`
+  has no crons and `CRON_SECRET` is no longer needed. Supersedes D-048. A stalled worker shows on the admin dashboard and
+  in `/api/health` (`checks.outbox`, oldest pending job ≥ 10 minutes). **To change:** move the jobs back to
+  `vercel.json` on a Pro plan and unschedule `web_outbox_worker` / `web_seo_daily`.

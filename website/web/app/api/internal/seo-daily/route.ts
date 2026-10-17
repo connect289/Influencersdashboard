@@ -6,7 +6,7 @@ import { refreshLinkSuggestions, runOnPageChecks, syncSearchConsole } from "@/li
 
 /**
  * Daily SEO jobs (spec 13.4): Search Console sync, on-page checks, internal-link suggestions, and pruning 404 log rows
- * not seen for 90 days. Bearer-protected.
+ * not seen for 90 days. Called daily at 03:00 IST by the Supabase pg_cron job web_seo_daily (D-082). Bearer-protected.
  */
 export const maxDuration = 300;
 

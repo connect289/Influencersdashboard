@@ -24,7 +24,9 @@ export async function GET(req: Request) {
       const t = performance.now();
       const h = await rpc<Record<string, unknown>>("web_health");
       checks.db = { ok: true, ms: Math.round(performance.now() - t), ...h };
-      if (Number(h.outbox_dead) > 0) checks.outbox = { ok: false, dead: h.outbox_dead };
+      // Outbox worker (pg_cron web_outbox_worker, every minute, D-082): dead letters, or a job waiting 10+ minutes, means trouble.
+      const oldest = Number(h.outbox_oldest_pending_seconds ?? 0);
+      checks.outbox = { ok: Number(h.outbox_dead) === 0 && oldest < 600, dead: h.outbox_dead, pending: h.outbox_pending, oldest_pending_seconds: oldest };
       // Catalogue sync (D-081): the poll runs every minute; over 10 minutes without a check means it has stopped.
       const age = h.catalog_checked_seconds_ago == null ? null : Number(h.catalog_checked_seconds_ago);
       checks.catalog = { ok: age !== null && age < 600, checked_seconds_ago: age, refreshed_at: h.catalog_refreshed_at, unmapped: h.catalog_unmapped };

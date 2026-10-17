@@ -130,13 +130,21 @@ production-schema replica (`check-shared-proposals.sh`); the full go-live sequen
 
 ## Extensions
 
-### A-CRON-1 · One website-owned pg_cron job in production (at go-live)
-- **What:** `cron.schedule('web_catalog_poll', '* * * * *', 'select public.web_catalog_poll()')` — created by the website
-  migration `web4_read_model` when pg_cron is present. It reads the catalogue fingerprint (a few aggregate queries) and
-  refreshes the website's own read model only when the catalogue changed (D-031).
+### A-CRON-1 · Three website-owned pg_cron jobs in production (at go-live)
+- **What** (owner chose pg_cron over Vercel Pro on 17 Oct 2026, D-082):
+  - `web_catalog_poll` · `* * * * *` · `select public.web_catalog_poll()` (migration web4): checks the catalogue content
+    and rebuilds the website's programme list only when something changed (D-031, D-081).
+  - `web_outbox_worker` · `* * * * *` · `select public.web_job_call('/api/internal/outbox')` (migration web13): pg_net POST
+    to the site's outbox worker (confirmation emails, page refreshes, ad conversion events, staff alerts).
+  - `web_seo_daily` · `30 21 * * *` (03:00 IST) · `select public.web_job_call('/api/internal/seo-daily', 300000)`
+    (migration web13): Search Console import, on-page checks, link suggestions, 404 log clean-up.
+  - Plus one Vault secret `web_internal_key` and the setting `web_settings.internal_base_url`; until both exist the two
+    HTTP jobs send nothing. Same pattern as the B2C CRM's `b2c.job_call` jobs already running in production.
 - **Why:** keeps the finder in step with catalogue edits without adding a trigger to shared tables.
 - **Risk:** a materialised-view refresh every time the catalogue changes (~2–3 s for 715 rows, `CONCURRENTLY`, so reads
-  never block); no effect on other products. **Fallback:** Vercel Cron → `/api/internal/catalog-poll`. **Status:** ☐
+  never block); one outbound HTTP call a minute from pg_net (the CRMs already run ~50 jobs, many every minute or every
+  few seconds). **Rollback:** `rollback-web.sql` unschedules every `web_*` job; delete the Vault secret by hand.
+  **Status:** ☐ (approach chosen by the owner; final approval at go-live)
 
 ### A-EXT-1 · Install `unaccent` (optional)
 - **What:** `create extension if not exists unaccent with schema extensions;` (available, not installed in production).

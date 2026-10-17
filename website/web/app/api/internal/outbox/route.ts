@@ -6,8 +6,8 @@ import "@/lib/server/outbox-handlers";
 import { errorFields, log } from "@/lib/server/log";
 
 /**
- * Outbox worker endpoint, called every minute (Vercel Cron with CRON_SECRET, or pg_cron + pg_net with the internal key).
- * GET for Vercel Cron, POST for everything else.
+ * Outbox worker endpoint, called every minute by the Supabase pg_cron job web_outbox_worker (pg_net POST with the internal
+ * key, D-082). GET is kept for manual runs and for Vercel Cron should the project move to a paid plan.
  */
 async function handle(req: Request) {
   if (!isInternal(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

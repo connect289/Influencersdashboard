@@ -17,8 +17,8 @@ Tick in order. Details for every step: `RUNBOOK.md` §5–§7. Nothing here has 
 
 ## Accounts and secrets (blocking)
 
-- [ ] S-10 Vercel project (root `website/web`, region `bom1`); S-47 plan (Pro for per-minute cron, else pg_cron + pg_net)
-- [ ] S-11 Supabase keys; S-22 `WEB_SESSION_SECRET`; S-23 `WEB_INTERNAL_KEY`; `CRON_SECRET` — production **and** preview
+- [ ] S-10 Vercel project on the Hobby plan (root `website/web`, region `bom1`); no Vercel crons — jobs run from Supabase pg_cron (D-082)
+- [ ] S-11 Supabase keys; S-22 `WEB_SESSION_SECRET`; S-23 `WEB_INTERNAL_KEY` — production **and** preview
 - [ ] S-12 email provider with SPF/DKIM/DMARC for the sending domain (verification codes)
 - [ ] S-13 Turnstile keys for eduwit.in (production refuses test keys)
 - [ ] S-21 Google OAuth for admin sign-in (or use email + password)
@@ -45,10 +45,12 @@ Tick in order. Details for every step: `RUNBOOK.md` §5–§7. Nothing here has 
 ## Go-live day
 
 - [ ] Point-in-time recovery on; restore point noted
-- [ ] Website migrations web1…web11 applied (each in a transaction, `lock_timeout` 5 s); `check-shared-unchanged.sh` OK
-- [ ] Approved shared changes applied in order s07 → s05 → s01 → s04 (→ s06); smoke tests pass; s02/s03 **not** now
-- [ ] Production deploy; smoke test on the `*.vercel.app` URL (home, search, university, curated view, test enquiry →
+- [ ] Website migrations web1…web13 applied (each in a transaction, `lock_timeout` 5 s); `check-shared-unchanged.sh` OK
+- [ ] Approved shared changes applied in order s07 → s05 → s01 → s04 (→ s06); s02/s03 **not** now
+- [ ] Vault secret `web_internal_key` created; jobs `web_catalog_poll`, `web_outbox_worker`, `web_seo_daily` listed in `cron.job`
+- [ ] Production deploy; `internal_base_url` set to the `*.vercel.app` URL; outbox worker running; smoke test on the `*.vercel.app` URL (home, search, university, curated view, test enquiry →
       lead in the CRM, admin sign-in, `/api/health`, outbox running)
+- [ ] `internal_base_url` switched to `https://eduwit.in` right after the DNS change
 - [ ] DNS: `@` → Vercel A record, `www` → `cname.vercel-dns.com`; MX/SPF/DKIM/DMARC untouched; certificate issued;
       `www` → apex redirect set in Vercel
 - [ ] Old URLs 301 (spot-check 10 from `URL_REDIRECT_MAP.md`); sitemap submitted; a real enquiry reaches the CRM

@@ -798,3 +798,11 @@ legal texts (S-01) and the go-live setup items.
   fields) + alert email, health `checks.catalog`, dashboard "Programme list sync" card (D-081).
 - Tests: `40_web_search` (+4 checks), `e2e/catalog-sync.spec.ts` (direct edit → API and university page), email unit
   test. Gate: check ✅ (188 tests), db:gate ✅, dry run ✅ (web12 74 ms, no shared locks).
+
+## Scheduled jobs moved to Supabase pg_cron (owner decision, 17 Oct 2026)
+- Owner chose pg_cron over Vercel Pro. `20261017101200_web13_scheduled_jobs.sql`: `web_job_call(path)` (address from
+  `web_settings.internal_base_url`, key from Vault `web_internal_key`, sends nothing until both exist; only
+  `/api/internal/*` paths), jobs `web_outbox_worker` (every minute) and `web_seo_daily` (03:00 IST) next to
+  `web_catalog_poll`. `vercel.json` has no crons; health and the admin dashboard flag a stalled worker. D-082.
+- Production checked read-only: pg_cron 1.6.4, pg_net 0.20.3, Vault present; ~50 CRM jobs already run there.
+- Gate: check ✅ (188), db:gate ✅, dry run ✅ (web13 56 ms; jobs scheduled on the replica and removed by the rollback).
