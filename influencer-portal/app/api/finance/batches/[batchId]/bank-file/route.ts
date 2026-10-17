@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { bankFile, BANK_COLUMNS, type BankRow } from "@/lib/ledger/bank-file";
+import { env } from "@/lib/env";
+import { BANK_COLUMNS, type BankRow } from "@/lib/ledger/bank-file";
+import { payoutProvider } from "@/lib/ledger/provider";
 import { SETTINGS } from "@/lib/settings/registry";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,7 +19,8 @@ const rowSchema = z.object({
 
 /**
  * The bank bulk-upload file for an approved batch (payout.manage). inf.payout_bank_rows() decrypts the account
- * numbers, audits the export and moves the batch to processing; the file is built here and never stored.
+ * numbers, audits the export and moves the batch to processing; the provider (lib/ledger/provider.ts, v1: the bank
+ * file) builds the file here and it is never stored.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ batchId: string }> }) {
   const { batchId } = await params;
@@ -30,16 +33,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ bat
   ]);
   if (rows.error || !batch.data) return new Response("Not found", { status: 404 });
   const s = SETTINGS["finance.payouts"].schema.catch(SETTINGS["finance.payouts"].default).parse(setting.data);
-  const body = bankFile(z.array(rowSchema).parse(rows.data), {
+  const out = payoutProvider(env().PAYOUT_PROVIDER).dispatch(batch.data.ref, z.array(rowSchema).parse(rows.data), {
     delimiter: s.bank_export.delimiter,
     header: s.bank_export.header,
     columns: s.bank_export.columns.filter((c): c is (typeof BANK_COLUMNS)[number] => BANK_COLUMNS.includes(c)),
   });
-  return new Response(body, {
+  if (out.kind !== "file") return new Response("Not found", { status: 404 });
+  return new Response(out.body, {
     headers: {
-      "Content-Type":
-        s.bank_export.delimiter === "\t" ? "text/tab-separated-values; charset=utf-8" : "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${batch.data.ref}.${s.bank_export.delimiter === "\t" ? "tsv" : "csv"}"`,
+      "Content-Type": out.contentType,
+      "Content-Disposition": `attachment; filename="${out.filename}"`,
       "Cache-Control": "no-store",
     },
   });

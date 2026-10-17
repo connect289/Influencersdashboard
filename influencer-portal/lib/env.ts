@@ -20,6 +20,7 @@ const schema = z
       .optional(),
     LIVE_MODE: onOff,
     LEAD_SYNC: onOff,
+    PAYOUT_PROVIDER: z.enum(["bank_file"]).default("bank_file"),
     EMAIL_PROVIDER: z.enum(["mock", "smtp", "resend", "brevo"]).default("mock"),
     EMAIL_FROM: z.string().min(3).default("Eduwit Creators <creators@eduwit.in>"),
     SMTP_HOST: z.string().optional(),

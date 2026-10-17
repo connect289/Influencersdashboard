@@ -3638,7 +3638,7 @@
       "timeline": "Stages",
       "days": "{count, plural, one {# day} other {# days}}",
       "earning": "Your earning for this lead",
-      "earningHint": "Earnings follow your deal and update when payouts start (statements are coming).",
+      "earningHint": "Earnings follow your deal: see Earnings for amounts, payouts and statements.",
       "others": "Other creators on this lead",
       "history": "Attribution history"
     },
@@ -4211,7 +4211,8 @@
       "empty": "No entries this month.",
       "adviceNote": "This is a computer-generated advice and needs no signature. TDS deducted is deposited against your PAN and shown in your Form 26AS; the quarterly Form 16A is in Earnings.",
       "statementNote": "The balance is what Eduwit owes you: earnings (including amounts not yet confirmed) and GST, less TDS withheld and payouts made. Figures come straight from your ledger.",
-      "page": "Page {n} of {of}"
+      "page": "Page {n} of {of}",
+      "payoutStatement": "Payout statement"
     }
   }
 }

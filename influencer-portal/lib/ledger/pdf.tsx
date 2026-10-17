@@ -73,6 +73,7 @@ export interface FinancePdfLabels {
   bank: string;
   paidOn: string;
   utr: string;
+  payoutStatement: string;
   date: string;
   description: string;
   amount: string;
@@ -132,6 +133,8 @@ const signedPaise = (p: number) => (p < 0 ? `−${formatPaise(-p)}` : formatPais
 
 function AdviceDoc({ p, l }: { p: PayoutDetail; l: FinancePdfLabels }) {
   const org = p.organisation;
+  // Creators without GST get a payout statement instead of raising an invoice; its number is printed here.
+  const statement = p.invoices.find((i) => i.kind === "payout_statement");
   return (
     <Document title={`${l.advice} ${p.ref}`} author={org.legal_name}>
       <Page size="A4" style={s.page}>
@@ -144,6 +147,7 @@ function AdviceDoc({ p, l }: { p: PayoutDetail; l: FinancePdfLabels }) {
           {p.gstin ? <Row label="GSTIN" value={p.gstin} /> : null}
           {p.paid_on ? <Row label={l.paidOn} value={formatDate(p.paid_on)} /> : null}
           {p.utr ? <Row label={l.utr} value={p.utr} /> : null}
+          {statement ? <Row label={l.payoutStatement} value={statement.number} /> : null}
         </View>
         <View style={s.th}>
           <Text style={[s.head, s.grow]}>{l.description}</Text>

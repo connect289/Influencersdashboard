@@ -15,6 +15,7 @@ export async function financePdfLabels(): Promise<FinancePdfLabels> {
     bank: t("finance.payouts.bank"),
     paidOn: t("earnings.pdf.paidOn"),
     utr: t("finance.payouts.utr"),
+    payoutStatement: t("earnings.pdf.payoutStatement"),
     date: t("earnings.pdf.date"),
     description: t("earnings.pdf.description"),
     amount: t("earnings.pdf.amount"),
