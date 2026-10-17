@@ -8,6 +8,16 @@ import path from "node:path";
 const root = path.resolve(import.meta.dirname, "../..");
 const data = JSON.parse(readFileSync(path.join(root, "supabase/seed/catalog_sample.json"), "utf8"));
 
+// Witty's two prompts as read (read-only) from production on 17 Oct 2026, kept in docs/discovery/witty-prompts.md, so the
+// local web_advisor reads them through w2_build_prompt exactly as in production. Local seed only (D-056).
+const promptDoc = readFileSync(path.join(root, "docs/discovery/witty-prompts.md"), "utf8");
+const promptBlocks = [...promptDoc.matchAll(/^## \d\. `(\w+)` \(version (\d+)\)[^\n]*\n\n~~~~text\n([\s\S]*?)\n~~~~/gm)].map((m) => ({
+  name: m[1],
+  version: Number(m[2]),
+  body: m[3],
+}));
+if (promptBlocks.length !== 2) throw new Error(`expected 2 Witty prompts in witty-prompts.md, found ${promptBlocks.length}`);
+
 const lit = (v) => {
   if (v === null || v === undefined) return "null";
   if (typeof v === "number") return String(v);
@@ -37,6 +47,10 @@ const sql = [
   "insert into public.w2_meta (key, value) values ('catalog_version', '6'::jsonb) on conflict do nothing;",
   "-- Website: map the catalogue and build the search read model (production does this via web_catalog_poll).",
   "select public.web_refresh_read_model();",
+  "-- Witty's prompts (local copy of production w2_prompts; see docs/discovery/witty-prompts.md).",
+  ...promptBlocks.map(
+    (b) => `insert into public.w2_prompts (name, version, body) values (${lit(b.name)}, ${b.version}, ${lit(b.body)}) on conflict (name) do update set version = excluded.version, body = excluded.body;`,
+  ),
   "-- e2e fixture: one admin-managed redirect (content.spec.ts).",
   "insert into public.web_redirects (from_path, to_path, code, source) values ('/old-mba-page', '/programmes/online-mba', 301, 'admin') on conflict do nothing;",
   "",
