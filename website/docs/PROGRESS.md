@@ -750,3 +750,10 @@ items: S-20 (Search Console), S-50 (authors and reviewers), S-51 (hours), S-52 (
   0.74% fast 503 on search misses), 200 Witty conversations (800/800 turns, TTFT p50 1.31 s incl. 800 ms model).
   Found and fixed: shared connection pool exhaustion → per-instance DB concurrency cap, batched search log,
   `use cache: remote` for search, optional read replica (D-080, S-54, S-55).
+- 12.4 ✅ Production migration dry run (`scripts/db/go-live-dry-run.sh`, report `docs/GO_LIVE_DRY_RUN.md`): fresh
+  replica (42/42 rows = production), web1–web11 in 1.24 s with no strong locks on shared tables, all suites green,
+  every APPROVALS item applied in go-live order (s01–s07; s04–s07 and the s03 rollback written this phase) with smoke
+  tests, full reverse rollback (proposal rollbacks + `scripts/db/rollback-web.sql`) back to the exact baseline.
+  `check-shared-proposals.sh` now applies, smoke-tests and rolls back each proposal to an identical state on every
+  build. Lead payload already sends `email_verified_at`, `final_program_id/name`, `junk_risk_score` (dropped by
+  production until s01 is approved).

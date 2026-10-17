@@ -120,3 +120,51 @@ returns void language sql volatile security definer set search_path = '' as $$
   from jsonb_array_elements(case when jsonb_typeof(p) = 'array' then p else jsonb_build_array(p) end) e
   limit 500
 $$;
+
+-- A-LEAD-1/2/3 readiness: the lead payload also carries the email verification time, the exact programme applied for
+-- and the junk-risk score. Production's lead_intake drops unknown keys today; once s01 is approved they are kept on the
+-- lead with no further website change.
+create or replace function public.web_lead_payload(p_attempt public.web_gate_attempts, p_session uuid, p_event text, p_extra jsonb default '{}')
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_gate boolean := p_attempt.surface = 'gate';
+  v_ctx jsonb := p_attempt.context;
+  v_off public.web_offering_search;
+  v_ct public.web_consent_texts;
+  a jsonb := p_attempt.attribution;
+  v_lead jsonb;
+begin
+  if (v_ctx->>'offering_id') is not null then
+    select * into v_off from public.web_offering_search where id = (v_ctx->>'offering_id')::bigint;
+  end if;
+  select * into v_ct from public.web_consent_texts where version = p_attempt.consent_version;
+  v_lead := jsonb_strip_nulls(jsonb_build_object(
+    'full_name', p_attempt.full_name, 'is_name_confirmed', true,
+    'email', p_attempt.email_norm, 'is_email_confirmed', true,
+    'source', case when v_gate then 'website_agent' else 'website_form' end,
+    'channel', case when v_gate then 'web' else 'web_form' end,
+    'first_agent_channel', case when v_gate then 'web' end,
+    'source_detail', p_attempt.surface,
+    'web_session_id', p_session::text,
+    'interested_course', coalesce(v_off.programme_name, v_ctx->>'programme_label'),
+    'interested_specialization', v_off.spec_name,
+    'interested_university', v_off.uni_name,
+    'programme_level', v_off.level_short,
+    'study_mode_preference', v_off.mode,
+    'utm_source', a->>'utm_source', 'utm_medium', a->>'utm_medium', 'utm_campaign', a->>'utm_campaign',
+    'utm_content', a->>'utm_content', 'utm_term', a->>'utm_term', 'click_ids', a->'click_ids',
+    'landing_url', a->>'landing_url', 'referrer_url', a->>'referrer_url', 'referred_by_code', a->>'referred_by_code',
+    'campaign', a->>'utm_campaign', 'device_type', a->>'device_type',
+    'consent_sales_at', case when 'sales' = any(v_ct.purposes) then p_attempt.verified_at end,
+    'consent_partner_share_at', case when 'partner_share' = any(v_ct.purposes) then p_attempt.verified_at end,
+    'consent_marketing_at', case when p_attempt.consent_marketing then p_attempt.verified_at end,
+    'consent_text_version', p_attempt.consent_version,
+    -- Kept by lead_intake once s01 is approved (A-LEAD-1/2/3); dropped silently before that, so sending them is safe.
+    'email_verified_at', p_attempt.verified_at,
+    'final_program_id', case when p_attempt.surface = 'application' then v_off.id end,
+    'final_program_name', case when p_attempt.surface = 'application' then (select c.program_name from public.catalog_programs c where c.id = v_off.id) end,
+    'junk_risk_score', nullif(p_attempt.junk_score, 0)
+  )) || coalesce(p_extra, '{}');
+  return jsonb_build_object('phone', p_attempt.phone_e164, 'source_system', 'web_agent', 'event_type', p_event,
+    'lead', v_lead, 'attribution', a, 'is_test', p_attempt.is_test, 'occurred_at', now());
+end $$;

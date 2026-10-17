@@ -7,6 +7,11 @@ affected. Status: ☐ awaiting owner · ☑ approved · ✗ declined.
 
 **Blocking for go-live** items are marked 🔴. Everything else has a working fallback already built.
 
+Every SQL proposal has a rollback file (`*.rollback.sql`) and, where it changes behaviour, a smoke test
+(`migrations-shared/tests/`). On every build each one is applied, tested and rolled back to an identical state on the
+production-schema replica (`check-shared-proposals.sh`); the full go-live sequence and rollback are rehearsed by
+`scripts/db/go-live-dry-run.sh` — report in `docs/GO_LIVE_DRY_RUN.md`.
+
 ---
 
 ## Leads and routing
@@ -23,6 +28,8 @@ affected. Status: ☐ awaiting owner · ☑ approved · ✗ declined.
   rate limits (spec 7.2); the website passes `phone_verified=false` honestly and never claims otherwise.
 - **Rollback:** put the two values back in the list (settings change, takes effect on the next routing sweep).
 - **Affects:** B2B CRM routing (owner: B2B CRM). No code change for the settings option.
+- **SQL equivalent:** `supabase/migrations-shared/s07_b2b_routing_web_leads.sql` (through the CRM's audited
+  `b2b.set_setting`; rollback file restores the two sources).
 - **Status:** ☐
 
 ### A-LEAD-1 · `lead_intake()` accepts `email_verified_at` for `web_agent`
@@ -32,18 +39,22 @@ affected. Status: ☐ awaiting owner · ☑ approved · ✗ declined.
   exists on `student_leads`).
 - **Fallback in place:** the verification is recorded in `web_email_verifications` (timestamp, method, lead id) and
   shown to staff through `web_lead_verification_v` (read-only view, proposed for the CRMs).
-- **Risk:** low (one extra column in an allow-list; only `web_agent` may set it). **Rollback:** restore the previous
-  function body (saved in the migration header). **Affects:** shared lead writer (Witty, CRMs call it).
+- **Risk:** low (one extra column in an allow-list; only `web_agent` may set it, write-once). **Rollback:**
+  `s01_lead_intake_email_verified.rollback.sql` (production's body as of 17 Oct 2026, verbatim). **Test:**
+  `migrations-shared/tests/s01.test.sql`. **Affects:** shared lead writer (Witty, CRMs call it; none of them send
+  these keys today, so their behaviour is unchanged).
 - **Status:** ☐
 
 ### A-LEAD-2 · Keep the fields Witty and the website already send
-- **What:** allow `final_program_id`, `final_program_name`, `programs_shown`, `consent_partner_share_declined_at` in
-  `lead_intake` (they are silently dropped today). Same migration file, separate statement.
+- **What:** keep `final_program_id`, `final_program_name`, `programs_shown`, `consent_partner_share_declined_at`
+  (write-once) when Witty or the website sends them (silently dropped today). `student_leads` has no columns for
+  them, so s01 merges them into the existing `custom_fields` jsonb (no new columns). Same migration file (s01).
 - **Why:** an application from the website names one exact offering; without this the CRMs only see the course and
   university text. **Fallback:** stored in `web_applications` keyed by lead id. **Status:** ☐
 
 ### A-LEAD-3 · `junk_risk_score` and `phone_verification_method='none'` on the lead (optional)
-- **What:** a nullable `junk_risk_score smallint` column on `student_leads`, accepted from `web_agent`.
+- **What:** s01 keeps `junk_risk_score` from `web_agent` in `custom_fields` (no schema change). A dedicated nullable
+  `smallint` column is only worth adding if the CRMs want to filter or sort on it.
 - **Why:** spec 7.2 "a junk-risk score passed to the lead as a field if supported". Not supported today.
 - **Fallback:** kept in `web_gate_attempts.junk_score` and in the lead's `Comments`-free attribution meta (`notes` is not
   used, so staff notes are never polluted). **Status:** ☐
@@ -57,7 +68,9 @@ affected. Status: ☐ awaiting owner · ☑ approved · ✗ declined.
 - **Why:** the B2B CRM counts partner-sharing consent only for registered, lawyer-approved text versions
   (`docs/go-live-setup.md` §4). Without it, website leads wait for partner-sharing consent.
 - **Depends on:** lawyer review of the wording (S-44); the texts are in `docs/legal/consent-texts.md`.
-- **Rollback:** deactivate the rows. **Affects:** B2B CRM (admin action, no code). **Status:** ☐
+- **Rollback:** deactivate the rows. **Affects:** B2B CRM (admin action, no code).
+- **SQL equivalent:** `s05_b2b_consent_texts_web.sql` (bodies byte-identical to the website's versions; inserted with
+  `lawyer_approved_at` empty until S-44). **Status:** ☐
 
 ## Witty / agent core
 
@@ -91,7 +104,8 @@ affected. Status: ☐ awaiting owner · ☑ approved · ✗ declined.
 
 ### A-AGENT-4 · `w2_prompts` row `channel_web` (formatting overlay)
 - **What:** one data row, versioned like the others. Witty ignores prompt names other than `extractor`/`counselor`.
-- **Fallback:** the overlay is held in `web_settings` (versioned). **Status:** ☐
+- **Fallback:** the overlay is held in `web_settings` (versioned). **File:** `s04_w2_prompts_channel_web.sql`.
+  **Status:** ☐
 
 ### A-AGENT-5 · Prompt version history (optional)
 - **What:** `w2_prompt_versions` (or the existing backup convention) so a session can replay an exact prompt version.
@@ -128,7 +142,8 @@ affected. Status: ☐ awaiting owner · ☑ approved · ✗ declined.
 - **What:** `create extension if not exists unaccent with schema extensions;` (available, not installed in production).
 - **Why:** spec 3 lists `unaccent` for search. **Fallback in place:** `web_norm(text)` (lower-case, punctuation folding,
   `&` → `and`, dots removed) — English/Hinglish queries rarely carry accents, so search quality is
-  unaffected. **Risk:** none for other products (new extension only). **Status:** ☐ (not needed for launch)
+  unaffected. **Risk:** none for other products (new extension only). **File:** `s06_unaccent.sql`.
+  **Status:** ☐ (not needed for launch)
 
 ## Auth
 

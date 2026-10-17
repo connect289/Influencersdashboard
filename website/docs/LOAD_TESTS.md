@@ -30,6 +30,9 @@ with varied filters, free text and typos, and suggestions; 1–4 s think time; o
 ## 1. 10,000+ offerings (search)
 
 Synthetic catalogue: real rows ×14 across 129 universities → **10,010 offerings (9,912 visible)**.
+Rebuilding the read model after a catalogue change: **2.9 s at 715 offerings, 39 s at 10,010** (`REFRESH … CONCURRENTLY`:
+searches keep reading the previous version meanwhile; the poll runs it only when the catalogue changed, D-031). At
+10k+ an incremental refresh of changed rows would be worth adding.
 
 | Query (database time, single run) | ms |
 |---|---|
