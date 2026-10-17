@@ -132,6 +132,61 @@
   }
 }
 
+/* Contract documents and the clause editor share one typography (rendered by components/contracts/doc-view). */
+@layer components {
+  .doc {
+    line-height: 1.6;
+  }
+  .doc > * + * {
+    margin-top: 0.6em;
+  }
+  .doc h2 {
+    font-size: 1.15em;
+    font-weight: 600;
+  }
+  .doc h3 {
+    font-size: 1.05em;
+    font-weight: 600;
+  }
+  .doc h4 {
+    font-weight: 600;
+  }
+  .doc ul {
+    list-style: disc;
+    padding-left: 1.4em;
+  }
+  .doc ol {
+    list-style: decimal;
+    padding-left: 1.4em;
+  }
+  .doc li > * + * {
+    margin-top: 0.3em;
+  }
+  .doc table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92em;
+  }
+  .doc th,
+  .doc td {
+    border: 1px solid var(--line);
+    padding: 0.35em 0.5em;
+    text-align: left;
+    vertical-align: top;
+  }
+  .doc th {
+    background: var(--surface-2);
+    font-weight: 600;
+  }
+  .doc .ProseMirror {
+    min-height: 8rem;
+    outline: none;
+  }
+  .doc .ProseMirror > * + * {
+    margin-top: 0.6em;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

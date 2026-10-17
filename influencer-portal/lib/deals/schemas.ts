@@ -16,9 +16,9 @@ export const DEAL_STATUSES = [
 export type DealStatus = (typeof DEAL_STATUSES)[number];
 export const DEAL_MODELS = ["commission_only", "fixed_only", "hybrid", "barter", "custom"] as const;
 export type DealModel = (typeof DEAL_MODELS)[number];
-export const VERSION_STATES = ["proposed", "accepted", "declined", "withdrawn"] as const;
+export const VERSION_STATES = ["proposed", "accepted", "declined", "withdrawn", "superseded"] as const;
 export type VersionState = (typeof VERSION_STATES)[number];
-export const VERSION_ORIGINS = ["builder", "application", "amendment", "renewal"] as const;
+export const VERSION_ORIGINS = ["builder", "application", "amendment", "renewal", "counter_offer"] as const;
 
 /** Staff status moves allowed from each status (mirrors inf.deal_set_status). */
 export const DEAL_MOVES: Record<DealStatus, DealStatus[]> = {

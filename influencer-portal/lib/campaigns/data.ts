@@ -39,6 +39,7 @@ export function formValuesOf(c: CampaignRow, programmes: ProgrammeCard[]): Campa
     internalNotes: c.internal_notes ?? "",
     ownerId: c.owner_id ?? "",
     presetId: c.default_preset_id ?? "",
+    contractTemplateId: c.contract_template_id ?? "",
     programmes: programmes
       .filter((p) => p.program_name)
       .map((p) => ({

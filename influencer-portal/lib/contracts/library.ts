@@ -73,9 +73,17 @@ In this agreement:
     deal_types: [],
     body: `${DRAFT_MARKER}
 
+{{#if deliverables_table}}
+
 The Creator will create and publish the following content{{#if campaign.name}} for the campaign "{{campaign.name}}"{{/if}}:
 
 {{deliverables_table}}
+
+{{else}}
+
+The Creator will create and publish the content set out in the brief issued through the Portal{{#if campaign.name}} for the campaign "{{campaign.name}}"{{/if}}.
+
+{{/if}}
 
 Each deliverable follows the brief issued through the Portal. Specifications, formats and posting windows in the brief form part of this agreement.`,
   },

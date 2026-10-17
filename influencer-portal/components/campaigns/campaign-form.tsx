@@ -33,6 +33,7 @@ export interface CampaignFormValues {
   internalNotes: string;
   ownerId: string;
   presetId: string;
+  contractTemplateId: string;
   programmes: ProgrammeHit[];
 }
 
@@ -52,6 +53,7 @@ export const EMPTY_CAMPAIGN: CampaignFormValues = {
   internalNotes: "",
   ownerId: "",
   presetId: "",
+  contractTemplateId: "",
   programmes: [],
 };
 
@@ -151,16 +153,19 @@ function ProgrammePicker({ value, onChange }: { value: ProgrammeHit[]; onChange:
   );
 }
 
-/** The campaign builder (spec 13). Brief and contract templates join in Phases 4–5. */
+/** The campaign builder (spec 13). The brief template joins in Phase 5. */
 export function CampaignForm({
   initial,
   owners,
   presets,
+  templates,
 }: {
   initial: CampaignFormValues;
   owners: { id: string; name: string }[];
   /** Deal presets the campaign can offer by default (accepted applications start from it). */
   presets: { id: string; name: string }[];
+  /** Contract templates; empty = the default template. */
+  templates: { id: string; name: string }[];
 }) {
   const t = useTranslations();
   const router = useRouter();
@@ -199,6 +204,7 @@ export function CampaignForm({
               internalNotes: v.internalNotes,
               ownerId: v.ownerId,
               presetId: v.presetId,
+              contractTemplateId: v.contractTemplateId,
               programmeIds: v.programmes.map((p) => p.id),
             }),
           (data) => {
@@ -326,6 +332,25 @@ export function CampaignForm({
           <Select id="cf-preset" value={v.presetId} onChange={(e) => set("presetId", e.target.value)}>
             <option value="">{t("campaigns.fields.presetByType")}</option>
             {presets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field
+          id="cf-template"
+          label={t("campaigns.fields.contractTemplate")}
+          hint={t("campaigns.fields.contractTemplateHint")}
+          className="mt-4"
+        >
+          <Select
+            id="cf-template"
+            value={v.contractTemplateId}
+            onChange={(e) => set("contractTemplateId", e.target.value)}
+          >
+            <option value="">{t("campaigns.fields.contractTemplateDefault")}</option>
+            {templates.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>

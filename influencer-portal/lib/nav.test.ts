@@ -10,6 +10,7 @@ describe("staff navigation", () => {
       "/admin/campaigns",
       "/admin/applications",
       "/admin/deals",
+      "/admin/contracts",
       "/admin/tasks",
       "/admin/agencies",
       "/admin/kyc",

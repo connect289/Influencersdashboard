@@ -19,6 +19,7 @@ export const ICON_NAMES = [
   "inbox",
   "fileText",
   "handshake",
+  "signature",
   "help",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
@@ -37,6 +38,7 @@ export const STAFF_NAV: StaffNavItem[] = [
   { href: "/admin/campaigns", labelKey: "nav.admin.campaigns", icon: "megaphone", anyOf: ["campaign.read"] },
   { href: "/admin/applications", labelKey: "nav.admin.applications", icon: "inbox", anyOf: ["campaign.read"] },
   { href: "/admin/deals", labelKey: "nav.admin.deals", icon: "handshake", anyOf: ["deal.read"] },
+  { href: "/admin/contracts", labelKey: "nav.admin.contracts", icon: "signature", anyOf: ["contract.read"] },
   { href: "/admin/tasks", labelKey: "nav.admin.tasks", icon: "checklist" },
   { href: "/admin/agencies", labelKey: "nav.admin.agencies", icon: "building", anyOf: ["agency.manage"] },
   { href: "/admin/kyc", labelKey: "nav.admin.kyc", icon: "badgeCheck", anyOf: ["kyc.read_masked"] },
@@ -66,6 +68,7 @@ export const CREATOR_NAV: CreatorNavItem[] = [
   { href: "/creator", labelKey: "nav.creator.home", icon: "home" },
   { href: "/creator/campaigns", labelKey: "nav.creator.campaigns", icon: "megaphone" },
   { href: "/creator/deals", labelKey: "nav.creator.deals", icon: "handshake" },
+  { href: "/creator/contracts", labelKey: "nav.creator.contracts", icon: "signature" },
   { href: "/creator/profile", labelKey: "nav.creator.profile", icon: "idCard" },
   { href: "/creator/kyc", labelKey: "nav.creator.kyc", icon: "badgeCheck" },
   { href: "/creator/media-kit", labelKey: "nav.creator.mediaKit", icon: "fileText" },

@@ -5,6 +5,7 @@ import {
   Contact,
   ListChecks,
   Megaphone,
+  FileSignature,
   FileText,
   Handshake,
   CircleHelp,
@@ -37,5 +38,6 @@ export const ICONS: Record<IconName, LucideIcon> = {
   inbox: Inbox,
   fileText: FileText,
   handshake: Handshake,
+  signature: FileSignature,
   help: CircleHelp,
 };

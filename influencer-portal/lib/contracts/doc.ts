@@ -25,10 +25,11 @@ export type Block =
   | { type: "orderedList"; content: ListItem[] }
   /** Generated only (deal tables); never accepted from the editor. */
   | { type: "table"; head: string[]; rows: string[][] };
-export interface ListItem {
+// A type alias (not an interface) so documents stay assignable to the database's Json type.
+export type ListItem = {
   type: "listItem";
   content: Block[];
-}
+};
 
 const paragraph = z.object({ type: z.literal("paragraph"), content: z.array(inline).max(500).optional() });
 const heading = z.object({
@@ -61,6 +62,16 @@ const listItem: z.ZodType<ListItem> = z.lazy(() =>
     .object({ type: z.literal("listItem"), content: z.array(editorBlock).min(1).max(50) })
     .transform((li) => ({ type: "listItem" as const, content: li.content })),
 );
+
+/** Stored contract blocks: editor blocks plus the generated deal tables. */
+export const contentBlock: z.ZodType<Block> = z.union([
+  editorBlock,
+  z.object({
+    type: z.literal("table"),
+    head: z.array(z.string().max(200)).max(20),
+    rows: z.array(z.array(z.string().max(2000)).max(20)).max(500),
+  }),
+]);
 
 export const richDoc = z
   .object({ type: z.literal("doc"), content: z.array(editorBlock).max(2000).default([]) })

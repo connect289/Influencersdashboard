@@ -11,11 +11,13 @@ import { TermsEditor, type SimulatorProps } from "@/components/deals/terms-edito
 import { TermsSummary } from "@/components/deals/terms-summary";
 import { VersionHistory } from "@/components/deals/version-history";
 import { Badge, StatusBadge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Banner } from "@/components/ui/states";
 import { requireStaff } from "@/lib/auth/guards";
 import { compConfig } from "@/lib/compensation/schema";
+import { contractRowSchema, OPEN_CONTRACT_STATUSES } from "@/lib/contracts/data";
 import { loadPickers } from "@/lib/creators/staff-data";
 import { commissionEstimate, loadCompContext, loadDeal, loadTdsSections, versionsOf } from "@/lib/deals/data";
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -44,6 +46,18 @@ export default async function DealPage({
   if (!deal) notFound();
   const canWrite = me.permissions.has("deal.write");
   const { current, pending } = versionsOf(deal);
+  const contracts = me.permissions.has("contract.read")
+    ? await supabase
+        .rpc("contracts_list", { p: { deal_id: deal.id, status: [], page_size: 20 } })
+        .then((r) => z.object({ rows: z.array(contractRowSchema) }).safeParse(r.data))
+        .then((r) => (r.success ? r.data.rows : []))
+    : [];
+  const activeContract = contracts.find((c) => c.status === "active");
+  const canContract =
+    me.permissions.has("contract.write") &&
+    current !== null &&
+    ["agreed", "active"].includes(deal.status) &&
+    !contracts.some((c) => (OPEN_CONTRACT_STATUSES as readonly string[]).includes(c.status));
   const draft = deal.draft_config ?? null;
   const amendmentDraft = draft !== null && current !== null;
   const visible = TABS.filter((x) => (x === "dryRun" ? amendmentDraft && canWrite : x !== "details" || canWrite));
@@ -185,6 +199,29 @@ export default async function DealPage({
           ) : null
         }
       />
+      {contracts.length || canContract ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted">{t("contracts.onDeal")}</span>
+          {contracts.map((c) => (
+            <Link
+              key={c.id}
+              href={`/admin/contracts/${c.id}`}
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              {c.number} <StatusBadge status={c.status} label={t(`contracts.statuses.${c.status}`)} />
+            </Link>
+          ))}
+          {canContract ? (
+            <Button asChild size="sm" variant="secondary">
+              <Link
+                href={`/admin/contracts/new?deal=${deal.id}${activeContract ? `&parent=${activeContract.id}` : ""}`}
+              >
+                {activeContract ? t("contracts.actions.amend") : t("contracts.generate")}
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       {pending ? <Banner tone="warning">{t("deals.awaitingResponse", { version: pending.version })}</Banner> : null}
       {deal.status_reason && ["terminated", "active"].includes(deal.status) ? (
         <p className="mt-2 text-sm text-muted">{t("deals.statusReason", { reason: deal.status_reason })}</p>

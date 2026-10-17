@@ -1,10 +1,12 @@
 // Demo and test data for the LOCAL stack only (spec 17: never run against production).
 // Usage: npm run seed            (reads .env.local; idempotent: safe to run again)
 // Creates staff for every role, creators in several states (synthetic people, @example.test addresses), platform
-// terms, and a few notifications and jobs. Later phases extend it with leads and ledger history.
+// terms, a few notifications and jobs, a demo deal and its contract. Later phases extend it with leads and ledger
+// history.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { buildVersion, contractSource, templateSource } from "@/lib/contracts/build";
 import type { Database } from "@/lib/database.types";
 
 function loadEnv(): Record<string, string> {
@@ -343,6 +345,52 @@ async function main() {
       .single();
     if (version.error) throw new Error(`deal version: ${version.error.message}`);
     await db.from("deals").update({ current_version_id: version.data.id }).eq("id", deal.data.id);
+  }
+
+  // Local demo only: the seed clauses are marked legally reviewed so demo contracts can be sent. In production a
+  // Super Admin reviews each clause with counsel first (the legal-review gate blocks sending until then).
+  const admin = await db.from("staff_profiles").select("user_id").eq("email", "admin@example.test").single();
+  await db
+    .from("clause_versions")
+    .update({ reviewed_at: new Date().toISOString(), reviewed_by: admin.data?.user_id ?? null })
+    .is("reviewed_at", null);
+
+  // A demo contract for the demo deal, sent to Riya for review (generated exactly as the app does).
+  const demo = await db.from("deals").select("id").eq("title", dealTitle).maybeSingle();
+  const hasContract = demo.data
+    ? await db.from("contracts").select("id").eq("deal_id", demo.data.id).maybeSingle()
+    : { data: null };
+  if (demo.data && !hasContract.data) {
+    const created = await db.rpc("contract_create", { p: { deal_id: demo.data.id } });
+    if (created.error) throw new Error(`contract: ${created.error.message}`);
+    const row = await db.from("contracts").select("number, template_id").eq("id", created.data).single();
+    const [src, tpl] = await Promise.all([
+      db.rpc("contract_source", { p_deal: demo.data.id }),
+      db.rpc("template_source", { p_template: row.data?.template_id ?? "" }),
+    ]);
+    const built = buildVersion(contractSource.parse(src.data), templateSource.parse(tpl.data), {
+      number: row.data?.number ?? "",
+      date: new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10),
+      parent_number: null,
+      payee_agency_id: null,
+    });
+    const added = await db.rpc("contract_version_add", {
+      p_contract: created.data,
+      p_content: built.content as never,
+      p_html: built.html,
+      p_overrides: {},
+      p_note: "First version",
+      p_missing: built.missing,
+    });
+    if (added.error) throw new Error(`contract version: ${added.error.message}`);
+    await db
+      .from("contracts")
+      .update({
+        status: "sent",
+        sent_at: new Date().toISOString(),
+        negotiation_deadline: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      })
+      .eq("id", created.data);
   }
 
   const terms = await db.from("terms_versions").select("kind");

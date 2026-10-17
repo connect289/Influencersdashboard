@@ -101,6 +101,9 @@ create table inf.contract_templates (
 create unique index contract_templates_one_default_idx on inf.contract_templates (is_default) where is_default and archived_at is null;
 create unique index contract_templates_name_idx on inf.contract_templates (lower(name)) where archived_at is null;
 
+-- The contract template a campaign's deals use (spec 14 campaign builder); null means the default template.
+alter table inf.campaigns add column contract_template_id uuid references inf.contract_templates (id) on delete set null;
+
 create table inf.template_clauses (
   template_id  uuid not null references inf.contract_templates (id) on delete cascade,
   clause_id    uuid not null references inf.clauses (id) on delete restrict,
@@ -168,6 +171,8 @@ create table inf.contract_versions (
   html             text not null check (char_length(html) between 20 and 2000000),
   sha256           text not null check (sha256 ~ '^[0-9a-f]{64}$'),
   overrides        jsonb not null default '{}'::jsonb check (jsonb_typeof(overrides) = 'object'),
+  -- Variables the template needs that had no value when the version was assembled (blocks sending).
+  missing_fields   text[] not null default '{}',
   note             text check (char_length(note) <= 1000),
   created_by       uuid default auth.uid(),
   created_at       timestamptz not null default now(),
@@ -275,6 +280,12 @@ create trigger signatures_audit after insert on inf.signatures for each row exec
 -- ---------------------------------------------------------------------------------------------------------------
 -- Access helpers
 -- ---------------------------------------------------------------------------------------------------------------
+-- Contract generation: staff with contract.write, or the service role (the contract drafted for an accepted offer).
+create or replace function inf.contract_writer() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select inf.has_perm('contract.write') or coalesce(auth.role(), '') = 'service_role';
+$$;
+
 -- Which side the caller is on for a contract: eduwit (staff with contract.read), creator, agency (negotiate grant).
 create or replace function inf.contract_side(p_contract uuid) returns text
 language sql stable security definer set search_path = '' as $$
@@ -431,7 +442,7 @@ language sql stable security definer set search_path = '' as $$
                   join inf.clause_versions v on v.clause_id = c.id and v.version = c.current_version
                  where tc.template_id = t.id), '[]'))
     from inf.contract_templates t
-   where t.id = p_template and (inf.has_perm('contract.read') or inf.has_perm('clause.write'));
+   where t.id = p_template and (inf.has_perm('contract.read') or inf.has_perm('clause.write') or coalesce(auth.role(), '') = 'service_role');
 $$;
 
 -- The library for the editor: every clause with its current version and review state.
@@ -464,7 +475,7 @@ create or replace function inf.contract_source(p_deal uuid) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare d inf.deals; v_out jsonb;
 begin
-  if not inf.has_perm('contract.write') then raise exception 'not allowed' using errcode = '42501'; end if;
+  if not inf.contract_writer() then raise exception 'not allowed' using errcode = '42501'; end if;
   select * into d from inf.deals where id = p_deal;
   if d.id is null then return null; end if;
   select jsonb_build_object(
@@ -474,11 +485,13 @@ begin
                                'comp_config', (select v.comp_config from inf.deal_versions v where v.id = d.current_version_id)),
     'creator', (select jsonb_build_object('id', c.id, 'display_name', c.display_name, 'handle', c.handle, 'city', c.city,
                                           'state', c.state, 'email', c.email,
-                                          'legal_name', (select k.name_on_pan from inf.creator_kyc k where k.creator_id = c.id),
+                                          -- The name on the PAN (KYC) when there is one, else the legal name on the profile.
+                                          'legal_name', coalesce((select k.name_on_pan from inf.creator_kyc k where k.creator_id = c.id), c.legal_name),
                                           'pan_last4', (select k.pan_last4 from inf.creator_kyc k where k.creator_id = c.id),
                                           'gstin', (select k.gstin from inf.creator_kyc k where k.creator_id = c.id and k.gst_status <> 'unregistered' and k.gstin_verified))
                   from inf.creators c where c.id = d.creator_id),
-    'campaign', (select jsonb_build_object('name', cp.name, 'deliverables', cp.deliverables) from inf.campaigns cp where cp.id = d.campaign_id),
+    'campaign', (select jsonb_build_object('name', cp.name, 'deliverables', cp.deliverables, 'contract_template_id', cp.contract_template_id)
+                   from inf.campaigns cp where cp.id = d.campaign_id),
     'agencies', coalesce((select jsonb_agg(jsonb_build_object('id', a.id, 'name', a.name))
                             from inf.agency_creator_links l join inf.agencies a on a.id = l.agency_id
                            where l.creator_id = d.creator_id and l.status = 'active' and l.can_negotiate_sign), '[]'),
@@ -496,7 +509,7 @@ create or replace function inf.contract_create(p jsonb) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare d inf.deals; v_id uuid; v_parent inf.contracts;
 begin
-  if not inf.has_perm('contract.write') then raise exception 'not allowed' using errcode = '42501'; end if;
+  if not inf.contract_writer() then raise exception 'not allowed' using errcode = '42501'; end if;
   select * into d from inf.deals where id = (p ->> 'deal_id')::uuid for update;
   if d.id is null or d.current_version_id is null then raise exception 'the deal has no agreed terms' using errcode = '22023'; end if;
   if d.status in ('completed', 'terminated', 'expired') then raise exception 'deal is closed' using errcode = '22023'; end if;
@@ -506,13 +519,20 @@ begin
       raise exception 'only an active contract of this deal can be amended' using errcode = '22023';
     end if;
   end if;
+  if v_parent.id is null and exists (select 1 from inf.contracts where deal_id = d.id and status = 'active') then
+    raise exception 'this deal has an active contract: amend it instead' using errcode = '22023';
+  end if;
   if nullif(p ->> 'payee_agency_id', '') is not null and not exists (
        select 1 from inf.agency_creator_links l where l.agency_id = (p ->> 'payee_agency_id')::uuid and l.creator_id = d.creator_id
           and l.status = 'active' and l.can_negotiate_sign) then
     raise exception 'that agency cannot be the payee' using errcode = '22023';
   end if;
   insert into inf.contracts (deal_id, template_id, parent_contract_id, kind, payee_agency_id, effective_on, expires_on, stamp_duty_reference)
-  values (d.id, (p ->> 'template_id')::uuid, v_parent.id,
+  values (d.id, coalesce(nullif(p ->> 'template_id', '')::uuid,
+                         (select t.id from inf.campaigns cp join inf.contract_templates t on t.id = cp.contract_template_id
+                           where cp.id = d.campaign_id and t.archived_at is null),
+                         (select t.id from inf.contract_templates t where t.is_default and t.archived_at is null)),
+          v_parent.id,
           case when v_parent.id is not null then 'amendment' else coalesce(nullif(p ->> 'kind', ''), 'original') end,
           nullif(p ->> 'payee_agency_id', '')::uuid, coalesce(nullif(p ->> 'effective_on', '')::date, d.starts_on),
           coalesce(nullif(p ->> 'expires_on', '')::date, d.ends_on), nullif(trim(p ->> 'stamp_duty_reference'), ''))
@@ -525,21 +545,23 @@ end $$;
 -- Adds a version (content and HTML assembled by the app). The database hashes the HTML. With p_resolve, the listed
 -- change requests are closed as accepted or countered in this version.
 create or replace function inf.contract_version_add(p_contract uuid, p_content jsonb, p_html text, p_overrides jsonb,
-                                                    p_note text default null, p_resolve jsonb default '[]'::jsonb)
+                                                    p_note text default null, p_resolve jsonb default '[]'::jsonb,
+                                                    p_missing text[] default '{}')
 returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare c inf.contracts; d inf.deals; v_id uuid; v_item jsonb;
 begin
-  if not inf.has_perm('contract.write') then raise exception 'not allowed' using errcode = '42501'; end if;
+  if not inf.contract_writer() then raise exception 'not allowed' using errcode = '42501'; end if;
   select * into c from inf.contracts where id = p_contract for update;
   if c.id is null then raise exception 'no such contract' using errcode = '22023'; end if;
   if c.status not in ('draft', 'sent', 'in_negotiation', 'ready_to_sign') then
     raise exception 'a signed or closed contract cannot change' using errcode = '22023';
   end if;
   select * into d from inf.deals where id = c.deal_id;
-  insert into inf.contract_versions (contract_id, version, deal_version_id, content, html, sha256, overrides, note)
+  insert into inf.contract_versions (contract_id, version, deal_version_id, content, html, sha256, overrides, missing_fields, note)
   values (c.id, coalesce((select max(version) from inf.contract_versions where contract_id = c.id), 0) + 1, d.current_version_id,
-          p_content, p_html, encode(sha256(convert_to(p_html, 'UTF8')), 'hex'), coalesce(p_overrides, '{}'::jsonb), nullif(trim(p_note), ''))
+          p_content, p_html, encode(sha256(convert_to(p_html, 'UTF8')), 'hex'), coalesce(p_overrides, '{}'::jsonb),
+          coalesce(p_missing, '{}'), nullif(trim(p_note), ''))
   returning id into v_id;
   for v_item in select * from jsonb_array_elements(coalesce(p_resolve, '[]'::jsonb)) loop
     update inf.contract_change_requests set status = v_item ->> 'status', decided_by = auth.uid(), decided_at = now(),
@@ -567,6 +589,7 @@ begin
   if c.status <> 'draft' then raise exception 'only a draft can be sent' using errcode = '22023'; end if;
   select * into v from inf.contract_versions where id = c.current_version_id;
   if v.id is null then raise exception 'the contract has no content yet' using errcode = '22023'; end if;
+  if cardinality(v.missing_fields) > 0 then raise exception 'details are missing: %', array_to_string(v.missing_fields, ', ') using errcode = '22023'; end if;
   v_gate := coalesce((inf.setting('contracts.signing') ->> 'legal_review_gate')::boolean, true);
   select count(*) into v_unreviewed
     from jsonb_array_elements(v.content -> 'sections') s
@@ -590,6 +613,9 @@ begin
   if c.status not in ('sent', 'in_negotiation') then raise exception 'cannot mark this contract ready' using errcode = '22023'; end if;
   if exists (select 1 from inf.contract_change_requests where contract_id = c.id and status = 'pending') then
     raise exception 'answer every pending change request first' using errcode = '22023';
+  end if;
+  if exists (select 1 from inf.contract_versions v where v.id = c.current_version_id and cardinality(v.missing_fields) > 0) then
+    raise exception 'details are missing' using errcode = '22023';
   end if;
   update inf.contracts set status = 'ready_to_sign' where id = c.id;
   perform inf.contract_notify(c.id, 'creator', 'contract.ready', 'Ready to sign: ' || c.number,
@@ -750,7 +776,8 @@ begin
     'creator', (select jsonb_build_object('id', cr.id, 'display_name', cr.display_name, 'handle', cr.handle) from inf.creators cr where cr.id = d.creator_id),
     'side', v_side,
     'current', case when v.id is null then null else jsonb_build_object('id', v.id, 'version', v.version, 'content', v.content,
-                    'sha256', v.sha256, 'created_at', v.created_at, 'note', v.note, 'deal_version_id', v.deal_version_id) end,
+                    'sha256', v.sha256, 'created_at', v.created_at, 'note', v.note, 'deal_version_id', v.deal_version_id,
+                    'missing_fields', to_jsonb(v.missing_fields)) end,
     'versions', coalesce((select jsonb_agg(jsonb_build_object('id', x.id, 'version', x.version, 'sha256', x.sha256, 'created_at', x.created_at,
                                                               'note', x.note) order by x.version)
                             from inf.contract_versions x where x.contract_id = c.id), '[]'),
@@ -1043,6 +1070,51 @@ begin
   return v_id;
 end $$;
 
+-- campaign_save: unchanged, plus the campaign's contract template.
+create or replace function inf.campaign_save(p jsonb) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare v_id uuid := nullif(p ->> 'id', '')::uuid; v_prog bigint; v_pos int := 0;
+begin
+  if not inf.has_perm('campaign.write') then raise exception 'not allowed' using errcode = '42501'; end if;
+  if v_id is null then
+    insert into inf.campaigns (name, objective, description, visibility, starts_on, ends_on, apply_by, budget_paise, slots,
+                               eligibility, deliverables, compensation_summary, internal_notes, owner_id, default_preset_id,
+                               contract_template_id)
+    values (trim(p ->> 'name'), p ->> 'objective', nullif(trim(p ->> 'description'), ''), coalesce(nullif(p ->> 'visibility', ''), 'open'),
+            nullif(p ->> 'starts_on', '')::date, nullif(p ->> 'ends_on', '')::date, nullif(p ->> 'apply_by', '')::date,
+            nullif(p ->> 'budget_paise', '')::bigint, nullif(p ->> 'slots', '')::int, coalesce(p -> 'eligibility', '{}'),
+            coalesce(p -> 'deliverables', '[]'), nullif(trim(p ->> 'compensation_summary'), ''), nullif(trim(p ->> 'internal_notes'), ''),
+            coalesce(nullif(p ->> 'owner_id', '')::uuid, auth.uid()), nullif(p ->> 'default_preset_id', '')::uuid,
+            nullif(p ->> 'contract_template_id', '')::uuid)
+    returning id into v_id;
+  else
+    update inf.campaigns set name = trim(p ->> 'name'), objective = p ->> 'objective', description = nullif(trim(p ->> 'description'), ''),
+           visibility = coalesce(nullif(p ->> 'visibility', ''), visibility), starts_on = nullif(p ->> 'starts_on', '')::date,
+           ends_on = nullif(p ->> 'ends_on', '')::date, apply_by = nullif(p ->> 'apply_by', '')::date,
+           budget_paise = nullif(p ->> 'budget_paise', '')::bigint, slots = nullif(p ->> 'slots', '')::int,
+           eligibility = coalesce(p -> 'eligibility', '{}'), deliverables = coalesce(p -> 'deliverables', '[]'),
+           compensation_summary = nullif(trim(p ->> 'compensation_summary'), ''), internal_notes = nullif(trim(p ->> 'internal_notes'), ''),
+           owner_id = nullif(p ->> 'owner_id', '')::uuid,
+           default_preset_id = case when p ? 'default_preset_id' then nullif(p ->> 'default_preset_id', '')::uuid else default_preset_id end,
+           contract_template_id = case when p ? 'contract_template_id' then nullif(p ->> 'contract_template_id', '')::uuid else contract_template_id end
+     where id = v_id;
+    if not found then raise exception 'no such campaign' using errcode = '22023'; end if;
+  end if;
+  if p ? 'programme_ids' then
+    delete from inf.campaign_programmes where campaign_id = v_id
+      and programme_id not in (select (x)::bigint from jsonb_array_elements_text(p -> 'programme_ids') x);
+    for v_prog in select (x)::bigint from jsonb_array_elements_text(p -> 'programme_ids') x loop
+      if not exists (select 1 from public.catalog_programs where id = v_prog) then
+        raise exception 'unknown programme %', v_prog using errcode = '22023';
+      end if;
+      insert into inf.campaign_programmes (campaign_id, programme_id, position) values (v_id, v_prog, v_pos)
+      on conflict (campaign_id, programme_id) do update set position = excluded.position;
+      v_pos := v_pos + 1;
+    end loop;
+  end if;
+  return v_id;
+end $$;
+
 -- ---------------------------------------------------------------------------------------------------------------
 -- Storage: signed PDFs are written by the service role only; nobody reads the bucket directly (downloads go through
 -- the app route, which re-verifies the hashes).
@@ -1096,7 +1168,7 @@ insert into inf.client_grants (object_type, object_name, grantee, privilege) val
   ('function', 'inf.clause_history(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.contract_source(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.contract_create(jsonb)', 'authenticated', 'execute'),
-  ('function', 'inf.contract_version_add(uuid, jsonb, text, jsonb, text, jsonb)', 'authenticated', 'execute'),
+  ('function', 'inf.contract_version_add(uuid, jsonb, text, jsonb, text, jsonb, text[])', 'authenticated', 'execute'),
   ('function', 'inf.contract_send(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.contract_set_ready(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.contract_set_status(uuid, text, text)', 'authenticated', 'execute'),

@@ -4,6 +4,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { GrantBadges } from "@/components/agency/grant-badges";
+import { ContractList } from "@/components/contracts/contract-list";
 import { DealList } from "@/components/deals/deal-list";
 import { PlatformsCard } from "@/components/creator-profile/platforms-card";
 import { PortfolioCard, RateCardCard } from "@/components/creator-profile/profile-lists";
@@ -13,6 +14,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { requireAgency } from "@/lib/auth/guards";
+import { loadMyContracts } from "@/lib/contracts/data";
 import type { Database } from "@/lib/database.types";
 import { loadMyDeals } from "@/lib/deals/data";
 
@@ -38,7 +40,10 @@ export default async function AgencyCreatorPage({ params }: { params: Promise<{ 
   const failed = links.error ?? platforms.error ?? rates.error ?? portfolio.error;
   const negotiates = link?.can_negotiate_sign === true;
   const seesDeals = negotiates || link?.can_view_earnings === true;
-  const deals = seesDeals ? await loadMyDeals(supabase, creatorId).catch(() => null) : [];
+  const [deals, contracts] = await Promise.all([
+    seesDeals ? loadMyDeals(supabase, creatorId).catch(() => null) : [],
+    negotiates ? loadMyContracts(supabase, creatorId).catch(() => null) : [],
+  ]);
   let inviteRows: Database["inf"]["Functions"]["my_invites"]["Returns"] = [];
   let appRows: Database["inf"]["Functions"]["my_applications"]["Returns"] = [];
   if (negotiates) {
@@ -117,6 +122,16 @@ export default async function AgencyCreatorPage({ params }: { params: Promise<{ 
                 <ErrorState title={t("errors.loadFailed")} />
               ) : (
                 <DealList deals={deals} hrefBase="/agency/deals" />
+              )}
+            </Card>
+          ) : null}
+          {negotiates ? (
+            <Card>
+              <CardHeader title={t("nav.creator.contracts")} description={t("agencyPortal.contractsHint")} />
+              {contracts === null ? (
+                <ErrorState title={t("errors.loadFailed")} />
+              ) : (
+                <ContractList contracts={contracts} hrefBase="/agency/contracts" />
               )}
             </Card>
           ) : null}

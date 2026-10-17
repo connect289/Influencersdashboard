@@ -3,7 +3,7 @@
 -- attempts), countersign activating the deal, immutability, and who can see what.
 begin;
 \ir _helpers.psql
-select plan(50);
+select plan(53);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('asha', array['super_admin'], true, true);
@@ -68,6 +68,9 @@ insert into vals values ('content', jsonb_build_object('title', 'Creator Agreeme
                      'title', 'Parties', 'negotiable', false, 'locked', true, 'amended', false, 'blocks', '[]'::jsonb),
   jsonb_build_object('key', 'conduct', 'number', 2, 'clause_id', (select id from inf.clauses where key = 'conduct'), 'clause_version', 2, 'category', 'conduct',
                      'title', 'Conduct', 'negotiable', true, 'locked', false, 'amended', false, 'blocks', '[]'::jsonb)))::text);
+insert into ids select 'vm', inf.contract_version_add((select id from ids where label = 'contract'), (select v::jsonb from vals where label = 'content'),
+  '<article>missing details</article>', '{}'::jsonb, null, '[]'::jsonb, array['creator.legal_name']);
+select throws_ok($$ select inf.contract_send((select id from ids where label = 'contract')) $$, '22023', 'details are missing: creator.legal_name', 'blank required details block sending');
 insert into ids select 'v1', inf.contract_version_add((select id from ids where label = 'contract'), (select v::jsonb from vals where label = 'content'),
   '<article><h1>Creator Agreement</h1><p>v1</p></article>', '{}'::jsonb);
 select is((select sha256 from inf.contract_versions where id = (select id from ids where label = 'v1')),
@@ -158,6 +161,15 @@ select is((select count(*)::int from inf.jobs where kind = 'contract.finalize'),
 select throws_ok($$ delete from inf.signatures $$, '42501', null, 'signatures are append-only');
 select tests.as_person('mona');
 select is((inf.contract_integrity((select id from ids where label = 'contract')) ->> 'ok')::boolean, true, 'integrity check passes');
+
+-- Amendments: the service role (or staff) drafts one against the active contract; a second original is refused.
+select tests.act_as_service();
+select throws_ok($$ select inf.contract_create(jsonb_build_object('deal_id', (select id from ids where label = 'deal'))) $$, '22023',
+                 'this deal has an active contract: amend it instead', 'one active contract per deal');
+insert into ids select 'amend', inf.contract_create(jsonb_build_object('deal_id', (select id from ids where label = 'deal'), 'parent_contract_id', (select id from ids where label = 'contract')));
+select tests.reset();
+select is((select kind || '/' || (template_id = (select id from inf.contract_templates where is_default))::text from inf.contracts where id = (select id from ids where label = 'amend')),
+          'amendment/true', 'an amendment uses the default template when none is given');
 
 select * from finish();
 rollback;

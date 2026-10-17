@@ -179,17 +179,23 @@ isOneToOne: false
                   ]
                 },"campaigns": {
                   Row: {
-                    "apply_by": string | null,"budget_paise": number | null,"compensation_summary": string | null,"created_at": string,"created_by": string,"default_preset_id": string | null,"deliverables": NonNullable<Json>,"description": string | null,"eligibility": NonNullable<Json>,"ends_on": string | null,"id": string,"internal_notes": string | null,"name": string,"objective": string,"owner_id": string | null,"slots": number | null,"starts_on": string | null,"status": string,"updated_at": string,"visibility": string
+                    "apply_by": string | null,"budget_paise": number | null,"compensation_summary": string | null,"contract_template_id": string | null,"created_at": string,"created_by": string,"default_preset_id": string | null,"deliverables": NonNullable<Json>,"description": string | null,"eligibility": NonNullable<Json>,"ends_on": string | null,"id": string,"internal_notes": string | null,"name": string,"objective": string,"owner_id": string | null,"slots": number | null,"starts_on": string | null,"status": string,"updated_at": string,"visibility": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name": string,"objective": string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
+                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"contract_template_id"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name": string,"objective": string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
                   }
                   Update: {
-                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name"?: string,"objective"?: string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
+                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"contract_template_id"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name"?: string,"objective"?: string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "campaigns_contract_template_id_fkey"
+      columns: ["contract_template_id"]
+isOneToOne: false
+      referencedRelation: "contract_templates"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "campaigns_default_preset_id_fkey"
       columns: ["default_preset_id"]
 isOneToOne: false
@@ -423,14 +429,14 @@ isOneToOne: false
                   ]
                 },"contract_versions": {
                   Row: {
-                    "content": NonNullable<Json>,"contract_id": string,"created_at": string,"created_by": string | null,"deal_version_id": string,"html": string,"id": string,"note": string | null,"overrides": NonNullable<Json>,"sha256": string,"version": number
+                    "content": NonNullable<Json>,"contract_id": string,"created_at": string,"created_by": string | null,"deal_version_id": string,"html": string,"id": string,"missing_fields": (string)[],"note": string | null,"overrides": NonNullable<Json>,"sha256": string,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "content": NonNullable<Json>,"contract_id": string,"created_at"?: string,"created_by"?: string | null,"deal_version_id": string,"html": string,"id"?: string,"note"?: string | null,"overrides"?: NonNullable<Json>,"sha256": string,"version": number
+                    "content": NonNullable<Json>,"contract_id": string,"created_at"?: string,"created_by"?: string | null,"deal_version_id": string,"html": string,"id"?: string,"missing_fields"?: (string)[],"note"?: string | null,"overrides"?: NonNullable<Json>,"sha256": string,"version": number
                   }
                   Update: {
-                    "content"?: NonNullable<Json>,"contract_id"?: string,"created_at"?: string,"created_by"?: string | null,"deal_version_id"?: string,"html"?: string,"id"?: string,"note"?: string | null,"overrides"?: NonNullable<Json>,"sha256"?: string,"version"?: number
+                    "content"?: NonNullable<Json>,"contract_id"?: string,"created_at"?: string,"created_by"?: string | null,"deal_version_id"?: string,"html"?: string,"id"?: string,"missing_fields"?: (string)[],"note"?: string | null,"overrides"?: NonNullable<Json>,"sha256"?: string,"version"?: number
                   }
                   Relationships: [
                     {
@@ -1543,10 +1549,13 @@ isOneToOne: false
 { Args: { "p_deal": string }; Returns: Json
                            },
 "contract_version_add":
-{ Args: { "p_content": Json,"p_contract": string,"p_html": string,"p_note"?: string,"p_overrides": Json,"p_resolve"?: Json }; Returns: string
+{ Args: { "p_content": Json,"p_contract": string,"p_html": string,"p_missing"?: (string)[],"p_note"?: string,"p_overrides": Json,"p_resolve"?: Json }; Returns: string
                            },
 "contract_version_html":
 { Args: { "p_version": string }; Returns: Json
+                           },
+"contract_writer":
+{ Args: Record<PropertyKey, never>; Returns: boolean
                            },
 "contracts_list":
 { Args: { "p": Json }; Returns: Json

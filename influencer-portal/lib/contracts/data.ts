@@ -1,12 +1,15 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { deliverableItem } from "@/lib/campaigns/schemas";
-import { compConfig } from "@/lib/compensation/schema";
-import type { ServerSupabase } from "@/lib/supabase/server";
-import { assembleContract, type AssembleResult, type ClauseInput, type ContractContent } from "./assemble";
-import { richDoc, type RichDoc } from "./doc";
-import { contractHtml } from "./html";
-import { buildContext } from "./variables";
+import type { Database } from "@/lib/database.types";
+import type { ContractContent } from "./assemble";
+import { contractSource, templateSource, type ContractSource, type TemplateSource } from "./build";
+import { contentBlock, richDoc } from "./doc";
+
+export { buildVersion, type BuiltVersion, type ContractSource, type TemplateSource } from "./build";
+
+/** The person's client (lib/supabase/server) or, for system work, the service-role client. */
+export type Db = SupabaseClient<Database, "inf">;
 
 // ---------------------------------------------------------------------------------------------------------------
 // Library and templates
@@ -51,39 +54,31 @@ export const libraryClause = z.object({
 });
 export type LibraryClause = z.infer<typeof libraryClause>;
 
-export async function loadLibrary(supabase: ServerSupabase, includeArchived = false): Promise<LibraryClause[]> {
+export async function loadLibrary(supabase: Db, includeArchived = false): Promise<LibraryClause[]> {
   const { data, error } = await supabase.rpc("clause_library", { p_include_archived: includeArchived });
   if (error) throw new Error(error.message);
   return z.array(libraryClause).parse(data);
 }
 
-const templateClause = z.object({
-  clause_id: z.uuid(),
-  key: z.string(),
-  category: z.string(),
+export const clauseVersion = z.object({
   version: z.number().int(),
   title: z.string(),
   body: richDoc,
   required: z.boolean(),
   negotiable: z.boolean(),
   locked: z.boolean(),
-  reviewed: z.boolean(),
-  condition: z.string().nullable(),
+  reviewed_at: z.string().nullable(),
+  created_at: z.string(),
 });
-export const templateSource = z.object({
-  id: z.uuid(),
-  name: z.string(),
-  description: z.string().nullable(),
-  title: z.string(),
-  header: richDoc,
-  footer: richDoc,
-  is_default: z.boolean(),
-  archived: z.boolean(),
-  clauses: z.array(templateClause),
-});
-export type TemplateSource = z.infer<typeof templateSource>;
+export type ClauseVersion = z.infer<typeof clauseVersion>;
 
-export async function loadTemplate(supabase: ServerSupabase, id: string): Promise<TemplateSource | null> {
+export async function loadClauseHistory(supabase: Db, clauseId: string): Promise<ClauseVersion[]> {
+  const { data, error } = await supabase.rpc("clause_history", { p_clause: clauseId });
+  if (error) throw new Error(error.message);
+  return z.array(clauseVersion).parse(data);
+}
+
+export async function loadTemplate(supabase: Db, id: string): Promise<TemplateSource | null> {
   const { data, error } = await supabase.rpc("template_source", { p_template: id });
   if (error) throw new Error(error.message);
   return data === null ? null : templateSource.parse(data);
@@ -92,110 +87,11 @@ export async function loadTemplate(supabase: ServerSupabase, id: string): Promis
 // ---------------------------------------------------------------------------------------------------------------
 // Building a version
 // ---------------------------------------------------------------------------------------------------------------
-const contractSourceSchema = z.object({
-  deal: z.object({
-    id: z.uuid(),
-    code: z.string(),
-    title: z.string(),
-    status: z.string(),
-    starts_on: z.string(),
-    ends_on: z.string().nullable(),
-    deal_model: z.string(),
-    agreed_terms: z
-      .object({ deliverables: z.array(deliverableItem).optional() })
-      .loose()
-      .nullable(),
-    current_version_id: z.uuid().nullable(),
-    comp_config: compConfig.nullable(),
-  }),
-  creator: z.object({
-    id: z.uuid(),
-    display_name: z.string(),
-    handle: z.string(),
-    city: z.string().nullable(),
-    state: z.string().nullable(),
-    email: z.string().nullable(),
-    legal_name: z.string().nullable(),
-    pan_last4: z.string().nullable(),
-    gstin: z.string().nullable(),
-  }),
-  campaign: z.object({ name: z.string(), deliverables: z.array(deliverableItem).catch([]) }).nullable(),
-  agencies: z.array(z.object({ id: z.uuid(), name: z.string() })),
-  organisation: z
-    .object({
-      legal_name: z.string(),
-      address: z.string(),
-      gstin: z.string(),
-      pan: z.string(),
-      support_email: z.string(),
-    })
-    .loose(),
-  signatory: z.object({ name: z.string(), designation: z.string().nullable() }).nullable(),
-  contracts: z.array(z.object({ id: z.uuid(), number: z.string(), status: z.string(), kind: z.string() })),
-});
-export type ContractSource = z.infer<typeof contractSourceSchema>;
 
-export async function loadContractSource(supabase: ServerSupabase, dealId: string): Promise<ContractSource | null> {
+export async function loadContractSource(supabase: Db, dealId: string): Promise<ContractSource | null> {
   const { data, error } = await supabase.rpc("contract_source", { p_deal: dealId });
   if (error) throw new Error(error.message);
-  return data === null ? null : contractSourceSchema.parse(data);
-}
-
-export interface BuiltVersion extends AssembleResult {
-  html: string;
-}
-
-/** Assembles a contract version from the deal's terms in force and the template. Pure apart from its inputs. */
-export function buildVersion(
-  src: ContractSource,
-  template: TemplateSource,
-  contract: { number: string; date: string; parent_number: string | null; payee_agency_id: string | null },
-  overrides: Readonly<Record<string, RichDoc>> = {},
-): BuiltVersion {
-  if (!src.deal.comp_config) throw new Error("the deal has no agreed terms");
-  const agency = contract.payee_agency_id ? src.agencies.find((a) => a.id === contract.payee_agency_id) : undefined;
-  const legal = src.creator.legal_name ?? src.creator.display_name;
-  const ctx = buildContext({
-    creator: {
-      legal_name: src.creator.legal_name,
-      display_name: src.creator.display_name,
-      handle: src.creator.handle,
-      city: src.creator.city,
-      state: src.creator.state,
-      email: src.creator.email,
-      pan_masked: src.creator.pan_last4 ? `XXXXXX${src.creator.pan_last4}` : null,
-      gstin: src.creator.gstin,
-    },
-    payee: agency ? { name: agency.name, is_agency: true } : { name: legal, is_agency: false },
-    deal: {
-      code: src.deal.code,
-      title: src.deal.title,
-      starts_on: src.deal.starts_on,
-      ends_on: src.deal.ends_on,
-      model: src.deal.deal_model,
-      config: src.deal.comp_config,
-    },
-    deliverables: src.deal.agreed_terms?.deliverables?.length
-      ? src.deal.agreed_terms.deliverables
-      : (src.campaign?.deliverables ?? []),
-    campaign: src.campaign ? { name: src.campaign.name } : null,
-    eduwit: {
-      legal_name: src.organisation.legal_name,
-      address: src.organisation.address,
-      gstin: src.organisation.gstin,
-      pan: src.organisation.pan,
-      support_email: src.organisation.support_email,
-    },
-    signatory: src.signatory ? { name: src.signatory.name, designation: src.signatory.designation ?? "" } : null,
-    contract: { number: contract.number, date: contract.date, parent_number: contract.parent_number },
-  });
-  const clauses: ClauseInput[] = template.clauses.map((c) => ({ ...c }));
-  const r = assembleContract(
-    { title: template.title, header: template.header, footer: template.footer, clauses },
-    ctx,
-    overrides,
-  );
-  return { ...r, html: contractHtml(r.content) };
+  return data === null ? null : contractSource.parse(data);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -211,13 +107,13 @@ const section = z.object({
   negotiable: z.boolean(),
   locked: z.boolean(),
   amended: z.boolean(),
-  blocks: z.array(z.unknown()),
+  blocks: z.array(contentBlock),
 });
 export const contractContent = z.object({
   title: z.string(),
-  header: z.array(z.unknown()),
+  header: z.array(contentBlock),
   sections: z.array(section),
-  footer: z.array(z.unknown()),
+  footer: z.array(contentBlock),
 });
 
 export const contractDetailSchema = z.object({
@@ -257,6 +153,7 @@ export const contractDetailSchema = z.object({
       created_at: z.string(),
       note: z.string().nullable(),
       deal_version_id: z.uuid(),
+      missing_fields: z.array(z.string()),
     })
     .nullable(),
   versions: z.array(
@@ -317,14 +214,14 @@ export const contractDetailSchema = z.object({
 });
 export type ContractDetail = z.infer<typeof contractDetailSchema>;
 
-export async function loadContract(supabase: ServerSupabase, id: string): Promise<ContractDetail | null> {
+export async function loadContract(supabase: Db, id: string): Promise<ContractDetail | null> {
   const { data, error } = await supabase.rpc("contract_detail", { p_contract: id });
   if (error) throw new Error(error.message);
   return data === null ? null : contractDetailSchema.parse(data);
 }
 
 export async function loadVersionContent(
-  supabase: ServerSupabase,
+  supabase: Db,
   versionId: string,
 ): Promise<{ content: ContractContent; html: string; sha256: string; computed: string } | null> {
   const { data, error } = await supabase.rpc("contract_version_html", { p_version: versionId });
@@ -333,7 +230,7 @@ export async function loadVersionContent(
   const v = z
     .object({ html: z.string(), sha256: z.string(), computed_sha256: z.string(), content: contractContent })
     .parse(data);
-  return { content: v.content as ContractContent, html: v.html, sha256: v.sha256, computed: v.computed_sha256 };
+  return { content: v.content, html: v.html, sha256: v.sha256, computed: v.computed_sha256 };
 }
 
 export const contractRowSchema = z.object({
@@ -351,3 +248,22 @@ export const contractRowSchema = z.object({
   needs_action: z.boolean().optional(),
 });
 export type ContractRow = z.infer<typeof contractRowSchema>;
+
+export async function loadMyContracts(supabase: Db, creatorId: string): Promise<ContractRow[]> {
+  const { data, error } = await supabase.rpc("my_contracts", { p_creator: creatorId });
+  if (error) throw new Error(error.message);
+  return z.array(contractRowSchema).parse(data);
+}
+
+/** Active templates for pickers (campaign builder, contract generation). Empty for people who cannot read them. */
+export async function templateOptions(supabase: Db): Promise<{ id: string; name: string; is_default: boolean }[]> {
+  const { data } = await supabase
+    .from("contract_templates")
+    .select("id, name, is_default")
+    .is("archived_at", null)
+    .order("name");
+  return z
+    .array(z.object({ id: z.uuid(), name: z.string(), is_default: z.boolean() }))
+    .catch([])
+    .parse(data ?? []);
+}
