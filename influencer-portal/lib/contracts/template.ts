@@ -27,8 +27,7 @@ const VAR = /\{\{\s*(?!else\s*\}\})([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)\s*\}\
 const CONTROL = /^\{\{\s*(#if|#unless|else|\/if|\/unless)(?:\s+([^{}]+?))?\s*\}\}$/;
 const PATH = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$/;
 
-const isTable = (v: ContextValue | undefined): v is TableValue =>
-  typeof v === "object" && v !== null && "rows" in v;
+const isTable = (v: ContextValue | undefined): v is TableValue => typeof v === "object" && v !== null && "rows" in v;
 
 export function truthy(v: ContextValue | undefined): boolean {
   if (v === undefined || v === null || v === false) return false;
@@ -48,8 +47,7 @@ interface Env {
 
 function note(env: Env, path: string, required = true) {
   if (!env.known.has(path)) env.unknown.add(path);
-  else if (required && !truthy(env.ctx[path]) && env.ctx[path] !== false && env.ctx[path] !== 0)
-    env.missing.add(path);
+  else if (required && !truthy(env.ctx[path]) && env.ctx[path] !== false && env.ctx[path] !== 0) env.missing.add(path);
 }
 
 /** Evaluates a condition. Unknown variables are reported; their value is false. */
@@ -96,8 +94,7 @@ export function renderString(s: string, env: Env): string {
     const v = evaluate(expr, env.ctx, env);
     out = out.replace(all, (kind === "if" ? v : !v) ? yes : no);
   }
-  if (/\{\{\s*(#if|#unless|else|\/if|\/unless)\b/.test(out))
-    env.errors.push("unbalanced_inline_condition");
+  if (/\{\{\s*(#if|#unless|else|\/if|\/unless)\b/.test(out)) env.errors.push("unbalanced_inline_condition");
   return out.replace(VAR, (_all, path: string) => {
     note(env, path);
     const v = env.ctx[path];
@@ -128,8 +125,7 @@ function controlOf(b: Block): Control | null {
   const m = CONTROL.exec(inlineText(b.content).trim());
   if (!m) return null;
   const tag = m[1];
-  if (tag === "#if" || tag === "#unless")
-    return { kind: tag === "#if" ? "if" : "unless", expr: m[2] ?? "" };
+  if (tag === "#if" || tag === "#unless") return { kind: tag === "#if" ? "if" : "unless", expr: m[2] ?? "" };
   if (tag === "else") return { kind: "else" };
   return { kind: "end", close: tag === "/if" ? "if" : "unless" };
 }
@@ -153,8 +149,7 @@ function renderBlocks(blocks: readonly Block[], env: Env): Block[] {
           no = walk();
         }
         const end = i < blocks.length ? controlOf(blocks[i] as Block) : null;
-        if (end?.kind !== "end" || end.close !== c.kind)
-          env.errors.push(`unclosed:${c.kind}:${c.expr ?? ""}`);
+        if (end?.kind !== "end" || end.close !== c.kind) env.errors.push(`unclosed:${c.kind}:${c.expr ?? ""}`);
         else i++;
         const v = evaluate(c.expr ?? "", env.ctx, env);
         acc.push(...((c.kind === "if" ? v : !v) ? yes : no));
@@ -195,11 +190,7 @@ function renderBlock(b: Block, env: Env): Block[] {
   return content.length ? [{ type: "paragraph", content }] : [];
 }
 
-export function renderDoc(
-  doc: RichDoc,
-  ctx: TemplateContext,
-  known: ReadonlySet<string>,
-): RenderResult {
+export function renderDoc(doc: RichDoc, ctx: TemplateContext, known: ReadonlySet<string>): RenderResult {
   const env: Env = { ctx, known, unknown: new Set(), missing: new Set(), errors: [] };
   const blocks = renderBlocks(doc.content, env);
   return {
@@ -215,8 +206,7 @@ export function usedPaths(doc: RichDoc): string[] {
   const found = new Set<string>();
   const scan = (s: string) => {
     for (const m of s.matchAll(VAR)) found.add(m[1] ?? "");
-    for (const m of s.matchAll(/\{\{\s*#(?:if|unless)\s+!?\s*([a-z][a-z0-9_.]*)/g))
-      found.add(m[1] ?? "");
+    for (const m of s.matchAll(/\{\{\s*#(?:if|unless)\s+!?\s*([a-z][a-z0-9_.]*)/g)) found.add(m[1] ?? "");
   };
   const walk = (bs: readonly Block[]) => {
     for (const b of bs) {

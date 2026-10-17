@@ -13,36 +13,23 @@ import { setLinkActive } from "@/lib/actions/links";
 import type { LinkRow } from "@/lib/leads/data";
 import { formatDate, formatNumber } from "@/lib/format";
 
-export function LinkList({
-  links,
-  base,
-  canEdit,
-}: {
-  links: LinkRow[];
-  base: string;
-  canEdit: boolean;
-}) {
+export function LinkList({ links, base, canEdit }: { links: LinkRow[]; base: string; canEdit: boolean }) {
   const t = useTranslations();
   const router = useRouter();
   const { pending, run } = useAction();
-  if (!links.length)
-    return <EmptyState title={t("links.empty")} description={t("links.emptyHint")} />;
+  if (!links.length) return <EmptyState title={t("links.empty")} description={t("links.emptyHint")} />;
   return (
     <ul className="flex flex-col gap-3">
       {links.map((l) => {
         const url = `${base.replace(/\/$/, "")}/${l.code}`;
         return (
-          <li
-            key={l.id}
-            className="rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)]"
-          >
+          <li key={l.id} className="rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)]">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="font-mono text-sm font-semibold">{l.code}</p>
                 <p className="text-sm text-muted">
-                  {[l.label, l.deal_title, l.deliverable_title, l.programme_name]
-                    .filter(Boolean)
-                    .join(" · ") || t("links.noDetails")}
+                  {[l.label, l.deal_title, l.deliverable_title, l.programme_name].filter(Boolean).join(" · ") ||
+                    t("links.noDetails")}
                 </p>
               </div>
               <span className="flex items-center gap-2">
@@ -65,9 +52,7 @@ export function LinkList({
               </span>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-lg bg-surface-2 px-2 py-1.5 text-xs">
-                {url}
-              </code>
+              <code className="min-w-0 flex-1 truncate rounded-lg bg-surface-2 px-2 py-1.5 text-xs">{url}</code>
               <Button
                 type="button"
                 size="sm"

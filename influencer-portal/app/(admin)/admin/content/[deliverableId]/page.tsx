@@ -10,12 +10,7 @@ import { LiveCard, PostsList } from "@/components/content/live-panel";
 import { MediaReview } from "@/components/content/media-review";
 import { MetricsTable } from "@/components/content/metrics-panel";
 import { ChecksList, ReviewPanel } from "@/components/content/review-panel";
-import {
-  DecisionNote,
-  deliverablePaths,
-  EarlierSubmissions,
-  SubmissionHeader,
-} from "@/components/content/submissions";
+import { DecisionNote, deliverablePaths, EarlierSubmissions, SubmissionHeader } from "@/components/content/submissions";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Banner, EmptyState } from "@/components/ui/states";
@@ -52,10 +47,7 @@ export default async function DeliverablePage({
   const links = Object.fromEntries(await signedLinks(DELIVERABLES_BUCKET, deliverablePaths(d)));
   const latest = d.submissions[0] ?? null;
   const reviewable =
-    latest !== null &&
-    latest.status === "submitted" &&
-    d.status === `${latest.kind}_submitted` &&
-    d.can_review;
+    latest !== null && latest.status === "submitted" && d.status === `${latest.kind}_submitted` && d.can_review;
   const left = d.revision_limit + d.extra_revisions - d.revisions_used;
 
   let body: React.ReactNode;
@@ -105,10 +97,7 @@ export default async function DeliverablePage({
         <EarlierSubmissions d={d} links={links} canComment={d.can_review} skip={latest.id} />
       </div>
     ) : (
-      <EmptyState
-        title={t("content.review.nothingYet")}
-        description={t("content.review.nothingYetHint")}
-      />
+      <EmptyState title={t("content.review.nothingYet")} description={t("content.review.nothingYetHint")} />
     );
   } else if (tab === "live") {
     body = (
@@ -124,10 +113,7 @@ export default async function DeliverablePage({
   } else if (tab === "metrics") {
     body = (
       <Card>
-        <CardHeader
-          title={t("content.metrics.title")}
-          description={t("content.metrics.staffHint")}
-        />
+        <CardHeader title={t("content.metrics.title")} description={t("content.metrics.staffHint")} />
         <MetricsTable rows={d.metrics} links={links} />
       </Card>
     );
@@ -144,10 +130,7 @@ export default async function DeliverablePage({
 
   return (
     <>
-      <Link
-        href="/admin/content"
-        className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/admin/content" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {t("nav.admin.content")}
       </Link>
       <PageHeader
@@ -161,16 +144,10 @@ export default async function DeliverablePage({
               <span>
                 {t(`platforms.${d.platform}`)} · {t(`formats.${d.format}`)}
               </span>
-              <Link
-                href={`/admin/creators/${d.creator.id}`}
-                className="text-primary hover:underline"
-              >
+              <Link href={`/admin/creators/${d.creator.id}`} className="text-primary hover:underline">
                 {d.creator.display_name}
               </Link>
-              <Link
-                href={`/admin/deals/${d.deal.id}?tab=content`}
-                className="text-primary hover:underline"
-              >
+              <Link href={`/admin/deals/${d.deal.id}?tab=content`} className="text-primary hover:underline">
                 {d.deal.title}
               </Link>
               {d.brief ? (
@@ -193,15 +170,10 @@ export default async function DeliverablePage({
       ) : null}
       {d.disclosure_failed_at ? (
         <div className="mb-3">
-          <Banner tone="danger">
-            {t("content.disclosureFailed", { at: formatDateTime(d.disclosure_failed_at) })}
-          </Banner>
+          <Banner tone="danger">{t("content.disclosureFailed", { at: formatDateTime(d.disclosure_failed_at) })}</Banner>
         </div>
       ) : null}
-      <nav
-        className="-mx-4 mb-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0"
-        aria-label={t("content.sections")}
-      >
+      <nav className="-mx-4 mb-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0" aria-label={t("content.sections")}>
         {visible.map((x) => (
           <Link
             key={x}
@@ -209,9 +181,7 @@ export default async function DeliverablePage({
             aria-current={tab === x ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-              tab === x
-                ? "bg-primary-soft font-medium text-primary"
-                : "text-muted hover:bg-surface-2",
+              tab === x ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
             )}
           >
             {t(`content.tabs.${x}`)}

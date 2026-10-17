@@ -11,12 +11,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/input";
 import { useAction } from "@/components/ui/use-action";
-import {
-  markReadyToSign,
-  regenerateContract,
-  sendContract,
-  setContractStatus,
-} from "@/lib/actions/contracts";
+import { markReadyToSign, regenerateContract, sendContract, setContractStatus } from "@/lib/actions/contracts";
 import type { ContractStatus } from "@/lib/contracts/data";
 
 function RegenerateDialog({ contractId }: { contractId: string }) {
@@ -50,12 +45,7 @@ function RegenerateDialog({ contractId }: { contractId: string }) {
           }}
         >
           <Field id="rg-note" label={t("contracts.actions.versionNote")}>
-            <Textarea
-              id="rg-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={1000}
-            />
+            <Textarea id="rg-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
           </Field>
           <div className="flex justify-end">
             <Button type="submit" disabled={pending}>
@@ -88,11 +78,7 @@ export function ContractActions({
   const statusDialog = (to: "void" | "terminated" | "completed") => (
     <ConfirmDialog
       key={to}
-      trigger={
-        <Button variant={to === "completed" ? "secondary" : "danger"}>
-          {t(`contracts.actions.${to}`)}
-        </Button>
-      }
+      trigger={<Button variant={to === "completed" ? "secondary" : "danger"}>{t(`contracts.actions.${to}`)}</Button>}
       title={t(`contracts.actions.${to}`)}
       description={t(`contracts.actions.${to}Hint`)}
       reasonLabel={t("contracts.actions.reason")}

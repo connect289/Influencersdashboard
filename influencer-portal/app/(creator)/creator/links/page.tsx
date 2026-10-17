@@ -13,11 +13,7 @@ export default async function CreatorLinksPage() {
   const t = await getTranslations();
   return (
     <>
-      <PageHeader
-        title={t("nav.creator.links")}
-        description={t("links.subtitle")}
-        help="/creator/help/creator#links"
-      />
+      <PageHeader title={t("nav.creator.links")} description={t("links.subtitle")} help="/creator/help/creator#links" />
       <LinksPanel supabase={supabase} creatorId={me.creatorId} canCreate staff={false} />
     </>
   );

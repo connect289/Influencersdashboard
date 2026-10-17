@@ -7,17 +7,7 @@
 //
 // Conventions: integer paise, percentages as basis points, banker's rounding once per line, IST calendar for months
 // and dates, ties in time processed in event order.
-import {
-  addDays,
-  addMonths,
-  addMs,
-  DAY,
-  istDate,
-  istMidnight,
-  istMonth,
-  nextMonth,
-  type EngineEvent,
-} from "./events";
+import { addDays, addMonths, addMs, DAY, istDate, istMidnight, istMonth, nextMonth, type EngineEvent } from "./events";
 import { allocate, mulDiv, netOfGst, pctOf, sum, toBps, type Paise } from "./money";
 import {
   FLAT_BASES,
@@ -156,15 +146,7 @@ interface Unit {
 interface Timer {
   at: string;
   seq: number;
-  kind:
-    | "month_close"
-    | "deal_close"
-    | "campaign_close"
-    | "date"
-    | "after_live"
-    | "hold"
-    | "retainer"
-    | "bonus_dates";
+  kind: "month_close" | "deal_close" | "campaign_close" | "date" | "after_live" | "hold" | "retainer" | "bonus_dates";
   data: Record<string, string | number>;
 }
 
@@ -180,9 +162,7 @@ function compareIso(a: string, b: string): number {
 export function computeLedger(input: EngineInput): EngineResult {
   const { context: ctx } = input;
   const asOf = input.as_of;
-  const versions = [...input.versions].sort((a, b) =>
-    compareIso(a.effective_from, b.effective_from),
-  );
+  const versions = [...input.versions].sort((a, b) => compareIso(a.effective_from, b.effective_from));
   if (versions.length === 0) throw new Error("a deal needs at least one version");
   const first = versions[0] as DealVersion;
   const versionAt = (at: string): DealVersion => {
@@ -226,9 +206,7 @@ export function computeLedger(input: EngineInput): EngineResult {
   // -------------------------------------------------------------------------------------------------------------
   // Lines
   // -------------------------------------------------------------------------------------------------------------
-  const addLine = (
-    l: Omit<LedgerLine, "period" | "confirmed_paise"> & { confirmed?: boolean },
-  ): LedgerLine | null => {
+  const addLine = (l: Omit<LedgerLine, "period" | "confirmed_paise"> & { confirmed?: boolean }): LedgerLine | null => {
     if (l.amount_paise <= 0) return null;
     let key = l.key;
     for (let i = 2; lines.has(key); i++) key = `${l.key}#${String(i)}`;
@@ -268,32 +246,24 @@ export function computeLedger(input: EngineInput): EngineResult {
       const t = timers[i] as Timer;
       if (before !== null && compareIso(t.at, before) >= 0) continue;
       const b = best === -1 ? null : (timers[best] as Timer);
-      if (!b || compareIso(t.at, b.at) < 0 || (compareIso(t.at, b.at) === 0 && t.seq < b.seq))
-        best = i;
+      if (!b || compareIso(t.at, b.at) < 0 || (compareIso(t.at, b.at) === 0 && t.seq < b.seq)) best = i;
     }
     if (best === -1) return null;
     return timers.splice(best, 1)[0] ?? null;
   };
 
-  const events = [...input.events].sort(
-    (a, b) => compareIso(a.at, b.at) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
-  );
-  const startDate = [
-    input.deal.starts_on,
-    ...(events[0] ? [istDate(events[0].at)] : []),
-  ].sort()[0] as string;
+  const events = [...input.events].sort((a, b) => compareIso(a.at, b.at) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const startDate = [input.deal.starts_on, ...(events[0] ? [istDate(events[0].at)] : [])].sort()[0] as string;
   // Month closes from the first month to as_of.
   const lastMonth = input.deal.ends_on ? input.deal.ends_on.slice(0, 7) : null;
   for (
     let m = startDate.slice(0, 7);
-    (lastMonth === null || m <= lastMonth) &&
-    compareIso(istMidnight(`${nextMonth(m)}-01`), asOf) <= 0;
+    (lastMonth === null || m <= lastMonth) && compareIso(istMidnight(`${nextMonth(m)}-01`), asOf) <= 0;
     m = nextMonth(m)
   )
     schedule(istMidnight(`${nextMonth(m)}-01`), "month_close", { month: m });
   if (input.deal.ends_on) schedule(istMidnight(addDays(input.deal.ends_on, 1)), "deal_close");
-  if (input.deal.campaign_ends_on)
-    schedule(istMidnight(addDays(input.deal.campaign_ends_on, 1)), "campaign_close");
+  if (input.deal.campaign_ends_on) schedule(istMidnight(addDays(input.deal.campaign_ends_on, 1)), "campaign_close");
   // Specific-date triggers, retainers and dated bonus windows (from every version; the version in force decides).
   const datedKeys = new Set<string>();
   for (const v of versions) {
@@ -307,9 +277,7 @@ export function computeLedger(input: EngineInput): EngineResult {
         datedKeys.add(`retainer:${f.id}`);
         for (let k = 0; k < f.retainer.periods; k++) {
           const startK =
-            f.retainer.every === "month"
-              ? addMonths(input.deal.starts_on, k)
-              : addDays(input.deal.starts_on, 7 * k);
+            f.retainer.every === "month" ? addMonths(input.deal.starts_on, k) : addDays(input.deal.starts_on, 7 * k);
           const endK =
             f.retainer.every === "month"
               ? addMonths(input.deal.starts_on, k + 1)
@@ -340,8 +308,7 @@ export function computeLedger(input: EngineInput): EngineResult {
     const total = f.amount_paise * f.units;
     const out = new Map<string, Paise>();
     if (f.milestones[0]?.share.type === "amount") {
-      for (const m of f.milestones)
-        out.set(m.id, m.share.type === "amount" ? m.share.amount_paise : 0);
+      for (const m of f.milestones) out.set(m.id, m.share.type === "amount" ? m.share.amount_paise : 0);
     } else {
       const parts = allocate(
         total,
@@ -354,14 +321,7 @@ export function computeLedger(input: EngineInput): EngineResult {
 
   const dueOn = (at: string, offset: number, terms: number) => addDays(istDate(at), offset + terms);
 
-  const fireMilestone = (
-    v: DealVersion,
-    f: FixedComponent,
-    m: Milestone,
-    at: string,
-    shareBps = 10_000,
-    note = "",
-  ) => {
+  const fireMilestone = (v: DealVersion, f: FixedComponent, m: Milestone, at: string, shareBps = 10_000, note = "") => {
     const ref = `${f.id}.${m.id}`;
     if (firedMilestones.has(ref)) return;
     firedMilestones.add(ref);
@@ -405,11 +365,7 @@ export function computeLedger(input: EngineInput): EngineResult {
   };
 
   /** Metric value for triggers: views/reach (cumulative, per deliverable or summed) or leads (count). */
-  const metricValue = (
-    metric: "views" | "reach" | "leads",
-    deliverable: string | undefined,
-    at: string,
-  ): number => {
+  const metricValue = (metric: "views" | "reach" | "leads", deliverable: string | undefined, at: string): number => {
     if (metric === "leads")
       return [...leads.values()].filter(
         (l) =>
@@ -421,21 +377,14 @@ export function computeLedger(input: EngineInput): EngineResult {
       ).length;
     const latest = new Map<string, number>();
     for (const h of metricHistory)
-      if (
-        h.metric === metric &&
-        compareIso(h.at, at) <= 0 &&
-        (!deliverable || h.deliverable === deliverable)
-      )
+      if (h.metric === metric && compareIso(h.at, at) <= 0 && (!deliverable || h.deliverable === deliverable))
         latest.set(h.deliverable, h.value);
     return sum([...latest.values()]);
   };
 
   /** Run every milestone and fee whose trigger matches this event. */
   const triggerFixed = (
-    ev:
-      | EngineEvent
-      | { type: "date"; ref: string; at: string }
-      | { type: "campaign_close"; at: string },
+    ev: EngineEvent | { type: "date"; ref: string; at: string } | { type: "campaign_close"; at: string },
   ) => {
     const v = versionAt(ev.at);
     const matches = (t: Trigger, ref: string): boolean => {
@@ -445,23 +394,16 @@ export function computeLedger(input: EngineInput): EngineResult {
         case "on_brief_acknowledged":
           return ev.type === "brief_acknowledged";
         case "on_concept_approved":
-          return (
-            ev.type === "concept_approved" && (!t.deliverable || t.deliverable === ev.deliverable)
-          );
+          return ev.type === "concept_approved" && (!t.deliverable || t.deliverable === ev.deliverable);
         case "on_draft_approved":
-          return (
-            ev.type === "draft_approved" && (!t.deliverable || t.deliverable === ev.deliverable)
-          );
+          return ev.type === "draft_approved" && (!t.deliverable || t.deliverable === ev.deliverable);
         case "on_deliverable_live":
-          return (
-            ev.type === "deliverable_live" && (!t.deliverable || t.deliverable === ev.deliverable)
-          );
+          return ev.type === "deliverable_live" && (!t.deliverable || t.deliverable === ev.deliverable);
         case "after_n_days_live":
           return false; // scheduled from the live event
         case "on_metric_threshold":
           return (
-            ((ev.type === "metric" && t.metric === ev.metric) ||
-              (ev.type === "lead" && t.metric === "leads")) &&
+            ((ev.type === "metric" && t.metric === ev.metric) || (ev.type === "lead" && t.metric === "leads")) &&
             metricValue(t.metric, t.deliverable, ev.at) >= t.threshold
           );
         case "on_campaign_end":
@@ -536,10 +478,7 @@ export function computeLedger(input: EngineInput): EngineResult {
       case "universities":
         return s.university_id !== undefined && sc.ids.includes(s.university_id);
       case "levels":
-        return (
-          s.level !== undefined &&
-          sc.levels.map((x) => x.toLowerCase()).includes(s.level.toLowerCase())
-        );
+        return s.level !== undefined && sc.levels.map((x) => x.toLowerCase()).includes(s.level.toLowerCase());
       case "links":
         return s.link !== undefined && sc.codes.includes(s.link);
       case "deliverables":
@@ -562,19 +501,16 @@ export function computeLedger(input: EngineInput): EngineResult {
     const baseRate = "amount_paise" in r.basis ? r.basis.amount_paise : toBps(r.basis.pct);
     if (!r.slabs) return baseRate;
     let rate = baseRate;
-    for (const t of r.slabs.tiers)
-      if (n >= t.from) rate = flat ? (t.amount_paise ?? 0) : toBps(t.pct ?? 0);
+    for (const t of r.slabs.tiers) if (n >= t.from) rate = flat ? (t.amount_paise ?? 0) : toBps(t.pct ?? 0);
     return rate;
   };
 
-  const amountAt = (u: Unit, rate: number) =>
-    FLAT_BASES.includes(u.basis) ? rate : pctOf(u.base, rate);
+  const amountAt = (u: Unit, rate: number) => (FLAT_BASES.includes(u.basis) ? rate : pctOf(u.base, rate));
 
   /** Apply per-unit, monthly and lifetime caps to a positive amount; returns the capped amount and books it. */
   const capped = (r: CommissionRule, at: string, amount: Paise, alreadyOnUnit: Paise): Paise => {
     let a = amount;
-    if (r.caps.per_unit_paise !== undefined)
-      a = Math.min(a, Math.max(r.caps.per_unit_paise - alreadyOnUnit, 0));
+    if (r.caps.per_unit_paise !== undefined) a = Math.min(a, Math.max(r.caps.per_unit_paise - alreadyOnUnit, 0));
     const mKey = `${r.id}|m|${istMonth(at)}`;
     const lKey = `${r.id}|life`;
     if (r.caps.per_month_paise !== undefined)
@@ -584,8 +520,7 @@ export function computeLedger(input: EngineInput): EngineResult {
     return a;
   };
   const book = (rule: string, at: string, delta: Paise) => {
-    for (const k of [`${rule}|m|${istMonth(at)}`, `${rule}|life`])
-      capTotals.set(k, (capTotals.get(k) ?? 0) + delta);
+    for (const k of [`${rule}|m|${istMonth(at)}`, `${rule}|life`]) capTotals.set(k, (capTotals.get(k) ?? 0) + delta);
   };
 
   const unitPaid = (u: Unit) =>
@@ -597,9 +532,7 @@ export function computeLedger(input: EngineInput): EngineResult {
     );
 
   const unitFractionPaise = (u: Unit, amount: Paise) =>
-    u.confirmedFraction[1] === 0
-      ? 0
-      : mulDiv(amount, u.confirmedFraction[0], u.confirmedFraction[1]);
+    u.confirmedFraction[1] === 0 ? 0 : mulDiv(amount, u.confirmedFraction[0], u.confirmedFraction[1]);
   const refreshUnitConfirmation = (u: Unit) => {
     for (const k of u.lineKeys) {
       const l = lines.get(k);
@@ -613,9 +546,7 @@ export function computeLedger(input: EngineInput): EngineResult {
     const rc = v.config.recoupment;
     if (rc.mode === "none") return;
     const recoupable =
-      rc.mode === "full"
-        ? fixedValue(v.config, rc.fixed)
-        : pctOf(fixedValue(v.config, rc.fixed), toBps(rc.pct));
+      rc.mode === "full" ? fixedValue(v.config, rc.fixed) : pctOf(fixedValue(v.config, rc.fixed), toBps(rc.pct));
     const target = Math.min(Math.max(commissionNet, 0), recoupable);
     const delta = target - recoupBalance;
     if (delta === 0) return;
@@ -751,8 +682,7 @@ export function computeLedger(input: EngineInput): EngineResult {
       const amount = capped(r, ev.at, amountAt(u, u.rate), 0);
       postUnitLine(v, r, u, "accrue", "credit", amount, ev.at, r.label);
       if (r.slabs?.mode === "retroactive") rerate(v, r, pk, ev.at);
-      if (conf.type === "after_hold_days")
-        schedule(addMs(ev.at, u.holdDays * DAY), "hold", { unit: key });
+      if (conf.type === "after_hold_days") schedule(addMs(ev.at, u.holdDays * DAY), "hold", { unit: key });
     }
   };
 
@@ -778,9 +708,7 @@ export function computeLedger(input: EngineInput): EngineResult {
   };
 
   const versionRule = (u: Unit): CommissionRule | undefined => {
-    const own = versions
-      .find((x) => x.id === u.version)
-      ?.config.commission.find((r) => r.id === u.rule);
+    const own = versions.find((x) => x.id === u.version)?.config.commission.find((r) => r.id === u.rule);
     return own ?? versionAt(u.accruedAt).config.commission.find((r) => r.id === u.rule);
   };
 
@@ -837,34 +765,24 @@ export function computeLedger(input: EngineInput): EngineResult {
     to: string,
     windowKey: string,
   ): number | null => {
-    const inWin = (at: string) =>
-      (from === null || compareIso(at, from) >= 0) && compareIso(at, to) < 0;
+    const inWin = (at: string) => (from === null || compareIso(at, from) >= 0) && compareIso(at, to) < 0;
     switch (metric) {
       case "enrollments":
-        return [...enrollments.values()].filter(
-          (e) => inWin(e.at) && !cancelledEnrollments.has(e.enrollment),
-        ).length;
+        return [...enrollments.values()].filter((e) => inWin(e.at) && !cancelledEnrollments.has(e.enrollment)).length;
       case "qualified_leads":
-        return [...qualifiedAt.entries()].filter(
-          ([lead, at]) => inWin(at) && !rejectedLeads.has(lead),
-        ).length;
+        return [...qualifiedAt.entries()].filter(([lead, at]) => inWin(at) && !rejectedLeads.has(lead)).length;
       case "leads":
-        return [...leads.values()].filter(
-          (l) => inWin(l.at) && !l.junk && !l.duplicate && !rejectedLeads.has(l.lead),
-        ).length;
+        return [...leads.values()].filter((l) => inWin(l.at) && !l.junk && !l.duplicate && !rejectedLeads.has(l.lead))
+          .length;
       case "applications":
-        return [...appliedAt.entries()].filter(
-          ([lead, at]) => inWin(at) && !rejectedLeads.has(lead),
-        ).length;
+        return [...appliedAt.entries()].filter(([lead, at]) => inWin(at) && !rejectedLeads.has(lead)).length;
       case "views": {
         const end = metricValue("views", undefined, addMs(to, -1));
         const start = from === null ? 0 : metricValue("views", undefined, addMs(from, -1));
         return end - start;
       }
       case "on_time_all": {
-        const due = [...dueAt.entries()].filter(
-          ([d, at]) => inWin(at) && !cancelledDeliverables.has(d),
-        );
+        const due = [...dueAt.entries()].filter(([d, at]) => inWin(at) && !cancelledDeliverables.has(d));
         if (due.length === 0) return 0;
         return due.every(([d, at]) => {
           const live = liveAt.get(d);
@@ -932,9 +850,7 @@ export function computeLedger(input: EngineInput): EngineResult {
   ) => {
     // The cap is a share of the deal's fixed value, or of everything earned so far when that is larger (so a
     // commission-only deal can still carry a penalty).
-    const earned = sum(
-      [...lines.values()].filter((l) => l.direction === "credit").map((l) => l.amount_paise),
-    );
+    const earned = sum([...lines.values()].filter((l) => l.direction === "credit").map((l) => l.amount_paise));
     const cap = pctOf(Math.max(fixedValue(v.config), earned), ctx.penalty_cap_bps);
     const allowed = Math.max(Math.min(amount, cap - penaltyTotal), 0);
     const key = `${v.id}:${ruleId}:${subject}:penalty`;
@@ -957,8 +873,7 @@ export function computeLedger(input: EngineInput): EngineResult {
     for (const f of v.config.fixed) {
       const amounts = milestoneAmounts(f);
       for (const m of f.milestones)
-        if ("deliverable" in m.trigger && m.trigger.deliverable === deliverable)
-          total += amounts.get(m.id) ?? 0;
+        if ("deliverable" in m.trigger && m.trigger.deliverable === deliverable) total += amounts.get(m.id) ?? 0;
     }
     return total;
   };
@@ -978,10 +893,7 @@ export function computeLedger(input: EngineInput): EngineResult {
           ? p.per_day.amount_paise * daysLate
           : mulDiv(base, toBps(p.per_day.pct) * daysLate, 10_000);
       if (p.cap)
-        amount = Math.min(
-          amount,
-          p.cap.type === "amount" ? p.cap.amount_paise : pctOf(base, toBps(p.cap.pct)),
-        );
+        amount = Math.min(amount, p.cap.type === "amount" ? p.cap.amount_paise : pctOf(base, toBps(p.cap.pct)));
       propose(v, p.id, deliverable, amount, at, `${p.label}: ${String(daysLate)} day(s) late`);
     }
   };
@@ -1013,13 +925,7 @@ export function computeLedger(input: EngineInput): EngineResult {
         const v = versionAt(addMs(t.at, -1));
         const b = v.config.bonuses.find((x) => x.id === t.data.bonus);
         if (b?.window.type === "dates")
-          closeBonuses(
-            "dates",
-            `${b.window.from}..${b.window.to}`,
-            istMidnight(b.window.from),
-            t.at,
-            b.id,
-          );
+          closeBonuses("dates", `${b.window.from}..${b.window.to}`, istMidnight(b.window.from), t.at, b.id);
         break;
       }
       case "date":
@@ -1069,11 +975,7 @@ export function computeLedger(input: EngineInput): EngineResult {
         for (const f of v.config.fixed)
           for (const m of f.milestones) {
             const ref = `${f.id}.${m.id}`;
-            if (
-              firedMilestones.has(ref) ||
-              !("deliverable" in m.trigger) ||
-              m.trigger.deliverable !== ev.deliverable
-            )
+            if (firedMilestones.has(ref) || !("deliverable" in m.trigger) || m.trigger.deliverable !== ev.deliverable)
               continue;
             if (m.on_cancel.type === "pay_pct")
               fireMilestone(
@@ -1120,8 +1022,7 @@ export function computeLedger(input: EngineInput): EngineResult {
         break;
       case "lead":
         leads.set(ev.lead, ev);
-        if (!ev.junk && !ev.duplicate)
-          accrue(ev, `lead:${ev.lead}`, ev, ["flat_per_lead"], { lead: ev.lead });
+        if (!ev.junk && !ev.duplicate) accrue(ev, `lead:${ev.lead}`, ev, ["flat_per_lead"], { lead: ev.lead });
         break;
       case "lead_qualified": {
         const l = leads.get(ev.lead);
@@ -1181,10 +1082,7 @@ export function computeLedger(input: EngineInput): EngineResult {
             const r = versionRule(u);
             if (r && r.basis.type === "pct_of_eduwit_commission") {
               u.adjusted = true;
-              const newBase =
-                r.basis.base === "net_of_gst"
-                  ? netOfGst(u.received, ctx.eduwit_gst_bps)
-                  : u.received;
+              const newBase = r.basis.base === "net_of_gst" ? netOfGst(u.received, ctx.eduwit_gst_bps) : u.received;
               const delta = pctOf(newBase, u.rate) - pctOf(u.base, u.rate);
               u.base = newBase;
               if (delta !== 0)
@@ -1226,20 +1124,16 @@ export function computeLedger(input: EngineInput): EngineResult {
       case "disclosure_flag": {
         const v = versionAt(ev.at);
         for (const p of v.config.penalties)
-          if (p.type === "disclosure")
-            propose(v, p.id, ev.deliverable, p.amount_paise, ev.at, p.label);
+          if (p.type === "disclosure") propose(v, p.id, ev.deliverable, p.amount_paise, ev.at, p.label);
         break;
       }
       case "breach": {
         const v = versionAt(ev.at);
         const earnedFixed = sum(
-          [...lines.values()]
-            .filter((l) => l.type === "milestone" || l.type === "fixed_fee")
-            .map(signed),
+          [...lines.values()].filter((l) => l.type === "milestone" || l.type === "fixed_fee").map(signed),
         );
         for (const p of v.config.penalties)
-          if (p.type === "breach_clawback")
-            propose(v, p.id, ev.id, pctOf(earnedFixed, toBps(p.pct)), ev.at, p.label);
+          if (p.type === "breach_clawback") propose(v, p.id, ev.id, pctOf(earnedFixed, toBps(p.pct)), ev.at, p.label);
         break;
       }
       case "contract_signed":
@@ -1262,9 +1156,7 @@ export function computeLedger(input: EngineInput): EngineResult {
   const out = order.map((k) => lines.get(k)).filter((l): l is LedgerLine => !!l);
   const credits = sum(out.filter((l) => l.direction === "credit").map((l) => l.amount_paise));
   const debits = sum(out.filter((l) => l.direction === "debit").map((l) => l.amount_paise));
-  const confirmedNet = sum(
-    out.map((l) => (l.direction === "credit" ? l.confirmed_paise : -l.confirmed_paise)),
-  );
+  const confirmedNet = sum(out.map((l) => (l.direction === "credit" ? l.confirmed_paise : -l.confirmed_paise)));
   const lastVersion = versionAt(asOf);
   return {
     lines: out,

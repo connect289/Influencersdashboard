@@ -7,19 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 /** The QR code of a link's short URL, as PNG or SVG, for anyone who may see the link (RLS decides). */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ linkId: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ linkId: string }> }) {
   const { linkId } = await params;
   if (!z.uuid().safeParse(linkId).success) return new Response("Not found", { status: 404 });
   const format = request.nextUrl.searchParams.get("format") === "svg" ? "svg" : "png";
   const supabase = await createClient();
-  const { data: link } = await supabase
-    .from("tracking_links")
-    .select("code")
-    .eq("id", linkId)
-    .maybeSingle();
+  const { data: link } = await supabase.from("tracking_links").select("code").eq("id", linkId).maybeSingle();
   if (!link) return new Response("Not found", { status: 404 });
   const url = await shortLinkFor(supabase, link.code);
   const options = {

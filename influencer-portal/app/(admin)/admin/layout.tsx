@@ -18,8 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     icon: i.icon,
   }));
   const roleText =
-    me.roles.map((r) => ROLE_LABELS[r]).join(", ") +
-    (me.isSignatory ? ` · ${t("roles.signatory")}` : "");
+    me.roles.map((r) => ROLE_LABELS[r]).join(", ") + (me.isSignatory ? ` · ${t("roles.signatory")}` : "");
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[240px_1fr]">
       <a
@@ -38,10 +37,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </aside>
       <div className="flex min-w-0 flex-col">
         <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-line bg-surface/95 px-3 backdrop-blur md:px-6">
-          <MobileNav
-            links={links}
-            labels={{ open: t("shell.openMenu"), title: t("shell.mainNav") }}
-          />
+          <MobileNav links={links} labels={{ open: t("shell.openMenu"), title: t("shell.mainNav") }} />
           <span className="md:hidden">
             <Logo compact label={t("shell.adminConsole")} />
           </span>

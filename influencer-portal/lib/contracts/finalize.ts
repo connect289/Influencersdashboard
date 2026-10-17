@@ -36,9 +36,7 @@ export const sha256Hex = (b: Uint8Array) => createHash("sha256").update(b).diges
  * a recorded file is left alone. Runs as the service role (job contract.finalize, also called right after the
  * countersignature). Refuses when the stored document no longer matches its hash.
  */
-export async function finalizeContract(
-  contractId: string,
-): Promise<"done" | "already" | "not_signed"> {
+export async function finalizeContract(contractId: string): Promise<"done" | "already" | "not_signed"> {
   const db = adminClient();
   const { data: c, error } = await db
     .from("contracts")
@@ -48,17 +46,12 @@ export async function finalizeContract(
   if (error) throw new Error(error.message);
   if (!c?.current_version_id || !SIGNED.includes(c.status)) return "not_signed";
   const versionId = c.current_version_id;
-  const existing = await db
-    .from("contract_files")
-    .select("id")
-    .eq("version_id", versionId)
-    .maybeSingle();
+  const existing = await db.from("contract_files").select("id").eq("version_id", versionId).maybeSingle();
   if (existing.data) return "already";
 
   const check = await db.rpc("contract_integrity", { p_contract: c.id });
   const ok = z.object({ ok: z.boolean() }).safeParse(check.data);
-  if (check.error || !ok.success || !ok.data.ok)
-    throw new PermanentJobError("integrity check failed; not finalizing");
+  if (check.error || !ok.success || !ok.data.ok) throw new PermanentJobError("integrity check failed; not finalizing");
 
   const [{ data: v, error: e1 }, { data: sigs, error: e2 }] = await Promise.all([
     db.from("contract_versions").select("version, content, sha256").eq("id", versionId).single(),
@@ -87,8 +80,7 @@ export async function finalizeContract(
     .upload(path, pdf, { contentType: "application/pdf", upsert: false });
   if (up.error) {
     // A previous attempt stored the file but didn't record it: record what is stored (write-once, never replaced).
-    if (!/exist|duplicate/i.test(up.error.message))
-      throw new Error(`upload failed: ${up.error.message}`);
+    if (!/exist|duplicate/i.test(up.error.message)) throw new Error(`upload failed: ${up.error.message}`);
     const dl = await db.storage.from(CONTRACTS_BUCKET).download(path);
     if (dl.error) throw new Error(`download failed: ${dl.error.message}`);
     stored = new Uint8Array(await dl.data.arrayBuffer());
@@ -121,11 +113,7 @@ async function emailCopies(
       .eq("id", deal.data?.creator_id ?? "")
       .maybeSingle(),
     deal.data?.owner_id
-      ? db
-          .from("staff_profiles")
-          .select("full_name, email")
-          .eq("user_id", deal.data.owner_id)
-          .maybeSingle()
+      ? db.from("staff_profiles").select("full_name, email").eq("user_id", deal.data.owner_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
   const to = new Map<string, { name: string; link: string }>();
@@ -133,15 +121,10 @@ async function emailCopies(
     if (email && !to.has(email.toLowerCase())) to.set(email.toLowerCase(), { name, link });
   };
   const site = publicEnv.siteUrl;
-  add(
-    creator.data?.email,
-    creator.data?.display_name ?? "",
-    `${site}/creator/contracts/${contractId}`,
-  );
+  add(creator.data?.email, creator.data?.display_name ?? "", `${site}/creator/contracts/${contractId}`);
   for (const s of signatures) {
     const u = await db.auth.admin.getUserById(s.signer_user_id);
-    const path =
-      s.signer_role === "signatory" ? "admin" : s.signer_role === "agency" ? "agency" : "creator";
+    const path = s.signer_role === "signatory" ? "admin" : s.signer_role === "agency" ? "agency" : "creator";
     add(u.data.user?.email, s.signer_name, `${site}/${path}/contracts/${contractId}`);
   }
   add(owner.data?.email, owner.data?.full_name ?? "", `${site}/admin/contracts/${contractId}`);

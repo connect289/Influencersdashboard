@@ -26,9 +26,7 @@ export default async function CreatorTerms() {
   return (
     <>
       <PageHeader title={t("terms.title")} description={t("terms.subtitle")} />
-      {error ? (
-        <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
-      ) : null}
+      {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
       {!error && pending.length === 0 ? (
         <EmptyState title={t("terms.allAccepted")} description={t("terms.allAcceptedHint")} />
       ) : null}

@@ -17,11 +17,7 @@ export async function generateMetadata() {
   return { title: t("nav.admin.campaigns") };
 }
 
-export default async function CampaignsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ status?: string }>;
-}) {
+export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const { supabase, me } = await requireStaff("campaign.read");
   const t = await getTranslations();
   const sp = await searchParams;
@@ -83,9 +79,7 @@ export default async function CampaignsPage({
             aria-current={status === s ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-              status === s
-                ? "bg-primary-soft font-medium text-primary"
-                : "text-muted hover:bg-surface-2",
+              status === s ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
             )}
           >
             {s ? t(`campaigns.statuses.${s}`) : t("campaigns.allLive")}
@@ -93,9 +87,7 @@ export default async function CampaignsPage({
         ))}
       </nav>
       <Card>
-        {campaigns.error ? (
-          <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
-        ) : null}
+        {campaigns.error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
         {!campaigns.error && rows.length === 0 ? (
           <EmptyState title={t("campaigns.empty")} description={t("campaigns.emptyHint")} />
         ) : null}
@@ -117,10 +109,7 @@ export default async function CampaignsPage({
                 return (
                   <tr key={c.id}>
                     <Td>
-                      <Link
-                        href={`/admin/campaigns/${c.id}`}
-                        className="font-medium text-primary hover:underline"
-                      >
+                      <Link href={`/admin/campaigns/${c.id}`} className="font-medium text-primary hover:underline">
                         {c.name}
                       </Link>
                       <span className="block text-xs text-muted">
@@ -128,10 +117,7 @@ export default async function CampaignsPage({
                       </span>
                     </Td>
                     <Td>
-                      <StatusBadge
-                        status={c.status}
-                        label={t(`campaigns.statuses.${c.status as CampaignStatus}`)}
-                      />
+                      <StatusBadge status={c.status} label={t(`campaigns.statuses.${c.status as CampaignStatus}`)} />
                     </Td>
                     <Td>{c.apply_by ? formatDate(c.apply_by) : "—"}</Td>
                     <Td>{n.review ? <Badge family="attention">{n.review}</Badge> : "0"}</Td>

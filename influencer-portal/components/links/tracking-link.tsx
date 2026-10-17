@@ -15,9 +15,7 @@ export function TrackingLink({ link }: { link: DeliverableLink }) {
         {t("links.codeLine")} <span className="font-mono font-semibold">{link.code}</span>
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <code className="min-w-0 flex-1 truncate rounded-lg bg-surface-2 px-2 py-1.5 text-xs">
-          {link.url}
-        </code>
+        <code className="min-w-0 flex-1 truncate rounded-lg bg-surface-2 px-2 py-1.5 text-xs">{link.url}</code>
         <Button
           type="button"
           size="sm"

@@ -22,15 +22,7 @@ export interface SignPanelProps {
   role: "creator" | "signatory";
 }
 
-export function SignPanel({
-  contractId,
-  versionId,
-  sha256,
-  sections,
-  consent,
-  channels,
-  role,
-}: SignPanelProps) {
+export function SignPanel({ contractId, versionId, sha256, sections, consent, channels, role }: SignPanelProps) {
   const t = useTranslations();
   const router = useRouter();
   const { pending, run } = useAction();
@@ -53,9 +45,7 @@ export function SignPanel({
   return (
     <Card className="ring-2 ring-accent">
       <CardHeader
-        title={
-          role === "signatory" ? t("contracts.sign.countersignTitle") : t("contracts.sign.title")
-        }
+        title={role === "signatory" ? t("contracts.sign.countersignTitle") : t("contracts.sign.title")}
         description={t("contracts.sign.hint")}
       />
       <form
@@ -106,12 +96,7 @@ export function SignPanel({
             ))}
           </div>
         </fieldset>
-        <Field
-          id="sg-name"
-          label={t("contracts.sign.name")}
-          hint={t("contracts.sign.nameHint")}
-          required
-        >
+        <Field id="sg-name" label={t("contracts.sign.name")} hint={t("contracts.sign.nameHint")} required>
           <Input
             id="sg-name"
             value={name}
@@ -122,12 +107,7 @@ export function SignPanel({
           />
         </Field>
         <label className="flex items-start gap-2 rounded-lg bg-surface-2 p-3 text-sm">
-          <input
-            type="checkbox"
-            className="mt-1"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-          />
+          <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
           <span>{consent.body}</span>
         </label>
         {channels.length > 1 ? (
@@ -135,12 +115,7 @@ export function SignPanel({
             <legend className="mb-1 text-sm font-medium">{t("contracts.sign.channel")}</legend>
             {channels.map((c) => (
               <label key={c} className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="sg-channel"
-                  checked={channel === c}
-                  onChange={() => setChannel(c)}
-                />
+                <input type="radio" name="sg-channel" checked={channel === c} onChange={() => setChannel(c)} />
                 {t(`contracts.sign.channels.${c}`)}
               </label>
             ))}

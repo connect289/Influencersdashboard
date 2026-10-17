@@ -17,17 +17,8 @@ export default async function CreatorLeadsPage({
   const t = await getTranslations();
   return (
     <>
-      <PageHeader
-        title={t("nav.creator.leads")}
-        description={t("leads.subtitle")}
-        help="/creator/help/creator#leads"
-      />
-      <LeadPipeline
-        supabase={supabase}
-        creatorId={me.creatorId}
-        base="/creator/leads"
-        search={await searchParams}
-      />
+      <PageHeader title={t("nav.creator.leads")} description={t("leads.subtitle")} help="/creator/help/creator#leads" />
+      <LeadPipeline supabase={supabase} creatorId={me.creatorId} base="/creator/leads" search={await searchParams} />
     </>
   );
 }

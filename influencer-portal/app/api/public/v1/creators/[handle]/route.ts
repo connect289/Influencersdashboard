@@ -37,10 +37,7 @@ const cors = {
  * Public landing data for the website's co-branded pages (INTEGRATION_CONTRACTS §4): active creators with a public
  * page only; no contact details, legal name, KYC, earnings or follower data. Rate-limited per IP, cached five minutes.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ handle: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;
   if (!/^[a-z0-9._]{3,30}$/i.test(handle))
     return NextResponse.json({ error: "not_found" }, { status: 404, headers: cors });
@@ -53,8 +50,7 @@ export async function GET(
   const db = adminClient();
   const { data, error } = await db.rpc("public_creator", { p_handle: handle });
   const c = row.nullable().safeParse(data);
-  if (error || !c.success || !c.data)
-    return NextResponse.json({ error: "not_found" }, { status: 404, headers: cors });
+  if (error || !c.success || !c.data) return NextResponse.json({ error: "not_found" }, { status: 404, headers: cors });
   const body = {
     handle: c.data.handle,
     display_name: c.data.display_name,

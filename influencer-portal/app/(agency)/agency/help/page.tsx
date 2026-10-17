@@ -9,11 +9,7 @@ export async function generateMetadata() {
   return { title: t("nav.agency.help") };
 }
 
-export default async function AgencyHelpPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
+export default async function AgencyHelpPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireAgency();
   const t = await getTranslations();
   const q = ((await searchParams).q ?? "").slice(0, 80);

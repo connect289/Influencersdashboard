@@ -85,11 +85,7 @@ function hasTerm(text: string, term: string): boolean {
 }
 
 /** The disclosure rule (spec 10.2): one of the configured terms must be present on platforms that require it. */
-export function checkDisclosure(
-  text: string,
-  platform: Platform,
-  s: DisclosureSettings,
-): DisclosureResult {
+export function checkDisclosure(text: string, platform: Platform, s: DisclosureSettings): DisclosureResult {
   const required = s.disclosure_required_platforms.includes(platform);
   const input = text.slice(0, MAX_SCAN_CHARS);
   const found = s.disclosure_terms.find((term) => hasTerm(input, term)) ?? null;
@@ -117,8 +113,7 @@ export function scanSubmission(
   const found = scanClaims(text, claims);
   const disclosure = kind === "concept" ? null : checkDisclosure(text, platform, s);
   const blocked =
-    found.some((m) => m.severity === "block") ||
-    (disclosure !== null && disclosure.required && !disclosure.present);
+    found.some((m) => m.severity === "block") || (disclosure !== null && disclosure.required && !disclosure.present);
   return { claims: found, disclosure, passed: !blocked };
 }
 

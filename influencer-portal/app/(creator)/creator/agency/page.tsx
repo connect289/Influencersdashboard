@@ -18,14 +18,9 @@ export default async function CreatorAgencyPage() {
   return (
     <>
       <PageHeader title={t("agencies.creatorTitle")} description={t("agencies.creatorSubtitle")} />
-      {error ? (
-        <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
-      ) : null}
+      {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
       {!error && links.length === 0 ? (
-        <EmptyState
-          title={t("agencies.creatorEmpty")}
-          description={t("agencies.creatorEmptyHint")}
-        />
+        <EmptyState title={t("agencies.creatorEmpty")} description={t("agencies.creatorEmptyHint")} />
       ) : null}
       <div className="flex flex-col gap-4">
         {links.map((l) => (

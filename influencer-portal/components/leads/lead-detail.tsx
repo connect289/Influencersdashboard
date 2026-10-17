@@ -48,9 +48,7 @@ export function LeadDetailView({ d }: { d: LeadDetail }) {
         {d.touch === "assisted" ? <Badge family="attention">{t("leads.assisted")}</Badge> : null}
       </div>
       {d.attribution_reason ? (
-        <p className="rounded-xl bg-surface-2 p-3">
-          {t(`leads.reasons.${d.attribution_reason as "existing_lead"}`)}
-        </p>
+        <p className="rounded-xl bg-surface-2 p-3">{t(`leads.reasons.${d.attribution_reason as "existing_lead"}`)}</p>
       ) : null}
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
         <dt className="text-muted">{t("leads.detail.ref")}</dt>
@@ -65,19 +63,18 @@ export function LeadDetailView({ d }: { d: LeadDetail }) {
             <dd>{d.contact.name}</dd>
           </>
         ) : null}
-        {LEAD_FIELD_ORDER.filter(
-          (k) => d.fields[k] !== undefined && d.fields[k] !== null && d.fields[k] !== "",
-        ).map((k) => {
-          const v = d.fields[k];
-          const text =
-            typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v) ? formatDate(v) : String(v);
-          return (
-            <div key={k} className="contents">
-              <dt className="text-muted">{t(`leads.fields.${k}`)}</dt>
-              <dd>{text}</dd>
-            </div>
-          );
-        })}
+        {LEAD_FIELD_ORDER.filter((k) => d.fields[k] !== undefined && d.fields[k] !== null && d.fields[k] !== "").map(
+          (k) => {
+            const v = d.fields[k];
+            const text = typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v) ? formatDate(v) : String(v);
+            return (
+              <div key={k} className="contents">
+                <dt className="text-muted">{t(`leads.fields.${k}`)}</dt>
+                <dd>{text}</dd>
+              </div>
+            );
+          },
+        )}
       </dl>
       <section>
         <h3 className="mb-2 font-semibold">{t("leads.detail.source")}</h3>
@@ -87,9 +84,7 @@ export function LeadDetailView({ d }: { d: LeadDetail }) {
             ? ` · ${[d.link_label, d.campaign_name, d.deal_title, d.deliverable_title].filter(Boolean).join(" · ")}`
             : ""}
         </p>
-        <p className="text-muted">
-          {t("leads.detail.touched", { at: formatDateTime(d.touch_at) })}
-        </p>
+        <p className="text-muted">{t("leads.detail.touched", { at: formatDateTime(d.touch_at) })}</p>
       </section>
       <section>
         <h3 className="mb-2 font-semibold">{t("leads.detail.timeline")}</h3>
@@ -98,9 +93,7 @@ export function LeadDetailView({ d }: { d: LeadDetail }) {
             const next = steps[i + 1];
             const days = Math.max(
               0,
-              Math.floor(
-                ((next ? Date.parse(next.at) : Date.parse(d.as_of)) - Date.parse(s.at)) / DAY,
-              ),
+              Math.floor(((next ? Date.parse(next.at) : Date.parse(d.as_of)) - Date.parse(s.at)) / DAY),
             );
             return (
               <li key={`${s.at}-${String(i)}`}>
@@ -125,8 +118,8 @@ export function LeadDetailView({ d }: { d: LeadDetail }) {
           <ul className="flex flex-col gap-1">
             {d.other_creators.map((o) => (
               <li key={o.attribution_id}>
-                {o.creator_name} · <span className="font-mono text-xs">{o.code}</span> ·{" "}
-                {t(`leads.status.${o.status}`)} · {formatDateTime(o.touch_at)}
+                {o.creator_name} · <span className="font-mono text-xs">{o.code}</span> · {t(`leads.status.${o.status}`)}{" "}
+                · {formatDateTime(o.touch_at)}
               </li>
             ))}
           </ul>

@@ -15,13 +15,7 @@ import { scheduleDeliverable, submitLivePost, verifyLivePost } from "@/lib/actio
 import type { PublishedPost } from "@/lib/content/data";
 import { formatDate, formatDateTime, istToday } from "@/lib/format";
 
-export function ScheduleForm({
-  deliverableId,
-  current,
-}: {
-  deliverableId: string;
-  current: string | null;
-}) {
+export function ScheduleForm({ deliverableId, current }: { deliverableId: string; current: string | null }) {
   const t = useTranslations();
   const router = useRouter();
   const { pending, run } = useAction();
@@ -33,8 +27,7 @@ export function ScheduleForm({
         e.preventDefault();
         // The picker gives local IST wall time; store the instant.
         run(
-          () =>
-            scheduleDeliverable({ deliverableId, at: new Date(`${at}:00+05:30`).toISOString() }),
+          () => scheduleDeliverable({ deliverableId, at: new Date(`${at}:00+05:30`).toISOString() }),
           () => router.refresh(),
         );
       }}
@@ -43,18 +36,10 @@ export function ScheduleForm({
         id="sch-at"
         label={t("content.live.scheduleAt")}
         hint={
-          current
-            ? t("content.live.scheduledFor", { at: formatDateTime(current) })
-            : t("content.live.scheduleHint")
+          current ? t("content.live.scheduledFor", { at: formatDateTime(current) }) : t("content.live.scheduleHint")
         }
       >
-        <Input
-          id="sch-at"
-          type="datetime-local"
-          required
-          value={at}
-          onChange={(e) => setAt(e.target.value)}
-        />
+        <Input id="sch-at" type="datetime-local" required value={at} onChange={(e) => setAt(e.target.value)} />
       </Field>
       <Button type="submit" disabled={pending || !at}>
         {t("content.live.schedule")}
@@ -63,13 +48,7 @@ export function ScheduleForm({
   );
 }
 
-export function GoLiveForm({
-  deliverableId,
-  correcting,
-}: {
-  deliverableId: string;
-  correcting: boolean;
-}) {
+export function GoLiveForm({ deliverableId, correcting }: { deliverableId: string; correcting: boolean }) {
   const t = useTranslations();
   const router = useRouter();
   const { pending, run } = useAction();
@@ -152,16 +131,8 @@ function VerifyForm({ deliverableId, postId }: { deliverableId: string; postId: 
           <span>{t(`content.live.verifyItems.${k}`)}</span>
         </label>
       ))}
-      <Field
-        id={`vf-note-${postId}`}
-        label={ok ? t("content.live.verifyNote") : t("content.live.rejectNote")}
-      >
-        <Input
-          id={`vf-note-${postId}`}
-          maxLength={1000}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
+      <Field id={`vf-note-${postId}`} label={ok ? t("content.live.verifyNote") : t("content.live.rejectNote")}>
+        <Input id={`vf-note-${postId}`} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       <Button
         type="submit"
@@ -192,10 +163,7 @@ export function PostsList({
       {posts.map((p) => (
         <li key={p.id} className="rounded-xl bg-surface-2 p-3 text-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge
-              status={p.verification_status}
-              label={t(`content.live.statuses.${p.verification_status}`)}
-            />
+            <StatusBadge status={p.verification_status} label={t(`content.live.statuses.${p.verification_status}`)} />
             <a
               href={p.live_url}
               target="_blank"
@@ -205,9 +173,7 @@ export function PostsList({
               {p.live_url} <ExternalLink className="size-3.5 shrink-0" aria-hidden />
             </a>
           </div>
-          <p className="mt-1 text-xs text-muted">
-            {t("content.live.postedLine", { date: formatDate(p.posted_on) })}
-          </p>
+          <p className="mt-1 text-xs text-muted">{t("content.live.postedLine", { date: formatDate(p.posted_on) })}</p>
           {p.oembed?.title ? (
             <div className="mt-2 flex items-center gap-3">
               {p.oembed.thumbnail_url ? (
@@ -222,15 +188,11 @@ export function PostsList({
               ) : null}
               <span>
                 <span className="block font-medium">{p.oembed.title}</span>
-                {p.oembed.author_name ? (
-                  <span className="text-xs text-muted">{p.oembed.author_name}</span>
-                ) : null}
+                {p.oembed.author_name ? <span className="text-xs text-muted">{p.oembed.author_name}</span> : null}
               </span>
             </div>
           ) : null}
-          {p.review_note ? (
-            <p className="mt-1">{t("content.live.reviewNote", { note: p.review_note })}</p>
-          ) : null}
+          {p.review_note ? <p className="mt-1">{t("content.live.reviewNote", { note: p.review_note })}</p> : null}
           {canVerify && p.verification_status === "pending" ? (
             <VerifyForm deliverableId={deliverableId} postId={p.id} />
           ) : null}

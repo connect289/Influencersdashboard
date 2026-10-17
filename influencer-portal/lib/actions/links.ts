@@ -37,8 +37,7 @@ function dbFail(error: { code?: string; message: string }, t: T): ActionResult<n
   if (error.code === "42501") return fail(t("errors.forbidden"));
   for (const [re, key] of ATTRIBUTION_DB_ERRORS)
     if (re.test(error.message)) return fail(t(`leads.errors.${key}` as "leads.errors.codeTaken"));
-  if (error.code === "22023" || error.code === "23514" || error.code === "23505")
-    return fail(t("errors.invalidInput"));
+  if (error.code === "22023" || error.code === "23514" || error.code === "23505") return fail(t("errors.invalidInput"));
   log.warn("attribution.db_error", { code: error.code, error: error.message });
   return fail(t("errors.generic"));
 }
@@ -65,23 +64,13 @@ function refresh() {
 }
 
 /** A new tracking link with a fresh code (`HANDLE-TAG-XX`), retrying on the rare clash. */
-export async function createLink(
-  input: LinkInput,
-): Promise<ActionResult<{ id: string; code: string }>> {
+export async function createLink(input: LinkInput): Promise<ActionResult<{ id: string; code: string }>> {
   return act(linkInput, input, async (db, v, t) => {
-    const { data: creator } = await db
-      .from("creators")
-      .select("handle")
-      .eq("id", v.creatorId)
-      .maybeSingle();
+    const { data: creator } = await db.from("creators").select("handle").eq("id", v.creatorId).maybeSingle();
     const handle = creator?.handle ?? "creator";
     const tag =
       v.platform ??
-      (v.destination === "website_landing"
-        ? "website"
-        : v.destination === "whatsapp_witty"
-          ? "whatsapp"
-          : "other");
+      (v.destination === "website_landing" ? "website" : v.destination === "whatsapp_witty" ? "whatsapp" : "other");
     for (let attempt = 0; attempt < 6; attempt++) {
       const code = suggestCode(handle, tag, cryptoRandom);
       const { data, error } = await db.rpc("link_create", {
@@ -131,17 +120,12 @@ export async function overrideAttribution(input: OverrideInput): Promise<ActionR
     refresh();
     return {
       ok: true,
-      message:
-        v.status === "manually_credited"
-          ? t("leads.override.credited")
-          : t("leads.override.rejected"),
+      message: v.status === "manually_credited" ? t("leads.override.credited") : t("leads.override.rejected"),
     };
   });
 }
 
-export async function decideFraudFlag(
-  input: z.input<typeof fraudDecisionInput>,
-): Promise<ActionResult> {
+export async function decideFraudFlag(input: z.input<typeof fraudDecisionInput>): Promise<ActionResult> {
   return act(fraudDecisionInput, input, async (db, v, t) => {
     const { error } = await db.rpc("fraud_decide", {
       p_flag: v.flagId,
@@ -181,9 +165,7 @@ export async function saveStageRule(input: StageRuleInput): Promise<ActionResult
   });
 }
 
-export async function saveCampaignAttribution(
-  input: CampaignAttributionInput,
-): Promise<ActionResult> {
+export async function saveCampaignAttribution(input: CampaignAttributionInput): Promise<ActionResult> {
   return act(campaignAttributionInput, input, async (db, v, t) => {
     const { error } = await db.rpc("campaign_attribution_save", {
       p_campaign: v.campaignId,

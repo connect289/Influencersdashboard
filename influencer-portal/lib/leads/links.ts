@@ -14,10 +14,7 @@ export interface DeliverableLink {
 /** Fallback when links cannot be loaded: the page still renders, without links. */
 export const noLinks = (): Record<string, DeliverableLink> => ({});
 
-export async function loadDeliverableLinks(
-  db: Db,
-  creatorId: string,
-): Promise<Record<string, DeliverableLink>> {
+export async function loadDeliverableLinks(db: Db, creatorId: string): Promise<Record<string, DeliverableLink>> {
   const [links, base] = await Promise.all([loadLinks(db, creatorId), shortLinkBase(db)]);
   const out: Record<string, DeliverableLink> = {};
   for (const l of [...links].sort((a, b) => a.created_at.localeCompare(b.created_at)))

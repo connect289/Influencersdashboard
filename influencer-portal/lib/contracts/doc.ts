@@ -14,9 +14,7 @@ const text = z.object({
     .max(3)
     .optional(),
 });
-const hardBreak = z
-  .object({ type: z.literal("hardBreak") })
-  .transform(() => ({ type: "hardBreak" as const }));
+const hardBreak = z.object({ type: z.literal("hardBreak") }).transform(() => ({ type: "hardBreak" as const }));
 export const inline = z.union([text, hardBreak]);
 export type Inline = z.infer<typeof inline>;
 
@@ -130,10 +128,7 @@ export function plainText(blocks: readonly Block[]): string {
       else if (b.type === "table") {
         out.push(b.head.join(" | "));
         for (const r of b.rows) out.push(r.join(" | "));
-      } else
-        b.content.forEach((li, i) =>
-          walk(li.content, b.type === "orderedList" ? `${String(i + 1)}. ` : "• "),
-        );
+      } else b.content.forEach((li, i) => walk(li.content, b.type === "orderedList" ? `${String(i + 1)}. ` : "• "));
     }
   };
   walk(blocks, "");

@@ -3,13 +3,7 @@
 // attribution on hold as "fraud suspected"; creator signals (velocity, off-hours bursts, a high junk rate) open a flag
 // on the creator for review. Pure.
 
-export const FRAUD_SIGNALS = [
-  "velocity",
-  "same_device",
-  "no_witty_reply",
-  "off_hours_burst",
-  "junk_rate",
-] as const;
+export const FRAUD_SIGNALS = ["velocity", "same_device", "no_witty_reply", "off_hours_burst", "junk_rate"] as const;
 export type FraudSignal = (typeof FRAUD_SIGNALS)[number];
 export const LEAD_SIGNALS: readonly FraudSignal[] = ["same_device", "no_witty_reply"];
 

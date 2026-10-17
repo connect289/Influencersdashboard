@@ -9,11 +9,7 @@ export async function generateMetadata() {
   return { title: t("nav.creator.help") };
 }
 
-export default async function CreatorHelpPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
+export default async function CreatorHelpPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireCreator();
   const t = await getTranslations();
   const q = ((await searchParams).q ?? "").slice(0, 80);

@@ -8,8 +8,7 @@ import { formatDate } from "@/lib/format";
 /** A creator's deals as cards (creator and agency portals; mobile-first). */
 export function DealList({ deals, hrefBase }: { deals: DealRow[]; hrefBase: string }) {
   const t = useTranslations();
-  if (!deals.length)
-    return <EmptyState title={t("deals.my.empty")} description={t("deals.my.emptyHint")} />;
+  if (!deals.length) return <EmptyState title={t("deals.my.empty")} description={t("deals.my.emptyHint")} />;
   return (
     <ul className="flex flex-col gap-2">
       {deals.map((d) => (

@@ -19,11 +19,7 @@ function leadHref(base: string, query: string, id: string) {
 
 function Name({ r }: { r: Row }) {
   const t = useTranslations();
-  return (
-    <span className="font-medium">
-      {r.removed ? t("leads.removed") : (r.display_name ?? r.lead_ref)}
-    </span>
-  );
+  return <span className="font-medium">{r.removed ? t("leads.removed") : (r.display_name ?? r.lead_ref)}</span>;
 }
 
 export function LeadBoard({ rows, base, query }: { rows: Row[]; base: string; query: string }) {
@@ -33,9 +29,7 @@ export function LeadBoard({ rows, base, query }: { rows: Row[]; base: string; qu
     <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
       {columns.map((c) => {
         const items = rows.filter((r) =>
-          c === "closed"
-            ? (CLOSED_STAGES as readonly string[]).includes(r.creator_stage)
-            : r.creator_stage === c,
+          c === "closed" ? (CLOSED_STAGES as readonly string[]).includes(r.creator_stage) : r.creator_stage === c,
         );
         return (
           <section
@@ -123,18 +117,12 @@ export function LeadTable({
                 <StageBadge stage={r.creator_stage} flags={r.flags} />
                 <TemperatureBadge value={r.temperature} />
               </span>
-              {r.reason_category ? (
-                <span className="block text-xs text-muted">{r.reason_category}</span>
-              ) : null}
+              {r.reason_category ? <span className="block text-xs text-muted">{r.reason_category}</span> : null}
             </Td>
-            <Td>
-              {typeof r.fields.interested_course === "string" ? r.fields.interested_course : "—"}
-            </Td>
+            <Td>{typeof r.fields.interested_course === "string" ? r.fields.interested_course : "—"}</Td>
             <Td>
               <span className="font-mono text-xs">{r.code}</span>
-              {r.deliverable_title ? (
-                <span className="block text-xs text-muted">{r.deliverable_title}</span>
-              ) : null}
+              {r.deliverable_title ? <span className="block text-xs text-muted">{r.deliverable_title}</span> : null}
             </Td>
             <Td className="whitespace-nowrap">{formatDate(r.lead_at)}</Td>
           </tr>

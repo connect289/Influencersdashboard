@@ -69,9 +69,7 @@ export function CommandPalette({
       >
         <Search className="size-4" aria-hidden />
         <span className="flex-1 text-left">{labels.placeholder}</span>
-        <kbd className="hidden rounded-md bg-surface px-1.5 py-0.5 text-xs md:inline">
-          {labels.shortcut}
-        </kbd>
+        <kbd className="hidden rounded-md bg-surface px-1.5 py-0.5 text-xs md:inline">{labels.shortcut}</kbd>
       </button>
       <D.Root open={open} onOpenChange={setOpen}>
         <D.Portal>
@@ -87,9 +85,7 @@ export function CommandPalette({
                 className="h-12 w-full border-b border-line bg-transparent px-4 text-[15px] outline-none"
               />
               <Command.List className="max-h-80 overflow-y-auto p-2">
-                <Command.Empty className="px-3 py-6 text-center text-sm text-muted">
-                  {labels.empty}
-                </Command.Empty>
+                <Command.Empty className="px-3 py-6 text-center text-sm text-muted">{labels.empty}</Command.Empty>
                 {links.map((l) => {
                   const Icon = ICONS[l.icon];
                   return (

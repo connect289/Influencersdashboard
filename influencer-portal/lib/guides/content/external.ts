@@ -35,23 +35,14 @@ export const CREATOR: Guide = {
             head: ["Step", "What you do"],
             rows: [
               ["Profile", "Your name, bio, city, languages and topics"],
-              [
-                "Platforms",
-                "Your Instagram, YouTube or other channels, with followers and average views",
-              ],
+              ["Platforms", "Your Instagram, YouTube or other channels, with followers and average views"],
               [
                 "KYC",
                 "Your PAN and bank account for payouts. They are encrypted and only Eduwit's finance team can see them in full",
               ],
               ["Terms", "Read and accept the creator platform terms and privacy notice"],
-              [
-                "Compliance course",
-                "A short course on honest claims and disclosing paid partnerships, with a quiz",
-              ],
-              [
-                "Submit",
-                "Send your profile for review. You'll be told when you're approved, or what to change",
-              ],
+              ["Compliance course", "A short course on honest claims and disclosing paid partnerships, with a quiz"],
+              ["Submit", "Send your profile for review. You'll be told when you're approved, or what to change"],
             ],
           },
         },
@@ -256,10 +247,7 @@ export const CREATOR: Guide = {
             rows: [
               ["View", "See your profile and campaigns"],
               ["Act on deliverables", "Upload and manage content for your deals"],
-              [
-                "Negotiate and sign",
-                "Apply to campaigns, counter-offer, and accept or decline deal terms for you",
-              ],
+              ["Negotiate and sign", "Apply to campaigns, counter-offer, and accept or decline deal terms for you"],
               ["View earnings", "See your deals and earnings"],
             ],
           },
@@ -321,10 +309,7 @@ export const AGENCY: Guide = {
             head: ["Permission", "What you can do"],
             rows: [
               ["View", "See the creator's profile, platforms and media kit"],
-              [
-                "Act on deliverables",
-                "Read and acknowledge briefs, submit content, go live and report metrics",
-              ],
+              ["Act on deliverables", "Read and acknowledge briefs, submit content, go live and report metrics"],
               [
                 "Negotiate and sign",
                 "Answer invitations, apply to campaigns, counter-offer, accept or decline deal terms, negotiate and sign contracts",

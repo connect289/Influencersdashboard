@@ -4,15 +4,7 @@ import { z } from "zod";
 import { CONTENT_FORMATS, PLATFORMS } from "@/lib/creators/schemas";
 
 export const OBJECTIVES = ["leads", "enrolments", "awareness", "content"] as const;
-export const CAMPAIGN_STATUSES = [
-  "draft",
-  "open",
-  "invite_only",
-  "active",
-  "paused",
-  "completed",
-  "archived",
-] as const;
+export const CAMPAIGN_STATUSES = ["draft", "open", "invite_only", "active", "paused", "completed", "archived"] as const;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 export const VISIBILITIES = ["open", "invite_only", "both"] as const;
 export const DEAL_TYPES = ["fixed", "commission", "hybrid", "barter"] as const;

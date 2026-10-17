@@ -7,13 +7,7 @@ import { setCampaignStatus } from "@/lib/actions/campaigns";
 import { STATUS_MOVES, type CampaignStatus } from "@/lib/campaigns/schemas";
 
 /** The next statuses a campaign can move to. Completing and archiving ask for confirmation. */
-export function CampaignStatusActions({
-  campaignId,
-  status,
-}: {
-  campaignId: string;
-  status: CampaignStatus;
-}) {
+export function CampaignStatusActions({ campaignId, status }: { campaignId: string; status: CampaignStatus }) {
   const t = useTranslations();
   const { pending, run } = useAction();
   return (

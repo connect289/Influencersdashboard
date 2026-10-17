@@ -24,26 +24,19 @@ const template = {
 };
 
 describe("sample contexts", () => {
-  it.each(SAMPLE_KINDS)(
-    "%s has a value for every text variable and renders the default template",
-    (kind) => {
-      const ctx = sampleContext(kind, "2026-10-17");
-      for (const v of VARIABLES) expect(Object.hasOwn(ctx, v.key), v.key).toBe(true);
-      const r = assembleContract(template, ctx);
-      expect(r.errors).toEqual([]);
-      expect(r.unknown).toEqual([]);
-    },
-  );
+  it.each(SAMPLE_KINDS)("%s has a value for every text variable and renders the default template", (kind) => {
+    const ctx = sampleContext(kind, "2026-10-17");
+    for (const v of VARIABLES) expect(Object.hasOwn(ctx, v.key), v.key).toBe(true);
+    const r = assembleContract(template, ctx);
+    expect(r.errors).toEqual([]);
+    expect(r.unknown).toEqual([]);
+  });
   it("the full sample switches on every optional clause", () => {
-    const keys = assembleContract(
-      template,
-      sampleContext("full", "2026-10-17"),
-    ).content.sections.map((s) => s.key);
+    const keys = assembleContract(template, sampleContext("full", "2026-10-17")).content.sections.map((s) => s.key);
     expect(keys).toEqual(expect.arrayContaining(["exclusivity", "penalties"]));
-    const plain = assembleContract(
-      template,
-      sampleContext("commission_only", "2026-10-17"),
-    ).content.sections.map((s) => s.key);
+    const plain = assembleContract(template, sampleContext("commission_only", "2026-10-17")).content.sections.map(
+      (s) => s.key,
+    );
     expect(plain).not.toContain("exclusivity");
   });
 });

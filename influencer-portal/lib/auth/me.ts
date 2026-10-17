@@ -1,11 +1,5 @@
 import { z } from "zod";
-import {
-  isStaffRole,
-  permissionsFor,
-  type Permission,
-  type StaffAccess,
-  type StaffRole,
-} from "@/lib/auth/permissions";
+import { isStaffRole, permissionsFor, type Permission, type StaffAccess, type StaffRole } from "@/lib/auth/permissions";
 
 /** Shape of inf.me(). Parsed, never trusted blindly. */
 export const meSchema = z.object({
@@ -116,14 +110,7 @@ export interface AgencyMe {
 
 export function toAgencyMe(me: Me): AgencyMe | null {
   const a = me.agency;
-  if (
-    me.kind !== "agency" ||
-    !a ||
-    !me.user_id ||
-    a.status !== "active" ||
-    a.member_status !== "active"
-  )
-    return null;
+  if (me.kind !== "agency" || !a || !me.user_id || a.status !== "active" || a.member_status !== "active") return null;
   return {
     userId: me.user_id,
     email: me.email ?? "",

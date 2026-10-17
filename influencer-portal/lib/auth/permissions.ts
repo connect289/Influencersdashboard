@@ -5,13 +5,7 @@
 // Creators and agency users are not in this table: their access is relationship-based (own records, or a grant from
 // the creator) and enforced by RLS with `inf.current_creator_id()` / agency grants. `EXTERNAL_CAPABILITIES` documents it.
 
-export const STAFF_ROLES = [
-  "super_admin",
-  "influencer_manager",
-  "content_reviewer",
-  "finance",
-  "viewer",
-] as const;
+export const STAFF_ROLES = ["super_admin", "influencer_manager", "content_reviewer", "finance", "viewer"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
 export const ROLE_LABELS: Record<StaffRole, string> = {

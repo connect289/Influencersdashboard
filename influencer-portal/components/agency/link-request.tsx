@@ -29,13 +29,7 @@ export function LinkRequest({ agencyId }: { agencyId: string }) {
         hint={t("agencies.links.handleHint")}
         className="flex-1"
       >
-        <Input
-          id="link-handle"
-          value={handle}
-          onChange={(e) => setHandle(e.target.value)}
-          maxLength={41}
-          required
-        />
+        <Input id="link-handle" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={41} required />
       </Field>
       <Button type="submit" variant="secondary" disabled={pending || handle.trim().length < 2}>
         {t("agencies.links.request")}

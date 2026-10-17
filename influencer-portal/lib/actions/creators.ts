@@ -47,8 +47,7 @@ function dbFail(error: { code?: string; message: string }, t: T): ActionResult<n
   if (/is blocked/i.test(error.message)) return fail(t("creators.errors.blocked"));
   if (/untouched prospects/i.test(error.message)) return fail(t("creators.errors.notDraft"));
   if (/in the past/i.test(error.message)) return fail(t("creators.errors.pastFollowUp"));
-  if (error.code === "22023" || error.code === "23514" || error.code === "22P02")
-    return fail(t("errors.invalidInput"));
+  if (error.code === "22023" || error.code === "23514" || error.code === "22P02") return fail(t("errors.invalidInput"));
   log.warn("creators.db_error", { code: error.code, error: error.message });
   return fail(t("errors.generic"));
 }
@@ -121,11 +120,7 @@ export async function setCreatorStage(creatorId: string, stage: string): Promise
   };
 }
 
-export async function setCreatorBlocked(
-  creatorId: string,
-  blocked: boolean,
-  reason: string,
-): Promise<ActionResult> {
+export async function setCreatorBlocked(creatorId: string, blocked: boolean, reason: string): Promise<ActionResult> {
   const t = await getTranslations();
   if (!uuid.safeParse(creatorId).success || (blocked && reason.trim().length < 3))
     return fail(t("creators.errors.reason"));
@@ -241,10 +236,7 @@ export async function saveTask(input: TaskInput): Promise<ActionResult> {
   return { ok: true, message: v.id ? t("tasks.saved") : t("tasks.created") };
 }
 
-export async function setTaskStatus(
-  taskId: string,
-  status: "open" | "done" | "cancelled",
-): Promise<ActionResult> {
+export async function setTaskStatus(taskId: string, status: "open" | "done" | "cancelled"): Promise<ActionResult> {
   const t = await getTranslations();
   if (!uuid.safeParse(taskId).success || !["open", "done", "cancelled"].includes(status))
     return fail(t("errors.invalidInput"));
@@ -333,8 +325,7 @@ export async function importCreators(
     );
   }
   const { missing } = mapHeaders(parsed.headers);
-  if (missing.length)
-    return fail(t("creators.import.errors.missingColumns", { columns: missing.join(", ") }));
+  if (missing.length) return fail(t("creators.import.errors.missingColumns", { columns: missing.join(", ") }));
   const { valid, invalid } = prepareImport(parsed.headers, parsed.rows);
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
@@ -357,9 +348,7 @@ export async function importCreators(
 // ---------------------------------------------------------------------------------------------------------------
 // Command palette search
 // ---------------------------------------------------------------------------------------------------------------
-export async function searchCreators(
-  q: string,
-): Promise<{ id: string; name: string; handle: string }[]> {
+export async function searchCreators(q: string): Promise<{ id: string; name: string; handle: string }[]> {
   const query = z.string().trim().min(2).max(80).safeParse(q);
   if (!query.success) return [];
   const supabase = await session();
@@ -368,7 +357,6 @@ export async function searchCreators(
     p: { q: query.data, page_size: 8, sort: "name", dir: "asc" },
   });
   if (error) return [];
-  const rows =
-    (data as { rows?: { id: string; display_name: string; handle: string }[] } | null)?.rows ?? [];
+  const rows = (data as { rows?: { id: string; display_name: string; handle: string }[] } | null)?.rows ?? [];
   return rows.map((r) => ({ id: r.id, name: r.display_name, handle: r.handle }));
 }

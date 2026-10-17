@@ -17,9 +17,7 @@ export default async function NoAccess({
   return (
     <div className="flex flex-col gap-4 text-center">
       <h1 className="text-xl font-semibold">{t("auth.noAccess.title")}</h1>
-      <p className="text-sm text-muted">
-        {creator ? t("auth.noAccess.creator") : t("auth.noAccess.staff")}
-      </p>
+      <p className="text-sm text-muted">{creator ? t("auth.noAccess.creator") : t("auth.noAccess.staff")}</p>
       <form action="/auth/signout" method="post">
         <input type="hidden" name="to" value={creator ? "/login" : "/login/staff"} />
         <Button type="submit" variant="secondary" block>

@@ -19,9 +19,7 @@ describe("audit filters", () => {
     expect(istDayEnd("2026-10-17")).toBe("2026-10-17T18:30:00.000Z");
   });
   it("builds query strings", () => {
-    expect(auditQueryString({ entity: "setting" }, { before: 10 })).toBe(
-      "?entity=setting&before=10",
-    );
+    expect(auditQueryString({ entity: "setting" }, { before: 10 })).toBe("?entity=setting&before=10");
     expect(auditQueryString({})).toBe("");
   });
 });

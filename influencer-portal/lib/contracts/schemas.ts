@@ -129,10 +129,7 @@ export const changeRequestInput = z.discriminatedUnion("kind", [
     kind: z.literal("clause"),
     clauseKey: z.string().min(1).max(60),
     // Suggested wording is literal text: template syntax would be interpreted when the version is assembled.
-    body: richDoc.refine(
-      (d) => d.content.length > 0 && !plainText(d.content).includes("{{"),
-      "braces",
-    ),
+    body: richDoc.refine((d) => d.content.length > 0 && !plainText(d.content).includes("{{"), "braces"),
     note: z.string().trim().max(1000),
   }),
   z.object({

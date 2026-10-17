@@ -59,13 +59,10 @@ export function TemplateEditor({
   const byId = useMemo(() => new Map(library.map((c) => [c.id, c])), [library]);
   const readOnly = !canWrite || archived;
   const isNew = !v.id;
-  const set = <K extends keyof TemplateFormValue>(k: K, x: TemplateFormValue[K]) =>
-    setV((p) => ({ ...p, [k]: x }));
+  const set = <K extends keyof TemplateFormValue>(k: K, x: TemplateFormValue[K]) => setV((p) => ({ ...p, [k]: x }));
   const setClauses = (f: (cs: TemplateFormValue["clauses"]) => TemplateFormValue["clauses"]) =>
     setV((p) => ({ ...p, clauses: f(p.clauses) }));
-  const missingRequired = library.filter(
-    (c) => c.required && !v.clauses.some((x) => x.clauseId === c.id),
-  );
+  const missingRequired = library.filter((c) => c.required && !v.clauses.some((x) => x.clauseId === c.id));
   const badConditions = v.clauses.filter((c) => c.condition !== "" && !CONDITION.test(c.condition));
 
   const preview = useMemo(() => {
@@ -161,10 +158,7 @@ export function TemplateEditor({
             />
             <Field id="tp-header" label={t("contracts.templates.fields.header")}>
               {readOnly ? (
-                <DocView
-                  blocks={v.header.content}
-                  className="rounded-lg border border-line p-3 text-sm"
-                />
+                <DocView blocks={v.header.content} className="rounded-lg border border-line p-3 text-sm" />
               ) : (
                 <RichEditor
                   id="tp-header"
@@ -177,10 +171,7 @@ export function TemplateEditor({
             </Field>
             <Field id="tp-footer" label={t("contracts.templates.fields.footer")}>
               {readOnly ? (
-                <DocView
-                  blocks={v.footer.content}
-                  className="rounded-lg border border-line p-3 text-sm"
-                />
+                <DocView blocks={v.footer.content} className="rounded-lg border border-line p-3 text-sm" />
               ) : (
                 <RichEditor
                   id="tp-footer"
@@ -195,10 +186,7 @@ export function TemplateEditor({
         </Card>
 
         <Card>
-          <CardHeader
-            title={t("contracts.templates.clauses")}
-            description={t("contracts.templates.clausesHint")}
-          />
+          <CardHeader title={t("contracts.templates.clauses")} description={t("contracts.templates.clausesHint")} />
           {v.clauses.length === 0 ? (
             <EmptyState
               title={t("contracts.templates.noClauses")}
@@ -212,23 +200,15 @@ export function TemplateEditor({
                 return (
                   <li key={c.clauseId} className="rounded-lg border border-line p-3">
                     <div className="flex items-start gap-2">
-                      <span className="tabular w-6 shrink-0 pt-0.5 text-sm text-muted">
-                        {i + 1}.
-                      </span>
+                      <span className="tabular w-6 shrink-0 pt-0.5 text-sm text-muted">{i + 1}.</span>
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium">
-                          {lib?.title ?? t("contracts.templates.missingClause")}
-                        </p>
+                        <p className="font-medium">{lib?.title ?? t("contracts.templates.missingClause")}</p>
                         <p className="flex flex-wrap gap-1 text-xs text-muted">
                           <span>{lib?.key}</span>
                           {lib?.required ? <Badge>{t("contracts.flags.required")}</Badge> : null}
-                          {lib?.negotiable ? (
-                            <Badge family="progress">{t("contracts.flags.negotiable")}</Badge>
-                          ) : null}
+                          {lib?.negotiable ? <Badge family="progress">{t("contracts.flags.negotiable")}</Badge> : null}
                           {lib && !lib.reviewed ? (
-                            <Badge family="attention">
-                              {t("contracts.library.unreviewedBadge")}
-                            </Badge>
+                            <Badge family="attention">{t("contracts.library.unreviewedBadge")}</Badge>
                           ) : null}
                         </p>
                       </div>
@@ -287,8 +267,7 @@ export function TemplateEditor({
                       <Select
                         id={condId}
                         value={
-                          FLAGS.some((f) => f.key === c.condition || `!${f.key}` === c.condition) ||
-                          c.condition === ""
+                          FLAGS.some((f) => f.key === c.condition || `!${f.key}` === c.condition) || c.condition === ""
                             ? c.condition
                             : "custom"
                         }
@@ -299,8 +278,7 @@ export function TemplateEditor({
                               j === i
                                 ? {
                                     ...x,
-                                    condition:
-                                      e.target.value === "custom" ? x.condition : e.target.value,
+                                    condition: e.target.value === "custom" ? x.condition : e.target.value,
                                   }
                                 : x,
                             ),
@@ -330,9 +308,7 @@ export function TemplateEditor({
                           disabled={readOnly}
                           placeholder='deal.model == "hybrid"'
                           onChange={(e) =>
-                            setClauses((cs) =>
-                              cs.map((x, j) => (j === i ? { ...x, condition: e.target.value } : x)),
-                            )
+                            setClauses((cs) => cs.map((x, j) => (j === i ? { ...x, condition: e.target.value } : x)))
                           }
                         />
                       ) : null}
@@ -392,13 +368,9 @@ export function TemplateEditor({
                     {archived ? t("contracts.templates.restore") : t("contracts.templates.archive")}
                   </Button>
                 }
-                title={
-                  archived ? t("contracts.templates.restore") : t("contracts.templates.archive")
-                }
+                title={archived ? t("contracts.templates.restore") : t("contracts.templates.archive")}
                 description={archived ? undefined : t("contracts.templates.archiveHint")}
-                actionLabel={
-                  archived ? t("contracts.templates.restore") : t("contracts.templates.archive")
-                }
+                actionLabel={archived ? t("contracts.templates.restore") : t("contracts.templates.archive")}
                 danger={!archived}
                 pending={pending}
                 onConfirm={(_r, close) =>
@@ -413,11 +385,7 @@ export function TemplateEditor({
               />
             ) : null}
             {archived ? null : (
-              <Button
-                type="submit"
-                form="template-form"
-                disabled={pending || badConditions.length > 0}
-              >
+              <Button type="submit" form="template-form" disabled={pending || badConditions.length > 0}>
                 {isNew ? t("contracts.templates.create") : t("contracts.templates.save")}
               </Button>
             )}
@@ -445,14 +413,10 @@ export function TemplateEditor({
         />
         <div className="flex flex-col gap-2">
           {preview.unknown.length ? (
-            <Banner tone="danger">
-              {t("contracts.editor.unknown", { list: preview.unknown.join(", ") })}
-            </Banner>
+            <Banner tone="danger">{t("contracts.editor.unknown", { list: preview.unknown.join(", ") })}</Banner>
           ) : null}
           {preview.errors.length ? (
-            <Banner tone="danger">
-              {t("contracts.editor.errors", { list: preview.errors.join(", ") })}
-            </Banner>
+            <Banner tone="danger">{t("contracts.editor.errors", { list: preview.errors.join(", ") })}</Banner>
           ) : null}
           {preview.unreviewed.length ? (
             <Banner tone="warning">

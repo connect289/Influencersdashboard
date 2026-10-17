@@ -27,11 +27,7 @@ export async function generateMetadata() {
 }
 
 /** A managed creator, read-only: what the agency needs to pitch and plan. No contact details or KYC. */
-export default async function AgencyCreatorPage({
-  params,
-}: {
-  params: Promise<{ creatorId: string }>;
-}) {
+export default async function AgencyCreatorPage({ params }: { params: Promise<{ creatorId: string }> }) {
   const { creatorId } = await params;
   if (!z.uuid().safeParse(creatorId).success) notFound();
   const { supabase } = await requireAgency();
@@ -42,9 +38,7 @@ export default async function AgencyCreatorPage({
     supabase.from("creator_rate_cards").select("*").eq("creator_id", creatorId).order("platform"),
     supabase.from("creator_portfolio").select("*").eq("creator_id", creatorId).order("position"),
   ]);
-  const link = (links.data ?? []).find(
-    (l) => l.creator_id === creatorId && l.link_status === "active",
-  );
+  const link = (links.data ?? []).find((l) => l.creator_id === creatorId && l.link_status === "active");
   if (!links.error && !link) notFound();
   const failed = links.error ?? platforms.error ?? rates.error ?? portfolio.error;
   const negotiates = link?.can_negotiate_sign === true;
@@ -68,10 +62,7 @@ export default async function AgencyCreatorPage({
   }
   return (
     <>
-      <Link
-        href="/agency"
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/agency" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {t("agencyPortal.creators")}
       </Link>
       <PageHeader
@@ -96,10 +87,7 @@ export default async function AgencyCreatorPage({
           </div>
           {negotiates ? (
             <Card>
-              <CardHeader
-                title={t("agencyPortal.campaigns")}
-                description={t("agencyPortal.campaignsHint")}
-              />
+              <CardHeader title={t("agencyPortal.campaigns")} description={t("agencyPortal.campaignsHint")} />
               {inviteRows.length === 0 && appRows.length === 0 ? (
                 <EmptyState title={t("agencyPortal.noCampaigns")} />
               ) : (
@@ -135,10 +123,7 @@ export default async function AgencyCreatorPage({
           ) : null}
           {seesDeals ? (
             <Card>
-              <CardHeader
-                title={t("nav.creator.deals")}
-                description={t("agencyPortal.dealsHint")}
-              />
+              <CardHeader title={t("nav.creator.deals")} description={t("agencyPortal.dealsHint")} />
               {deals === null ? (
                 <ErrorState title={t("errors.loadFailed")} />
               ) : (
@@ -148,10 +133,7 @@ export default async function AgencyCreatorPage({
           ) : null}
           {acts ? (
             <Card>
-              <CardHeader
-                title={t("nav.creator.deliverables")}
-                description={t("agencyPortal.deliverablesHint")}
-              />
+              <CardHeader title={t("nav.creator.deliverables")} description={t("agencyPortal.deliverablesHint")} />
               {deliverables === null || briefs === null ? (
                 <ErrorState title={t("errors.loadFailed")} />
               ) : (
@@ -160,10 +142,7 @@ export default async function AgencyCreatorPage({
                     <ul className="flex flex-col gap-1 text-sm">
                       {briefs.map((b) => (
                         <li key={b.id} className="flex flex-wrap items-center gap-2">
-                          <Link
-                            href={`/agency/briefs/${b.id}`}
-                            className="font-medium text-primary hover:underline"
-                          >
+                          <Link href={`/agency/briefs/${b.id}`} className="font-medium text-primary hover:underline">
                             {t("agencyPortal.briefFor", { deal: b.deal_title })}
                           </Link>
                           {b.acknowledged ? null : (
@@ -184,28 +163,18 @@ export default async function AgencyCreatorPage({
               description={t("agencyPortal.leadsHint")}
               actions={
                 <Button asChild size="sm" variant="secondary">
-                  <Link href={`/agency/creators/${creatorId}/leads`}>
-                    {t("agencyPortal.openLeads")}
-                  </Link>
+                  <Link href={`/agency/creators/${creatorId}/leads`}>{t("agencyPortal.openLeads")}</Link>
                 </Button>
               }
             />
           </Card>
           <Card>
             <CardHeader title={t("nav.creator.links")} description={t("agencyPortal.linksHint")} />
-            <LinksPanel
-              supabase={supabase}
-              creatorId={creatorId}
-              canCreate={negotiates}
-              staff={false}
-            />
+            <LinksPanel supabase={supabase} creatorId={creatorId} canCreate={negotiates} staff={false} />
           </Card>
           {negotiates ? (
             <Card>
-              <CardHeader
-                title={t("nav.creator.contracts")}
-                description={t("agencyPortal.contractsHint")}
-              />
+              <CardHeader title={t("nav.creator.contracts")} description={t("agencyPortal.contractsHint")} />
               {contracts === null ? (
                 <ErrorState title={t("errors.loadFailed")} />
               ) : (

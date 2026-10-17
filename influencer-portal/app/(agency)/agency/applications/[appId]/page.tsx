@@ -14,11 +14,7 @@ export async function generateMetadata() {
   return { title: t("agencyPortal.campaigns") };
 }
 
-export default async function AgencyApplicationPage({
-  params,
-}: {
-  params: Promise<{ appId: string }>;
-}) {
+export default async function AgencyApplicationPage({ params }: { params: Promise<{ appId: string }> }) {
   const { appId } = await params;
   if (!z.uuid().safeParse(appId).success) notFound();
   const { supabase } = await requireAgency();

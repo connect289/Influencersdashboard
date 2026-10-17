@@ -3,12 +3,7 @@ import { averageEngagement, avatarUrl, mediaKitFileName } from "./data";
 
 describe("media kit helpers", () => {
   it("builds public avatar URLs only for well-formed paths", () => {
-    expect(
-      avatarUrl(
-        "http://127.0.0.1:54421/",
-        "7c9e6679-7425-40de-944b-e07fc1f90ae7/1760000000000.png",
-      ),
-    ).toBe(
+    expect(avatarUrl("http://127.0.0.1:54421/", "7c9e6679-7425-40de-944b-e07fc1f90ae7/1760000000000.png")).toBe(
       "http://127.0.0.1:54421/storage/v1/object/public/inf-public-avatars/7c9e6679-7425-40de-944b-e07fc1f90ae7/1760000000000.png",
     );
     expect(avatarUrl("http://x", "../secret.png")).toBeNull();

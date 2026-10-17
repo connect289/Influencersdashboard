@@ -115,10 +115,7 @@ export function StaffDialog({
               />
             </Field>
           ) : null}
-          <Button
-            type="submit"
-            disabled={pending || v.roles.length === 0 || !v.fullName || !v.email}
-          >
+          <Button type="submit" disabled={pending || v.roles.length === 0 || !v.fullName || !v.email}>
             {invite ? t("staff.sendInvite") : t("common.save")}
           </Button>
         </form>

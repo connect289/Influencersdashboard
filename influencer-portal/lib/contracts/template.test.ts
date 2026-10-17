@@ -62,11 +62,7 @@ describe("renderDoc", () => {
 
   it("inline conditionals inside a sentence", () => {
     expect(
-      text(
-        render(
-          'Paid {{#if a.flag}}monthly{{else}}once{{/if}} for a {{#if a.kind == "hybrid"}}hybrid{{/if}} deal.',
-        ),
-      ),
+      text(render('Paid {{#if a.flag}}monthly{{else}}once{{/if}} for a {{#if a.kind == "hybrid"}}hybrid{{/if}} deal.')),
     ).toBe("Paid monthly for a hybrid deal.");
   });
 
@@ -83,9 +79,7 @@ describe("renderDoc", () => {
   it("reports unbalanced conditionals", () => {
     expect(render("{{#if a.flag}}\nOpen").errors[0]).toMatch(/^unclosed:if/);
     expect(render("Text\n{{/if}}").errors).toContain("stray_control");
-    expect(render("Inline {{#if a.flag}}never closed").errors).toContain(
-      "unbalanced_inline_condition",
-    );
+    expect(render("Inline {{#if a.flag}}never closed").errors).toContain("unbalanced_inline_condition");
     expect(render("{{#if 1bad}}\nX\n{{/if}}").errors).toContain("invalid_condition:1bad");
   });
 
@@ -121,11 +115,7 @@ describe("renderDoc", () => {
 
   it("lists every path a document uses", () => {
     expect(
-      usedPaths(
-        docFromText(
-          "{{#if a.flag}}\n{{a.name}} and {{t.table}}\n{{/if}}\n{{#unless !a.off}}x{{/unless}}",
-        ),
-      ),
+      usedPaths(docFromText("{{#if a.flag}}\n{{a.name}} and {{t.table}}\n{{/if}}\n{{#unless !a.off}}x{{/unless}}")),
     ).toEqual(["a.flag", "a.name", "a.off", "t.table"]);
   });
 });
@@ -168,9 +158,7 @@ describe("richDoc (editor JSON whitelist)", () => {
       { type: "image", attrs: { src: "x" } },
       {
         type: "paragraph",
-        content: [
-          { type: "text", text: "a", marks: [{ type: "link", attrs: { href: "javascript:x" } }] },
-        ],
+        content: [{ type: "text", text: "a", marks: [{ type: "link", attrs: { href: "javascript:x" } }] }],
       },
       { type: "table", head: [], rows: [] },
       { type: "codeBlock" },

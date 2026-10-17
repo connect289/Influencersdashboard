@@ -4,13 +4,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import type { ContractRow } from "@/lib/contracts/data";
 
 /** Links from a deal to its contracts (creator and agency deal pages). */
-export async function DealContracts({
-  contracts,
-  hrefBase,
-}: {
-  contracts: ContractRow[];
-  hrefBase: string;
-}) {
+export async function DealContracts({ contracts, hrefBase }: { contracts: ContractRow[]; hrefBase: string }) {
   const t = await getTranslations();
   if (contracts.length === 0) return null;
   return (

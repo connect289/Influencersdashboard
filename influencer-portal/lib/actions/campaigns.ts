@@ -48,8 +48,7 @@ const KNOWN: [RegExp, string][] = [
 
 function dbFail(error: { code?: string; message: string }, t: T): ActionResult<never> {
   if (error.code === "42501") return fail(t("errors.forbidden"));
-  for (const [re, key] of KNOWN)
-    if (re.test(error.message)) return fail(t(key as "campaigns.errors.closed"));
+  for (const [re, key] of KNOWN) if (re.test(error.message)) return fail(t(key as "campaigns.errors.closed"));
   if (error.code === "23505") return fail(t("campaigns.errors.alreadyApplied"));
   if (error.code === "22023" || error.code === "23514") return fail(t("errors.invalidInput"));
   log.warn("campaigns.db_error", { code: error.code, error: error.message });
@@ -118,10 +117,7 @@ export async function saveCampaign(input: CampaignInput): Promise<ActionResult<{
 
 export async function setCampaignStatus(campaignId: string, status: string): Promise<ActionResult> {
   const t = await getTranslations();
-  if (
-    !uuid.safeParse(campaignId).success ||
-    !(CAMPAIGN_STATUSES as readonly string[]).includes(status)
-  )
+  if (!uuid.safeParse(campaignId).success || !(CAMPAIGN_STATUSES as readonly string[]).includes(status))
     return fail(t("errors.invalidInput"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
@@ -233,8 +229,7 @@ export async function applyToCampaign(input: ApplyInput): Promise<ActionResult<{
 
 export async function declineInvite(inviteId: string, reason: string): Promise<ActionResult> {
   const t = await getTranslations();
-  if (!uuid.safeParse(inviteId).success || reason.length > 300)
-    return fail(t("errors.invalidInput"));
+  if (!uuid.safeParse(inviteId).success || reason.length > 300) return fail(t("errors.invalidInput"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
   const { error } = await supabase.rpc("invite_decline", { p_invite: inviteId, p_reason: reason });
@@ -243,20 +238,13 @@ export async function declineInvite(inviteId: string, reason: string): Promise<A
   return { ok: true, message: t("campaigns.invites.declined") };
 }
 
-export async function makeOffer(
-  appId: string,
-  terms: OfferTerms,
-  message: string,
-): Promise<ActionResult> {
+export async function makeOffer(appId: string, terms: OfferTerms, message: string): Promise<ActionResult> {
   const t = await getTranslations();
   const p = offerTerms.safeParse(terms);
-  if (!uuid.safeParse(appId).success || message.length > 2000)
-    return fail(t("errors.invalidInput"));
+  if (!uuid.safeParse(appId).success || message.length > 2000) return fail(t("errors.invalidInput"));
   if (!p.success)
     return fail(
-      p.error.issues[0]?.message === "fee_required"
-        ? t("campaigns.errors.feeRequired")
-        : t("errors.invalidInput"),
+      p.error.issues[0]?.message === "fee_required" ? t("campaigns.errors.feeRequired") : t("errors.invalidInput"),
     );
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
@@ -272,8 +260,7 @@ export async function makeOffer(
 
 export async function acceptOffer(offerId: string, appId: string): Promise<ActionResult> {
   const t = await getTranslations();
-  if (!uuid.safeParse(offerId).success || !uuid.safeParse(appId).success)
-    return fail(t("errors.invalidInput"));
+  if (!uuid.safeParse(offerId).success || !uuid.safeParse(appId).success) return fail(t("errors.invalidInput"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
   const { error } = await supabase.rpc("offer_accept", { p_offer: offerId });

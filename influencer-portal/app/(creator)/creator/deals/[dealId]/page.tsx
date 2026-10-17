@@ -27,10 +27,7 @@ export default async function CreatorDealPage({ params }: { params: Promise<{ de
   );
   return (
     <>
-      <Link
-        href="/creator/deals"
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/creator/deals" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {t("nav.creator.deals")}
       </Link>
       <PageHeader title={deal.title} />

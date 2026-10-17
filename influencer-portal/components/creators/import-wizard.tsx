@@ -52,10 +52,7 @@ export function ImportWizard() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader
-          title={t("creators.import.step1")}
-          description={t("creators.import.step1Hint")}
-        />
+        <CardHeader title={t("creators.import.step1")} description={t("creators.import.step1Hint")} />
         <div className="flex flex-wrap gap-2">
           <input
             ref={fileRef}
@@ -76,18 +73,12 @@ export function ImportWizard() {
             <Download /> {t("creators.import.template")}
           </Button>
         </div>
-        <p className="mt-3 text-xs text-muted">
-          {t("creators.import.columns", { columns: IMPORT_FIELDS.join(", ") })}
-        </p>
+        <p className="mt-3 text-xs text-muted">{t("creators.import.columns", { columns: IMPORT_FIELDS.join(", ") })}</p>
       </Card>
       {result ? (
         <Card>
           <CardHeader
-            title={
-              done
-                ? t("creators.import.doneTitle")
-                : t("creators.import.checkTitle", { file: file?.name ?? "" })
-            }
+            title={done ? t("creators.import.doneTitle") : t("creators.import.checkTitle", { file: file?.name ?? "" })}
             description={done ? undefined : t("creators.import.checkHint")}
           />
           <div className="mb-4 flex flex-wrap gap-2">
@@ -96,18 +87,10 @@ export function ImportWizard() {
                 count: result.created,
               })}
             </Badge>
-            <Badge family="attention">
-              {t("creators.import.duplicates", { count: result.duplicates })}
-            </Badge>
-            <Badge family="problem">
-              {t("creators.import.errorsCount", { count: result.errors })}
-            </Badge>
+            <Badge family="attention">{t("creators.import.duplicates", { count: result.duplicates })}</Badge>
+            <Badge family="problem">{t("creators.import.errorsCount", { count: result.errors })}</Badge>
           </div>
-          {done ? (
-            <Banner tone="success">
-              {t("creators.import.doneBody", { count: result.created })}
-            </Banner>
-          ) : null}
+          {done ? <Banner tone="success">{t("creators.import.doneBody", { count: result.created })}</Banner> : null}
           {result.report.some((r) => r.result !== "created") ? (
             <Table className="mt-3 min-w-[480px]">
               <thead>
@@ -135,9 +118,7 @@ export function ImportWizard() {
                         {(r.reason ?? "")
                           .split(",")
                           .filter(Boolean)
-                          .map((code) =>
-                            t(`creators.import.reasons.${code.replace(":", "_") as "handle"}`),
-                          )
+                          .map((code) => t(`creators.import.reasons.${code.replace(":", "_") as "handle"}`))
                           .join("; ")}
                       </Td>
                     </tr>
@@ -159,17 +140,12 @@ export function ImportWizard() {
                 {t("creators.import.run", { count: result.created })}
               </Button>
             ) : null}
-            <Button
-              variant="secondary"
-              onClick={() => download("import-report.csv", result.reportCsv)}
-            >
+            <Button variant="secondary" onClick={() => download("import-report.csv", result.reportCsv)}>
               <Download /> {t("creators.import.downloadReport")}
             </Button>
             {done ? (
               <Button asChild variant="link">
-                <Link href="/admin/creators?sort=updated&dir=desc">
-                  {t("creators.import.viewCreators")}
-                </Link>
+                <Link href="/admin/creators?sort=updated&dir=desc">{t("creators.import.viewCreators")}</Link>
               </Button>
             ) : null}
           </div>

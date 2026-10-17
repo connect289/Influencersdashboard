@@ -23,10 +23,7 @@ export async function generateMetadata() {
 export default async function CreatorHome() {
   const { supabase, me } = await requireCreator();
   const t = await getTranslations();
-  const [terms, onboarding] = await Promise.all([
-    supabase.rpc("terms_pending"),
-    supabase.rpc("onboarding_state"),
-  ]);
+  const [terms, onboarding] = await Promise.all([supabase.rpc("terms_pending"), supabase.rpc("onboarding_state")]);
   const state = onboardingState.safeParse(onboarding.data);
   const actions: Action[] = [];
   if (state.success && !state.data.approved)
@@ -61,13 +58,9 @@ export default async function CreatorHome() {
       <Card>
         <CardHeader
           title={t("home.actionCentre")}
-          description={
-            actions.length ? t("home.actionsCount", { count: actions.length }) : undefined
-          }
+          description={actions.length ? t("home.actionsCount", { count: actions.length }) : undefined}
         />
-        {terms.error ? (
-          <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
-        ) : null}
+        {terms.error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
         {!terms.error && actions.length === 0 ? (
           <EmptyState title={t("home.noActions")} description={t("home.noActionsHint")} />
         ) : null}

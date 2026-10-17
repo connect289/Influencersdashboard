@@ -20,11 +20,7 @@ export async function generateMetadata() {
   return { title: t("nav.admin.applications") };
 }
 
-export default async function ApplicationsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ view?: string }>;
-}) {
+export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const { supabase } = await requireStaff("campaign.read");
   const t = await getTranslations();
   const v = (await searchParams).view;
@@ -33,10 +29,7 @@ export default async function ApplicationsPage({
   const rows = data ?? [];
   return (
     <>
-      <PageHeader
-        title={t("nav.admin.applications")}
-        description={t("campaigns.applicationsSubtitle")}
-      />
+      <PageHeader title={t("nav.admin.applications")} description={t("campaigns.applicationsSubtitle")} />
       <nav className="mb-4 flex gap-1" aria-label={t("campaigns.filterByStatus")}>
         {(Object.keys(VIEWS) as (keyof typeof VIEWS)[]).map((k) => (
           <Link
@@ -45,9 +38,7 @@ export default async function ApplicationsPage({
             aria-current={view === k ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm",
-              view === k
-                ? "bg-primary-soft font-medium text-primary"
-                : "text-muted hover:bg-surface-2",
+              view === k ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
             )}
           >
             {t(`campaigns.applicationViews.${k}`)}
@@ -55,12 +46,8 @@ export default async function ApplicationsPage({
         ))}
       </nav>
       <Card>
-        {error ? (
-          <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
-        ) : null}
-        {!error && rows.length === 0 ? (
-          <EmptyState title={t("campaigns.applicationsEmpty")} />
-        ) : null}
+        {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
+        {!error && rows.length === 0 ? <EmptyState title={t("campaigns.applicationsEmpty")} /> : null}
         {rows.length ? (
           <Table>
             <thead>
@@ -76,10 +63,7 @@ export default async function ApplicationsPage({
               {rows.map((a) => (
                 <tr key={a.id}>
                   <Td>
-                    <Link
-                      href={`/admin/applications/${a.id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
+                    <Link href={`/admin/applications/${a.id}`} className="font-medium text-primary hover:underline">
                       {a.display_name}
                     </Link>
                     <span className="block text-xs text-muted">@{a.handle}</span>

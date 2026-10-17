@@ -47,9 +47,7 @@ describe("dryRun", () => {
     expect(r.delta_paise).toBeGreaterThan(0);
     expect(r.delta_paise % 1_000_00).toBe(0); // whole enrolments at +₹1,000 each
     expect(
-      r.changes.every(
-        (c) => c.type === "commission" && (c.after_paise ?? 0) - (c.before_paise ?? 0) === 1_000_00,
-      ),
+      r.changes.every((c) => c.type === "commission" && (c.after_paise ?? 0) - (c.before_paise ?? 0) === 1_000_00),
     ).toBe(true);
     expect(r.changes.length).toBe(r.delta_paise / 1_000_00);
     expect(r.after.net_paise - r.before.net_paise).toBe(r.delta_paise);

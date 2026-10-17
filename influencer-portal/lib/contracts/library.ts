@@ -361,8 +361,7 @@ The parties agree to sign electronically. Each signature is verified with a one-
 export const DEFAULT_TEMPLATE = {
   key: "standard_creator_agreement",
   name: "Standard creator agreement",
-  description:
-    "Adapts to every deal type through conditional clauses. All clauses are drafts until legally reviewed.",
+  description: "Adapts to every deal type through conditional clauses. All clauses are drafts until legally reviewed.",
   title: "Creator Agreement {{contract.number}}",
   header: `${DRAFT_MARKER}
 

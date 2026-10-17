@@ -7,13 +7,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState, NoResults } from "@/components/ui/states";
 import { Table, Td, Th } from "@/components/ui/table";
-import {
-  AUDIT_PAGE_SIZE,
-  auditFilterSchema,
-  auditQueryString,
-  istDayEnd,
-  istDayStart,
-} from "@/lib/audit";
+import { AUDIT_PAGE_SIZE, auditFilterSchema, auditQueryString, istDayEnd, istDayStart } from "@/lib/audit";
 import { requireStaff } from "@/lib/auth/guards";
 import { formatDateTime } from "@/lib/format";
 
@@ -61,12 +55,8 @@ export default async function AuditPage({
   const actorIds = [...new Set(rows.map((r) => r.actor_id).filter((x): x is string => Boolean(x)))];
   const names = new Map<string, string>();
   if (actorIds.length) {
-    const { data: people } = await supabase
-      .from("staff_profiles")
-      .select("user_id, full_name")
-      .in("user_id", actorIds);
-    for (const p of (people ?? []) as { user_id: string; full_name: string }[])
-      names.set(p.user_id, p.full_name);
+    const { data: people } = await supabase.from("staff_profiles").select("user_id, full_name").in("user_id", actorIds);
+    for (const p of (people ?? []) as { user_id: string; full_name: string }[]) names.set(p.user_id, p.full_name);
   }
   const filtered = Boolean(f.entity ?? f.action ?? f.actor ?? f.from ?? f.to);
   return (
@@ -86,12 +76,7 @@ export default async function AuditPage({
             placeholder={t("audit.filters.action")}
             aria-label={t("audit.filters.action")}
           />
-          <Input
-            name="from"
-            type="date"
-            defaultValue={f.from}
-            aria-label={t("audit.filters.from")}
-          />
+          <Input name="from" type="date" defaultValue={f.from} aria-label={t("audit.filters.from")} />
           <Input name="to" type="date" defaultValue={f.to} aria-label={t("audit.filters.to")} />
           <div className="flex gap-2">
             <Button type="submit" className="flex-1">
@@ -105,9 +90,7 @@ export default async function AuditPage({
           </div>
         </form>
       </Card>
-      {error ? (
-        <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
-      ) : null}
+      {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
       {!error && rows.length === 0 ? (
         filtered ? (
           <NoResults title={t("audit.noResults")} />
@@ -132,9 +115,7 @@ export default async function AuditPage({
                   <Td className="whitespace-nowrap text-muted">{formatDateTime(r.at)}</Td>
                   <Td>
                     <span className="block font-medium">
-                      {r.actor_id
-                        ? (names.get(r.actor_id) ?? t("audit.unknownActor"))
-                        : t("audit.system")}
+                      {r.actor_id ? (names.get(r.actor_id) ?? t("audit.unknownActor")) : t("audit.system")}
                     </span>
                     <span className="block text-xs text-muted">
                       {r.actor_role}
@@ -142,19 +123,14 @@ export default async function AuditPage({
                     </span>
                   </Td>
                   <Td>
-                    <Badge family="progress">{r.action}</Badge>{" "}
-                    <span className="text-sm">{r.entity_type}</span>
+                    <Badge family="progress">{r.action}</Badge> <span className="text-sm">{r.entity_type}</span>
                     {r.entity_id ? (
-                      <span className="block max-w-48 truncate font-mono text-xs text-muted">
-                        {r.entity_id}
-                      </span>
+                      <span className="block max-w-48 truncate font-mono text-xs text-muted">{r.entity_id}</span>
                     ) : null}
                   </Td>
                   <Td>
                     <details>
-                      <summary className="cursor-pointer text-sm text-primary">
-                        {t("audit.showChange")}
-                      </summary>
+                      <summary className="cursor-pointer text-sm text-primary">{t("audit.showChange")}</summary>
                       <div className="mt-2 grid gap-2 lg:grid-cols-2">
                         <pre className="max-h-48 overflow-auto rounded-lg bg-surface-2 p-2 text-xs whitespace-pre-wrap">
                           {r.before ? JSON.stringify(r.before, null, 2) : "—"}
@@ -172,9 +148,7 @@ export default async function AuditPage({
           <div className="flex justify-between gap-2 p-3">
             {f.before ? (
               <Button asChild variant="ghost" size="sm">
-                <Link href={`/admin/audit${auditQueryString(f, { before: undefined })}`}>
-                  {t("common.newest")}
-                </Link>
+                <Link href={`/admin/audit${auditQueryString(f, { before: undefined })}`}>{t("common.newest")}</Link>
               </Button>
             ) : (
               <span />

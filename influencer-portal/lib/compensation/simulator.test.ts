@@ -2,14 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EngineContext } from "./engine";
 import { SYSTEM_PRESETS } from "./presets";
 import { compConfig } from "./schema";
-import {
-  configDeliverables,
-  forCreator,
-  scenario,
-  scenarioEvents,
-  simulate,
-  type ScenarioInput,
-} from "./simulator";
+import { configDeliverables, forCreator, scenario, scenarioEvents, simulate, type ScenarioInput } from "./simulator";
 import { DEFAULT_TDS_SECTIONS } from "./tax";
 
 const context: EngineContext = {
@@ -25,10 +18,8 @@ const opts = {
   sections: DEFAULT_TDS_SECTIONS,
   gst_rate_bps: 1800,
 };
-const sim = (config: unknown, s: ScenarioInput) =>
-  simulate(compConfig.parse(config), scenario.parse(s), opts);
-const amount = (r: ReturnType<typeof simulate>, key: string) =>
-  r.breakdown.find((b) => b.key === key)?.amount_paise;
+const sim = (config: unknown, s: ScenarioInput) => simulate(compConfig.parse(config), scenario.parse(s), opts);
+const amount = (r: ReturnType<typeof simulate>, key: string) => r.breakdown.find((b) => b.key === key)?.amount_paise;
 
 describe("simulate", () => {
   it("fixed + commission: breakdown, tax, net and Eduwit economics", () => {
@@ -118,9 +109,7 @@ describe("simulate", () => {
 
   it("is deterministic", () => {
     const s = { leads: 50, qualified_leads: 20, applications: 10, enrollments: 5, months: 3 };
-    expect(sim(SYSTEM_PRESETS.commission_only.config, s)).toEqual(
-      sim(SYSTEM_PRESETS.commission_only.config, s),
-    );
+    expect(sim(SYSTEM_PRESETS.commission_only.config, s)).toEqual(sim(SYSTEM_PRESETS.commission_only.config, s));
   });
 
   it("the creator view carries no Eduwit figures", () => {
@@ -144,10 +133,7 @@ describe("scenario", () => {
       enrollments: 1,
       cancellations: 2,
     });
-    expect(r.success ? [] : r.error.issues.map((i) => i.message)).toEqual([
-      "gt_leads",
-      "gt_enrollments",
-    ]);
+    expect(r.success ? [] : r.error.issues.map((i) => i.message)).toEqual(["gt_leads", "gt_enrollments"]);
   });
 
   it("generates events within the scenario's months, ending with completion", () => {

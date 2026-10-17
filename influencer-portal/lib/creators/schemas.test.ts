@@ -74,12 +74,8 @@ describe("kycInput", () => {
 
   it("needs a GSTIN when registered, and the GSTIN must embed the PAN", () => {
     expect(kycInput.safeParse({ ...kyc, gstStatus: "registered" }).success).toBe(false);
-    expect(
-      kycInput.safeParse({ ...kyc, gstStatus: "registered", gstin: "27ABCPX1234K1Z5" }).success,
-    ).toBe(false);
-    expect(
-      kycInput.safeParse({ ...kyc, gstStatus: "registered", gstin: "27abcps1234k1z5" }).success,
-    ).toBe(true);
+    expect(kycInput.safeParse({ ...kyc, gstStatus: "registered", gstin: "27ABCPX1234K1Z5" }).success).toBe(false);
+    expect(kycInput.safeParse({ ...kyc, gstStatus: "registered", gstin: "27abcps1234k1z5" }).success).toBe(true);
   });
 
   it.each([

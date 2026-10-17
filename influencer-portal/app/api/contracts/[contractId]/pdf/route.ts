@@ -21,8 +21,7 @@ const integrity = z.object({
  */
 export async function GET(_: NextRequest, { params }: { params: Promise<{ contractId: string }> }) {
   const { contractId } = await params;
-  if (!z.uuid().safeParse(contractId).success)
-    return new NextResponse("Not found", { status: 404 });
+  if (!z.uuid().safeParse(contractId).success) return new NextResponse("Not found", { status: 404 });
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   if (!claims?.claims.sub) return new NextResponse("Sign in required", { status: 401 });
@@ -48,10 +47,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ contra
         p_reason: "stored PDF hash mismatch",
       });
       log.error("contracts.pdf_hash_mismatch", { contract_id: contractId });
-      return new NextResponse(
-        "This contract failed its integrity check and is flagged as invalid.",
-        { status: 409 },
-      );
+      return new NextResponse("This contract failed its integrity check and is flagged as invalid.", { status: 409 });
     }
     return new NextResponse(bytes, {
       headers: {

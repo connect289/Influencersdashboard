@@ -29,17 +29,7 @@ function GuideCards({ guides, base }: { guides: Guide[]; base: string }) {
 }
 
 /** The Help landing page: search across the reader's guides, then the guides themselves. */
-export function HelpIndex({
-  base,
-  mine,
-  others,
-  q,
-}: {
-  base: string;
-  mine: Guide[];
-  others: Guide[];
-  q: string;
-}) {
+export function HelpIndex({ base, mine, others, q }: { base: string; mine: Guide[]; others: Guide[]; q: string }) {
   const t = useTranslations();
   const hits = q ? searchGuides([...mine, ...others], q) : [];
   return (
@@ -82,9 +72,7 @@ export function HelpIndex({
       ) : null}
       {mine.length ? (
         <section className="flex flex-col gap-2">
-          {others.length ? (
-            <h2 className="text-sm font-semibold text-muted">{t("help.forYou")}</h2>
-          ) : null}
+          {others.length ? <h2 className="text-sm font-semibold text-muted">{t("help.forYou")}</h2> : null}
           <GuideCards guides={mine} base={base} />
         </section>
       ) : null}

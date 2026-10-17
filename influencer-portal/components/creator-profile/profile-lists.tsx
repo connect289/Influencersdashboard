@@ -20,13 +20,7 @@ import {
   saveRateCard,
 } from "@/lib/actions/creator-profile";
 import type { ActionResult } from "@/lib/actions/result";
-import {
-  CONTACT_KINDS,
-  CONTENT_FORMATS,
-  PLATFORMS,
-  type ContentFormat,
-  type Platform,
-} from "@/lib/creators/schemas";
+import { CONTACT_KINDS, CONTENT_FORMATS, PLATFORMS, type ContentFormat, type Platform } from "@/lib/creators/schemas";
 import { formatPaise } from "@/lib/format";
 import type { ContactRow, PortfolioRow, RateCardRow } from "./types";
 
@@ -127,12 +121,7 @@ export function RateCardCard({
               </Select>
             </Field>
           </div>
-          <Field
-            id="rc-amount"
-            label={t("profile.rates.amount")}
-            hint={t("profile.rates.amountHint")}
-            required
-          >
+          <Field id="rc-amount" label={t("profile.rates.amount")} hint={t("profile.rates.amountHint")} required>
             <Input
               id="rc-amount"
               type="number"
@@ -161,11 +150,7 @@ export function RateCardCard({
   ) : null;
   return (
     <Card>
-      <CardHeader
-        title={t("profile.rates.title")}
-        description={t("profile.rates.hint")}
-        actions={add}
-      />
+      <CardHeader title={t("profile.rates.title")} description={t("profile.rates.hint")} actions={add} />
       {rates.length === 0 ? (
         <EmptyState title={t("profile.rates.empty")} />
       ) : (
@@ -174,8 +159,7 @@ export function RateCardCard({
             <li key={r.id} className="flex items-center gap-3 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">
-                  {t(`platforms.${r.platform as Platform}`)} ·{" "}
-                  {t(`formats.${r.format as ContentFormat}`)}
+                  {t(`platforms.${r.platform as Platform}`)} · {t(`formats.${r.format as ContentFormat}`)}
                 </p>
                 {r.notes ? <p className="truncate text-xs text-muted">{r.notes}</p> : null}
               </div>
@@ -313,9 +297,7 @@ export function ContactsCard({
             <Select
               id="ct-kind"
               value={v.kind}
-              onChange={(e) =>
-                setV({ ...v, kind: e.target.value as (typeof CONTACT_KINDS)[number] })
-              }
+              onChange={(e) => setV({ ...v, kind: e.target.value as (typeof CONTACT_KINDS)[number] })}
             >
               {CONTACT_KINDS.map((k) => (
                 <option key={k} value={k}>
@@ -364,8 +346,7 @@ export function ContactsCard({
             <li key={c.id} className="flex items-center gap-3 py-3">
               <div className="min-w-0 flex-1 text-sm">
                 <span className="font-medium">
-                  {c.label ??
-                    t(`profile.contacts.kinds.${c.kind as (typeof CONTACT_KINDS)[number]}`)}
+                  {c.label ?? t(`profile.contacts.kinds.${c.kind as (typeof CONTACT_KINDS)[number]}`)}
                 </span>
                 <span className="block text-xs text-muted">
                   {c.phone_last2

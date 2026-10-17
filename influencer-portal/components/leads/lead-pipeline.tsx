@@ -46,9 +46,7 @@ export async function LeadPipeline({
       : Promise.resolve(null),
   ]);
   const query = new URLSearchParams(
-    Object.entries(search).filter(
-      (e): e is [string, string] => typeof e[1] === "string" && e[0] !== "lead",
-    ),
+    Object.entries(search).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "lead"),
   ).toString();
   const filtered = Object.values(filters).some((v) => v !== null);
   const options = {
@@ -105,9 +103,7 @@ export async function LeadPipeline({
         <LeadBoard rows={rows} base={base} query={query} />
       )}
       {lead ? (
-        <LeadDrawer
-          title={lead.removed ? t("leads.removed") : (lead.display_name ?? lead.lead_ref)}
-        >
+        <LeadDrawer title={lead.removed ? t("leads.removed") : (lead.display_name ?? lead.lead_ref)}>
           <LeadDetailView d={lead} />
         </LeadDrawer>
       ) : null}

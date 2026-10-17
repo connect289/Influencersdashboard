@@ -17,9 +17,7 @@ describe("environment", () => {
   });
 
   it("requires a long internal key", () => {
-    expect(() => parseEnv({ ...base, INF_INTERNAL_API_KEY: "short" })).toThrow(
-      /INF_INTERNAL_API_KEY/,
-    );
+    expect(() => parseEnv({ ...base, INF_INTERNAL_API_KEY: "short" })).toThrow(/INF_INTERNAL_API_KEY/);
   });
 
   it("requires provider credentials for the chosen provider", () => {

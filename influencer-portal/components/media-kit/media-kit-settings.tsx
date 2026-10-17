@@ -67,9 +67,7 @@ export function MediaKitSettings({
               <Button
                 variant="secondary"
                 onClick={() => {
-                  void navigator.clipboard
-                    .writeText(link)
-                    .then(() => toast.success(t("mediaKit.copied")));
+                  void navigator.clipboard.writeText(link).then(() => toast.success(t("mediaKit.copied")));
                 }}
               >
                 <Copy /> {t("mediaKit.copyLink")}

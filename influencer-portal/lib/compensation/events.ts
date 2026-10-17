@@ -103,9 +103,7 @@ export function addMs(iso: string, ms: number): string {
 export function addMonths(date: string, n: number): string {
   const [y, m, d] = date.split("-").map(Number) as [number, number, number];
   const target = new Date(Date.UTC(y, m - 1 + n, 1));
-  const last = new Date(
-    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
-  ).getUTCDate();
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
   target.setUTCDate(Math.min(d, last));
   return target.toISOString().slice(0, 10);
 }

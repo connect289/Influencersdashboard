@@ -26,19 +26,11 @@ import { linkPortalAccount, portalNext } from "@/lib/auth/link";
 import { HANDLE_RE } from "@/lib/creators/crm";
 import { PLATFORMS } from "@/lib/creators/schemas";
 
-export type FormState =
-  | { error?: string; notice?: string; fieldErrors?: Record<string, string> }
-  | undefined;
+export type FormState = { error?: string; notice?: string; fieldErrors?: Record<string, string> } | undefined;
 
 const emailSchema = z.email().max(254);
 
-type SignInMethod =
-  | "password"
-  | "google"
-  | "email_otp"
-  | "email_code"
-  | "trusted_device"
-  | "magic_link";
+type SignInMethod = "password" | "google" | "email_otp" | "email_code" | "trusted_device" | "magic_link";
 type Outcome = "ok" | "failed" | "refused" | "locked";
 
 async function record(
@@ -102,14 +94,7 @@ export async function staffSignIn(_: FormState, form: FormData): Promise<FormSta
   try {
     const me = await fetchMe(supabase);
     if (me.kind !== "staff" || me.staff?.status !== "active") {
-      await record(
-        email,
-        "staff",
-        "password",
-        "refused",
-        `kind:${me.kind ?? "none"}`,
-        data.user.id,
-      );
+      await record(email, "staff", "password", "refused", `kind:${me.kind ?? "none"}`, data.user.id);
       await supabase.auth.signOut({ scope: "local" });
       return { error: t("auth.errors.notStaff") };
     }
@@ -123,8 +108,7 @@ export async function staffSignIn(_: FormState, form: FormData): Promise<FormSta
   await record(email, "staff", "password", "ok", null, data.user.id);
   // A trusted device (ticked at an earlier sign-in) verifies the new session without a code.
   const device = (await cookies()).get(DEVICE_COOKIE)?.value;
-  if (device && (await supabase.rpc("device_trust_check", { p_token: device })).data === true)
-    redirect(next);
+  if (device && (await supabase.rpc("device_trust_check", { p_token: device })).data === true) redirect(next);
   redirect(`/verify?next=${encodeURIComponent(next)}`);
 }
 
@@ -145,10 +129,7 @@ export async function sendStaffCode(_: FormState): Promise<FormState> {
   const r = issued.data as { ok: boolean; code?: string; error?: string } | null;
   if (issued.error || !r?.ok || !r.code) {
     return {
-      error:
-        r?.error === "too_many_codes"
-          ? t("auth.errors.tooManyCodes")
-          : t("auth.errors.codeNotSent"),
+      error: r?.error === "too_many_codes" ? t("auth.errors.tooManyCodes") : t("auth.errors.codeNotSent"),
     };
   }
   const to = me.email ?? "";
@@ -193,14 +174,7 @@ export async function verifyStaffCode(_: FormState, form: FormData): Promise<For
   } | null;
   if (error || !r) return { error: t("auth.errors.unavailable") };
   if (!r.ok) {
-    await record(
-      claims.claims.email ?? "",
-      "staff",
-      "email_code",
-      "failed",
-      r.error ?? "invalid",
-      userId,
-    );
+    await record(claims.claims.email ?? "", "staff", "email_code", "failed", r.error ?? "invalid", userId);
     if (r.error === "expired") return { error: t("auth.errors.codeExpired") };
     if (r.error === "too_many_attempts") return { error: t("auth.errors.codeLocked") };
     return { error: t("auth.errors.codeWrong", { left: r.attempts_left ?? 0 }) };
@@ -224,10 +198,7 @@ export async function requestPasswordLink(_: FormState, form: FormData): Promise
   const email = formText(form, "email").trim().toLowerCase();
   if (!emailSchema.safeParse(email).success) return { error: t("auth.errors.emailFormat") };
   const done = { notice: t("auth.password.linkSent") };
-  if (
-    !(await rateLimit("password_link", email)).ok ||
-    !(await rateLimit("password_link", await ipKey())).ok
-  )
+  if (!(await rateLimit("password_link", email)).ok || !(await rateLimit("password_link", await ipKey())).ok)
     return done;
 
   const db = adminClient();
@@ -269,9 +240,7 @@ export async function setNewPassword(_: FormState, form: FormData): Promise<Form
   if (!parsed.success) {
     const mismatch = parsed.error.issues.some((i) => i.path[0] === "confirm");
     return {
-      error: mismatch
-        ? t("auth.password.mismatch")
-        : t("auth.password.tooShort", { min: PASSWORD_MIN }),
+      error: mismatch ? t("auth.password.mismatch") : t("auth.password.tooShort", { min: PASSWORD_MIN }),
     };
   }
   const supabase = await createClient();
@@ -311,13 +280,7 @@ export async function creatorSendOtp(_: FormState, form: FormData): Promise<Form
     });
     if (error.status === 429) return { error: t("auth.errors.tooManyCodes") };
   }
-  await record(
-    email,
-    "creator",
-    "email_otp",
-    error ? "refused" : "ok",
-    error ? "otp_not_sent" : "otp_sent",
-  );
+  await record(email, "creator", "email_otp", error ? "refused" : "ok", error ? "otp_not_sent" : "otp_sent");
   (await cookies()).set(OTP_EMAIL_COOKIE, email, {
     httpOnly: true,
     secure: env().NODE_ENV === "production",
@@ -336,8 +299,7 @@ export async function creatorVerifyOtp(_: FormState, form: FormData): Promise<Fo
   const email = (await cookies()).get(OTP_EMAIL_COOKIE)?.value ?? "";
   if (!emailSchema.safeParse(email).success) redirect("/login?reason=expired");
   if (!/^\d{6,8}$/.test(token)) return { error: t("auth.errors.codeFormat") };
-  if (!(await rateLimit("creator_otp_verify", email)).ok)
-    return { error: t("auth.errors.tooManyAttempts") };
+  if (!(await rateLimit("creator_otp_verify", email)).ok) return { error: t("auth.errors.tooManyAttempts") };
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
@@ -352,14 +314,7 @@ export async function creatorVerifyOtp(_: FormState, form: FormData): Promise<Fo
     redirect("/no-access?portal=creator");
   }
   await supabase.rpc("session_register");
-  await record(
-    email,
-    "creator",
-    "email_otp",
-    "ok",
-    kind === "agency" ? "agency" : null,
-    data.user.id,
-  );
+  await record(email, "creator", "email_otp", "ok", kind === "agency" ? "agency" : null, data.user.id);
   (await cookies()).delete({ name: OTP_EMAIL_COOKIE, path: "/login" });
   redirect(portalNext(kind, next));
 }
@@ -411,10 +366,7 @@ export async function creatorSignUp(_: FormState, form: FormData): Promise<FormS
     };
   }
   const v = parsed.data;
-  if (
-    !(await rateLimit("signup_ip", await ipKey())).ok ||
-    !(await rateLimit("signup_email", v.email)).ok
-  ) {
+  if (!(await rateLimit("signup_ip", await ipKey())).ok || !(await rateLimit("signup_email", v.email)).ok) {
     return { error: t("auth.errors.tooManyCodes") };
   }
   const admin = adminClient();

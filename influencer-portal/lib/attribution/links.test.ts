@@ -1,17 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  landingUrl,
-  renderMessage,
-  safeHttpsUrl,
-  shortLink,
-  slugify,
-  utmFor,
-  whatsappUrl,
-  withUtm,
-} from "./links";
+import { landingUrl, renderMessage, safeHttpsUrl, shortLink, slugify, utmFor, whatsappUrl, withUtm } from "./links";
 
-const T =
-  "Hi Eduwit! I saw {creator_name}'s post about {programme}. My access code is {access_code} (ref {code})";
+const T = "Hi Eduwit! I saw {creator_name}'s post about {programme}. My access code is {access_code} (ref {code})";
 
 describe("links", () => {
   it("renders the WhatsApp message with an access code", () => {
@@ -22,9 +12,7 @@ describe("links", () => {
         code: "RIYA-IG-7K",
         access_code: "K7QM2X",
       }),
-    ).toBe(
-      "Hi Eduwit! I saw Riya's post about the online MBA. My access code is K7QM2X (ref RIYA-IG-7K)",
-    );
+    ).toBe("Hi Eduwit! I saw Riya's post about the online MBA. My access code is K7QM2X (ref RIYA-IG-7K)");
   });
 
   it("drops the access-code sentence when Witty gave none, keeping the creator code", () => {
@@ -47,9 +35,7 @@ describe("links", () => {
   });
 
   it("builds wa.me links with only digits and an encoded message", () => {
-    expect(whatsappUrl("+91 96439 77407", "Hi & bye")).toBe(
-      "https://wa.me/919643977407?text=Hi%20%26%20bye",
-    );
+    expect(whatsappUrl("+91 96439 77407", "Hi & bye")).toBe("https://wa.me/919643977407?text=Hi%20%26%20bye");
   });
 
   it("accepts only safe https destinations", () => {
@@ -98,9 +84,7 @@ describe("links", () => {
       "https://eduwit.in/c/riya%20learns?code=RIYA-YT-22&utm_source=influencer&utm_medium=youtube&utm_campaign=x&utm_content=RIYA-YT-22",
     );
     expect(landingUrl("http://eduwit.in", "riya", "A-B", utm)).toBeNull();
-    expect(shortLink("https://creators.eduwit.in/r/", "RIYA-YT-22")).toBe(
-      "https://creators.eduwit.in/r/RIYA-YT-22",
-    );
+    expect(shortLink("https://creators.eduwit.in/r/", "RIYA-YT-22")).toBe("https://creators.eduwit.in/r/RIYA-YT-22");
   });
 
   it("slugifies campaign names", () => {

@@ -21,10 +21,7 @@ const IDLE: SyncResult = {
   last_id: null,
 };
 
-export async function syncBatch(
-  mode: SyncMode,
-  source: "sweep" | "backfill" | "override",
-): Promise<SyncResult> {
+export async function syncBatch(mode: SyncMode, source: "sweep" | "backfill" | "override"): Promise<SyncResult> {
   if (!leadSyncEnabled()) return IDLE;
   return syncBatchWith(adminClient(), mode, source);
 }

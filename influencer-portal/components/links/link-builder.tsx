@@ -67,11 +67,7 @@ export function LinkBuilder({
             <Select
               id="lb-deal"
               value={dealId}
-              onChange={(e) => (
-                setDealId(e.target.value),
-                setDeliverableId(""),
-                setProgrammeId("")
-              )}
+              onChange={(e) => (setDealId(e.target.value), setDeliverableId(""), setProgrammeId(""))}
             >
               {staff ? <option value="">{t("links.builder.noDeal")}</option> : null}
               {options.map((o) => (
@@ -150,16 +146,8 @@ export function LinkBuilder({
           </Field>
         ) : null}
         <div className="grid gap-3 md:grid-cols-2">
-          <Field
-            id="lb-platform"
-            label={t("links.builder.platform")}
-            hint={t("links.builder.platformHint")}
-          >
-            <Select
-              id="lb-platform"
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value as Platform | "")}
-            >
+          <Field id="lb-platform" label={t("links.builder.platform")} hint={t("links.builder.platformHint")}>
+            <Select id="lb-platform" value={platform} onChange={(e) => setPlatform(e.target.value as Platform | "")}>
               <option value="">{t("links.builder.noPlatform")}</option>
               {PLATFORMS.map((p) => (
                 <option key={p} value={p}>
@@ -169,12 +157,7 @@ export function LinkBuilder({
             </Select>
           </Field>
           <Field id="lb-label" label={t("links.builder.label")} hint={t("links.builder.labelHint")}>
-            <Input
-              id="lb-label"
-              maxLength={120}
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-            />
+            <Input id="lb-label" maxLength={120} value={label} onChange={(e) => setLabel(e.target.value)} />
           </Field>
         </div>
         <Button type="submit" className="self-start" disabled={pending || (!staff && !dealId)}>

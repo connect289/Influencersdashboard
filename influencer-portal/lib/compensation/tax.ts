@@ -114,10 +114,7 @@ export function estimateTax(input: TaxInput): TaxEstimate {
   const byComponent = new Map<TdsComponent, Paise>();
   for (const l of input.lines) {
     const c = componentOf(l);
-    byComponent.set(
-      c,
-      (byComponent.get(c) ?? 0) + (l.direction === "credit" ? l.amount_paise : -l.amount_paise),
-    );
+    byComponent.set(c, (byComponent.get(c) ?? 0) + (l.direction === "credit" ? l.amount_paise : -l.amount_paise));
   }
   if (input.non_cash_paise) byComponent.set("non_cash", input.non_cash_paise);
   const gross = sum([...byComponent.entries()].filter(([c]) => c !== "non_cash").map(([, v]) => v));
@@ -125,18 +122,14 @@ export function estimateTax(input: TaxInput): TaxEstimate {
   const mapped = new Set<TdsComponent>();
   const sections: SectionTax[] = [];
   for (const s of input.sections) {
-    const base = Math.max(
-      sum(s.components.filter((c) => !mapped.has(c)).map((c) => byComponent.get(c) ?? 0)),
-      0,
-    );
+    const base = Math.max(sum(s.components.filter((c) => !mapped.has(c)).map((c) => byComponent.get(c) ?? 0)), 0);
     for (const c of s.components) mapped.add(c);
     if (base === 0) continue;
     const prior = input.fy_prior?.[s.code] ?? { base_paise: 0, taxed: false };
     const overSingle = s.single_threshold_paise !== null && base > s.single_threshold_paise;
     const overFy = s.fy_threshold_paise === null || prior.base_paise + base > s.fy_threshold_paise;
     const applies = overSingle || overFy;
-    const catchUp =
-      applies && overFy && !prior.taxed && s.fy_threshold_paise !== null ? prior.base_paise : 0;
+    const catchUp = applies && overFy && !prior.taxed && s.fy_threshold_paise !== null ? prior.base_paise : 0;
     const taxable = applies ? base + catchUp : 0;
     const rate = input.has_pan ? s.rate_bps : s.no_pan_rate_bps;
     sections.push({
@@ -150,9 +143,7 @@ export function estimateTax(input: TaxInput): TaxEstimate {
     });
   }
   const unmapped = sum(
-    [...byComponent.entries()]
-      .filter(([c]) => c !== "non_cash" && !mapped.has(c))
-      .map(([, v]) => Math.max(v, 0)),
+    [...byComponent.entries()].filter(([c]) => c !== "non_cash" && !mapped.has(c)).map(([, v]) => Math.max(v, 0)),
   );
   const tds = sum(sections.filter((s) => s.borne_by === "creator").map((s) => s.tds_paise));
   const eduwitTds = sum(sections.filter((s) => s.borne_by === "eduwit").map((s) => s.tds_paise));

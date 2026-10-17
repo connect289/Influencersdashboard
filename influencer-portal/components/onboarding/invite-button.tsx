@@ -21,11 +21,7 @@ export function InviteButton({
   const { pending, run } = useAction();
   return (
     <ConfirmDialog
-      title={
-        resend
-          ? t("onboarding.invite.resendTitle", { name })
-          : t("onboarding.invite.title", { name })
-      }
+      title={resend ? t("onboarding.invite.resendTitle", { name }) : t("onboarding.invite.title", { name })}
       description={t("onboarding.invite.body", { email })}
       actionLabel={t("onboarding.invite.send")}
       danger={false}

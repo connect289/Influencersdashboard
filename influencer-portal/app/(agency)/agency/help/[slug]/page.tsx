@@ -19,10 +19,7 @@ export default async function AgencyGuidePage({ params }: { params: Promise<{ sl
   if (!guide) notFound();
   return (
     <>
-      <Link
-        href="/agency/help"
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/agency/help" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {t("help.title")}
       </Link>
       <PageHeader title={guide.title} description={guide.summary} />

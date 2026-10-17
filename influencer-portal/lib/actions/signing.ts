@@ -7,13 +7,7 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { fetchMe } from "@/lib/auth/guards";
 import { finalizeContract } from "@/lib/contracts/finalize";
-import {
-  SIGN_ERRORS,
-  signCodeInput,
-  signInput,
-  type SignCodeInput,
-  type SignInput,
-} from "@/lib/contracts/schemas";
+import { SIGN_ERRORS, signCodeInput, signInput, type SignCodeInput, type SignInput } from "@/lib/contracts/schemas";
 import { maskDestination, signingChannels } from "@/lib/contracts/signing";
 import { errorMessage, log } from "@/lib/log";
 import { emailProvider } from "@/lib/notify/email";
@@ -55,9 +49,7 @@ function refresh(contractId: string) {
   revalidatePath(`/admin/contracts/${contractId}`);
 }
 
-export async function requestSignCode(
-  input: SignCodeInput,
-): Promise<ActionResult<{ sentTo: string }>> {
+export async function requestSignCode(input: SignCodeInput): Promise<ActionResult<{ sentTo: string }>> {
   const t = await getTranslations();
   const parsed = signCodeInput.safeParse(input);
   if (!parsed.success) return fail(t("errors.invalidInput"));
@@ -106,10 +98,7 @@ export async function requestSignCode(
     });
     return fail(t("contracts.sign.errors.delivery"));
   }
-  const sentTo = maskDestination(
-    v.channel,
-    v.channel === "email" ? (p.email ?? "") : (dest.phone ?? ""),
-  );
+  const sentTo = maskDestination(v.channel, v.channel === "email" ? (p.email ?? "") : (dest.phone ?? ""));
   return {
     ok: true,
     data: { sentTo },
@@ -151,7 +140,6 @@ export async function signContract(input: SignInput): Promise<ActionResult<{ rol
   return {
     ok: true,
     data: { role: ok.data.role },
-    message:
-      ok.data.role === "signatory" ? t("contracts.sign.countersigned") : t("contracts.sign.signed"),
+    message: ok.data.role === "signatory" ? t("contracts.sign.countersigned") : t("contracts.sign.signed"),
   };
 }

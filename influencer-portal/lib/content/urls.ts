@@ -2,9 +2,7 @@
 // public oEmbed endpoint where one exists without credentials (YouTube). Pure.
 import type { Platform } from "@/lib/creators/schemas";
 
-export type UrlCheck =
-  | { ok: true; url: string }
-  | { ok: false; error: "invalid" | "not_https" | "wrong_platform" };
+export type UrlCheck = { ok: true; url: string } | { ok: false; error: "invalid" | "not_https" | "wrong_platform" };
 
 const HOSTS: Record<Exclude<Platform, "other">, readonly string[]> = {
   instagram: ["instagram.com"],
@@ -48,11 +46,7 @@ export function checkPostUrl(platform: Platform, raw: string): UrlCheck {
       const isShortYoutube = platform === "youtube" && host === "youtu.be";
       const shape = isShortYoutube ? /^\/[A-Za-z0-9_-]{6,}\/?$/ : path;
       if (!shape.test(u.pathname)) return { ok: false, error: "invalid" };
-      if (
-        platform === "youtube" &&
-        u.pathname.replace(/\/$/, "") === "/watch" &&
-        !u.searchParams.get("v")
-      )
+      if (platform === "youtube" && u.pathname.replace(/\/$/, "") === "/watch" && !u.searchParams.get("v"))
         return { ok: false, error: "invalid" };
     }
   }

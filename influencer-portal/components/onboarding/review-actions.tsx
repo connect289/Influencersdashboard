@@ -25,9 +25,7 @@ export function ReviewActions({ creatorId, name }: { creatorId: string; name: st
         actionLabel={t("onboarding.review.changes")}
         danger={false}
         pending={pending}
-        onConfirm={(reason, close) =>
-          run(() => reviewCreator({ creatorId, decision: "changes", reason }), close)
-        }
+        onConfirm={(reason, close) => run(() => reviewCreator({ creatorId, decision: "changes", reason }), close)}
         trigger={
           <Button size="sm" variant="secondary">
             {t("onboarding.review.changes")}
@@ -40,9 +38,7 @@ export function ReviewActions({ creatorId, name }: { creatorId: string; name: st
         reasonLabel={t("creators.blockReason")}
         actionLabel={t("onboarding.review.decline")}
         pending={pending}
-        onConfirm={(reason, close) =>
-          run(() => reviewCreator({ creatorId, decision: "decline", reason }), close)
-        }
+        onConfirm={(reason, close) => run(() => reviewCreator({ creatorId, decision: "decline", reason }), close)}
         trigger={
           <Button size="sm" variant="ghost">
             {t("onboarding.review.decline")}

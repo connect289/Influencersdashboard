@@ -12,12 +12,7 @@ import { SwitchField } from "@/components/ui/switch";
 import { useAction } from "@/components/ui/use-action";
 import { addDeliverables } from "@/lib/actions/content";
 import { DEFAULT_TOGGLES, STAGES, type DueStage, type StageToggles } from "@/lib/content/workflow";
-import {
-  CONTENT_FORMATS,
-  PLATFORMS,
-  type ContentFormat,
-  type Platform,
-} from "@/lib/creators/schemas";
+import { CONTENT_FORMATS, PLATFORMS, type ContentFormat, type Platform } from "@/lib/creators/schemas";
 import { DueDatesInputs } from "./deliverable-settings";
 
 export function AddDeliverable({ dealId }: { dealId: string }) {
@@ -79,11 +74,7 @@ export function AddDeliverable({ dealId }: { dealId: string }) {
           </Field>
           <div className="grid grid-cols-3 gap-3">
             <Field id="ad-platform" label={t("content.deliverables.platform")}>
-              <Select
-                id="ad-platform"
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value as Platform)}
-              >
+              <Select id="ad-platform" value={platform} onChange={(e) => setPlatform(e.target.value as Platform)}>
                 {PLATFORMS.map((p) => (
                   <option key={p} value={p}>
                     {t(`platforms.${p}`)}
@@ -92,11 +83,7 @@ export function AddDeliverable({ dealId }: { dealId: string }) {
               </Select>
             </Field>
             <Field id="ad-format" label={t("content.deliverables.format")}>
-              <Select
-                id="ad-format"
-                value={format}
-                onChange={(e) => setFormat(e.target.value as ContentFormat)}
-              >
+              <Select id="ad-format" value={format} onChange={(e) => setFormat(e.target.value as ContentFormat)}>
                 {CONTENT_FORMATS.map((f) => (
                   <option key={f} value={f}>
                     {t(`formats.${f}`)}

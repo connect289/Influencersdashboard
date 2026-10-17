@@ -52,12 +52,8 @@ describe("me", () => {
       },
     };
     expect(toCreatorMe(meSchema.parse(base))?.creatorId).toBe(cid);
-    expect(
-      toCreatorMe(meSchema.parse({ ...base, creator: { ...base.creator, status: "archived" } })),
-    ).toBeNull();
-    expect(
-      toCreatorMe(meSchema.parse({ ...base, creator: { ...base.creator, is_blocked: true } })),
-    ).toBeNull();
+    expect(toCreatorMe(meSchema.parse({ ...base, creator: { ...base.creator, status: "archived" } }))).toBeNull();
+    expect(toCreatorMe(meSchema.parse({ ...base, creator: { ...base.creator, is_blocked: true } }))).toBeNull();
     expect(homeFor(meSchema.parse(base))).toBe("/creator");
   });
 
@@ -81,17 +77,11 @@ describe("me", () => {
     expect(toCreatorMe(me)).toBeNull();
     expect(toStaffMe(me)).toBeNull();
     expect(homeFor(me)).toBe("/agency");
-    expect(
-      toAgencyMe(meSchema.parse({ ...base, agency: { ...base.agency, status: "suspended" } })),
-    ).toBeNull();
-    expect(
-      toAgencyMe(meSchema.parse({ ...base, agency: { ...base.agency, member_status: "removed" } })),
-    ).toBeNull();
+    expect(toAgencyMe(meSchema.parse({ ...base, agency: { ...base.agency, status: "suspended" } }))).toBeNull();
+    expect(toAgencyMe(meSchema.parse({ ...base, agency: { ...base.agency, member_status: "removed" } }))).toBeNull();
   });
 
   it("sends anyone else to no-access", () => {
-    expect(homeFor(meSchema.parse({ signed_in: true, user_id: uid, kind: "none" }))).toBe(
-      "/no-access",
-    );
+    expect(homeFor(meSchema.parse({ signed_in: true, user_id: uid, kind: "none" }))).toBe("/no-access");
   });
 });

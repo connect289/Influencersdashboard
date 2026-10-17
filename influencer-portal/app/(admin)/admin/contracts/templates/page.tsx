@@ -58,10 +58,7 @@ export default async function TemplatesPage() {
         {error || !parsed.success ? (
           <ErrorState title={t("errors.loadFailed")} />
         ) : parsed.data.length === 0 ? (
-          <EmptyState
-            title={t("contracts.templates.empty")}
-            description={t("contracts.templates.emptyHint")}
-          />
+          <EmptyState title={t("contracts.templates.empty")} description={t("contracts.templates.emptyHint")} />
         ) : (
           <Table>
             <thead>
@@ -86,12 +83,8 @@ export default async function TemplatesPage() {
                         {t("contracts.templates.defaultBadge")}
                       </Badge>
                     ) : null}
-                    {tp.archived_at ? (
-                      <Badge className="ml-2">{t("contracts.library.archivedBadge")}</Badge>
-                    ) : null}
-                    {tp.description ? (
-                      <span className="block text-xs text-muted">{tp.description}</span>
-                    ) : null}
+                    {tp.archived_at ? <Badge className="ml-2">{t("contracts.library.archivedBadge")}</Badge> : null}
+                    {tp.description ? <span className="block text-xs text-muted">{tp.description}</span> : null}
                   </Td>
                   <Td className="tabular">{tp.template_clauses[0]?.count ?? 0}</Td>
                   <Td className="whitespace-nowrap">{formatDate(tp.updated_at)}</Td>

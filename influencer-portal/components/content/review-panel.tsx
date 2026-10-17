@@ -76,11 +76,7 @@ export function ChecksList({
         return (
           <div
             key={c.id}
-            className={
-              ok
-                ? "rounded-xl bg-success-soft p-3 text-sm"
-                : "rounded-xl bg-danger-soft p-3 text-sm"
-            }
+            className={ok ? "rounded-xl bg-success-soft p-3 text-sm" : "rounded-xl bg-danger-soft p-3 text-sm"}
           >
             <p className="flex flex-wrap items-center gap-2 font-medium">
               {ok ? (
@@ -111,9 +107,7 @@ export function ChecksList({
               <p className="mt-1">{t("content.checks.disclosureMissing")}</p>
             ) : null}
             {c.overridden && c.override_reason ? (
-              <p className="mt-1 text-muted">
-                {t("content.checks.overrideReason", { reason: c.override_reason })}
-              </p>
+              <p className="mt-1 text-muted">{t("content.checks.overrideReason", { reason: c.override_reason })}</p>
             ) : null}
             {!ok && canOverride ? (
               <ConfirmDialog
@@ -227,13 +221,7 @@ export function ReviewPanel({
         </fieldset>
       ) : null}
       <Field id="rv-note" label={t("content.review.note")} hint={t("content.review.noteHint")}>
-        <Textarea
-          id="rv-note"
-          rows={3}
-          maxLength={4000}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
+        <Textarea id="rv-note" rows={3} maxLength={4000} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -366,11 +354,7 @@ export function ReviewPanel({
                   onChange={(e) => setExtReason(e.target.value)}
                 />
               </Field>
-              <Field
-                id="ext-fee"
-                label={t("content.extensions.fee")}
-                hint={t("content.extensions.feeHint")}
-              >
+              <Field id="ext-fee" label={t("content.extensions.fee")} hint={t("content.extensions.feeHint")}>
                 <Input
                   id="ext-fee"
                   type="number"
@@ -394,13 +378,10 @@ export function ReviewPanel({
             .filter((e) => e.status !== "pending")
             .map((e) => (
               <li key={e.id}>
-                {t(
-                  `content.extensions.history.${e.status === "approved" ? "approved" : "rejected"}`,
-                  {
-                    date: formatDate(e.decided_at ?? e.requested_at),
-                    reason: e.reason,
-                  },
-                )}
+                {t(`content.extensions.history.${e.status === "approved" ? "approved" : "rejected"}`, {
+                  date: formatDate(e.decided_at ?? e.requested_at),
+                  reason: e.reason,
+                })}
               </li>
             ))}
         </ul>

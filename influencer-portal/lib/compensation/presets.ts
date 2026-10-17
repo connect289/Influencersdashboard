@@ -40,20 +40,17 @@ const fixedFee: CompConfigInput["fixed"] = [
 const RAW: Record<PresetKey, { name: string; description: string; config: CompConfigInput }> = {
   commission_only: {
     name: "Commission only",
-    description:
-      "No fixed fee. The creator earns a share of Eduwit's commission on every confirmed enrolment.",
+    description: "No fixed fee. The creator earns a share of Eduwit's commission on every confirmed enrolment.",
     config: { schema_version: 1, commission: commissionRule },
   },
   fixed_plus_commission: {
     name: "Fixed + commission",
-    description:
-      "A content fee paid half on signing and half when the content is live, plus commission per enrolment.",
+    description: "A content fee paid half on signing and half when the content is live, plus commission per enrolment.",
     config: { schema_version: 1, fixed: fixedFee, commission: commissionRule },
   },
   fixed_only: {
     name: "Fixed only",
-    description:
-      "A content fee paid half on signing and half when the content is live. No commission.",
+    description: "A content fee paid half on signing and half when the content is live. No commission.",
     config: { schema_version: 1, fixed: fixedFee },
   },
 };
@@ -61,9 +58,8 @@ const RAW: Record<PresetKey, { name: string; description: string; config: CompCo
 export const PRESET_KEYS = ["commission_only", "fixed_plus_commission", "fixed_only"] as const;
 export type PresetKey = (typeof PRESET_KEYS)[number];
 
-export const SYSTEM_PRESETS: Record<
-  PresetKey,
-  { name: string; description: string; config: CompConfig }
-> = Object.fromEntries(
-  PRESET_KEYS.map((k) => [k, { ...RAW[k], config: compConfig.parse(RAW[k].config) }]),
-) as Record<PresetKey, { name: string; description: string; config: CompConfig }>;
+export const SYSTEM_PRESETS: Record<PresetKey, { name: string; description: string; config: CompConfig }> =
+  Object.fromEntries(PRESET_KEYS.map((k) => [k, { ...RAW[k], config: compConfig.parse(RAW[k].config) }])) as Record<
+    PresetKey,
+    { name: string; description: string; config: CompConfig }
+  >;

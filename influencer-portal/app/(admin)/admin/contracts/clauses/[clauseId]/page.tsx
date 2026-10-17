@@ -24,10 +24,7 @@ export default async function ClausePage({ params }: { params: Promise<{ clauseI
   if (!z.uuid().safeParse(clauseId).success) notFound();
   const { supabase, me } = await requireStaff("contract.read");
   const t = await getTranslations();
-  const [library, history] = await Promise.all([
-    loadLibrary(supabase, true),
-    loadClauseHistory(supabase, clauseId),
-  ]);
+  const [library, history] = await Promise.all([loadLibrary(supabase, true), loadClauseHistory(supabase, clauseId)]);
   const c = library.find((x) => x.id === clauseId);
   if (!c) notFound();
   const category = (EDITABLE_CATEGORIES as readonly string[]).includes(c.category)
@@ -58,9 +55,7 @@ export default async function ClausePage({ params }: { params: Promise<{ clauseI
           id: c.id,
           key: c.key,
           category,
-          dealTypes: c.deal_types.filter((d): d is DealModel =>
-            (DEAL_MODELS as readonly string[]).includes(d),
-          ),
+          dealTypes: c.deal_types.filter((d): d is DealModel => (DEAL_MODELS as readonly string[]).includes(d)),
           title: c.title,
           body: c.body,
           required: c.required,
@@ -74,18 +69,13 @@ export default async function ClausePage({ params }: { params: Promise<{ clauseI
         canReview={me.permissions.has("clause.legal_review")}
       />
       <Card className="mt-4">
-        <CardHeader
-          title={t("contracts.library.history")}
-          description={t("contracts.library.historyHint")}
-        />
+        <CardHeader title={t("contracts.library.history")} description={t("contracts.library.historyHint")} />
         <ol className="flex flex-col gap-2">
           {history.map((v, i) => (
             <li key={v.version}>
               <details open={i === 0} className="rounded-lg border border-line p-3">
                 <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-sm">
-                  <span className="font-medium">
-                    {t("contracts.library.versionLabel", { version: v.version })}
-                  </span>
+                  <span className="font-medium">{t("contracts.library.versionLabel", { version: v.version })}</span>
                   <span className="text-muted">{formatDateTime(v.created_at)}</span>
                   {v.reviewed_at ? (
                     <Badge family="success">{t("contracts.library.reviewedBadge")}</Badge>

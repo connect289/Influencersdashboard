@@ -32,8 +32,7 @@ export default async function AgencyCampaignPage({
   });
   if (error?.code === "42501" || (!error && !data)) notFound();
   const parsed = campaignPublic.safeParse(data);
-  if (!parsed.success)
-    return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
+  if (!parsed.success) return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
   const c = parsed.data;
   const programmes = await loadProgrammes(supabase, campaignId);
   return (
@@ -44,10 +43,7 @@ export default async function AgencyCampaignPage({
       >
         <ArrowLeft className="size-4" aria-hidden /> {t("agencyPortal.creators")}
       </Link>
-      <PageHeader
-        title={c.name}
-        description={t(`campaigns.objectives.${c.objective as "leads"}`)}
-      />
+      <PageHeader title={c.name} description={t(`campaigns.objectives.${c.objective as "leads"}`)} />
       <div className="flex flex-col gap-4">
         <ApplyPanel c={c} creatorId={creatorId} appBase="/agency/applications/" />
         <CampaignDetails

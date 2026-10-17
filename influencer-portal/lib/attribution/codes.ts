@@ -55,17 +55,12 @@ export function codeTag(label: string): string {
 /** `n` characters from the suffix alphabet, drawn with `random` (0 ≤ x < 1). */
 export function suffix(n: number, random: () => number): string {
   let out = "";
-  for (let i = 0; i < n; i++)
-    out += SUFFIX_ALPHABET[Math.floor(random() * SUFFIX_ALPHABET.length)] ?? "A";
+  for (let i = 0; i < n; i++) out += SUFFIX_ALPHABET[Math.floor(random() * SUFFIX_ALPHABET.length)] ?? "A";
   return out;
 }
 
 /** A new code such as `RIYALEARNS-IG-7K`. Callers retry with a new random suffix if it is taken. */
-export function suggestCode(
-  handle: string,
-  tag: string,
-  random: () => number = Math.random,
-): string {
+export function suggestCode(handle: string, tag: string, random: () => number = Math.random): string {
   return `${codeStem(handle)}-${codeTag(tag)}-${suffix(2, random)}`;
 }
 

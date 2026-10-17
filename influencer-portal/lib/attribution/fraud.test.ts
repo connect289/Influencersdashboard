@@ -14,23 +14,17 @@ const s: FraudSettings = {
 
 describe("lead signals", () => {
   it("flags the same device behind more leads than allowed", () => {
-    expect(leadSignals({ same_device_leads: 3, age_hours: 1, student_replied: true }, s)).toEqual(
-      [],
-    );
+    expect(leadSignals({ same_device_leads: 3, age_hours: 1, student_replied: true }, s)).toEqual([]);
     expect(leadSignals({ same_device_leads: 4, age_hours: 1, student_replied: true }, s)).toEqual([
       { signal: "same_device", detail: { leads: 4, max: 3 } },
     ]);
   });
   it("flags a lead that never answered Witty after the threshold", () => {
-    expect(
-      leadSignals({ same_device_leads: 1, age_hours: 47.9, student_replied: false }, s),
-    ).toEqual([]);
-    expect(
-      leadSignals({ same_device_leads: 1, age_hours: 48.5, student_replied: false }, s),
-    ).toEqual([{ signal: "no_witty_reply", detail: { hours: 48, threshold: 48 } }]);
-    expect(leadSignals({ same_device_leads: 1, age_hours: 500, student_replied: null }, s)).toEqual(
-      [],
-    );
+    expect(leadSignals({ same_device_leads: 1, age_hours: 47.9, student_replied: false }, s)).toEqual([]);
+    expect(leadSignals({ same_device_leads: 1, age_hours: 48.5, student_replied: false }, s)).toEqual([
+      { signal: "no_witty_reply", detail: { hours: 48, threshold: 48 } },
+    ]);
+    expect(leadSignals({ same_device_leads: 1, age_hours: 500, student_replied: null }, s)).toEqual([]);
   });
 });
 
@@ -40,12 +34,8 @@ describe("creator signals", () => {
     expect(creatorSignals(quiet, s)).toEqual([]);
   });
   it("flags velocity, off-hours bursts and a high junk rate", () => {
-    expect(creatorSignals({ ...quiet, leads_last_hour: 31 }, s).map((x) => x.signal)).toEqual([
-      "velocity",
-    ]);
-    expect(creatorSignals({ ...quiet, off_hours_leads_24h: 5 }, s).map((x) => x.signal)).toEqual([
-      "off_hours_burst",
-    ]);
+    expect(creatorSignals({ ...quiet, leads_last_hour: 31 }, s).map((x) => x.signal)).toEqual(["velocity"]);
+    expect(creatorSignals({ ...quiet, off_hours_leads_24h: 5 }, s).map((x) => x.signal)).toEqual(["off_hours_burst"]);
     expect(creatorSignals({ ...quiet, junk_30d: 8 }, s)).toEqual([
       { signal: "junk_rate", detail: { pct: 40, threshold: 40, sample: 20 } },
     ]);

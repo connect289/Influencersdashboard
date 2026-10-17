@@ -2,14 +2,7 @@
 import type { Permission } from "@/lib/auth/permissions";
 import { DEVELOPER } from "./content/developer";
 import { AGENCY, CREATOR } from "./content/external";
-import {
-  ALL_STAFF,
-  CONTENT_REVIEWER,
-  FINANCE,
-  INFLUENCER_MANAGER,
-  SUPER_ADMIN,
-  VIEWER,
-} from "./content/staff";
+import { ALL_STAFF, CONTENT_REVIEWER, FINANCE, INFLUENCER_MANAGER, SUPER_ADMIN, VIEWER } from "./content/staff";
 import type { Guide, GuideAudience } from "./types";
 
 export const GUIDES: readonly Guide[] = [
@@ -36,10 +29,7 @@ const STAFF_AUDIENCES: readonly GuideAudience[] = [
 ];
 
 /** Guides a portal user may read. Staff read every staff guide; the developer guide needs system access. */
-export function guidesFor(
-  portal: Portal,
-  permissions: ReadonlySet<Permission> = new Set(),
-): Guide[] {
+export function guidesFor(portal: Portal, permissions: ReadonlySet<Permission> = new Set()): Guide[] {
   return GUIDES.filter((g) => {
     if (portal === "creator") return g.audience === "creator";
     if (portal === "agency") return g.audience === "agency";
@@ -62,11 +52,7 @@ export function staffGuideOrder(
   return { mine, others: guides.filter((g) => !mine.includes(g)) };
 }
 
-export function findGuide(
-  portal: Portal,
-  slug: string,
-  permissions?: ReadonlySet<Permission>,
-): Guide | null {
+export function findGuide(portal: Portal, slug: string, permissions?: ReadonlySet<Permission>): Guide | null {
   return guidesFor(portal, permissions).find((g) => g.slug === slug) ?? null;
 }
 

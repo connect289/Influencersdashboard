@@ -15,13 +15,7 @@ import {
   type CreatorSimulation,
   type ScenarioInput,
 } from "@/lib/compensation/simulator";
-import {
-  commissionEstimate,
-  loadCompContext,
-  loadDeal,
-  loadTdsSections,
-  versionsOf,
-} from "@/lib/deals/data";
+import { commissionEstimate, loadCompContext, loadDeal, loadTdsSections, versionsOf } from "@/lib/deals/data";
 import { dryRun, type DryRunResult } from "@/lib/deals/dry-run";
 import {
   DEAL_DB_ERRORS,
@@ -142,8 +136,7 @@ export async function proposeDeal(input: z.input<typeof proposeInput>): Promise<
 
 export async function withdrawProposal(versionId: string, dealId: string): Promise<ActionResult> {
   const t = await getTranslations();
-  if (!uuid.safeParse(versionId).success || !uuid.safeParse(dealId).success)
-    return fail(t("errors.invalidInput"));
+  if (!uuid.safeParse(versionId).success || !uuid.safeParse(dealId).success) return fail(t("errors.invalidInput"));
   const s = await signedIn();
   if (!s) return fail(t("errors.sessionEnded"));
   const { error } = await s.supabase.rpc("deal_version_withdraw", { p_version: versionId });
@@ -181,9 +174,7 @@ export async function deleteDraftDeal(dealId: string): Promise<ActionResult> {
 }
 
 /** A renewal: a new draft deal with the same terms and new dates, to propose and contract as usual. */
-export async function renewDeal(
-  input: z.input<typeof renewInput>,
-): Promise<ActionResult<{ id: string }>> {
+export async function renewDeal(input: z.input<typeof renewInput>): Promise<ActionResult<{ id: string }>> {
   const t = await getTranslations();
   const parsed = renewInput.safeParse(input);
   if (!parsed.success) return fail(t("deals.errors.dates"));
@@ -200,9 +191,7 @@ export async function renewDeal(
   return { ok: true, data: { id: data }, message: t("deals.renewed") };
 }
 
-export async function savePreset(
-  input: z.input<typeof presetInput>,
-): Promise<ActionResult<{ id: string }>> {
+export async function savePreset(input: z.input<typeof presetInput>): Promise<ActionResult<{ id: string }>> {
   const t = await getTranslations();
   const parsed = presetInput.safeParse(input);
   if (!parsed.success) return fail(t("deals.errors.config"));
@@ -272,16 +261,12 @@ export async function simulateMyDeal(input: {
 const dryRunInput = z.object({
   dealId: z.uuid(),
   config: compConfig,
-  effectiveFrom: z
-    .union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)])
-    .default(""),
+  effectiveFrom: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)]).default(""),
   scenario,
 });
 
 /** What an amendment would change, under a scenario projected to the deal's end. Recorded as a dry run. */
-export async function dryRunAmendment(
-  input: z.input<typeof dryRunInput>,
-): Promise<ActionResult<DryRunResult>> {
+export async function dryRunAmendment(input: z.input<typeof dryRunInput>): Promise<ActionResult<DryRunResult>> {
   const t = await getTranslations();
   const parsed = dryRunInput.safeParse(input);
   if (!parsed.success) return fail(t("deals.errors.scenario"));
@@ -295,10 +280,7 @@ export async function dryRunAmendment(
   if (!current) return fail(t("deals.errors.noTerms"));
   const effective = v.effectiveFrom ? istLocalToIso(v.effectiveFrom) : new Date().toISOString();
   if (effective <= current.effective_from) return fail(t("deals.errors.effectiveFrom"));
-  const [ctx, estimate] = await Promise.all([
-    loadCompContext(s.supabase),
-    commissionEstimate(deal.campaign_id),
-  ]);
+  const [ctx, estimate] = await Promise.all([loadCompContext(s.supabase), commissionEstimate(deal.campaign_id)]);
   const result = dryRun({
     deal: { id: deal.id, starts_on: deal.starts_on, ends_on: deal.ends_on },
     versions: accepted.map((x) => ({
@@ -334,10 +316,7 @@ export async function dryRunAmendment(
 // ---------------------------------------------------------------------------------------------------------------
 // Creator / agency
 // ---------------------------------------------------------------------------------------------------------------
-export async function respondToTerms(
-  input: z.input<typeof respondInput>,
-  dealId: string,
-): Promise<ActionResult> {
+export async function respondToTerms(input: z.input<typeof respondInput>, dealId: string): Promise<ActionResult> {
   const t = await getTranslations();
   const parsed = respondInput.safeParse(input);
   if (!parsed.success || !uuid.safeParse(dealId).success) return fail(t("deals.errors.reason"));

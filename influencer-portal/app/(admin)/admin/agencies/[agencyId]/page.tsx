@@ -21,11 +21,7 @@ export async function generateMetadata() {
   return { title: t("nav.admin.agencies") };
 }
 
-export default async function AgencyDetailPage({
-  params,
-}: {
-  params: Promise<{ agencyId: string }>;
-}) {
+export default async function AgencyDetailPage({ params }: { params: Promise<{ agencyId: string }> }) {
   const { agencyId } = await params;
   if (!z.uuid().safeParse(agencyId).success) notFound();
   const { supabase } = await requireStaff("agency.manage");
@@ -51,10 +47,7 @@ export default async function AgencyDetailPage({
   const a = agency.data;
   return (
     <>
-      <Link
-        href="/admin/agencies"
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/admin/agencies" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {t("nav.admin.agencies")}
       </Link>
       {!a || members.error || links.error ? (
@@ -66,10 +59,7 @@ export default async function AgencyDetailPage({
             description={[a.legal_name, a.email, a.gstin].filter(Boolean).join(" · ") || undefined}
             actions={
               <>
-                <StatusBadge
-                  status={a.status}
-                  label={t(`agencies.statuses.${a.status as "active" | "suspended"}`)}
-                />
+                <StatusBadge status={a.status} label={t(`agencies.statuses.${a.status as "active" | "suspended"}`)} />
                 <AgencyDialog
                   initial={{
                     id: a.id,
@@ -93,10 +83,7 @@ export default async function AgencyDetailPage({
           <div className="flex flex-col gap-4">
             <MembersCard agencyId={a.id} members={members.data} canManage />
             <Card>
-              <CardHeader
-                title={t("agencies.linkedCreators")}
-                description={t("agencies.links.adminHint")}
-              />
+              <CardHeader title={t("agencies.linkedCreators")} description={t("agencies.links.adminHint")} />
               <div className="mb-4">
                 <LinkRequest agencyId={a.id} />
               </div>

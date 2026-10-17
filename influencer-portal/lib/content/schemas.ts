@@ -215,10 +215,7 @@ export const metricsInput = z
     screenshots: z.array(z.string().regex(FILE_PATH_RE)).max(5).default([]),
   })
   .refine(
-    (v) =>
-      [v.views, v.reach, v.likes, v.comments, v.shares, v.saves, v.clicks, v.watch_time_s].some(
-        (x) => x !== null,
-      ),
+    (v) => [v.views, v.reach, v.likes, v.comments, v.shares, v.saves, v.clicks, v.watch_time_s].some((x) => x !== null),
     {
       path: ["views"],
       message: "empty",

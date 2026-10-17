@@ -42,8 +42,7 @@ export default async function BriefPage({
   const requested = (await searchParams).tab;
   const tab = visible.find((x) => x === requested) ?? visible[0] ?? "preview";
   const draft = b.draft_content;
-  const unpublished =
-    b.current === null || JSON.stringify(b.current.content) !== JSON.stringify(draft);
+  const unpublished = b.current === null || JSON.stringify(b.current.content) !== JSON.stringify(draft);
   const links =
     tab === "preview"
       ? Object.fromEntries(
@@ -53,15 +52,11 @@ export default async function BriefPage({
           ),
         )
       : {};
-  const trackingLinks =
-    tab === "preview" ? await loadDeliverableLinks(supabase, b.creator.id).catch(noLinks) : {};
+  const trackingLinks = tab === "preview" ? await loadDeliverableLinks(supabase, b.creator.id).catch(noLinks) : {};
 
   return (
     <>
-      <Link
-        href="/admin/briefs"
-        className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/admin/briefs" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {t("nav.admin.briefs")}
       </Link>
       <PageHeader
@@ -69,10 +64,7 @@ export default async function BriefPage({
         help="/admin/help/influencer-manager#briefs"
         description={
           <span className="flex flex-wrap items-center gap-2">
-            <Link
-              href={`/admin/deals/${b.deal.id}?tab=content`}
-              className="text-primary hover:underline"
-            >
+            <Link href={`/admin/deals/${b.deal.id}?tab=content`} className="text-primary hover:underline">
               {b.deal.code ?? t("content.briefs.deal")}
             </Link>
             <Link href={`/admin/creators/${b.creator.id}`} className="text-primary hover:underline">
@@ -104,9 +96,7 @@ export default async function BriefPage({
             aria-current={tab === x ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-              tab === x
-                ? "bg-primary-soft font-medium text-primary"
-                : "text-muted hover:bg-surface-2",
+              tab === x ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
             )}
           >
             {t(`content.briefs.tabs.${x}`)}
@@ -134,21 +124,13 @@ export default async function BriefPage({
             <Card>
               <CardHeader title={t("content.briefs.versionsTitle")} />
               {b.versions.length === 0 ? (
-                <EmptyState
-                  title={t("content.briefs.noVersions")}
-                  description={t("content.briefs.noVersionsHint")}
-                />
+                <EmptyState title={t("content.briefs.noVersions")} description={t("content.briefs.noVersionsHint")} />
               ) : (
                 <ul className="flex flex-col divide-y divide-line text-sm">
                   {[...b.versions].reverse().map((v) => (
-                    <li
-                      key={v.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-2"
-                    >
+                    <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                       <span>
-                        <span className="font-medium">
-                          {t("content.briefs.versionN", { version: v.version })}
-                        </span>
+                        <span className="font-medium">{t("content.briefs.versionN", { version: v.version })}</span>
                         <span className="text-muted"> · {formatDate(v.published_at)}</span>
                         {v.note ? <span className="block text-muted">{v.note}</span> : null}
                       </span>
@@ -157,9 +139,7 @@ export default async function BriefPage({
                           {t("content.briefs.ackOn", { date: formatDate(v.acknowledged_at) })}
                         </Badge>
                       ) : (
-                        <Badge family="attention">
-                          {t("content.briefs.states.unacknowledged")}
-                        </Badge>
+                        <Badge family="attention">{t("content.briefs.states.unacknowledged")}</Badge>
                       )}
                     </li>
                   ))}
@@ -186,12 +166,7 @@ export default async function BriefPage({
               </ul>
             )}
           </Card>
-          <BriefQa
-            briefId={b.id}
-            threads={threads(b.questions)}
-            canAsk={false}
-            canAnswer={b.can_write}
-          />
+          <BriefQa briefId={b.id} threads={threads(b.questions)} canAsk={false} canAnswer={b.can_write} />
         </aside>
       </div>
     </>

@@ -23,9 +23,9 @@ describe("compConfig validation", () => {
 
   it("requires milestones to add up to 100% or to the full amount, without mixing", () => {
     const base = { id: "fee", label: "Fee", amount_paise: 1000_00, basis: "lump_sum" };
-    expect(
-      errs({ schema_version: 1, fixed: [{ ...base, milestones: [ms("a", 50), ms("b", 40)] }] }),
-    ).toContain("milestones_not_100");
+    expect(errs({ schema_version: 1, fixed: [{ ...base, milestones: [ms("a", 50), ms("b", 40)] }] })).toContain(
+      "milestones_not_100",
+    );
     expect(
       errs({
         schema_version: 1,
@@ -70,9 +70,7 @@ describe("compConfig validation", () => {
         ],
       }),
     ).toContain("milestones_mixed");
-    expect(errs({ schema_version: 1, fixed: [{ ...base, milestones: [] }] })).toContain(
-      "milestones_required",
-    );
+    expect(errs({ schema_version: 1, fixed: [{ ...base, milestones: [] }] })).toContain("milestones_required");
   });
 
   it("requires retainer settings for retainers", () => {
@@ -85,10 +83,7 @@ describe("compConfig validation", () => {
   });
 
   it("checks slab tiers: start at 1, ascending, rate kind matches the basis", () => {
-    const rule = (
-      slabs: unknown,
-      basis: unknown = { type: "flat_per_enrollment", amount_paise: 500_00 },
-    ) => ({
+    const rule = (slabs: unknown, basis: unknown = { type: "flat_per_enrollment", amount_paise: 500_00 }) => ({
       schema_version: 1,
       commission: [{ id: "c", label: "c", basis, slabs }],
     });
@@ -155,12 +150,10 @@ describe("compConfig validation", () => {
         floors: [{ id: "f", label: "f", amount_paise: 1, period: "month", rules: ["nope"] }],
       }),
     ).toContain("unknown_rule:nope");
-    expect(
-      errs({ schema_version: 1, commission: [c], recoupment: { mode: "full", fixed: ["nope"] } }),
-    ).toContain("unknown_fixed:nope");
-    expect(errs({ schema_version: 1, recoupment: { mode: "full" } })).toContain(
-      "recoupment_needs_commission",
+    expect(errs({ schema_version: 1, commission: [c], recoupment: { mode: "full", fixed: ["nope"] } })).toContain(
+      "unknown_fixed:nope",
     );
+    expect(errs({ schema_version: 1, recoupment: { mode: "full" } })).toContain("recoupment_needs_commission");
     expect(
       errs({
         schema_version: 1,

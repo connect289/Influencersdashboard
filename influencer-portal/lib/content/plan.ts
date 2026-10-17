@@ -2,12 +2,7 @@
 // with format specs, the template's stages and due dates from its offsets. Pure.
 import { z } from "zod";
 import type { DeliverableItem } from "@/lib/campaigns/schemas";
-import {
-  CONTENT_FORMATS,
-  PLATFORMS,
-  type ContentFormat,
-  type Platform,
-} from "@/lib/creators/schemas";
+import { CONTENT_FORMATS, PLATFORMS, type ContentFormat, type Platform } from "@/lib/creators/schemas";
 import { deliverableSpecs, dueDatesFrom, type briefTemplateContent } from "./brief";
 
 const PLATFORM_LABEL: Record<Platform, string> = {

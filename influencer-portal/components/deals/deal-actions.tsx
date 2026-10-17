@@ -31,15 +31,11 @@ function ProposeDialog({ dealId, amendment }: { dealId: string; amendment: boole
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          {amendment ? t("deals.actions.proposeAmendment") : t("deals.actions.propose")}
-        </Button>
+        <Button>{amendment ? t("deals.actions.proposeAmendment") : t("deals.actions.propose")}</Button>
       </DialogTrigger>
       <DialogContent
         title={amendment ? t("deals.actions.proposeAmendment") : t("deals.actions.propose")}
-        description={
-          amendment ? t("deals.actions.proposeAmendmentHint") : t("deals.actions.proposeHint")
-        }
+        description={amendment ? t("deals.actions.proposeAmendmentHint") : t("deals.actions.proposeHint")}
         closeLabel={t("common.close")}
       >
         <form
@@ -56,11 +52,7 @@ function ProposeDialog({ dealId, amendment }: { dealId: string; amendment: boole
           }}
         >
           {amendment ? (
-            <Field
-              id="eff-from"
-              label={t("deals.actions.effectiveFrom")}
-              hint={t("deals.actions.effectiveFromHint")}
-            >
+            <Field id="eff-from" label={t("deals.actions.effectiveFrom")} hint={t("deals.actions.effectiveFromHint")}>
               <Input
                 id="eff-from"
                 type="datetime-local"
@@ -70,12 +62,7 @@ function ProposeDialog({ dealId, amendment }: { dealId: string; amendment: boole
             </Field>
           ) : null}
           <Field id="prop-note" label={t("deals.actions.note")}>
-            <Textarea
-              id="prop-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={1000}
-            />
+            <Textarea id="prop-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
           </Field>
           <div className="flex justify-end">
             <Button type="submit" disabled={pending}>
@@ -119,21 +106,10 @@ function RenewDialog({ dealId }: { dealId: string }) {
           }}
         >
           <Field id="rn-start" label={t("deals.new.startsOn")} required>
-            <Input
-              id="rn-start"
-              type="date"
-              value={startsOn}
-              onChange={(e) => setStartsOn(e.target.value)}
-              required
-            />
+            <Input id="rn-start" type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} required />
           </Field>
           <Field id="rn-end" label={t("deals.new.endsOn")}>
-            <Input
-              id="rn-end"
-              type="date"
-              value={endsOn}
-              onChange={(e) => setEndsOn(e.target.value)}
-            />
+            <Input id="rn-end" type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
           </Field>
           <div className="flex justify-end">
             <Button type="submit" disabled={pending || !startsOn}>
@@ -188,10 +164,7 @@ export function DealActions({
           }
         />
       ) : null}
-      {(status === "agreed" || status === "active") &&
-      !hasDraft &&
-      !pendingVersionId &&
-      currentConfig ? (
+      {(status === "agreed" || status === "active") && !hasDraft && !pendingVersionId && currentConfig ? (
         <Button
           variant="secondary"
           disabled={pending}
@@ -208,18 +181,12 @@ export function DealActions({
       {DEAL_MOVES[status].map((to) => (
         <ConfirmDialog
           key={to}
-          trigger={
-            <Button variant={to === "terminated" ? "danger" : "secondary"}>
-              {t(`deals.moves.${to}`)}
-            </Button>
-          }
+          trigger={<Button variant={to === "terminated" ? "danger" : "secondary"}>{t(`deals.moves.${to}`)}</Button>}
           title={t(`deals.moves.${to}`)}
           description={t(`deals.moveHints.${to}`)}
           actionLabel={t(`deals.moves.${to}`)}
           danger={to === "terminated"}
-          reasonLabel={
-            to === "active" || to === "terminated" ? t("deals.actions.reason") : undefined
-          }
+          reasonLabel={to === "active" || to === "terminated" ? t("deals.actions.reason") : undefined}
           pending={pending}
           onConfirm={(reason, close) =>
             run(
@@ -232,9 +199,7 @@ export function DealActions({
           }
         />
       ))}
-      {["active", "completed", "expired"].includes(status) && currentConfig ? (
-        <RenewDialog dealId={dealId} />
-      ) : null}
+      {["active", "completed", "expired"].includes(status) && currentConfig ? <RenewDialog dealId={dealId} /> : null}
       {status === "draft" && !hasVersions ? (
         <ConfirmDialog
           trigger={<Button variant="ghost">{t("deals.actions.delete")}</Button>}

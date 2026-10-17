@@ -16,10 +16,7 @@ export default async function PasswordReset() {
         <p className="mt-1 text-sm text-muted">{t("auth.password.resetSubtitle")}</p>
       </div>
       <PasswordLinkForm />
-      <Link
-        href="/login/staff"
-        className="text-center text-sm text-muted underline-offset-4 hover:underline"
-      >
+      <Link href="/login/staff" className="text-center text-sm text-muted underline-offset-4 hover:underline">
         {t("auth.backToSignIn")}
       </Link>
     </div>

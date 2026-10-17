@@ -59,10 +59,7 @@ export function TaskDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent
-        title={initial ? t("tasks.edit") : t("tasks.add")}
-        closeLabel={t("common.close")}
-      >
+      <DialogContent title={initial ? t("tasks.edit") : t("tasks.add")} closeLabel={t("common.close")}>
         <form
           className="flex flex-col gap-4"
           onSubmit={(e) => {
@@ -106,11 +103,7 @@ export function TaskDialog({
           </Field>
           <div className="grid gap-3 md:grid-cols-2">
             <Field id="t-assignee" label={t("tasks.fields.assignee")}>
-              <Select
-                id="t-assignee"
-                value={v.assigneeId}
-                onChange={(e) => setV({ ...v, assigneeId: e.target.value })}
-              >
+              <Select id="t-assignee" value={v.assigneeId} onChange={(e) => setV({ ...v, assigneeId: e.target.value })}>
                 <option value="">{t("tasks.unassigned")}</option>
                 {owners.map((o) => (
                   <option key={o.id} value={o.id}>
@@ -133,12 +126,7 @@ export function TaskDialog({
               </Select>
             </Field>
             <Field id="t-date" label={t("tasks.fields.dueDate")}>
-              <Input
-                id="t-date"
-                type="date"
-                value={v.date}
-                onChange={(e) => setV({ ...v, date: e.target.value })}
-              />
+              <Input id="t-date" type="date" value={v.date} onChange={(e) => setV({ ...v, date: e.target.value })} />
             </Field>
             <Field id="t-time" label={t("tasks.fields.dueTime")}>
               <Input
@@ -195,8 +183,7 @@ export function TaskList({
       ) : (
         <ul className="flex flex-col divide-y divide-line">
           {tasks.map((task) => {
-            const overdue =
-              task.status === "open" && task.due_at && new Date(task.due_at) < new Date();
+            const overdue = task.status === "open" && task.due_at && new Date(task.due_at) < new Date();
             return (
               <li key={task.id} className="flex items-start gap-3 py-3">
                 <input
@@ -209,43 +196,27 @@ export function TaskList({
                       ? t("tasks.reopen", { title: task.title })
                       : t("tasks.complete", { title: task.title })
                   }
-                  onChange={(e) =>
-                    run(() => setTaskStatus(task.id, e.target.checked ? "done" : "open"))
-                  }
+                  onChange={(e) => run(() => setTaskStatus(task.id, e.target.checked ? "done" : "open"))}
                 />
                 <div className="min-w-0 flex-1">
-                  <p
-                    className={cn(
-                      "text-sm font-medium",
-                      task.status === "done" && "text-muted line-through",
-                    )}
-                  >
+                  <p className={cn("text-sm font-medium", task.status === "done" && "text-muted line-through")}>
                     {task.title}
                   </p>
                   <p className="flex flex-wrap gap-x-3 text-xs text-muted">
-                    {task.assignee_name ? (
-                      <span>{task.assignee_name}</span>
-                    ) : (
-                      <span>{t("tasks.unassigned")}</span>
-                    )}
+                    {task.assignee_name ? <span>{task.assignee_name}</span> : <span>{t("tasks.unassigned")}</span>}
                     {task.due_at ? (
                       <span className={cn(overdue && "font-medium text-danger")}>
                         {t("tasks.due", { date: formatDateTime(task.due_at) })}
                       </span>
                     ) : null}
                     {showRelated && task.related_type === "creator" && task.related_id ? (
-                      <Link
-                        href={`/admin/creators/${task.related_id}`}
-                        className="text-primary hover:underline"
-                      >
+                      <Link href={`/admin/creators/${task.related_id}`} className="text-primary hover:underline">
                         {task.related_label ?? t("tasks.relatedCreator")}
                       </Link>
                     ) : null}
                   </p>
                 </div>
-                {task.priority === "high" ? (
-                  <Badge family="attention">{t("tasks.priorities.high")}</Badge>
-                ) : null}
+                {task.priority === "high" ? <Badge family="attention">{t("tasks.priorities.high")}</Badge> : null}
                 {canWrite && task.status === "open" ? (
                   <TaskDialog
                     owners={owners}

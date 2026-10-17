@@ -79,10 +79,7 @@ describe("builder helpers", () => {
       fixed: [
         {
           ...f,
-          milestones: [
-            ...f.milestones.map((x) => ({ ...x, share: { type: "pct" as const, pct: 60 } })),
-            m,
-          ],
+          milestones: [...f.milestones.map((x) => ({ ...x, share: { type: "pct" as const, pct: 60 } })), m],
         },
       ],
     });

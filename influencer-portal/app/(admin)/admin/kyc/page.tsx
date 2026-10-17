@@ -21,15 +21,9 @@ export default async function KycQueuePage() {
   const rows = data ?? [];
   return (
     <>
-      <PageHeader
-        title={t("kyc.queue.title")}
-        description={t("kyc.queue.subtitle")}
-        help="/admin/help/finance#kyc"
-      />
+      <PageHeader title={t("kyc.queue.title")} description={t("kyc.queue.subtitle")} help="/admin/help/finance#kyc" />
       <Card>
-        {error ? (
-          <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
-        ) : null}
+        {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
         {!error && rows.length === 0 ? (
           <EmptyState title={t("kyc.queue.empty")} description={t("kyc.queue.emptyHint")} />
         ) : null}
@@ -47,27 +41,17 @@ export default async function KycQueuePage() {
               {rows.map((r) => (
                 <tr key={r.creator_id}>
                   <Td>
-                    <Link
-                      href={`/admin/kyc/${r.creator_id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
+                    <Link href={`/admin/kyc/${r.creator_id}`} className="font-medium text-primary hover:underline">
                       {r.display_name}
                     </Link>
                     <span className="block text-xs text-muted">@{r.handle}</span>
                   </Td>
+                  <Td>{t(`kyc.gst.${r.gst_status as "unregistered" | "registered" | "composition"}`)}</Td>
                   <Td>
-                    {t(`kyc.gst.${r.gst_status as "unregistered" | "registered" | "composition"}`)}
+                    <span title={formatDateTime(r.submitted_at)}>{formatRelative(r.submitted_at)}</span>
                   </Td>
                   <Td>
-                    <span title={formatDateTime(r.submitted_at)}>
-                      {formatRelative(r.submitted_at)}
-                    </span>
-                  </Td>
-                  <Td>
-                    <StatusBadge
-                      status={r.status}
-                      label={t(`kyc.status.${r.status as "submitted"}`)}
-                    />
+                    <StatusBadge status={r.status} label={t(`kyc.status.${r.status as "submitted"}`)} />
                   </Td>
                 </tr>
               ))}

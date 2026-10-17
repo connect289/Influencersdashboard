@@ -17,11 +17,7 @@ export function safeNext(next: string | null | undefined, fallback = "/"): strin
   return next;
 }
 
-export function isIdleExpired(
-  lastSeen: string | undefined,
-  nowSeconds: number,
-  limit = IDLE_LIMIT_SECONDS,
-): boolean {
+export function isIdleExpired(lastSeen: string | undefined, nowSeconds: number, limit = IDLE_LIMIT_SECONDS): boolean {
   if (!lastSeen) return false;
   const seen = Number(lastSeen);
   if (!Number.isFinite(seen) || seen <= 0) return false;
@@ -29,21 +25,11 @@ export function isIdleExpired(
 }
 
 /** Content-Security-Policy for one request: scripts need the per-request nonce; nothing else may run. */
-export function buildCsp(
-  nonce: string,
-  supabaseOrigin: string,
-  isDev: boolean,
-  upgradeInsecure = !isDev,
-): string {
+export function buildCsp(nonce: string, supabaseOrigin: string, isDev: boolean, upgradeInsecure = !isDev): string {
   const wsOrigin = supabaseOrigin.replace(/^http/, "ws");
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
-    "script-src": [
-      "'self'",
-      `'nonce-${nonce}'`,
-      "'strict-dynamic'",
-      ...(isDev ? ["'unsafe-eval'"] : []),
-    ],
+    "script-src": ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(isDev ? ["'unsafe-eval'"] : [])],
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:", "blob:", supabaseOrigin, "https:"],
     "font-src": ["'self'", "data:"],

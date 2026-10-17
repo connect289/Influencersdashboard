@@ -16,10 +16,10 @@ export const linkInput = z
     platform: z.enum(PLATFORMS).nullable().default(null),
     label: z.string().trim().max(120).default(""),
   })
-  .refine(
-    (v) => v.destination !== "custom_url" || /^https:\/\/[^\s/]+\.[^\s]+$/i.test(v.customUrl),
-    { path: ["customUrl"], message: "https" },
-  );
+  .refine((v) => v.destination !== "custom_url" || /^https:\/\/[^\s/]+\.[^\s]+$/i.test(v.customUrl), {
+    path: ["customUrl"],
+    message: "https",
+  });
 export type LinkInput = z.input<typeof linkInput>;
 
 export const overrideInput = z.object({

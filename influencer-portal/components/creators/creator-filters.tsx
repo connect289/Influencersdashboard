@@ -69,10 +69,7 @@ export function CreatorFilters({
 
   const go = (f: Partial<Filters>, v = view) =>
     startNav(() => {
-      const query = creatorFiltersToQuery(
-        { ...f, page: undefined },
-        { view: v === "kanban" ? "kanban" : undefined },
-      );
+      const query = creatorFiltersToQuery({ ...f, page: undefined }, { view: v === "kanban" ? "kanban" : undefined });
       router.replace(query ? `${path}?${query}` : path, { scroll: false });
     });
 
@@ -124,11 +121,7 @@ export function CreatorFilters({
               {count ? <Badge family="progress">{count}</Badge> : null}
             </Button>
           </DialogTrigger>
-          <DialogContent
-            title={t("creators.filters.title")}
-            closeLabel={t("common.close")}
-            className="md:max-w-2xl"
-          >
+          <DialogContent title={t("creators.filters.title")} closeLabel={t("common.close")} className="md:max-w-2xl">
             <form
               className="flex flex-col gap-4"
               onSubmit={(e) => {
@@ -138,9 +131,7 @@ export function CreatorFilters({
               }}
             >
               <fieldset>
-                <legend className="mb-1.5 text-sm font-medium">
-                  {t("creators.filters.stage")}
-                </legend>
+                <legend className="mb-1.5 text-sm font-medium">{t("creators.filters.stage")}</legend>
                 <div className="flex flex-wrap gap-1.5">
                   {PIPELINE_STAGES.map((s) => (
                     <button
@@ -159,9 +150,7 @@ export function CreatorFilters({
                 </div>
               </fieldset>
               <fieldset>
-                <legend className="mb-1.5 text-sm font-medium">
-                  {t("creators.filters.status")}
-                </legend>
+                <legend className="mb-1.5 text-sm font-medium">{t("creators.filters.status")}</legend>
                 <div className="flex flex-wrap gap-1.5">
                   {CREATOR_STATUSES.map((s) => (
                     <button
@@ -342,9 +331,7 @@ export function CreatorFilters({
                   type="checkbox"
                   className="size-4 accent-[var(--primary)]"
                   checked={draft.include_blocked ?? false}
-                  onChange={(e) =>
-                    setDraft({ ...draft, include_blocked: e.target.checked || undefined })
-                  }
+                  onChange={(e) => setDraft({ ...draft, include_blocked: e.target.checked || undefined })}
                 />
                 {t("creators.filters.includeBlocked")}
               </label>
@@ -378,14 +365,9 @@ export function CreatorFilters({
             ) : (
               savedViews.map((v) => (
                 <div key={v.id} className="flex items-center">
-                  <DropdownMenuItem
-                    className="flex-1"
-                    onSelect={() => router.replace(`${path}?${v.query}`)}
-                  >
+                  <DropdownMenuItem className="flex-1" onSelect={() => router.replace(`${path}?${v.query}`)}>
                     {v.name}
-                    {v.is_shared ? (
-                      <span className="ml-2 text-xs text-muted">{t("creators.views.shared")}</span>
-                    ) : null}
+                    {v.is_shared ? <span className="ml-2 text-xs text-muted">{t("creators.views.shared")}</span> : null}
                   </DropdownMenuItem>
                   {v.mine ? (
                     <button
@@ -400,9 +382,7 @@ export function CreatorFilters({
                 </div>
               ))
             )}
-            <DropdownMenuItem onSelect={() => setSaveOpen(true)}>
-              {t("creators.views.saveCurrent")}
-            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setSaveOpen(true)}>{t("creators.views.saveCurrent")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <Dialog open={saveOpen} onOpenChange={setSaveOpen}>

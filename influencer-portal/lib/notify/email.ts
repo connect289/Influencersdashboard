@@ -68,10 +68,7 @@ async function postJson(
   });
   const text = await res.text();
   if (!res.ok)
-    throw new ProviderError(
-      `HTTP ${res.status}: ${text.slice(0, 300)}`,
-      res.status >= 500 || res.status === 429,
-    );
+    throw new ProviderError(`HTTP ${res.status}: ${text.slice(0, 300)}`, res.status >= 500 || res.status === 429);
   try {
     return JSON.parse(text) as Record<string, unknown>;
   } catch {
@@ -123,9 +120,7 @@ export class BrevoEmailProvider implements EmailProvider {
   ) {}
   async send(m: EmailMessage): Promise<SendResult> {
     const match = /^(.*)<([^>]+)>\s*$/.exec(this.from);
-    const sender = match?.[2]
-      ? { name: (match[1] ?? "").trim() || undefined, email: match[2] }
-      : { email: this.from };
+    const sender = match?.[2] ? { name: (match[1] ?? "").trim() || undefined, email: match[2] } : { email: this.from };
     const r = await postJson(
       "https://api.brevo.com/v3/smtp/email",
       { "api-key": this.apiKey },

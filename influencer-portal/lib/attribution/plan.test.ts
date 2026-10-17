@@ -62,11 +62,7 @@ describe("planLead", () => {
   });
 
   it("maps the attribution outcome into the stage (duplicate, self-referral)", () => {
-    const dup = planLead(
-      lead({ created_at: "2026-10-01T00:00:00.000Z" }),
-      rules,
-      DEFAULT_STAGE_RULES,
-    );
+    const dup = planLead(lead({ created_at: "2026-10-01T00:00:00.000Z" }), rules, DEFAULT_STAGE_RULES);
     expect(dup.decisions[0]?.stage).toEqual({
       stage: "duplicate",
       reason: "already enquired before your link",
@@ -126,11 +122,7 @@ describe("planLead", () => {
   });
 
   it("an under-review attribution keeps the CRM stage with the flag", () => {
-    const p = planLead(
-      lead({ existing: [row({ status: "fraud_suspected" })] }),
-      rules,
-      DEFAULT_STAGE_RULES,
-    );
+    const p = planLead(lead({ existing: [row({ status: "fraud_suspected" })] }), rules, DEFAULT_STAGE_RULES);
     expect(p.decisions[0]).toMatchObject({
       status: "fraud_suspected",
       stage: { stage: "qualified", flags: ["under_review"] },
@@ -152,9 +144,7 @@ describe("campaign model overrides", () => {
     });
     expect(modelFor(l, "first_touch", { c1: "last_touch" })).toBe("last_touch");
     expect(modelFor(l, "first_touch", { c2: "last_touch" })).toBe("first_touch");
-    expect(modelFor(lead({ touches: [] }), "first_touch", { c1: "last_touch" })).toBe(
-      "first_touch",
-    );
+    expect(modelFor(lead({ touches: [] }), "first_touch", { c1: "last_touch" })).toBe("first_touch");
   });
 
   it("credits by the overridden model", () => {

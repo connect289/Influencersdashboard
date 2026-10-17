@@ -27,11 +27,9 @@ describe("configFromTerms", () => {
         }),
       ),
     ).toBe("hybrid");
-    expect(
-      dealModel(
-        configFromTerms(null, { deal_type: "fixed", fixed_fee_paise: 5_000_00, deliverables: [] }),
-      ),
-    ).toBe("fixed_only");
+    expect(dealModel(configFromTerms(null, { deal_type: "fixed", fixed_fee_paise: 5_000_00, deliverables: [] }))).toBe(
+      "fixed_only",
+    );
   });
 
   it("commission only drops fixed fees and recoupment from a hybrid preset", () => {
@@ -61,8 +59,7 @@ describe("configFromTerms", () => {
       ],
     });
     expect(
-      configFromTerms(preset, { deal_type: "hybrid", fixed_fee_paise: 9_000_00, deliverables: [] })
-        .bonuses,
+      configFromTerms(preset, { deal_type: "hybrid", fixed_fee_paise: 9_000_00, deliverables: [] }).bonuses,
     ).toHaveLength(1);
   });
 
@@ -88,8 +85,6 @@ describe("configFromTerms", () => {
   });
 
   it("barter starts empty for staff to fill in", () => {
-    expect(dealModel(configFromTerms(null, { deal_type: "barter", deliverables: [] }))).toBe(
-      "custom",
-    );
+    expect(dealModel(configFromTerms(null, { deal_type: "barter", deliverables: [] }))).toBe("custom");
   });
 });

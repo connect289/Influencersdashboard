@@ -26,11 +26,7 @@ export async function DealContent({
   const open = !["completed", "terminated", "expired"].includes(deal.status);
   const canWrite = permissions.has("brief.write") && open;
   const [brief, deliverables, penalties] = await Promise.all([
-    supabase
-      .from("briefs")
-      .select("id, current_version_id, updated_at")
-      .eq("deal_id", deal.id)
-      .maybeSingle(),
+    supabase.from("briefs").select("id, current_version_id, updated_at").eq("deal_id", deal.id).maybeSingle(),
     permissions.has("deliverable.read")
       ? listDeliverables(supabase, { view: "all", dealId: deal.id }).catch(() => [])
       : Promise.resolve([]),
@@ -69,10 +65,7 @@ export async function DealContent({
             actions={canWrite ? <AddDeliverable dealId={deal.id} /> : null}
           />
           {deliverables.length === 0 ? (
-            <EmptyState
-              title={t("content.deal.noDeliverables")}
-              description={t("content.deal.noDeliverablesHint")}
-            />
+            <EmptyState title={t("content.deal.noDeliverables")} description={t("content.deal.noDeliverablesHint")} />
           ) : (
             <Table>
               <thead>
@@ -86,10 +79,7 @@ export async function DealContent({
                 {deliverables.map((d) => (
                   <tr key={d.id}>
                     <Td>
-                      <Link
-                        href={`/admin/content/${d.id}`}
-                        className="font-medium text-primary hover:underline"
-                      >
+                      <Link href={`/admin/content/${d.id}`} className="font-medium text-primary hover:underline">
                         {d.title}
                       </Link>
                       <span className="block text-xs text-muted">
@@ -114,10 +104,7 @@ export async function DealContent({
           <CardHeader
             title={t("content.penalties.title")}
             actions={
-              <Link
-                href="/admin/content/penalties"
-                className="text-sm text-primary hover:underline"
-              >
+              <Link href="/admin/content/penalties" className="text-sm text-primary hover:underline">
                 {t("content.penalties.openAll")}
               </Link>
             }
@@ -130,18 +117,11 @@ export async function DealContent({
                   <span className="block text-xs text-muted">{formatDate(p.proposed_at)}</span>
                 </span>
                 <span className="flex items-center gap-2">
-                  {p.amount_paise ? (
-                    <span className="tabular-nums">{formatPaise(p.amount_paise)}</span>
-                  ) : null}
+                  {p.amount_paise ? <span className="tabular-nums">{formatPaise(p.amount_paise)}</span> : null}
                   {p.forfeits.length ? (
-                    <Badge family="attention">
-                      {t("content.penalties.forfeits", { count: p.forfeits.length })}
-                    </Badge>
+                    <Badge family="attention">{t("content.penalties.forfeits", { count: p.forfeits.length })}</Badge>
                   ) : null}
-                  <StatusBadge
-                    status={p.status}
-                    label={t(`content.penalties.statuses.${p.status}`)}
-                  />
+                  <StatusBadge status={p.status} label={t(`content.penalties.statuses.${p.status}`)} />
                 </span>
               </li>
             ))}

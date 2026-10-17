@@ -32,13 +32,9 @@ export function StageRules({ rules, canEdit }: { rules: StageRuleRow[]; canEdit:
             <span className="w-10 font-mono text-xs text-muted">{r.priority}</span>
             <span className="min-w-0 flex-1">{r.conditions.map(describe).join(" · ")}</span>
             <span className="flex flex-wrap items-center gap-1">
-              {r.creator_stage ? (
-                <Badge family="progress">{t(`leads.stages.names.${r.creator_stage}`)}</Badge>
-              ) : null}
+              {r.creator_stage ? <Badge family="progress">{t(`leads.stages.names.${r.creator_stage}`)}</Badge> : null}
               {r.flag ? <Badge family="attention">{t(`leads.flags.${r.flag}`)}</Badge> : null}
-              {r.reason_category ? (
-                <span className="text-xs text-muted">{r.reason_category}</span>
-              ) : null}
+              {r.reason_category ? <span className="text-xs text-muted">{r.reason_category}</span> : null}
             </span>
             {canEdit ? (
               <Button size="sm" variant="ghost" onClick={() => setEditing(r)}>
@@ -55,10 +51,7 @@ export function StageRules({ rules, canEdit }: { rules: StageRuleRow[]; canEdit:
             closeLabel={t("common.close")}
             className="md:max-w-2xl"
           >
-            <StageRuleForm
-              rule={editing === "new" ? null : editing}
-              onDone={() => setEditing(null)}
-            />
+            <StageRuleForm rule={editing === "new" ? null : editing} onDone={() => setEditing(null)} />
           </DialogContent>
         </Dialog>
       ) : null}

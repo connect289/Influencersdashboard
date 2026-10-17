@@ -66,12 +66,7 @@ export async function PortalShell({
           {children}
         </main>
       </div>
-      <BottomNav
-        links={links}
-        label={t("shell.mainNav")}
-        moreLabel={t("shell.more")}
-        closeLabel={t("common.close")}
-      />
+      <BottomNav links={links} label={t("shell.mainNav")} moreLabel={t("shell.more")} closeLabel={t("common.close")} />
       <ServiceWorkerRegister />
     </div>
   );

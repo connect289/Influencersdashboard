@@ -19,11 +19,7 @@ export async function generateMetadata() {
   return { title: t("leads.area.fraud") };
 }
 
-export default async function FraudPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ status?: string }>;
-}) {
+export default async function FraudPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const { supabase, me } = await requireStaff("fraud.review");
   const t = await getTranslations();
   const raw = (await searchParams).status;
@@ -37,10 +33,7 @@ export default async function FraudPage({
         help="/admin/help/influencer-manager#fraud"
       />
       <LeadsNav current="fraud" permissions={me.permissions} />
-      <nav
-        className="-mx-4 mb-3 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0"
-        aria-label={t("leads.fraud.filter")}
-      >
+      <nav className="-mx-4 mb-3 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0" aria-label={t("leads.fraud.filter")}>
         {STATUSES.map((s) => (
           <Link
             key={s}
@@ -48,9 +41,7 @@ export default async function FraudPage({
             aria-current={status === s ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-              status === s
-                ? "bg-primary-soft font-medium text-primary"
-                : "text-muted hover:bg-surface-2",
+              status === s ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
             )}
           >
             {t(`leads.fraud.statuses.${s}`)}

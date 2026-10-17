@@ -117,10 +117,7 @@ export const presetSchema = z.object({
 });
 export type Preset = z.infer<typeof presetSchema>;
 
-export async function loadPresets(
-  supabase: ServerSupabase,
-  includeArchived = false,
-): Promise<Preset[]> {
+export async function loadPresets(supabase: ServerSupabase, includeArchived = false): Promise<Preset[]> {
   const { data, error } = await supabase.rpc("deal_presets_list", {
     p_include_archived: includeArchived,
   });
@@ -190,9 +187,7 @@ export async function loadMyDeals(supabase: ServerSupabase, creatorId: string): 
 }
 
 /** Active presets as picker options; empty for staff who cannot read deals. */
-export async function presetOptions(
-  supabase: ServerSupabase,
-): Promise<{ id: string; name: string }[]> {
+export async function presetOptions(supabase: ServerSupabase): Promise<{ id: string; name: string }[]> {
   const { data } = await supabase.rpc("deal_presets_list", { p_include_archived: false });
   return z
     .array(z.object({ id: z.uuid(), name: z.string() }))

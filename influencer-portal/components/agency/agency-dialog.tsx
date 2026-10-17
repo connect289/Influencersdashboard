@@ -28,13 +28,7 @@ const EMPTY: AgencyFormValues = {
   notes: "",
 };
 
-export function AgencyDialog({
-  initial,
-  trigger,
-}: {
-  initial?: AgencyFormValues;
-  trigger: ReactNode;
-}) {
+export function AgencyDialog({ initial, trigger }: { initial?: AgencyFormValues; trigger: ReactNode }) {
   const t = useTranslations();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -45,10 +39,7 @@ export function AgencyDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent
-        title={initial ? t("agencies.edit") : t("agencies.add")}
-        closeLabel={t("common.close")}
-      >
+      <DialogContent title={initial ? t("agencies.edit") : t("agencies.add")} closeLabel={t("common.close")}>
         <form
           className="flex flex-col gap-4"
           onSubmit={(e) => {
@@ -110,12 +101,7 @@ export function AgencyDialog({
             />
           </Field>
           <Field id="ag-notes" label={t("agencies.fields.notes")}>
-            <Textarea
-              id="ag-notes"
-              value={v.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              maxLength={2000}
-            />
+            <Textarea id="ag-notes" value={v.notes} onChange={(e) => set("notes", e.target.value)} maxLength={2000} />
           </Field>
           <Button type="submit" disabled={pending || v.name.trim().length < 2}>
             {t("common.save")}

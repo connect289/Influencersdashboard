@@ -22,8 +22,8 @@ describe("terms draft", () => {
     expect(termsFromDraft({ ...d, deal_type: "barter" }).fixed_fee_paise).toBeUndefined();
   });
   it("prefills deliverables from the campaign when the offer has none", () => {
-    expect(
-      draftFromTerms(undefined, [{ platform: "youtube", format: "short", count: 3 }]).deliverables,
-    ).toHaveLength(1);
+    expect(draftFromTerms(undefined, [{ platform: "youtube", format: "short", count: 3 }]).deliverables).toHaveLength(
+      1,
+    );
   });
 });

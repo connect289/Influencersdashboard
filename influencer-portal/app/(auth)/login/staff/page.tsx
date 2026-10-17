@@ -55,10 +55,7 @@ export default async function StaffLogin({
       ) : null}
       <StaffPasswordForm next={next} />
       <div className="flex flex-col gap-2 text-center text-sm">
-        <Link
-          href="/password/reset"
-          className="font-medium text-primary underline-offset-4 hover:underline"
-        >
+        <Link href="/password/reset" className="font-medium text-primary underline-offset-4 hover:underline">
           {t("auth.staff.firstTime")}
         </Link>
         <Link href="/login" className="text-muted underline-offset-4 hover:underline">

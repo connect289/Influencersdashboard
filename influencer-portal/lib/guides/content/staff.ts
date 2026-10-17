@@ -4,8 +4,7 @@ export const ALL_STAFF: Guide = {
   slug: "getting-started",
   audience: "all_staff",
   title: "Getting started (all staff)",
-  summary:
-    "Signing in, finding your way around the admin console, notifications, and keeping your account safe.",
+  summary: "Signing in, finding your way around the admin console, notifications, and keeping your account safe.",
   sections: [
     {
       id: "sign-in",
@@ -45,26 +44,14 @@ export const ALL_STAFF: Guide = {
           table: {
             head: ["Area", "What it is for"],
             rows: [
-              [
-                "[Creators](/admin/creators)",
-                "The creator CRM: pipeline, profiles, outreach, KYC, approvals, imports",
-              ],
-              [
-                "[Campaigns](/admin/campaigns)",
-                "Campaign builder, invitations and the creator marketplace",
-              ],
+              ["[Creators](/admin/creators)", "The creator CRM: pipeline, profiles, outreach, KYC, approvals, imports"],
+              ["[Campaigns](/admin/campaigns)", "Campaign builder, invitations and the creator marketplace"],
               ["[Applications](/admin/applications)", "Creator applications and negotiation"],
-              [
-                "[Deals](/admin/deals)",
-                "Compensation terms: builder, simulator, proposals, amendments",
-              ],
+              ["[Deals](/admin/deals)", "Compensation terms: builder, simulator, proposals, amendments"],
               ["[Tasks](/admin/tasks)", "Follow-ups assigned to you and your team"],
               ["[Agencies](/admin/agencies)", "Talent agencies and the creators they manage"],
               ["[KYC](/admin/kyc)", "PAN and bank details waiting for verification"],
-              [
-                "[Settings](/admin/settings)",
-                "Business rules: attribution, compensation, finance, security…",
-              ],
+              ["[Settings](/admin/settings)", "Business rules: attribution, compensation, finance, security…"],
               ["[Audit log](/admin/audit)", "Who changed what, and when"],
             ],
           },
@@ -113,8 +100,7 @@ export const SUPER_ADMIN: Guide = {
   slug: "super-admin",
   audience: "super_admin",
   title: "Super Admin: setting up and running the portal",
-  summary:
-    "First-time setup, staff and roles, business settings, monitoring, and what to check before go-live.",
+  summary: "First-time setup, staff and roles, business settings, monitoring, and what to check before go-live.",
   sections: [
     {
       id: "first-setup",
@@ -152,10 +138,7 @@ export const SUPER_ADMIN: Guide = {
                 "Content Reviewer",
                 "Reviews submissions, overrides compliance checks with a reason, verifies live posts and edits the banned-claims list",
               ],
-              [
-                "Finance",
-                "KYC verification and reveal, TDS and GST settings, ledger, payouts; read-only elsewhere",
-              ],
+              ["Finance", "KYC verification and reveal, TDS and GST settings, ledger, payouts; read-only elsewhere"],
               ["Viewer", "Analytics and scorecards, read-only"],
             ],
           },
@@ -183,26 +166,17 @@ export const SUPER_ADMIN: Guide = {
                 "Attribution",
                 "Attribution window (default 90 days), first-touch model, duplicate and self-referral rules",
               ],
-              [
-                "Lead visibility",
-                "Which lead fields creators see (phone and email are always masked)",
-              ],
+              ["Lead visibility", "Which lead fields creators see (phone and email are always masked)"],
               [
                 "Compensation",
                 "Hold days, refund window, penalty cap, default commission base, GST on Eduwit's commission",
               ],
-              [
-                "Contracts",
-                "Signing code channels and limits, negotiation reminders, legal-review gate",
-              ],
+              ["Contracts", "Signing code channels and limits, negotiation reminders, legal-review gate"],
               [
                 "Finance",
                 "Payout cycle, two-person approval, KYC needed for payout, GST rate and SAC, bank export columns",
               ],
-              [
-                "Creators",
-                "Dormancy, auto-approval of sign-ups, course pass mark, KYC required to submit onboarding",
-              ],
+              ["Creators", "Dormancy, auto-approval of sign-ups, course pass mark, KYC required to submit onboarding"],
               [
                 "Content",
                 "Revision limit, disclosure terms and platforms, metric checkpoints, reminder and escalation days, upload sizes",
@@ -406,14 +380,8 @@ export const INFLUENCER_MANAGER: Guide = {
                 "Commission",
                 "Flat per lead, qualified lead, application or enrolment; % of programme fee; % of Eduwit's commission (gross or net of GST). Scope (programmes, universities, levels, links, deliverables), slabs (marginal or retroactive), caps, confirmation (immediate, after a hold, or when Eduwit is paid), clawback window and dates",
               ],
-              [
-                "Minimum guarantees",
-                '"At least ₹X per month or per deal", topped up against commission',
-              ],
-              [
-                "Recoupment",
-                "Commission pays out only after it exceeds all or part of the fixed fee",
-              ],
+              ["Minimum guarantees", '"At least ₹X per month or per deal", topped up against commission'],
+              ["Recoupment", "Commission pays out only after it exceeds all or part of the fixed fee"],
               [
                 "Bonuses",
                 "Targets on enrolments, leads, views, on-time delivery or leaderboard rank, per deal, month, campaign or dates",
@@ -487,10 +455,7 @@ export const INFLUENCER_MANAGER: Guide = {
             head: ["Status", "Meaning"],
             rows: [
               ["Draft", "Only Eduwit sees it"],
-              [
-                "Sent / In negotiation",
-                "The creator is reviewing, commenting or asking for changes",
-              ],
+              ["Sent / In negotiation", "The creator is reviewing, commenting or asking for changes"],
               ["Ready to sign", "Every request answered; this version is final"],
               ["Signed by creator", "Waiting for the Authorised Signatory"],
               ["Active", "Both signed; the deal is active and the signed PDF is stored"],
@@ -673,10 +638,7 @@ export const CONTENT_REVIEWER: Guide = {
             rows: [
               ["Deliverables", "Everything open, sorted by the next due date"],
               ["Review queue", "Concepts and drafts waiting for you, and live posts to verify"],
-              [
-                "Overdue",
-                "Work past its due date (the creator is reminded on day 1; the deal owner after 2 days)",
-              ],
+              ["Overdue", "Work past its due date (the creator is reminded on day 1; the deal owner after 2 days)"],
               ["Live posts", "Everything that has gone live"],
               ["Banned claims", "The list every submission is scanned against"],
               ["Penalties", "Penalties the deal rules propose, for a manager to approve"],
@@ -767,8 +729,7 @@ export const FINANCE: Guide = {
   slug: "finance",
   audience: "finance",
   title: "Finance: KYC, tax settings and payouts",
-  summary:
-    "Verifying creators' KYC, the TDS and GST set-up, and the ledger and payouts that arrive in Phase 7.",
+  summary: "Verifying creators' KYC, the TDS and GST set-up, and the ledger and payouts that arrive in Phase 7.",
   sections: [
     {
       id: "kyc",
@@ -800,12 +761,7 @@ export const FINANCE: Guide = {
                 "10% (20% without PAN)",
                 "₹50,000",
               ],
-              [
-                "194R",
-                "Barter / in-kind value (Eduwit's liability, not deducted)",
-                "10%",
-                "₹20,000",
-              ],
+              ["194R", "Barter / in-kind value (Eduwit's liability, not deducted)", "10%", "₹20,000"],
             ],
           },
         },

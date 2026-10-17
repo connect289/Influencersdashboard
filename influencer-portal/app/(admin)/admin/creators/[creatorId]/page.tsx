@@ -7,11 +7,7 @@ import { GrantBadges } from "@/components/agency/grant-badges";
 import { KycReview } from "@/components/creator-profile/kyc-review";
 import { PlatformsCard } from "@/components/creator-profile/platforms-card";
 import { ProfileForm } from "@/components/creator-profile/profile-form";
-import {
-  ContactsCard,
-  PortfolioCard,
-  RateCardCard,
-} from "@/components/creator-profile/profile-lists";
+import { ContactsCard, PortfolioCard, RateCardCard } from "@/components/creator-profile/profile-lists";
 import { CreatorActions } from "@/components/creators/creator-actions";
 import { CreatorDialog } from "@/components/creators/creator-dialog";
 import { OutreachPanel, type OutreachRow } from "@/components/creators/outreach-panel";
@@ -25,12 +21,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { LinksPanel } from "@/components/links/links-panel";
 import { requireStaff } from "@/lib/auth/guards";
-import {
-  CREATOR_TABS,
-  type CreatorStatus,
-  type CreatorTab,
-  type PipelineStage,
-} from "@/lib/creators/crm";
+import { CREATOR_TABS, type CreatorStatus, type CreatorTab, type PipelineStage } from "@/lib/creators/crm";
 import { loadCreatorProfile, loadKyc } from "@/lib/creators/load";
 import { loadPickers } from "@/lib/creators/staff-data";
 import { loadTasks } from "@/lib/creators/tasks-data";
@@ -70,8 +61,7 @@ export default async function Creator360({
 
   const { data, error } = await loadCreatorProfile(supabase, creatorId);
   if (!error && !data) notFound();
-  if (!data)
-    return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
+  if (!data) return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
   const c = data.creator;
   const canWrite = p.has("creator.write");
   const pickers = await loadPickers(supabase);
@@ -128,12 +118,7 @@ export default async function Creator360({
               !hasAccount &&
               !c.is_blocked &&
               ["prospect", "invited"].includes(c.status) ? (
-                <InviteButton
-                  creatorId={c.id}
-                  name={c.display_name}
-                  email={c.email}
-                  resend={c.status === "invited"}
-                />
+                <InviteButton creatorId={c.id} name={c.display_name} email={c.email} resend={c.status === "invited"} />
               ) : null}
               <CreatorActions
                 creatorId={c.id}
@@ -176,30 +161,17 @@ export default async function Creator360({
       ],
       [
         t("creators.fields.status"),
-        <StatusBadge
-          key="st"
-          status={c.status}
-          label={t(`creators.statuses.${c.status as CreatorStatus}`)}
-        />,
+        <StatusBadge key="st" status={c.status} label={t(`creators.statuses.${c.status as CreatorStatus}`)} />,
       ],
       [t("creators.fields.owner"), owner ?? "—"],
       [t("creators.fields.tier"), tier ?? "—"],
       [t("creators.fields.source"), c.source ?? "—"],
-      [
-        t("creators.fields.account"),
-        hasAccount ? t("creators.accountLinked") : t("creators.noAccount"),
-      ],
+      [t("creators.fields.account"), hasAccount ? t("creators.accountLinked") : t("creators.noAccount")],
       [t("creators.fields.email"), c.email ?? "—"],
       [t("profile.fields.phone"), c.phone_e164 ?? "—"],
       [t("creators.fields.added"), formatDate(c.created_at)],
-      [
-        t("creators.table.lastActivity"),
-        c.last_activity_at ? formatRelative(c.last_activity_at) : "—",
-      ],
-      [
-        t("creators.fields.lastContacted"),
-        c.last_contacted_at ? formatRelative(c.last_contacted_at) : "—",
-      ],
+      [t("creators.table.lastActivity"), c.last_activity_at ? formatRelative(c.last_activity_at) : "—"],
+      [t("creators.fields.lastContacted"), c.last_contacted_at ? formatRelative(c.last_contacted_at) : "—"],
       [
         t("creators.table.followUp"),
         follow.data?.next_follow_up_at ? formatDateTime(follow.data.next_follow_up_at) : "—",
@@ -257,9 +229,7 @@ export default async function Creator360({
           <Card>
             <CardHeader title={t("creators.overview.reach")} />
             <p className="text-3xl font-semibold tabular-nums">{formatCompact(followers)}</p>
-            <p className="text-sm text-muted">
-              {t("creators.overview.reachHint", { count: data.platforms.length })}
-            </p>
+            <p className="text-sm text-muted">{t("creators.overview.reachHint", { count: data.platforms.length })}</p>
           </Card>
           {p.has("task.write") ? (
             <Card>
@@ -271,12 +241,7 @@ export default async function Creator360({
                   </Button>
                 }
               />
-              <TaskList
-                tasks={openTasks.tasks}
-                owners={pickers.owners}
-                canWrite={false}
-                showRelated={false}
-              />
+              <TaskList tasks={openTasks.tasks} owners={pickers.owners} canWrite={false} showRelated={false} />
             </Card>
           ) : null}
         </div>
@@ -295,21 +260,14 @@ export default async function Creator360({
   } else if (tab === "kyc") {
     const kyc = await loadKyc(supabase, creatorId);
     body = kyc ? (
-      <KycReview
-        creatorId={c.id}
-        kyc={kyc}
-        canReveal={p.has("kyc.reveal")}
-        canVerify={p.has("kyc.verify")}
-      />
+      <KycReview creatorId={c.id} kyc={kyc} canReveal={p.has("kyc.reveal")} canVerify={p.has("kyc.verify")} />
     ) : (
       <ErrorState title={t("errors.loadFailed")} />
     );
   } else if (tab === "outreach") {
     const { data: rows } = await supabase
       .from("outreach_activities")
-      .select(
-        "id, channel, direction, outcome, notes, next_follow_up_at, follow_up_done_at, created_at, created_by",
-      )
+      .select("id, channel, direction, outcome, notes, next_follow_up_at, follow_up_done_at, created_at, created_by")
       .eq("creator_id", creatorId)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -357,10 +315,7 @@ export default async function Creator360({
           <ul className="flex flex-col divide-y divide-line">
             {rows.data.rows.map((d) => (
               <li key={d.id} className="flex flex-wrap items-center gap-2 py-3">
-                <Link
-                  href={`/admin/deals/${d.id}`}
-                  className="font-medium text-primary hover:underline"
-                >
+                <Link href={`/admin/deals/${d.id}`} className="font-medium text-primary hover:underline">
                   {d.title}
                 </Link>
                 <StatusBadge status={d.status} label={t(`deals.statuses.${d.status}`)} />
@@ -374,20 +329,11 @@ export default async function Creator360({
       </Card>
     );
   } else if (tab === "links") {
-    body = (
-      <LinksPanel
-        supabase={supabase}
-        creatorId={creatorId}
-        canCreate={p.has("creator.write")}
-        staff
-      />
-    );
+    body = <LinksPanel supabase={supabase} creatorId={creatorId} canCreate={p.has("creator.write")} staff />;
   } else if (tab === "agencies") {
     const { data: links } = await supabase
       .from("agency_creator_links")
-      .select(
-        "id, status, can_view, can_act_deliverables, can_negotiate_sign, can_view_earnings, agencies(id, name)",
-      )
+      .select("id, status, can_view, can_act_deliverables, can_negotiate_sign, can_view_earnings, agencies(id, name)")
       .eq("creator_id", creatorId)
       .in("status", ["pending", "active"]);
     body = (
@@ -412,10 +358,7 @@ export default async function Creator360({
                   )}
                   {l.status === "active" ? <GrantBadges grants={l} /> : null}
                 </div>
-                <StatusBadge
-                  status={l.status}
-                  label={t(`agencies.links.status.${l.status as "pending" | "active"}`)}
-                />
+                <StatusBadge status={l.status} label={t(`agencies.links.status.${l.status as "pending" | "active"}`)} />
               </li>
             ))}
           </ul>
@@ -443,8 +386,7 @@ export default async function Creator360({
                 <p>
                   <span className="font-medium">{r.entity_type}</span> · {r.action}
                   <span className="ml-2 text-xs text-muted">
-                    {formatDateTime(r.at)} ·{" "}
-                    {(r.actor_id && names.get(r.actor_id)) ?? r.actor_role ?? "system"}
+                    {formatDateTime(r.at)} · {(r.actor_id && names.get(r.actor_id)) ?? r.actor_role ?? "system"}
                   </span>
                 </p>
                 {r.after && typeof r.after === "object" ? (
@@ -460,10 +402,7 @@ export default async function Creator360({
 
   return (
     <>
-      <Link
-        href="/admin/creators"
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/admin/creators" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {t("nav.admin.creators")}
       </Link>
       {header}
@@ -474,17 +413,11 @@ export default async function Creator360({
         {visible.map((x) => (
           <Link
             key={x}
-            href={
-              x === "overview"
-                ? `/admin/creators/${creatorId}`
-                : `/admin/creators/${creatorId}?tab=${x}`
-            }
+            href={x === "overview" ? `/admin/creators/${creatorId}` : `/admin/creators/${creatorId}?tab=${x}`}
             aria-current={tab === x ? "page" : undefined}
             className={cn(
               "-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap",
-              tab === x
-                ? "border-primary font-medium text-primary"
-                : "border-transparent text-muted hover:text-ink",
+              tab === x ? "border-primary font-medium text-primary" : "border-transparent text-muted hover:text-ink",
             )}
           >
             {t(`creators.tabs.${x}`)}

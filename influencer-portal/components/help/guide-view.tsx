@@ -23,11 +23,7 @@ export function Inline({ text }: { text: string }): ReactNode {
       );
     else
       out.push(
-        <Link
-          key={n++}
-          href={m[4] ?? "/"}
-          className="font-medium text-primary underline-offset-2 hover:underline"
-        >
+        <Link key={n++} href={m[4] ?? "/"} className="font-medium text-primary underline-offset-2 hover:underline">
           {m[3]}
         </Link>,
       );
@@ -129,11 +125,7 @@ export function GuideView({ guide }: { guide: Guide }) {
       <div className="flex flex-col gap-4">
         {guide.sections.map((s) => (
           <Card key={s.id}>
-            <section
-              id={s.id}
-              className="flex scroll-mt-24 flex-col gap-3"
-              aria-labelledby={`${s.id}-title`}
-            >
+            <section id={s.id} className="flex scroll-mt-24 flex-col gap-3" aria-labelledby={`${s.id}-title`}>
               <h2 id={`${s.id}-title`} className="text-base font-semibold">
                 {s.title}
               </h2>

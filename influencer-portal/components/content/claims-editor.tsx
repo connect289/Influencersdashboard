@@ -55,9 +55,7 @@ export function ClaimsEditor({ rows, canEdit }: { rows: BannedClaimRow[]; canEdi
         <ul className="flex flex-col divide-y divide-line">
           {rows.map((r) => (
             <li key={r.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
-              <span
-                className={r.active ? "min-w-0 flex-1" : "min-w-0 flex-1 text-muted line-through"}
-              >
+              <span className={r.active ? "min-w-0 flex-1" : "min-w-0 flex-1 text-muted line-through"}>
                 <span className="font-medium break-words">
                   {r.kind === "regex" ? <code>{r.pattern}</code> : r.pattern}
                 </span>
@@ -121,11 +119,7 @@ export function ClaimsEditor({ rows, canEdit }: { rows: BannedClaimRow[]; canEdi
               <Field
                 id="cl-pattern"
                 label={t("content.claims.pattern")}
-                hint={
-                  draft.kind === "regex"
-                    ? t("content.claims.regexHint")
-                    : t("content.claims.phraseHint")
-                }
+                hint={draft.kind === "regex" ? t("content.claims.regexHint") : t("content.claims.phraseHint")}
               >
                 <Input
                   id="cl-pattern"
@@ -141,9 +135,7 @@ export function ClaimsEditor({ rows, canEdit }: { rows: BannedClaimRow[]; canEdi
                   <Select
                     id="cl-kind"
                     value={draft.kind}
-                    onChange={(e) =>
-                      setDraft({ ...draft, kind: e.target.value === "regex" ? "regex" : "phrase" })
-                    }
+                    onChange={(e) => setDraft({ ...draft, kind: e.target.value === "regex" ? "regex" : "phrase" })}
                   >
                     <option value="phrase">{t("content.claims.phrase")}</option>
                     <option value="regex">{t("content.claims.regex")}</option>
@@ -153,9 +145,7 @@ export function ClaimsEditor({ rows, canEdit }: { rows: BannedClaimRow[]; canEdi
                   <Select
                     id="cl-sev"
                     value={draft.severity}
-                    onChange={(e) =>
-                      setDraft({ ...draft, severity: e.target.value === "warn" ? "warn" : "block" })
-                    }
+                    onChange={(e) => setDraft({ ...draft, severity: e.target.value === "warn" ? "warn" : "block" })}
                   >
                     <option value="block">{t("content.checks.severity.block")}</option>
                     <option value="warn">{t("content.checks.severity.warn")}</option>
@@ -184,10 +174,7 @@ export function ClaimsEditor({ rows, canEdit }: { rows: BannedClaimRow[]; canEdi
           </Card>
         ) : null}
         <Card>
-          <CardHeader
-            title={t("content.claims.tryTitle")}
-            description={t("content.claims.tryHint")}
-          />
+          <CardHeader title={t("content.claims.tryTitle")} description={t("content.claims.tryHint")} />
           <Input
             aria-label={t("content.claims.tryTitle")}
             value={sample}

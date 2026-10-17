@@ -8,13 +8,7 @@ import { SignPanel } from "./sign-panel";
  * The sign panel when it's this person's turn: the creator (or their negotiating agency) once the contract is ready
  * to sign, the Authorised Signatory once the creator has signed. The database re-checks all of it when they sign.
  */
-export async function SignSection({
-  c,
-  supabase,
-}: {
-  c: ContractDetail;
-  supabase: ServerSupabase;
-}) {
+export async function SignSection({ c, supabase }: { c: ContractDetail; supabase: ServerSupabase }) {
   const role =
     c.side !== "eduwit" && c.status === "ready_to_sign"
       ? "creator"

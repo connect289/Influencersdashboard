@@ -25,10 +25,7 @@ export default async function NewTemplatePage() {
       >
         <ArrowLeft className="size-4" /> {t("contracts.area.templates")}
       </Link>
-      <PageHeader
-        title={t("contracts.templates.new")}
-        description={t("contracts.templates.newHint")}
-      />
+      <PageHeader title={t("contracts.templates.new")} description={t("contracts.templates.newHint")} />
       <TemplateEditor
         initial={{
           name: "",
@@ -37,9 +34,7 @@ export default async function NewTemplatePage() {
           header: EMPTY_DOC,
           footer: EMPTY_DOC,
           isDefault: false,
-          clauses: library
-            .filter((c) => c.required)
-            .map((c) => ({ clauseId: c.id, condition: "" })),
+          clauses: library.filter((c) => c.required).map((c) => ({ clauseId: c.id, condition: "" })),
         }}
         library={library}
         archived={false}

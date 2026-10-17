@@ -31,23 +31,14 @@ export function OverrideForm({
       () => (setReason(""), router.refresh()),
     );
   return (
-    <div className="flex flex-col gap-2 rounded-xl ring-1 ring-line p-3">
+    <div className="flex flex-col gap-2 rounded-xl p-3 ring-1 ring-line">
       <p className="text-sm font-medium">{t("leads.override.title")}</p>
       <Field id="ov-reason" label={t("leads.override.reason")}>
-        <Input
-          id="ov-reason"
-          maxLength={1000}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
+        <Input id="ov-reason" maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} />
       </Field>
       <div className="flex flex-wrap gap-2">
         {canCredit ? (
-          <Button
-            size="sm"
-            disabled={pending || reason.trim().length < 3}
-            onClick={() => send("manually_credited")}
-          >
+          <Button size="sm" disabled={pending || reason.trim().length < 3} onClick={() => send("manually_credited")}>
             {t("leads.override.credit")}
           </Button>
         ) : null}

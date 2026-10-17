@@ -13,12 +13,7 @@ export interface Utm {
 }
 
 /** UTMs for a creator link: source from settings, medium = platform, campaign = campaign slug, content = code. */
-export function utmFor(input: {
-  source: string;
-  platform: string | null;
-  campaign: string | null;
-  code: string;
-}): Utm {
+export function utmFor(input: { source: string; platform: string | null; campaign: string | null; code: string }): Utm {
   return {
     utm_source: input.source,
     utm_medium: input.platform ?? "creator",
@@ -96,8 +91,7 @@ export function safeHttpsUrl(raw: string): URL | null {
 /** The URL with the UTMs set (replacing any existing ones). */
 export function withUtm(url: URL, utm: Utm): string {
   const u = new URL(url.toString());
-  for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_content"] as const)
-    u.searchParams.set(k, utm[k]);
+  for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_content"] as const) u.searchParams.set(k, utm[k]);
   return u.toString();
 }
 

@@ -16,11 +16,7 @@ export async function generateMetadata() {
   return { title: t("campaigns.marketplace.tabs.applications") };
 }
 
-export default async function CreatorApplicationPage({
-  params,
-}: {
-  params: Promise<{ appId: string }>;
-}) {
+export default async function CreatorApplicationPage({ params }: { params: Promise<{ appId: string }> }) {
   const { appId } = await params;
   if (!z.uuid().safeParse(appId).success) notFound();
   const { supabase } = await requireCreator();
@@ -29,9 +25,7 @@ export default async function CreatorApplicationPage({
   if (!error && !app) notFound();
   const deal =
     app?.status === "accepted"
-      ? (await loadMyDeals(supabase, app.creator.id).catch(() => [])).find(
-          (d) => d.application_id === app.id,
-        )
+      ? (await loadMyDeals(supabase, app.creator.id).catch(() => [])).find((d) => d.application_id === app.id)
       : undefined;
   return (
     <>

@@ -11,8 +11,7 @@ export const maxDuration = 60;
 
 /** Job runner, called every minute by pg_cron (inf-jobs) with the internal key. Processes due jobs for ~45 s. */
 export async function POST(request: NextRequest) {
-  if (!hasInternalKey(request.headers))
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!hasInternalKey(request.headers)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const db = adminClient();
   const worker = `web:${randomUUID().slice(0, 8)}`;
   const deadline = Date.now() + 45_000;

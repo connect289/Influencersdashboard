@@ -16,10 +16,7 @@ function Bubble({ q }: { q: BriefQuestion }) {
   const t = useTranslations();
   return (
     <div
-      className={cn(
-        "rounded-xl px-3 py-2 text-sm",
-        q.author_side === "eduwit" ? "bg-primary-soft" : "bg-surface-2",
-      )}
+      className={cn("rounded-xl px-3 py-2 text-sm", q.author_side === "eduwit" ? "bg-primary-soft" : "bg-surface-2")}
     >
       <p className="mb-0.5 text-xs text-muted">
         {t(`content.qa.sides.${q.author_side}`)} · {formatDateTime(q.created_at)}
@@ -92,9 +89,7 @@ export function BriefQa({
   return (
     <Card>
       <CardHeader title={t("content.qa.title")} description={t("content.qa.hint")} />
-      {threads.length === 0 ? (
-        <p className="mb-3 text-sm text-muted">{t("content.qa.empty")}</p>
-      ) : null}
+      {threads.length === 0 ? <p className="mb-3 text-sm text-muted">{t("content.qa.empty")}</p> : null}
       <ul className="mb-4 flex flex-col gap-4">
         {threads.map(({ root, replies }) => (
           <li key={root.id} className="flex flex-col gap-2">

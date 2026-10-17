@@ -24,18 +24,9 @@ export const ATTRIBUTION_STATUSES = [
 export type AttributionStatus = (typeof ATTRIBUTION_STATUSES)[number];
 
 /** Statuses staff or the fraud review set; a re-run never changes them. */
-export const STICKY: readonly AttributionStatus[] = [
-  "fraud_suspected",
-  "manually_rejected",
-  "manually_credited",
-];
+export const STICKY: readonly AttributionStatus[] = ["fraud_suspected", "manually_rejected", "manually_credited"];
 
-export const REASONS = [
-  "existing_lead",
-  "another_creator",
-  "outside_window",
-  "self_referral",
-] as const;
+export const REASONS = ["existing_lead", "another_creator", "outside_window", "self_referral"] as const;
 export type Reason = (typeof REASONS)[number];
 
 export type TouchKind = "first" | "last" | "assisted" | "none";
@@ -116,19 +107,13 @@ function judge(t: Touch, lead: LeadFacts, r: Rules): Judged {
     if (!gapOk) return { touch: t, status: "duplicate", reason: "existing_lead" };
     leadAt = reopened;
   }
-  if (leadAt - ms(t.at) > r.window_days * DAY)
-    return { touch: t, status: "outside_window", reason: "outside_window" };
+  if (leadAt - ms(t.at) > r.window_days * DAY) return { touch: t, status: "outside_window", reason: "outside_window" };
   return { touch: t, status: "eligible", reason: null };
 }
 
 const byTime = (a: Touch, b: Touch) => ms(a.at) - ms(b.at) || a.code.localeCompare(b.code);
 
-function decision(
-  t: Touch,
-  touch: TouchKind,
-  status: AttributionStatus,
-  reason: Reason | null,
-): Decision {
+function decision(t: Touch, touch: TouchKind, status: AttributionStatus, reason: Reason | null): Decision {
   return {
     creator_id: t.creator_id,
     link_id: t.link_id,
@@ -151,17 +136,12 @@ export function decide(lead: LeadFacts, r: Rules, existing: readonly Existing[] 
   const creators = [...new Set(judged.map((j) => j.touch.creator_id))];
   const best = creators.map((c) => {
     const mine = judged.filter((j) => j.touch.creator_id === c);
-    const eligible = mine
-      .filter((j) => j.status === "eligible")
-      .sort((a, b) => byTime(a.touch, b.touch));
-    if (eligible.length)
-      return r.model === "last_touch" ? (eligible.at(-1) as Judged) : (eligible[0] as Judged);
+    const eligible = mine.filter((j) => j.status === "eligible").sort((a, b) => byTime(a.touch, b.touch));
+    if (eligible.length) return r.model === "last_touch" ? (eligible.at(-1) as Judged) : (eligible[0] as Judged);
     return [...mine].sort((a, b) => byTime(a.touch, b.touch))[0] as Judged;
   });
   // A creator staff rejected for this lead can't win it; the credit goes to the next eligible creator.
-  const rejected = new Set(
-    existing.filter((e) => e.status === "manually_rejected").map((e) => e.creator_id),
-  );
+  const rejected = new Set(existing.filter((e) => e.status === "manually_rejected").map((e) => e.creator_id));
   const eligible = best
     .filter((j) => j.status === "eligible" && !rejected.has(j.touch.creator_id))
     .sort((a, b) => byTime(a.touch, b.touch));
@@ -169,19 +149,14 @@ export function decide(lead: LeadFacts, r: Rules, existing: readonly Existing[] 
 
   let out = best.map((j): Decision => {
     if (j.status !== "eligible") return decision(j.touch, "none", j.status, j.reason);
-    if (j === winner)
-      return decision(j.touch, r.model === "last_touch" ? "last" : "first", "credited", null);
-    if (rejected.has(j.touch.creator_id))
-      return decision(j.touch, "none", "manually_rejected", null);
-    if (r.model === "first_touch_with_assisted")
-      return decision(j.touch, "assisted", "credited", null);
+    if (j === winner) return decision(j.touch, r.model === "last_touch" ? "last" : "first", "credited", null);
+    if (rejected.has(j.touch.creator_id)) return decision(j.touch, "none", "manually_rejected", null);
+    if (r.model === "first_touch_with_assisted") return decision(j.touch, "assisted", "credited", null);
     return decision(j.touch, "none", "duplicate", "another_creator");
   });
 
   // Staff decisions and open fraud reviews stand; a manual credit takes the lead's credit from everyone else.
-  const sticky = new Map(
-    existing.filter((e) => STICKY.includes(e.status)).map((e) => [e.creator_id, e.status]),
-  );
+  const sticky = new Map(existing.filter((e) => STICKY.includes(e.status)).map((e) => [e.creator_id, e.status]));
   const manualWinner = existing.find((e) => e.status === "manually_credited")?.creator_id ?? null;
   out = out.map((d) => {
     const s = sticky.get(d.creator_id);
@@ -195,9 +170,7 @@ export function decide(lead: LeadFacts, r: Rules, existing: readonly Existing[] 
       return { ...d, touch: "none", status: "duplicate", reason: "another_creator" };
     return d;
   });
-  return out.sort(
-    (a, b) => ms(a.touch_at) - ms(b.touch_at) || a.creator_id.localeCompare(b.creator_id),
-  );
+  return out.sort((a, b) => ms(a.touch_at) - ms(b.touch_at) || a.creator_id.localeCompare(b.creator_id));
 }
 
 /** The decision that earns the lead (credited first/last touch, or a manual credit), if any. */

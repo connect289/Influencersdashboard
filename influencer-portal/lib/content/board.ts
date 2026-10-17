@@ -2,14 +2,7 @@
 // where things stand; moves happen through the actions on each deliverable, so the workflow rules always apply.
 import type { DeliverableStatus } from "./workflow";
 
-export const BOARD_COLUMNS = [
-  "waiting_brief",
-  "creating",
-  "in_review",
-  "ready",
-  "live",
-  "done",
-] as const;
+export const BOARD_COLUMNS = ["waiting_brief", "creating", "in_review", "ready", "live", "done"] as const;
 export type BoardColumn = (typeof BOARD_COLUMNS)[number];
 
 const COLUMN: Record<DeliverableStatus, BoardColumn | null> = {
@@ -29,10 +22,7 @@ const COLUMN: Record<DeliverableStatus, BoardColumn | null> = {
   cancelled: null,
 };
 
-export function boardColumn(
-  s: DeliverableStatus,
-  awaitingVerification = false,
-): BoardColumn | null {
+export function boardColumn(s: DeliverableStatus, awaitingVerification = false): BoardColumn | null {
   if (awaitingVerification && s === "live") return "in_review";
   return COLUMN[s];
 }

@@ -9,12 +9,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Banner, ListSkeleton } from "@/components/ui/states";
-import {
-  confirmSetting,
-  saveSetting,
-  settingHistory,
-  type HistoryRow,
-} from "@/lib/actions/settings";
+import { confirmSetting, saveSetting, settingHistory, type HistoryRow } from "@/lib/actions/settings";
 import { formatDateTime } from "@/lib/format";
 import { SchemaFields, type JsonSchema } from "./schema-form";
 
@@ -124,11 +119,7 @@ export function SettingCard({ row }: { row: SettingRow }) {
               disabled={!dirty || pending}
             />
             <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                disabled={!dirty || pending}
-                onClick={() => setValue(row.value)}
-              >
+              <Button variant="ghost" disabled={!dirty || pending} onClick={() => setValue(row.value)}>
                 {t("settings.reset")}
               </Button>
               <Button type="submit" disabled={!dirty || pending || reason.trim().length < 3}>
@@ -172,9 +163,7 @@ function HistoryButton({ settingKey }: { settingKey: string }) {
       <DialogContent title={t("settings.history")} closeLabel={t("common.close")}>
         {error ? <Banner tone="danger">{error}</Banner> : null}
         {!error && rows === null ? <ListSkeleton rows={3} label={t("common.loading")} /> : null}
-        {rows?.length === 0 ? (
-          <p className="text-sm text-muted">{t("settings.noHistory")}</p>
-        ) : null}
+        {rows?.length === 0 ? <p className="text-sm text-muted">{t("settings.noHistory")}</p> : null}
         <ol className="flex flex-col gap-3">
           {rows?.map((r) => (
             <li key={r.version} className="rounded-xl bg-surface-2 p-3 text-sm">

@@ -23,12 +23,7 @@ export default async function AgencyTeamPage() {
       {error ? (
         <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
       ) : (
-        <MembersCard
-          agencyId={me.agencyId}
-          members={data}
-          canManage={me.isOwner}
-          currentUserId={me.userId}
-        />
+        <MembersCard agencyId={me.agencyId} members={data} canManage={me.isOwner} currentUserId={me.userId} />
       )}
     </>
   );

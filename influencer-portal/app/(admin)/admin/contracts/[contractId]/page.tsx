@@ -4,11 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { ContractActions } from "@/components/contracts/contract-actions";
-import {
-  CONTRACT_TABS,
-  ContractStatusLine,
-  ContractView,
-} from "@/components/contracts/contract-view";
+import { CONTRACT_TABS, ContractStatusLine, ContractView } from "@/components/contracts/contract-view";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireStaff } from "@/lib/auth/guards";
 import { loadContract, loadContractSource } from "@/lib/contracts/data";
@@ -35,15 +31,10 @@ export default async function AdminContractPage({
   const tab = CONTRACT_TABS.find((x) => x === sp.tab) ?? "document";
   // The deal's terms in force, for the counter-offer lines (staff with contract.write only).
   const src =
-    me.permissions.has("contract.write") && tab === "requests"
-      ? await loadContractSource(supabase, c.deal_id)
-      : null;
+    me.permissions.has("contract.write") && tab === "requests" ? await loadContractSource(supabase, c.deal_id) : null;
   return (
     <>
-      <Link
-        href="/admin/contracts"
-        className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/admin/contracts" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" /> {t("nav.admin.contracts")}
       </Link>
       <PageHeader

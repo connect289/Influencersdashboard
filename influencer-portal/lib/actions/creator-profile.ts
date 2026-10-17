@@ -51,8 +51,7 @@ function dbFail(error: { code?: string; message: string }, t: T): ActionResult<n
   if (error.code === "42501") return fail(t("errors.forbidden"));
   if (error.code === "23505") return fail(t("profile.errors.duplicate"));
   if (/at most 30/i.test(error.message)) return fail(t("profile.errors.portfolioFull"));
-  if (error.code === "22023" || error.code === "23514" || error.code === "22P02")
-    return fail(t("errors.invalidInput"));
+  if (error.code === "22023" || error.code === "23514" || error.code === "22P02") return fail(t("errors.invalidInput"));
   log.warn("creator_profile.db_error", { code: error.code, error: error.message });
   return fail(t("errors.generic"));
 }
@@ -126,11 +125,7 @@ export async function savePlatform(creatorId: string, input: PlatformInput): Pro
 
 export async function deletePlatform(creatorId: string, id: string): Promise<ActionResult> {
   if (!uuid.safeParse(id).success) return fail((await getTranslations())("errors.invalidInput"));
-  return run(
-    creatorId,
-    (s) => s.rpc("platform_delete", { p_creator: creatorId, p_id: id }),
-    "profile.removed",
-  );
+  return run(creatorId, (s) => s.rpc("platform_delete", { p_creator: creatorId, p_id: id }), "profile.removed");
 }
 
 export async function saveRateCard(creatorId: string, input: RateCardInput): Promise<ActionResult> {
@@ -156,34 +151,19 @@ export async function saveRateCard(creatorId: string, input: RateCardInput): Pro
 
 export async function deleteRateCard(creatorId: string, id: string): Promise<ActionResult> {
   if (!uuid.safeParse(id).success) return fail((await getTranslations())("errors.invalidInput"));
-  return run(
-    creatorId,
-    (s) => s.rpc("rate_card_delete", { p_creator: creatorId, p_id: id }),
-    "profile.removed",
-  );
+  return run(creatorId, (s) => s.rpc("rate_card_delete", { p_creator: creatorId, p_id: id }), "profile.removed");
 }
 
-export async function addPortfolioItem(
-  creatorId: string,
-  input: PortfolioInput,
-): Promise<ActionResult> {
+export async function addPortfolioItem(creatorId: string, input: PortfolioInput): Promise<ActionResult> {
   const t = await getTranslations();
   const p = portfolioInput.safeParse(input);
   if (!p.success) return fail(t("errors.invalidInput"));
-  return run(
-    creatorId,
-    (s) => s.rpc("portfolio_save", { p_creator: creatorId, p: p.data }),
-    "profile.portfolio.saved",
-  );
+  return run(creatorId, (s) => s.rpc("portfolio_save", { p_creator: creatorId, p: p.data }), "profile.portfolio.saved");
 }
 
 export async function deletePortfolioItem(creatorId: string, id: string): Promise<ActionResult> {
   if (!uuid.safeParse(id).success) return fail((await getTranslations())("errors.invalidInput"));
-  return run(
-    creatorId,
-    (s) => s.rpc("portfolio_delete", { p_creator: creatorId, p_id: id }),
-    "profile.removed",
-  );
+  return run(creatorId, (s) => s.rpc("portfolio_delete", { p_creator: creatorId, p_id: id }), "profile.removed");
 }
 
 export async function addContact(creatorId: string, input: ContactInput): Promise<ActionResult> {
@@ -207,11 +187,7 @@ export async function addContact(creatorId: string, input: ContactInput): Promis
 
 export async function deleteContact(creatorId: string, id: string): Promise<ActionResult> {
   if (!uuid.safeParse(id).success) return fail((await getTranslations())("errors.invalidInput"));
-  return run(
-    creatorId,
-    (s) => s.rpc("creator_contact_delete", { p_creator: creatorId, p_id: id }),
-    "profile.removed",
-  );
+  return run(creatorId, (s) => s.rpc("creator_contact_delete", { p_creator: creatorId, p_id: id }), "profile.removed");
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -224,26 +200,18 @@ const kycSaveResult = z.object({
   complete: z.boolean().optional(),
 });
 
-export async function saveKyc(
-  creatorId: string,
-  input: KycInput,
-): Promise<ActionResult<{ status: string }>> {
+export async function saveKyc(creatorId: string, input: KycInput): Promise<ActionResult<{ status: string }>> {
   const t = await getTranslations();
   if (!uuid.safeParse(creatorId).success) return fail(t("errors.invalidInput"));
   const p = kycInput.safeParse(input);
   if (!p.success) {
     const code = p.error.issues[0]?.message ?? "";
     return fail(
-      t(
-        code in KYC_FORM_ERRORS
-          ? KYC_FORM_ERRORS[code as keyof typeof KYC_FORM_ERRORS]
-          : "errors.invalidInput",
-      ),
+      t(code in KYC_FORM_ERRORS ? KYC_FORM_ERRORS[code as keyof typeof KYC_FORM_ERRORS] : "errors.invalidInput"),
     );
   }
   const v = p.data;
-  if (v.proofPath && !v.proofPath.startsWith(`${creatorId}/`))
-    return fail(t("errors.invalidInput"));
+  if (v.proofPath && !v.proofPath.startsWith(`${creatorId}/`)) return fail(t("errors.invalidInput"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
   const { data, error } = await supabase.rpc("kyc_save", {
@@ -327,8 +295,7 @@ export async function verifyKyc(input: z.input<typeof verifyInput>): Promise<Act
     p_reason: p.data.reason,
     p_gstin_verified: p.data.gstinVerified,
   });
-  if (error)
-    return /not ready/i.test(error.message) ? fail(t("kyc.errors.notReady")) : dbFail(error, t);
+  if (error) return /not ready/i.test(error.message) ? fail(t("kyc.errors.notReady")) : dbFail(error, t);
   refresh(p.data.creatorId);
   revalidatePath("/admin/kyc");
   return { ok: true, message: p.data.approve ? t("kyc.verified") : t("kyc.rejected") };
@@ -344,9 +311,7 @@ const revealResult = z.object({
 export async function revealKyc(
   creatorId: string,
   reason: string,
-): Promise<
-  ActionResult<{ pan: string | null; bankAccount: string | null; proofUrl: string | null }>
-> {
+): Promise<ActionResult<{ pan: string | null; bankAccount: string | null; proofUrl: string | null }>> {
   const t = await getTranslations();
   const p = z
     .object({ creatorId: z.uuid(), reason: z.string().trim().min(3).max(300) })

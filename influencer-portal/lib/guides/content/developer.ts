@@ -4,8 +4,7 @@ export const DEVELOPER: Guide = {
   slug: "developer",
   audience: "developer",
   title: "Developer guide",
-  summary:
-    "Architecture, local set-up, conventions, testing, background jobs, and how deployment and go-live work.",
+  summary: "Architecture, local set-up, conventions, testing, background jobs, and how deployment and go-live work.",
   sections: [
     {
       id: "architecture",
@@ -55,26 +54,14 @@ export const DEVELOPER: Guide = {
                 "`npm run typecheck` · `npm run lint` · `npm run format`",
                 "Static checks (no `any`, strict type-checked lint, Prettier)",
               ],
-              [
-                "`npm test`",
-                "Vitest: engine, simulator, schemas, codegen drift, message keys, guides, contrast",
-              ],
-              [
-                "`npm run test:db`",
-                "pgTAP files in `supabase/tests` (RLS per role, masking, workflows)",
-              ],
-              [
-                "`npm run e2e`",
-                "Playwright journeys against a production build; resets and seeds the local DB first",
-              ],
+              ["`npm test`", "Vitest: engine, simulator, schemas, codegen drift, message keys, guides, contrast"],
+              ["`npm run test:db`", "pgTAP files in `supabase/tests` (RLS per role, masking, workflows)"],
+              ["`npm run e2e`", "Playwright journeys against a production build; resets and seeds the local DB first"],
               [
                 "`npm run gen:sql`",
                 "Regenerates migrations from the permission matrix, settings registry, compensation schema and system presets",
               ],
-              [
-                "`node scripts/db.mjs types`",
-                "Regenerates `lib/database.types.ts` after a schema change",
-              ],
+              ["`node scripts/db.mjs types`", "Regenerates `lib/database.types.ts` after a schema change"],
             ],
           },
         },

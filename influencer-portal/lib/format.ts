@@ -92,8 +92,7 @@ export function formatRelative(value: Date | string | number, now: Date = new Da
     ["hour", 3600],
     ["minute", 60],
   ];
-  for (const [unit, secs] of units)
-    if (abs >= secs) return rtf.format(Math.round(diff / secs), unit);
+  for (const [unit, secs] of units) if (abs >= secs) return rtf.format(Math.round(diff / secs), unit);
   return "just now";
 }
 

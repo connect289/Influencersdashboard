@@ -58,8 +58,7 @@ export function SchemaFields({
   idPrefix: string;
 }) {
   const t = useTranslations();
-  const label = (prop: string) =>
-    t.has(`settingFields.${prop}`) ? t(`settingFields.${prop}`) : prop;
+  const label = (prop: string) => (t.has(`settingFields.${prop}`) ? t(`settingFields.${prop}`) : prop);
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {Object.entries(schema.properties ?? {}).map(([prop, sub]) => {
@@ -83,19 +82,11 @@ export function SchemaFields({
         }
         if (type === "boolean") {
           return (
-            <div
-              key={prop}
-              className="flex items-center justify-between gap-3 rounded-xl bg-surface-2 px-3 py-2"
-            >
+            <div key={prop} className="flex items-center justify-between gap-3 rounded-xl bg-surface-2 px-3 py-2">
               <label htmlFor={id} className="text-sm">
                 {label(prop)}
               </label>
-              <Switch
-                id={id}
-                checked={v === true}
-                onCheckedChange={(c) => set(c)}
-                disabled={disabled}
-              />
+              <Switch id={id} checked={v === true} onCheckedChange={(c) => set(c)} disabled={disabled} />
             </div>
           );
         }
@@ -121,9 +112,7 @@ export function SchemaFields({
                           disabled={disabled}
                           onChange={() => set(on ? arr.filter((x) => x !== opt) : [...arr, opt])}
                         />
-                        {t.has(`settingOptions.${String(opt)}`)
-                          ? t(`settingOptions.${String(opt)}`)
-                          : String(opt)}
+                        {t.has(`settingOptions.${String(opt)}`) ? t(`settingOptions.${String(opt)}`) : String(opt)}
                       </label>
                     );
                   })}
@@ -184,17 +173,10 @@ export function SchemaFields({
               <label htmlFor={id} className="text-sm font-medium">
                 {label(prop)}
               </label>
-              <Select
-                id={id}
-                value={scalarText(v)}
-                disabled={disabled}
-                onChange={(e) => set(e.target.value)}
-              >
+              <Select id={id} value={scalarText(v)} disabled={disabled} onChange={(e) => set(e.target.value)}>
                 {s.enum.map((opt) => (
                   <option key={String(opt)} value={String(opt)}>
-                    {t.has(`settingOptions.${String(opt)}`)
-                      ? t(`settingOptions.${String(opt)}`)
-                      : String(opt)}
+                    {t.has(`settingOptions.${String(opt)}`) ? t(`settingOptions.${String(opt)}`) : String(opt)}
                   </option>
                 ))}
               </Select>
@@ -229,11 +211,7 @@ export function SchemaFields({
                 value={scalarText(v)}
                 placeholder={nullable ? t("settings.notSet") : undefined}
                 disabled={disabled}
-                onChange={(e) =>
-                  set(
-                    e.target.value === "" ? (nullable ? null : undefined) : Number(e.target.value),
-                  )
-                }
+                onChange={(e) => set(e.target.value === "" ? (nullable ? null : undefined) : Number(e.target.value))}
               />
             </div>
           );

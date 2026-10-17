@@ -7,11 +7,7 @@ export async function generateMetadata() {
   return { title: t("nav.creator.deliverables") };
 }
 
-export default async function CreatorDeliverablePage({
-  params,
-}: {
-  params: Promise<{ deliverableId: string }>;
-}) {
+export default async function CreatorDeliverablePage({ params }: { params: Promise<{ deliverableId: string }> }) {
   const { deliverableId } = await params;
   const { supabase } = await requireCreator();
   const t = await getTranslations();

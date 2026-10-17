@@ -26,20 +26,14 @@ test.describe.serial("links and leads", () => {
     await expect(page.getByText(/^Link [A-Z0-9-]+ created\.$/)).toBeVisible();
     const item = page.getByRole("listitem").filter({ hasText: "Second reel" });
     await expect(item).toBeVisible();
-    const png = await page.request.get(
-      (await item.getByRole("link", { name: "PNG" }).getAttribute("href")) ?? "",
-    );
+    const png = await page.request.get((await item.getByRole("link", { name: "PNG" }).getAttribute("href")) ?? "");
     expect(png.status()).toBe(200);
     expect(png.headers()["content-type"]).toBe("image/png");
-    const svg = await page.request.get(
-      (await item.getByRole("link", { name: "SVG" }).getAttribute("href")) ?? "",
-    );
+    const svg = await page.request.get((await item.getByRole("link", { name: "SVG" }).getAttribute("href")) ?? "");
     expect(await svg.text()).toContain("<svg");
   });
 
-  test("every post has its own link, shown on the deliverable and in the brief", async ({
-    page,
-  }) => {
+  test("every post has its own link, shown on the deliverable and in the brief", async ({ page }) => {
     await creatorLogin(page, "riya.creator@example.test");
     await page.goto("/creator/deliverables");
     await page
@@ -57,10 +51,7 @@ test.describe.serial("links and leads", () => {
     await expect(page.getByText(/^RIYALEARNS-IG-[A-Z0-9]{3}$/)).toHaveCount(2);
   });
 
-  test("the short link redirects to WhatsApp, counts people and ignores crawlers", async ({
-    page,
-    request,
-  }) => {
+  test("the short link redirects to WhatsApp, counts people and ignores crawlers", async ({ page, request }) => {
     const bot = await request.get("/r/RIYA-MBA1", {
       maxRedirects: 0,
       headers: { "user-agent": "facebookexternalhit/1.1" },
@@ -80,9 +71,7 @@ test.describe.serial("links and leads", () => {
 
     await creatorLogin(page, "riya.creator@example.test");
     await page.goto("/creator/links");
-    await expect(page.getByRole("listitem").filter({ hasText: "RIYA-MBA1" })).toContainText(
-      "Clicks: 1",
-    );
+    await expect(page.getByRole("listitem").filter({ hasText: "RIYA-MBA1" })).toContainText("Clicks: 1");
   });
 
   test("a switched-off link shows the inactive page", async ({ page, request }) => {
@@ -97,15 +86,9 @@ test.describe.serial("links and leads", () => {
     });
     expect(r.headers()["location"]).toMatch(/\/link-inactive$/);
     await page.goto("/link-inactive");
-    await expect(
-      page.getByRole("heading", { name: "This link is no longer active" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "This link is no longer active" })).toBeVisible();
     await page.goto("/creator/links");
-    await page
-      .getByRole("listitem")
-      .filter({ hasText: "RIYA-WEB1" })
-      .getByRole("switch", { name: "Active" })
-      .click();
+    await page.getByRole("listitem").filter({ hasText: "RIYA-WEB1" }).getByRole("switch", { name: "Active" }).click();
     await expect(page.getByText("Link switched on.")).toBeVisible();
   });
 
@@ -175,22 +158,16 @@ test.describe.serial("links and leads", () => {
     expect(text).not.toMatch(/9100000001\d\d/);
   });
 
-  test("a manager rejects an attribution with a reason; only a Super Admin sees contacts", async ({
-    page,
-  }) => {
+  test("a manager rejects an attribution with a reason; only a Super Admin sees contacts", async ({ page }) => {
     await staffLogin(page, "manager@example.test");
     await page.goto("/admin/leads?test=1");
     await page.getByRole("link", { name: /Rohan G\./ }).click();
     const drawer = page.getByRole("dialog");
     await expect(drawer).toContainText("00XXXXXX01");
     expect(await page.content()).not.toContain(NEW_PHONE);
-    await drawer
-      .getByLabel("Reason")
-      .fill("Student says a friend shared the link, not the creator");
+    await drawer.getByLabel("Reason").fill("Student says a friend shared the link, not the creator");
     await drawer.getByRole("button", { name: "Reject this attribution" }).click();
-    await expect(
-      page.getByText("Attribution rejected. The lead is re-checked shortly."),
-    ).toBeVisible();
+    await expect(page.getByText("Attribution rejected. The lead is re-checked shortly.")).toBeVisible();
 
     await staffLogin(page, "admin@example.test");
     await page.goto("/admin/leads?test=1");
@@ -214,14 +191,10 @@ test.describe.serial("links and leads", () => {
     await page.getByLabel("Attribution model").selectOption("last_touch");
     const message = page.getByLabel("WhatsApp message");
     await message.fill("Hi Eduwit, tell me about the MBA");
-    await expect(
-      page.getByText("Include {code} so the creator's code reaches Witty."),
-    ).toBeVisible();
+    await expect(page.getByText("Include {code} so the creator's code reaches Witty.")).toBeVisible();
     await message.fill("Hi Eduwit! {creator_name} sent me. Code {code}");
     await page.getByRole("button", { name: "Save", exact: true }).last().click();
-    await expect(
-      page.getByText("Tracking settings saved. New clicks and the next sync use them."),
-    ).toBeVisible();
+    await expect(page.getByText("Tracking settings saved. New clicks and the next sync use them.")).toBeVisible();
   });
 
   test("a manager clears a fraud flag with a reason", async ({ page }) => {
@@ -282,9 +255,7 @@ test.describe.serial("links and leads", () => {
     await expect(page.getByText("RIYA-MBA1", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Create link" })).toHaveCount(0);
     await page.getByRole("link", { name: "Open leads" }).click();
-    await expect(
-      page.getByText("Riya Sharma's leads, masked exactly as the creator sees them."),
-    ).toBeVisible();
+    await expect(page.getByText("Riya Sharma's leads, masked exactly as the creator sees them.")).toBeVisible();
     await expect(page.getByText("Kabir N.")).toBeVisible();
     expect(await page.content()).not.toMatch(/9100000001\d\d/);
   });

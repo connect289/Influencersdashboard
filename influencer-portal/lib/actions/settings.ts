@@ -29,8 +29,7 @@ export async function saveSetting(
     );
   const why = reasonSchema.safeParse(reason);
   if (!why.success) return fail(t("settings.errors.reason"));
-  if (!Number.isInteger(expectedVersion) || expectedVersion < 0)
-    return fail(t("errors.invalidInput"));
+  if (!Number.isInteger(expectedVersion) || expectedVersion < 0) return fail(t("errors.invalidInput"));
   try {
     const { supabase } = await assertStaff(def.edit);
     const { data, error } = await supabase.rpc("setting_set", {
@@ -44,9 +43,7 @@ export async function saveSetting(
     if (!r.ok) {
       if (r.error === "stale") return fail(t("settings.errors.stale"));
       if (r.error === "invalid")
-        return fail(
-          t("settings.errors.invalid", { details: (r.details ?? []).slice(0, 3).join("; ") }),
-        );
+        return fail(t("settings.errors.invalid", { details: (r.details ?? []).slice(0, 3).join("; ") }));
       return fail(t("errors.generic"));
     }
     revalidatePath("/admin/settings");

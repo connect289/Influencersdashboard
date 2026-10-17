@@ -7,12 +7,7 @@ export const Tabs = T.Root;
 export const TabsContent = T.Content;
 
 export function TabsList({ className, ...props }: ComponentProps<typeof T.List>) {
-  return (
-    <T.List
-      className={cn("mb-4 flex gap-1 overflow-x-auto rounded-xl bg-surface-2 p-1", className)}
-      {...props}
-    />
-  );
+  return <T.List className={cn("mb-4 flex gap-1 overflow-x-auto rounded-xl bg-surface-2 p-1", className)} {...props} />;
 }
 
 export function TabsTrigger({ className, ...props }: ComponentProps<typeof T.Trigger>) {

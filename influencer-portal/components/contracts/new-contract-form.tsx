@@ -65,16 +65,9 @@ export function NewContractForm({
           );
         }}
       >
-        {parent ? (
-          <Banner tone="info">{t("contracts.new.amendmentOf", { number: parent.number })}</Banner>
-        ) : null}
+        {parent ? <Banner tone="info">{t("contracts.new.amendmentOf", { number: parent.number })}</Banner> : null}
         <Field id="nc-template" label={t("contracts.new.template")} required>
-          <Select
-            id="nc-template"
-            value={templateId}
-            onChange={(e) => setTemplateId(e.target.value)}
-            required
-          >
+          <Select id="nc-template" value={templateId} onChange={(e) => setTemplateId(e.target.value)} required>
             {templates.map((tp) => (
               <option key={tp.id} value={tp.id}>
                 {tp.name}
@@ -84,11 +77,7 @@ export function NewContractForm({
         </Field>
         {parent ? null : (
           <Field id="nc-kind" label={t("contracts.new.kind")}>
-            <Select
-              id="nc-kind"
-              value={kind}
-              onChange={(e) => setKind(e.target.value as "original" | "renewal")}
-            >
+            <Select id="nc-kind" value={kind} onChange={(e) => setKind(e.target.value as "original" | "renewal")}>
               <option value="original">{t("contracts.kinds.original")}</option>
               <option value="renewal">{t("contracts.kinds.renewal")}</option>
             </Select>
@@ -106,33 +95,14 @@ export function NewContractForm({
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field id="nc-eff" label={t("contracts.new.effectiveOn")}>
-            <Input
-              id="nc-eff"
-              type="date"
-              value={effectiveOn}
-              onChange={(e) => setEffectiveOn(e.target.value)}
-            />
+            <Input id="nc-eff" type="date" value={effectiveOn} onChange={(e) => setEffectiveOn(e.target.value)} />
           </Field>
           <Field id="nc-exp" label={t("contracts.new.expiresOn")}>
-            <Input
-              id="nc-exp"
-              type="date"
-              value={expiresOn}
-              onChange={(e) => setExpiresOn(e.target.value)}
-            />
+            <Input id="nc-exp" type="date" value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} />
           </Field>
         </div>
-        <Field
-          id="nc-stamp"
-          label={t("contracts.new.stampDuty")}
-          hint={t("contracts.new.stampDutyHint")}
-        >
-          <Input
-            id="nc-stamp"
-            value={stamp}
-            onChange={(e) => setStamp(e.target.value)}
-            maxLength={120}
-          />
+        <Field id="nc-stamp" label={t("contracts.new.stampDuty")} hint={t("contracts.new.stampDutyHint")}>
+          <Input id="nc-stamp" value={stamp} onChange={(e) => setStamp(e.target.value)} maxLength={120} />
         </Field>
         <div className="flex justify-end">
           <Button type="submit" disabled={pending || !templateId}>

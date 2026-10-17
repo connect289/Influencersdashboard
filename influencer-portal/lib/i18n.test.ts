@@ -61,21 +61,10 @@ import {
   SLAB_PERIODS,
   VALIDATION_CODES,
 } from "@/lib/deals/builder";
-import {
-  DEAL_DB_ERRORS,
-  DEAL_MODELS,
-  DEAL_STATUSES,
-  VERSION_ORIGINS,
-  VERSION_STATES,
-} from "@/lib/deals/schemas";
+import { DEAL_DB_ERRORS, DEAL_MODELS, DEAL_STATUSES, VERSION_ORIGINS, VERSION_STATES } from "@/lib/deals/schemas";
 import { BOARD_COLUMNS } from "@/lib/content/board";
 import { ASCI_CHECKLIST } from "@/lib/content/compliance";
-import {
-  BRIEF_STATES,
-  DELIVERABLE_VIEWS,
-  METRIC_FIELDS,
-  PENALTY_STATUSES,
-} from "@/lib/content/data";
+import { BRIEF_STATES, DELIVERABLE_VIEWS, METRIC_FIELDS, PENALTY_STATUSES } from "@/lib/content/data";
 import { CONTENT_DB_ERRORS } from "@/lib/content/schemas";
 import { ACTIONS, DELIVERABLE_STATUSES, DUE_STAGES, STAGES } from "@/lib/content/workflow";
 import { ATTRIBUTION_STATUSES, REASONS } from "@/lib/attribution/rules";
@@ -109,15 +98,13 @@ describe("messages", () => {
   const sources = ["app", "components", "lib"].flatMap((d) => files(join(root, d)));
   const keys = new Set<string>();
   for (const f of sources)
-    for (const m of readFileSync(f, "utf8").matchAll(/\bt\("([a-zA-Z0-9_.]+)"/g))
-      keys.add(m[1] ?? "");
+    for (const m of readFileSync(f, "utf8").matchAll(/\bt\("([a-zA-Z0-9_.]+)"/g)) keys.add(m[1] ?? "");
 
   it("finds keys to check", () => expect(keys.size).toBeGreaterThan(100));
   it.each([...keys])("has %s", (k) => expect(has(k)).toBe(true));
 
   it("labels every navigation item", () => {
-    for (const i of [...STAFF_NAV, ...CREATOR_NAV, ...AGENCY_NAV])
-      expect(has(i.labelKey), i.labelKey).toBe(true);
+    for (const i of [...STAFF_NAV, ...CREATOR_NAV, ...AGENCY_NAV]) expect(has(i.labelKey), i.labelKey).toBe(true);
   });
 
   it("labels every value used as a dynamic key", () => {
@@ -145,37 +132,22 @@ describe("messages", () => {
       ...WIZARD_STEPS.map((x) => `onboarding.steps.${x}`),
       ...OBJECTIVES.map((x) => `campaigns.objectives.${x}`),
       ...CAMPAIGN_STATUSES.map((x) => `campaigns.statuses.${x}`),
-      ...VISIBILITIES.flatMap((x) => [
-        `campaigns.visibilities.${x}`,
-        `campaigns.visibilityHints.${x}`,
-      ]),
+      ...VISIBILITIES.flatMap((x) => [`campaigns.visibilities.${x}`, `campaigns.visibilityHints.${x}`]),
       ...DEAL_TYPES.flatMap((x) => [`campaigns.dealTypes.${x}`, `campaigns.dealTypeHints.${x}`]),
       ...APPLICATION_STATUSES.map((x) => `campaigns.applicationStatuses.${x}`),
       ...ELIGIBILITY_GAPS.map((x) => `campaigns.gaps.${x}`),
       ...Object.values(STATUS_MOVES)
         .flat()
         .map((x) => `campaigns.moves.${x}`),
-      ...["sent", "accepted", "declined", "countered", "withdrawn"].map(
-        (x) => `campaigns.invites.statuses.${x}`,
-      ),
-      ...["open", "superseded", "accepted", "rejected"].map(
-        (x) => `campaigns.offers.statuses.${x}`,
-      ),
+      ...["sent", "accepted", "declined", "countered", "withdrawn"].map((x) => `campaigns.invites.statuses.${x}`),
+      ...["open", "superseded", "accepted", "rejected"].map((x) => `campaigns.offers.statuses.${x}`),
       ...["creator", "agency", "eduwit"].map((x) => `campaigns.application.sides.${x}`),
-      ...["to_review", "accepted", "applications", "invites_open"].map(
-        (x) => `campaigns.stats.${x}`,
-      ),
+      ...["to_review", "accepted", "applications", "invites_open"].map((x) => `campaigns.stats.${x}`),
       ...["approve", "changes", "decline"].map((x) => `onboarding.review.done.${x}`),
       ...["self", "invited"].map((x) => `onboarding.queue.source.${x}`),
-      ...["name", "email", "handle", "url", "followers", "consent", "generic"].map(
-        (x) => `auth.signup.errors.${x}`,
-      ),
+      ...["name", "email", "handle", "url", "followers", "consent", "generic"].map((x) => `auth.signup.errors.${x}`),
       ...["pending", "submitted", "verified", "rejected"].map((s) => `kyc.status.${s}`),
-      ...DEAL_STATUSES.flatMap((x) => [
-        `deals.statuses.${x}`,
-        `deals.moves.${x}`,
-        `deals.moveHints.${x}`,
-      ]),
+      ...DEAL_STATUSES.flatMap((x) => [`deals.statuses.${x}`, `deals.moves.${x}`, `deals.moveHints.${x}`]),
       ...DEAL_MODELS.map((x) => `deals.models.${x}`),
       ...VERSION_STATES.map((x) => `deals.versionStates.${x}`),
       ...VERSION_ORIGINS.map((x) => `deals.origins.${x}`),
@@ -222,24 +194,15 @@ describe("messages", () => {
       ...CONTRACT_TABS.map((x) => `contracts.tabs.${x}`),
       ...EDITABLE_CATEGORIES.map((x) => `contracts.categories.${x}`),
       ...["contracts", "templates", "clauses"].map((x) => `contracts.area.${x}`),
-      ...["creator", "deal", "campaign", "eduwit", "contract"].map(
-        (x) => `contracts.editor.groups.${x}`,
-      ),
+      ...["creator", "deal", "campaign", "eduwit", "contract"].map((x) => `contracts.editor.groups.${x}`),
       ...["all", "unreviewed", "archived"].map((x) => `contracts.library.filters.${x}`),
       ...SAMPLE_KINDS.map((x) => `contracts.templates.samples.${x}`),
       ...["added", "removed", "changed", "same"].map((x) => `contracts.versions.changes.${x}`),
-      ...["pending", "accepted", "rejected", "countered", "withdrawn"].map(
-        (x) => `contracts.requests.statuses.${x}`,
-      ),
+      ...["pending", "accepted", "rejected", "countered", "withdrawn"].map((x) => `contracts.requests.statuses.${x}`),
       ...["creator", "agency", "signatory"].map((x) => `contracts.record.roles.${x}`),
-      ...["void", "terminated", "completed"].flatMap((x) => [
-        `contracts.actions.${x}`,
-        `contracts.actions.${x}Hint`,
-      ]),
+      ...["void", "terminated", "completed"].flatMap((x) => [`contracts.actions.${x}`, `contracts.actions.${x}Hint`]),
       ...CONTRACT_DB_ERRORS.map(([, k]) => `contracts.errors.${k}`),
-      ...["unknown_item", "invalid_value", "no_change", "invalid_config"].map(
-        (x) => `contracts.errors.counter.${x}`,
-      ),
+      ...["unknown_item", "invalid_value", "no_change", "invalid_config"].map((x) => `contracts.errors.counter.${x}`),
       ...SIGN_ERRORS.map((x) => `contracts.sign.errors.${x}`),
       ...SIGN_CHANNELS.map((x) => `contracts.sign.channels.${x}`),
     ];
@@ -254,8 +217,7 @@ describe("messages", () => {
       ...DUE_STAGES.flatMap((x) => [`content.dueStages.${x}`, `content.next.${x}`]),
       ...BOARD_COLUMNS.map((x) => `content.board.${x}`),
       ...DELIVERABLE_VIEWS.filter((x) => x !== "all").map(
-        (x) =>
-          `content.${x === "open" ? "empty" : `empty${x[0]?.toUpperCase() ?? ""}${x.slice(1)}`}`,
+        (x) => `content.${x === "open" ? "empty" : `empty${x[0]?.toUpperCase() ?? ""}${x.slice(1)}`}`,
       ),
       ...BRIEF_STATES.map((x) => `content.briefs.states.${x}`),
       ...PENALTY_STATUSES.map((x) => `content.penalties.statuses.${x}`),
@@ -278,9 +240,7 @@ describe("messages", () => {
       ...["todo", "waiting", "done"].map((x) => `content.my.groups.${x}`),
       ...["review", "live", "metrics", "history", "settings"].map((x) => `content.tabs.${x}`),
       ...["edit", "preview", "versions"].map((x) => `content.briefs.tabs.${x}`),
-      ...["deliverables", "review", "overdue", "live", "claims", "penalties"].map(
-        (x) => `content.area.${x}`,
-      ),
+      ...["deliverables", "review", "overdue", "live", "claims", "penalties"].map((x) => `content.area.${x}`),
       ...CONTENT_DB_ERRORS.map(([, k]) => `content.errors.${k}`),
       ...["invalid", "not_https", "wrong_platform"].map((x) => `content.errors.url.${x}`),
     ];
@@ -320,17 +280,14 @@ describe("messages", () => {
 
   it("labels every setting field and option", () => {
     const walk = (s: Record<string, unknown>): void => {
-      for (const [k, v] of Object.entries(
-        (s.properties ?? {}) as Record<string, Record<string, unknown>>,
-      )) {
+      for (const [k, v] of Object.entries((s.properties ?? {}) as Record<string, Record<string, unknown>>)) {
         expect(has(`settingFields.${k}`), k).toBe(true);
         walk(v);
       }
       const items = s.items as Record<string, unknown> | undefined;
       if (items) walk(items);
       for (const e of (s.enum ?? []) as unknown[])
-        if (typeof e === "string" && /^[a-z_]+$/.test(e))
-          expect(has(`settingOptions.${e}`), e).toBe(true);
+        if (typeof e === "string" && /^[a-z_]+$/.test(e)) expect(has(`settingOptions.${e}`), e).toBe(true);
       for (const a of (s.anyOf ?? []) as Record<string, unknown>[]) walk(a);
     };
     for (const key of SETTING_KEYS) walk(settingJsonSchema(key));

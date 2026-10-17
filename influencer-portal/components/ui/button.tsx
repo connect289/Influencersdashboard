@@ -27,18 +27,9 @@ export const buttonVariants = cva(
   },
 );
 
-export type ButtonProps = ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & { asChild?: boolean };
+export type ButtonProps = ComponentProps<"button"> & VariantProps<typeof buttonVariants> & { asChild?: boolean };
 
-export function Button({
-  className,
-  variant,
-  size,
-  block,
-  asChild = false,
-  type,
-  ...props
-}: ButtonProps) {
+export function Button({ className, variant, size, block, asChild = false, type, ...props }: ButtonProps) {
   const Comp = asChild ? Slot.Root : "button";
   return (
     <Comp

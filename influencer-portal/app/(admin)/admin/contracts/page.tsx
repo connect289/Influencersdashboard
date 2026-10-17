@@ -73,9 +73,7 @@ export default async function ContractsPage({
             aria-current={status === s ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-              status === s
-                ? "bg-primary-soft font-medium text-primary"
-                : "text-muted hover:bg-surface-2",
+              status === s ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
             )}
           >
             {s ? t(`contracts.statuses.${s}`) : t("contracts.openOnly")}
@@ -87,13 +85,7 @@ export default async function ContractsPage({
         <label htmlFor="ct-q" className="sr-only">
           {t("contracts.search")}
         </label>
-        <Input
-          id="ct-q"
-          name="q"
-          defaultValue={q}
-          placeholder={t("contracts.searchPlaceholder")}
-          maxLength={80}
-        />
+        <Input id="ct-q" name="q" defaultValue={q} placeholder={t("contracts.searchPlaceholder")} maxLength={80} />
         <Button type="submit" variant="secondary" aria-label={t("contracts.search")}>
           <Search />
         </Button>
@@ -121,31 +113,22 @@ export default async function ContractsPage({
               {rows.map((r) => (
                 <tr key={r.id}>
                   <Td>
-                    <Link
-                      href={`/admin/contracts/${r.id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
+                    <Link href={`/admin/contracts/${r.id}`} className="font-medium text-primary hover:underline">
                       {r.number}
                     </Link>
                     {r.kind !== "original" ? (
-                      <Badge className="ml-2">
-                        {t(`contracts.kinds.${r.kind as "amendment"}`)}
-                      </Badge>
+                      <Badge className="ml-2">{t(`contracts.kinds.${r.kind as "amendment"}`)}</Badge>
                     ) : null}
                   </Td>
                   <Td>
                     {r.creator_name}
-                    {r.handle ? (
-                      <span className="block text-xs text-muted">@{r.handle}</span>
-                    ) : null}
+                    {r.handle ? <span className="block text-xs text-muted">@{r.handle}</span> : null}
                   </Td>
                   <Td>
                     <Link href={`/admin/deals/${r.deal_id}`} className="hover:underline">
                       {r.deal_title}
                     </Link>
-                    {r.deal_code ? (
-                      <span className="block text-xs text-muted">{r.deal_code}</span>
-                    ) : null}
+                    {r.deal_code ? <span className="block text-xs text-muted">{r.deal_code}</span> : null}
                   </Td>
                   <Td>
                     <StatusBadge status={r.status} label={t(`contracts.statuses.${r.status}`)} />
@@ -163,21 +146,10 @@ export default async function ContractsPage({
         )}
       </Card>
       {pages > 1 ? (
-        <nav
-          className="mt-3 flex items-center justify-between text-sm"
-          aria-label={t("common.pagination")}
-        >
-          {page > 1 ? (
-            <Link href={link({ page: page - 1 })}>{t("common.previous")}</Link>
-          ) : (
-            <span />
-          )}
+        <nav className="mt-3 flex items-center justify-between text-sm" aria-label={t("common.pagination")}>
+          {page > 1 ? <Link href={link({ page: page - 1 })}>{t("common.previous")}</Link> : <span />}
           <span className="text-muted">{t("contracts.pageOf", { page, pages })}</span>
-          {page < pages ? (
-            <Link href={link({ page: page + 1 })}>{t("common.next")}</Link>
-          ) : (
-            <span />
-          )}
+          {page < pages ? <Link href={link({ page: page + 1 })}>{t("common.next")}</Link> : <span />}
         </nav>
       ) : null}
     </>

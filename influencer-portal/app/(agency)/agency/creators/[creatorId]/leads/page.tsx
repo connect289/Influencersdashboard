@@ -25,9 +25,7 @@ export default async function AgencyLeadsPage({
   const { supabase } = await requireAgency();
   const t = await getTranslations();
   const links = await supabase.rpc("agency_creators");
-  const link = (links.data ?? []).find(
-    (l) => l.creator_id === creatorId && l.link_status === "active" && l.can_view,
-  );
+  const link = (links.data ?? []).find((l) => l.creator_id === creatorId && l.link_status === "active" && l.can_view);
   if (!link) notFound();
   return (
     <>

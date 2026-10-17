@@ -12,8 +12,7 @@ const base: Omit<TaxInput, "lines"> = {
   has_pan: true,
   gst: { registered: false, rate_bps: 1800 },
 };
-const section = (r: ReturnType<typeof estimateTax>, code: string) =>
-  r.sections.find((s) => s.code === code);
+const section = (r: ReturnType<typeof estimateTax>, code: string) => r.sections.find((s) => s.code === code);
 
 describe("estimateTax", () => {
   it("applies 194H above the FY threshold and leaves fees under theirs untaxed", () => {

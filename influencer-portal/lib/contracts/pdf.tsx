@@ -106,9 +106,7 @@ function BlockPdf({ block, depth = 0 }: { block: Block; depth?: number }) {
         <View style={{ marginLeft: depth * 12, marginBottom: 4 }}>
           {block.content.map((li, i) => (
             <View key={i} style={s.li} wrap={false}>
-              <Text style={s.bullet}>
-                {block.type === "bulletList" ? "•" : `${String(i + 1)}.`}
-              </Text>
+              <Text style={s.bullet}>{block.type === "bulletList" ? "•" : `${String(i + 1)}.`}</Text>
               <View style={s.liBody}>
                 {li.content.map((b, j) => (
                   <BlockPdf key={j} block={b} depth={depth + 1} />
@@ -176,20 +174,12 @@ function Footer({ number, sha256 }: { number: string; sha256: string }) {
       <Text>
         {number} · SHA-256 {sha256.slice(0, 16)}…
       </Text>
-      <Text
-        render={({ pageNumber, totalPages }) => `${String(pageNumber)} / ${String(totalPages)}`}
-      />
+      <Text render={({ pageNumber, totalPages }) => `${String(pageNumber)} / ${String(totalPages)}`} />
     </View>
   );
 }
 
-export function ContractPdf({
-  content,
-  certificate,
-}: {
-  content: ContractContent;
-  certificate: Certificate;
-}) {
+export function ContractPdf({ content, certificate }: { content: ContractContent; certificate: Certificate }) {
   return (
     <Document title={content.title} author="Eduwit" subject={`Contract ${certificate.number}`}>
       <Page size="A4" style={s.page}>
@@ -233,9 +223,9 @@ export function ContractPdf({
           <Text style={s.dd}>{certificate.generatedAt} UTC</Text>
         </View>
         <Text style={[s.p, { marginTop: 8, color: MUTED }]}>
-          Each party reviewed the document above, typed their name, accepted the consent text and
-          confirmed with a one-time code sent to them. The SHA-256 hash identifies the exact
-          document signed; any change to it produces a different hash.
+          Each party reviewed the document above, typed their name, accepted the consent text and confirmed with a
+          one-time code sent to them. The SHA-256 hash identifies the exact document signed; any change to it produces a
+          different hash.
         </Text>
         {certificate.signatures.map((g, i) => (
           <View key={i} style={s.sig} wrap={false}>
@@ -243,9 +233,7 @@ export function ContractPdf({
               {g.signer_name}
               {g.signer_designation ? `, ${g.signer_designation}` : ""}
             </Text>
-            <Text style={{ color: MUTED, marginBottom: 4 }}>
-              {ROLE[g.signer_role] ?? g.signer_role}
-            </Text>
+            <Text style={{ color: MUTED, marginBottom: 4 }}>{ROLE[g.signer_role] ?? g.signer_role}</Text>
             <View style={s.dl}>
               <Text style={s.dt}>Signed (UTC)</Text>
               <Text style={s.dd}>{g.signed_at}</Text>
@@ -285,9 +273,6 @@ export function ContractPdf({
   );
 }
 
-export async function renderContractPdf(
-  content: ContractContent,
-  certificate: Certificate,
-): Promise<Buffer> {
+export async function renderContractPdf(content: ContractContent, certificate: Certificate): Promise<Buffer> {
   return renderToBuffer(<ContractPdf content={content} certificate={certificate} />);
 }

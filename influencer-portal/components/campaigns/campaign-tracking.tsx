@@ -29,10 +29,7 @@ export function CampaignTracking({
   const invalid = text.trim() !== "" && !text.includes("{code}");
   return (
     <Card>
-      <CardHeader
-        title={t("campaigns.tracking.title")}
-        description={t("campaigns.tracking.hint")}
-      />
+      <CardHeader title={t("campaigns.tracking.title")} description={t("campaigns.tracking.hint")} />
       <form
         className="flex flex-col gap-4"
         onSubmit={(e) => {

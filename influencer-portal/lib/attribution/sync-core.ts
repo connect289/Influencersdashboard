@@ -42,9 +42,7 @@ const leadSchema = z.object({
       deliverable_id: z.string().nullable(),
       campaign_id: z.string().nullable(),
       touch: z.enum(["first", "last", "assisted", "none"]),
-      attribution_reason: z
-        .enum(["existing_lead", "another_creator", "outside_window", "self_referral"])
-        .nullable(),
+      attribution_reason: z.enum(["existing_lead", "another_creator", "outside_window", "self_referral"]).nullable(),
       touch_at: iso,
       evidence_source: z.enum(["click", "referral_code", "touchpoint", "access_code", "manual"]),
     }),
@@ -82,15 +80,10 @@ const candidatesSchema = z.object({
   watermark: z.string().nullable(),
   rules: rulesSchema,
   stage_rules: z.array(stageRuleSchema),
-  campaign_models: z
-    .record(z.string(), z.enum(["first_touch", "last_touch", "first_touch_with_assisted"]))
-    .catch({}),
+  campaign_models: z.record(z.string(), z.enum(["first_touch", "last_touch", "first_touch_with_assisted"])).catch({}),
 });
 
-export type SyncMode =
-  | { since: string }
-  | { lead_ids: number[] }
-  | { from: string; to: string; after: number };
+export type SyncMode = { since: string } | { lead_ids: number[] } | { from: string; to: string; after: number };
 export interface SyncResult {
   scanned: number;
   leads: number;
@@ -123,11 +116,7 @@ export async function syncBatchWith(
   });
   if (applied.error) throw new Error(applied.error.message);
   const creators = [
-    ...new Set(
-      planned.flatMap((p) =>
-        p.decisions.filter((d) => d.status === "credited").map((d) => d.creator_id),
-      ),
-    ),
+    ...new Set(planned.flatMap((p) => p.decisions.filter((d) => d.status === "credited").map((d) => d.creator_id))),
   ];
   const flags = creators.length ? await evaluateFraudWith(db, creators) : 0;
   return {
@@ -180,9 +169,7 @@ export async function evaluateFraudWith(db: SyncClient, creatorIds: string[]): P
     ...creatorSignals(
       {
         leads_last_hour: c.leads_last_hour,
-        off_hours_leads_24h: c.recent.filter((at) =>
-          isOffHours(at, s.off_hours_start, s.off_hours_end),
-        ).length,
+        off_hours_leads_24h: c.recent.filter((at) => isOffHours(at, s.off_hours_start, s.off_hours_end)).length,
         closed_30d: c.closed_30d,
         junk_30d: c.junk_30d,
       },

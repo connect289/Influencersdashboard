@@ -99,11 +99,7 @@ export function MembersCard({
   ) : null;
   return (
     <Card>
-      <CardHeader
-        title={t("agencies.members.title")}
-        description={t("agencies.members.hint")}
-        actions={add}
-      />
+      <CardHeader title={t("agencies.members.title")} description={t("agencies.members.hint")} actions={add} />
       {members.length === 0 ? (
         <EmptyState title={t("agencies.members.empty")} />
       ) : (
@@ -114,12 +110,8 @@ export function MembersCard({
                 <p className="truncate text-sm font-medium">{m.full_name}</p>
                 <p className="truncate text-xs text-muted">{m.email}</p>
               </div>
-              {m.role === "owner" ? (
-                <Badge family="success">{t("agencies.members.roles.owner")}</Badge>
-              ) : null}
-              {!m.user_id ? (
-                <Badge family="attention">{t("agencies.members.invited")}</Badge>
-              ) : null}
+              {m.role === "owner" ? <Badge family="success">{t("agencies.members.roles.owner")}</Badge> : null}
+              {!m.user_id ? <Badge family="attention">{t("agencies.members.invited")}</Badge> : null}
               {canManage && m.user_id !== currentUserId ? (
                 <ConfirmDialog
                   title={t("agencies.members.removeTitle", { name: m.full_name })}

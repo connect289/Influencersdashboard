@@ -47,16 +47,10 @@ export function LeadFilters({
     const q = u.toString();
     router.push(q ? `${path}?${q}` : path, { scroll: false });
   };
-  const current = Object.fromEntries(
-    KEYS.filter((k) => sp.get(k)).map((k) => [k, sp.get(k) ?? ""]),
-  );
+  const current = Object.fromEntries(KEYS.filter((k) => sp.get(k)).map((k) => [k, sp.get(k) ?? ""]));
   const select = (k: (typeof KEYS)[number], label: string, items: [string, string][]) => (
     <Field id={`lf-${k}`} label={label}>
-      <Select
-        id={`lf-${k}`}
-        value={sp.get(k) ?? ""}
-        onChange={(e) => go({ [k]: e.target.value || null })}
-      >
+      <Select id={`lf-${k}`} value={sp.get(k) ?? ""} onChange={(e) => go({ [k]: e.target.value || null })}>
         <option value="">{t("leads.filters.all")}</option>
         {items.map(([v, l]) => (
           <option key={v} value={v}>
@@ -105,11 +99,7 @@ export function LeadFilters({
           </Select>
         ) : null}
         {Object.keys(current).length ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => go(Object.fromEntries(KEYS.map((k) => [k, null])))}
-          >
+          <Button size="sm" variant="ghost" onClick={() => go(Object.fromEntries(KEYS.map((k) => [k, null])))}>
             <X /> {t("leads.filters.clear")}
           </Button>
         ) : null}
@@ -177,12 +167,7 @@ export function LeadFilters({
           }}
         >
           <Field id="lf-view" label={t("leads.views.name")}>
-            <Input
-              id="lf-view"
-              value={name}
-              maxLength={60}
-              onChange={(e) => setName(e.target.value)}
-            />
+            <Input id="lf-view" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
           </Field>
           <Button type="submit" size="sm" variant="secondary" disabled={pending || !name.trim()}>
             <Save /> {t("leads.views.save")}
@@ -209,10 +194,7 @@ export function LeadFilters({
             {views
               .filter((v) => v.mine)
               .map((v) => (
-                <li
-                  key={v.id}
-                  className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5"
-                >
+                <li key={v.id} className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5">
                   {v.name}
                   <button
                     type="button"

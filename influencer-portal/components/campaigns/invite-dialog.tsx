@@ -124,12 +124,7 @@ export function InviteDialog({ campaignId }: { campaignId: string }) {
           ) : null}
           <p className="text-xs text-muted">{t("campaigns.invites.onlyApproved")}</p>
           <Field id="inv-msg" label={t("campaigns.invites.message")}>
-            <Textarea
-              id="inv-msg"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              maxLength={2000}
-            />
+            <Textarea id="inv-msg" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={2000} />
           </Field>
           <Button type="submit" disabled={pending || picked.length === 0}>
             {t("campaigns.invites.send", { count: picked.length })}

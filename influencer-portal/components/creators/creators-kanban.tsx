@@ -92,9 +92,7 @@ function Column({
         ))}
       </ul>
       {count > rows.length ? (
-        <p className="px-1 pt-2 text-xs text-muted">
-          {t("creators.kanban.more", { count: count - rows.length })}
-        </p>
+        <p className="px-1 pt-2 text-xs text-muted">{t("creators.kanban.more", { count: count - rows.length })}</p>
       ) : null}
     </section>
   );
@@ -136,8 +134,7 @@ export function CreatorsKanban({
     });
   };
   const byStage = (s: string) => optimistic.filter((r) => r.pipeline_stage === s);
-  const moved = (s: string) =>
-    byStage(s).length - rows.filter((r) => r.pipeline_stage === s).length;
+  const moved = (s: string) => byStage(s).length - rows.filter((r) => r.pipeline_stage === s).length;
   return (
     <DndContext
       sensors={sensors}
@@ -148,13 +145,7 @@ export function CreatorsKanban({
     >
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-3 md:mx-0 md:px-0">
         {PIPELINE_STAGES.map((s) => (
-          <Column
-            key={s}
-            stage={s}
-            rows={byStage(s)}
-            count={(counts[s] ?? 0) + moved(s)}
-            canWrite={canWrite}
-          />
+          <Column key={s} stage={s} rows={byStage(s)} count={(counts[s] ?? 0) + moved(s)} canWrite={canWrite} />
         ))}
       </div>
     </DndContext>

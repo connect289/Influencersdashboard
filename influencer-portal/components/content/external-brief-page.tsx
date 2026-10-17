@@ -37,31 +37,20 @@ export async function ExternalBriefPage({
   const bk = back({ creatorId: b.creator.id, creatorName: b.creator.display_name });
   return (
     <>
-      <Link
-        href={bk.href}
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href={bk.href} className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {bk.label}
       </Link>
       <PageHeader
         title={b.deal.title}
-        description={
-          <VersionLine version={b.current.version} publishedAt={b.current.published_at} />
-        }
-        help={
-          b.side === "creator" ? "/creator/help/creator#briefs" : "/agency/help/agency#deliverables"
-        }
+        description={<VersionLine version={b.current.version} publishedAt={b.current.published_at} />}
+        help={b.side === "creator" ? "/creator/help/creator#briefs" : "/agency/help/agency#deliverables"}
       />
       {b.current.note && b.current.version > 1 ? (
         <div className="mb-3">
           <Banner tone="info">{t("content.brief.whatChanged", { note: b.current.note })}</Banner>
         </div>
       ) : null}
-      <AcknowledgeCard
-        briefId={b.id}
-        versionId={b.current.id}
-        acknowledged={b.acknowledged_current}
-      />
+      <AcknowledgeCard briefId={b.id} versionId={b.current.id} acknowledged={b.acknowledged_current} />
       <div className="flex flex-col gap-4">
         <BriefView
           content={b.current.content}

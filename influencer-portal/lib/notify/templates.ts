@@ -10,8 +10,7 @@ export function escapeHtml(s: string): string {
 
 const SIGN_IN_FOOTER =
   "You received this because someone signed in to the Eduwit portal with your email. If it wasn't you, ignore this email and tell your Eduwit contact.";
-const CONTRACT_FOOTER =
-  "You received this because you are a party to a contract on the Eduwit creator portal.";
+const CONTRACT_FOOTER = "You received this because you are a party to a contract on the Eduwit creator portal.";
 
 function layout(title: string, bodyHtml: string, footer: string = SIGN_IN_FOOTER): string {
   return `<!doctype html><html><body style="margin:0;background:#F2F4F7;font-family:Arial,Helvetica,sans-serif;color:#0E2240">
@@ -49,11 +48,7 @@ export function passwordLinkEmail(link: string, name: string): Omit<EmailMessage
   };
 }
 
-export function agencyInviteEmail(
-  loginUrl: string,
-  name: string,
-  agencyName: string,
-): Omit<EmailMessage, "to"> {
+export function agencyInviteEmail(loginUrl: string, name: string, agencyName: string): Omit<EmailMessage, "to"> {
   return {
     subject: `You've been added to ${agencyName} on Eduwit Creators`,
     html: layout(
@@ -99,11 +94,7 @@ export function contractSignCodeEmail(
   };
 }
 
-export function contractSignedEmail(
-  name: string,
-  number: string,
-  link: string,
-): Omit<EmailMessage, "to"> {
+export function contractSignedEmail(name: string, number: string, link: string): Omit<EmailMessage, "to"> {
   return {
     subject: `Contract ${number} is signed`,
     html: layout(

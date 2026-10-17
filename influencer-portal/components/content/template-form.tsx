@@ -63,12 +63,7 @@ export function TemplateForm({
             />
           </Field>
           <Field id="tpl-desc" label={t("content.templates.description")}>
-            <Input
-              id="tpl-desc"
-              maxLength={500}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
+            <Input id="tpl-desc" maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
         </div>
         <div className="mt-4">
@@ -82,10 +77,7 @@ export function TemplateForm({
         </div>
       </Card>
       <Card>
-        <CardHeader
-          title={t("content.templates.workflow")}
-          description={t("content.templates.workflowHint")}
-        />
+        <CardHeader title={t("content.templates.workflow")} description={t("content.templates.workflowHint")} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {STAGES.map((s) => (
             <SwitchField
@@ -125,10 +117,7 @@ export function TemplateForm({
         </div>
       </Card>
       <Card>
-        <CardHeader
-          title={t("content.templates.defaults")}
-          description={t("content.templates.defaultsHint")}
-        />
+        <CardHeader title={t("content.templates.defaults")} description={t("content.templates.defaultsHint")} />
         <BriefFields value={c} onChange={setC} />
       </Card>
       <div className="sticky bottom-20 z-10 flex justify-end gap-2 rounded-xl bg-surface/95 p-2 ring-1 ring-line backdrop-blur md:bottom-4">

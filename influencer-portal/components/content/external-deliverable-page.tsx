@@ -12,12 +12,7 @@ import { GoLiveForm, PostsList, ScheduleForm } from "@/components/content/live-p
 import { MediaReview } from "@/components/content/media-review";
 import { MetricsForm, MetricsTable } from "@/components/content/metrics-panel";
 import { SubmitForm } from "@/components/content/submit-form";
-import {
-  DecisionNote,
-  deliverablePaths,
-  EarlierSubmissions,
-  SubmissionHeader,
-} from "@/components/content/submissions";
+import { DecisionNote, deliverablePaths, EarlierSubmissions, SubmissionHeader } from "@/components/content/submissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -60,9 +55,7 @@ export async function ExternalDeliverablePage({
   const pendingPost = d.posts.some((p) => p.verification_status === "pending");
   const correction = (
     <details className="mt-3">
-      <summary className="cursor-pointer text-sm text-primary">
-        {t("content.my.changeLink")}
-      </summary>
+      <summary className="cursor-pointer text-sm text-primary">{t("content.my.changeLink")}</summary>
       <div className="mt-3">
         <GoLiveForm deliverableId={d.id} correcting />
       </div>
@@ -71,18 +64,13 @@ export async function ExternalDeliverablePage({
 
   let next: React.ReactNode = null;
   if (actions.includes("submit_concept")) next = <SubmitForm deliverableId={d.id} kind="concept" />;
-  else if (actions.includes("submit_draft"))
-    next = <SubmitForm deliverableId={d.id} kind="draft" />;
+  else if (actions.includes("submit_draft")) next = <SubmitForm deliverableId={d.id} kind="draft" />;
   else if (d.status === "live") {
     // Live: metrics come next when verification is off; a rejected post needs a corrected link.
     if (actions.includes("submit_metrics"))
       next = (
         <>
-          <MetricsForm
-            deliverableId={d.id}
-            checkpoints={d.metric_checkpoints}
-            done={doneCheckpoints}
-          />
+          <MetricsForm deliverableId={d.id} checkpoints={d.metric_checkpoints} done={doneCheckpoints} />
           {correction}
         </>
       );
@@ -90,18 +78,12 @@ export async function ExternalDeliverablePage({
   } else if (actions.includes("schedule") || actions.includes("go_live"))
     next = (
       <div className="flex flex-col gap-5">
-        {actions.includes("schedule") ? (
-          <ScheduleForm deliverableId={d.id} current={d.scheduled_for} />
-        ) : null}
-        {actions.includes("go_live") ? (
-          <GoLiveForm deliverableId={d.id} correcting={false} />
-        ) : null}
+        {actions.includes("schedule") ? <ScheduleForm deliverableId={d.id} current={d.scheduled_for} /> : null}
+        {actions.includes("go_live") ? <GoLiveForm deliverableId={d.id} correcting={false} /> : null}
       </div>
     );
   else if (actions.includes("submit_metrics"))
-    next = (
-      <MetricsForm deliverableId={d.id} checkpoints={d.metric_checkpoints} done={doneCheckpoints} />
-    );
+    next = <MetricsForm deliverableId={d.id} checkpoints={d.metric_checkpoints} done={doneCheckpoints} />;
 
   const waiting =
     d.status === "not_started"
@@ -120,19 +102,12 @@ export async function ExternalDeliverablePage({
 
   return (
     <>
-      <Link
-        href={bk.href}
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href={bk.href} className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {bk.label}
       </Link>
       <PageHeader
         title={d.title}
-        help={
-          d.side === "creator"
-            ? "/creator/help/creator#deliverables"
-            : "/agency/help/agency#deliverables"
-        }
+        help={d.side === "creator" ? "/creator/help/creator#deliverables" : "/agency/help/agency#deliverables"}
         description={
           <span className="flex flex-col gap-1">
             <span className="flex flex-wrap items-center gap-2">
@@ -161,9 +136,7 @@ export async function ExternalDeliverablePage({
             </Link>
           </Banner>
         ) : null}
-        {d.overdue_days ? (
-          <Banner tone="danger">{t("content.my.overdue", { count: d.overdue_days })}</Banner>
-        ) : null}
+        {d.overdue_days ? <Banner tone="danger">{t("content.my.overdue", { count: d.overdue_days })}</Banner> : null}
         {d.disclosure_failed_at && d.status === "live" ? (
           <Banner tone="danger">{t("content.my.fixDisclosure")}</Banner>
         ) : null}
@@ -221,11 +194,7 @@ export async function ExternalDeliverablePage({
           <Card>
             <CardHeader
               title={t("content.live.title")}
-              description={
-                live
-                  ? t("content.live.postedLine", { date: formatDate(live.posted_on) })
-                  : undefined
-              }
+              description={live ? t("content.live.postedLine", { date: formatDate(live.posted_on) }) : undefined}
             />
             {d.scheduled_for ? (
               <p className="mb-2 text-sm text-muted">
@@ -246,9 +215,7 @@ export async function ExternalDeliverablePage({
         <EarlierSubmissions d={d} links={links} canComment={false} skip={latest?.id ?? null} />
 
         <details className="rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)]">
-          <summary className="cursor-pointer text-sm font-semibold">
-            {t("content.history.title")}
-          </summary>
+          <summary className="cursor-pointer text-sm font-semibold">{t("content.history.title")}</summary>
           <div className="mt-3">
             <HistoryList transitions={d.transitions} />
           </div>

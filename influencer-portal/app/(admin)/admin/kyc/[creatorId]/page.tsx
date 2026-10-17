@@ -14,11 +14,7 @@ export async function generateMetadata() {
   return { title: t("nav.admin.kyc") };
 }
 
-export default async function KycReviewPage({
-  params,
-}: {
-  params: Promise<{ creatorId: string }>;
-}) {
+export default async function KycReviewPage({ params }: { params: Promise<{ creatorId: string }> }) {
   const { creatorId } = await params;
   if (!z.uuid().safeParse(creatorId).success) notFound();
   const { supabase, me } = await requireStaff("kyc.read_masked");
@@ -30,10 +26,7 @@ export default async function KycReviewPage({
   if (!creator.error && !creator.data) notFound();
   return (
     <>
-      <Link
-        href="/admin/kyc"
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/admin/kyc" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {t("kyc.queue.back")}
       </Link>
       <PageHeader

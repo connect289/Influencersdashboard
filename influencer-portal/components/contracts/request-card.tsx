@@ -10,11 +10,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/input";
 import { useAction } from "@/components/ui/use-action";
-import {
-  decideClauseRequest,
-  decideCompRequest,
-  withdrawContractChange,
-} from "@/lib/actions/contracts";
+import { decideClauseRequest, decideCompRequest, withdrawContractChange } from "@/lib/actions/contracts";
 import type { CounterItem, CounterLine } from "@/lib/contracts/counter";
 import { diffWords } from "@/lib/contracts/diff";
 import { plainText, type Block, type RichDoc } from "@/lib/contracts/doc";
@@ -231,10 +227,7 @@ export function RequestCard({
       {r.kind === "clause" && r.proposed_body ? (
         <div className="mt-2 flex flex-col gap-2">
           {currentBlocks && open ? (
-            <WordDiff
-              before={plainText(currentBlocks)}
-              after={plainText(r.proposed_body.content)}
-            />
+            <WordDiff before={plainText(currentBlocks)} after={plainText(r.proposed_body.content)} />
           ) : (
             <DocView blocks={r.proposed_body.content} className="text-sm" />
           )}
@@ -247,12 +240,7 @@ export function RequestCard({
               <span>{l.label}</span>
               <span className="tabular">
                 {open ? (
-                  <>
-                    {l.from === null
-                      ? t("contracts.requests.gone")
-                      : formatCounterValue(l.kind, l.from)}{" "}
-                    →{" "}
-                  </>
+                  <>{l.from === null ? t("contracts.requests.gone") : formatCounterValue(l.kind, l.from)} → </>
                 ) : null}
                 <strong>{formatCounterValue(l.kind, l.to)}</strong>
               </span>
@@ -267,8 +255,7 @@ export function RequestCard({
       ) : null}
       {r.decision_note ? (
         <p className="mt-1 text-sm text-muted">
-          <span className="font-medium text-ink">{t("contracts.requests.decisionLabel")}</span>{" "}
-          {r.decision_note}
+          <span className="font-medium text-ink">{t("contracts.requests.decisionLabel")}</span> {r.decision_note}
         </p>
       ) : null}
       {open && (canDecide || canWithdraw) ? (

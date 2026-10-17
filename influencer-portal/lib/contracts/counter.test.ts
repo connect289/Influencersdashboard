@@ -91,9 +91,7 @@ describe("counterItems", () => {
   });
   it("is empty for a barter deal", () => {
     expect(
-      counterItems(
-        cfg({ schema_version: 1, non_cash: [{ id: "kit", label: "Laptop", value_paise: 1 }] }),
-      ),
+      counterItems(cfg({ schema_version: 1, non_cash: [{ id: "kit", label: "Laptop", value_paise: 1 }] })),
     ).toEqual([]);
   });
 });
@@ -104,18 +102,14 @@ describe("applyCounter", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.config.fixed[0]?.amount_paise).toBe(20_000_00);
-    expect(r.config.fixed[0]?.milestones.map((m) => m.share)).toEqual(
-      hybrid.fixed[0]?.milestones.map((m) => m.share),
-    );
+    expect(r.config.fixed[0]?.milestones.map((m) => m.share)).toEqual(hybrid.fixed[0]?.milestones.map((m) => m.share));
     expect(hybrid.fixed[0]?.amount_paise).toBe(15_000_00);
   });
   it("rescales amount milestones in proportion, remainder on the last", () => {
     const r = applyCounter(rich, [{ key: "fixed.posts", value: 10_000_01 }]);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    const shares = r.config.fixed[0]?.milestones.map((m) =>
-      m.share.type === "amount" ? m.share.amount_paise : -1,
-    );
+    const shares = r.config.fixed[0]?.milestones.map((m) => (m.share.type === "amount" ? m.share.amount_paise : -1));
     expect(shares).toEqual([10_000_01, 20_000_02]);
     expect((shares ?? []).reduce((s, x) => s + x, 0)).toBe(10_000_01 * 3);
   });
@@ -153,10 +147,7 @@ describe("applyCounter", () => {
     });
     const r = applyCounter(zero, [{ key: "fixed.f", value: 100 }]);
     expect(
-      r.ok &&
-        r.config.fixed[0]?.milestones.map((m) =>
-          m.share.type === "amount" ? m.share.amount_paise : 0,
-        ),
+      r.ok && r.config.fixed[0]?.milestones.map((m) => (m.share.type === "amount" ? m.share.amount_paise : 0)),
     ).toEqual([33, 33, 34]);
   });
   it("changes retainers, tiers, percentages, floors, bonuses and fees", () => {
@@ -181,9 +172,7 @@ describe("applyCounter", () => {
   it("changes a flat commission and a fixed bonus", () => {
     const c = cfg({
       schema_version: 1,
-      commission: [
-        { id: "flat", label: "Flat", basis: { type: "flat_per_lead", amount_paise: 100 } },
-      ],
+      commission: [{ id: "flat", label: "Flat", basis: { type: "flat_per_lead", amount_paise: 100 } }],
       bonuses: [
         {
           id: "b",
@@ -233,9 +222,7 @@ describe("applyCounter", () => {
 
 describe("counterTerms and describeCounter", () => {
   it("validates the stored shape", () => {
-    expect(counterTerms.safeParse({ changes: [{ key: "fixed.fee", value: 1 }] }).success).toBe(
-      true,
-    );
+    expect(counterTerms.safeParse({ changes: [{ key: "fixed.fee", value: 1 }] }).success).toBe(true);
     expect(counterTerms.safeParse({ changes: [] }).success).toBe(false);
     expect(counterTerms.safeParse({ changes: [{ key: "evil", value: 1 }] }).success).toBe(false);
     expect(

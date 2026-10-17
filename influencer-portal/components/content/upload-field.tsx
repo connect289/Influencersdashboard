@@ -90,10 +90,7 @@ export function UploadField({
       {value.length ? (
         <ul className="flex flex-col gap-1.5" aria-labelledby={`${id}-label`}>
           {value.map((f) => (
-            <li
-              key={f.path}
-              className="flex items-center gap-2 rounded-lg bg-surface-2 px-2 py-1.5 text-sm"
-            >
+            <li key={f.path} className="flex items-center gap-2 rounded-lg bg-surface-2 px-2 py-1.5 text-sm">
               {fileIcon(f.type)}
               <span className="min-w-0 flex-1 truncate">{f.name}</span>
               <span className="text-xs text-muted">{mb(f.size)}</span>
@@ -113,9 +110,7 @@ export function UploadField({
       {progress ? (
         <div className="flex flex-col gap-1" role="status">
           <div className="flex items-center justify-between text-xs text-muted">
-            <span className="truncate">
-              {t("content.upload.uploadingFile", { name: progress.name })}
-            </span>
+            <span className="truncate">{t("content.upload.uploadingFile", { name: progress.name })}</span>
             <span>{Math.round(progress.fraction * 100)}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-surface-2">

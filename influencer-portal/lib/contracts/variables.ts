@@ -170,8 +170,7 @@ export function milestoneTable(c: CompConfig): TableValue {
         m.share.type === "pct"
           ? `${money(Math.round((total * m.share.pct) / 100))} (${String(m.share.pct)}%)`
           : money(m.share.amount_paise);
-      const cancel =
-        m.on_cancel.type === "pay_pct" ? `; ${String(m.on_cancel.pct)}% if cancelled` : "";
+      const cancel = m.on_cancel.type === "pay_pct" ? `; ${String(m.on_cancel.pct)}% if cancelled` : "";
       rows.push([
         `${f.label}: ${m.label}`,
         amount,
@@ -185,8 +184,7 @@ export function milestoneTable(c: CompConfig): TableValue {
 
 export function commissionTable(c: CompConfig): TableValue {
   const rows = c.commission.map((r) => {
-    const rate =
-      "amount_paise" in r.basis ? money(r.basis.amount_paise) : `${String(r.basis.pct)}%`;
+    const rate = "amount_paise" in r.basis ? money(r.basis.amount_paise) : `${String(r.basis.pct)}%`;
     const base =
       r.basis.type === "pct_of_eduwit_commission"
         ? r.basis.base === "net_of_gst"
@@ -205,14 +203,10 @@ export function commissionTable(c: CompConfig): TableValue {
             )
             .join(", "),
       );
-    if (r.caps.per_unit_paise !== undefined)
-      extras.push(`max ${money(r.caps.per_unit_paise)} each`);
-    if (r.caps.per_month_paise !== undefined)
-      extras.push(`max ${money(r.caps.per_month_paise)} per month`);
-    if (r.caps.lifetime_paise !== undefined)
-      extras.push(`max ${money(r.caps.lifetime_paise)} in total`);
-    if (r.clawback_window_days !== undefined)
-      extras.push(`clawback within ${String(r.clawback_window_days)} days`);
+    if (r.caps.per_unit_paise !== undefined) extras.push(`max ${money(r.caps.per_unit_paise)} each`);
+    if (r.caps.per_month_paise !== undefined) extras.push(`max ${money(r.caps.per_month_paise)} per month`);
+    if (r.caps.lifetime_paise !== undefined) extras.push(`max ${money(r.caps.lifetime_paise)} in total`);
+    if (r.clawback_window_days !== undefined) extras.push(`clawback within ${String(r.clawback_window_days)} days`);
     return [
       r.label,
       `${rate} ${BASIS[r.basis.type]}${base}`,
@@ -239,14 +233,10 @@ export function bonusTable(c: CompConfig): TableValue {
         ? money(b.amount.amount_paise)
         : `${String(b.amount.pct)}% of ${b.amount.type === "pct_of_fixed" ? "the fixed fee" : "commission in the window"}`,
       b.conditions.items
-        .map(
-          (x) =>
-            `${x.metric.replace(/_/g, " ")} ${x.comparator === "gte" ? "≥" : "≤"} ${formatNumber(x.value)}`,
-        )
+        .map((x) => `${x.metric.replace(/_/g, " ")} ${x.comparator === "gte" ? "≥" : "≤"} ${formatNumber(x.value)}`)
         .join(b.conditions.op === "and" ? " and " : " or "),
-      (b.window.type === "dates"
-        ? `${formatDate(b.window.from)} to ${formatDate(b.window.to)}`
-        : b.window.type) + (b.repeat === "every" ? ", each window" : ""),
+      (b.window.type === "dates" ? `${formatDate(b.window.from)} to ${formatDate(b.window.to)}` : b.window.type) +
+        (b.repeat === "every" ? ", each window" : ""),
     ]),
   };
 }
@@ -290,11 +280,7 @@ export function feeTable(c: CompConfig): TableValue {
 export function deliverablesTable(items: readonly DeliverableItem[]): TableValue {
   return {
     head: ["Platform", "Format", "Count"],
-    rows: items.map((d) => [
-      d.platform.replace(/_/g, " "),
-      d.format.replace(/_/g, " "),
-      String(d.count),
-    ]),
+    rows: items.map((d) => [d.platform.replace(/_/g, " "), d.format.replace(/_/g, " "), String(d.count)]),
   };
 }
 

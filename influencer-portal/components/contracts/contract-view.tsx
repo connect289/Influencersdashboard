@@ -48,8 +48,7 @@ export async function ContractView({
   const open = OPEN.includes(c.status);
   const pending = c.requests.filter((r) => r.status === "pending");
   const sections = c.current?.content.sections ?? [];
-  const blocksOf = (key: string | null): Block[] | null =>
-    sections.find((s) => s.key === key)?.blocks ?? null;
+  const blocksOf = (key: string | null): Block[] | null => sections.find((s) => s.key === key)?.blocks ?? null;
   const items = config ? counterItems(config) : [];
 
   let body: React.ReactNode;
@@ -72,12 +71,8 @@ export async function ContractView({
                   <span>
                     {s.number}. {s.title}
                   </span>
-                  {s.negotiable ? (
-                    <Badge family="progress">{t("contracts.flags.negotiable")}</Badge>
-                  ) : null}
-                  {s.amended ? (
-                    <Badge family="attention">{t("contracts.amendedBadge")}</Badge>
-                  ) : null}
+                  {s.negotiable ? <Badge family="progress">{t("contracts.flags.negotiable")}</Badge> : null}
+                  {s.amended ? <Badge family="attention">{t("contracts.amendedBadge")}</Badge> : null}
                 </h3>
                 <DocView blocks={s.blocks} className="mt-1" />
                 <ClauseThread
@@ -86,9 +81,7 @@ export async function ContractView({
                   comments={c.comments.filter((m) => m.clause_key === s.key)}
                   canComment={open && (staff ? c.can_write : true)}
                   canSuggest={open && !staff && s.negotiable && !s.locked}
-                  hasPendingSuggestion={pending.some(
-                    (r) => r.kind === "clause" && r.clause_key === s.key,
-                  )}
+                  hasPendingSuggestion={pending.some((r) => r.kind === "clause" && r.clause_key === s.key)}
                   blocks={s.blocks}
                 />
               </section>
@@ -104,24 +97,17 @@ export async function ContractView({
       <div className="flex flex-col gap-3">
         {!staff && open ? (
           <Card>
-            <CardHeader
-              title={t("contracts.counter.title")}
-              description={t("contracts.counter.cardHint")}
-            />
+            <CardHeader title={t("contracts.counter.title")} description={t("contracts.counter.cardHint")} />
             <CounterOfferDialog contractId={c.id} items={items} />
           </Card>
         ) : null}
         {ordered.length === 0 ? (
           <Card>
-            <EmptyState
-              title={t("contracts.requests.empty")}
-              description={t("contracts.requests.emptyHint")}
-            />
+            <EmptyState title={t("contracts.requests.empty")} description={t("contracts.requests.emptyHint")} />
           </Card>
         ) : (
           ordered.map((r) => {
-            const terms =
-              r.kind === "compensation" ? counterTerms.safeParse(r.proposed_terms) : null;
+            const terms = r.kind === "compensation" ? counterTerms.safeParse(r.proposed_terms) : null;
             return (
               <RequestCard
                 key={r.id}
@@ -145,10 +131,7 @@ export async function ContractView({
     const from = vs.find((v) => v.id === compare.from) ?? vs.at(-2);
     const [a, b] =
       from && to && from.id !== to.id
-        ? await Promise.all([
-            loadVersionContent(supabase, from.id),
-            loadVersionContent(supabase, to.id),
-          ])
+        ? await Promise.all([loadVersionContent(supabase, from.id), loadVersionContent(supabase, to.id)])
         : [null, null];
     const diff = a && b ? diffContents(a.content, b.content) : [];
     body = (
@@ -159,9 +142,7 @@ export async function ContractView({
             {[...vs].reverse().map((v) => (
               <li key={v.id} className="flex flex-wrap items-baseline justify-between gap-2">
                 <span>
-                  <span className="font-medium">
-                    {t("contracts.versions.label", { version: v.version })}
-                  </span>
+                  <span className="font-medium">{t("contracts.versions.label", { version: v.version })}</span>
                   {v.note ? <span className="text-muted"> · {v.note}</span> : null}
                 </span>
                 <span className="text-xs text-muted">{formatDateTime(v.created_at)}</span>
@@ -171,19 +152,12 @@ export async function ContractView({
         </Card>
         {vs.length < 2 ? (
           <Card>
-            <EmptyState
-              title={t("contracts.versions.onlyOne")}
-              description={t("contracts.versions.onlyOneHint")}
-            />
+            <EmptyState title={t("contracts.versions.onlyOne")} description={t("contracts.versions.onlyOneHint")} />
           </Card>
         ) : (
           <Card>
             <CardHeader title={t("contracts.versions.compare")} />
-            <form
-              method="get"
-              action={href}
-              className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end"
-            >
+            <form method="get" action={href} className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end">
               <input type="hidden" name="tab" value="versions" />
               <label className="flex flex-1 flex-col gap-1 text-sm">
                 {t("contracts.versions.from")}
@@ -220,13 +194,7 @@ export async function ContractView({
                       <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold">
                         {d.title}
                         <Badge
-                          family={
-                            d.change === "removed"
-                              ? "problem"
-                              : d.change === "added"
-                                ? "success"
-                                : "attention"
-                          }
+                          family={d.change === "removed" ? "problem" : d.change === "added" ? "success" : "attention"}
                         >
                           {t(`contracts.versions.changes.${d.change}`)}
                         </Badge>
@@ -261,9 +229,7 @@ export async function ContractView({
           <CardHeader title={t("contracts.record.document")} />
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
             <dt className="text-muted">{t("contracts.record.version")}</dt>
-            <dd>
-              {c.current ? t("contracts.versions.label", { version: c.current.version }) : "—"}
-            </dd>
+            <dd>{c.current ? t("contracts.versions.label", { version: c.current.version }) : "—"}</dd>
             <dt className="text-muted">{t("contracts.record.hash")}</dt>
             <dd className="font-mono text-xs break-all">{c.current?.sha256 ?? "—"}</dd>
             <dt className="text-muted">{t("contracts.record.sent")}</dt>
@@ -310,9 +276,7 @@ export async function ContractView({
 
   return (
     <>
-      {c.integrity_failed_at ? (
-        <Banner tone="danger">{t("contracts.integrityFailed")}</Banner>
-      ) : null}
+      {c.integrity_failed_at ? <Banner tone="danger">{t("contracts.integrityFailed")}</Banner> : null}
       {c.file && !c.integrity_failed_at ? (
         <div className="mb-2 flex flex-wrap items-center gap-3 rounded-xl bg-success-soft px-3 py-2 text-sm text-success">
           <span>{t("contracts.signedBanner")}</span>
@@ -322,20 +286,12 @@ export async function ContractView({
         </div>
       ) : null}
       {staff && c.current?.missing_fields.length ? (
-        <Banner tone="warning">
-          {t("contracts.missingBanner", { fields: c.current.missing_fields.join(", ") })}
-        </Banner>
+        <Banner tone="warning">{t("contracts.missingBanner", { fields: c.current.missing_fields.join(", ") })}</Banner>
       ) : null}
-      {c.status_reason &&
-      ["void", "terminated", "completed", "superseded", "expired"].includes(c.status) ? (
-        <p className="mt-2 text-sm text-muted">
-          {t("contracts.statusReason", { reason: c.status_reason })}
-        </p>
+      {c.status_reason && ["void", "terminated", "completed", "superseded", "expired"].includes(c.status) ? (
+        <p className="mt-2 text-sm text-muted">{t("contracts.statusReason", { reason: c.status_reason })}</p>
       ) : null}
-      <nav
-        className="-mx-4 my-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0"
-        aria-label={t("contracts.tabsNav")}
-      >
+      <nav className="-mx-4 my-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0" aria-label={t("contracts.tabsNav")}>
         {CONTRACT_TABS.map((x) => (
           <Link
             key={x}
@@ -343,9 +299,7 @@ export async function ContractView({
             aria-current={tab === x ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-              tab === x
-                ? "bg-primary-soft font-medium text-primary"
-                : "text-muted hover:bg-surface-2",
+              tab === x ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
             )}
           >
             {t(`contracts.tabs.${x}`)}
@@ -366,13 +320,9 @@ export async function ContractStatusLine({ c }: { c: ContractDetail }) {
       <span>{c.number}</span>
       <StatusBadge status={c.status} label={t(`contracts.statuses.${c.status}`)} />
       {c.kind !== "original" ? <Badge>{t(`contracts.kinds.${c.kind}`)}</Badge> : null}
-      {c.parent ? (
-        <span className="text-muted">{t("contracts.amends", { number: c.parent.number })}</span>
-      ) : null}
+      {c.parent ? <span className="text-muted">{t("contracts.amends", { number: c.parent.number })}</span> : null}
       {c.negotiation_deadline && OPEN.includes(c.status) ? (
-        <span className="text-muted">
-          {t("contracts.deadline", { date: formatDateTime(c.negotiation_deadline) })}
-        </span>
+        <span className="text-muted">{t("contracts.deadline", { date: formatDateTime(c.negotiation_deadline) })}</span>
       ) : null}
     </span>
   );

@@ -25,12 +25,7 @@ export async function loadCreatorProfile(
   const [creator, platforms, rates, portfolio, contacts] = await Promise.all([
     supabase.from("creators").select("*").eq("id", creatorId).maybeSingle(),
     supabase.from("creator_platforms").select("*").eq("creator_id", creatorId).order("created_at"),
-    supabase
-      .from("creator_rate_cards")
-      .select("*")
-      .eq("creator_id", creatorId)
-      .order("platform")
-      .order("format"),
+    supabase.from("creator_rate_cards").select("*").eq("creator_id", creatorId).order("platform").order("format"),
     supabase.from("creator_portfolio").select("*").eq("creator_id", creatorId).order("position"),
     supabase
       .from("creator_contacts")
@@ -52,10 +47,7 @@ export async function loadCreatorProfile(
   };
 }
 
-export async function loadKyc(
-  supabase: ServerSupabase,
-  creatorId: string,
-): Promise<KycView | null> {
+export async function loadKyc(supabase: ServerSupabase, creatorId: string): Promise<KycView | null> {
   const { data, error } = await supabase.rpc("kyc_view", { p_creator: creatorId });
   if (error) return null;
   return data as unknown as KycView;

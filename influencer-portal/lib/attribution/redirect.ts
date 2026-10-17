@@ -12,15 +12,7 @@ import { SETTINGS } from "@/lib/settings/registry";
 import { adminClient } from "@/lib/supabase/admin";
 import { deviceType, inAppBrowser, isCrawler } from "./bots";
 import { normalizeCode } from "./codes";
-import {
-  landingUrl,
-  renderMessage,
-  safeHttpsUrl,
-  slugify,
-  utmFor,
-  whatsappUrl,
-  withUtm,
-} from "./links";
+import { landingUrl, renderMessage, safeHttpsUrl, slugify, utmFor, whatsappUrl, withUtm } from "./links";
 
 const WITTY_TIMEOUT_MS = 1500;
 const linkSchema = z.object({
@@ -40,21 +32,15 @@ const linkSchema = z.object({
 
 /** A keyed hash of the visitor's IP (never stored raw), for the same-device fraud signal. */
 function ipHash(ip: string | null): string | null {
-  return ip
-    ? createHmac("sha256", env().INF_INTERNAL_API_KEY).update(`ip:${ip}`).digest("hex").slice(0, 32)
-    : null;
+  return ip ? createHmac("sha256", env().INF_INTERNAL_API_KEY).update(`ip:${ip}`).digest("hex").slice(0, 32) : null;
 }
 
-async function issueAccessCode(
-  p: Record<string, unknown>,
-): Promise<{ code: string | null; click_id: number | null }> {
+async function issueAccessCode(p: Record<string, unknown>): Promise<{ code: string | null; click_id: number | null }> {
   const call = adminClient()
     .rpc("witty_issue_code", { p: p as never })
     .then(({ data, error }) => {
       if (error) throw new Error(error.message);
-      const r = z
-        .object({ code: z.string().nullable(), click_id: z.number().nullable().optional() })
-        .parse(data);
+      const r = z.object({ code: z.string().nullable(), click_id: z.number().nullable().optional() }).parse(data);
       return { code: r.code, click_id: r.click_id ?? null };
     });
   const timeout = new Promise<never>((_, reject) =>
@@ -63,9 +49,7 @@ async function issueAccessCode(
   return Promise.race([call, timeout]);
 }
 
-export type RedirectOutcome =
-  | { location: string; status: 302 }
-  | { location: string; status: 302; inactive: true };
+export type RedirectOutcome = { location: string; status: 302 } | { location: string; status: 302; inactive: true };
 
 export async function resolveRedirect(
   rawCode: string,
@@ -86,9 +70,7 @@ export async function resolveRedirect(
   const link = linkSchema.nullable().safeParse(resolved.data);
   if (resolved.error || !link.success || !link.data || !link.data.active) return inactive;
   const l = link.data;
-  const s = SETTINGS["attribution.links"].schema
-    .catch(SETTINGS["attribution.links"].default)
-    .parse(setting.data);
+  const s = SETTINGS["attribution.links"].schema.catch(SETTINGS["attribution.links"].default).parse(setting.data);
   const ua = req.headers.get("user-agent");
   const limited = !(await rateLimit("redirect", rateIp(req.headers))).ok;
   const bot = limited || isCrawler(ua, req.method);
@@ -153,7 +135,6 @@ export async function resolveRedirect(
       issue_failed: issueFailed,
     },
   });
-  if (logged.error)
-    log.warn("redirect.click_log_failed", { code: l.code, error: logged.error.message });
+  if (logged.error) log.warn("redirect.click_log_failed", { code: l.code, error: logged.error.message });
   return { location, status: 302 };
 }

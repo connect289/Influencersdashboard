@@ -20,13 +20,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { compConfig } from "@/lib/compensation/schema";
 import { contractRowSchema, OPEN_CONTRACT_STATUSES } from "@/lib/contracts/data";
 import { loadPickers } from "@/lib/creators/staff-data";
-import {
-  commissionEstimate,
-  loadCompContext,
-  loadDeal,
-  loadTdsSections,
-  versionsOf,
-} from "@/lib/deals/data";
+import { commissionEstimate, loadCompContext, loadDeal, loadTdsSections, versionsOf } from "@/lib/deals/data";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -69,11 +63,7 @@ export default async function DealPage({
   const amendmentDraft = draft !== null && current !== null;
   const canContent = me.permissions.has("brief.read") || me.permissions.has("deliverable.read");
   const visible = TABS.filter((x) =>
-    x === "dryRun"
-      ? amendmentDraft && canWrite
-      : x === "content"
-        ? canContent
-        : x !== "details" || canWrite,
+    x === "dryRun" ? amendmentDraft && canWrite : x === "content" ? canContent : x !== "details" || canWrite,
   );
   const requested = (await searchParams).tab;
   const tab = visible.find((x) => x === requested) ?? "terms";
@@ -178,10 +168,7 @@ export default async function DealPage({
 
   return (
     <>
-      <Link
-        href="/admin/deals"
-        className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/admin/deals" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" /> {t("nav.admin.deals")}
       </Link>
       <PageHeader
@@ -191,17 +178,11 @@ export default async function DealPage({
             <span>{deal.code}</span>
             <StatusBadge status={deal.status} label={t(`deals.statuses.${deal.status}`)} />
             <Badge>{t(`deals.models.${deal.deal_model}`)}</Badge>
-            <Link
-              href={`/admin/creators/${deal.creator.id}`}
-              className="text-primary hover:underline"
-            >
+            <Link href={`/admin/creators/${deal.creator.id}`} className="text-primary hover:underline">
               {deal.creator.display_name}
             </Link>
             {deal.campaign ? (
-              <Link
-                href={`/admin/campaigns/${deal.campaign.id}`}
-                className="text-primary hover:underline"
-              >
+              <Link href={`/admin/campaigns/${deal.campaign.id}`} className="text-primary hover:underline">
                 {deal.campaign.name}
               </Link>
             ) : null}
@@ -233,8 +214,7 @@ export default async function DealPage({
               href={`/admin/contracts/${c.id}`}
               className="inline-flex items-center gap-1 hover:underline"
             >
-              {c.number}{" "}
-              <StatusBadge status={c.status} label={t(`contracts.statuses.${c.status}`)} />
+              {c.number} <StatusBadge status={c.status} label={t(`contracts.statuses.${c.status}`)} />
             </Link>
           ))}
           {canContract ? (
@@ -248,18 +228,11 @@ export default async function DealPage({
           ) : null}
         </div>
       ) : null}
-      {pending ? (
-        <Banner tone="warning">{t("deals.awaitingResponse", { version: pending.version })}</Banner>
-      ) : null}
+      {pending ? <Banner tone="warning">{t("deals.awaitingResponse", { version: pending.version })}</Banner> : null}
       {deal.status_reason && ["terminated", "active"].includes(deal.status) ? (
-        <p className="mt-2 text-sm text-muted">
-          {t("deals.statusReason", { reason: deal.status_reason })}
-        </p>
+        <p className="mt-2 text-sm text-muted">{t("deals.statusReason", { reason: deal.status_reason })}</p>
       ) : null}
-      <nav
-        className="-mx-4 my-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0"
-        aria-label={t("deals.sectionsNav")}
-      >
+      <nav className="-mx-4 my-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0" aria-label={t("deals.sectionsNav")}>
         {visible.map((x) => (
           <Link
             key={x}
@@ -267,9 +240,7 @@ export default async function DealPage({
             aria-current={tab === x ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-              tab === x
-                ? "bg-primary-soft font-medium text-primary"
-                : "text-muted hover:bg-surface-2",
+              tab === x ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
             )}
           >
             {t(`deals.tabs.${x}`)}

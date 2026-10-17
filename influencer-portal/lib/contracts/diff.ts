@@ -51,8 +51,7 @@ export function diffWords(a: string, b: string): DiffOp[] {
         push("eq", xs[i] ?? "");
         i++;
         j++;
-      } else if (((lcs[i + 1] as number[])[j] ?? 0) >= ((lcs[i] as number[])[j + 1] ?? 0))
-        push("del", xs[i++] ?? "");
+      } else if (((lcs[i + 1] as number[])[j] ?? 0) >= ((lcs[i] as number[])[j + 1] ?? 0)) push("del", xs[i++] ?? "");
       else push("ins", ys[j++] ?? "");
     }
     while (i < n) push("del", xs[i++] ?? "");

@@ -25,10 +25,7 @@ export default async function NewCampaignPage() {
   ]);
   return (
     <>
-      <Link
-        href="/admin/campaigns"
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
-      >
+      <Link href="/admin/campaigns" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> {t("nav.admin.campaigns")}
       </Link>
       <PageHeader title={t("campaigns.new")} description={t("campaigns.newHint")} />

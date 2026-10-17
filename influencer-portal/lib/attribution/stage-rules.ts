@@ -167,13 +167,7 @@ export const DEFAULT_STAGE_RULES: readonly MappingRule[] = [
     conditions: [
       {
         field: "stage",
-        in: [
-          "allocated",
-          "sent_to_partner",
-          "duplicate_at_partner",
-          "routed_to_partner",
-          "assigned",
-        ],
+        in: ["allocated", "sent_to_partner", "duplicate_at_partner", "routed_to_partner", "assigned"],
       },
     ],
     creator_stage: "allocated",

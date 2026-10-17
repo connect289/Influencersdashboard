@@ -85,12 +85,7 @@ export function parseFilters(sp: Record<string, string | undefined>): LeadFilter
 }
 
 /** A creator's leads (theirs only: RLS), filtered. Credited first; newest first. */
-export async function loadFeed(
-  db: Db,
-  creatorId: string,
-  f: LeadFilters,
-  limit = 500,
-): Promise<FeedRow[]> {
+export async function loadFeed(db: Db, creatorId: string, f: LeadFilters, limit = 500): Promise<FeedRow[]> {
   let q = db
     .from("creator_lead_feed")
     .select("*")
@@ -109,15 +104,8 @@ export async function loadFeed(
       `fields->>city.ilike.%${f.city.replace(/[%,()]/g, "")}%,fields->>state.ilike.%${f.city.replace(/[%,()]/g, "")}%`,
     );
   if (f.from) q = q.gte("lead_at", new Date(`${f.from}T00:00:00+05:30`).toISOString());
-  if (f.to)
-    q = q.lt(
-      "lead_at",
-      new Date(new Date(`${f.to}T00:00:00+05:30`).getTime() + 86_400_000).toISOString(),
-    );
-  if (f.q)
-    q = q.or(
-      `lead_ref.ilike.%${f.q.replace(/[%,()]/g, "")}%,code.ilike.%${f.q.replace(/[%,()]/g, "")}%`,
-    );
+  if (f.to) q = q.lt("lead_at", new Date(new Date(`${f.to}T00:00:00+05:30`).getTime() + 86_400_000).toISOString());
+  if (f.q) q = q.or(`lead_ref.ilike.%${f.q.replace(/[%,()]/g, "")}%,code.ilike.%${f.q.replace(/[%,()]/g, "")}%`);
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   return z.array(feedRow).parse(data);
@@ -177,9 +165,7 @@ export type LeadDetail = z.infer<typeof leadDetail>;
 export async function loadLead(db: Db, attributionId: string): Promise<LeadDetail | null> {
   const { data, error } = await db.rpc("lead_detail", { p_attribution: attributionId });
   if (error) throw new Error(error.message);
-  return leadDetail
-    .nullable()
-    .parse(data === null ? null : { ...(data as object), as_of: new Date().toISOString() });
+  return leadDetail.nullable().parse(data === null ? null : { ...(data as object), as_of: new Date().toISOString() });
 }
 
 export const staffLeadRow = feedRow.extend({
@@ -294,10 +280,7 @@ export const fraudFlag = z.object({
 });
 export type FraudFlag = z.infer<typeof fraudFlag>;
 
-export async function loadFraudQueue(
-  db: Db,
-  status: "open" | "cleared" | "confirmed" | "all",
-): Promise<FraudFlag[]> {
+export async function loadFraudQueue(db: Db, status: "open" | "cleared" | "confirmed" | "all"): Promise<FraudFlag[]> {
   const { data, error } = await db.rpc("fraud_queue", { p: { status } });
   if (error) throw new Error(error.message);
   return z.array(fraudFlag).parse(data);
@@ -306,9 +289,7 @@ export async function loadFraudQueue(
 export const overview = z.object({
   by_status: z.record(z.string(), z.number()),
   open_flags: z.number(),
-  last_sync: z
-    .object({ watermark: ts, updated_at: ts, detail: z.record(z.string(), z.unknown()) })
-    .nullable(),
+  last_sync: z.object({ watermark: ts, updated_at: ts, detail: z.record(z.string(), z.unknown()) }).nullable(),
   unmapped: z.number(),
 });
 

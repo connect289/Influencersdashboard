@@ -10,12 +10,7 @@ import { Input, Select } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
 import { useAction } from "@/components/ui/use-action";
 import { saveStageRule } from "@/lib/actions/links";
-import {
-  CREATOR_STAGES,
-  STAGE_FIELDS,
-  type CreatorStage,
-  type StageField,
-} from "@/lib/attribution/stages";
+import { CREATOR_STAGES, STAGE_FIELDS, type CreatorStage, type StageField } from "@/lib/attribution/stages";
 import type { StageRuleRow } from "@/lib/leads/data";
 
 type Cond = { field: StageField; mode: "in" | "present" | "empty" | "is_true"; values: string };
@@ -68,11 +63,7 @@ export function StageRuleForm({ rule, onDone }: { rule: StageRuleRow | null; onD
         );
       }}
     >
-      <Field
-        id="sr-priority"
-        label={t("leads.stages.priority")}
-        hint={t("leads.stages.priorityHint")}
-      >
+      <Field id="sr-priority" label={t("leads.stages.priority")} hint={t("leads.stages.priorityHint")}>
         <Input
           id="sr-priority"
           type="number"
@@ -90,11 +81,7 @@ export function StageRuleForm({ rule, onDone }: { rule: StageRuleRow | null; onD
               aria-label={t("leads.stages.field")}
               value={c.field}
               onChange={(e) =>
-                setConds(
-                  conds.map((x, j) =>
-                    j === i ? { ...x, field: e.target.value as StageField } : x,
-                  ),
-                )
+                setConds(conds.map((x, j) => (j === i ? { ...x, field: e.target.value as StageField } : x)))
               }
             >
               {STAGE_FIELDS.map((f) => (
@@ -107,11 +94,7 @@ export function StageRuleForm({ rule, onDone }: { rule: StageRuleRow | null; onD
               aria-label={t("leads.stages.mode")}
               value={c.mode}
               onChange={(e) =>
-                setConds(
-                  conds.map((x, j) =>
-                    j === i ? { ...x, mode: e.target.value as Cond["mode"] } : x,
-                  ),
-                )
+                setConds(conds.map((x, j) => (j === i ? { ...x, mode: e.target.value as Cond["mode"] } : x)))
               }
             >
               {(["in", "present", "empty", "is_true"] as const).map((m) => (
@@ -125,9 +108,7 @@ export function StageRuleForm({ rule, onDone }: { rule: StageRuleRow | null; onD
               disabled={c.mode !== "in"}
               placeholder={t("leads.stages.valuesHint")}
               value={c.values}
-              onChange={(e) =>
-                setConds(conds.map((x, j) => (j === i ? { ...x, values: e.target.value } : x)))
-              }
+              onChange={(e) => setConds(conds.map((x, j) => (j === i ? { ...x, values: e.target.value } : x)))}
             />
             <Button
               type="button"
@@ -155,11 +136,7 @@ export function StageRuleForm({ rule, onDone }: { rule: StageRuleRow | null; onD
       </fieldset>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field id="sr-stage" label={t("leads.stages.creatorStage")}>
-          <Select
-            id="sr-stage"
-            value={stage}
-            onChange={(e) => setStage(e.target.value as CreatorStage | "")}
-          >
+          <Select id="sr-stage" value={stage} onChange={(e) => setStage(e.target.value as CreatorStage | "")}>
             <option value="">{t("leads.stages.keepEvaluating")}</option>
             {CREATOR_STAGES.map((s) => (
               <option key={s} value={s}>
@@ -169,31 +146,17 @@ export function StageRuleForm({ rule, onDone }: { rule: StageRuleRow | null; onD
           </Select>
         </Field>
         <Field id="sr-reason" label={t("leads.stages.reason")}>
-          <Input
-            id="sr-reason"
-            maxLength={80}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
+          <Input id="sr-reason" maxLength={80} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
         <Field id="sr-flag" label={t("leads.stages.flag")}>
-          <Select
-            id="sr-flag"
-            value={flag}
-            onChange={(e) => setFlag(e.target.value as typeof flag)}
-          >
+          <Select id="sr-flag" value={flag} onChange={(e) => setFlag(e.target.value as typeof flag)}>
             <option value="">—</option>
             <option value="cancelled">{t("leads.flags.cancelled")}</option>
             <option value="under_review">{t("leads.flags.under_review")}</option>
           </Select>
         </Field>
       </div>
-      <SwitchField
-        id="sr-active"
-        label={t("leads.stages.active")}
-        checked={active}
-        onCheckedChange={setActive}
-      />
+      <SwitchField id="sr-active" label={t("leads.stages.active")} checked={active} onCheckedChange={setActive} />
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onDone}>
           {t("common.cancel")}

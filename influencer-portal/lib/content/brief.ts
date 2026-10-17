@@ -66,9 +66,7 @@ export const briefContent = z.object({
     .default([]),
   /** Files in the inf-briefs bucket (logos, fonts, b-roll, moodboard images). */
   assets: z
-    .array(
-      z.object({ label: line, path: z.string().regex(/^[0-9a-f-]{36}\/[A-Za-z0-9._-]{1,120}$/) }),
-    )
+    .array(z.object({ label: line, path: z.string().regex(/^[0-9a-f-]{36}\/[A-Za-z0-9._-]{1,120}$/) }))
     .max(30)
     .default([]),
   hashtags: list(30),
@@ -143,8 +141,7 @@ export function approvedClaims(p: CatalogueProgramme): string[] {
     out.push(`${name}: total fee ${formatRupees(p.fee_total, { whole: true })}.`);
   else if (p.fee_yearly !== null && p.fee_yearly > 0)
     out.push(`${name}: fee ${formatRupees(p.fee_yearly, { whole: true })} per year.`);
-  if (p.recognitions?.length)
-    out.push(`${p.university} is recognised by ${p.recognitions.join(", ")}.`);
+  if (p.recognitions?.length) out.push(`${p.university} is recognised by ${p.recognitions.join(", ")}.`);
   if (p.accreditation_text) out.push(`${p.university}: ${p.accreditation_text.trim()}`);
   if (p.min_qualification)
     out.push(
@@ -174,9 +171,7 @@ export function buildBrief(i: BuildBriefInput): BriefContent {
   const items = i.agreed.length ? i.agreed : (i.campaign?.deliverables ?? []);
   const disclosures = t.disclosures.length
     ? t.disclosures
-    : [
-        `Disclose the paid partnership at the start, e.g. ${i.disclosureTerms.slice(0, 2).join(" or ")}.`,
-      ];
+    : [`Disclose the paid partnership at the start, e.g. ${i.disclosureTerms.slice(0, 2).join(" or ")}.`];
   return briefContent.parse({
     objective: t.objective || i.campaign?.objective_text || "",
     audience: t.audience,
@@ -200,11 +195,7 @@ export function buildBrief(i: BuildBriefInput): BriefContent {
 }
 
 /** Due dates for a deliverable from the offsets, counted from a start instant (ISO, end of that IST day). */
-export function dueDatesFrom(
-  start: string,
-  offsets: DueOffsets,
-  toggles: StageToggles,
-): Record<string, string> {
+export function dueDatesFrom(start: string, offsets: DueOffsets, toggles: StageToggles): Record<string, string> {
   const base = Date.parse(start);
   const at = (days: number) => {
     // 23:59:59 IST on the target day.

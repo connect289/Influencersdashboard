@@ -67,12 +67,7 @@ describe("deal tables", () => {
     const t = milestoneTable(SYSTEM_PRESETS.fixed_plus_commission.config);
     expect(t.rows).toEqual([
       ["Content fee: On signing", "₹7,500 (50%)", "on signing this agreement", "7 days"],
-      [
-        "Content fee: When the content is live",
-        "₹7,500 (50%)",
-        "when the content is live",
-        "7 days",
-      ],
+      ["Content fee: When the content is live", "₹7,500 (50%)", "when the content is live", "7 days"],
     ]);
     expect(commissionTable(SYSTEM_PRESETS.commission_only.config).rows[0]).toEqual([
       "Commission per enrolment",

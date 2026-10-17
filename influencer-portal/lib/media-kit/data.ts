@@ -56,11 +56,7 @@ export function averageEngagement(kit: Pick<MediaKit, "platforms">): number | nu
   const rows = kit.platforms.filter((p) => p.engagement_rate !== null && (p.followers ?? 0) > 0);
   const total = rows.reduce((s, p) => s + (p.followers ?? 0), 0);
   if (!total) return null;
-  return (
-    Math.round(
-      (rows.reduce((s, p) => s + (p.engagement_rate ?? 0) * (p.followers ?? 0), 0) / total) * 100,
-    ) / 100
-  );
+  return Math.round((rows.reduce((s, p) => s + (p.engagement_rate ?? 0) * (p.followers ?? 0), 0) / total) * 100) / 100;
 }
 
 /** File name for the PDF download. */

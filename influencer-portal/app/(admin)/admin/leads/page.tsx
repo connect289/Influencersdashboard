@@ -41,18 +41,12 @@ export default async function AdminLeadsPage({
   const includeTest = sp.test === "1";
   const board = sp.layout === "board";
   const [list, overview, lead] = await Promise.all([
-    listLeads(supabase, { status: status ? [status] : [], stage, q, page, includeTest }).catch(
-      () => null,
-    ),
+    listLeads(supabase, { status: status ? [status] : [], stage, q, page, includeTest }).catch(() => null),
     loadOverview(supabase).catch(() => null),
-    sp.lead && /^[0-9a-f-]{36}$/.test(sp.lead)
-      ? loadLead(supabase, sp.lead).catch(() => null)
-      : Promise.resolve(null),
+    sp.lead && /^[0-9a-f-]{36}$/.test(sp.lead) ? loadLead(supabase, sp.lead).catch(() => null) : Promise.resolve(null),
   ]);
   const query = new URLSearchParams(
-    Object.entries(sp).filter(
-      (e): e is [string, string] => typeof e[1] === "string" && e[0] !== "lead",
-    ),
+    Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "lead"),
   ).toString();
   const href = (patch: Record<string, string | null>) => {
     const u = new URLSearchParams(query);
@@ -83,19 +77,14 @@ export default async function AdminLeadsPage({
               aria-current={status === s ? "page" : undefined}
               className={cn(
                 "rounded-lg px-3 py-1.5",
-                status === s
-                  ? "bg-primary-soft font-medium text-primary"
-                  : "bg-surface text-muted hover:bg-surface-2",
+                status === s ? "bg-primary-soft font-medium text-primary" : "bg-surface text-muted hover:bg-surface-2",
               )}
             >
               {t(`leads.status.${s}`)} · {formatNumber(overview.by_status[s] ?? 0)}
             </Link>
           ))}
           {overview.open_flags ? (
-            <Link
-              href="/admin/leads/fraud"
-              className="rounded-lg bg-accent-soft px-3 py-1.5 text-accent-ink"
-            >
+            <Link href="/admin/leads/fraud" className="rounded-lg bg-accent-soft px-3 py-1.5 text-accent-ink">
               {t("leads.openFlags", { count: overview.open_flags })}
             </Link>
           ) : null}
@@ -133,8 +122,7 @@ export default async function AdminLeadsPage({
           ))}
         </select>
         <label className="inline-flex items-center gap-2 text-sm">
-          <input type="checkbox" name="test" value="1" defaultChecked={includeTest} />{" "}
-          {t("leads.includeTest")}
+          <input type="checkbox" name="test" value="1" defaultChecked={includeTest} /> {t("leads.includeTest")}
         </label>
         {board ? <input type="hidden" name="layout" value="board" /> : null}
         <Button type="submit" variant="secondary" aria-label={t("leads.filters.search")}>
@@ -174,21 +162,10 @@ export default async function AdminLeadsPage({
         )}
       </Card>
       {pages > 1 ? (
-        <nav
-          className="mt-3 flex items-center justify-between text-sm"
-          aria-label={t("common.pagination")}
-        >
-          {page > 1 ? (
-            <Link href={href({ page: String(page - 1) })}>{t("common.previous")}</Link>
-          ) : (
-            <span />
-          )}
+        <nav className="mt-3 flex items-center justify-between text-sm" aria-label={t("common.pagination")}>
+          {page > 1 ? <Link href={href({ page: String(page - 1) })}>{t("common.previous")}</Link> : <span />}
           <span className="text-muted">{t("contracts.pageOf", { page, pages })}</span>
-          {page < pages ? (
-            <Link href={href({ page: String(page + 1) })}>{t("common.next")}</Link>
-          ) : (
-            <span />
-          )}
+          {page < pages ? <Link href={href({ page: String(page + 1) })}>{t("common.next")}</Link> : <span />}
         </nav>
       ) : null}
       {overview?.last_sync ? (

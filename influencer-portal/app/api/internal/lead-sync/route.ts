@@ -8,8 +8,7 @@ export const maxDuration = 60;
 
 /** The lead sweep, called every minute by pg_cron (inf-lead-sync) with the internal key. */
 export async function POST(request: NextRequest) {
-  if (!hasInternalKey(request.headers))
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!hasInternalKey(request.headers)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!leadSyncEnabled()) return NextResponse.json({ disabled: true });
   try {
     const batches = await sweep(Date.now() + 40_000);

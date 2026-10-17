@@ -31,8 +31,7 @@ export function ProfileForm({ creator, canEdit }: { creator: CreatorRow; canEdit
     publicPageEnabled: creator.public_page_enabled,
     leaderboardOptIn: creator.leaderboard_opt_in,
   });
-  const set = <K extends keyof typeof v>(k: K, value: (typeof v)[K]) =>
-    setV((x) => ({ ...x, [k]: value }));
+  const set = <K extends keyof typeof v>(k: K, value: (typeof v)[K]) => setV((x) => ({ ...x, [k]: value }));
   return (
     <Card>
       <CardHeader title={t("profile.basics")} description={t("profile.basicsHint")} />
@@ -60,11 +59,7 @@ export function ProfileForm({ creator, canEdit }: { creator: CreatorRow; canEdit
             disabled={!canEdit}
           />
         </Field>
-        <Field
-          id="p-legal"
-          label={t("profile.fields.legalName")}
-          hint={t("profile.fields.legalNameHint")}
-        >
+        <Field id="p-legal" label={t("profile.fields.legalName")} hint={t("profile.fields.legalNameHint")}>
           <Input
             id="p-legal"
             value={v.legalName}
@@ -105,11 +100,7 @@ export function ProfileForm({ creator, canEdit }: { creator: CreatorRow; canEdit
             />
           </Field>
         </div>
-        <Field
-          id="p-langs"
-          label={t("profile.fields.languages")}
-          hint={t("profile.fields.listHint")}
-        >
+        <Field id="p-langs" label={t("profile.fields.languages")} hint={t("profile.fields.listHint")}>
           <Input
             id="p-langs"
             value={v.languages}

@@ -44,9 +44,7 @@ export function NewDealForm({
   const camp0 = campaigns.find((c) => c.id === initialCampaignId);
   const [campaignId, setCampaignId] = useState(camp0?.id ?? "");
   const [title, setTitle] = useState(camp0?.name ?? "");
-  const [startsOn, setStartsOn] = useState(
-    camp0?.startsOn && camp0.startsOn > today ? camp0.startsOn : today,
-  );
+  const [startsOn, setStartsOn] = useState(camp0?.startsOn && camp0.startsOn > today ? camp0.startsOn : today);
   const [endsOn, setEndsOn] = useState(camp0?.endsOn ?? "");
   const [presetId, setPresetId] = useState(
     camp0?.presetId ?? presets.find((p) => p.default)?.id ?? presets[0]?.id ?? "",
@@ -148,11 +146,7 @@ export function NewDealForm({
           )}
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field
-            id="nd-campaign"
-            label={t("deals.new.campaign")}
-            hint={t("deals.new.campaignHint")}
-          >
+          <Field id="nd-campaign" label={t("deals.new.campaign")} hint={t("deals.new.campaignHint")}>
             <Select
               id="nd-campaign"
               value={campaignId}
@@ -175,36 +169,15 @@ export function NewDealForm({
             </Select>
           </Field>
           <Field id="nd-title" label={t("deals.new.title")} required>
-            <Input
-              id="nd-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              maxLength={120}
-            />
+            <Input id="nd-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
           </Field>
           <Field id="nd-start" label={t("deals.new.startsOn")} required>
-            <Input
-              id="nd-start"
-              type="date"
-              value={startsOn}
-              onChange={(e) => setStartsOn(e.target.value)}
-            />
+            <Input id="nd-start" type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
           </Field>
           <Field id="nd-end" label={t("deals.new.endsOn")} hint={t("deals.new.endsOnHint")}>
-            <Input
-              id="nd-end"
-              type="date"
-              value={endsOn}
-              min={startsOn}
-              onChange={(e) => setEndsOn(e.target.value)}
-            />
+            <Input id="nd-end" type="date" value={endsOn} min={startsOn} onChange={(e) => setEndsOn(e.target.value)} />
           </Field>
-          <Field
-            id="nd-preset"
-            label={t("deals.new.preset")}
-            hint={t("deals.new.presetHint")}
-            required
-          >
+          <Field id="nd-preset" label={t("deals.new.preset")} hint={t("deals.new.presetHint")} required>
             <Select id="nd-preset" value={presetId} onChange={(e) => setPresetId(e.target.value)}>
               {presets.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -215,18 +188,10 @@ export function NewDealForm({
           </Field>
         </div>
         <Field id="nd-notes" label={t("deals.new.notes")} hint={t("deals.new.notesHint")}>
-          <Textarea
-            id="nd-notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            maxLength={4000}
-          />
+          <Textarea id="nd-notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={4000} />
         </Field>
         <div className="flex justify-end">
-          <Button
-            type="submit"
-            disabled={pending || !creator || !preset || title.trim().length < 3 || !startsOn}
-          >
+          <Button type="submit" disabled={pending || !creator || !preset || title.trim().length < 3 || !startsOn}>
             {t("deals.new.create")}
           </Button>
         </div>

@@ -31,16 +31,8 @@ describe("stage rules (STAGE_MAPPING.md §3)", () => {
     [{ stage: "lost", lost_reason: "cannot be served" }, "lost", "programme not available"],
     [{ stage: "lost", lost_reason: null }, "lost", "other"],
     [{ b2c_stage: "lost", stage: "assigned" }, "lost", "other"],
-    [
-      { attribution_status: "duplicate", stage: "enrolled" },
-      "duplicate",
-      "already enquired before your link",
-    ],
-    [
-      { attribution_status: "outside_window", stage: "applied" },
-      "not_attributed",
-      "outside the attribution window",
-    ],
+    [{ attribution_status: "duplicate", stage: "enrolled" }, "duplicate", "already enquired before your link"],
+    [{ attribution_status: "outside_window", stage: "applied" }, "not_attributed", "outside the attribution window"],
     [{ attribution_status: "self_referral" }, "not_attributed", "self-referral"],
     [{ attribution_status: "manually_rejected" }, "not_attributed", "rejected after review"],
   ] as [StageInputs, string, string | null][])("%j → %s", (x, stage, reason) => {
@@ -74,47 +66,29 @@ describe("stage rules (STAGE_MAPPING.md §3)", () => {
     expect(matches({ field: "stage", in: ["Lost"] }, { stage: "LOST" })).toBe(true);
     expect(matches({ field: "applied_at", present: true }, { applied_at: "" })).toBe(false);
     expect(matches({ field: "lost_reason", empty: true }, {})).toBe(true);
-    expect(matches({ field: "is_sales_ready", is_true: true }, { is_sales_ready: "true" })).toBe(
-      false,
-    );
+    expect(matches({ field: "is_sales_ready", is_true: true }, { is_sales_ready: "true" })).toBe(false);
   });
 });
 
 describe("never backwards", () => {
   const prev = (stage: CreatorStage) => ({ stage, reason: null });
   it("ignores a lower open stage", () => {
-    expect(mapStage({ stage: "qualifying" }, DEFAULT_STAGE_RULES, prev("counselling")).stage).toBe(
-      "counselling",
-    );
+    expect(mapStage({ stage: "qualifying" }, DEFAULT_STAGE_RULES, prev("counselling")).stage).toBe("counselling");
   });
   it("moves forward", () => {
-    expect(mapStage({ stage: "applied" }, DEFAULT_STAGE_RULES, prev("counselling")).stage).toBe(
-      "applied",
-    );
+    expect(mapStage({ stage: "applied" }, DEFAULT_STAGE_RULES, prev("counselling")).stage).toBe("applied");
   });
   it("closed outcomes can always follow, and a closed lead can come back", () => {
-    expect(
-      mapStage(
-        { stage: "lost", lost_reason: "not interested" },
-        DEFAULT_STAGE_RULES,
-        prev("applied"),
-      ).stage,
-    ).toBe("lost");
-    expect(mapStage({ stage: "qualifying" }, DEFAULT_STAGE_RULES, prev("lost")).stage).toBe(
-      "qualifying",
+    expect(mapStage({ stage: "lost", lost_reason: "not interested" }, DEFAULT_STAGE_RULES, prev("applied")).stage).toBe(
+      "lost",
     );
+    expect(mapStage({ stage: "qualifying" }, DEFAULT_STAGE_RULES, prev("lost")).stage).toBe("qualifying");
   });
   it("an enrolment stays enrolled", () => {
     expect(
-      mapStage(
-        { stage: "lost", lost_reason: "not interested" },
-        DEFAULT_STAGE_RULES,
-        prev("enrolled"),
-      ).stage,
+      mapStage({ stage: "lost", lost_reason: "not interested" }, DEFAULT_STAGE_RULES, prev("enrolled")).stage,
     ).toBe("enrolled");
-    expect(
-      mapStage({ enrollment_status: "refunded" }, DEFAULT_STAGE_RULES, prev("enrolled")),
-    ).toMatchObject({
+    expect(mapStage({ enrollment_status: "refunded" }, DEFAULT_STAGE_RULES, prev("enrolled"))).toMatchObject({
       stage: "enrolled",
       flags: ["cancelled"],
     });

@@ -1,11 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { PlatformsCard } from "@/components/creator-profile/platforms-card";
 import { ProfileForm } from "@/components/creator-profile/profile-form";
-import {
-  ContactsCard,
-  PortfolioCard,
-  RateCardCard,
-} from "@/components/creator-profile/profile-lists";
+import { ContactsCard, PortfolioCard, RateCardCard } from "@/components/creator-profile/profile-lists";
 import { AvatarUpload } from "@/components/media-kit/avatar-upload";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";

@@ -65,12 +65,8 @@ export function DeliverableSettings({ d }: { d: DeliverableDetail }) {
   const [due, setDue] = useState(d.due_dates);
   const [limit, setLimit] = useState(String(d.revision_limit));
   const [ref, setRef] = useState(d.config_ref ?? "");
-  const [duration, setDuration] = useState(
-    typeof d.specs.duration_s === "number" ? String(d.specs.duration_s) : "",
-  );
-  const [ratio, setRatio] = useState(
-    typeof d.specs.aspect_ratio === "string" ? d.specs.aspect_ratio : "",
-  );
+  const [duration, setDuration] = useState(typeof d.specs.duration_s === "number" ? String(d.specs.duration_s) : "");
+  const [ratio, setRatio] = useState(typeof d.specs.aspect_ratio === "string" ? d.specs.aspect_ratio : "");
   const [notes, setNotes] = useState(typeof d.specs.notes === "string" ? d.specs.notes : "");
   const canComplete = move(d.status, "complete", d.stages).ok;
   return (
@@ -143,18 +139,11 @@ export function DeliverableSettings({ d }: { d: DeliverableDetail }) {
               </Field>
             </div>
             <Field id="ds-notes" label={t("content.settings.notes")}>
-              <Input
-                id="ds-notes"
-                maxLength={500}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
+              <Input id="ds-notes" maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </Field>
             <div>
               <p className="mb-2 text-sm font-medium">{t("content.settings.stages")}</p>
-              {stagesLocked ? (
-                <p className="mb-2 text-xs text-muted">{t("content.settings.stagesLocked")}</p>
-              ) : null}
+              {stagesLocked ? <p className="mb-2 text-xs text-muted">{t("content.settings.stagesLocked")}</p> : null}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {STAGES.map((s) => (
                   <SwitchField
@@ -172,11 +161,7 @@ export function DeliverableSettings({ d }: { d: DeliverableDetail }) {
               <p className="mb-2 text-sm font-medium">{t("content.settings.due")}</p>
               <DueDatesInputs idPrefix="ds-due" value={due} onChange={setDue} stages={stages} />
             </div>
-            <Field
-              id="ds-ref"
-              label={t("content.settings.ruleId")}
-              hint={t("content.settings.ruleIdHint")}
-            >
+            <Field id="ds-ref" label={t("content.settings.ruleId")} hint={t("content.settings.ruleIdHint")}>
               <Input
                 id="ds-ref"
                 maxLength={40}
@@ -193,10 +178,7 @@ export function DeliverableSettings({ d }: { d: DeliverableDetail }) {
       </Card>
       {!closed ? (
         <Card>
-          <CardHeader
-            title={t("content.settings.closeTitle")}
-            description={t("content.settings.closeHint")}
-          />
+          <CardHeader title={t("content.settings.closeTitle")} description={t("content.settings.closeHint")} />
           <div className="flex flex-wrap gap-2">
             {canComplete ? (
               <Button

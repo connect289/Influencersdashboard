@@ -39,9 +39,7 @@ export async function saveMediaKitSettings(
 
 const avatarRequest = z.object({
   creatorId: z.uuid(),
-  type: z.enum(
-    Object.keys(AVATAR_TYPES) as [keyof typeof AVATAR_TYPES, ...(keyof typeof AVATAR_TYPES)[]],
-  ),
+  type: z.enum(Object.keys(AVATAR_TYPES) as [keyof typeof AVATAR_TYPES, ...(keyof typeof AVATAR_TYPES)[]]),
   size: z.number().int().positive().max(AVATAR_MAX_BYTES),
 });
 
@@ -56,9 +54,7 @@ export async function avatarUploadUrl(
   const allowed = await supabase.rpc("can_edit_creator", { p_creator: p.data.creatorId });
   if (allowed.data !== true) return fail(t("errors.forbidden"));
   const path = `${p.data.creatorId}/${Date.now().toString()}.${AVATAR_TYPES[p.data.type]}`;
-  const { data, error } = await adminClient()
-    .storage.from(AVATAR_BUCKET)
-    .createSignedUploadUrl(path);
+  const { data, error } = await adminClient().storage.from(AVATAR_BUCKET).createSignedUploadUrl(path);
   if (error) {
     log.error("avatar.sign_failed", { error: errorMessage(error) });
     return fail(t("errors.generic"));

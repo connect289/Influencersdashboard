@@ -22,9 +22,7 @@ export async function BriefsNav({ current }: { current: (typeof ITEMS)[number]["
           aria-current={current === i.key ? "page" : undefined}
           className={cn(
             "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-            current === i.key
-              ? "bg-primary-soft font-medium text-primary"
-              : "text-muted hover:bg-surface-2",
+            current === i.key ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
           )}
         >
           {t(`content.briefs.area.${i.key}`)}

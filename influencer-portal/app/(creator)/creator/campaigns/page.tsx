@@ -20,11 +20,7 @@ export async function generateMetadata() {
 }
 
 /** Campaigns: Open (marketplace), Invited, My applications (spec 17 creator nav). */
-export default async function CreatorCampaignsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>;
-}) {
+export default async function CreatorCampaignsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { supabase } = await requireCreator();
   const t = await getTranslations();
   const requested = (await searchParams).tab;
@@ -40,10 +36,7 @@ export default async function CreatorCampaignsPage({
       error || !list.success ? (
         <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
       ) : list.data.length === 0 ? (
-        <EmptyState
-          title={t("campaigns.marketplace.empty")}
-          description={t("campaigns.marketplace.emptyHint")}
-        />
+        <EmptyState title={t("campaigns.marketplace.empty")} description={t("campaigns.marketplace.emptyHint")} />
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {list.data.map((c) => (
@@ -73,10 +66,7 @@ export default async function CreatorCampaignsPage({
                     : formatRelative(i.sent_at)}
                 </span>
               </span>
-              <StatusBadge
-                status={i.status}
-                label={t(`campaigns.invites.statuses.${i.status as "sent"}`)}
-              />
+              <StatusBadge status={i.status} label={t(`campaigns.invites.statuses.${i.status as "sent"}`)} />
             </Link>
           </li>
         ))}
@@ -103,10 +93,7 @@ export default async function CreatorCampaignsPage({
               {a.open_offer_from === "eduwit" ? (
                 <Badge family="attention">{t("campaigns.application.newOffer")}</Badge>
               ) : null}
-              <StatusBadge
-                status={a.status}
-                label={t(`campaigns.applicationStatuses.${a.status as "submitted"}`)}
-              />
+              <StatusBadge status={a.status} label={t(`campaigns.applicationStatuses.${a.status as "submitted"}`)} />
             </Link>
           </li>
         ))}
@@ -139,9 +126,7 @@ export default async function CreatorCampaignsPage({
             aria-current={tab === x ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm",
-              tab === x
-                ? "bg-primary-soft font-medium text-primary"
-                : "text-muted hover:bg-surface-2",
+              tab === x ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
             )}
           >
             {t(`campaigns.marketplace.tabs.${x}`)}

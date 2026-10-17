@@ -26,23 +26,15 @@ const lead = (created_at: string, touches: Touch[], over: Partial<LeadFacts> = {
   ...over,
 });
 const summary = (l: LeadFacts, r: Rules = rules, existing = []) =>
-  decide(l, r, existing).map(
-    (d) => `${d.creator_id}:${d.touch}:${d.status}${d.reason ? `:${d.reason}` : ""}`,
-  );
+  decide(l, r, existing).map((d) => `${d.creator_id}:${d.touch}:${d.status}${d.reason ? `:${d.reason}` : ""}`);
 
 describe("attribution: single touch", () => {
   it("credits a click shortly before the lead appeared", () => {
-    expect(summary(lead("2026-11-01T10:05:00Z", [t("riya", "2026-11-01T10:00:00Z")]))).toEqual([
-      "riya:first:credited",
-    ]);
+    expect(summary(lead("2026-11-01T10:05:00Z", [t("riya", "2026-11-01T10:00:00Z")]))).toEqual(["riya:first:credited"]);
   });
   it("credits a typed code that arrives with the first message (Route B)", () => {
     expect(
-      summary(
-        lead("2026-11-01T10:00:00Z", [
-          t("riya", "2026-11-01T10:03:00Z", { source: "referral_code" }),
-        ]),
-      ),
+      summary(lead("2026-11-01T10:00:00Z", [t("riya", "2026-11-01T10:03:00Z", { source: "referral_code" })])),
     ).toEqual(["riya:first:credited"]);
   });
   it("a lead that existed before the touch is a duplicate", () => {
@@ -51,17 +43,13 @@ describe("attribution: single touch", () => {
     ]);
   });
   it("the duplicate grace covers small clock differences", () => {
-    expect(summary(lead("2026-11-01T09:51:00Z", [t("riya", "2026-11-01T10:00:00Z")]))).toEqual([
-      "riya:first:credited",
-    ]);
+    expect(summary(lead("2026-11-01T09:51:00Z", [t("riya", "2026-11-01T10:00:00Z")]))).toEqual(["riya:first:credited"]);
     expect(summary(lead("2026-11-01T09:49:00Z", [t("riya", "2026-11-01T10:00:00Z")]))).toEqual([
       "riya:none:duplicate:existing_lead",
     ]);
   });
   it("the window is measured from the touch to the lead", () => {
-    expect(summary(lead("2027-01-30T10:00:00Z", [t("riya", "2026-11-01T10:00:00Z")]))).toEqual([
-      "riya:first:credited",
-    ]);
+    expect(summary(lead("2027-01-30T10:00:00Z", [t("riya", "2026-11-01T10:00:00Z")]))).toEqual(["riya:first:credited"]);
     expect(summary(lead("2027-01-30T10:00:01Z", [t("riya", "2026-11-01T10:00:00Z")]))).toEqual([
       "riya:none:outside_window:outside_window",
     ]);
@@ -93,11 +81,7 @@ describe("attribution: several creators", () => {
     t("neha", "2026-11-03T11:00:00Z"),
   ]);
   it("first touch with assisted: the earliest is credited, the others assisted", () => {
-    expect(summary(l)).toEqual([
-      "riya:first:credited",
-      "arjun:assisted:credited",
-      "neha:assisted:credited",
-    ]);
+    expect(summary(l)).toEqual(["riya:first:credited", "arjun:assisted:credited", "neha:assisted:credited"]);
   });
   it("first touch: the others are told another creator came first", () => {
     expect(summary(l, { ...rules, model: "first_touch" })).toEqual([
@@ -114,13 +98,9 @@ describe("attribution: several creators", () => {
     ]);
   });
   it("an ineligible earlier touch does not block a later eligible one", () => {
-    const x = lead(
-      "2026-11-03T12:00:00Z",
-      [t("riya", "2026-11-01T09:00:00Z"), t("arjun", "2026-11-02T09:00:00Z")],
-      {
-        self_referral_creators: ["riya"],
-      },
-    );
+    const x = lead("2026-11-03T12:00:00Z", [t("riya", "2026-11-01T09:00:00Z"), t("arjun", "2026-11-02T09:00:00Z")], {
+      self_referral_creators: ["riya"],
+    });
     expect(summary(x)).toEqual(["riya:none:self_referral:self_referral", "arjun:first:credited"]);
   });
   it("only one creator is ever credited per lead", () => {
@@ -131,10 +111,7 @@ describe("attribution: several creators", () => {
     }
   });
   it("ties are broken deterministically by code", () => {
-    const x = lead("2026-11-03T12:00:00Z", [
-      t("b", "2026-11-01T09:00:00Z"),
-      t("a", "2026-11-01T09:00:00Z"),
-    ]);
+    const x = lead("2026-11-03T12:00:00Z", [t("b", "2026-11-01T09:00:00Z"), t("a", "2026-11-01T09:00:00Z")]);
     expect(summary(x)[0]).toBe("a:first:credited");
   });
 });
@@ -165,39 +142,28 @@ describe("attribution: re-enquiries", () => {
     expect(summary(base)).toEqual(["riya:none:duplicate:existing_lead"]);
   });
   it("can be credited after the configured gap", () => {
-    expect(summary(base, { ...rules, reenquiry_credit_after_days: 180 })).toEqual([
-      "riya:first:credited",
-    ]);
+    expect(summary(base, { ...rules, reenquiry_credit_after_days: 180 })).toEqual(["riya:first:credited"]);
     expect(summary(base, { ...rules, reenquiry_credit_after_days: 365 })).toEqual([
       "riya:none:duplicate:existing_lead",
     ]);
   });
   it("a touch after the re-enquiry is still a duplicate", () => {
     const l = { ...base, touches: [t("riya", "2026-11-05T09:00:00Z")] };
-    expect(summary(l, { ...rules, reenquiry_credit_after_days: 180 })).toEqual([
-      "riya:none:duplicate:existing_lead",
-    ]);
+    expect(summary(l, { ...rules, reenquiry_credit_after_days: 180 })).toEqual(["riya:none:duplicate:existing_lead"]);
   });
 });
 
 describe("attribution: staff decisions are sticky", () => {
-  const l = lead("2026-11-03T12:00:00Z", [
-    t("riya", "2026-11-01T09:00:00Z"),
-    t("arjun", "2026-11-02T09:00:00Z"),
-  ]);
+  const l = lead("2026-11-03T12:00:00Z", [t("riya", "2026-11-01T09:00:00Z"), t("arjun", "2026-11-02T09:00:00Z")]);
   it("a manual rejection stays rejected and the credit moves to the next eligible creator", () => {
-    expect(
-      summary(l, rules, [{ creator_id: "riya", status: "manually_rejected" }] as never),
-    ).toEqual(["riya:none:manually_rejected", "arjun:first:credited"]);
+    expect(summary(l, rules, [{ creator_id: "riya", status: "manually_rejected" }] as never)).toEqual([
+      "riya:none:manually_rejected",
+      "arjun:first:credited",
+    ]);
   });
   it("a manual credit takes the credit from the computed winner", () => {
-    const ds = decide(l, { ...rules, model: "first_touch" }, [
-      { creator_id: "arjun", status: "manually_credited" },
-    ]);
-    expect(ds.map((d) => `${d.creator_id}:${d.status}`)).toEqual([
-      "riya:duplicate",
-      "arjun:manually_credited",
-    ]);
+    const ds = decide(l, { ...rules, model: "first_touch" }, [{ creator_id: "arjun", status: "manually_credited" }]);
+    expect(ds.map((d) => `${d.creator_id}:${d.status}`)).toEqual(["riya:duplicate", "arjun:manually_credited"]);
     expect(creditHolder(ds)?.creator_id).toBe("arjun");
   });
   it("a fraud review stays open until staff decide", () => {
@@ -206,9 +172,7 @@ describe("attribution: staff decisions are sticky", () => {
     );
   });
   it("a computed status that is not sticky is recomputed", () => {
-    expect(summary(l, rules, [{ creator_id: "riya", status: "duplicate" }] as never)[0]).toBe(
-      "riya:first:credited",
-    );
+    expect(summary(l, rules, [{ creator_id: "riya", status: "duplicate" }] as never)[0]).toBe("riya:first:credited");
   });
   it("is deterministic", () => {
     expect(decide(l, rules)).toEqual(decide(l, rules));

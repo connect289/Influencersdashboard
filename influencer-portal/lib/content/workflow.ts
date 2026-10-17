@@ -90,9 +90,7 @@ function published(s: DeliverableStatus, t: StageToggles): boolean {
   return t.verify ? s === "live_verified" : s === "live";
 }
 
-export type MoveResult =
-  | { ok: true; to: DeliverableStatus }
-  | { ok: false; error: "not_allowed" | "stage_off" };
+export type MoveResult = { ok: true; to: DeliverableStatus } | { ok: false; error: "not_allowed" | "stage_off" };
 
 /** The next status for an action, or why it isn't possible. */
 export function move(from: DeliverableStatus, action: Action, t: StageToggles): MoveResult {
@@ -108,9 +106,7 @@ export function move(from: DeliverableStatus, action: Action, t: StageToggles): 
       return from === "not_started" ? to("brief_acknowledged") : deny();
     case "submit_concept":
       if (!t.concept) return deny("stage_off");
-      return from === entry(t) || from === "concept_changes_requested"
-        ? to("concept_submitted")
-        : deny();
+      return from === entry(t) || from === "concept_changes_requested" ? to("concept_submitted") : deny();
     case "approve_concept":
       return t.concept && from === "concept_submitted"
         ? to("concept_approved")
@@ -125,9 +121,7 @@ export function move(from: DeliverableStatus, action: Action, t: StageToggles): 
       return start || from === "draft_changes_requested" ? to("draft_submitted") : deny();
     }
     case "approve_draft":
-      return t.draft && from === "draft_submitted"
-        ? to("draft_approved")
-        : deny(t.draft ? "not_allowed" : "stage_off");
+      return t.draft && from === "draft_submitted" ? to("draft_approved") : deny(t.draft ? "not_allowed" : "stage_off");
     case "request_draft_changes":
       return t.draft && from === "draft_submitted"
         ? to("draft_changes_requested")
@@ -146,9 +140,7 @@ export function move(from: DeliverableStatus, action: Action, t: StageToggles): 
       if (!t.metrics) return deny("stage_off");
       return published(from, t) || from === "metrics_submitted" ? to("metrics_submitted") : deny();
     case "complete":
-      return (t.metrics ? from === "metrics_submitted" : published(from, t))
-        ? to("completed")
-        : deny();
+      return (t.metrics ? from === "metrics_submitted" : published(from, t)) ? to("completed") : deny();
     case "cancel":
       return to("cancelled");
   }
@@ -173,10 +165,7 @@ export function pendingStage(s: DeliverableStatus, t: StageToggles): DueStage | 
   if (TERMINAL.includes(s) || (s === "not_started" && t.brief)) return null;
   if (s === "concept_submitted" || s === "draft_submitted") return null;
   if (t.concept && (s === entry(t) || s === "concept_changes_requested")) return "concept";
-  if (
-    t.draft &&
-    (s === "draft_changes_requested" || (t.concept ? s === "concept_approved" : s === entry(t)))
-  )
+  if (t.draft && (s === "draft_changes_requested" || (t.concept ? s === "concept_approved" : s === entry(t))))
     return "draft";
   if (readyToPublish(s, t) || s === "scheduled") return "live";
   if (s === "live" && t.verify) return null; // waiting for Eduwit to verify
@@ -193,12 +182,7 @@ export interface Overdue {
 const DAY_MS = 86_400_000;
 
 /** The overdue flag (spec 10.2: computed): the pending stage's due date has passed. */
-export function overdue(
-  s: DeliverableStatus,
-  t: StageToggles,
-  due: DueDates,
-  now: Date,
-): Overdue | null {
+export function overdue(s: DeliverableStatus, t: StageToggles, due: DueDates, now: Date): Overdue | null {
   const stage = pendingStage(s, t);
   if (!stage) return null;
   const at = due[stage];
