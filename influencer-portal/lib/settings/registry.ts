@@ -208,6 +208,8 @@ export const SETTINGS = {
       commission_base_default: z.enum(["gross_incl_gst", "net_of_gst"]),
       confirm_partial_receipts: z.boolean(),
       eduwit_commission_overdue_days: days(365),
+      /** GST on Eduwit's partner commission (its receipts are GST-inclusive). */
+      eduwit_commission_gst_pct: pct,
     }),
     default: {
       rounding: "bankers",
@@ -217,6 +219,7 @@ export const SETTINGS = {
       commission_base_default: "net_of_gst",
       confirm_partial_receipts: false,
       eduwit_commission_overdue_days: 60,
+      eduwit_commission_gst_pct: 18,
     },
     edit: "settings.write",
   }),

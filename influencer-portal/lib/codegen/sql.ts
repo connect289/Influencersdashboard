@@ -71,6 +71,15 @@ export function settingsDefinitionsSql(): { sql: string; hash: string } {
     "",
     `delete from inf.setting_definitions where key not in (${SETTING_KEYS.map(sqlString).join(", ")});`,
     "",
+    "-- Saved values follow the current shape: new fields take their default, removed fields are dropped.",
+    "update inf.settings s",
+    "   set value = (select coalesce(jsonb_object_agg(k, coalesce(s.value -> k, d.default_value -> k)), '{}'::jsonb)",
+    "                  from jsonb_object_keys(d.default_value) k)",
+    "  from inf.setting_definitions d",
+    " where d.key = s.key and jsonb_typeof(s.value) = 'object' and jsonb_typeof(d.default_value) = 'object'",
+    "   and not (s.value ?& array(select jsonb_object_keys(d.default_value))",
+    "            and d.default_value ?& array(select jsonb_object_keys(s.value)));",
+    "",
   ].join("\n");
   return withHeader("settings-definitions", body);
 }
