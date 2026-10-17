@@ -100,7 +100,12 @@ export function assembleContract(
   const footer = renderDoc(t.footer, ctx, VARIABLE_KEYS);
   collect(footer);
   return {
-    content: { title: renderString(t.title, env), header: header.blocks, sections, footer: footer.blocks },
+    content: {
+      title: renderString(t.title, env),
+      header: header.blocks,
+      sections,
+      footer: footer.blocks,
+    },
     unknown: [...unknown].sort(),
     missing: [...missing].sort(),
     errors: [...new Set(errors)],

@@ -9,10 +9,18 @@ describe("checkPostUrl", () => {
       "https://www.instagram.com/reel/C1aBcD2eF3g/",
     ],
     ["instagram", "https://instagram.com/p/C1aBcD2eF3g", "https://instagram.com/p/C1aBcD2eF3g"],
-    ["youtube", "https://www.youtube.com/watch?v=dQw4w9WgXcQ&si=xyz", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
+    [
+      "youtube",
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ&si=xyz",
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    ],
     ["youtube", "https://youtu.be/dQw4w9WgXcQ", "https://youtu.be/dQw4w9WgXcQ"],
     ["youtube", "https://youtube.com/shorts/abcdEFG1234", "https://youtube.com/shorts/abcdEFG1234"],
-    ["x", "https://x.com/riyalearns/status/1790000000000000000", "https://x.com/riyalearns/status/1790000000000000000"],
+    [
+      "x",
+      "https://x.com/riyalearns/status/1790000000000000000",
+      "https://x.com/riyalearns/status/1790000000000000000",
+    ],
     ["x", "https://twitter.com/riya/status/123", "https://twitter.com/riya/status/123"],
     [
       "linkedin",

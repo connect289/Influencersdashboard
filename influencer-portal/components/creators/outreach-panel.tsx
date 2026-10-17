@@ -88,7 +88,9 @@ export function OutreachPanel({
               <Select
                 id="o-dir"
                 value={v.direction}
-                onChange={(e) => setV({ ...v, direction: e.target.value as "outbound" | "inbound" })}
+                onChange={(e) =>
+                  setV({ ...v, direction: e.target.value as "outbound" | "inbound" })
+                }
               >
                 <option value="outbound">{t("creators.outreach.outbound")}</option>
                 <option value="inbound">{t("creators.outreach.inbound")}</option>
@@ -115,8 +117,17 @@ export function OutreachPanel({
                 maxLength={4000}
               />
             </Field>
-            <Field id="o-date" label={t("creators.outreach.followUpDate")} hint={t("creators.outreach.followUpHint")}>
-              <Input id="o-date" type="date" value={v.date} onChange={(e) => setV({ ...v, date: e.target.value })} />
+            <Field
+              id="o-date"
+              label={t("creators.outreach.followUpDate")}
+              hint={t("creators.outreach.followUpHint")}
+            >
+              <Input
+                id="o-date"
+                type="date"
+                value={v.date}
+                onChange={(e) => setV({ ...v, date: e.target.value })}
+              />
             </Field>
             <Field id="o-time" label={t("creators.outreach.followUpTime")}>
               <Input
@@ -143,9 +154,14 @@ export function OutreachPanel({
           <ol className="flex flex-col gap-4 border-l border-line pl-4">
             {rows.map((r) => (
               <li key={r.id} className="relative">
-                <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full bg-primary" aria-hidden />
+                <span
+                  className="absolute top-1.5 -left-[21px] size-2.5 rounded-full bg-primary"
+                  aria-hidden
+                />
                 <p className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="font-medium">{t(`creators.outreach.channels.${r.channel as Channel}`)}</span>
+                  <span className="font-medium">
+                    {t(`creators.outreach.channels.${r.channel as Channel}`)}
+                  </span>
                   <Badge>{t(`creators.outreach.outcomes.${r.outcome as Outcome}`)}</Badge>
                   <span className="text-xs text-muted">
                     {formatDateTime(r.created_at)}
@@ -157,8 +173,12 @@ export function OutreachPanel({
                   <p className="mt-1 flex items-center gap-2 text-xs">
                     <CalendarClock className="size-3.5" aria-hidden />
                     {r.follow_up_done_at
-                      ? t("creators.outreach.followUpClosed", { date: formatDate(r.next_follow_up_at) })
-                      : t("creators.outreach.followUpOn", { date: formatDateTime(r.next_follow_up_at) })}
+                      ? t("creators.outreach.followUpClosed", {
+                          date: formatDate(r.next_follow_up_at),
+                        })
+                      : t("creators.outreach.followUpOn", {
+                          date: formatDateTime(r.next_follow_up_at),
+                        })}
                     {!r.follow_up_done_at && canWrite ? (
                       <Button
                         size="sm"

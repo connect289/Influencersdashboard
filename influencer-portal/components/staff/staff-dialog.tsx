@@ -33,7 +33,10 @@ export function StaffDialog({
   );
   const [pending, start] = useTransition();
   const toggle = (r: StaffRole) =>
-    setV((x) => ({ ...x, roles: x.roles.includes(r) ? x.roles.filter((y) => y !== r) : [...x.roles, r] }));
+    setV((x) => ({
+      ...x,
+      roles: x.roles.includes(r) ? x.roles.filter((y) => y !== r) : [...x.roles, r],
+    }));
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -112,7 +115,10 @@ export function StaffDialog({
               />
             </Field>
           ) : null}
-          <Button type="submit" disabled={pending || v.roles.length === 0 || !v.fullName || !v.email}>
+          <Button
+            type="submit"
+            disabled={pending || v.roles.length === 0 || !v.fullName || !v.email}
+          >
             {invite ? t("staff.sendInvite") : t("common.save")}
           </Button>
         </form>

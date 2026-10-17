@@ -47,7 +47,9 @@ describe("CSP", () => {
     expect(csp).toContain("upgrade-insecure-requests");
   });
   it("upgrades insecure requests only when asked (never for a plain-http local site)", () => {
-    expect(buildCsp("n", "http://127.0.0.1:54421", false, false)).not.toContain("upgrade-insecure-requests");
+    expect(buildCsp("n", "http://127.0.0.1:54421", false, false)).not.toContain(
+      "upgrade-insecure-requests",
+    );
   });
   it("allows eval only in development", () => {
     expect(buildCsp("n", "http://127.0.0.1:54421", true)).toContain("'unsafe-eval'");
@@ -56,9 +58,9 @@ describe("CSP", () => {
 
 describe("client addresses", () => {
   it("prefers the platform header", () => {
-    expect(clientIp(new Headers({ "x-vercel-forwarded-for": "1.2.3.4", "x-forwarded-for": "9.9.9.9" }))).toBe(
-      "1.2.3.4",
-    );
+    expect(
+      clientIp(new Headers({ "x-vercel-forwarded-for": "1.2.3.4", "x-forwarded-for": "9.9.9.9" })),
+    ).toBe("1.2.3.4");
   });
   it("rejects junk", () => {
     expect(clientIp(new Headers({ "x-forwarded-for": "<script>" }))).toBeNull();

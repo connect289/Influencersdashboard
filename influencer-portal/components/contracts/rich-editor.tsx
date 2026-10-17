@@ -180,7 +180,11 @@ function Toolbar({ editor, variables }: { editor: Editor; variables: boolean }) 
         onClick={() => c().toggleUnderline().run()}
       />
       <span className="mx-1 h-5 w-px bg-line" aria-hidden />
-      <ToolButton icon={Pilcrow} label={t("contracts.editor.paragraph")} onClick={() => c().setParagraph().run()} />
+      <ToolButton
+        icon={Pilcrow}
+        label={t("contracts.editor.paragraph")}
+        onClick={() => c().setParagraph().run()}
+      />
       <ToolButton
         icon={Heading2}
         label={t("contracts.editor.heading")}
@@ -206,8 +210,18 @@ function Toolbar({ editor, variables }: { editor: Editor; variables: boolean }) 
         onClick={() => c().toggleOrderedList().run()}
       />
       <span className="mx-1 h-5 w-px bg-line" aria-hidden />
-      <ToolButton icon={Undo2} label={t("contracts.editor.undo")} disabled={!s.undo} onClick={() => c().undo().run()} />
-      <ToolButton icon={Redo2} label={t("contracts.editor.redo")} disabled={!s.redo} onClick={() => c().redo().run()} />
+      <ToolButton
+        icon={Undo2}
+        label={t("contracts.editor.undo")}
+        disabled={!s.undo}
+        onClick={() => c().undo().run()}
+      />
+      <ToolButton
+        icon={Redo2}
+        label={t("contracts.editor.redo")}
+        disabled={!s.redo}
+        onClick={() => c().redo().run()}
+      />
       {variables ? (
         <>
           <span className="mx-1 h-5 w-px bg-line" aria-hidden />
@@ -248,7 +262,13 @@ export function RichEditor({
     ],
     content: value,
     editorProps: {
-      attributes: { id, "aria-label": label, role: "textbox", "aria-multiline": "true", class: "px-3 py-2" },
+      attributes: {
+        id,
+        "aria-label": label,
+        role: "textbox",
+        "aria-multiline": "true",
+        class: "px-3 py-2",
+      },
     },
     onUpdate: ({ editor: e }) => {
       const parsed = richDoc.safeParse(e.getJSON());
@@ -262,7 +282,11 @@ export function RichEditor({
         invalid ? "border-danger" : "border-line-strong",
       )}
     >
-      {editor ? <Toolbar editor={editor} variables={variables} /> : <div className="h-10 border-b border-line" />}
+      {editor ? (
+        <Toolbar editor={editor} variables={variables} />
+      ) : (
+        <div className="h-10 border-b border-line" />
+      )}
       <EditorContent editor={editor} />
     </div>
   );

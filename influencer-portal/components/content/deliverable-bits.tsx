@@ -16,13 +16,21 @@ export function DeliverableStatusBadge({
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
       <StatusBadge status={status} label={t(`content.statuses.${status}`)} />
-      {overdueDays ? <Badge family="problem">{t("content.overdueDays", { count: overdueDays })}</Badge> : null}
+      {overdueDays ? (
+        <Badge family="problem">{t("content.overdueDays", { count: overdueDays })}</Badge>
+      ) : null}
     </span>
   );
 }
 
 /** Due dates as a compact line: "Concept 5 Nov · Draft 10 Nov · Live 15 Nov". */
-export function DueLine({ due, highlight }: { due: Partial<Record<DueStage, string>>; highlight?: DueStage | null }) {
+export function DueLine({
+  due,
+  highlight,
+}: {
+  due: Partial<Record<DueStage, string>>;
+  highlight?: DueStage | null;
+}) {
   const t = useTranslations();
   const parts = DUE_STAGES.filter((s) => due[s]);
   if (!parts.length) return null;
@@ -39,14 +47,22 @@ export function DueLine({ due, highlight }: { due: Partial<Record<DueStage, stri
 }
 
 /** What the creator owes next, with its due date. */
-export function NextStep({ stage, due }: { stage: DueStage | null; due: Partial<Record<DueStage, string>> }) {
+export function NextStep({
+  stage,
+  due,
+}: {
+  stage: DueStage | null;
+  due: Partial<Record<DueStage, string>>;
+}) {
   const t = useTranslations();
   if (!stage) return null;
   const at = due[stage];
   return (
     <span className="text-sm">
       {t(`content.next.${stage}`)}
-      {at ? <span className="text-muted"> · {t("content.dueOn", { date: formatDate(at) })}</span> : null}
+      {at ? (
+        <span className="text-muted"> · {t("content.dueOn", { date: formatDate(at) })}</span>
+      ) : null}
     </span>
   );
 }

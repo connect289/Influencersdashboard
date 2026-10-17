@@ -77,17 +77,32 @@ describe("builder helpers", () => {
     const issues = builderIssues({
       ...empty,
       fixed: [
-        { ...f, milestones: [...f.milestones.map((x) => ({ ...x, share: { type: "pct" as const, pct: 60 } })), m] },
+        {
+          ...f,
+          milestones: [
+            ...f.milestones.map((x) => ({ ...x, share: { type: "pct" as const, pct: 60 } })),
+            m,
+          ],
+        },
       ],
     });
     expect(issues).toEqual([
-      { section: "fixed", code: "milestones_not_100", detail: undefined, path: ["fixed", 0, "milestones"] },
+      {
+        section: "fixed",
+        code: "milestones_not_100",
+        detail: undefined,
+        path: ["fixed", 0, "milestones"],
+      },
     ]);
   });
 
   it("reports field problems with their path and known codes with their detail", () => {
     const f = newFixed(empty, "", "M");
-    const issues = builderIssues({ ...empty, fixed: [f], recoupment: { mode: "full", fixed: ["x"] } });
+    const issues = builderIssues({
+      ...empty,
+      fixed: [f],
+      recoupment: { mode: "full", fixed: ["x"] },
+    });
     expect(issues.map((i) => [i.section, i.code, i.detail])).toEqual(
       expect.arrayContaining([
         ["fixed", null, undefined],

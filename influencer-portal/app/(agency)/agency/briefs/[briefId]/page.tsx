@@ -8,7 +8,11 @@ export async function generateMetadata() {
 }
 
 /** A managed creator's brief (agencies with the "act on deliverables" grant). */
-export default async function AgencyBriefPage({ params }: { params: Promise<{ briefId: string }> }) {
+export default async function AgencyBriefPage({
+  params,
+}: {
+  params: Promise<{ briefId: string }>;
+}) {
   const { briefId } = await params;
   const { supabase } = await requireAgency();
   return (

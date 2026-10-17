@@ -10,7 +10,12 @@ export const engineEvent = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("brief_acknowledged") }),
   z.object({ ...base, type: z.literal("concept_approved"), deliverable: ref }),
   z.object({ ...base, type: z.literal("draft_approved"), deliverable: ref }),
-  z.object({ ...base, type: z.literal("deliverable_due"), deliverable: ref, due_at: z.iso.datetime({ offset: true }) }),
+  z.object({
+    ...base,
+    type: z.literal("deliverable_due"),
+    deliverable: ref,
+    due_at: z.iso.datetime({ offset: true }),
+  }),
   z.object({ ...base, type: z.literal("deliverable_live"), deliverable: ref }),
   z.object({ ...base, type: z.literal("deliverable_cancelled"), deliverable: ref }),
   /** Cumulative metric reading (views or reach) for a deliverable. */
@@ -63,7 +68,12 @@ export const engineEvent = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("deal_completed") }),
   /** Admin releases a manual milestone: "<component id>.<milestone id>". */
   z.object({ ...base, type: z.literal("manual_release"), milestone: ref }),
-  z.object({ ...base, type: z.literal("leaderboard_rank"), window: ref, rank: z.number().int().min(1) }),
+  z.object({
+    ...base,
+    type: z.literal("leaderboard_rank"),
+    window: ref,
+    rank: z.number().int().min(1),
+  }),
   z.object({ ...base, type: z.literal("disclosure_flag"), deliverable: ref }),
   z.object({ ...base, type: z.literal("breach") }),
 ]);
@@ -93,7 +103,9 @@ export function addMs(iso: string, ms: number): string {
 export function addMonths(date: string, n: number): string {
   const [y, m, d] = date.split("-").map(Number) as [number, number, number];
   const target = new Date(Date.UTC(y, m - 1 + n, 1));
-  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  const last = new Date(
+    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
+  ).getUTCDate();
   target.setUTCDate(Math.min(d, last));
   return target.toISOString().slice(0, 10);
 }

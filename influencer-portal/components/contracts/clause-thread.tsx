@@ -11,7 +11,11 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/input";
 import { useAction } from "@/components/ui/use-action";
-import { addContractComment, requestContractChange, resolveContractComment } from "@/lib/actions/contracts";
+import {
+  addContractComment,
+  requestContractChange,
+  resolveContractComment,
+} from "@/lib/actions/contracts";
 import type { Block, RichDoc } from "@/lib/contracts/doc";
 import { formatDateTime } from "@/lib/format";
 import { RichEditor } from "./rich-editor";
@@ -78,7 +82,15 @@ function CommentForm({
   );
 }
 
-function SuggestDialog({ contractId, clauseKey, blocks }: { contractId: string; clauseKey: string; blocks: Block[] }) {
+function SuggestDialog({
+  contractId,
+  clauseKey,
+  blocks,
+}: {
+  contractId: string;
+  clauseKey: string;
+  blocks: Block[];
+}) {
   const t = useTranslations();
   const { pending, run } = useAction();
   const [open, setOpen] = useState(false);
@@ -102,7 +114,8 @@ function SuggestDialog({ contractId, clauseKey, blocks }: { contractId: string; 
           onSubmit={(e) => {
             e.preventDefault();
             run(
-              () => requestContractChange({ contractId, kind: "clause", clauseKey, body: doc, note }),
+              () =>
+                requestContractChange({ contractId, kind: "clause", clauseKey, body: doc, note }),
               () => setOpen(false),
             );
           }}
@@ -162,7 +175,9 @@ export function ClauseThread({
   const item = (c: ThreadComment) => (
     <div className={c.resolved ? "opacity-60" : undefined}>
       <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
-        <span className="font-medium text-ink">{c.mine ? t("contracts.comments.you") : sideLabel(c.author_side)}</span>
+        <span className="font-medium text-ink">
+          {c.mine ? t("contracts.comments.you") : sideLabel(c.author_side)}
+        </span>
         <span>{formatDateTime(c.created_at)}</span>
         {c.resolved ? <Badge>{t("contracts.comments.resolvedBadge")}</Badge> : null}
       </p>
@@ -170,7 +185,11 @@ export function ClauseThread({
       {canComment && !c.resolved ? (
         <div className="mt-1 flex gap-3 text-xs">
           {c.parent_id === null ? (
-            <button type="button" className="text-primary hover:underline" onClick={() => setReplyTo(c.id)}>
+            <button
+              type="button"
+              className="text-primary hover:underline"
+              onClick={() => setReplyTo(c.id)}
+            >
               {t("contracts.comments.reply")}
             </button>
           ) : null}
@@ -204,7 +223,9 @@ export function ClauseThread({
         {canSuggest && !hasPendingSuggestion ? (
           <SuggestDialog contractId={contractId} clauseKey={clauseKey} blocks={blocks} />
         ) : null}
-        {hasPendingSuggestion ? <Badge family="attention">{t("contracts.requests.pendingBadge")}</Badge> : null}
+        {hasPendingSuggestion ? (
+          <Badge family="attention">{t("contracts.requests.pendingBadge")}</Badge>
+        ) : null}
       </div>
       {expanded ? (
         <div className="mt-2 flex flex-col gap-3 px-2 pb-1">

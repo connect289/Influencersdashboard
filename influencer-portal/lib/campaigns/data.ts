@@ -16,7 +16,10 @@ export function eligibilityOf(v: unknown) {
   return eligibilitySchema.catch({}).parse(v);
 }
 
-export async function loadProgrammes(supabase: ServerSupabase, campaignId: string): Promise<ProgrammeCard[]> {
+export async function loadProgrammes(
+  supabase: ServerSupabase,
+  campaignId: string,
+): Promise<ProgrammeCard[]> {
   const { data } = await supabase.rpc("campaign_programmes_view", { p_campaign: campaignId });
   return data ?? [];
 }

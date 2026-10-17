@@ -79,7 +79,9 @@ const courseResult = z.object({
 });
 export type CourseResult = z.infer<typeof courseResult>;
 
-export async function submitCourse(answers: Record<string, number>): Promise<ActionResult<CourseResult>> {
+export async function submitCourse(
+  answers: Record<string, number>,
+): Promise<ActionResult<CourseResult>> {
   const t = await getTranslations();
   const parsed = z.record(z.uuid(), z.number().int().min(0).max(5)).safeParse(answers);
   if (!parsed.success) return fail(t("errors.invalidInput"));
@@ -88,7 +90,10 @@ export async function submitCourse(answers: Record<string, number>): Promise<Act
   const { data, error } = await supabase.rpc("course_submit", { p_answers: parsed.data });
   if (error) return fail(t("errors.generic"));
   const r = courseResult.parse(data);
-  if (!r.ok) return fail(r.error === "too_many_attempts" ? t("onboarding.course.tooMany") : t("errors.generic"));
+  if (!r.ok)
+    return fail(
+      r.error === "too_many_attempts" ? t("onboarding.course.tooMany") : t("errors.generic"),
+    );
   revalidatePath("/creator/onboarding");
   return { ok: true, data: r };
 }
@@ -99,7 +104,9 @@ export async function submitOnboarding(): Promise<ActionResult<{ approved: boole
   if (!supabase) return fail(t("errors.sessionEnded"));
   const { data, error } = await supabase.rpc("onboarding_submit");
   if (error) return fail(t("errors.generic"));
-  const r = z.object({ ok: z.boolean(), approved: z.boolean().optional(), error: z.string().optional() }).parse(data);
+  const r = z
+    .object({ ok: z.boolean(), approved: z.boolean().optional(), error: z.string().optional() })
+    .parse(data);
   if (!r.ok) return fail(t("onboarding.errors.incomplete"));
   revalidatePath("/creator", "layout");
   return {
@@ -130,7 +137,8 @@ export async function reviewCreator(input: z.input<typeof reviewInput>): Promise
   });
   if (error) {
     if (error.code === "42501") return fail(t("errors.forbidden"));
-    if (/already approved/i.test(error.message)) return fail(t("onboarding.errors.alreadyApproved"));
+    if (/already approved/i.test(error.message))
+      return fail(t("onboarding.errors.alreadyApproved"));
     if (/not signed up/i.test(error.message)) return fail(t("creators.errors.notSignedUp"));
     return fail(t("errors.generic"));
   }

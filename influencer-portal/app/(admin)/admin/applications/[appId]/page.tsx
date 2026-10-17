@@ -15,7 +15,11 @@ export async function generateMetadata() {
   return { title: t("nav.admin.applications") };
 }
 
-export default async function AdminApplicationPage({ params }: { params: Promise<{ appId: string }> }) {
+export default async function AdminApplicationPage({
+  params,
+}: {
+  params: Promise<{ appId: string }>;
+}) {
   const { appId } = await params;
   if (!z.uuid().safeParse(appId).success) notFound();
   const { supabase, me } = await requireStaff("campaign.read");
@@ -58,7 +62,9 @@ export default async function AdminApplicationPage({ params }: { params: Promise
             actions={
               deal ? (
                 <Button asChild>
-                  <Link href={`/admin/deals/${deal.id}`}>{t("deals.openDeal", { code: deal.code })}</Link>
+                  <Link href={`/admin/deals/${deal.id}`}>
+                    {t("deals.openDeal", { code: deal.code })}
+                  </Link>
                 </Button>
               ) : null
             }

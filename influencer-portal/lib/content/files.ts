@@ -14,18 +14,26 @@ export function contentPath(folder: string, fileName: string): string {
   return `${folder}/${crypto.randomUUID()}-${safeFileName(fileName).slice(0, 120)}`;
 }
 
-export async function signedUpload(bucket: string, path: string): Promise<{ path: string; token: string } | null> {
+export async function signedUpload(
+  bucket: string,
+  path: string,
+): Promise<{ path: string; token: string } | null> {
   const { data, error } = await adminClient().storage.from(bucket).createSignedUploadUrl(path);
   return error ? null : { path: data.path, token: data.token };
 }
 
 export async function signedLink(bucket: string, path: string): Promise<string | null> {
-  const { data, error } = await adminClient().storage.from(bucket).createSignedUrl(path, FILE_LINK_SECONDS);
+  const { data, error } = await adminClient()
+    .storage.from(bucket)
+    .createSignedUrl(path, FILE_LINK_SECONDS);
   return error ? null : data.signedUrl;
 }
 
 /** Links for many files at once (path → URL); paths that fail are left out. */
-export async function signedLinks(bucket: string, paths: readonly string[]): Promise<Map<string, string>> {
+export async function signedLinks(
+  bucket: string,
+  paths: readonly string[],
+): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (paths.length === 0) return out;
   const { data } = await adminClient()

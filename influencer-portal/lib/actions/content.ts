@@ -9,7 +9,13 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { fetchMe } from "@/lib/auth/guards";
 import { loadDeliverable } from "@/lib/content/data";
-import { BRIEFS_BUCKET, contentPath, DELIVERABLES_BUCKET, signedLink, signedUpload } from "@/lib/content/files";
+import {
+  BRIEFS_BUCKET,
+  contentPath,
+  DELIVERABLES_BUCKET,
+  signedLink,
+  signedUpload,
+} from "@/lib/content/files";
 import { fetchOembed } from "@/lib/content/oembed";
 import { scanAndRecord } from "@/lib/content/scan";
 import {
@@ -69,7 +75,8 @@ function dbFail(error: DbError, t: T): ActionResult<never> {
   if (error.code === "42501") return fail(t("errors.forbidden"));
   for (const [re, key] of CONTENT_DB_ERRORS)
     if (re.test(error.message)) return fail(t(`content.errors.${key}` as "content.errors.notNow"));
-  if (error.code === "22023" || error.code === "23514" || error.code === "23505") return fail(t("errors.invalidInput"));
+  if (error.code === "22023" || error.code === "23514" || error.code === "23505")
+    return fail(t("errors.invalidInput"));
   log.warn("content.db_error", { code: error.code, error: error.message });
   return fail(t("errors.generic"));
 }
@@ -103,10 +110,18 @@ function refresh(opts: { briefId?: string; deliverableId?: string } = {}) {
 // ---------------------------------------------------------------------------------------------------------------
 // Brief templates, briefs and Q&A
 // ---------------------------------------------------------------------------------------------------------------
-export async function saveBriefTemplate(input: BriefTemplateInput): Promise<ActionResult<{ id: string }>> {
+export async function saveBriefTemplate(
+  input: BriefTemplateInput,
+): Promise<ActionResult<{ id: string }>> {
   return act(briefTemplateInput, input, async (db, v, t) => {
     const { data, error } = await db.rpc("brief_template_save", {
-      p: { id: v.id, name: v.name, description: v.description, is_default: v.isDefault, content: v.content },
+      p: {
+        id: v.id,
+        name: v.name,
+        description: v.description,
+        is_default: v.isDefault,
+        content: v.content,
+      },
     });
     if (error) return dbFail(error, t);
     revalidatePath("/admin/briefs", "layout");
@@ -114,12 +129,21 @@ export async function saveBriefTemplate(input: BriefTemplateInput): Promise<Acti
   });
 }
 
-export async function archiveBriefTemplate(templateId: string, archived: boolean): Promise<ActionResult> {
+export async function archiveBriefTemplate(
+  templateId: string,
+  archived: boolean,
+): Promise<ActionResult> {
   return act(uuid, templateId, async (db, id, t) => {
-    const { error } = await db.rpc("brief_template_archive", { p_template: id, p_archived: archived });
+    const { error } = await db.rpc("brief_template_archive", {
+      p_template: id,
+      p_archived: archived,
+    });
     if (error) return dbFail(error, t);
     revalidatePath("/admin/briefs", "layout");
-    return { ok: true, message: archived ? t("content.templates.archived") : t("content.templates.restored") };
+    return {
+      ok: true,
+      message: archived ? t("content.templates.archived") : t("content.templates.restored"),
+    };
   });
 }
 
@@ -132,7 +156,13 @@ export async function createBriefForDeal(dealId: string): Promise<ActionResult<{
       refresh({ briefId });
       return { ok: true, data: { id: briefId }, message: t("content.briefs.created") };
     } catch (e) {
-      return dbFail({ code: (e as { code?: string }).code, message: e instanceof Error ? e.message : String(e) }, t);
+      return dbFail(
+        {
+          code: (e as { code?: string }).code,
+          message: e instanceof Error ? e.message : String(e),
+        },
+        t,
+      );
     }
   });
 }
@@ -146,7 +176,9 @@ export async function saveBrief(input: BriefSaveInput): Promise<ActionResult> {
   });
 }
 
-export async function publishBrief(input: z.input<typeof briefPublishInput>): Promise<ActionResult> {
+export async function publishBrief(
+  input: z.input<typeof briefPublishInput>,
+): Promise<ActionResult> {
   return act(briefPublishInput, input, async (db, v, t) => {
     const { error } = await db.rpc("brief_publish", { p_brief: v.briefId, p_note: v.note });
     if (error) return dbFail(error, t);
@@ -197,13 +229,20 @@ export async function briefAssetUploadUrl(input: {
   });
 }
 
-export async function briefAssetLink(briefId: string, path: string): Promise<ActionResult<{ url: string }>> {
-  return act(z.object({ b: uuid, p: z.string().max(200) }), { b: briefId, p: path }, async (db, v, t) => {
-    const allowed = await db.rpc("brief_asset_allowed", { p_brief: v.b, p_path: v.p });
-    if (allowed.data !== true) return fail(t("errors.forbidden"));
-    const url = await signedLink(BRIEFS_BUCKET, v.p);
-    return url ? { ok: true, data: { url } } : fail(t("errors.generic"));
-  });
+export async function briefAssetLink(
+  briefId: string,
+  path: string,
+): Promise<ActionResult<{ url: string }>> {
+  return act(
+    z.object({ b: uuid, p: z.string().max(200) }),
+    { b: briefId, p: path },
+    async (db, v, t) => {
+      const allowed = await db.rpc("brief_asset_allowed", { p_brief: v.b, p_path: v.p });
+      if (allowed.data !== true) return fail(t("errors.forbidden"));
+      const url = await signedLink(BRIEFS_BUCKET, v.p);
+      return url ? { ok: true, data: { url } } : fail(t("errors.generic"));
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -246,12 +285,21 @@ export async function updateDeliverable(input: DeliverableEditInput): Promise<Ac
   });
 }
 
-export async function setDeliverableStatus(input: z.input<typeof statusChangeInput>): Promise<ActionResult> {
+export async function setDeliverableStatus(
+  input: z.input<typeof statusChangeInput>,
+): Promise<ActionResult> {
   return act(statusChangeInput, input, async (db, v, t) => {
-    const { error } = await db.rpc("deliverable_set_status", { p_id: v.id, p_action: v.action, p_reason: v.reason });
+    const { error } = await db.rpc("deliverable_set_status", {
+      p_id: v.id,
+      p_action: v.action,
+      p_reason: v.reason,
+    });
     if (error) return dbFail(error, t);
     refresh({ deliverableId: v.id });
-    return { ok: true, message: t(`content.deliverables.${v.action === "cancel" ? "cancelled" : "completed"}`) };
+    return {
+      ok: true,
+      message: t(`content.deliverables.${v.action === "cancel" ? "cancelled" : "completed"}`),
+    };
   });
 }
 
@@ -273,25 +321,37 @@ export async function deliverableUploadUrl(
       db.rpc("setting", { p_key: "content.uploads" }),
     ]);
     if (allowed.data !== true) return fail(t("errors.forbidden"));
-    const limits = SETTINGS["content.uploads"].schema.catch(SETTINGS["content.uploads"].default).parse(setting.data);
+    const limits = SETTINGS["content.uploads"].schema
+      .catch(SETTINGS["content.uploads"].default)
+      .parse(setting.data);
     const max = v.type.startsWith("video/")
       ? limits.max_video_mb
       : v.type.startsWith("image/")
         ? limits.max_image_mb
         : limits.max_document_mb;
     if (v.size > max * MB) return fail(t("content.errors.tooLarge", { mb: max }));
-    const signed = await signedUpload(DELIVERABLES_BUCKET, contentPath(v.deliverableId, v.fileName));
+    const signed = await signedUpload(
+      DELIVERABLES_BUCKET,
+      contentPath(v.deliverableId, v.fileName),
+    );
     return signed ? { ok: true, data: signed } : fail(t("errors.generic"));
   });
 }
 
-export async function deliverableFileLink(deliverableId: string, path: string): Promise<ActionResult<{ url: string }>> {
-  return act(z.object({ d: uuid, p: z.string().max(200) }), { d: deliverableId, p: path }, async (db, v, t) => {
-    const allowed = await db.rpc("deliverable_file_allowed", { p_deliverable: v.d, p_path: v.p });
-    if (allowed.data !== true) return fail(t("errors.forbidden"));
-    const url = await signedLink(DELIVERABLES_BUCKET, v.p);
-    return url ? { ok: true, data: { url } } : fail(t("errors.generic"));
-  });
+export async function deliverableFileLink(
+  deliverableId: string,
+  path: string,
+): Promise<ActionResult<{ url: string }>> {
+  return act(
+    z.object({ d: uuid, p: z.string().max(200) }),
+    { d: deliverableId, p: path },
+    async (db, v, t) => {
+      const allowed = await db.rpc("deliverable_file_allowed", { p_deliverable: v.d, p_path: v.p });
+      if (allowed.data !== true) return fail(t("errors.forbidden"));
+      const url = await signedLink(DELIVERABLES_BUCKET, v.p);
+      return url ? { ok: true, data: { url } } : fail(t("errors.generic"));
+    },
+  );
 }
 
 export async function submitWork(input: SubmissionInput): Promise<ActionResult> {
@@ -304,7 +364,8 @@ export async function submitWork(input: SubmissionInput): Promise<ActionResult> 
         : t("errors.invalidInput"),
     );
   const v = parsed.data;
-  if (v.files.some((f) => !f.path.startsWith(`${v.deliverableId}/`))) return fail(t("content.errors.invalidFile"));
+  if (v.files.some((f) => !f.path.startsWith(`${v.deliverableId}/`)))
+    return fail(t("content.errors.invalidFile"));
   const supabase = await signedIn();
   if (!supabase) return fail(t("errors.sessionEnded"));
   const d = await loadDeliverable(supabase, v.deliverableId).catch(() => null);
@@ -342,18 +403,31 @@ export async function rescanSubmission(submissionId: string): Promise<ActionResu
       .maybeSingle();
     if (error || !row?.deliverables) return fail(t("errors.forbidden"));
     const review = await db.rpc("deliverable_detail", { p_id: row.deliverable_id });
-    if ((review.data as { can_review?: boolean } | null)?.can_review !== true) return fail(t("errors.forbidden"));
+    if ((review.data as { can_review?: boolean } | null)?.can_review !== true)
+      return fail(t("errors.forbidden"));
     try {
       await scanAndRecord({
         submissionId: row.id,
         kind: row.kind === "draft" ? "draft" : "concept",
         platform: z
-          .enum(["instagram", "youtube", "facebook", "linkedin", "x", "telegram", "moj_josh", "other"])
+          .enum([
+            "instagram",
+            "youtube",
+            "facebook",
+            "linkedin",
+            "x",
+            "telegram",
+            "moj_josh",
+            "other",
+          ])
           .parse(row.deliverables.platform),
         text: [row.body, row.creator_note].filter(Boolean).join("\n\n"),
       });
     } catch (e) {
-      log.error("content.rescan_failed", { submission_id: id, error: e instanceof Error ? e.message : String(e) });
+      log.error("content.rescan_failed", {
+        submission_id: id,
+        error: e instanceof Error ? e.message : String(e),
+      });
       return fail(t("errors.generic"));
     }
     refresh({ deliverableId: row.deliverable_id });
@@ -364,7 +438,9 @@ export async function rescanSubmission(submissionId: string): Promise<ActionResu
 // ---------------------------------------------------------------------------------------------------------------
 // Review (staff), comments (both sides), overrides, extensions
 // ---------------------------------------------------------------------------------------------------------------
-export async function reviewSubmission(input: ReviewInput & { deliverableId: string }): Promise<ActionResult> {
+export async function reviewSubmission(
+  input: ReviewInput & { deliverableId: string },
+): Promise<ActionResult> {
   return act(reviewInput.and(z.object({ deliverableId: uuid })), input, async (db, v, t) => {
     const { error } = await db.rpc("submission_review", {
       p_submission: v.submissionId,
@@ -376,12 +452,15 @@ export async function reviewSubmission(input: ReviewInput & { deliverableId: str
     refresh({ deliverableId: v.deliverableId });
     return {
       ok: true,
-      message: v.decision === "approve" ? t("content.review.approved") : t("content.review.changesSent"),
+      message:
+        v.decision === "approve" ? t("content.review.approved") : t("content.review.changesSent"),
     };
   });
 }
 
-export async function addReviewComment(input: CommentInput & { deliverableId: string }): Promise<ActionResult> {
+export async function addReviewComment(
+  input: CommentInput & { deliverableId: string },
+): Promise<ActionResult> {
   return act(commentInput.and(z.object({ deliverableId: uuid })), input, async (db, v, t) => {
     const { error } = await db.rpc("review_comment_add", {
       p_submission: v.submissionId,
@@ -401,26 +480,38 @@ export async function setCommentResolved(
   resolved: boolean,
   deliverableId: string,
 ): Promise<ActionResult> {
-  return act(z.object({ c: uuid, d: uuid }), { c: commentId, d: deliverableId }, async (db, v, t) => {
-    const { error } = await db.rpc("review_comment_set_resolved", { p_comment: v.c, p_resolved: resolved });
-    if (error) return dbFail(error, t);
-    refresh({ deliverableId: v.d });
-    return { ok: true };
-  });
+  return act(
+    z.object({ c: uuid, d: uuid }),
+    { c: commentId, d: deliverableId },
+    async (db, v, t) => {
+      const { error } = await db.rpc("review_comment_set_resolved", {
+        p_comment: v.c,
+        p_resolved: resolved,
+      });
+      if (error) return dbFail(error, t);
+      refresh({ deliverableId: v.d });
+      return { ok: true };
+    },
+  );
 }
 
 export async function overrideCheck(
   input: z.input<typeof overrideInput> & { deliverableId: string },
 ): Promise<ActionResult> {
   return act(overrideInput.and(z.object({ deliverableId: uuid })), input, async (db, v, t) => {
-    const { error } = await db.rpc("compliance_override", { p_check: v.checkId, p_reason: v.reason });
+    const { error } = await db.rpc("compliance_override", {
+      p_check: v.checkId,
+      p_reason: v.reason,
+    });
     if (error) return dbFail(error, t);
     refresh({ deliverableId: v.deliverableId });
     return { ok: true, message: t("content.review.overridden") };
   });
 }
 
-export async function requestExtension(input: z.input<typeof extensionInput>): Promise<ActionResult> {
+export async function requestExtension(
+  input: z.input<typeof extensionInput>,
+): Promise<ActionResult> {
   return act(extensionInput, input, async (db, v, t) => {
     const { error } = await db.rpc("revision_extension_request", {
       p_deliverable: v.deliverableId,
@@ -437,17 +528,26 @@ export async function decideExtension(
   input: z.input<typeof decisionInput> & { deliverableId: string },
 ): Promise<ActionResult> {
   return act(decisionInput.and(z.object({ deliverableId: uuid })), input, async (db, v, t) => {
-    const { error } = await db.rpc("revision_extension_decide", { p_id: v.id, p_approve: v.approve, p_note: v.note });
+    const { error } = await db.rpc("revision_extension_decide", {
+      p_id: v.id,
+      p_approve: v.approve,
+      p_note: v.note,
+    });
     if (error) return dbFail(error, t);
     refresh({ deliverableId: v.deliverableId });
-    return { ok: true, message: v.approve ? t("content.extensions.approved") : t("content.extensions.rejected") };
+    return {
+      ok: true,
+      message: v.approve ? t("content.extensions.approved") : t("content.extensions.rejected"),
+    };
   });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // Scheduling, go-live, verification and metrics
 // ---------------------------------------------------------------------------------------------------------------
-export async function scheduleDeliverable(input: z.input<typeof scheduleInput>): Promise<ActionResult> {
+export async function scheduleDeliverable(
+  input: z.input<typeof scheduleInput>,
+): Promise<ActionResult> {
   return act(scheduleInput, input, async (db, v, t) => {
     const { error } = await db.rpc("deliverable_schedule", { p_id: v.deliverableId, p_at: v.at });
     if (error) return dbFail(error, t);
@@ -475,7 +575,9 @@ export async function submitLivePost(input: PostInput): Promise<ActionResult> {
   });
 }
 
-export async function verifyLivePost(input: VerifyInput & { deliverableId: string }): Promise<ActionResult> {
+export async function verifyLivePost(
+  input: VerifyInput & { deliverableId: string },
+): Promise<ActionResult> {
   return act(verifyInput.and(z.object({ deliverableId: uuid })), input, async (db, v, t) => {
     const { error } = await db.rpc("post_verify", {
       p_post: v.postId,
@@ -488,7 +590,10 @@ export async function verifyLivePost(input: VerifyInput & { deliverableId: strin
     refresh({ deliverableId: v.deliverableId });
     return {
       ok: true,
-      message: v.live && v.disclosure && v.matches ? t("content.live.verified") : t("content.live.rejected"),
+      message:
+        v.live && v.disclosure && v.matches
+          ? t("content.live.verified")
+          : t("content.live.rejected"),
     };
   });
 }
@@ -503,7 +608,8 @@ export async function submitMetrics(input: MetricsInput): Promise<ActionResult> 
         : t("errors.invalidInput"),
     );
   const v = parsed.data;
-  if (v.screenshots.some((p) => !p.startsWith(`${v.deliverableId}/`))) return fail(t("content.errors.invalidFile"));
+  if (v.screenshots.some((p) => !p.startsWith(`${v.deliverableId}/`)))
+    return fail(t("content.errors.invalidFile"));
   const supabase = await signedIn();
   if (!supabase) return fail(t("errors.sessionEnded"));
   const { deliverableId, ...p } = v;
@@ -519,9 +625,17 @@ export async function submitMetrics(input: MetricsInput): Promise<ActionResult> 
 export async function saveBannedClaim(input: BannedClaimInput): Promise<ActionResult> {
   const { safePattern } = await import("@/lib/content/compliance");
   return act(bannedClaimInput, input, async (db, v, t) => {
-    if (v.kind === "regex" && !safePattern(v.pattern)) return fail(t("content.errors.unsafePattern"));
+    if (v.kind === "regex" && !safePattern(v.pattern))
+      return fail(t("content.errors.unsafePattern"));
     const { error } = await db.rpc("banned_claim_save", {
-      p: { id: v.id, pattern: v.pattern, kind: v.kind, severity: v.severity, note: v.note, active: v.active },
+      p: {
+        id: v.id,
+        pattern: v.pattern,
+        kind: v.kind,
+        severity: v.severity,
+        note: v.note,
+        active: v.active,
+      },
     });
     if (error) return dbFail(error, t);
     revalidatePath("/admin/content/claims");
@@ -531,10 +645,17 @@ export async function saveBannedClaim(input: BannedClaimInput): Promise<ActionRe
 
 export async function decidePenalty(input: z.input<typeof decisionInput>): Promise<ActionResult> {
   return act(decisionInput, input, async (db, v, t) => {
-    const { error } = await db.rpc("penalty_decide", { p_id: v.id, p_approve: v.approve, p_note: v.note });
+    const { error } = await db.rpc("penalty_decide", {
+      p_id: v.id,
+      p_approve: v.approve,
+      p_note: v.note,
+    });
     if (error) return dbFail(error, t);
     revalidatePath("/admin/content/penalties");
     revalidatePath("/admin/deals", "layout");
-    return { ok: true, message: v.approve ? t("content.penalties.approved") : t("content.penalties.rejected") };
+    return {
+      ok: true,
+      message: v.approve ? t("content.penalties.approved") : t("content.penalties.rejected"),
+    };
   });
 }

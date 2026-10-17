@@ -46,7 +46,9 @@ function run(
 ): EngineResult {
   return computeLedger({
     deal: { id: "deal-1", starts_on: "2026-11-01", ...o.deal },
-    versions: o.versions ?? [{ id: "v1", effective_from: "2026-11-01T00:00:00+05:30", config: cfg(config) }],
+    versions: o.versions ?? [
+      { id: "v1", effective_from: "2026-11-01T00:00:00+05:30", config: cfg(config) },
+    ],
     events,
     as_of: o.as_of ?? "2027-06-01T00:00:00+05:30",
     context: { ...CTX, ...o.ctx },
@@ -57,7 +59,8 @@ const net = (lines: readonly LedgerLine[]) =>
   lines.reduce((s, l) => s + (l.direction === "credit" ? l.amount_paise : -l.amount_paise), 0);
 const amounts = (lines: readonly LedgerLine[]) =>
   lines.map((l) => (l.direction === "credit" ? l.amount_paise : -l.amount_paise));
-const ofType = (r: EngineResult, type: LedgerLine["type"]) => r.lines.filter((l) => l.type === type);
+const ofType = (r: EngineResult, type: LedgerLine["type"]) =>
+  r.lines.filter((l) => l.type === type);
 const keyed = (r: EngineResult, part: string) => r.lines.filter((l) => l.key.includes(part));
 
 const flat = (id: string, amount: number, extra: Record<string, unknown> = {}) => ({
@@ -69,7 +72,12 @@ const flat = (id: string, amount: number, extra: Record<string, unknown> = {}) =
 });
 const enrol = (day: number, id: string, extra: Record<string, unknown> = {}, month = "2026-11") =>
   ev({ type: "enrolled", at: at(day, 10, month), lead: `lead-${id}`, enrollment: id, ...extra });
-const ms = (id: string, pct: number, trigger: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+const ms = (
+  id: string,
+  pct: number,
+  trigger: Record<string, unknown>,
+  extra: Record<string, unknown> = {},
+) => ({
   id,
   label: id,
   share: { type: "pct" as const, pct },
@@ -95,7 +103,13 @@ describe("system presets", () => {
     });
     const after = run(SYSTEM_PRESETS.commission_only.config, [
       ...events,
-      ev({ type: "commission_received", at: at(20), enrollment: "en1", gross_paise: 11_800_00, full: true }),
+      ev({
+        type: "commission_received",
+        at: at(20),
+        enrollment: "en1",
+        gross_paise: 11_800_00,
+        full: true,
+      }),
     ]);
     expect(after.lines).toHaveLength(1);
     expect(after.lines[0]?.confirmed_paise).toBe(1_000_00);
@@ -107,7 +121,9 @@ describe("system presets", () => {
       ev({ type: "contract_signed", at: at(2) }),
       ev({ type: "deliverable_live", at: at(12), deliverable: "reel" }),
     ]);
-    expect(r.lines.map((l) => [l.key, l.type, l.amount_paise, l.confirmed_paise, l.due_on])).toEqual([
+    expect(
+      r.lines.map((l) => [l.key, l.type, l.amount_paise, l.confirmed_paise, l.due_on]),
+    ).toEqual([
       ["v1:fee:signing:milestone", "milestone", 7_500_00, 7_500_00, "2026-11-09"],
       ["v1:fee:live:milestone", "milestone", 7_500_00, 7_500_00, "2026-11-19"],
     ]);
@@ -130,7 +146,10 @@ describe("system presets", () => {
 // ---------------------------------------------------------------------------------------------------------------
 describe("commission bases", () => {
   it("flat per enrolment", () => {
-    const r = run({ schema_version: 1, commission: [flat("per", 2_500_00)] }, [enrol(3, "a"), enrol(4, "b")]);
+    const r = run({ schema_version: 1, commission: [flat("per", 2_500_00)] }, [
+      enrol(3, "a"),
+      enrol(4, "b"),
+    ]);
     expect(amounts(r.lines)).toEqual([2_500_00, 2_500_00]);
     expect(r.lines.every((l) => l.confirmed_paise === l.amount_paise)).toBe(true);
   });
@@ -158,7 +177,12 @@ describe("commission bases", () => {
       {
         schema_version: 1,
         commission: [
-          { id: "p", label: "p", basis: { type: "pct_of_programme_fee", pct: 2 }, confirmation: { type: "immediate" } },
+          {
+            id: "p",
+            label: "p",
+            basis: { type: "pct_of_programme_fee", pct: 2 },
+            confirmation: { type: "immediate" },
+          },
         ],
       },
       [enrol(3, "a", { fee_paise: 1_50_000_00 })],
@@ -204,28 +228,58 @@ describe("commission bases", () => {
     expect(run(config, [enrolled]).lines).toEqual([]);
     const r = run(config, [
       enrolled,
-      ev({ type: "commission_received", at: at(25), enrollment: "a", gross_paise: 11_800_00, full: true }),
+      ev({
+        type: "commission_received",
+        at: at(25),
+        enrollment: "a",
+        gross_paise: 11_800_00,
+        full: true,
+      }),
     ]);
     expect(r.lines).toHaveLength(1);
-    expect(r.lines[0]).toMatchObject({ amount_paise: 1_000_00, confirmed_paise: 1_000_00, at: at(25) });
+    expect(r.lines[0]).toMatchObject({
+      amount_paise: 1_000_00,
+      confirmed_paise: 1_000_00,
+      at: at(25),
+    });
   });
 
   it("a partial first receipt accrues on what arrived, and the final receipt tops it up", () => {
     const r = run(SYSTEM_PRESETS.commission_only.config, [
       enrol(3, "a"),
-      ev({ type: "commission_received", at: at(10), enrollment: "a", gross_paise: 5_900_00, full: false }),
-      ev({ type: "commission_received", at: at(20), enrollment: "a", gross_paise: 5_900_00, full: true }),
+      ev({
+        type: "commission_received",
+        at: at(10),
+        enrollment: "a",
+        gross_paise: 5_900_00,
+        full: false,
+      }),
+      ev({
+        type: "commission_received",
+        at: at(20),
+        enrollment: "a",
+        gross_paise: 5_900_00,
+        full: true,
+      }),
     ]);
-    expect(r.lines.map((l) => [l.key.split(":").pop(), l.amount_paise, l.confirmed_paise])).toEqual([
-      ["accrue", 500_00, 500_00],
-      ["receipt-adjust", 500_00, 500_00],
-    ]);
+    expect(r.lines.map((l) => [l.key.split(":").pop(), l.amount_paise, l.confirmed_paise])).toEqual(
+      [
+        ["accrue", 500_00, 500_00],
+        ["receipt-adjust", 500_00, 500_00],
+      ],
+    );
   });
 
   it("adjusts to the commission actually received when it differs from the expected amount", () => {
     const r = run(SYSTEM_PRESETS.commission_only.config, [
       enrol(3, "a", { expected_commission_gross_paise: 11_800_00 }),
-      ev({ type: "commission_received", at: at(20), enrollment: "a", gross_paise: 9_440_00, full: true }),
+      ev({
+        type: "commission_received",
+        at: at(20),
+        enrollment: "a",
+        gross_paise: 9_440_00,
+        full: true,
+      }),
     ]);
     expect(r.lines.map((l) => [l.direction, l.amount_paise, l.confirmed_paise])).toEqual([
       ["credit", 1_000_00, 1_000_00],
@@ -241,7 +295,13 @@ describe("commission bases", () => {
 describe("confirmation", () => {
   const partial = [
     enrol(3, "a", { expected_commission_gross_paise: 11_800_00 }),
-    ev({ type: "commission_received", at: at(10), enrollment: "a", gross_paise: 5_900_00, full: false }),
+    ev({
+      type: "commission_received",
+      at: at(10),
+      enrollment: "a",
+      gross_paise: 5_900_00,
+      full: false,
+    }),
   ];
 
   it("partial receipts confirm nothing by default", () => {
@@ -250,10 +310,21 @@ describe("confirmation", () => {
 
   it("partial receipts confirm pro rata when the setting is on", () => {
     const opts = { ctx: { confirm_partial_receipts: true } };
-    expect(run(SYSTEM_PRESETS.commission_only.config, partial, opts).totals.confirmed_net).toBe(500_00);
+    expect(run(SYSTEM_PRESETS.commission_only.config, partial, opts).totals.confirmed_net).toBe(
+      500_00,
+    );
     const full = run(
       SYSTEM_PRESETS.commission_only.config,
-      [...partial, ev({ type: "commission_received", at: at(20), enrollment: "a", gross_paise: 5_900_00, full: true })],
+      [
+        ...partial,
+        ev({
+          type: "commission_received",
+          at: at(20),
+          enrollment: "a",
+          gross_paise: 5_900_00,
+          full: true,
+        }),
+      ],
       opts,
     );
     expect(full.lines).toHaveLength(1);
@@ -269,7 +340,9 @@ describe("confirmation", () => {
     expect(run(rule(14), events, { as_of: at(10) }).totals.confirmed_net).toBe(0);
     expect(run(rule(14), events, { as_of: at(15) }).totals.confirmed_net).toBe(1_000_00);
     expect(run(rule(), events, { as_of: at(30) }).totals.confirmed_net).toBe(0);
-    expect(run(rule(), events, { as_of: at(1, 10, "2026-12") }).totals.confirmed_net).toBe(1_000_00);
+    expect(run(rule(), events, { as_of: at(1, 10, "2026-12") }).totals.confirmed_net).toBe(
+      1_000_00,
+    );
   });
 });
 
@@ -287,7 +360,12 @@ describe("slabs", () => {
   });
 
   it("marginal: only units from the threshold on get the higher rate", () => {
-    const r = run(slabbed("marginal"), [enrol(1, "a"), enrol(2, "b"), enrol(3, "c"), enrol(4, "d")]);
+    const r = run(slabbed("marginal"), [
+      enrol(1, "a"),
+      enrol(2, "b"),
+      enrol(3, "c"),
+      enrol(4, "d"),
+    ]);
     expect(amounts(r.lines)).toEqual([1_000_00, 1_000_00, 2_000_00, 2_000_00]);
   });
 
@@ -373,7 +451,9 @@ describe("caps", () => {
   });
 
   it("per unit", () => {
-    const r = run(pctRule({ per_unit_paise: 5_000_00 }), [enrol(1, "a", { fee_paise: 1_00_000_00 })]);
+    const r = run(pctRule({ per_unit_paise: 5_000_00 }), [
+      enrol(1, "a", { fee_paise: 1_00_000_00 }),
+    ]);
     expect(amounts(r.lines)).toEqual([5_000_00]);
   });
 
@@ -409,7 +489,12 @@ describe("floors", () => {
   it("tops up a short month at month end, but not a month that beat the floor or one outside the deal", () => {
     const r = run(
       config,
-      [enrol(5, "a"), enrol(1, "b", {}, "2026-12"), enrol(2, "c", {}, "2026-12"), enrol(3, "d", {}, "2026-12")],
+      [
+        enrol(5, "a"),
+        enrol(1, "b", {}, "2026-12"),
+        enrol(2, "c", {}, "2026-12"),
+        enrol(3, "d", {}, "2026-12"),
+      ],
       {
         deal: { ends_on: "2026-12-31" },
         as_of: "2027-03-01T00:00:00+05:30",
@@ -422,15 +507,22 @@ describe("floors", () => {
   });
 
   it("does not top up a month that has not closed yet", () => {
-    expect(run(config, [enrol(5, "a")], { as_of: at(30) }).lines.filter((l) => l.rule_id === "min")).toEqual([]);
+    expect(
+      run(config, [enrol(5, "a")], { as_of: at(30) }).lines.filter((l) => l.rule_id === "min"),
+    ).toEqual([]);
   });
 
   it("a deal floor settles on deal completion", () => {
     const r = run(
-      { ...config, floors: [{ id: "min", label: "Minimum", amount_paise: 10_000_00, period: "deal" as const }] },
+      {
+        ...config,
+        floors: [{ id: "min", label: "Minimum", amount_paise: 10_000_00, period: "deal" as const }],
+      },
       [enrol(5, "a"), ev({ type: "deal_completed", at: at(20) })],
     );
-    expect(r.lines.filter((l) => l.rule_id === "min").map((l) => l.amount_paise)).toEqual([8_000_00]);
+    expect(r.lines.filter((l) => l.rule_id === "min").map((l) => l.amount_paise)).toEqual([
+      8_000_00,
+    ]);
   });
 });
 
@@ -449,18 +541,30 @@ describe("recoupment against fixed fees", () => {
     commission: [flat("per", 1_000_00)],
     recoupment,
   });
-  const enrolments = (n: number) => Array.from({ length: n }, (_, i) => enrol(i + 2, `n${String(i + 1)}`));
+  const enrolments = (n: number) =>
+    Array.from({ length: n }, (_, i) => enrol(i + 2, `n${String(i + 1)}`));
 
   it("full: commission pays out only once it exceeds the advance", () => {
-    const r = run(config({ mode: "full" }), [ev({ type: "contract_signed", at: at(1) }), ...enrolments(12)]);
+    const r = run(config({ mode: "full" }), [
+      ev({ type: "contract_signed", at: at(1) }),
+      ...enrolments(12),
+    ]);
     const recoup = r.lines.filter((l) => l.rule_id === "recoupment");
     expect(recoup).toHaveLength(10);
     expect(recoup.every((l) => l.direction === "debit" && l.amount_paise === 1_000_00)).toBe(true);
-    expect(r.totals).toMatchObject({ credits: 22_000_00, debits: 10_000_00, net: 12_000_00, recouped: 10_000_00 });
+    expect(r.totals).toMatchObject({
+      credits: 22_000_00,
+      debits: 10_000_00,
+      net: 12_000_00,
+      recouped: 10_000_00,
+    });
   });
 
   it("partial %: only that share of the advance is recouped", () => {
-    const r = run(config({ mode: "partial", pct: 50 }), [ev({ type: "contract_signed", at: at(1) }), ...enrolments(7)]);
+    const r = run(config({ mode: "partial", pct: 50 }), [
+      ev({ type: "contract_signed", at: at(1) }),
+      ...enrolments(7),
+    ]);
     expect(r.totals.recouped).toBe(5_000_00);
     expect(r.totals.net).toBe(10_000_00 + 7_000_00 - 5_000_00);
   });
@@ -477,7 +581,10 @@ describe("recoupment against fixed fees", () => {
   });
 
   it("none: commission is paid on top of the fixed fee", () => {
-    const r = run(config({ mode: "none" }), [ev({ type: "contract_signed", at: at(1) }), ...enrolments(3)]);
+    const r = run(config({ mode: "none" }), [
+      ev({ type: "contract_signed", at: at(1) }),
+      ...enrolments(3),
+    ]);
     expect(r.totals.net).toBe(13_000_00);
   });
 });
@@ -501,7 +608,12 @@ describe("milestones per trigger", () => {
           ms("m4", 10, { type: "on_draft_approved", deliverable: "reel" }),
           ms("m5", 10, { type: "on_deliverable_live", deliverable: "reel" }),
           ms("m6", 10, { type: "after_n_days_live", days: 7, deliverable: "reel" }),
-          ms("m7", 10, { type: "on_metric_threshold", metric: "views", threshold: 10_000, deliverable: "reel" }),
+          ms("m7", 10, {
+            type: "on_metric_threshold",
+            metric: "views",
+            threshold: 10_000,
+            deliverable: "reel",
+          }),
           ms("m8", 10, { type: "on_campaign_end" }),
           ms("m9", 10, { type: "on_specific_date", date: "2026-12-15" }),
           ms("m10", 10, { type: "manual_release" }),
@@ -553,7 +665,9 @@ describe("milestones per trigger", () => {
             label: "Fee",
             amount_paise: 5_000_00,
             basis: "lump_sum",
-            milestones: [ms("leads", 100, { type: "on_metric_threshold", metric: "leads", threshold: 2 })],
+            milestones: [
+              ms("leads", 100, { type: "on_metric_threshold", metric: "leads", threshold: 2 }),
+            ],
           },
         ],
       },
@@ -567,7 +681,10 @@ describe("milestones per trigger", () => {
   });
 
   it("the campaign end date fires end-of-campaign milestones without an explicit event", () => {
-    const r = run(config, [], { deal: { campaign_ends_on: "2026-11-30" }, as_of: at(5, 10, "2026-12") });
+    const r = run(config, [], {
+      deal: { campaign_ends_on: "2026-11-30" },
+      as_of: at(5, 10, "2026-12"),
+    });
     expect(r.lines.map((l) => [l.subject, l.at])).toEqual([["fee.m8", "2026-11-30T18:30:00.000Z"]]);
   });
 
@@ -581,7 +698,14 @@ describe("milestones per trigger", () => {
             label: "Fee",
             amount_paise: 1_000_00,
             basis: "lump_sum",
-            milestones: [ms("m", 100, { type: "on_contract_signed" }, { due_offset_days: 3, payment_terms_days: 7 })],
+            milestones: [
+              ms(
+                "m",
+                100,
+                { type: "on_contract_signed" },
+                { due_offset_days: 3, payment_terms_days: 7 },
+              ),
+            ],
           },
         ],
       },
@@ -618,7 +742,10 @@ describe("milestones per trigger", () => {
           },
         ],
       },
-      [ev({ type: "contract_signed", at: at(2) }), ev({ type: "deliverable_live", at: at(9), deliverable: "x" })],
+      [
+        ev({ type: "contract_signed", at: at(2) }),
+        ev({ type: "deliverable_live", at: at(9), deliverable: "x" }),
+      ],
     );
     expect(amounts(r.lines)).toEqual([1_000_00, 5_000_00]);
   });
@@ -645,7 +772,12 @@ describe("milestones per trigger", () => {
           },
         ],
         penalties: [
-          { id: "missed", type: "missed_deliverable", label: "Missed", action: { type: "forfeit_milestones" } },
+          {
+            id: "missed",
+            type: "missed_deliverable",
+            label: "Missed",
+            action: { type: "forfeit_milestones" },
+          },
         ],
       },
       [
@@ -655,7 +787,12 @@ describe("milestones per trigger", () => {
     );
     expect(r.lines.map((l) => [l.subject, l.amount_paise])).toEqual([["fee.live", 1_500_00]]);
     expect(r.proposals).toEqual([
-      expect.objectContaining({ rule_id: "missed", subject: "reel", amount_paise: 0, forfeits: ["fee.draft"] }),
+      expect.objectContaining({
+        rule_id: "missed",
+        subject: "reel",
+        amount_paise: 0,
+        forfeits: ["fee.draft"],
+      }),
     ]);
   });
 
@@ -677,7 +814,11 @@ describe("milestones per trigger", () => {
       ["ret#1", "2026-12-06"],
       ["ret#2", "2027-01-06"],
     ]);
-    expect(run(retainer("period_start"), [], asOf).lines.map((l) => l.subject)).toEqual(["ret#1", "ret#2", "ret#3"]);
+    expect(run(retainer("period_start"), [], asOf).lines.map((l) => l.subject)).toEqual([
+      "ret#1",
+      "ret#2",
+      "ret#3",
+    ]);
   });
 
   it("additional fees post with their own entry types", () => {
@@ -685,7 +826,13 @@ describe("milestones per trigger", () => {
       {
         schema_version: 1,
         fees: [
-          { id: "usage", kind: "usage_rights", label: "Usage 90 days", amount_paise: 3_000_00, duration_days: 90 },
+          {
+            id: "usage",
+            kind: "usage_rights",
+            label: "Usage 90 days",
+            amount_paise: 3_000_00,
+            duration_days: 90,
+          },
           {
             id: "excl",
             kind: "exclusivity",
@@ -702,7 +849,10 @@ describe("milestones per trigger", () => {
           },
         ],
       },
-      [ev({ type: "contract_signed", at: at(2) }), ev({ type: "deliverable_live", at: at(5), deliverable: "reel" })],
+      [
+        ev({ type: "contract_signed", at: at(2) }),
+        ev({ type: "deliverable_live", at: at(5), deliverable: "reel" }),
+      ],
     );
     expect(r.lines.map((l) => [l.type, l.amount_paise])).toEqual([
       ["usage_fee", 3_000_00],
@@ -750,7 +900,10 @@ describe("clawbacks", () => {
 
   it("an enrolment cancelled inside the default refund window is clawed back; outside it is not", () => {
     const config = { schema_version: 1 as const, commission: [flat("per", 1_000_00)] };
-    const inside = run(config, [enrol(1, "a"), ev({ type: "enrollment_cancelled", at: at(30, 9), enrollment: "a" })]);
+    const inside = run(config, [
+      enrol(1, "a"),
+      ev({ type: "enrollment_cancelled", at: at(30, 9), enrollment: "a" }),
+    ]);
     expect(ofType(inside, "clawback").map((l) => l.amount_paise)).toEqual([1_000_00]);
     const outside = run(config, [
       enrol(1, "a"),
@@ -816,7 +969,15 @@ describe("scope and effective dates", () => {
           flat("deliv", 500_00, { scope: { type: "deliverables", ids: ["reel"] } }),
         ],
       },
-      [enrol(1, "a", { programme_id: 101, level: "pg", link: "ABC", university_id: 8, deliverable: "story" })],
+      [
+        enrol(1, "a", {
+          programme_id: 101,
+          level: "pg",
+          link: "ABC",
+          university_id: 8,
+          deliverable: "story",
+        }),
+      ],
     );
     expect(r.lines.map((l) => l.rule_id)).toEqual(["prog", "level", "link"]);
   });
@@ -825,7 +986,9 @@ describe("scope and effective dates", () => {
     const r = run(
       {
         schema_version: 1,
-        commission: [flat("per", 100_00, { effective_from: "2026-11-15", effective_to: "2026-11-30" })],
+        commission: [
+          flat("per", 100_00, { effective_from: "2026-11-15", effective_to: "2026-11-30" }),
+        ],
       },
       [enrol(10, "a"), enrol(20, "b"), enrol(30, "c", {}), enrol(1, "d", {}, "2026-12")],
     );
@@ -845,8 +1008,14 @@ describe("amendments mid-period", () => {
 
   it("events use the version in force at their time; earlier lines keep their version key", () => {
     const versions = [
-      v("v1", "2026-11-01T00:00:00+05:30", { schema_version: 1, commission: [flat("per", 1_000_00)] }),
-      v("v2", "2026-11-16T00:00:00+05:30", { schema_version: 1, commission: [flat("per", 2_000_00)] }),
+      v("v1", "2026-11-01T00:00:00+05:30", {
+        schema_version: 1,
+        commission: [flat("per", 1_000_00)],
+      }),
+      v("v2", "2026-11-16T00:00:00+05:30", {
+        schema_version: 1,
+        commission: [flat("per", 2_000_00)],
+      }),
     ];
     const r = run({ schema_version: 1 }, [enrol(10, "a"), enrol(20, "b")], { versions });
     expect(r.lines.map((l) => [l.key, l.amount_paise])).toEqual([
@@ -864,7 +1033,10 @@ describe("amendments mid-period", () => {
           label: "Fee",
           amount_paise: amount,
           basis: "lump_sum",
-          milestones: [ms("sign", 50, { type: "on_contract_signed" }), ms("live", 50, { type: "on_deliverable_live" })],
+          milestones: [
+            ms("sign", 50, { type: "on_contract_signed" }),
+            ms("live", 50, { type: "on_deliverable_live" }),
+          ],
         },
       ],
     });
@@ -902,9 +1074,9 @@ describe("amendments mid-period", () => {
         commission: [flat("per", 1_000_00, { slabs: { period: "deal", mode: "marginal", tiers } })],
       }),
     ];
-    expect(amounts(run({ schema_version: 1 }, [enrol(10, "a"), enrol(20, "b")], { versions }).lines)).toEqual([
-      1_000_00, 3_000_00,
-    ]);
+    expect(
+      amounts(run({ schema_version: 1 }, [enrol(10, "a"), enrol(20, "b")], { versions }).lines),
+    ).toEqual([1_000_00, 3_000_00]);
   });
 });
 
@@ -919,7 +1091,10 @@ describe("bonuses", () => {
       schema_version: 1 as const,
       bonuses: [
         bonus({
-          conditions: { op: "and", items: [{ metric: "enrollments", comparator: "gte", value: 2 }] },
+          conditions: {
+            op: "and",
+            items: [{ metric: "enrollments", comparator: "gte", value: 2 }],
+          },
           window: { type: "month" },
           amount: { type: "fixed", amount_paise: 500_00 },
           repeat: "every",
@@ -943,13 +1118,18 @@ describe("bonuses", () => {
       schema_version: 1 as const,
       bonuses: [
         bonus({
-          conditions: { op: "and", items: [{ metric: "enrollments", comparator: "gte", value: 1 }] },
+          conditions: {
+            op: "and",
+            items: [{ metric: "enrollments", comparator: "gte", value: 1 }],
+          },
           window: { type: "month" },
           amount: { type: "fixed", amount_paise: 500_00 },
         }),
       ],
     };
-    const r = run(config, [enrol(1, "a"), enrol(1, "b", {}, "2026-12")], { as_of: "2027-02-01T00:00:00+05:30" });
+    const r = run(config, [enrol(1, "a"), enrol(1, "b", {}, "2026-12")], {
+      as_of: "2027-02-01T00:00:00+05:30",
+    });
     expect(r.lines.map((l) => l.subject)).toEqual(["2026-11"]);
   });
 
@@ -968,7 +1148,10 @@ describe("bonuses", () => {
         ],
         bonuses: [
           bonus({
-            conditions: { op: "and", items: [{ metric: "views", comparator: "gte", value: 100_000 }] },
+            conditions: {
+              op: "and",
+              items: [{ metric: "views", comparator: "gte", value: 100_000 }],
+            },
             window: { type: "deal" },
             amount: { type: "pct_of_fixed", pct: 10 },
           }),
@@ -991,7 +1174,10 @@ describe("bonuses", () => {
         commission: [flat("per", 1_000_00)],
         bonuses: [
           bonus({
-            conditions: { op: "and", items: [{ metric: "views", comparator: "gte", value: 7_000 }] },
+            conditions: {
+              op: "and",
+              items: [{ metric: "views", comparator: "gte", value: 7_000 }],
+            },
             window: { type: "month" },
             amount: { type: "pct_of_commission", pct: 20 },
             repeat: "every",
@@ -1002,11 +1188,19 @@ describe("bonuses", () => {
         ev({ type: "metric", at: at(30), deliverable: "reel", metric: "views", value: 5_000 }),
         enrol(5, "a", {}, "2026-12"),
         enrol(6, "b", {}, "2026-12"),
-        ev({ type: "metric", at: at(31, 10, "2026-12"), deliverable: "reel", metric: "views", value: 12_000 }),
+        ev({
+          type: "metric",
+          at: at(31, 10, "2026-12"),
+          deliverable: "reel",
+          metric: "views",
+          value: 12_000,
+        }),
       ],
       { as_of: "2027-01-02T00:00:00+05:30" },
     );
-    expect(ofType(r, "bonus").map((l) => [l.subject, l.amount_paise])).toEqual([["2026-12", 400_00]]);
+    expect(ofType(r, "bonus").map((l) => [l.subject, l.amount_paise])).toEqual([
+      ["2026-12", 400_00],
+    ]);
   });
 
   it("on time: every deliverable due in the window went live by its due date", () => {
@@ -1014,7 +1208,10 @@ describe("bonuses", () => {
       schema_version: 1 as const,
       bonuses: [
         bonus({
-          conditions: { op: "and", items: [{ metric: "on_time_all", comparator: "gte", value: 1 }] },
+          conditions: {
+            op: "and",
+            items: [{ metric: "on_time_all", comparator: "gte", value: 1 }],
+          },
           window: { type: "campaign" },
           amount: { type: "fixed", amount_paise: 1_000_00 },
         }),
@@ -1118,7 +1315,9 @@ describe("penalties", () => {
         ev({ type: "deliverable_live", at: at(13), deliverable: "reel" }),
       ],
     );
-    expect(r.proposals).toEqual([expect.objectContaining({ rule_id: "late", subject: "reel", amount_paise: 800_00 })]);
+    expect(r.proposals).toEqual([
+      expect.objectContaining({ rule_id: "late", subject: "reel", amount_paise: 800_00 }),
+    ]);
     expect(r.lines.some((l) => l.rule_id === "late")).toBe(false);
   });
 
@@ -1150,7 +1349,9 @@ describe("penalties", () => {
       {
         schema_version: 1,
         fixed: [fee],
-        penalties: [{ id: "late", type: "late_delivery", label: "Late", per_day: { type: "pct", pct: 1 } }],
+        penalties: [
+          { id: "late", type: "late_delivery", label: "Late", per_day: { type: "pct", pct: 1 } },
+        ],
       },
       [
         ev({ type: "deliverable_due", at: at(1), deliverable: "reel", due_at: at(10, 10) }),
@@ -1165,7 +1366,9 @@ describe("penalties", () => {
       {
         schema_version: 1,
         fixed: [fee],
-        penalties: [{ id: "late", type: "late_delivery", label: "Late", per_day: { type: "pct", pct: 1 } }],
+        penalties: [
+          { id: "late", type: "late_delivery", label: "Late", per_day: { type: "pct", pct: 1 } },
+        ],
       },
       [
         ev({ type: "deliverable_due", at: at(1), deliverable: "reel", due_at: at(10, 18) }),
@@ -1180,7 +1383,9 @@ describe("penalties", () => {
       {
         schema_version: 1,
         fixed: [fee],
-        penalties: [{ id: "disc", type: "disclosure", label: "Disclosure", amount_paise: 5_000_00 }],
+        penalties: [
+          { id: "disc", type: "disclosure", label: "Disclosure", amount_paise: 5_000_00 },
+        ],
       },
       [ev({ type: "disclosure_flag", at: at(5), deliverable: "reel" })],
     );
@@ -1243,9 +1448,14 @@ describe("rounding", () => {
 
   it("rounds half to even once per line", () => {
     expect(
-      amounts(run(pctRule(2.5), [enrol(1, "a", { fee_paise: 100 }), enrol(2, "b", { fee_paise: 300 })]).lines),
+      amounts(
+        run(pctRule(2.5), [enrol(1, "a", { fee_paise: 100 }), enrol(2, "b", { fee_paise: 300 })])
+          .lines,
+      ),
     ).toEqual([2, 8]);
-    expect(amounts(run(pctRule(7.5), [enrol(1, "a", { fee_paise: 33_333 })]).lines)).toEqual([2_500]);
+    expect(amounts(run(pctRule(7.5), [enrol(1, "a", { fee_paise: 33_333 })]).lines)).toEqual([
+      2_500,
+    ]);
   });
 
   it("percentage milestones always add up to the fee exactly", () => {
@@ -1327,11 +1537,16 @@ describe("determinism", () => {
   });
 
   it("ignores events after as_of", () => {
-    expect(run(config, events, { as_of: at(1, 12) }).lines.map((l) => l.subject)).toEqual(["fee.s"]);
+    expect(run(config, events, { as_of: at(1, 12) }).lines.map((l) => l.subject)).toEqual([
+      "fee.s",
+    ]);
   });
 
   it("reports non-cash value separately from money", () => {
-    const r = run({ schema_version: 1, non_cash: [{ id: "laptop", label: "Laptop", value_paise: 60_000_00 }] }, []);
+    const r = run(
+      { schema_version: 1, non_cash: [{ id: "laptop", label: "Laptop", value_paise: 60_000_00 }] },
+      [],
+    );
     expect(r.totals).toMatchObject({ net: 0, non_cash: 60_000_00 });
   });
 

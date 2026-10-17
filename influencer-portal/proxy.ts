@@ -11,7 +11,7 @@ import { buildCsp, IDLE_LIMIT_SECONDS, isIdleExpired, safeNext, SEEN_COOKIE } fr
  * This is a cheap early check. The real gates are requireStaff()/requireCreator() and the inf.* functions.
  */
 
-const PUBLIC_EXACT = new Set(["/", "/login", "/login/staff", "/login/code", "/signup", "/no-access", "/offline"]);
+const PUBLIC_EXACT = new Set(["/", "/login", "/login/staff", "/login/code", "/signup", "/no-access", "/offline", "/link-inactive"]);
 const PUBLIC_PREFIX = ["/auth/", "/password/", "/legal/", "/m/", "/api/health", "/api/public/", "/r/"];
 const isPublic = (path: string) => PUBLIC_EXACT.has(path) || PUBLIC_PREFIX.some((p) => path.startsWith(p));
 

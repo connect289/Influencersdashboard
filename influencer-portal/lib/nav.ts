@@ -36,15 +36,45 @@ export interface StaffNavItem {
 
 export const STAFF_NAV: StaffNavItem[] = [
   { href: "/admin", labelKey: "nav.admin.overview", icon: "home" },
-  { href: "/admin/creators", labelKey: "nav.admin.creators", icon: "contact", anyOf: ["creator.read"] },
-  { href: "/admin/campaigns", labelKey: "nav.admin.campaigns", icon: "megaphone", anyOf: ["campaign.read"] },
-  { href: "/admin/applications", labelKey: "nav.admin.applications", icon: "inbox", anyOf: ["campaign.read"] },
+  {
+    href: "/admin/creators",
+    labelKey: "nav.admin.creators",
+    icon: "contact",
+    anyOf: ["creator.read"],
+  },
+  {
+    href: "/admin/campaigns",
+    labelKey: "nav.admin.campaigns",
+    icon: "megaphone",
+    anyOf: ["campaign.read"],
+  },
+  {
+    href: "/admin/applications",
+    labelKey: "nav.admin.applications",
+    icon: "inbox",
+    anyOf: ["campaign.read"],
+  },
   { href: "/admin/deals", labelKey: "nav.admin.deals", icon: "handshake", anyOf: ["deal.read"] },
-  { href: "/admin/contracts", labelKey: "nav.admin.contracts", icon: "signature", anyOf: ["contract.read"] },
+  {
+    href: "/admin/contracts",
+    labelKey: "nav.admin.contracts",
+    icon: "signature",
+    anyOf: ["contract.read"],
+  },
   { href: "/admin/briefs", labelKey: "nav.admin.briefs", icon: "clipboard", anyOf: ["brief.read"] },
-  { href: "/admin/content", labelKey: "nav.admin.content", icon: "clapperboard", anyOf: ["deliverable.read"] },
+  {
+    href: "/admin/content",
+    labelKey: "nav.admin.content",
+    icon: "clapperboard",
+    anyOf: ["deliverable.read"],
+  },
   { href: "/admin/tasks", labelKey: "nav.admin.tasks", icon: "checklist" },
-  { href: "/admin/agencies", labelKey: "nav.admin.agencies", icon: "building", anyOf: ["agency.manage"] },
+  {
+    href: "/admin/agencies",
+    labelKey: "nav.admin.agencies",
+    icon: "building",
+    anyOf: ["agency.manage"],
+  },
   { href: "/admin/kyc", labelKey: "nav.admin.kyc", icon: "badgeCheck", anyOf: ["kyc.read_masked"] },
   { href: "/admin/staff", labelKey: "nav.admin.staff", icon: "users", anyOf: ["staff.manage"] },
   {

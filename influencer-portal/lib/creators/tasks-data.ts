@@ -9,7 +9,9 @@ export async function loadTasks(
 ): Promise<{ tasks: TaskRow[]; error: boolean }> {
   let q = supabase
     .from("tasks")
-    .select("id, title, description, assignee_id, due_at, priority, status, related_type, related_id")
+    .select(
+      "id, title, description, assignee_id, due_at, priority, status, related_type, related_id",
+    )
     .neq("status", "cancelled")
     .order("status")
     .order("due_at", { ascending: true, nullsFirst: false })
@@ -19,7 +21,9 @@ export async function loadTasks(
   if (opts.creatorId) q = q.eq("related_type", "creator").eq("related_id", opts.creatorId);
   const { data, error } = await q;
   if (error) return { tasks: [], error: true };
-  const staffIds = [...new Set(data.map((d) => d.assignee_id).filter((x): x is string => Boolean(x)))];
+  const staffIds = [
+    ...new Set(data.map((d) => d.assignee_id).filter((x): x is string => Boolean(x))),
+  ];
   const creatorIds = [
     ...new Set(
       data

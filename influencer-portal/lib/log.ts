@@ -3,7 +3,8 @@
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 } as const;
 type Level = keyof typeof LEVELS;
 // Keys whose values are never logged: secrets, one-time codes, contact details, PAN and bank data.
-const SENSITIVE = /^(code|otp)$|pass(word)?|token|secret|authorization|cookie|phone|email|^pan$|account|ifsc/i;
+const SENSITIVE =
+  /^(code|otp)$|pass(word)?|token|secret|authorization|cookie|phone|email|^pan$|account|ifsc/i;
 
 function threshold(): number {
   const l = process.env.LOG_LEVEL;
@@ -14,7 +15,8 @@ export function redact(value: unknown, depth = 0): unknown {
   if (depth > 4 || value === null || typeof value !== "object") return value;
   if (Array.isArray(value)) return value.slice(0, 50).map((v) => redact(v, depth + 1));
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(value)) out[k] = SENSITIVE.test(k) ? "[redacted]" : redact(v, depth + 1);
+  for (const [k, v] of Object.entries(value))
+    out[k] = SENSITIVE.test(k) ? "[redacted]" : redact(v, depth + 1);
   return out;
 }
 

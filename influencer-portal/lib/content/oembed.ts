@@ -9,7 +9,11 @@ export async function fetchOembed(platform: Platform, url: string): Promise<Oemb
   const endpoint = oembedEndpoint(platform, url);
   if (!endpoint) return null;
   try {
-    const r = await fetch(endpoint, { signal: AbortSignal.timeout(4000), redirect: "error", cache: "no-store" });
+    const r = await fetch(endpoint, {
+      signal: AbortSignal.timeout(4000),
+      redirect: "error",
+      cache: "no-store",
+    });
     if (!r.ok) return null;
     return pickOembed(await r.json());
   } catch (e) {

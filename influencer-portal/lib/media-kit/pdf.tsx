@@ -1,6 +1,16 @@
 import "server-only";
 import { join } from "node:path";
-import { Document, Font, Image, Link, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
+import {
+  Document,
+  Font,
+  Image,
+  Link,
+  Page,
+  renderToBuffer,
+  StyleSheet,
+  Text,
+  View,
+} from "@react-pdf/renderer";
 import { formatCompact, formatDate, formatPaise } from "@/lib/format";
 import { averageEngagement, type MediaKit } from "./data";
 
@@ -48,7 +58,15 @@ const s = StyleSheet.create({
     fontSize: 9,
   },
   link: { color: NAVY, textDecoration: "none", marginBottom: 3 },
-  footer: { position: "absolute", bottom: 24, left: 36, right: 36, fontSize: 8, color: MUTED, textAlign: "center" },
+  footer: {
+    position: "absolute",
+    bottom: 24,
+    left: 36,
+    right: 36,
+    fontSize: 8,
+    color: MUTED,
+    textAlign: "center",
+  },
 });
 
 export interface PdfLabels {
@@ -73,7 +91,15 @@ export interface PdfLabels {
   formatName: (f: MediaKit["rates"][number]["format"]) => string;
 }
 
-function MediaKitDocument({ kit, labels, avatar }: { kit: MediaKit; labels: PdfLabels; avatar: string | null }) {
+function MediaKitDocument({
+  kit,
+  labels,
+  avatar,
+}: {
+  kit: MediaKit;
+  labels: PdfLabels;
+  avatar: string | null;
+}) {
   const er = averageEngagement(kit);
   const where = [kit.city, kit.state].filter(Boolean).join(", ");
   return (
@@ -150,7 +176,9 @@ function MediaKitDocument({ kit, labels, avatar }: { kit: MediaKit; labels: PdfL
                 </Link>
                 <Text style={s.c2}>{p.followers === null ? "—" : formatCompact(p.followers)}</Text>
                 <Text style={s.c2}>{p.avg_views === null ? "—" : formatCompact(p.avg_views)}</Text>
-                <Text style={s.c2}>{p.engagement_rate === null ? "—" : `${String(p.engagement_rate)}%`}</Text>
+                <Text style={s.c2}>
+                  {p.engagement_rate === null ? "—" : `${String(p.engagement_rate)}%`}
+                </Text>
               </View>
             ))}
           </View>
@@ -192,6 +220,10 @@ function MediaKitDocument({ kit, labels, avatar }: { kit: MediaKit; labels: PdfL
   );
 }
 
-export async function renderMediaKitPdf(kit: MediaKit, labels: PdfLabels, avatar: string | null): Promise<Buffer> {
+export async function renderMediaKitPdf(
+  kit: MediaKit,
+  labels: PdfLabels,
+  avatar: string | null,
+): Promise<Buffer> {
   return renderToBuffer(<MediaKitDocument kit={kit} labels={labels} avatar={avatar} />);
 }

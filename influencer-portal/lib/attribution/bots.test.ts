@@ -7,7 +7,8 @@ const ANDROID_CHROME =
   "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36";
 const DESKTOP =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
-const FB_APP = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148 [FBAN/FBIOS;FBAV/450.0]";
+const FB_APP =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148 [FBAN/FBIOS;FBAV/450.0]";
 
 describe("crawler detection", () => {
   it.each([
@@ -26,7 +27,8 @@ describe("crawler detection", () => {
   });
 
   it("people in browsers and in-app browsers are not", () => {
-    for (const ua of [IPHONE_IG, ANDROID_CHROME, DESKTOP, FB_APP]) expect(isCrawler(ua), ua).toBe(false);
+    for (const ua of [IPHONE_IG, ANDROID_CHROME, DESKTOP, FB_APP])
+      expect(isCrawler(ua), ua).toBe(false);
   });
 
   it("HEAD requests and missing agents are treated as crawlers", () => {

@@ -13,12 +13,23 @@ describe("settings registry", () => {
 
   it("never allows phone or email in the creator-visible lead fields", () => {
     const fields: readonly string[] = CREATOR_VISIBLE_LEAD_FIELDS;
-    for (const f of ["whatsapp_number", "email_id", "alternate_phone", "guardian_phone", "ip_address", "fingerprint"]) {
+    for (const f of [
+      "whatsapp_number",
+      "email_id",
+      "alternate_phone",
+      "guardian_phone",
+      "ip_address",
+      "fingerprint",
+    ]) {
       expect(fields).not.toContain(f);
     }
     const schema = SETTINGS["lead_visibility.creator"].schema;
     expect(
-      schema.safeParse({ fields: ["whatsapp_number"], name_format: "full", public_mail_domains: [] }).success,
+      schema.safeParse({
+        fields: ["whatsapp_number"],
+        name_format: "full",
+        public_mail_domains: [],
+      }).success,
     ).toBe(false);
   });
 
@@ -28,9 +39,10 @@ describe("settings registry", () => {
 
   it("keeps financial records at least 8 years", () => {
     const schema = SETTINGS["retention.privacy"].schema;
-    expect(schema.safeParse({ ...SETTINGS["retention.privacy"].default, financial_records_years: 7 }).success).toBe(
-      false,
-    );
+    expect(
+      schema.safeParse({ ...SETTINGS["retention.privacy"].default, financial_records_years: 7 })
+        .success,
+    ).toBe(false);
   });
 
   it("uses the approved attribution defaults", () => {

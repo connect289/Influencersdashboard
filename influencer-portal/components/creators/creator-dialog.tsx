@@ -113,7 +113,12 @@ export function CreatorDialog({
               maxLength={120}
             />
           </Field>
-          <Field id="c-handle" label={t("creators.fields.handle")} hint={t("creators.fields.handleHint")} required>
+          <Field
+            id="c-handle"
+            label={t("creators.fields.handle")}
+            hint={t("creators.fields.handleHint")}
+            required
+          >
             <Input
               id="c-handle"
               value={v.handle}
@@ -143,15 +148,38 @@ export function CreatorDialog({
             />
           </Field>
           <Field id="c-city" label={t("profile.fields.city")}>
-            <Input id="c-city" value={v.city} onChange={(e) => set("city", e.target.value)} maxLength={80} />
+            <Input
+              id="c-city"
+              value={v.city}
+              onChange={(e) => set("city", e.target.value)}
+              maxLength={80}
+            />
           </Field>
           <Field id="c-state" label={t("profile.fields.state")}>
-            <Input id="c-state" value={v.state} onChange={(e) => set("state", e.target.value)} maxLength={80} />
+            <Input
+              id="c-state"
+              value={v.state}
+              onChange={(e) => set("state", e.target.value)}
+              maxLength={80}
+            />
           </Field>
-          <Field id="c-niches" label={t("profile.fields.niches")} hint={t("profile.fields.listHint")}>
-            <Input id="c-niches" value={v.niches} onChange={(e) => set("niches", e.target.value)} maxLength={400} />
+          <Field
+            id="c-niches"
+            label={t("profile.fields.niches")}
+            hint={t("profile.fields.listHint")}
+          >
+            <Input
+              id="c-niches"
+              value={v.niches}
+              onChange={(e) => set("niches", e.target.value)}
+              maxLength={400}
+            />
           </Field>
-          <Field id="c-langs" label={t("profile.fields.languages")} hint={t("profile.fields.listHint")}>
+          <Field
+            id="c-langs"
+            label={t("profile.fields.languages")}
+            hint={t("profile.fields.listHint")}
+          >
             <Input
               id="c-langs"
               value={v.languages}
@@ -160,14 +188,26 @@ export function CreatorDialog({
             />
           </Field>
           <Field id="c-tags" label={t("creators.fields.tags")} hint={t("profile.fields.listHint")}>
-            <Input id="c-tags" value={v.tags} onChange={(e) => set("tags", e.target.value)} maxLength={400} />
+            <Input
+              id="c-tags"
+              value={v.tags}
+              onChange={(e) => set("tags", e.target.value)}
+              maxLength={400}
+            />
           </Field>
           <Field id="c-source" label={t("creators.fields.source")}>
-            <Input id="c-source" value={v.source} onChange={(e) => set("source", e.target.value)} maxLength={80} />
+            <Input
+              id="c-source"
+              value={v.source}
+              onChange={(e) => set("source", e.target.value)}
+              maxLength={80}
+            />
           </Field>
           <Field id="c-owner" label={t("creators.fields.owner")}>
             <Select id="c-owner" value={v.ownerId} onChange={(e) => set("ownerId", e.target.value)}>
-              <option value="">{initial ? t("creators.filters.noOwner") : t("creators.fields.ownerMe")}</option>
+              <option value="">
+                {initial ? t("creators.filters.noOwner") : t("creators.fields.ownerMe")}
+              </option>
               {owners.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.name}
@@ -188,7 +228,12 @@ export function CreatorDialog({
             </Field>
           ) : null}
           <Field id="c-bio" label={t("profile.fields.bio")} className="md:col-span-2">
-            <Textarea id="c-bio" value={v.bio} onChange={(e) => set("bio", e.target.value)} maxLength={2000} />
+            <Textarea
+              id="c-bio"
+              value={v.bio}
+              onChange={(e) => set("bio", e.target.value)}
+              maxLength={2000}
+            />
           </Field>
           <div className="md:col-span-2">
             <Button type="submit" disabled={pending || !v.displayName || v.handle.length < 3}>

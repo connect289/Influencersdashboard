@@ -35,7 +35,8 @@ export const PAN_RE = /^[A-Z]{3}[ABCFGHLJPT][A-Z][0-9]{4}[A-Z]$/;
 /** IFSC: 4-letter bank code, a zero, 6-character branch code. */
 export const IFSC_RE = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 /** GSTIN: state code (01–38 or 97), the PAN, entity number, Z, check character. */
-export const GSTIN_RE = /^(0[1-9]|[12][0-9]|3[0-8]|97)[A-Z]{3}[ABCFGHLJPT][A-Z][0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+export const GSTIN_RE =
+  /^(0[1-9]|[12][0-9]|3[0-8]|97)[A-Z]{3}[ABCFGHLJPT][A-Z][0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 export const ACCOUNT_RE = /^\d{9,18}$/;
 export const E164_RE = /^\+[1-9]\d{7,14}$/;
 
@@ -130,7 +131,10 @@ export const contactInput = z
     email: z.union([z.literal(""), z.email().max(254)]).default(""),
   })
   .refine((v) => v.phone !== "" || v.email !== "", { path: ["phone"], message: "required" })
-  .refine((v) => v.phone === "" || normalisePhone(v.phone) !== null, { path: ["phone"], message: "phone" });
+  .refine((v) => v.phone === "" || normalisePhone(v.phone) !== null, {
+    path: ["phone"],
+    message: "phone",
+  });
 export type ContactInput = z.input<typeof contactInput>;
 
 /**
@@ -159,7 +163,10 @@ export const kycInput = z
     accountHolder: z.string().trim().min(2).max(120),
     proofPath: z.string().max(200).default(""),
   })
-  .refine((v) => v.gstStatus === "unregistered" || GSTIN_RE.test(v.gstin), { path: ["gstin"], message: "gstin" })
+  .refine((v) => v.gstStatus === "unregistered" || GSTIN_RE.test(v.gstin), {
+    path: ["gstin"],
+    message: "gstin",
+  })
   .refine((v) => v.gstStatus === "unregistered" || v.pan === "" || v.gstin.slice(2, 12) === v.pan, {
     path: ["gstin"],
     message: "gstin_pan",
@@ -198,5 +205,10 @@ export function safeFileName(name: string): string {
   return `${base}${ext}`;
 }
 
-export const KYC_PROOF_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
+export const KYC_PROOF_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+] as const;
 export const KYC_PROOF_MAX_BYTES = 10 * 1024 * 1024;

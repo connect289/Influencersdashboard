@@ -11,7 +11,11 @@ export async function generateMetadata() {
   return { title: t("auth.verify.title") };
 }
 
-export default async function Verify({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+export default async function Verify({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const t = await getTranslations();
   const next = safeNext((await searchParams).next, "/admin");
   const supabase = await createClient();
@@ -24,7 +28,9 @@ export default async function Verify({ searchParams }: { searchParams: Promise<R
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-xl font-semibold">{t("auth.verify.title")}</h1>
-        <p className="mt-1 text-sm text-muted">{t("auth.verify.subtitle", { email: maskEmail(me.email ?? "") })}</p>
+        <p className="mt-1 text-sm text-muted">
+          {t("auth.verify.subtitle", { email: maskEmail(me.email ?? "") })}
+        </p>
       </div>
       <StaffCodeForms next={next} />
       <form action="/auth/signout" method="post" className="text-center">

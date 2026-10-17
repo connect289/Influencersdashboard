@@ -45,7 +45,11 @@ export default async function CampaignPage({
   const visible = TABS.filter((x) => x !== "edit" || canWrite);
   const requested = (await searchParams).tab;
   const tab = visible.find((x) => x === requested) ?? "overview";
-  const { data: c, error } = await supabase.from("campaigns").select("*").eq("id", campaignId).maybeSingle();
+  const { data: c, error } = await supabase
+    .from("campaigns")
+    .select("*")
+    .eq("id", campaignId)
+    .maybeSingle();
   if (!error && !c) notFound();
   if (!c) return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
   const programmes = await loadProgrammes(supabase, campaignId);
@@ -110,7 +114,10 @@ export default async function CampaignPage({
     body = (
       <Card>
         {!apps?.length ? (
-          <EmptyState title={t("campaigns.applicationsEmpty")} description={t("campaigns.applicationsEmptyHint")} />
+          <EmptyState
+            title={t("campaigns.applicationsEmpty")}
+            description={t("campaigns.applicationsEmptyHint")}
+          />
         ) : (
           <Table>
             <thead>
@@ -126,7 +133,10 @@ export default async function CampaignPage({
               {apps.map((a) => (
                 <tr key={a.id}>
                   <Td>
-                    <Link href={`/admin/applications/${a.id}`} className="font-medium text-primary hover:underline">
+                    <Link
+                      href={`/admin/applications/${a.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
                       {a.display_name}
                     </Link>
                     <span className="block text-xs text-muted">@{a.handle}</span>
@@ -167,7 +177,9 @@ export default async function CampaignPage({
         {!invites?.length ? (
           <EmptyState
             title={t("campaigns.invites.empty")}
-            description={canInvite ? t("campaigns.invites.emptyHint") : t("campaigns.invites.openFirst")}
+            description={
+              canInvite ? t("campaigns.invites.emptyHint") : t("campaigns.invites.openFirst")
+            }
           />
         ) : (
           <ul className="flex flex-col divide-y divide-line">
@@ -176,10 +188,14 @@ export default async function CampaignPage({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{i.creators.display_name}</p>
                   <p className="text-xs text-muted">
-                    @{i.creators.handle} · {t("campaigns.invites.sentOn", { date: formatDateTime(i.sent_at) })}
+                    @{i.creators.handle} ·{" "}
+                    {t("campaigns.invites.sentOn", { date: formatDateTime(i.sent_at) })}
                   </p>
                 </div>
-                <StatusBadge status={i.status} label={t(`campaigns.invites.statuses.${i.status as "sent"}`)} />
+                <StatusBadge
+                  status={i.status}
+                  label={t(`campaigns.invites.statuses.${i.status as "sent"}`)}
+                />
                 {i.application_id ? (
                   <Link
                     href={`/admin/applications/${i.application_id}`}
@@ -216,7 +232,10 @@ export default async function CampaignPage({
 
   return (
     <>
-      <Link href="/admin/campaigns" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link
+        href="/admin/campaigns"
+        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+      >
         <ArrowLeft className="size-4" aria-hidden /> {t("nav.admin.campaigns")}
       </Link>
       <PageHeader
@@ -237,11 +256,17 @@ export default async function CampaignPage({
         {visible.map((x) => (
           <Link
             key={x}
-            href={x === "overview" ? `/admin/campaigns/${campaignId}` : `/admin/campaigns/${campaignId}?tab=${x}`}
+            href={
+              x === "overview"
+                ? `/admin/campaigns/${campaignId}`
+                : `/admin/campaigns/${campaignId}?tab=${x}`
+            }
             aria-current={tab === x ? "page" : undefined}
             className={cn(
               "-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap",
-              tab === x ? "border-primary font-medium text-primary" : "border-transparent text-muted hover:text-ink",
+              tab === x
+                ? "border-primary font-medium text-primary"
+                : "border-transparent text-muted hover:text-ink",
             )}
           >
             {t(`campaigns.tabs.${x}`)}

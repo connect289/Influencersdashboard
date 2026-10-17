@@ -39,7 +39,12 @@ export function DryRunPanel({ dealId, draft }: { dealId: string; draft: CompConf
                 dealId,
                 config: draft,
                 effectiveFrom,
-                scenario: scenarioSchema.parse({ leads, qualified_leads: Math.round(leads / 3), enrollments, views }),
+                scenario: scenarioSchema.parse({
+                  leads,
+                  qualified_leads: Math.round(leads / 3),
+                  enrollments,
+                  views,
+                }),
               }),
             (data) => setResult(data ?? null),
           );
@@ -83,13 +88,18 @@ export function DryRunPanel({ dealId, draft }: { dealId: string; draft: CompConf
             </div>
             <div>
               <dt className="text-xs text-muted">{t("deals.dryRun.delta")}</dt>
-              <dd className={`font-semibold tabular-nums ${result.delta_paise < 0 ? "text-danger" : "text-success"}`}>
+              <dd
+                className={`font-semibold tabular-nums ${result.delta_paise < 0 ? "text-danger" : "text-success"}`}
+              >
                 {formatPaise(result.delta_paise)}
               </dd>
             </div>
           </dl>
           {result.changes.length === 0 ? (
-            <EmptyState title={t("deals.dryRun.noChanges")} description={t("deals.dryRun.noChangesHint")} />
+            <EmptyState
+              title={t("deals.dryRun.noChanges")}
+              description={t("deals.dryRun.noChangesHint")}
+            />
           ) : (
             <Table>
               <thead>

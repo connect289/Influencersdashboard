@@ -27,7 +27,12 @@ export const OPEN_STAGES: readonly CreatorStage[] = [
   "counselling",
   "applied",
 ];
-export const CLOSED_STAGES: readonly CreatorStage[] = ["lost", "duplicate", "junk", "not_attributed"];
+export const CLOSED_STAGES: readonly CreatorStage[] = [
+  "lost",
+  "duplicate",
+  "junk",
+  "not_attributed",
+];
 const RANK: Record<CreatorStage, number> = {
   new: 1,
   qualifying: 2,
@@ -84,7 +89,8 @@ export interface StageResult {
   unmapped: boolean;
 }
 
-const text = (v: string | boolean | null | undefined) => (typeof v === "string" ? v.trim().toLowerCase() : v);
+const text = (v: string | boolean | null | undefined) =>
+  typeof v === "string" ? v.trim().toLowerCase() : v;
 
 export function matches(c: Condition, x: StageInputs): boolean {
   const v = text(x[c.field]);
@@ -92,7 +98,8 @@ export function matches(c: Condition, x: StageInputs): boolean {
   if (c.empty) return isEmpty;
   if (c.present && isEmpty) return false;
   if (c.is_true && v !== true) return false;
-  if (c.in && !(typeof v === "string" && c.in.map((s) => s.toLowerCase()).includes(v))) return false;
+  if (c.in && !(typeof v === "string" && c.in.map((s) => s.toLowerCase()).includes(v)))
+    return false;
   return true;
 }
 
@@ -102,7 +109,8 @@ export function evaluate(x: StageInputs, rules: readonly MappingRule[]): StageRe
   for (const r of [...rules].sort((a, b) => a.priority - b.priority)) {
     if (!r.conditions.every((c) => matches(c, x))) continue;
     if (r.flag && !flags.includes(r.flag)) flags.push(r.flag);
-    if (r.creator_stage) return { stage: r.creator_stage, reason: r.reason_category, flags, unmapped: false };
+    if (r.creator_stage)
+      return { stage: r.creator_stage, reason: r.reason_category, flags, unmapped: false };
   }
   return { stage: "new", reason: null, flags, unmapped: true };
 }
@@ -118,7 +126,8 @@ export function mapStage(
   if (next.unmapped) return { ...next, stage: previous.stage, reason: previous.reason };
   const p = previous.stage;
   const n = next.stage;
-  if (p === "enrolled" && n !== "enrolled") return { ...next, stage: "enrolled", reason: previous.reason };
+  if (p === "enrolled" && n !== "enrolled")
+    return { ...next, stage: "enrolled", reason: previous.reason };
   if (CLOSED_STAGES.includes(n)) return next;
   if (CLOSED_STAGES.includes(p)) return next; // a closed lead that came back
   if (RANK[n] < RANK[p]) return { ...next, stage: p, reason: previous.reason };

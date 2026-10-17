@@ -38,9 +38,15 @@ export default async function AgenciesPage() {
   );
   return (
     <>
-      <PageHeader title={t("nav.admin.agencies")} description={t("agencies.subtitle")} actions={add} />
+      <PageHeader
+        title={t("nav.admin.agencies")}
+        description={t("agencies.subtitle")}
+        actions={add}
+      />
       <Card>
-        {agencies.error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
+        {agencies.error ? (
+          <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
+        ) : null}
         {!agencies.error && rows.length === 0 ? (
           <EmptyState title={t("agencies.empty")} description={t("agencies.emptyHint")} />
         ) : null}
@@ -59,7 +65,10 @@ export default async function AgenciesPage() {
               {rows.map((a) => (
                 <tr key={a.id}>
                   <Td>
-                    <Link href={`/admin/agencies/${a.id}`} className="font-medium text-primary hover:underline">
+                    <Link
+                      href={`/admin/agencies/${a.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
                       {a.name}
                     </Link>
                   </Td>

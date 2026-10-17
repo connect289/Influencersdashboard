@@ -3,7 +3,14 @@ import { auditFilterSchema, auditQueryString, istDayEnd, istDayStart } from "./a
 
 describe("audit filters", () => {
   it("drops invalid values instead of failing", () => {
-    expect(auditFilterSchema.parse({ entity: "creator; drop", actor: "x", before: "-1", from: "2026-10-01" })).toEqual({
+    expect(
+      auditFilterSchema.parse({
+        entity: "creator; drop",
+        actor: "x",
+        before: "-1",
+        from: "2026-10-01",
+      }),
+    ).toEqual({
       from: "2026-10-01",
     });
   });
@@ -12,7 +19,9 @@ describe("audit filters", () => {
     expect(istDayEnd("2026-10-17")).toBe("2026-10-17T18:30:00.000Z");
   });
   it("builds query strings", () => {
-    expect(auditQueryString({ entity: "setting" }, { before: 10 })).toBe("?entity=setting&before=10");
+    expect(auditQueryString({ entity: "setting" }, { before: 10 })).toBe(
+      "?entity=setting&before=10",
+    );
     expect(auditQueryString({})).toBe("");
   });
 });

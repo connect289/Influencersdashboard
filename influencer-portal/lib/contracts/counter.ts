@@ -13,7 +13,8 @@ export interface CounterItem {
   value: number;
 }
 
-const KEY = /^(fixed|commission|floor|bonus|fee)\.([a-z0-9][a-z0-9_-]{0,39})(?:\.tier\.(\d{1,2}))?$/;
+const KEY =
+  /^(fixed|commission|floor|bonus|fee)\.([a-z0-9][a-z0-9_-]{0,39})(?:\.tier\.(\d{1,2}))?$/;
 
 export const counterChange = z.object({
   key: z.string().regex(KEY),
@@ -31,7 +32,12 @@ export function counterItems(c: CompConfig): CounterItem[] {
   const out: CounterItem[] = [];
   for (const f of c.fixed) {
     const per = f.basis === "retainer" ? " (per period)" : f.units > 1 ? " (per unit)" : "";
-    out.push({ key: `fixed.${f.id}`, label: `${f.label}${per}`, kind: "amount", value: f.amount_paise });
+    out.push({
+      key: `fixed.${f.id}`,
+      label: `${f.label}${per}`,
+      kind: "amount",
+      value: f.amount_paise,
+    });
   }
   for (const r of c.commission) {
     const flat = FLAT_BASES.includes(r.basis.type);
@@ -65,12 +71,15 @@ export function counterItems(c: CompConfig): CounterItem[] {
       value: a.type === "fixed" ? a.amount_paise : a.pct,
     });
   }
-  for (const f of c.fees) out.push({ key: `fee.${f.id}`, label: f.label, kind: "amount", value: f.amount_paise });
+  for (const f of c.fees)
+    out.push({ key: `fee.${f.id}`, label: f.label, kind: "amount", value: f.amount_paise });
   return out;
 }
 
 export type ApplyError = "unknown_item" | "invalid_value" | "no_change" | "invalid_config";
-export type ApplyResult = { ok: true; config: CompConfig } | { ok: false; error: ApplyError; key?: string };
+export type ApplyResult =
+  | { ok: true; config: CompConfig }
+  | { ok: false; error: ApplyError; key?: string };
 
 function validValue(kind: CounterKind, v: number): boolean {
   if (!Number.isFinite(v) || v < 0) return false;
@@ -82,7 +91,9 @@ function validValue(kind: CounterKind, v: number): boolean {
 function rescale(shares: readonly number[], total: number): number[] {
   const old = shares.reduce((s, x) => s + x, 0);
   const out =
-    old === 0 ? shares.map(() => Math.floor(total / shares.length)) : shares.map((x) => Math.floor((x * total) / old));
+    old === 0
+      ? shares.map(() => Math.floor(total / shares.length))
+      : shares.map((x) => Math.floor((x * total) / old));
   const rest = total - out.reduce((s, x) => s + x, 0);
   if (out.length > 0) out[out.length - 1] = (out[out.length - 1] ?? 0) + rest;
   return out;
@@ -141,7 +152,9 @@ export function applyCounter(config: CompConfig, changes: readonly CounterChange
   }
   if (!changed) return { ok: false, error: "no_change" };
   const parsed = compConfig.safeParse(next);
-  return parsed.success ? { ok: true, config: parsed.data } : { ok: false, error: "invalid_config" };
+  return parsed.success
+    ? { ok: true, config: parsed.data }
+    : { ok: false, error: "invalid_config" };
 }
 
 export interface CounterLine {
@@ -153,7 +166,10 @@ export interface CounterLine {
 }
 
 /** A counter-offer as "label: from → to" lines against a config (from is null when the item no longer exists). */
-export function describeCounter(config: CompConfig, changes: readonly CounterChange[]): CounterLine[] {
+export function describeCounter(
+  config: CompConfig,
+  changes: readonly CounterChange[],
+): CounterLine[] {
   const items = new Map(counterItems(config).map((i) => [i.key, i]));
   return changes.map((ch) => {
     const item = items.get(ch.key);

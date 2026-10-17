@@ -54,7 +54,11 @@ export async function PortalShell({
               subtitle={subtitle}
               accountHref={accountHref}
               signOutTo="/login"
-              labels={{ menu: t("shell.userMenu"), account: t("shell.account"), signOut: t("shell.signOut") }}
+              labels={{
+                menu: t("shell.userMenu"),
+                account: t("shell.account"),
+                signOut: t("shell.signOut"),
+              }}
             />
           </div>
         </header>
@@ -62,7 +66,12 @@ export async function PortalShell({
           {children}
         </main>
       </div>
-      <BottomNav links={links} label={t("shell.mainNav")} moreLabel={t("shell.more")} closeLabel={t("common.close")} />
+      <BottomNav
+        links={links}
+        label={t("shell.mainNav")}
+        moreLabel={t("shell.more")}
+        closeLabel={t("common.close")}
+      />
       <ServiceWorkerRegister />
     </div>
   );

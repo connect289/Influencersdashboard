@@ -30,12 +30,20 @@ export default async function DealsPage({
   const { supabase, me } = await requireStaff("deal.read");
   const t = await getTranslations();
   const sp = await searchParams;
-  const status = (DEAL_STATUSES as readonly string[]).includes(sp.status ?? "") ? (sp.status as DealStatus) : null;
+  const status = (DEAL_STATUSES as readonly string[]).includes(sp.status ?? "")
+    ? (sp.status as DealStatus)
+    : null;
   const model = (DEAL_MODELS as readonly string[]).includes(sp.model ?? "") ? (sp.model ?? "") : "";
   const q = (sp.q ?? "").slice(0, 80);
   const page = Math.max(Number.parseInt(sp.page ?? "1", 10) || 1, 1);
   const { data, error } = await supabase.rpc("deals_list", {
-    p: { status: status ? [status] : [...OPEN_STATUSES], model: model ? [model] : [], q, page, page_size: PAGE_SIZE },
+    p: {
+      status: status ? [status] : [...OPEN_STATUSES],
+      model: model ? [model] : [],
+      q,
+      page,
+      page_size: PAGE_SIZE,
+    },
   });
   const parsed = z.object({ total: z.number(), rows: z.array(dealRowSchema) }).safeParse(data);
   const rows = parsed.success ? parsed.data.rows : [];
@@ -81,7 +89,9 @@ export default async function DealsPage({
             aria-current={status === s ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-              status === s ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
+              status === s
+                ? "bg-primary-soft font-medium text-primary"
+                : "text-muted hover:bg-surface-2",
             )}
           >
             {s ? t(`deals.statuses.${s}`) : t("deals.allOpen")}
@@ -138,7 +148,10 @@ export default async function DealsPage({
               {rows.map((d) => (
                 <tr key={d.id}>
                   <Td>
-                    <Link href={`/admin/deals/${d.id}`} className="font-medium text-primary hover:underline">
+                    <Link
+                      href={`/admin/deals/${d.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
                       {d.title}
                     </Link>
                     <span className="block text-xs text-muted">
@@ -153,7 +166,9 @@ export default async function DealsPage({
                   <Td>
                     <div className="flex flex-wrap gap-1">
                       <StatusBadge status={d.status} label={t(`deals.statuses.${d.status}`)} />
-                      {d.pending ? <Badge family="attention">{t("deals.awaitingCreator")}</Badge> : null}
+                      {d.pending ? (
+                        <Badge family="attention">{t("deals.awaitingCreator")}</Badge>
+                      ) : null}
                     </div>
                   </Td>
                   <Td>{t(`deals.models.${d.deal_model}`)}</Td>
@@ -167,7 +182,10 @@ export default async function DealsPage({
           </Table>
         ) : null}
         {total > PAGE_SIZE ? (
-          <nav className="mt-3 flex items-center justify-between text-sm" aria-label={t("common.pagination")}>
+          <nav
+            className="mt-3 flex items-center justify-between text-sm"
+            aria-label={t("common.pagination")}
+          >
             <span className="text-muted">
               {t("deals.pageOf", { page, pages: Math.ceil(total / PAGE_SIZE), total })}
             </span>

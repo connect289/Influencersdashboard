@@ -60,12 +60,18 @@ export function CreatorActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {isBlocked ? (
-            <DropdownMenuItem onSelect={() => setConfirm("unblock")}>{t("creators.unblock")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setConfirm("unblock")}>
+              {t("creators.unblock")}
+            </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onSelect={() => setConfirm("block")}>{t("creators.block")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setConfirm("block")}>
+              {t("creators.block")}
+            </DropdownMenuItem>
           )}
           {canDelete ? (
-            <DropdownMenuItem onSelect={() => setConfirm("delete")}>{t("creators.deleteDraft")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setConfirm("delete")}>
+              {t("creators.deleteDraft")}
+            </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>

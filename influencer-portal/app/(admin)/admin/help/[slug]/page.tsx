@@ -19,7 +19,10 @@ export default async function AdminGuidePage({ params }: { params: Promise<{ slu
   if (!guide) notFound();
   return (
     <>
-      <Link href="/admin/help" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link
+        href="/admin/help"
+        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+      >
         <ArrowLeft className="size-4" aria-hidden /> {t("help.title")}
       </Link>
       <PageHeader title={guide.title} description={guide.summary} />

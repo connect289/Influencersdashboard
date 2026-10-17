@@ -2530,6 +2530,15 @@ isOneToOne: false
 "lead_sync_since":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
+"lead_view_delete":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
+"lead_view_save":
+{ Args: { "p_filters": Json,"p_name": string,"p_shared": boolean }; Returns: string
+                           },
+"lead_views":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "leads_list":
 { Args: { "p": Json }; Returns: Json
                            },
@@ -2840,6 +2849,9 @@ isOneToOne: false
                            },
 "valid_pan":
 { Args: { "p": string }; Returns: boolean
+                           },
+"witty_issue_code":
+{ Args: { "p": Json }; Returns: Json
                            },
 "witty_resolve_code":
 { Args: { "p_code": string }; Returns: Json

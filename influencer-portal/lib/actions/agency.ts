@@ -36,7 +36,8 @@ async function session(): Promise<ServerSupabase | null> {
 function dbFail(error: { code?: string; message: string }, t: T): ActionResult<never> {
   if (error.code === "42501") return fail(t("errors.forbidden"));
   if (error.code === "23505") return fail(t("agencies.errors.duplicate"));
-  if (/staff or creator account/i.test(error.message)) return fail(t("agencies.errors.otherAccount"));
+  if (/staff or creator account/i.test(error.message))
+    return fail(t("agencies.errors.otherAccount"));
   if (/at least one owner/i.test(error.message)) return fail(t("agencies.errors.lastOwner"));
   if (/has ended|no live link/i.test(error.message)) return fail(t("agencies.errors.linkEnded"));
   if (error.code === "22023" || error.code === "23514") return fail(t("errors.invalidInput"));
@@ -79,7 +80,8 @@ export async function setAgencyStatus(
   why: string,
 ): Promise<ActionResult> {
   const t = await getTranslations();
-  if (!uuid.safeParse(agencyId).success || !reason.safeParse(why).success) return fail(t("agencies.errors.reason"));
+  if (!uuid.safeParse(agencyId).success || !reason.safeParse(why).success)
+    return fail(t("agencies.errors.reason"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
   const { error } = await supabase.rpc("agency_set_status", {
@@ -89,7 +91,10 @@ export async function setAgencyStatus(
   });
   if (error) return dbFail(error, t);
   refreshAll();
-  return { ok: true, message: status === "active" ? t("agencies.reactivated") : t("agencies.suspended") };
+  return {
+    ok: true,
+    message: status === "active" ? t("agencies.reactivated") : t("agencies.suspended"),
+  };
 }
 
 /**
@@ -118,13 +123,22 @@ export async function addAgencyMember(input: MemberInput): Promise<ActionResult>
       email_confirm: true,
       user_metadata: { full_name: v.fullName },
     });
-    if (created.error) log.error("agency_member.create_user_failed", { error: created.error.message });
+    if (created.error)
+      log.error("agency_member.create_user_failed", { error: created.error.message });
   }
-  const { data: agency } = await supabase.from("agencies").select("name").eq("id", v.agencyId).maybeSingle();
+  const { data: agency } = await supabase
+    .from("agencies")
+    .select("name")
+    .eq("id", v.agencyId)
+    .maybeSingle();
   refreshAll();
   try {
     await emailProvider().send({
-      ...agencyInviteEmail(`${env().NEXT_PUBLIC_SITE_URL}/login`, v.fullName, agency?.name ?? "your agency"),
+      ...agencyInviteEmail(
+        `${env().NEXT_PUBLIC_SITE_URL}/login`,
+        v.fullName,
+        agency?.name ?? "your agency",
+      ),
       to: v.email,
     });
   } catch (e) {
@@ -149,10 +163,14 @@ export async function removeAgencyMember(memberId: string): Promise<ActionResult
 export async function requestAgencyLink(agencyId: string, handle: string): Promise<ActionResult> {
   const t = await getTranslations();
   const h = handle.trim().replace(/^@/, "").toLowerCase();
-  if (!uuid.safeParse(agencyId).success || !/^[a-z0-9._]{2,40}$/.test(h)) return fail(t("agencies.errors.handle"));
+  if (!uuid.safeParse(agencyId).success || !/^[a-z0-9._]{2,40}$/.test(h))
+    return fail(t("agencies.errors.handle"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
-  const { error } = await supabase.rpc("agency_link_request_by_handle", { p_agency: agencyId, p_handle: h });
+  const { error } = await supabase.rpc("agency_link_request_by_handle", {
+    p_agency: agencyId,
+    p_handle: h,
+  });
   if (error && /no such creator/i.test(error.message)) return fail(t("agencies.errors.noCreator"));
   if (error) return dbFail(error, t);
   refreshAll();
@@ -161,17 +179,25 @@ export async function requestAgencyLink(agencyId: string, handle: string): Promi
 
 export async function revokeAgencyLink(linkId: string, why: string): Promise<ActionResult> {
   const t = await getTranslations();
-  if (!uuid.safeParse(linkId).success || !reason.safeParse(why).success) return fail(t("agencies.errors.reason"));
+  if (!uuid.safeParse(linkId).success || !reason.safeParse(why).success)
+    return fail(t("agencies.errors.reason"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
-  const { error } = await supabase.rpc("agency_link_revoke", { p_link: linkId, p_reason: why.trim() });
+  const { error } = await supabase.rpc("agency_link_revoke", {
+    p_link: linkId,
+    p_reason: why.trim(),
+  });
   if (error) return dbFail(error, t);
   refreshAll();
   return { ok: true, message: t("agencies.links.revoked") };
 }
 
 /** Creator: accept (or update) a link with the chosen grants, or decline / end it. */
-export async function respondAgencyLink(linkId: string, accept: boolean, grants: GrantsInput): Promise<ActionResult> {
+export async function respondAgencyLink(
+  linkId: string,
+  accept: boolean,
+  grants: GrantsInput,
+): Promise<ActionResult> {
   const t = await getTranslations();
   const g = grantsInput.safeParse(grants);
   if (!uuid.safeParse(linkId).success || !g.success) return fail(t("errors.invalidInput"));

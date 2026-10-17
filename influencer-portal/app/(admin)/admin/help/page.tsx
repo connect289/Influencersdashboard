@@ -9,7 +9,11 @@ export async function generateMetadata() {
   return { title: t("nav.admin.help") };
 }
 
-export default async function AdminHelpPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function AdminHelpPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const { me } = await requireStaff();
   const t = await getTranslations();
   const q = ((await searchParams).q ?? "").slice(0, 80);

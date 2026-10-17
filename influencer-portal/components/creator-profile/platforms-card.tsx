@@ -37,7 +37,8 @@ function PlatformDialog({
     avgViews: initial?.avg_views?.toString() ?? "",
     engagementRate: initial?.engagement_rate?.toString() ?? "",
   });
-  const set = <K extends keyof typeof v>(k: K, value: (typeof v)[K]) => setV((x) => ({ ...x, [k]: value }));
+  const set = <K extends keyof typeof v>(k: K, value: (typeof v)[K]) =>
+    setV((x) => ({ ...x, [k]: value }));
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -65,7 +66,11 @@ function PlatformDialog({
           }}
         >
           <Field id="pl-platform" label={t("profile.platforms.platform")} required>
-            <Select id="pl-platform" value={v.platform} onChange={(e) => set("platform", e.target.value as Platform)}>
+            <Select
+              id="pl-platform"
+              value={v.platform}
+              onChange={(e) => set("platform", e.target.value as Platform)}
+            >
               {PLATFORMS.map((p) => (
                 <option key={p} value={p}>
                   {t(`platforms.${p}`)}
@@ -82,7 +87,12 @@ function PlatformDialog({
               maxLength={100}
             />
           </Field>
-          <Field id="pl-url" label={t("profile.platforms.url")} hint={t("profile.platforms.urlHint")} required>
+          <Field
+            id="pl-url"
+            label={t("profile.platforms.url")}
+            hint={t("profile.platforms.urlHint")}
+            required
+          >
             <Input
               id="pl-url"
               type="url"
@@ -160,7 +170,11 @@ export function PlatformsCard({
   ) : null;
   return (
     <Card>
-      <CardHeader title={t("profile.platforms.title")} description={t("profile.platforms.hint")} actions={add} />
+      <CardHeader
+        title={t("profile.platforms.title")}
+        description={t("profile.platforms.hint")}
+        actions={add}
+      />
       {platforms.length === 0 ? (
         <EmptyState
           title={t("profile.platforms.empty")}
@@ -182,7 +196,9 @@ export function PlatformsCard({
                     p.avg_views !== null
                       ? t("profile.platforms.viewsCount", { count: formatCompact(p.avg_views) })
                       : null,
-                    p.engagement_rate !== null ? t("profile.platforms.erValue", { value: p.engagement_rate }) : null,
+                    p.engagement_rate !== null
+                      ? t("profile.platforms.erValue", { value: p.engagement_rate })
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(" · ") || t("profile.platforms.noStats")}

@@ -2,7 +2,12 @@
 // with format specs, the template's stages and due dates from its offsets. Pure.
 import { z } from "zod";
 import type { DeliverableItem } from "@/lib/campaigns/schemas";
-import { CONTENT_FORMATS, PLATFORMS, type ContentFormat, type Platform } from "@/lib/creators/schemas";
+import {
+  CONTENT_FORMATS,
+  PLATFORMS,
+  type ContentFormat,
+  type Platform,
+} from "@/lib/creators/schemas";
 import { deliverableSpecs, dueDatesFrom, type briefTemplateContent } from "./brief";
 
 const PLATFORM_LABEL: Record<Platform, string> = {
@@ -49,7 +54,11 @@ export function planDeliverables(
       title: `${PLATFORM_LABEL[d.platform]} ${FORMAT_LABEL[d.format]}${d.count > 1 ? ` ${String(n + 1)}` : ""}`,
       platform: z.enum(PLATFORMS).parse(d.platform),
       format: z.enum(CONTENT_FORMATS).parse(d.format),
-      specs: { duration_s: specs[i]?.duration_s ?? null, aspect_ratio: specs[i]?.aspect_ratio ?? null, notes: "" },
+      specs: {
+        duration_s: specs[i]?.duration_s ?? null,
+        aspect_ratio: specs[i]?.aspect_ratio ?? null,
+        notes: "",
+      },
       stages: { ...template.stages },
       due_dates: due,
     })),

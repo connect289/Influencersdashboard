@@ -35,7 +35,10 @@ export function GrantsEditor({ link }: { link: AgencyLinkView }) {
         title={link.agency_name}
         description={isPending ? t("agencies.links.pendingHint") : t("agencies.links.activeHint")}
         actions={
-          <StatusBadge status={link.status} label={t(`agencies.links.status.${isPending ? "pending" : "active"}`)} />
+          <StatusBadge
+            status={link.status}
+            label={t(`agencies.links.status.${isPending ? "pending" : "active"}`)}
+          />
         }
       />
       <div className="flex flex-col gap-3">
@@ -70,7 +73,10 @@ export function GrantsEditor({ link }: { link: AgencyLinkView }) {
         <p className="text-xs text-muted">{t("agencies.grants.bankNote")}</p>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button disabled={pending} onClick={() => run(() => respondAgencyLink(link.link_id, true, g))}>
+        <Button
+          disabled={pending}
+          onClick={() => run(() => respondAgencyLink(link.link_id, true, g))}
+        >
           {isPending ? t("agencies.links.accept") : t("agencies.links.saveGrants")}
         </Button>
         <ConfirmDialog

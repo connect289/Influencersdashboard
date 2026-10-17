@@ -74,8 +74,12 @@ describe("kycInput", () => {
 
   it("needs a GSTIN when registered, and the GSTIN must embed the PAN", () => {
     expect(kycInput.safeParse({ ...kyc, gstStatus: "registered" }).success).toBe(false);
-    expect(kycInput.safeParse({ ...kyc, gstStatus: "registered", gstin: "27ABCPX1234K1Z5" }).success).toBe(false);
-    expect(kycInput.safeParse({ ...kyc, gstStatus: "registered", gstin: "27abcps1234k1z5" }).success).toBe(true);
+    expect(
+      kycInput.safeParse({ ...kyc, gstStatus: "registered", gstin: "27ABCPX1234K1Z5" }).success,
+    ).toBe(false);
+    expect(
+      kycInput.safeParse({ ...kyc, gstStatus: "registered", gstin: "27abcps1234k1z5" }).success,
+    ).toBe(true);
   });
 
   it.each([
@@ -112,7 +116,11 @@ describe("profile, platform, rate card, contact", () => {
   });
 
   it("rate card converts rupees to integer paise", () => {
-    const r = rateCardInput.parse({ platform: "youtube", format: "youtube_video", rupees: 15000.5 });
+    const r = rateCardInput.parse({
+      platform: "youtube",
+      format: "youtube_video",
+      rupees: 15000.5,
+    });
     expect(rupeesToPaise(r.rupees)).toBe(1500050);
     expect(rupeesToPaise(0.1 + 0.2)).toBe(30);
   });

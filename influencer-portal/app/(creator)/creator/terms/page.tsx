@@ -26,7 +26,9 @@ export default async function CreatorTerms() {
   return (
     <>
       <PageHeader title={t("terms.title")} description={t("terms.subtitle")} />
-      {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
+      {error ? (
+        <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
+      ) : null}
       {!error && pending.length === 0 ? (
         <EmptyState title={t("terms.allAccepted")} description={t("terms.allAcceptedHint")} />
       ) : null}
@@ -35,7 +37,10 @@ export default async function CreatorTerms() {
           <Card key={p.id}>
             <CardHeader
               title={p.title}
-              description={t("terms.version", { version: p.version, date: formatDate(p.effective_at) })}
+              description={t("terms.version", {
+                version: p.version,
+                date: formatDate(p.effective_at),
+              })}
             />
             <div className="mb-4 max-h-80 overflow-y-auto rounded-xl bg-surface-2 p-4 text-sm whitespace-pre-line">
               {p.body}

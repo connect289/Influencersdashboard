@@ -15,7 +15,11 @@ export async function generateMetadata() {
   return { title: t("content.briefs.area.templates") };
 }
 
-export default async function BriefTemplatePage({ params }: { params: Promise<{ templateId: string }> }) {
+export default async function BriefTemplatePage({
+  params,
+}: {
+  params: Promise<{ templateId: string }>;
+}) {
   const { templateId } = await params;
   if (!z.uuid().safeParse(templateId).success) notFound();
   const { supabase, me } = await requireStaff("brief.read");
@@ -32,7 +36,9 @@ export default async function BriefTemplatePage({ params }: { params: Promise<{ 
         <ArrowLeft className="size-4" aria-hidden /> {t("content.briefs.area.templates")}
       </Link>
       <PageHeader title={tpl.name} description={tpl.description ?? undefined} />
-      {tpl.archived_at ? <Banner tone="warning">{t("content.templates.archivedBanner")}</Banner> : null}
+      {tpl.archived_at ? (
+        <Banner tone="warning">{t("content.templates.archivedBanner")}</Banner>
+      ) : null}
       {editable ? (
         <TemplateForm
           id={tpl.id}

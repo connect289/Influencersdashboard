@@ -25,7 +25,8 @@ export default async function CreatorMediaKitPage() {
   ]);
   const kit = kitRes.error ? null : mediaKitSchema.safeParse(kitRes.data);
   const approved = onboardingState.safeParse(state.data).data?.approved === true;
-  if (!kit?.success) return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
+  if (!kit?.success)
+    return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
   const avatar = avatarUrl(publicEnv.supabaseUrl, kit.data.avatar_path);
   return (
     <>

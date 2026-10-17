@@ -4,7 +4,15 @@ import { z } from "zod";
 import { CONTENT_FORMATS, PLATFORMS } from "@/lib/creators/schemas";
 
 export const OBJECTIVES = ["leads", "enrolments", "awareness", "content"] as const;
-export const CAMPAIGN_STATUSES = ["draft", "open", "invite_only", "active", "paused", "completed", "archived"] as const;
+export const CAMPAIGN_STATUSES = [
+  "draft",
+  "open",
+  "invite_only",
+  "active",
+  "paused",
+  "completed",
+  "archived",
+] as const;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 export const VISIBILITIES = ["open", "invite_only", "both"] as const;
 export const DEAL_TYPES = ["fixed", "commission", "hybrid", "barter"] as const;
@@ -80,8 +88,14 @@ export const campaignInput = z
     briefTemplateId: z.union([z.literal(""), z.uuid()]).default(""),
     programmeIds: z.array(z.number().int().positive()).max(30).default([]),
   })
-  .refine((v) => !v.startsOn || !v.endsOn || v.endsOn >= v.startsOn, { path: ["endsOn"], message: "end_before_start" })
-  .refine((v) => !v.applyBy || !v.endsOn || v.applyBy <= v.endsOn, { path: ["applyBy"], message: "apply_after_end" });
+  .refine((v) => !v.startsOn || !v.endsOn || v.endsOn >= v.startsOn, {
+    path: ["endsOn"],
+    message: "end_before_start",
+  })
+  .refine((v) => !v.applyBy || !v.endsOn || v.applyBy <= v.endsOn, {
+    path: ["applyBy"],
+    message: "apply_after_end",
+  });
 export type CampaignInput = z.input<typeof campaignInput>;
 
 /** Offer terms (an application's proposed or counter-offered deal). Commission specifics come from the deal preset. */

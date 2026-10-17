@@ -18,7 +18,10 @@ export function BriefFieldsPreview({ content }: { content: BriefTemplateContent 
         </p>
         <p className="mt-2 text-sm text-muted">
           {DUE_STAGES.map((s) =>
-            t("content.templates.offsetLine", { stage: t(`content.dueStages.${s}`), days: content.due_offsets[s] }),
+            t("content.templates.offsetLine", {
+              stage: t(`content.dueStages.${s}`),
+              days: content.due_offsets[s],
+            }),
           ).join(" · ")}
         </p>
       </Card>

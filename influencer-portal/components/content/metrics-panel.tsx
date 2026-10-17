@@ -19,7 +19,9 @@ import type { Uploaded } from "./uploader";
 export function checkpointLabel(cp: string, t: ReturnType<typeof useTranslations>): string {
   if (cp === "adhoc") return t("content.metrics.adhoc");
   const h = Number.parseInt(cp, 10);
-  return h % 24 === 0 ? t("content.metrics.days", { count: h / 24 }) : t("content.metrics.hours", { count: h });
+  return h % 24 === 0
+    ? t("content.metrics.days", { count: h / 24 })
+    : t("content.metrics.hours", { count: h });
 }
 
 export function MetricsForm({
@@ -41,7 +43,8 @@ export function MetricsForm({
   );
   const [shots, setShots] = useState<Uploaded[]>([]);
   const [busy, setBusy] = useState(false);
-  const num = (s: string) => (s.trim() === "" ? null : Math.max(0, Math.round(Number(s.replace(/,/g, "")) || 0)));
+  const num = (s: string) =>
+    s.trim() === "" ? null : Math.max(0, Math.round(Number(s.replace(/,/g, "")) || 0));
   return (
     <form
       className="flex flex-col gap-4"
@@ -59,7 +62,9 @@ export function MetricsForm({
               screenshots: shots.map((s) => s.path),
             }),
           () => {
-            setValues(Object.fromEntries(METRIC_FIELDS.map((f) => [f, ""])) as Record<MetricField, string>);
+            setValues(
+              Object.fromEntries(METRIC_FIELDS.map((f) => [f, ""])) as Record<MetricField, string>,
+            );
             setShots([]);
             router.refresh();
           },
@@ -109,7 +114,13 @@ export function MetricsForm({
   );
 }
 
-export function MetricsTable({ rows, links }: { rows: MetricSnapshot[]; links: Record<string, string> }) {
+export function MetricsTable({
+  rows,
+  links,
+}: {
+  rows: MetricSnapshot[];
+  links: Record<string, string>;
+}) {
   const t = useTranslations();
   if (!rows.length) return <p className="text-sm text-muted">{t("content.metrics.none")}</p>;
   const shown = METRIC_FIELDS.filter((f) => rows.some((r) => r[f] !== null));

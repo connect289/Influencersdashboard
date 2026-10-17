@@ -16,9 +16,21 @@ export const DEAL_STATUSES = [
 export type DealStatus = (typeof DEAL_STATUSES)[number];
 export const DEAL_MODELS = ["commission_only", "fixed_only", "hybrid", "barter", "custom"] as const;
 export type DealModel = (typeof DEAL_MODELS)[number];
-export const VERSION_STATES = ["proposed", "accepted", "declined", "withdrawn", "superseded"] as const;
+export const VERSION_STATES = [
+  "proposed",
+  "accepted",
+  "declined",
+  "withdrawn",
+  "superseded",
+] as const;
 export type VersionState = (typeof VERSION_STATES)[number];
-export const VERSION_ORIGINS = ["builder", "application", "amendment", "renewal", "counter_offer"] as const;
+export const VERSION_ORIGINS = [
+  "builder",
+  "application",
+  "amendment",
+  "renewal",
+  "counter_offer",
+] as const;
 
 /** Staff status moves allowed from each status (mirrors inf.deal_set_status). */
 export const DEAL_MOVES: Record<DealStatus, DealStatus[]> = {
@@ -31,7 +43,13 @@ export const DEAL_MOVES: Record<DealStatus, DealStatus[]> = {
   terminated: [],
   expired: [],
 };
-export const OPEN_STATUSES: readonly DealStatus[] = ["draft", "proposed", "negotiating", "agreed", "active"];
+export const OPEN_STATUSES: readonly DealStatus[] = [
+  "draft",
+  "proposed",
+  "negotiating",
+  "agreed",
+  "active",
+];
 
 const isoDate = z.iso.date();
 const optionalDate = z.union([z.literal(""), isoDate]).default("");
@@ -47,7 +65,10 @@ export const dealCreateInput = z
     config: compConfig,
     internalNotes: z.string().trim().max(4000).default(""),
   })
-  .refine((v) => !v.endsOn || v.endsOn >= v.startsOn, { path: ["endsOn"], message: "end_before_start" });
+  .refine((v) => !v.endsOn || v.endsOn >= v.startsOn, {
+    path: ["endsOn"],
+    message: "end_before_start",
+  });
 export type DealCreateInput = z.input<typeof dealCreateInput>;
 
 export const dealUpdateInput = z
@@ -60,22 +81,35 @@ export const dealUpdateInput = z
     ownerId: z.union([z.literal(""), z.uuid()]).optional(),
     internalNotes: z.string().trim().max(4000).optional(),
   })
-  .refine((v) => !v.endsOn || !v.startsOn || v.endsOn >= v.startsOn, { path: ["endsOn"], message: "end_before_start" });
+  .refine((v) => !v.endsOn || !v.startsOn || v.endsOn >= v.startsOn, {
+    path: ["endsOn"],
+    message: "end_before_start",
+  });
 export type DealUpdateInput = z.input<typeof dealUpdateInput>;
 
 /** An amendment's effective date-time as typed in IST ("YYYY-MM-DDTHH:mm"); empty = now. */
 export const proposeInput = z.object({
   dealId: z.uuid(),
-  effectiveFrom: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)]).default(""),
+  effectiveFrom: z
+    .union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)])
+    .default(""),
   note: z.string().trim().max(1000).default(""),
 });
 
 export const respondInput = z
-  .object({ versionId: z.uuid(), accept: z.boolean(), reason: z.string().trim().max(1000).default("") })
+  .object({
+    versionId: z.uuid(),
+    accept: z.boolean(),
+    reason: z.string().trim().max(1000).default(""),
+  })
   .refine((v) => v.accept || v.reason.length >= 3, { path: ["reason"], message: "reason" });
 
 export const statusInput = z
-  .object({ dealId: z.uuid(), status: z.enum(DEAL_STATUSES), reason: z.string().trim().max(1000).default("") })
+  .object({
+    dealId: z.uuid(),
+    status: z.enum(DEAL_STATUSES),
+    reason: z.string().trim().max(1000).default(""),
+  })
   .refine((v) => !["active", "terminated"].includes(v.status) || v.reason.length >= 3, {
     path: ["reason"],
     message: "reason",

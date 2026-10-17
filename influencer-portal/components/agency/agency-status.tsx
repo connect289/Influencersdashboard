@@ -5,13 +5,25 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAction } from "@/components/ui/use-action";
 import { setAgencyStatus } from "@/lib/actions/agency";
 
-export function AgencyStatusButton({ agencyId, status, name }: { agencyId: string; status: string; name: string }) {
+export function AgencyStatusButton({
+  agencyId,
+  status,
+  name,
+}: {
+  agencyId: string;
+  status: string;
+  name: string;
+}) {
   const t = useTranslations();
   const { pending, run } = useAction();
   const next = status === "active" ? "suspended" : "active";
   return (
     <ConfirmDialog
-      title={next === "suspended" ? t("agencies.suspendTitle", { name }) : t("agencies.reactivateTitle", { name })}
+      title={
+        next === "suspended"
+          ? t("agencies.suspendTitle", { name })
+          : t("agencies.reactivateTitle", { name })
+      }
       description={next === "suspended" ? t("agencies.suspendBody") : undefined}
       reasonLabel={t("agencies.links.reason")}
       actionLabel={next === "suspended" ? t("agencies.suspend") : t("agencies.reactivate")}

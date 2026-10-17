@@ -8,7 +8,11 @@ const inr = new Intl.NumberFormat("en-IN", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
-const inrWhole = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+const inrWhole = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+});
 const num = new Intl.NumberFormat("en-IN");
 
 /** ₹1,23,456.00 from paise. Accepts bigint so ledger values never pass through floats before formatting. */
@@ -46,8 +50,18 @@ export function formatCompact(n: number): string {
   return `${sign}${abs}`;
 }
 
-const dateFmt = new Intl.DateTimeFormat("en-GB", { timeZone: IST, day: "2-digit", month: "short", year: "numeric" });
-const timeFmt = new Intl.DateTimeFormat("en-GB", { timeZone: IST, hour: "2-digit", minute: "2-digit", hour12: false });
+const dateFmt = new Intl.DateTimeFormat("en-GB", {
+  timeZone: IST,
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+const timeFmt = new Intl.DateTimeFormat("en-GB", {
+  timeZone: IST,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
 
 function toDate(value: Date | string | number): Date {
   return value instanceof Date ? value : new Date(value);
@@ -78,12 +92,17 @@ export function formatRelative(value: Date | string | number, now: Date = new Da
     ["hour", 3600],
     ["minute", 60],
   ];
-  for (const [unit, secs] of units) if (abs >= secs) return rtf.format(Math.round(diff / secs), unit);
+  for (const [unit, secs] of units)
+    if (abs >= secs) return rtf.format(Math.round(diff / secs), unit);
   return "just now";
 }
 
 /** Calendar parts of an instant in IST. */
-export function istParts(value: Date | string | number): { year: number; month: number; day: number } {
+export function istParts(value: Date | string | number): {
+  year: number;
+  month: number;
+  day: number;
+} {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: IST,
     year: "numeric",

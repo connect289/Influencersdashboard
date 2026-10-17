@@ -8,7 +8,8 @@ export type Bps = number;
 export class MoneyError extends Error {}
 
 function assertInt(n: number, what: string): void {
-  if (!Number.isSafeInteger(n)) throw new MoneyError(`${what} must be a safe integer, got ${String(n)}`);
+  if (!Number.isSafeInteger(n))
+    throw new MoneyError(`${what} must be a safe integer, got ${String(n)}`);
 }
 
 /** a × num / den, rounded half to even. All arguments integers; den > 0. */
@@ -41,7 +42,8 @@ export function pctOf(amount: Paise, bps: Bps): Paise {
 /** A percentage with up to two decimals (e.g. 12.5) → basis points (1250). */
 export function toBps(pct: number): Bps {
   const bps = Math.round(pct * 100);
-  if (Math.abs(bps / 100 - pct) > 1e-9) throw new MoneyError(`at most two decimals in a percentage: ${String(pct)}`);
+  if (Math.abs(bps / 100 - pct) > 1e-9)
+    throw new MoneyError(`at most two decimals in a percentage: ${String(pct)}`);
   return bps;
 }
 
@@ -74,7 +76,9 @@ export function allocate(total: Paise, weights: readonly number[]): Paise[] {
   const base = w.map((x) => (t * x) / wSum);
   const rem = w.map((x, i) => t * x - (base[i] ?? 0n) * wSum);
   let left = t - base.reduce((a, b) => a + b, 0n);
-  const order = rem.map((r, i) => ({ r, i })).sort((a, b) => (b.r > a.r ? 1 : b.r < a.r ? -1 : a.i - b.i));
+  const order = rem
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => (b.r > a.r ? 1 : b.r < a.r ? -1 : a.i - b.i));
   for (const { i } of order) {
     if (left <= 0n) break;
     base[i] = (base[i] ?? 0n) + 1n;

@@ -2,7 +2,12 @@
 // the events that fire milestones and penalties. Phase 5 uses them to compute penalty proposals for a person to
 // approve (late delivery, missed deliverable, missing disclosure); Phase 7's runner reuses the same mapping to post
 // the ledger. Pure.
-import { computeLedger, type DealVersion, type EngineContext, type PenaltyProposal } from "@/lib/compensation/engine";
+import {
+  computeLedger,
+  type DealVersion,
+  type EngineContext,
+  type PenaltyProposal,
+} from "@/lib/compensation/engine";
 import type { EngineEvent } from "@/lib/compensation/events";
 
 export interface DeliverableFacts {
@@ -27,11 +32,13 @@ export interface ContentFacts {
 }
 
 /** The engine reference for a deliverable: the rule id when the deal names it, else the deliverable's own id. */
-export const deliverableRef = (d: Pick<DeliverableFacts, "id" | "config_ref">): string => d.config_ref ?? d.id;
+export const deliverableRef = (d: Pick<DeliverableFacts, "id" | "config_ref">): string =>
+  d.config_ref ?? d.id;
 
 export function contentEvents(f: ContentFacts): EngineEvent[] {
   const out: EngineEvent[] = [];
-  if (f.contract_signed_at) out.push({ id: "contract_signed", type: "contract_signed", at: f.contract_signed_at });
+  if (f.contract_signed_at)
+    out.push({ id: "contract_signed", type: "contract_signed", at: f.contract_signed_at });
   if (f.brief_acknowledged_at)
     out.push({ id: "brief_acknowledged", type: "brief_acknowledged", at: f.brief_acknowledged_at });
   for (const d of f.deliverables) {
@@ -47,14 +54,35 @@ export function contentEvents(f: ContentFacts): EngineEvent[] {
         at: "1970-01-01T00:00:00.000Z",
       });
     if (d.concept_approved_at)
-      out.push({ id: id("concept"), type: "concept_approved", deliverable: ref, at: d.concept_approved_at });
+      out.push({
+        id: id("concept"),
+        type: "concept_approved",
+        deliverable: ref,
+        at: d.concept_approved_at,
+      });
     if (d.draft_approved_at)
-      out.push({ id: id("draft"), type: "draft_approved", deliverable: ref, at: d.draft_approved_at });
-    if (d.live_at) out.push({ id: id("live"), type: "deliverable_live", deliverable: ref, at: d.live_at });
+      out.push({
+        id: id("draft"),
+        type: "draft_approved",
+        deliverable: ref,
+        at: d.draft_approved_at,
+      });
+    if (d.live_at)
+      out.push({ id: id("live"), type: "deliverable_live", deliverable: ref, at: d.live_at });
     if (d.cancelled_at)
-      out.push({ id: id("cancelled"), type: "deliverable_cancelled", deliverable: ref, at: d.cancelled_at });
+      out.push({
+        id: id("cancelled"),
+        type: "deliverable_cancelled",
+        deliverable: ref,
+        at: d.cancelled_at,
+      });
     if (d.disclosure_failed_at)
-      out.push({ id: id("disclosure"), type: "disclosure_flag", deliverable: ref, at: d.disclosure_failed_at });
+      out.push({
+        id: id("disclosure"),
+        type: "disclosure_flag",
+        deliverable: ref,
+        at: d.disclosure_failed_at,
+      });
     for (const [i, m] of d.metrics.entries()) {
       if (m.views !== null)
         out.push({

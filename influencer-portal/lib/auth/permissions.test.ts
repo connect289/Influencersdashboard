@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { ALL_PERMISSIONS, can, isPermission, permissionsFor, ROLE_GRANTS, STAFF_ROLES } from "./permissions";
+import {
+  ALL_PERMISSIONS,
+  can,
+  isPermission,
+  permissionsFor,
+  ROLE_GRANTS,
+  STAFF_ROLES,
+} from "./permissions";
 
 describe("permission matrix", () => {
   it("grants only known permissions", () => {
-    for (const role of STAFF_ROLES) for (const p of ROLE_GRANTS[role]) expect(isPermission(p)).toBe(true);
+    for (const role of STAFF_ROLES)
+      for (const p of ROLE_GRANTS[role]) expect(isPermission(p)).toBe(true);
   });
 
   it("gives Super Admin everything except countersigning, which needs the signatory flag", () => {
@@ -19,20 +27,27 @@ describe("permission matrix", () => {
 
   it("keeps student contacts to Super Admin only by default", () => {
     for (const role of STAFF_ROLES) {
-      expect(can({ roles: [role], isSignatory: true }, "lead.contacts")).toBe(role === "super_admin");
+      expect(can({ roles: [role], isSignatory: true }, "lead.contacts")).toBe(
+        role === "super_admin",
+      );
     }
   });
 
   it("keeps Content Reviewers away from money", () => {
     const reviewer = permissionsFor({ roles: ["content_reviewer"], isSignatory: false });
     for (const p of reviewer)
-      expect(p.startsWith("ledger") || p.startsWith("payout") || p.startsWith("tax") || p.startsWith("deal")).toBe(
-        false,
-      );
+      expect(
+        p.startsWith("ledger") ||
+          p.startsWith("payout") ||
+          p.startsWith("tax") ||
+          p.startsWith("deal"),
+      ).toBe(false);
   });
 
   it("restricts unmasked KYC to Finance and Super Admin", () => {
-    const allowed = STAFF_ROLES.filter((r) => can({ roles: [r], isSignatory: false }, "kyc.reveal"));
+    const allowed = STAFF_ROLES.filter((r) =>
+      can({ roles: [r], isSignatory: false }, "kyc.reveal"),
+    );
     expect(allowed.sort()).toEqual(["finance", "super_admin"]);
   });
 

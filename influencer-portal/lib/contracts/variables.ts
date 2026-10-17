@@ -14,14 +14,24 @@ export interface VariableDef {
 }
 
 export const VARIABLES: readonly VariableDef[] = [
-  { key: "creator.legal_name", label: "Creator's legal name (as on PAN)", kind: "text", group: "creator" },
+  {
+    key: "creator.legal_name",
+    label: "Creator's legal name (as on PAN)",
+    kind: "text",
+    group: "creator",
+  },
   { key: "creator.display_name", label: "Creator's display name", kind: "text", group: "creator" },
   { key: "creator.handle", label: "Creator's handle", kind: "text", group: "creator" },
   { key: "creator.address", label: "Creator's city and state", kind: "text", group: "creator" },
   { key: "creator.email", label: "Creator's email", kind: "text", group: "creator" },
   { key: "creator.pan_masked", label: "Creator's PAN (masked)", kind: "text", group: "creator" },
   { key: "creator.gstin", label: "Creator's GSTIN", kind: "text", group: "creator" },
-  { key: "creator.gst_registered", label: "Creator is GST-registered", kind: "flag", group: "creator" },
+  {
+    key: "creator.gst_registered",
+    label: "Creator is GST-registered",
+    kind: "flag",
+    group: "creator",
+  },
   { key: "payee.name", label: "Payee (who is paid)", kind: "text", group: "creator" },
   { key: "payee.is_agency", label: "Payee is an agency", kind: "flag", group: "creator" },
   { key: "deal.code", label: "Deal reference", kind: "text", group: "deal" },
@@ -38,12 +48,27 @@ export const VARIABLES: readonly VariableDef[] = [
   { key: "deal.has_commission", label: "Deal has commission", kind: "flag", group: "deal" },
   { key: "deal.has_bonuses", label: "Deal has bonuses", kind: "flag", group: "deal" },
   { key: "deal.has_penalties", label: "Deal has penalties", kind: "flag", group: "deal" },
-  { key: "deal.has_fees", label: "Deal has usage, exclusivity or other fees", kind: "flag", group: "deal" },
+  {
+    key: "deal.has_fees",
+    label: "Deal has usage, exclusivity or other fees",
+    kind: "flag",
+    group: "deal",
+  },
   { key: "deal.has_exclusivity", label: "Deal includes exclusivity", kind: "flag", group: "deal" },
-  { key: "deal.has_recoupment", label: "Commission is recouped against the fixed fee", kind: "flag", group: "deal" },
+  {
+    key: "deal.has_recoupment",
+    label: "Commission is recouped against the fixed fee",
+    kind: "flag",
+    group: "deal",
+  },
   { key: "deal.fixed_fee_total", label: "Total fixed fees", kind: "text", group: "deal" },
   { key: "deal.recoupment_text", label: "Recoupment wording", kind: "text", group: "deal" },
-  { key: "deal.milestone_table", label: "Table: fixed fees and milestones", kind: "table", group: "deal" },
+  {
+    key: "deal.milestone_table",
+    label: "Table: fixed fees and milestones",
+    kind: "table",
+    group: "deal",
+  },
   { key: "deal.commission_table", label: "Table: commission rules", kind: "table", group: "deal" },
   { key: "deal.bonus_table", label: "Table: bonuses", kind: "table", group: "deal" },
   { key: "deal.penalty_table", label: "Table: penalties", kind: "table", group: "deal" },
@@ -55,12 +80,32 @@ export const VARIABLES: readonly VariableDef[] = [
   { key: "eduwit.gstin", label: "Eduwit's GSTIN", kind: "text", group: "eduwit" },
   { key: "eduwit.pan", label: "Eduwit's PAN", kind: "text", group: "eduwit" },
   { key: "eduwit.support_email", label: "Eduwit's contact email", kind: "text", group: "eduwit" },
-  { key: "eduwit.signatory_name", label: "Authorised Signatory's name", kind: "text", group: "eduwit" },
-  { key: "eduwit.signatory_designation", label: "Authorised Signatory's designation", kind: "text", group: "eduwit" },
+  {
+    key: "eduwit.signatory_name",
+    label: "Authorised Signatory's name",
+    kind: "text",
+    group: "eduwit",
+  },
+  {
+    key: "eduwit.signatory_designation",
+    label: "Authorised Signatory's designation",
+    kind: "text",
+    group: "eduwit",
+  },
   { key: "contract.number", label: "Contract number", kind: "text", group: "contract" },
   { key: "contract.date", label: "Contract date", kind: "text", group: "contract" },
-  { key: "contract.is_amendment", label: "This contract amends an earlier one", kind: "flag", group: "contract" },
-  { key: "contract.parent_number", label: "Number of the contract being amended", kind: "text", group: "contract" },
+  {
+    key: "contract.is_amendment",
+    label: "This contract amends an earlier one",
+    kind: "flag",
+    group: "contract",
+  },
+  {
+    key: "contract.parent_number",
+    label: "Number of the contract being amended",
+    kind: "text",
+    group: "contract",
+  },
 ];
 export const VARIABLE_KEYS: ReadonlySet<string> = new Set(VARIABLES.map((v) => v.key));
 
@@ -125,7 +170,8 @@ export function milestoneTable(c: CompConfig): TableValue {
         m.share.type === "pct"
           ? `${money(Math.round((total * m.share.pct) / 100))} (${String(m.share.pct)}%)`
           : money(m.share.amount_paise);
-      const cancel = m.on_cancel.type === "pay_pct" ? `; ${String(m.on_cancel.pct)}% if cancelled` : "";
+      const cancel =
+        m.on_cancel.type === "pay_pct" ? `; ${String(m.on_cancel.pct)}% if cancelled` : "";
       rows.push([
         `${f.label}: ${m.label}`,
         amount,
@@ -139,7 +185,8 @@ export function milestoneTable(c: CompConfig): TableValue {
 
 export function commissionTable(c: CompConfig): TableValue {
   const rows = c.commission.map((r) => {
-    const rate = "amount_paise" in r.basis ? money(r.basis.amount_paise) : `${String(r.basis.pct)}%`;
+    const rate =
+      "amount_paise" in r.basis ? money(r.basis.amount_paise) : `${String(r.basis.pct)}%`;
     const base =
       r.basis.type === "pct_of_eduwit_commission"
         ? r.basis.base === "net_of_gst"
@@ -158,10 +205,14 @@ export function commissionTable(c: CompConfig): TableValue {
             )
             .join(", "),
       );
-    if (r.caps.per_unit_paise !== undefined) extras.push(`max ${money(r.caps.per_unit_paise)} each`);
-    if (r.caps.per_month_paise !== undefined) extras.push(`max ${money(r.caps.per_month_paise)} per month`);
-    if (r.caps.lifetime_paise !== undefined) extras.push(`max ${money(r.caps.lifetime_paise)} in total`);
-    if (r.clawback_window_days !== undefined) extras.push(`clawback within ${String(r.clawback_window_days)} days`);
+    if (r.caps.per_unit_paise !== undefined)
+      extras.push(`max ${money(r.caps.per_unit_paise)} each`);
+    if (r.caps.per_month_paise !== undefined)
+      extras.push(`max ${money(r.caps.per_month_paise)} per month`);
+    if (r.caps.lifetime_paise !== undefined)
+      extras.push(`max ${money(r.caps.lifetime_paise)} in total`);
+    if (r.clawback_window_days !== undefined)
+      extras.push(`clawback within ${String(r.clawback_window_days)} days`);
     return [
       r.label,
       `${rate} ${BASIS[r.basis.type]}${base}`,
@@ -188,10 +239,14 @@ export function bonusTable(c: CompConfig): TableValue {
         ? money(b.amount.amount_paise)
         : `${String(b.amount.pct)}% of ${b.amount.type === "pct_of_fixed" ? "the fixed fee" : "commission in the window"}`,
       b.conditions.items
-        .map((x) => `${x.metric.replace(/_/g, " ")} ${x.comparator === "gte" ? "≥" : "≤"} ${formatNumber(x.value)}`)
+        .map(
+          (x) =>
+            `${x.metric.replace(/_/g, " ")} ${x.comparator === "gte" ? "≥" : "≤"} ${formatNumber(x.value)}`,
+        )
         .join(b.conditions.op === "and" ? " and " : " or "),
-      (b.window.type === "dates" ? `${formatDate(b.window.from)} to ${formatDate(b.window.to)}` : b.window.type) +
-        (b.repeat === "every" ? ", each window" : ""),
+      (b.window.type === "dates"
+        ? `${formatDate(b.window.from)} to ${formatDate(b.window.to)}`
+        : b.window.type) + (b.repeat === "every" ? ", each window" : ""),
     ]),
   };
 }
@@ -235,7 +290,11 @@ export function feeTable(c: CompConfig): TableValue {
 export function deliverablesTable(items: readonly DeliverableItem[]): TableValue {
   return {
     head: ["Platform", "Format", "Count"],
-    rows: items.map((d) => [d.platform.replace(/_/g, " "), d.format.replace(/_/g, " "), String(d.count)]),
+    rows: items.map((d) => [
+      d.platform.replace(/_/g, " "),
+      d.format.replace(/_/g, " "),
+      String(d.count),
+    ]),
   };
 }
 
@@ -251,10 +310,23 @@ export interface ContextInput {
     gstin: string | null;
   };
   payee: { name: string; is_agency: boolean };
-  deal: { code: string; title: string; starts_on: string; ends_on: string | null; model: string; config: CompConfig };
+  deal: {
+    code: string;
+    title: string;
+    starts_on: string;
+    ends_on: string | null;
+    model: string;
+    config: CompConfig;
+  };
   deliverables: readonly DeliverableItem[];
   campaign: { name: string } | null;
-  eduwit: { legal_name: string; address: string; gstin: string; pan: string; support_email: string };
+  eduwit: {
+    legal_name: string;
+    address: string;
+    gstin: string;
+    pan: string;
+    support_email: string;
+  };
   signatory: { name: string; designation: string } | null;
   contract: { number: string; date: string; parent_number: string | null };
 }

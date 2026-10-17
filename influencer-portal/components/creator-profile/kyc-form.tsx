@@ -22,7 +22,15 @@ type GstStatus = (typeof GST_STATUSES)[number];
  * KYC details. The stored PAN and account number are never sent to the browser: the form shows them masked and leaves
  * the inputs blank; typing a new value replaces the stored one.
  */
-export function KycForm({ creatorId, kyc, canEdit }: { creatorId: string; kyc: KycView; canEdit: boolean }) {
+export function KycForm({
+  creatorId,
+  kyc,
+  canEdit,
+}: {
+  creatorId: string;
+  kyc: KycView;
+  canEdit: boolean;
+}) {
   const t = useTranslations();
   const { pending, run } = useAction();
   const [uploading, setUploading] = useState(false);
@@ -38,10 +46,14 @@ export function KycForm({ creatorId, kyc, canEdit }: { creatorId: string; kyc: K
     proofPath: "",
     proofName: "",
   });
-  const set = <K extends keyof typeof v>(k: K, value: (typeof v)[K]) => setV((x) => ({ ...x, [k]: value }));
+  const set = <K extends keyof typeof v>(k: K, value: (typeof v)[K]) =>
+    setV((x) => ({ ...x, [k]: value }));
 
   async function upload(file: File) {
-    if (!(KYC_PROOF_TYPES as readonly string[]).includes(file.type) || file.size > KYC_PROOF_MAX_BYTES) {
+    if (
+      !(KYC_PROOF_TYPES as readonly string[]).includes(file.type) ||
+      file.size > KYC_PROOF_MAX_BYTES
+    ) {
       toast.error(t("kyc.errors.proofType"));
       return;
     }
@@ -103,7 +115,11 @@ export function KycForm({ creatorId, kyc, canEdit }: { creatorId: string; kyc: K
         <Field
           id="k-pan"
           label={t("kyc.fields.pan")}
-          hint={kyc.pan_masked ? t("kyc.fields.onFile", { value: kyc.pan_masked }) : t("kyc.fields.panHint")}
+          hint={
+            kyc.pan_masked
+              ? t("kyc.fields.onFile", { value: kyc.pan_masked })
+              : t("kyc.fields.panHint")
+          }
           required={!kyc.pan_masked}
         >
           <Input
@@ -231,10 +247,15 @@ export function KycForm({ creatorId, kyc, canEdit }: { creatorId: string; kyc: K
         </div>
         {canEdit ? (
           <div className="md:col-span-2">
-            <Button type="submit" disabled={pending || uploading || missingSecrets || missingAccount}>
+            <Button
+              type="submit"
+              disabled={pending || uploading || missingSecrets || missingAccount}
+            >
               {kyc.status === "verified" ? t("kyc.saveChanges") : t("kyc.submit")}
             </Button>
-            {kyc.status === "verified" ? <p className="mt-2 text-xs text-muted">{t("kyc.reverifyNote")}</p> : null}
+            {kyc.status === "verified" ? (
+              <p className="mt-2 text-xs text-muted">{t("kyc.reverifyNote")}</p>
+            ) : null}
           </div>
         ) : null}
       </form>

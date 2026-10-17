@@ -5,7 +5,11 @@ import { configFromTerms } from "./terms";
 
 describe("configFromTerms", () => {
   it("uses the system preset for the deal type and applies the negotiated fee", () => {
-    const c = configFromTerms(null, { deal_type: "hybrid", fixed_fee_paise: 12_000_00, deliverables: [] });
+    const c = configFromTerms(null, {
+      deal_type: "hybrid",
+      fixed_fee_paise: 12_000_00,
+      deliverables: [],
+    });
     expect(dealModel(c)).toBe("hybrid");
     expect(fixedValue(c)).toBe(12_000_00);
     expect(c.fixed[0]?.milestones.map((m) => m.id)).toEqual(["signing", "live"]);
@@ -23,9 +27,11 @@ describe("configFromTerms", () => {
         }),
       ),
     ).toBe("hybrid");
-    expect(dealModel(configFromTerms(null, { deal_type: "fixed", fixed_fee_paise: 5_000_00, deliverables: [] }))).toBe(
-      "fixed_only",
-    );
+    expect(
+      dealModel(
+        configFromTerms(null, { deal_type: "fixed", fixed_fee_paise: 5_000_00, deliverables: [] }),
+      ),
+    ).toBe("fixed_only");
   });
 
   it("commission only drops fixed fees and recoupment from a hybrid preset", () => {
@@ -45,14 +51,18 @@ describe("configFromTerms", () => {
         {
           id: "b",
           label: "Bonus",
-          conditions: { op: "and", items: [{ metric: "enrollments", comparator: "gte", value: 5 }] },
+          conditions: {
+            op: "and",
+            items: [{ metric: "enrollments", comparator: "gte", value: 5 }],
+          },
           window: { type: "deal" },
           amount: { type: "fixed", amount_paise: 1_000_00 },
         },
       ],
     });
     expect(
-      configFromTerms(preset, { deal_type: "hybrid", fixed_fee_paise: 9_000_00, deliverables: [] }).bonuses,
+      configFromTerms(preset, { deal_type: "hybrid", fixed_fee_paise: 9_000_00, deliverables: [] })
+        .bonuses,
     ).toHaveLength(1);
   });
 
@@ -69,11 +79,17 @@ describe("configFromTerms", () => {
         },
       ],
     });
-    const c = configFromTerms(preset, { deal_type: "fixed", fixed_fee_paise: 30_000_00, deliverables: [] });
+    const c = configFromTerms(preset, {
+      deal_type: "fixed",
+      fixed_fee_paise: 30_000_00,
+      deliverables: [],
+    });
     expect(c.fixed[0]).toMatchObject({ basis: "lump_sum", amount_paise: 30_000_00 });
   });
 
   it("barter starts empty for staff to fill in", () => {
-    expect(dealModel(configFromTerms(null, { deal_type: "barter", deliverables: [] }))).toBe("custom");
+    expect(dealModel(configFromTerms(null, { deal_type: "barter", deliverables: [] }))).toBe(
+      "custom",
+    );
   });
 });

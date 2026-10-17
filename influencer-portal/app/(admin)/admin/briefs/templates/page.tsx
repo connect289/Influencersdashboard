@@ -18,7 +18,11 @@ export async function generateMetadata() {
   return { title: t("content.briefs.area.templates") };
 }
 
-export default async function BriefTemplatesPage({ searchParams }: { searchParams: Promise<{ archived?: string }> }) {
+export default async function BriefTemplatesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ archived?: string }>;
+}) {
   const { supabase, me } = await requireStaff("brief.read");
   const t = await getTranslations();
   const showArchived = (await searchParams).archived === "1";
@@ -52,19 +56,29 @@ export default async function BriefTemplatesPage({ searchParams }: { searchParam
       {rows === null ? (
         <ErrorState title={t("errors.loadFailed")} />
       ) : rows.length === 0 ? (
-        <EmptyState title={t("content.templates.empty")} description={t("content.templates.emptyHint")} />
+        <EmptyState
+          title={t("content.templates.empty")}
+          description={t("content.templates.emptyHint")}
+        />
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
           {rows.map((r) => (
             <li key={r.id}>
               <Card className="flex h-full flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
-                  <Link href={`/admin/briefs/templates/${r.id}`} className="font-medium text-primary hover:underline">
+                  <Link
+                    href={`/admin/briefs/templates/${r.id}`}
+                    className="font-medium text-primary hover:underline"
+                  >
                     {r.name}
                   </Link>
                   <span className="flex gap-1">
-                    {r.is_default ? <Badge family="success">{t("content.templates.isDefault")}</Badge> : null}
-                    {r.archived_at ? <Badge family="closed">{t("content.templates.archived")}</Badge> : null}
+                    {r.is_default ? (
+                      <Badge family="success">{t("content.templates.isDefault")}</Badge>
+                    ) : null}
+                    {r.archived_at ? (
+                      <Badge family="closed">{t("content.templates.archived")}</Badge>
+                    ) : null}
                   </span>
                 </div>
                 {r.description ? <p className="text-sm text-muted">{r.description}</p> : null}
@@ -77,7 +91,9 @@ export default async function BriefTemplatesPage({ searchParams }: { searchParam
                   <span className="text-xs text-muted">
                     {t("content.templates.updated", { date: formatDate(r.updated_at) })}
                   </span>
-                  {canWrite ? <TemplateArchiveButton id={r.id} archived={r.archived_at !== null} /> : null}
+                  {canWrite ? (
+                    <TemplateArchiveButton id={r.id} archived={r.archived_at !== null} />
+                  ) : null}
                 </div>
               </Card>
             </li>

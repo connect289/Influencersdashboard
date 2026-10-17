@@ -23,7 +23,10 @@ export default async function PresetsPage() {
   const presets = await loadPresets(supabase, true);
   return (
     <>
-      <Link href="/admin/deals" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link
+        href="/admin/deals"
+        className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+      >
         <ArrowLeft className="size-4" /> {t("nav.admin.deals")}
       </Link>
       <PageHeader
@@ -56,10 +59,15 @@ export default async function PresetsPage() {
               {presets.map((p) => (
                 <tr key={p.id} className={p.archived ? "opacity-60" : undefined}>
                   <Td>
-                    <Link href={`/admin/deals/presets/${p.id}`} className="font-medium text-primary hover:underline">
+                    <Link
+                      href={`/admin/deals/presets/${p.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
                       {p.name}
                     </Link>
-                    {p.description ? <span className="block text-xs text-muted">{p.description}</span> : null}
+                    {p.description ? (
+                      <span className="block text-xs text-muted">{p.description}</span>
+                    ) : null}
                   </Td>
                   <Td>{t(`deals.models.${p.deal_model}`)}</Td>
                   <Td>
@@ -68,7 +76,9 @@ export default async function PresetsPage() {
                     ) : (
                       <Badge>{t("deals.presets.custom")}</Badge>
                     )}
-                    {p.archived ? <Badge className="ml-1">{t("deals.presets.archivedBadge")}</Badge> : null}
+                    {p.archived ? (
+                      <Badge className="ml-1">{t("deals.presets.archivedBadge")}</Badge>
+                    ) : null}
                   </Td>
                   {canWrite ? (
                     <Td className="text-right">

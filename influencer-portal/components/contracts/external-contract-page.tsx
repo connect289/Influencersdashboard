@@ -4,7 +4,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
-import { CONTRACT_TABS, ContractStatusLine, ContractView } from "@/components/contracts/contract-view";
+import {
+  CONTRACT_TABS,
+  ContractStatusLine,
+  ContractView,
+} from "@/components/contracts/contract-view";
 import { PageHeader } from "@/components/ui/page-header";
 import { Banner } from "@/components/ui/states";
 import { loadContract } from "@/lib/contracts/data";
@@ -42,7 +46,10 @@ export async function ExternalContractPage({
           : null;
   return (
     <>
-      <Link href={b.href} className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link
+        href={b.href}
+        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+      >
         <ArrowLeft className="size-4" aria-hidden /> {b.label}
       </Link>
       <PageHeader title={c.deal.title} description={<ContractStatusLine c={c} />} />

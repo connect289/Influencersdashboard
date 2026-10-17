@@ -40,7 +40,10 @@ export default async function CreatorBriefsPage() {
                   <p className="font-medium">{b.deal_title}</p>
                   <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
                     <span>
-                      {t("content.brief.versionLine", { version: b.version, date: formatDate(b.published_at) })}
+                      {t("content.brief.versionLine", {
+                        version: b.version,
+                        date: formatDate(b.published_at),
+                      })}
                     </span>
                     {b.acknowledged ? (
                       <Badge family="success">{t("content.briefs.states.acknowledged")}</Badge>

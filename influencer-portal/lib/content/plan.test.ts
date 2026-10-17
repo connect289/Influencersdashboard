@@ -14,16 +14,24 @@ describe("planDeliverables", () => {
       "2026-11-01T00:00:00.000Z",
       template,
     );
-    expect(rows.map((r) => r.title)).toEqual(["Instagram reel 1", "Instagram reel 2", "YouTube video"]);
+    expect(rows.map((r) => r.title)).toEqual([
+      "Instagram reel 1",
+      "Instagram reel 2",
+      "YouTube video",
+    ]);
     expect(rows[0]?.specs).toEqual({ duration_s: 60, aspect_ratio: "9:16", notes: "" });
     expect(rows[2]?.specs).toEqual({ duration_s: 480, aspect_ratio: "16:9", notes: "" });
   });
 
   it("uses the template's stages and due offsets (end of the IST day)", () => {
-    const [r] = planDeliverables([{ platform: "instagram", format: "story", count: 1 }], "2026-11-01T00:00:00.000Z", {
-      ...template,
-      stages: { ...template.stages, concept: false },
-    });
+    const [r] = planDeliverables(
+      [{ platform: "instagram", format: "story", count: 1 }],
+      "2026-11-01T00:00:00.000Z",
+      {
+        ...template,
+        stages: { ...template.stages, concept: false },
+      },
+    );
     expect(r?.stages.concept).toBe(false);
     expect(r?.due_dates.concept).toBeUndefined();
     // 1 Nov 05:30 IST + 10 days → 11 Nov 23:59:59 IST.

@@ -60,7 +60,8 @@ export function BottomNav({
   const tabs = overflow ? links.slice(0, 4) : links;
   const rest = overflow ? links.slice(4) : [];
   const restActive = rest.some((l) => isActive(path, l.href));
-  const tab = "flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-xs text-muted";
+  const tab =
+    "flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-xs text-muted";
   return (
     <nav
       aria-label={label}

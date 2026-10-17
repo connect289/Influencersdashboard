@@ -30,11 +30,15 @@ export default async function AgencyHome() {
       <div className="flex flex-col gap-4">
         <Card>
           <CardHeader title={t("agencyPortal.creators")} />
-          {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
+          {error ? (
+            <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
+          ) : null}
           {!error && rows.length === 0 ? (
             <EmptyState
               title={t("agencyPortal.empty")}
-              description={me.isOwner ? t("agencyPortal.emptyOwner") : t("agencyPortal.emptyMember")}
+              description={
+                me.isOwner ? t("agencyPortal.emptyOwner") : t("agencyPortal.emptyMember")
+              }
             />
           ) : null}
           <ul className="flex flex-col divide-y divide-line">
@@ -76,7 +80,10 @@ export default async function AgencyHome() {
         </Card>
         {me.isOwner ? (
           <Card>
-            <CardHeader title={t("agencies.links.requestTitle")} description={t("agencies.links.requestHint")} />
+            <CardHeader
+              title={t("agencies.links.requestTitle")}
+              description={t("agencies.links.requestHint")}
+            />
             <LinkRequest agencyId={me.agencyId} />
           </Card>
         ) : null}

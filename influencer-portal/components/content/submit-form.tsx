@@ -11,7 +11,13 @@ import { submitWork } from "@/lib/actions/content";
 import { UploadField } from "./upload-field";
 import type { Uploaded } from "./uploader";
 
-export function SubmitForm({ deliverableId, kind }: { deliverableId: string; kind: "concept" | "draft" }) {
+export function SubmitForm({
+  deliverableId,
+  kind,
+}: {
+  deliverableId: string;
+  kind: "concept" | "draft";
+}) {
   const t = useTranslations();
   const router = useRouter();
   const { pending, run } = useAction();
@@ -38,8 +44,18 @@ export function SubmitForm({ deliverableId, kind }: { deliverableId: string; kin
         );
       }}
     >
-      <Field id="sub-body" label={t(`content.submit.body.${kind}`)} hint={t(`content.submit.bodyHint.${kind}`)}>
-        <Textarea id="sub-body" rows={6} maxLength={20000} value={body} onChange={(e) => setBody(e.target.value)} />
+      <Field
+        id="sub-body"
+        label={t(`content.submit.body.${kind}`)}
+        hint={t(`content.submit.bodyHint.${kind}`)}
+      >
+        <Textarea
+          id="sub-body"
+          rows={6}
+          maxLength={20000}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+        />
       </Field>
       <UploadField
         id="sub-files"
@@ -61,7 +77,12 @@ export function SubmitForm({ deliverableId, kind }: { deliverableId: string; kin
         />
       </Field>
       <Field id="sub-note" label={t("content.submit.note")}>
-        <Input id="sub-note" maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
+        <Input
+          id="sub-note"
+          maxLength={2000}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
       </Field>
       <Button type="submit" className="self-start" disabled={pending || busy || empty}>
         {t(`content.submit.send.${kind}`)}

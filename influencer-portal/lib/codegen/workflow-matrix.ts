@@ -3,7 +3,14 @@
 // action × stage-switch combination is checked: the file lists the allowed moves and pending stages, and the test
 // asserts the database answers exactly that set (nothing missing, nothing extra). Written by npm run gen:sql; a unit
 // test fails if it is stale.
-import { ACTIONS, DELIVERABLE_STATUSES, move, pendingStage, STAGES, type StageToggles } from "@/lib/content/workflow";
+import {
+  ACTIONS,
+  DELIVERABLE_STATUSES,
+  move,
+  pendingStage,
+  STAGES,
+  type StageToggles,
+} from "@/lib/content/workflow";
 
 const combos = (): { bits: number; t: StageToggles }[] =>
   Array.from({ length: 1 << STAGES.length }, (_, bits) => ({

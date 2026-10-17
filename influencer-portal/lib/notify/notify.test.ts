@@ -23,9 +23,11 @@ describe("email providers", () => {
 
   it("resend sends the idempotency key and returns the id", async () => {
     const seen: { url?: string; init?: RequestInit } = {};
-    const r = await new ResendEmailProvider("Eduwit <c@eduwit.in>", "re_key", fakeFetch(200, { id: "abc" }, seen)).send(
-      msg,
-    );
+    const r = await new ResendEmailProvider(
+      "Eduwit <c@eduwit.in>",
+      "re_key",
+      fakeFetch(200, { id: "abc" }, seen),
+    ).send(msg);
     expect(r.id).toBe("abc");
     expect(seen.url).toBe("https://api.resend.com/emails");
     expect((seen.init?.headers as Record<string, string>)["idempotency-key"]).toBe("k1");
@@ -33,7 +35,11 @@ describe("email providers", () => {
 
   it("brevo parses the sender and maps a 5xx to a retryable error", async () => {
     const seen: { url?: string; init?: RequestInit } = {};
-    await new BrevoEmailProvider("Eduwit <c@eduwit.in>", "key", fakeFetch(201, { messageId: "m1" }, seen)).send(msg);
+    await new BrevoEmailProvider(
+      "Eduwit <c@eduwit.in>",
+      "key",
+      fakeFetch(201, { messageId: "m1" }, seen),
+    ).send(msg);
     expect((JSON.parse(seen.init?.body as string) as { sender: unknown }).sender).toEqual({
       name: "Eduwit",
       email: "c@eduwit.in",
@@ -46,7 +52,9 @@ describe("email providers", () => {
   });
 
   it("a 4xx is not retryable", async () => {
-    const err = await new ResendEmailProvider("x", "k", fakeFetch(422, {}, {})).send(msg).catch((e: unknown) => e);
+    const err = await new ResendEmailProvider("x", "k", fakeFetch(422, {}, {}))
+      .send(msg)
+      .catch((e: unknown) => e);
     expect((err as ProviderError).retryable).toBe(false);
   });
 });
@@ -68,8 +76,11 @@ describe("whatsapp", () => {
     expect(r.id).toBe("wamid.1");
     expect(seen.url).toBe("https://graph.facebook.com/v21.0/123/messages");
     expect(
-      (JSON.parse(seen.init?.body as string) as { template: { components: { parameters: unknown[] }[] } }).template
-        .components[0]?.parameters,
+      (
+        JSON.parse(seen.init?.body as string) as {
+          template: { components: { parameters: unknown[] }[] };
+        }
+      ).template.components[0]?.parameters,
     ).toHaveLength(2);
   });
 

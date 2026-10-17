@@ -17,7 +17,15 @@ import { draftFromTerms, TermsForm, termsFromDraft } from "./terms";
  * Apply to an open campaign, or answer an invitation: accept the campaign's terms as offered, counter with your own,
  * or decline. Used by creators and by agencies with the "negotiate" grant.
  */
-export function ApplyPanel({ c, creatorId, appBase }: { c: CampaignPublic; creatorId: string; appBase: string }) {
+export function ApplyPanel({
+  c,
+  creatorId,
+  appBase,
+}: {
+  c: CampaignPublic;
+  creatorId: string;
+  appBase: string;
+}) {
   const t = useTranslations();
   const router = useRouter();
   const { pending, run } = useAction();
@@ -30,7 +38,9 @@ export function ApplyPanel({ c, creatorId, appBase }: { c: CampaignPublic; creat
     return (
       <Card>
         <CardHeader title={t("campaigns.apply.alreadyTitle")} />
-        <Button onClick={() => router.push(`${appBase}${c.application?.id ?? ""}`)}>{t("campaigns.apply.open")}</Button>
+        <Button onClick={() => router.push(`${appBase}${c.application?.id ?? ""}`)}>
+          {t("campaigns.apply.open")}
+        </Button>
       </Card>
     );
   if (!invited && c.gaps.length)
@@ -63,14 +73,30 @@ export function ApplyPanel({ c, creatorId, appBase }: { c: CampaignPublic; creat
     <Card>
       <CardHeader
         title={invited ? t("campaigns.apply.inviteTitle") : t("campaigns.apply.title")}
-        description={invited ? (c.invite?.message ?? t("campaigns.apply.inviteHint")) : t("campaigns.apply.hint")}
+        description={
+          invited
+            ? (c.invite?.message ?? t("campaigns.apply.inviteHint"))
+            : t("campaigns.apply.hint")
+        }
       />
       {invited ? (
-        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label={t("campaigns.apply.respond")}>
-          <Button variant={mode === "apply" ? "primary" : "secondary"} size="sm" onClick={() => setMode("apply")}>
+        <div
+          className="mb-4 flex flex-wrap gap-2"
+          role="group"
+          aria-label={t("campaigns.apply.respond")}
+        >
+          <Button
+            variant={mode === "apply" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setMode("apply")}
+          >
             {t("campaigns.apply.acceptInvite")}
           </Button>
-          <Button variant={mode === "counter" ? "primary" : "secondary"} size="sm" onClick={() => setMode("counter")}>
+          <Button
+            variant={mode === "counter" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setMode("counter")}
+          >
             {t("campaigns.apply.counterInvite")}
           </Button>
           <ConfirmDialog
@@ -102,11 +128,30 @@ export function ApplyPanel({ c, creatorId, appBase }: { c: CampaignPublic; creat
           submit(mode === "counter");
         }}
       >
-        <Field id="ap-pitch" label={t("campaigns.apply.pitch")} hint={t("campaigns.apply.pitchHint")}>
-          <Textarea id="ap-pitch" value={pitch} onChange={(e) => setPitch(e.target.value)} maxLength={4000} rows={4} />
+        <Field
+          id="ap-pitch"
+          label={t("campaigns.apply.pitch")}
+          hint={t("campaigns.apply.pitchHint")}
+        >
+          <Textarea
+            id="ap-pitch"
+            value={pitch}
+            onChange={(e) => setPitch(e.target.value)}
+            maxLength={4000}
+            rows={4}
+          />
         </Field>
-        <Field id="ap-samples" label={t("campaigns.apply.samples")} hint={t("campaigns.apply.samplesHint")}>
-          <Textarea id="ap-samples" value={samples} onChange={(e) => setSamples(e.target.value)} rows={2} />
+        <Field
+          id="ap-samples"
+          label={t("campaigns.apply.samples")}
+          hint={t("campaigns.apply.samplesHint")}
+        >
+          <Textarea
+            id="ap-samples"
+            value={samples}
+            onChange={(e) => setSamples(e.target.value)}
+            rows={2}
+          />
         </Field>
         <fieldset className="rounded-xl p-3 ring-1 ring-line ring-inset">
           <legend className="px-1 text-sm font-medium">{t("campaigns.apply.yourTerms")}</legend>

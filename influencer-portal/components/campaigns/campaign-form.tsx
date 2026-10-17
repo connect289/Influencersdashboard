@@ -10,7 +10,12 @@ import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { useAction } from "@/components/ui/use-action";
 import { saveCampaign, searchProgrammes, type ProgrammeHit } from "@/lib/actions/campaigns";
-import { OBJECTIVES, VISIBILITIES, type DeliverableItem, type Eligibility } from "@/lib/campaigns/schemas";
+import {
+  OBJECTIVES,
+  VISIBILITIES,
+  type DeliverableItem,
+  type Eligibility,
+} from "@/lib/campaigns/schemas";
 import { PLATFORMS, type Platform } from "@/lib/creators/schemas";
 import { formatRupees } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -65,7 +70,13 @@ const words = (v: string) =>
     .map((x) => x.trim())
     .filter(Boolean);
 
-function ProgrammePicker({ value, onChange }: { value: ProgrammeHit[]; onChange: (v: ProgrammeHit[]) => void }) {
+function ProgrammePicker({
+  value,
+  onChange,
+}: {
+  value: ProgrammeHit[];
+  onChange: (v: ProgrammeHit[]) => void;
+}) {
   const t = useTranslations();
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<ProgrammeHit[]>([]);
@@ -135,7 +146,9 @@ function ProgrammePicker({ value, onChange }: { value: ProgrammeHit[]; onChange:
                   onChange([...value, h]);
                   setQ("");
                 }}
-                className={cn("w-full px-3 py-2 text-left text-sm hover:bg-surface-2 disabled:opacity-50")}
+                className={cn(
+                  "w-full px-3 py-2 text-left text-sm hover:bg-surface-2 disabled:opacity-50",
+                )}
               >
                 <span className="font-medium">{h.program_name}</span>
                 {h.specialization ? ` (${h.specialization})` : ""}
@@ -178,7 +191,8 @@ export function CampaignForm({
   const [v, setV] = useState<CampaignFormValues>(initial);
   const set = <K extends keyof CampaignFormValues>(k: K, value: CampaignFormValues[K]) =>
     setV((x) => ({ ...x, [k]: value }));
-  const setRule = (patch: Partial<Eligibility>) => setV((x) => ({ ...x, eligibility: { ...x.eligibility, ...patch } }));
+  const setRule = (patch: Partial<Eligibility>) =>
+    setV((x) => ({ ...x, eligibility: { ...x.eligibility, ...patch } }));
   const togglePlatform = (p: Platform) => {
     const cur = v.eligibility.platforms ?? [];
     setRule({ platforms: cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p] });
@@ -202,7 +216,9 @@ export function CampaignForm({
               budgetRupees: v.budgetRupees === "" ? null : Number(v.budgetRupees),
               slots: v.slots === "" ? null : Number(v.slots),
               eligibility: Object.fromEntries(
-                Object.entries(v.eligibility).filter(([, x]) => !(Array.isArray(x) && x.length === 0)),
+                Object.entries(v.eligibility).filter(
+                  ([, x]) => !(Array.isArray(x) && x.length === 0),
+                ),
               ),
               deliverables: v.deliverables,
               compensationSummary: v.compensationSummary,
@@ -253,7 +269,9 @@ export function CampaignForm({
             <Select
               id="cf-visibility"
               value={v.visibility}
-              onChange={(e) => set("visibility", e.target.value as CampaignFormValues["visibility"])}
+              onChange={(e) =>
+                set("visibility", e.target.value as CampaignFormValues["visibility"])
+              }
             >
               {VISIBILITIES.map((o) => (
                 <option key={o} value={o}>
@@ -277,7 +295,11 @@ export function CampaignForm({
             />
           </Field>
           <Field id="cf-owner" label={t("creators.fields.owner")}>
-            <Select id="cf-owner" value={v.ownerId} onChange={(e) => set("ownerId", e.target.value)}>
+            <Select
+              id="cf-owner"
+              value={v.ownerId}
+              onChange={(e) => set("ownerId", e.target.value)}
+            >
               <option value="">{t("creators.fields.ownerMe")}</option>
               {owners.map((o) => (
                 <option key={o.id} value={o.id}>
@@ -289,22 +311,44 @@ export function CampaignForm({
         </div>
       </Card>
       <Card>
-        <CardHeader title={t("campaigns.fields.programmes")} description={t("campaigns.fields.programmesHint")} />
+        <CardHeader
+          title={t("campaigns.fields.programmes")}
+          description={t("campaigns.fields.programmesHint")}
+        />
         <ProgrammePicker value={v.programmes} onChange={(p) => set("programmes", p)} />
       </Card>
       <Card>
         <CardHeader title={t("campaigns.form.schedule")} />
         <div className="grid gap-4 md:grid-cols-3">
           <Field id="cf-start" label={t("campaigns.fields.startsOn")}>
-            <Input id="cf-start" type="date" value={v.startsOn} onChange={(e) => set("startsOn", e.target.value)} />
+            <Input
+              id="cf-start"
+              type="date"
+              value={v.startsOn}
+              onChange={(e) => set("startsOn", e.target.value)}
+            />
           </Field>
           <Field id="cf-end" label={t("campaigns.fields.endsOn")}>
-            <Input id="cf-end" type="date" value={v.endsOn} onChange={(e) => set("endsOn", e.target.value)} />
+            <Input
+              id="cf-end"
+              type="date"
+              value={v.endsOn}
+              onChange={(e) => set("endsOn", e.target.value)}
+            />
           </Field>
           <Field id="cf-apply" label={t("campaigns.fields.applyBy")}>
-            <Input id="cf-apply" type="date" value={v.applyBy} onChange={(e) => set("applyBy", e.target.value)} />
+            <Input
+              id="cf-apply"
+              type="date"
+              value={v.applyBy}
+              onChange={(e) => set("applyBy", e.target.value)}
+            />
           </Field>
-          <Field id="cf-budget" label={t("campaigns.fields.budget")} hint={t("campaigns.fields.budgetHint")}>
+          <Field
+            id="cf-budget"
+            label={t("campaigns.fields.budget")}
+            hint={t("campaigns.fields.budgetHint")}
+          >
             <Input
               id="cf-budget"
               type="number"
@@ -314,7 +358,11 @@ export function CampaignForm({
               onChange={(e) => set("budgetRupees", e.target.value)}
             />
           </Field>
-          <Field id="cf-slots" label={t("campaigns.fields.slots")} hint={t("campaigns.fields.slotsHint")}>
+          <Field
+            id="cf-slots"
+            label={t("campaigns.fields.slots")}
+            hint={t("campaigns.fields.slotsHint")}
+          >
             <Input
               id="cf-slots"
               type="number"
@@ -327,15 +375,26 @@ export function CampaignForm({
         </div>
       </Card>
       <Card>
-        <CardHeader title={t("campaigns.fields.deliverables")} description={t("campaigns.fields.deliverablesHint")} />
-        <DeliverablesEditor value={v.deliverables} onChange={(d) => set("deliverables", d)} idPrefix="cf-d" />
+        <CardHeader
+          title={t("campaigns.fields.deliverables")}
+          description={t("campaigns.fields.deliverablesHint")}
+        />
+        <DeliverablesEditor
+          value={v.deliverables}
+          onChange={(d) => set("deliverables", d)}
+          idPrefix="cf-d"
+        />
         <Field
           id="cf-preset"
           label={t("campaigns.fields.preset")}
           hint={t("campaigns.fields.presetHint")}
           className="mt-4"
         >
-          <Select id="cf-preset" value={v.presetId} onChange={(e) => set("presetId", e.target.value)}>
+          <Select
+            id="cf-preset"
+            value={v.presetId}
+            onChange={(e) => set("presetId", e.target.value)}
+          >
             <option value="">{t("campaigns.fields.presetByType")}</option>
             {presets.map((p) => (
               <option key={p.id} value={p.id}>
@@ -397,7 +456,10 @@ export function CampaignForm({
         </Field>
       </Card>
       <Card>
-        <CardHeader title={t("campaigns.form.eligibility")} description={t("campaigns.form.eligibilityHint")} />
+        <CardHeader
+          title={t("campaigns.form.eligibility")}
+          description={t("campaigns.form.eligibilityHint")}
+        />
         <div className="grid gap-4 md:grid-cols-2">
           <Field id="cf-minf" label={t("campaigns.eligibility.minFollowers")}>
             <Input
@@ -406,11 +468,15 @@ export function CampaignForm({
               min={0}
               inputMode="numeric"
               value={v.eligibility.min_followers ?? ""}
-              onChange={(e) => setRule({ min_followers: e.target.value ? Number(e.target.value) : undefined })}
+              onChange={(e) =>
+                setRule({ min_followers: e.target.value ? Number(e.target.value) : undefined })
+              }
             />
           </Field>
           <fieldset className="md:col-span-2">
-            <legend className="mb-1.5 text-sm font-medium">{t("campaigns.eligibility.platforms")}</legend>
+            <legend className="mb-1.5 text-sm font-medium">
+              {t("campaigns.eligibility.platforms")}
+            </legend>
             <div className="flex flex-wrap gap-1.5">
               {PLATFORMS.map((p) => {
                 const on = (v.eligibility.platforms ?? []).includes(p);
@@ -431,21 +497,33 @@ export function CampaignForm({
               })}
             </div>
           </fieldset>
-          <Field id="cf-niches" label={t("campaigns.eligibility.niches")} hint={t("profile.fields.listHint")}>
+          <Field
+            id="cf-niches"
+            label={t("campaigns.eligibility.niches")}
+            hint={t("profile.fields.listHint")}
+          >
             <Input
               id="cf-niches"
               defaultValue={(v.eligibility.niches ?? []).join(", ")}
               onBlur={(e) => setRule({ niches: words(e.target.value) })}
             />
           </Field>
-          <Field id="cf-langs" label={t("campaigns.eligibility.languages")} hint={t("profile.fields.listHint")}>
+          <Field
+            id="cf-langs"
+            label={t("campaigns.eligibility.languages")}
+            hint={t("profile.fields.listHint")}
+          >
             <Input
               id="cf-langs"
               defaultValue={(v.eligibility.languages ?? []).join(", ")}
               onBlur={(e) => setRule({ languages: words(e.target.value) })}
             />
           </Field>
-          <Field id="cf-states" label={t("campaigns.eligibility.states")} hint={t("profile.fields.listHint")}>
+          <Field
+            id="cf-states"
+            label={t("campaigns.eligibility.states")}
+            hint={t("profile.fields.listHint")}
+          >
             <Input
               id="cf-states"
               defaultValue={(v.eligibility.states ?? []).join(", ")}
@@ -455,7 +533,10 @@ export function CampaignForm({
         </div>
       </Card>
       <Card>
-        <CardHeader title={t("campaigns.fields.internalNotes")} description={t("campaigns.fields.internalNotesHint")} />
+        <CardHeader
+          title={t("campaigns.fields.internalNotes")}
+          description={t("campaigns.fields.internalNotesHint")}
+        />
         <Textarea
           aria-label={t("campaigns.fields.internalNotes")}
           value={v.internalNotes}

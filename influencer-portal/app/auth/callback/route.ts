@@ -18,9 +18,15 @@ export async function GET(request: NextRequest) {
   const to = (path: string) => NextResponse.redirect(new URL(path, env().NEXT_PUBLIC_SITE_URL));
   const code = params.get("code");
   const supabase = await createClient();
-  if (!code || (await supabase.auth.exchangeCodeForSession(code)).error) return to(`${login}?error=oauth`);
+  if (!code || (await supabase.auth.exchangeCodeForSession(code)).error)
+    return to(`${login}?error=oauth`);
 
-  const record = async (email: string, outcome: "ok" | "refused", reason: string | null, userId?: string) => {
+  const record = async (
+    email: string,
+    outcome: "ok" | "refused",
+    reason: string | null,
+    userId?: string,
+  ) => {
     await adminClient().rpc("sign_in_record", {
       p_email: email,
       p_portal: portal,
@@ -51,7 +57,8 @@ export async function GET(request: NextRequest) {
       await supabase.auth.signOut({ scope: "local" });
       return to("/login/staff");
     }
-    let kind: "creator" | "agency" | null = me.kind === "creator" || me.kind === "agency" ? me.kind : null;
+    let kind: "creator" | "agency" | null =
+      me.kind === "creator" || me.kind === "agency" ? me.kind : null;
     if (!kind) {
       kind = await linkPortalAccount(supabase);
       if (!kind) {

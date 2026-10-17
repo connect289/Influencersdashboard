@@ -33,7 +33,13 @@ export interface ApplicationDetail {
   accepted_terms: Partial<OfferTerms> | null;
   created_at: string;
   viewer_side: "creator" | "agency" | "eduwit" | "eduwit_readonly";
-  campaign: { id: string; name: string; status: string; compensation_summary: string | null; ends_on: string | null };
+  campaign: {
+    id: string;
+    name: string;
+    status: string;
+    compensation_summary: string | null;
+    ends_on: string | null;
+  };
   creator: { id: string; display_name: string; handle: string; followers: number };
   offers: {
     id: string;
@@ -71,11 +77,15 @@ export function ApplicationView({
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
       <div className="flex flex-col gap-4">
-        {app.status === "accepted" ? <Banner tone="success">{t("campaigns.application.acceptedBanner")}</Banner> : null}
+        {app.status === "accepted" ? (
+          <Banner tone="success">{t("campaigns.application.acceptedBanner")}</Banner>
+        ) : null}
         {app.status === "rejected" && app.rejection_reason ? (
           <Banner tone="danger">{app.rejection_reason}</Banner>
         ) : null}
-        {app.status === "withdrawn" ? <Banner>{t("campaigns.application.withdrawnBanner")}</Banner> : null}
+        {app.status === "withdrawn" ? (
+          <Banner>{t("campaigns.application.withdrawnBanner")}</Banner>
+        ) : null}
         {app.accepted_terms ? (
           <Card>
             <CardHeader title={t("campaigns.application.agreedTerms")} />
@@ -136,7 +146,10 @@ export function ApplicationView({
               {app.offers.map((o) => (
                 <li
                   key={o.id}
-                  className={cn("rounded-xl p-3 ring-1 ring-line ring-inset", o.status === "open" && "ring-primary")}
+                  className={cn(
+                    "rounded-xl p-3 ring-1 ring-line ring-inset",
+                    o.status === "open" && "ring-primary",
+                  )}
                 >
                   <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-medium">{t(`campaigns.offers.from.${o.from_side}`)}</span>
@@ -147,7 +160,9 @@ export function ApplicationView({
                     <span className="text-xs text-muted">{formatDateTime(o.created_at)}</span>
                   </div>
                   <TermsView terms={o.terms} />
-                  {o.message ? <p className="mt-2 text-sm whitespace-pre-line text-muted">“{o.message}”</p> : null}
+                  {o.message ? (
+                    <p className="mt-2 text-sm whitespace-pre-line text-muted">“{o.message}”</p>
+                  ) : null}
                   {canAct && o.status === "open" && o.from_side !== mySide ? (
                     <div className="mt-3">
                       <ConfirmDialog
@@ -184,8 +199,11 @@ export function ApplicationView({
                   )}
                 >
                   <p className="whitespace-pre-line">{m.body}</p>
-                  <p className={cn("mt-1 text-[11px]", m.mine ? "text-on-primary/80" : "text-muted")}>
-                    {t(`campaigns.application.sides.${m.author_side as "eduwit"}`)} · {formatDateTime(m.created_at)}
+                  <p
+                    className={cn("mt-1 text-[11px]", m.mine ? "text-on-primary/80" : "text-muted")}
+                  >
+                    {t(`campaigns.application.sides.${m.author_side as "eduwit"}`)} ·{" "}
+                    {formatDateTime(m.created_at)}
                   </p>
                 </li>
               ))}
@@ -233,7 +251,8 @@ export function ApplicationView({
             <div className="flex justify-between gap-3">
               <dt className="text-muted">{t("campaigns.application.creator")}</dt>
               <dd className="font-medium">
-                {app.creator.display_name} <span className="text-xs text-muted">@{app.creator.handle}</span>
+                {app.creator.display_name}{" "}
+                <span className="text-xs text-muted">@{app.creator.handle}</span>
               </dd>
             </div>
             <div className="flex justify-between gap-3">
@@ -274,7 +293,11 @@ export function ApplicationView({
             <CardHeader title={t("campaigns.application.actions")} />
             <div className="flex flex-col gap-2">
               {isEduwit && app.status !== "shortlisted" ? (
-                <Button variant="secondary" disabled={pending} onClick={() => run(() => shortlistApplication(app.id))}>
+                <Button
+                  variant="secondary"
+                  disabled={pending}
+                  onClick={() => run(() => shortlistApplication(app.id))}
+                >
                   {t("campaigns.review.shortlist")}
                 </Button>
               ) : null}
@@ -290,7 +313,11 @@ export function ApplicationView({
                 />
               ) : null}
               {isEduwit && templates.length ? (
-                <Field id="tmpl" label={t("campaigns.review.templates")} hint={t("campaigns.review.templatesHint")}>
+                <Field
+                  id="tmpl"
+                  label={t("campaigns.review.templates")}
+                  hint={t("campaigns.review.templatesHint")}
+                >
                   <Select id="tmpl" value={template} onChange={(e) => setTemplate(e.target.value)}>
                     <option value="">—</option>
                     {templates.map((x) => (
@@ -308,7 +335,9 @@ export function ApplicationView({
                   actionLabel={t("campaigns.review.rejectWithTemplate")}
                   pending={pending}
                   onConfirm={(_, close) => run(() => rejectApplication(app.id, template), close)}
-                  trigger={<Button variant="secondary">{t("campaigns.review.rejectWithTemplate")}</Button>}
+                  trigger={
+                    <Button variant="secondary">{t("campaigns.review.rejectWithTemplate")}</Button>
+                  }
                 />
               ) : null}
               {isCreatorSide ? (

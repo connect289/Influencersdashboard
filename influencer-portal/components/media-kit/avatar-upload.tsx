@@ -88,7 +88,12 @@ export function AvatarUpload({
           disabled={busy || pending}
           onClick={() => ref.current?.click()}
         >
-          <Camera /> {busy ? t("kyc.uploading") : current ? t("mediaKit.changeAvatar") : t("mediaKit.uploadAvatar")}
+          <Camera />{" "}
+          {busy
+            ? t("kyc.uploading")
+            : current
+              ? t("mediaKit.changeAvatar")
+              : t("mediaKit.uploadAvatar")}
         </Button>
         {current ? (
           <Button

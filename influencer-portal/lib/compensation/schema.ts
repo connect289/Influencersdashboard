@@ -104,7 +104,8 @@ export const fixedComponent = z
   })
   .superRefine((c, ctx) => {
     if (c.basis === "retainer") {
-      if (!c.retainer) ctx.addIssue({ code: "custom", path: ["retainer"], message: "retainer_required" });
+      if (!c.retainer)
+        ctx.addIssue({ code: "custom", path: ["retainer"], message: "retainer_required" });
       return;
     }
     if (c.milestones.length === 0) {
@@ -118,11 +119,19 @@ export const fixedComponent = z
     }
     const total = c.amount_paise * c.units;
     if (kinds.has("pct")) {
-      const bps = c.milestones.reduce((s, m) => s + (m.share.type === "pct" ? Math.round(m.share.pct * 100) : 0), 0);
-      if (bps !== 10_000) ctx.addIssue({ code: "custom", path: ["milestones"], message: "milestones_not_100" });
+      const bps = c.milestones.reduce(
+        (s, m) => s + (m.share.type === "pct" ? Math.round(m.share.pct * 100) : 0),
+        0,
+      );
+      if (bps !== 10_000)
+        ctx.addIssue({ code: "custom", path: ["milestones"], message: "milestones_not_100" });
     } else {
-      const amt = c.milestones.reduce((s, m) => s + (m.share.type === "amount" ? m.share.amount_paise : 0), 0);
-      if (amt !== total) ctx.addIssue({ code: "custom", path: ["milestones"], message: "milestones_not_total" });
+      const amt = c.milestones.reduce(
+        (s, m) => s + (m.share.type === "amount" ? m.share.amount_paise : 0),
+        0,
+      );
+      if (amt !== total)
+        ctx.addIssue({ code: "custom", path: ["milestones"], message: "milestones_not_total" });
     }
   });
 export type FixedComponent = z.infer<typeof fixedComponent>;
@@ -132,10 +141,22 @@ export type FixedComponent = z.infer<typeof fixedComponent>;
 // ---------------------------------------------------------------------------------------------------------------
 export const scope = z.discriminatedUnion("type", [
   z.object({ type: z.literal("all") }),
-  z.object({ type: z.literal("programmes"), ids: z.array(z.number().int().positive()).min(1).max(200) }),
-  z.object({ type: z.literal("universities"), ids: z.array(z.number().int().positive()).min(1).max(100) }),
-  z.object({ type: z.literal("levels"), levels: z.array(z.string().trim().min(1).max(20)).min(1).max(10) }),
-  z.object({ type: z.literal("links"), codes: z.array(z.string().trim().min(2).max(40)).min(1).max(100) }),
+  z.object({
+    type: z.literal("programmes"),
+    ids: z.array(z.number().int().positive()).min(1).max(200),
+  }),
+  z.object({
+    type: z.literal("universities"),
+    ids: z.array(z.number().int().positive()).min(1).max(100),
+  }),
+  z.object({
+    type: z.literal("levels"),
+    levels: z.array(z.string().trim().min(1).max(20)).min(1).max(10),
+  }),
+  z.object({
+    type: z.literal("links"),
+    codes: z.array(z.string().trim().min(2).max(40)).min(1).max(100),
+  }),
   z.object({ type: z.literal("deliverables"), ids: z.array(id).min(1).max(100) }),
 ]);
 export type Scope = z.infer<typeof scope>;
@@ -186,13 +207,18 @@ export const slabs = z
     tiers: z.array(tier).min(2).max(20),
   })
   .superRefine((s, ctx) => {
-    if (s.tiers[0]?.from !== 1) ctx.addIssue({ code: "custom", path: ["tiers"], message: "tiers_start_at_1" });
+    if (s.tiers[0]?.from !== 1)
+      ctx.addIssue({ code: "custom", path: ["tiers"], message: "tiers_start_at_1" });
     for (let i = 1; i < s.tiers.length; i++)
       if ((s.tiers[i]?.from ?? 0) <= (s.tiers[i - 1]?.from ?? 0))
         ctx.addIssue({ code: "custom", path: ["tiers", i, "from"], message: "tiers_ascending" });
   });
 
-export const CONFIRMATIONS = ["immediate", "after_hold_days", "on_eduwit_commission_received"] as const;
+export const CONFIRMATIONS = [
+  "immediate",
+  "after_hold_days",
+  "on_eduwit_commission_received",
+] as const;
 
 export const commissionRule = z
   .object({
@@ -327,7 +353,12 @@ export const penaltyRule = z.discriminatedUnion("type", [
       z.object({ type: z.literal("fixed"), amount_paise: paise }),
     ]),
   }),
-  z.object({ id, type: z.literal("disclosure"), label: z.string().trim().min(1).max(80), amount_paise: paise }),
+  z.object({
+    id,
+    type: z.literal("disclosure"),
+    label: z.string().trim().min(1).max(80),
+    amount_paise: paise,
+  }),
   z.object({
     id,
     type: z.literal("breach_clawback"),
@@ -356,7 +387,11 @@ export const additionalFee = z.object({
 });
 export type AdditionalFee = z.infer<typeof additionalFee>;
 
-export const nonCash = z.object({ id, label: z.string().trim().min(1).max(80), value_paise: paise });
+export const nonCash = z.object({
+  id,
+  label: z.string().trim().min(1).max(80),
+  value_paise: paise,
+});
 
 // ---------------------------------------------------------------------------------------------------------------
 // The document
@@ -392,19 +427,30 @@ export const compConfig = z
     if (c.recoupment.mode !== "none")
       for (const f of c.recoupment.fixed)
         if (!fixedIds.has(f))
-          ctx.addIssue({ code: "custom", path: ["recoupment", "fixed"], message: `unknown_fixed:${f}` });
+          ctx.addIssue({
+            code: "custom",
+            path: ["recoupment", "fixed"],
+            message: `unknown_fixed:${f}`,
+          });
     const commissionIds = new Set(c.commission.map((r) => r.id));
     for (const fl of c.floors)
       for (const r of fl.rules)
-        if (!commissionIds.has(r)) ctx.addIssue({ code: "custom", path: ["floors"], message: `unknown_rule:${r}` });
+        if (!commissionIds.has(r))
+          ctx.addIssue({ code: "custom", path: ["floors"], message: `unknown_rule:${r}` });
     if (c.recoupment.mode !== "none" && c.commission.length === 0)
-      ctx.addIssue({ code: "custom", path: ["recoupment"], message: "recoupment_needs_commission" });
+      ctx.addIssue({
+        code: "custom",
+        path: ["recoupment"],
+        message: "recoupment_needs_commission",
+      });
   });
 export type CompConfig = z.infer<typeof compConfig>;
 export type CompConfigInput = z.input<typeof compConfig>;
 
 /** What kind of deal this is, for lists and reports (generated column `deal_model`). */
-export function dealModel(c: CompConfig): "commission_only" | "fixed_only" | "hybrid" | "barter" | "custom" {
+export function dealModel(
+  c: CompConfig,
+): "commission_only" | "fixed_only" | "hybrid" | "barter" | "custom" {
   const hasFixed = c.fixed.length > 0;
   const hasCommission = c.commission.length > 0;
   if (hasFixed && hasCommission) return "hybrid";
@@ -419,7 +465,11 @@ export function fixedValue(c: CompConfig, only?: readonly string[]): number {
   return c.fixed
     .filter((f) => !only || only.length === 0 || only.includes(f.id))
     .reduce(
-      (s, f) => s + (f.basis === "retainer" ? f.amount_paise * (f.retainer?.periods ?? 0) : f.amount_paise * f.units),
+      (s, f) =>
+        s +
+        (f.basis === "retainer"
+          ? f.amount_paise * (f.retainer?.periods ?? 0)
+          : f.amount_paise * f.units),
       0,
     );
 }

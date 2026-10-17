@@ -27,7 +27,15 @@ export function EmptyState({
 }
 
 /** Filters matched nothing. */
-export function NoResults({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
+export function NoResults({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
   return <EmptyState title={title} description={description} action={action} icon={<SearchX />} />;
 }
 
@@ -84,7 +92,10 @@ export function Banner({
     success: "bg-success-soft text-success",
   } as const;
   return (
-    <div role={tone === "danger" ? "alert" : "status"} className={cn("rounded-xl px-3 py-2 text-sm", tones[tone])}>
+    <div
+      role={tone === "danger" ? "alert" : "status"}
+      className={cn("rounded-xl px-3 py-2 text-sm", tones[tone])}
+    >
       {children}
     </div>
   );

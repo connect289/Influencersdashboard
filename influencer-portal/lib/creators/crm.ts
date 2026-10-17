@@ -27,7 +27,15 @@ export const CREATOR_STATUSES = [
 ] as const;
 export type CreatorStatus = (typeof CREATOR_STATUSES)[number];
 
-export const OUTREACH_CHANNELS = ["call", "whatsapp", "instagram_dm", "email", "meeting", "note", "other"] as const;
+export const OUTREACH_CHANNELS = [
+  "call",
+  "whatsapp",
+  "instagram_dm",
+  "email",
+  "meeting",
+  "note",
+  "other",
+] as const;
 export const OUTREACH_OUTCOMES = [
   "no_response",
   "interested",
@@ -39,7 +47,14 @@ export const OUTREACH_OUTCOMES = [
   "info",
 ] as const;
 export const TASK_PRIORITIES = ["low", "normal", "high"] as const;
-export const SORT_KEYS = ["name", "followers", "updated", "last_activity", "stage", "follow_up"] as const;
+export const SORT_KEYS = [
+  "name",
+  "followers",
+  "updated",
+  "last_activity",
+  "stage",
+  "follow_up",
+] as const;
 export const PAGE_SIZES = [25, 50, 100] as const;
 
 const csvList = (v: unknown) =>
@@ -84,7 +99,10 @@ export const creatorFilterSchema = z.object({
   tag: optionalText(40).catch(undefined),
   follow_up: z.enum(["overdue", "today"]).optional().catch(undefined),
   /** Creators with an open deal of this type (proposed, negotiating, agreed or active). */
-  deal_model: z.enum(["commission_only", "fixed_only", "hybrid", "barter", "custom"]).optional().catch(undefined),
+  deal_model: z
+    .enum(["commission_only", "fixed_only", "hybrid", "barter", "custom"])
+    .optional()
+    .catch(undefined),
   include_blocked: z
     .enum(["1"])
     .optional()
@@ -104,8 +122,12 @@ export type CreatorFilters = z.output<typeof creatorFilterSchema>;
 /** Keys that are view state (paging, sorting, layout), not filters. */
 const NON_FILTER_KEYS = new Set(["sort", "dir", "page", "page_size"]);
 
-export function parseCreatorFilters(sp: Record<string, string | string[] | undefined>): CreatorFilters {
-  const flat = Object.fromEntries(Object.entries(sp).map(([k, v]) => [k, Array.isArray(v) ? v.join(",") : v]));
+export function parseCreatorFilters(
+  sp: Record<string, string | string[] | undefined>,
+): CreatorFilters {
+  const flat = Object.fromEntries(
+    Object.entries(sp).map(([k, v]) => [k, Array.isArray(v) ? v.join(",") : v]),
+  );
   return creatorFilterSchema.parse(flat);
 }
 
@@ -128,14 +150,20 @@ export function creatorFiltersToQuery(
 /** How many filters are active (for the "Filters (3)" badge). */
 export function activeFilterCount(f: CreatorFilters): number {
   return Object.entries(f).filter(
-    ([k, v]) => !NON_FILTER_KEYS.has(k) && k !== "q" && v !== undefined && !(Array.isArray(v) && v.length === 0),
+    ([k, v]) =>
+      !NON_FILTER_KEYS.has(k) &&
+      k !== "q" &&
+      v !== undefined &&
+      !(Array.isArray(v) && v.length === 0),
   ).length;
 }
 
 /** The filters to store in a saved view (no paging). */
 export function filtersForView(f: CreatorFilters): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(f).filter(([k, v]) => k !== "page" && v !== undefined && !(Array.isArray(v) && v.length === 0)),
+    Object.entries(f).filter(
+      ([k, v]) => k !== "page" && v !== undefined && !(Array.isArray(v) && v.length === 0),
+    ),
   );
 }
 
@@ -296,7 +324,10 @@ export const IMPORT_FIELDS = [
 ] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 
-export function mapHeaders(headers: string[]): { map: (ImportField | null)[]; missing: ImportField[] } {
+export function mapHeaders(headers: string[]): {
+  map: (ImportField | null)[];
+  missing: ImportField[];
+} {
   const map = headers.map((h) => HEADER_ALIASES[h.toLowerCase().replace(/[\s_-]+/g, "")] ?? null);
   const missing = (["display_name", "handle"] as const).filter((f) => !map.includes(f));
   return { map, missing };
@@ -353,7 +384,10 @@ export const importRow = z
       .refine((v) => v === "" || /^\d{1,11}$/.test(v), "followers"),
     source: z.string().trim().max(80, "source"),
   })
-  .refine((r) => (r.platform === "") === (r.platform_url === ""), { message: "platform_pair", path: ["platform"] });
+  .refine((r) => (r.platform === "") === (r.platform_url === ""), {
+    message: "platform_pair",
+    path: ["platform"],
+  });
 export type ImportRow = z.output<typeof importRow>;
 
 export interface ImportPrepared {
@@ -367,7 +401,10 @@ export function prepareImport(headers: string[], rows: string[][]): ImportPrepar
   const valid: ImportPrepared["valid"] = [];
   const invalid: ImportPrepared["invalid"] = [];
   rows.forEach((cells, i) => {
-    const raw = Object.fromEntries(IMPORT_FIELDS.map((f) => [f, ""])) as Record<ImportField, string>;
+    const raw = Object.fromEntries(IMPORT_FIELDS.map((f) => [f, ""])) as Record<
+      ImportField,
+      string
+    >;
     map.forEach((field, col) => {
       if (field) raw[field] = cells[col] ?? "";
     });

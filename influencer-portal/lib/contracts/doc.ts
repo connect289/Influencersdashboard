@@ -14,7 +14,9 @@ const text = z.object({
     .max(3)
     .optional(),
 });
-const hardBreak = z.object({ type: z.literal("hardBreak") }).transform(() => ({ type: "hardBreak" as const }));
+const hardBreak = z
+  .object({ type: z.literal("hardBreak") })
+  .transform(() => ({ type: "hardBreak" as const }));
 export const inline = z.union([text, hardBreak]);
 export type Inline = z.infer<typeof inline>;
 
@@ -31,7 +33,10 @@ export type ListItem = {
   content: Block[];
 };
 
-const paragraph = z.object({ type: z.literal("paragraph"), content: z.array(inline).max(500).optional() });
+const paragraph = z.object({
+  type: z.literal("paragraph"),
+  content: z.array(inline).max(500).optional(),
+});
 const heading = z.object({
   type: z.literal("heading"),
   attrs: z
@@ -43,7 +48,10 @@ const heading = z.object({
 /** Editor blocks (no tables). Lists nest up to the editor's practical depth. */
 export const editorBlock: z.ZodType<Block> = z.lazy(() =>
   z.union([
-    paragraph.transform((p) => ({ type: "paragraph" as const, ...(p.content ? { content: p.content } : {}) })),
+    paragraph.transform((p) => ({
+      type: "paragraph" as const,
+      ...(p.content ? { content: p.content } : {}),
+    })),
     heading.transform((h) => ({
       type: "heading" as const,
       attrs: h.attrs,
@@ -94,7 +102,10 @@ export function docFromText(source: string): RichDoc {
       flush();
       continue;
     }
-    const para = (s: string): Block => ({ type: "paragraph", content: [{ type: "text", text: s }] });
+    const para = (s: string): Block => ({
+      type: "paragraph",
+      content: [{ type: "text", text: s }],
+    });
     if (line.startsWith("- ")) bullets.push({ type: "listItem", content: [para(line.slice(2))] });
     else {
       flush();
@@ -119,7 +130,10 @@ export function plainText(blocks: readonly Block[]): string {
       else if (b.type === "table") {
         out.push(b.head.join(" | "));
         for (const r of b.rows) out.push(r.join(" | "));
-      } else b.content.forEach((li, i) => walk(li.content, b.type === "orderedList" ? `${String(i + 1)}. ` : "• "));
+      } else
+        b.content.forEach((li, i) =>
+          walk(li.content, b.type === "orderedList" ? `${String(i + 1)}. ` : "• "),
+        );
     }
   };
   walk(blocks, "");

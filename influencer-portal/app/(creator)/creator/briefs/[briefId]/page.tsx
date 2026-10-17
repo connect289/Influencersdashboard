@@ -7,7 +7,11 @@ export async function generateMetadata() {
   return { title: t("nav.creator.briefs") };
 }
 
-export default async function CreatorBriefPage({ params }: { params: Promise<{ briefId: string }> }) {
+export default async function CreatorBriefPage({
+  params,
+}: {
+  params: Promise<{ briefId: string }>;
+}) {
   const { briefId } = await params;
   const { supabase } = await requireCreator();
   const t = await getTranslations();

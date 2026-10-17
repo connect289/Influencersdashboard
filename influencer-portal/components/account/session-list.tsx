@@ -81,7 +81,9 @@ export function SessionList({ sessions }: { sessions: SessionRow[] }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">
                   {d.name || t("account.sessions.unknownDevice")}{" "}
-                  {s.is_current ? <Badge family="success">{t("account.sessions.thisDevice")}</Badge> : null}
+                  {s.is_current ? (
+                    <Badge family="success">{t("account.sessions.thisDevice")}</Badge>
+                  ) : null}
                 </p>
                 <p className="text-xs text-muted">
                   <time dateTime={s.last_seen_at} title={formatDateTime(s.last_seen_at)}>
@@ -105,7 +107,12 @@ export function SessionList({ sessions }: { sessions: SessionRow[] }) {
         })}
       </ul>
       {live.length > 1 ? (
-        <Button variant="secondary" disabled={pending} onClick={() => run(revokeOtherSessions)} className="self-start">
+        <Button
+          variant="secondary"
+          disabled={pending}
+          onClick={() => run(revokeOtherSessions)}
+          className="self-start"
+        >
           {t("account.sessions.signOutOthers")}
         </Button>
       ) : null}
@@ -116,7 +123,8 @@ export function SessionList({ sessions }: { sessions: SessionRow[] }) {
 export function DeviceList({ devices }: { devices: DeviceRow[] }) {
   const t = useTranslations();
   const { pending, run } = useRunner();
-  if (devices.length === 0) return <p className="text-sm text-muted">{t("account.devices.none")}</p>;
+  if (devices.length === 0)
+    return <p className="text-sm text-muted">{t("account.devices.none")}</p>;
   return (
     <ul className="divide-y divide-line">
       {devices.map((d) => (
@@ -129,7 +137,12 @@ export function DeviceList({ devices }: { devices: DeviceRow[] }) {
               {t("account.devices.trustedUntil", { date: formatDateTime(d.expires_at) })}
             </p>
           </div>
-          <Button variant="secondary" size="sm" disabled={pending} onClick={() => run(() => revokeDevice(d.id))}>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={pending}
+            onClick={() => run(() => revokeDevice(d.id))}
+          >
             {t("account.devices.forget")}
           </Button>
         </li>

@@ -117,8 +117,13 @@ export const presetSchema = z.object({
 });
 export type Preset = z.infer<typeof presetSchema>;
 
-export async function loadPresets(supabase: ServerSupabase, includeArchived = false): Promise<Preset[]> {
-  const { data, error } = await supabase.rpc("deal_presets_list", { p_include_archived: includeArchived });
+export async function loadPresets(
+  supabase: ServerSupabase,
+  includeArchived = false,
+): Promise<Preset[]> {
+  const { data, error } = await supabase.rpc("deal_presets_list", {
+    p_include_archived: includeArchived,
+  });
   if (error) throw new Error(error.message);
   return z.array(presetSchema).parse(data);
 }
@@ -159,7 +164,10 @@ export async function loadTdsSections(
   const { data, error } = await supabase.rpc("tds_sections_list");
   if (error) throw new Error(error.message);
   const rows = z.array(sectionSchema).parse(data);
-  return { sections: rows.map(({ confirmed_by_ca: _c, ...s }) => s), confirmed: rows.every((r) => r.confirmed_by_ca) };
+  return {
+    sections: rows.map(({ confirmed_by_ca: _c, ...s }) => s),
+    confirmed: rows.every((r) => r.confirmed_by_ca),
+  };
 }
 
 /**
@@ -168,7 +176,9 @@ export async function loadTdsSections(
  */
 export async function commissionEstimate(campaignId: string | null): Promise<number | null> {
   if (!campaignId) return null;
-  const { data, error } = await adminClient().rpc("commission_estimate", { p_campaign: campaignId });
+  const { data, error } = await adminClient().rpc("commission_estimate", {
+    p_campaign: campaignId,
+  });
   if (error) throw new Error(error.message);
   return data;
 }
@@ -180,7 +190,9 @@ export async function loadMyDeals(supabase: ServerSupabase, creatorId: string): 
 }
 
 /** Active presets as picker options; empty for staff who cannot read deals. */
-export async function presetOptions(supabase: ServerSupabase): Promise<{ id: string; name: string }[]> {
+export async function presetOptions(
+  supabase: ServerSupabase,
+): Promise<{ id: string; name: string }[]> {
   const { data } = await supabase.rpc("deal_presets_list", { p_include_archived: false });
   return z
     .array(z.object({ id: z.uuid(), name: z.string() }))

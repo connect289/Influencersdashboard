@@ -15,11 +15,16 @@ export async function generateMetadata() {
   return { title: t("nav.admin.tasks") };
 }
 
-export default async function TasksPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
+export default async function TasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ show?: string }>;
+}) {
   const { supabase, me } = await requireStaff();
   const t = await getTranslations();
   const show = (await searchParams).show;
-  const scope = show === "all" && me.permissions.has("task.write") ? "all" : show === "done" ? "done" : "mine";
+  const scope =
+    show === "all" && me.permissions.has("task.write") ? "all" : show === "done" ? "done" : "mine";
   const canWrite = me.permissions.has("task.write");
   const [tasks, pickers, follow] = await Promise.all([
     loadTasks(supabase, {
@@ -50,7 +55,9 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
                 aria-current={scope === tab.key ? "page" : undefined}
                 className={cn(
                   "rounded-lg px-3 py-1.5 text-sm",
-                  scope === tab.key ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
+                  scope === tab.key
+                    ? "bg-primary-soft font-medium text-primary"
+                    : "text-muted hover:bg-surface-2",
                 )}
               >
                 {tab.label}
@@ -60,10 +67,16 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
           {tasks.error ? (
             <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
           ) : (
-            <TaskList tasks={tasks.tasks} owners={pickers.owners} canWrite={canWrite && scope !== "done"} />
+            <TaskList
+              tasks={tasks.tasks}
+              owners={pickers.owners}
+              canWrite={canWrite && scope !== "done"}
+            />
           )}
         </Card>
-        {follow.data ? <FollowUpsWidget items={follow.data} scope={scope === "all" ? "all" : "mine"} /> : null}
+        {follow.data ? (
+          <FollowUpsWidget items={follow.data} scope={scope === "all" ? "all" : "mine"} />
+        ) : null}
       </div>
     </>
   );

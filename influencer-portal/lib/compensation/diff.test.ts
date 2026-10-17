@@ -48,7 +48,10 @@ describe("diffLedger", () => {
   });
 
   it("reverses and re-posts a changed amount, or confirmation going backwards", () => {
-    const d = diffLedger([line("a", 150), line("b", 100, 0)], [posted("a", 100), posted("b", 100, 100)]);
+    const d = diffLedger(
+      [line("a", 150), line("b", 100, 0)],
+      [posted("a", 100), posted("b", 100, 100)],
+    );
     expect(d.reverse).toEqual([
       { key: "a", reason: "changed" },
       { key: "b", reason: "changed" },
@@ -71,7 +74,9 @@ describe("diffLedger", () => {
     const d = diffLedger([line("a", 175)], history);
     expect(d.reverse).toEqual([{ key: "a~2", reason: "changed" }]);
     expect(d.create.map((l) => l.key)).toEqual(["a~3"]);
-    expect(diffLedger([line("a", 175)], [posted("a", 100, 100, true)]).create.map((l) => l.key)).toEqual(["a~2"]);
+    expect(
+      diffLedger([line("a", 175)], [posted("a", 100, 100, true)]).create.map((l) => l.key),
+    ).toEqual(["a~2"]);
   });
 
   it("baseKey strips the re-post suffix", () => {

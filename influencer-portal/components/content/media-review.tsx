@@ -56,7 +56,10 @@ function ImageAnnotator({
   return (
     <div
       ref={box}
-      className={cn("relative inline-block max-w-full touch-none select-none", enabled && "cursor-crosshair")}
+      className={cn(
+        "relative inline-block max-w-full touch-none select-none",
+        enabled && "cursor-crosshair",
+      )}
       onPointerDown={(e) => {
         if (!enabled) return;
         (e.target as Element).setPointerCapture(e.pointerId);
@@ -82,23 +85,34 @@ function ImageAnnotator({
       {/* Signed storage URLs: next/image would proxy and cache private files. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt={alt} className="max-h-[70vh] max-w-full rounded-lg" draggable={false} />
-      {[...regions, ...(draft && draft.file === index ? [{ id: "draft", n: 0, r: draft }] : [])].map(({ id, n, r }) => (
+      {[
+        ...regions,
+        ...(draft && draft.file === index ? [{ id: "draft", n: 0, r: draft }] : []),
+      ].map(({ id, n, r }) => (
         <span
           key={id}
           aria-hidden
           className={cn(
             "pointer-events-none absolute rounded border-2",
-            id === "draft" ? "border-accent" : id === active ? "border-primary bg-primary/15" : "border-primary/70",
+            id === "draft"
+              ? "border-accent"
+              : id === active
+                ? "border-primary bg-primary/15"
+                : "border-primary/70",
             r.w === 0 && r.h === 0 && "size-3 -translate-x-1/2 -translate-y-1/2 rounded-full",
           )}
           style={{
             left: `${String(r.x * 100)}%`,
             top: `${String(r.y * 100)}%`,
-            ...(r.w || r.h ? { width: `${String(r.w * 100)}%`, height: `${String(r.h * 100)}%` } : {}),
+            ...(r.w || r.h
+              ? { width: `${String(r.w * 100)}%`, height: `${String(r.h * 100)}%` }
+              : {}),
           }}
         >
           {n ? (
-            <span className="absolute -top-5 -left-0.5 rounded bg-primary px-1 text-[10px] text-on-primary">{n}</span>
+            <span className="absolute -top-5 -left-0.5 rounded bg-primary px-1 text-[10px] text-on-primary">
+              {n}
+            </span>
           ) : null}
         </span>
       ))}
@@ -160,7 +174,9 @@ export function MediaReview({
         </a>
       ) : null}
       {submission.creator_note ? (
-        <p className="text-sm text-muted">{t("content.review.creatorNote", { note: submission.creator_note })}</p>
+        <p className="text-sm text-muted">
+          {t("content.review.creatorNote", { note: submission.creator_note })}
+        </p>
       ) : null}
       {files.map((f, i) => {
         const url = links[f.path];
@@ -170,7 +186,10 @@ export function MediaReview({
               {fileIcon(f.type)} {f.name}
             </p>
           );
-        if (f.type.startsWith("video/") && files.findIndex((x) => x.type.startsWith("video/")) === i)
+        if (
+          f.type.startsWith("video/") &&
+          files.findIndex((x) => x.type.startsWith("video/")) === i
+        )
           return (
             <video
               key={f.path}
@@ -213,7 +232,9 @@ export function MediaReview({
 
       <section className="flex flex-col gap-2" aria-label={t("content.comments.title")}>
         <h3 className="text-sm font-semibold">{t("content.comments.title")}</h3>
-        {roots.length === 0 ? <p className="text-sm text-muted">{t("content.comments.empty")}</p> : null}
+        {roots.length === 0 ? (
+          <p className="text-sm text-muted">{t("content.comments.empty")}</p>
+        ) : null}
         <ul className="flex flex-col gap-2">
           {roots.map((c) => {
             const n = numbered.find((x) => x.id === c.id)?.n;
@@ -235,7 +256,8 @@ export function MediaReview({
                       className="inline-flex items-center gap-1 text-primary hover:underline"
                       onClick={() => jump(c)}
                     >
-                      <Clock className="size-3" aria-hidden /> {formatTimestamp(c.video_timestamp_ms)}
+                      <Clock className="size-3" aria-hidden />{" "}
+                      {formatTimestamp(c.video_timestamp_ms)}
                     </button>
                   ) : null}
                   {n ? (
@@ -247,7 +269,9 @@ export function MediaReview({
                       <MapPin className="size-3" aria-hidden /> {t("content.comments.area", { n })}
                     </button>
                   ) : null}
-                  {c.resolved ? <Badge family="success">{t("content.comments.resolved")}</Badge> : null}
+                  {c.resolved ? (
+                    <Badge family="success">{t("content.comments.resolved")}</Badge>
+                  ) : null}
                 </div>
                 <p className="whitespace-pre-line">{c.body}</p>
                 {comments
@@ -296,7 +320,12 @@ export function MediaReview({
                       e.preventDefault();
                       run(
                         () =>
-                          addReviewComment({ deliverableId, submissionId: submission.id, body: reply, parentId: c.id }),
+                          addReviewComment({
+                            deliverableId,
+                            submissionId: submission.id,
+                            body: reply,
+                            parentId: c.id,
+                          }),
                         () => {
                           setReply("");
                           setReplyTo(null);
@@ -312,7 +341,12 @@ export function MediaReview({
                       value={reply}
                       onChange={(e) => setReply(e.target.value)}
                     />
-                    <Button type="submit" size="sm" className="self-end" disabled={pending || !reply.trim()}>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className="self-end"
+                      disabled={pending || !reply.trim()}
+                    >
                       {t("content.qa.reply")}
                     </Button>
                   </form>
@@ -326,7 +360,8 @@ export function MediaReview({
             className="flex flex-col gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              const ms = atTime && video.current ? Math.round(video.current.currentTime * 1000) : null;
+              const ms =
+                atTime && video.current ? Math.round(video.current.currentTime * 1000) : null;
               run(
                 () =>
                   addReviewComment({
@@ -335,7 +370,8 @@ export function MediaReview({
                     body,
                     timestampMs: ms,
                     region:
-                      region && (region.w > 0.005 || region.h > 0.005 || (region.w === 0 && region.h === 0))
+                      region &&
+                      (region.w > 0.005 || region.h > 0.005 || (region.w === 0 && region.h === 0))
                         ? region
                         : null,
                   }),
@@ -370,14 +406,25 @@ export function MediaReview({
               {region ? (
                 <span className="inline-flex items-center gap-1 text-accent-ink">
                   <MapPin className="size-3.5" aria-hidden /> {t("content.comments.areaMarked")}
-                  <Button type="button" variant="link" size="sm" className="px-1" onClick={() => setRegion(null)}>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="px-1"
+                    onClick={() => setRegion(null)}
+                  >
                     {t("common.clear")}
                   </Button>
                 </span>
               ) : files.some((f) => f.type.startsWith("image/")) ? (
                 <span className="text-xs text-muted">{t("content.comments.dragHint")}</span>
               ) : null}
-              <Button type="submit" size="sm" className="ml-auto" disabled={pending || !body.trim()}>
+              <Button
+                type="submit"
+                size="sm"
+                className="ml-auto"
+                disabled={pending || !body.trim()}
+              >
                 {t("content.comments.add")}
               </Button>
             </div>

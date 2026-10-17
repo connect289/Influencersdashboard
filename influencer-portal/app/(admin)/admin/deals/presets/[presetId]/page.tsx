@@ -41,7 +41,10 @@ export default async function PresetPage({
   const today = istToday();
 
   const header = (
-    <Link href="/admin/deals/presets" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+    <Link
+      href="/admin/deals/presets"
+      className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+    >
       <ArrowLeft className="size-4" /> {t("deals.presets.title")}
     </Link>
   );
@@ -56,7 +59,9 @@ export default async function PresetPage({
           actions={
             canWrite ? (
               <Button asChild variant="secondary">
-                <Link href={`/admin/deals/presets/new?from=${preset.id}`}>{t("deals.presets.copy")}</Link>
+                <Link href={`/admin/deals/presets/new?from=${preset.id}`}>
+                  {t("deals.presets.copy")}
+                </Link>
               </Button>
             ) : null
           }
@@ -69,11 +74,15 @@ export default async function PresetPage({
   }
 
   const [ctx, tds] = await Promise.all([loadCompContext(supabase), loadTdsSections(supabase)]);
-  const initial = preset?.comp_config ?? source?.comp_config ?? SYSTEM_PRESETS.fixed_plus_commission.config;
+  const initial =
+    preset?.comp_config ?? source?.comp_config ?? SYSTEM_PRESETS.fixed_plus_commission.config;
   return (
     <>
       {header}
-      <PageHeader title={preset ? preset.name : t("deals.presets.new")} description={t("deals.presets.editorHint")} />
+      <PageHeader
+        title={preset ? preset.name : t("deals.presets.new")}
+        description={t("deals.presets.editorHint")}
+      />
       <TermsEditor
         initial={initial}
         target={{

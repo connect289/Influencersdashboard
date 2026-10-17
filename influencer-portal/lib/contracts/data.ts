@@ -55,7 +55,9 @@ export const libraryClause = z.object({
 export type LibraryClause = z.infer<typeof libraryClause>;
 
 export async function loadLibrary(supabase: Db, includeArchived = false): Promise<LibraryClause[]> {
-  const { data, error } = await supabase.rpc("clause_library", { p_include_archived: includeArchived });
+  const { data, error } = await supabase.rpc("clause_library", {
+    p_include_archived: includeArchived,
+  });
   if (error) throw new Error(error.message);
   return z.array(libraryClause).parse(data);
 }
@@ -88,7 +90,10 @@ export async function loadTemplate(supabase: Db, id: string): Promise<TemplateSo
 // Building a version
 // ---------------------------------------------------------------------------------------------------------------
 
-export async function loadContractSource(supabase: Db, dealId: string): Promise<ContractSource | null> {
+export async function loadContractSource(
+  supabase: Db,
+  dealId: string,
+): Promise<ContractSource | null> {
   const { data, error } = await supabase.rpc("contract_source", { p_deal: dealId });
   if (error) throw new Error(error.message);
   return data === null ? null : contractSource.parse(data);
@@ -228,7 +233,12 @@ export async function loadVersionContent(
   if (error) throw new Error(error.message);
   if (!data) return null;
   const v = z
-    .object({ html: z.string(), sha256: z.string(), computed_sha256: z.string(), content: contractContent })
+    .object({
+      html: z.string(),
+      sha256: z.string(),
+      computed_sha256: z.string(),
+      content: contractContent,
+    })
     .parse(data);
   return { content: v.content, html: v.html, sha256: v.sha256, computed: v.computed_sha256 };
 }
@@ -256,7 +266,9 @@ export async function loadMyContracts(supabase: Db, creatorId: string): Promise<
 }
 
 /** Active templates for pickers (campaign builder, contract generation). Empty for people who cannot read them. */
-export async function templateOptions(supabase: Db): Promise<{ id: string; name: string; is_default: boolean }[]> {
+export async function templateOptions(
+  supabase: Db,
+): Promise<{ id: string; name: string; is_default: boolean }[]> {
   const { data } = await supabase
     .from("contract_templates")
     .select("id, name, is_default")

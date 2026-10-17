@@ -8,7 +8,11 @@ export async function generateMetadata() {
 }
 
 /** A managed creator's deliverable (agencies with the "act on deliverables" grant). */
-export default async function AgencyDeliverablePage({ params }: { params: Promise<{ deliverableId: string }> }) {
+export default async function AgencyDeliverablePage({
+  params,
+}: {
+  params: Promise<{ deliverableId: string }>;
+}) {
   const { deliverableId } = await params;
   const { supabase } = await requireAgency();
   return (

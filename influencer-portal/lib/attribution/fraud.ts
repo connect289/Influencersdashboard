@@ -3,7 +3,13 @@
 // attribution on hold as "fraud suspected"; creator signals (velocity, off-hours bursts, a high junk rate) open a flag
 // on the creator for review. Pure.
 
-export const FRAUD_SIGNALS = ["velocity", "same_device", "no_witty_reply", "off_hours_burst", "junk_rate"] as const;
+export const FRAUD_SIGNALS = [
+  "velocity",
+  "same_device",
+  "no_witty_reply",
+  "off_hours_burst",
+  "junk_rate",
+] as const;
 export type FraudSignal = (typeof FRAUD_SIGNALS)[number];
 export const LEAD_SIGNALS: readonly FraudSignal[] = ["same_device", "no_witty_reply"];
 
@@ -44,7 +50,10 @@ export interface Signal {
 export function leadSignals(f: LeadFraudFacts, s: FraudSettings): Signal[] {
   const out: Signal[] = [];
   if (f.same_device_leads > s.same_device_max_leads)
-    out.push({ signal: "same_device", detail: { leads: f.same_device_leads, max: s.same_device_max_leads } });
+    out.push({
+      signal: "same_device",
+      detail: { leads: f.same_device_leads, max: s.same_device_max_leads },
+    });
   if (f.student_replied === false && f.age_hours >= s.no_witty_reply_hours)
     out.push({
       signal: "no_witty_reply",
@@ -56,13 +65,22 @@ export function leadSignals(f: LeadFraudFacts, s: FraudSettings): Signal[] {
 export function creatorSignals(f: CreatorFraudFacts, s: FraudSettings): Signal[] {
   const out: Signal[] = [];
   if (f.leads_last_hour > s.velocity_leads_per_hour)
-    out.push({ signal: "velocity", detail: { leads: f.leads_last_hour, max: s.velocity_leads_per_hour } });
+    out.push({
+      signal: "velocity",
+      detail: { leads: f.leads_last_hour, max: s.velocity_leads_per_hour },
+    });
   if (f.off_hours_leads_24h >= s.off_hours_burst)
-    out.push({ signal: "off_hours_burst", detail: { leads: f.off_hours_leads_24h, threshold: s.off_hours_burst } });
+    out.push({
+      signal: "off_hours_burst",
+      detail: { leads: f.off_hours_leads_24h, threshold: s.off_hours_burst },
+    });
   if (f.closed_30d >= s.min_sample) {
     const pct = Math.round((f.junk_30d / f.closed_30d) * 100);
     if (pct >= s.junk_rate_pct)
-      out.push({ signal: "junk_rate", detail: { pct, threshold: s.junk_rate_pct, sample: f.closed_30d } });
+      out.push({
+        signal: "junk_rate",
+        detail: { pct, threshold: s.junk_rate_pct, sample: f.closed_30d },
+      });
   }
   return out;
 }

@@ -81,7 +81,9 @@ describe("guides", () => {
   it("search finds sections by every word and ignores markup", () => {
     const hits = searchGuides(guidesFor("admin"), "dry run");
     expect(hits.some((h) => h.section.id === "amendments")).toBe(true);
-    expect(searchGuides(guidesFor("creator"), "media kit").map((h) => h.section.id)).toContain("media-kit");
+    expect(searchGuides(guidesFor("creator"), "media kit").map((h) => h.section.id)).toContain(
+      "media-kit",
+    );
     expect(searchGuides(guidesFor("creator"), "x")).toEqual([]);
     for (const g of GUIDES) expect(guideText(g)).not.toMatch(/\*\*|\]\(\//);
   });

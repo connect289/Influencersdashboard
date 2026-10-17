@@ -82,9 +82,18 @@ describe("buildBrief", () => {
     expect(b.programme_ids).toEqual([7]);
     expect(b.approved_claims).toHaveLength(5);
     expect(b.banned_claims).toEqual(["guaranteed placement"]);
-    expect(b.disclosures).toEqual(["Disclose the paid partnership at the start, e.g. #ad or #collab."]);
+    expect(b.disclosures).toEqual([
+      "Disclose the paid partnership at the start, e.g. #ad or #collab.",
+    ]);
     expect(b.deliverables).toEqual([
-      { platform: "instagram", format: "reel", count: 2, duration_s: 60, aspect_ratio: "9:16", notes: "" },
+      {
+        platform: "instagram",
+        format: "reel",
+        count: 2,
+        duration_s: 60,
+        aspect_ratio: "9:16",
+        notes: "",
+      },
     ]);
     expect(b.dos).toEqual(["Show your own experience"]);
     expect(briefContent.safeParse(b).success).toBe(true);
@@ -107,21 +116,33 @@ describe("buildBrief", () => {
 
 describe("briefContent validation", () => {
   it("rejects non-https references and odd asset paths", () => {
-    expect(briefContent.safeParse({ references: [{ label: "x", url: "http://a.com" }] }).success).toBe(false);
-    expect(briefContent.safeParse({ references: [{ label: "x", url: "https://a.com/v" }] }).success).toBe(true);
-    expect(briefContent.safeParse({ assets: [{ label: "logo", path: "../etc/passwd" }] }).success).toBe(false);
+    expect(
+      briefContent.safeParse({ references: [{ label: "x", url: "http://a.com" }] }).success,
+    ).toBe(false);
+    expect(
+      briefContent.safeParse({ references: [{ label: "x", url: "https://a.com/v" }] }).success,
+    ).toBe(true);
+    expect(
+      briefContent.safeParse({ assets: [{ label: "logo", path: "../etc/passwd" }] }).success,
+    ).toBe(false);
   });
 });
 
 describe("deliverableSpecs and due dates", () => {
   it("defaults formats without specs", () => {
-    expect(deliverableSpecs([{ platform: "linkedin", format: "blog", count: 1 }])[0]).toMatchObject({
-      duration_s: null,
-      aspect_ratio: null,
-    });
+    expect(deliverableSpecs([{ platform: "linkedin", format: "blog", count: 1 }])[0]).toMatchObject(
+      {
+        duration_s: null,
+        aspect_ratio: null,
+      },
+    );
   });
   it("places due dates at the end of the IST day", () => {
-    const d = dueDatesFrom("2026-11-01T10:00:00Z", { concept: 5, draft: 10, live: 15, metrics: 22 }, DEFAULT_TOGGLES);
+    const d = dueDatesFrom(
+      "2026-11-01T10:00:00Z",
+      { concept: 5, draft: 10, live: 15, metrics: 22 },
+      DEFAULT_TOGGLES,
+    );
     expect(d).toEqual({
       concept: "2026-11-06T18:29:59.000Z",
       draft: "2026-11-11T18:29:59.000Z",

@@ -80,7 +80,9 @@ export const contractSource = z.object({
     })
     .loose(),
   signatory: z.object({ name: z.string(), designation: z.string().nullable() }).nullable(),
-  contracts: z.array(z.object({ id: z.uuid(), number: z.string(), status: z.string(), kind: z.string() })),
+  contracts: z.array(
+    z.object({ id: z.uuid(), number: z.string(), status: z.string(), kind: z.string() }),
+  ),
 });
 export type ContractSource = z.infer<typeof contractSource>;
 
@@ -92,11 +94,18 @@ export interface BuiltVersion extends AssembleResult {
 export function buildVersion(
   src: ContractSource,
   template: TemplateSource,
-  contract: { number: string; date: string; parent_number: string | null; payee_agency_id: string | null },
+  contract: {
+    number: string;
+    date: string;
+    parent_number: string | null;
+    payee_agency_id: string | null;
+  },
   overrides: Readonly<Record<string, RichDoc>> = {},
 ): BuiltVersion {
   if (!src.deal.comp_config) throw new Error("the deal has no agreed terms");
-  const agency = contract.payee_agency_id ? src.agencies.find((a) => a.id === contract.payee_agency_id) : undefined;
+  const agency = contract.payee_agency_id
+    ? src.agencies.find((a) => a.id === contract.payee_agency_id)
+    : undefined;
   const legal = src.creator.legal_name ?? src.creator.display_name;
   const ctx = buildContext({
     creator: {
@@ -129,8 +138,14 @@ export function buildVersion(
       pan: src.organisation.pan,
       support_email: src.organisation.support_email,
     },
-    signatory: src.signatory ? { name: src.signatory.name, designation: src.signatory.designation ?? "" } : null,
-    contract: { number: contract.number, date: contract.date, parent_number: contract.parent_number },
+    signatory: src.signatory
+      ? { name: src.signatory.name, designation: src.signatory.designation ?? "" }
+      : null,
+    contract: {
+      number: contract.number,
+      date: contract.date,
+      parent_number: contract.parent_number,
+    },
   });
   const clauses: ClauseInput[] = template.clauses.map((c) => ({ ...c }));
   const r = assembleContract(

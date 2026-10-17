@@ -421,7 +421,8 @@
     "eduwit_commission_gst_pct": "GST on Eduwit's partner commission (%)",
     "due_reminder_days": "Reminder days before a due date",
     "overdue_escalation_days": "Escalate to the deal owner after (days overdue)",
-    "metrics_grace_hours": "Grace period for metrics (hours)"
+    "metrics_grace_hours": "Grace period for metrics (hours)",
+    "website_base_url": "Website address (for landing-page links)"
   },
   "settingOptions": {
     "first_touch": "First touch",

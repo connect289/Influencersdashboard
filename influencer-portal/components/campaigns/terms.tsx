@@ -2,7 +2,12 @@
 import { useTranslations } from "next-intl";
 import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
-import { DEAL_TYPES, type DealType, type DeliverableItem, type OfferTerms } from "@/lib/campaigns/schemas";
+import {
+  DEAL_TYPES,
+  type DealType,
+  type DeliverableItem,
+  type OfferTerms,
+} from "@/lib/campaigns/schemas";
 import { formatPaise } from "@/lib/format";
 import { DeliverablesEditor } from "./deliverables-editor";
 
@@ -14,12 +19,16 @@ export function TermsView({ terms }: { terms: Partial<OfferTerms> }) {
     <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
       <div className="flex justify-between gap-3">
         <dt className="text-muted">{t("campaigns.terms.dealType")}</dt>
-        <dd className="font-medium">{terms.deal_type ? t(`campaigns.dealTypes.${terms.deal_type}`) : "—"}</dd>
+        <dd className="font-medium">
+          {terms.deal_type ? t(`campaigns.dealTypes.${terms.deal_type}`) : "—"}
+        </dd>
       </div>
       {terms.fixed_fee_paise ? (
         <div className="flex justify-between gap-3">
           <dt className="text-muted">{t("campaigns.terms.fixedFee")}</dt>
-          <dd className="font-medium tabular-nums">{formatPaise(terms.fixed_fee_paise, { whole: true })}</dd>
+          <dd className="font-medium tabular-nums">
+            {formatPaise(terms.fixed_fee_paise, { whole: true })}
+          </dd>
         </div>
       ) : null}
       {terms.includes_commission ? (
@@ -33,7 +42,10 @@ export function TermsView({ terms }: { terms: Partial<OfferTerms> }) {
           <dt className="text-muted">{t("campaigns.fields.deliverables")}</dt>
           <dd className="font-medium">
             {items
-              .map((d) => `${String(d.count)} × ${t(`formats.${d.format}`)} (${t(`platforms.${d.platform}`)})`)
+              .map(
+                (d) =>
+                  `${String(d.count)} × ${t(`formats.${d.format}`)} (${t(`platforms.${d.platform}`)})`,
+              )
               .join(", ")}
           </dd>
         </div>
@@ -70,7 +82,10 @@ export interface TermsDraft {
   notes: string;
 }
 
-export function draftFromTerms(t: Partial<OfferTerms> | undefined, deliverables: DeliverableItem[] = []): TermsDraft {
+export function draftFromTerms(
+  t: Partial<OfferTerms> | undefined,
+  deliverables: DeliverableItem[] = [],
+): TermsDraft {
   return {
     deal_type: t?.deal_type ?? "fixed",
     feeRupees: t?.fixed_fee_paise ? String(t.fixed_fee_paise / 100) : "",
@@ -87,7 +102,8 @@ export function termsFromDraft(d: TermsDraft): OfferTerms {
   return {
     deal_type: d.deal_type,
     fixed_fee_paise: d.deal_type === "fixed" || d.deal_type === "hybrid" ? fee : undefined,
-    includes_commission: d.deal_type === "commission" || d.deal_type === "hybrid" ? true : d.includes_commission,
+    includes_commission:
+      d.deal_type === "commission" || d.deal_type === "hybrid" ? true : d.includes_commission,
     deliverables: d.deliverables,
     usage_rights: d.usage_rights.trim() || undefined,
     exclusivity_days: d.exclusivity_days ? Number(d.exclusivity_days) : undefined,
@@ -106,7 +122,8 @@ export function TermsForm({
   idPrefix: string;
 }) {
   const t = useTranslations();
-  const set = <K extends keyof TermsDraft>(k: K, v: TermsDraft[K]) => onChange({ ...value, [k]: v });
+  const set = <K extends keyof TermsDraft>(k: K, v: TermsDraft[K]) =>
+    onChange({ ...value, [k]: v });
   const needsFee = value.deal_type === "fixed" || value.deal_type === "hybrid";
   return (
     <div className="flex flex-col gap-3">
@@ -149,7 +166,11 @@ export function TermsForm({
         />
       </fieldset>
       <div className="grid gap-3 md:grid-cols-2">
-        <Field id={`${idPrefix}-usage`} label={t("campaigns.terms.usageRights")} hint={t("campaigns.terms.usageHint")}>
+        <Field
+          id={`${idPrefix}-usage`}
+          label={t("campaigns.terms.usageRights")}
+          hint={t("campaigns.terms.usageHint")}
+        >
           <Input
             id={`${idPrefix}-usage`}
             value={value.usage_rights}

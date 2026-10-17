@@ -86,7 +86,13 @@ export function StaffPasswordForm({ next }: { next: string }) {
         <Input id="email" name="email" type="email" autoComplete="username" required />
       </Field>
       <Field id="password" label={t("auth.fields.password")}>
-        <Input id="password" name="password" type="password" autoComplete="current-password" required />
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+        />
       </Field>
       <SubmitButton block pendingLabel={t("auth.signingIn")}>
         {t("auth.signIn")}
@@ -167,7 +173,14 @@ export function NewPasswordForm({ min }: { min: number }) {
         />
       </Field>
       <Field id="confirm" label={t("auth.password.confirm")}>
-        <Input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={min} required />
+        <Input
+          id="confirm"
+          name="confirm"
+          type="password"
+          autoComplete="new-password"
+          minLength={min}
+          required
+        />
       </Field>
       <SubmitButton block pendingLabel={t("auth.saving")}>
         {t("auth.password.save")}
@@ -198,7 +211,14 @@ export function CreatorSignUpForm({ termsHref }: { termsHref: string }) {
         />
       </Field>
       <Field id="su-handle" label={t("auth.signup.handle")} hint={t("auth.signup.handleHint")}>
-        <Input id="su-handle" name="handle" required maxLength={31} autoCapitalize="none" spellCheck={false} />
+        <Input
+          id="su-handle"
+          name="handle"
+          required
+          maxLength={31}
+          autoCapitalize="none"
+          spellCheck={false}
+        />
       </Field>
       <div className="grid grid-cols-[8.5rem_1fr] gap-3">
         <Field id="su-platform" label={t("auth.signup.platform")}>
@@ -211,7 +231,15 @@ export function CreatorSignUpForm({ termsHref }: { termsHref: string }) {
           </Select>
         </Field>
         <Field id="su-url" label={t("auth.signup.url")}>
-          <Input id="su-url" name="url" type="url" inputMode="url" required placeholder="https://" maxLength={500} />
+          <Input
+            id="su-url"
+            name="url"
+            type="url"
+            inputMode="url"
+            required
+            placeholder="https://"
+            maxLength={500}
+          />
         </Field>
       </div>
       <Field id="su-followers" label={t("auth.signup.followers")}>
@@ -222,7 +250,12 @@ export function CreatorSignUpForm({ termsHref }: { termsHref: string }) {
         <input id="su-website" name="website" tabIndex={-1} autoComplete="off" />
       </div>
       <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" name="consent" required className="mt-0.5 size-4 accent-[var(--primary)]" />
+        <input
+          type="checkbox"
+          name="consent"
+          required
+          className="mt-0.5 size-4 accent-[var(--primary)]"
+        />
         <span>
           {t("auth.signup.consent")}{" "}
           <a

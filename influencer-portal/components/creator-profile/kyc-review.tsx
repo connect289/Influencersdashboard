@@ -47,7 +47,11 @@ export function KycReview({
     <Card>
       <CardHeader
         title={t("kyc.title")}
-        description={kyc.submitted_at ? t("kyc.submittedOn", { date: formatDateTime(kyc.submitted_at) }) : undefined}
+        description={
+          kyc.submitted_at
+            ? t("kyc.submittedOn", { date: formatDateTime(kyc.submitted_at) })
+            : undefined
+        }
         actions={<StatusBadge status={kyc.status} label={t(`kyc.status.${kyc.status}`)} />}
       />
       {!kyc.exists ? (
@@ -55,7 +59,9 @@ export function KycReview({
       ) : (
         <>
           {kyc.status === "rejected" && kyc.rejection_reason ? (
-            <Banner tone="danger">{t("kyc.rejectedBanner", { reason: kyc.rejection_reason })}</Banner>
+            <Banner tone="danger">
+              {t("kyc.rejectedBanner", { reason: kyc.rejection_reason })}
+            </Banner>
           ) : null}
           <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
             {rows.map(([label, value]) => (
@@ -124,7 +130,9 @@ export function KycReview({
                     size="sm"
                     disabled={pending}
                     onClick={() =>
-                      run(() => verifyKyc({ creatorId, approve: true, reason: "", gstinVerified: gstinOk }))
+                      run(() =>
+                        verifyKyc({ creatorId, approve: true, reason: "", gstinVerified: gstinOk }),
+                      )
                     }
                   >
                     {t("kyc.verify")}
@@ -138,7 +146,11 @@ export function KycReview({
                     actionLabel={t("kyc.reject")}
                     pending={pending}
                     onConfirm={(reason, close) =>
-                      run(() => verifyKyc({ creatorId, approve: false, reason, gstinVerified: false }), close)
+                      run(
+                        () =>
+                          verifyKyc({ creatorId, approve: false, reason, gstinVerified: false }),
+                        close,
+                      )
                     }
                     trigger={
                       <Button size="sm" variant="secondary">

@@ -1,7 +1,12 @@
 import "server-only";
 import { env, type ServerEnv } from "@/lib/env";
 import { log } from "@/lib/log";
-import { ProviderError, type SendResult, type WhatsAppProvider, type WhatsAppTemplateMessage } from "./types";
+import {
+  ProviderError,
+  type SendResult,
+  type WhatsAppProvider,
+  type WhatsAppTemplateMessage,
+} from "./types";
 
 export class MockWhatsAppProvider implements WhatsAppProvider {
   readonly name = "mock";
@@ -24,24 +29,30 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
   ) {}
   async sendTemplate(m: WhatsAppTemplateMessage): Promise<SendResult> {
     if (!/^[1-9]\d{9,14}$/.test(m.to)) throw new ProviderError("invalid recipient number", false);
-    const res = await this.fetchImpl(`https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${this.token}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: m.to,
-        type: "template",
-        template: {
-          name: m.template,
-          language: { code: m.language },
-          components: m.params.length
-            ? [{ type: "body", parameters: m.params.map((text) => ({ type: "text", text })) }]
-            : [],
-        },
-      }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    const body = (await res.json().catch(() => ({}))) as { messages?: { id?: string }[]; error?: { message?: string } };
+    const res = await this.fetchImpl(
+      `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${this.token}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: m.to,
+          type: "template",
+          template: {
+            name: m.template,
+            language: { code: m.language },
+            components: m.params.length
+              ? [{ type: "body", parameters: m.params.map((text) => ({ type: "text", text })) }]
+              : [],
+          },
+        }),
+        signal: AbortSignal.timeout(15_000),
+      },
+    );
+    const body = (await res.json().catch(() => ({}))) as {
+      messages?: { id?: string }[];
+      error?: { message?: string };
+    };
     if (!res.ok)
       throw new ProviderError(
         `Meta ${res.status}: ${body.error?.message ?? "error"}`,
@@ -53,7 +64,11 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
 
 export function whatsAppProviderFrom(e: ServerEnv): WhatsAppProvider {
   return e.WHATSAPP_PROVIDER === "meta"
-    ? new MetaWhatsAppProvider(e.WHATSAPP_PHONE_NUMBER_ID ?? "", e.WHATSAPP_TOKEN ?? "", e.WHATSAPP_API_VERSION)
+    ? new MetaWhatsAppProvider(
+        e.WHATSAPP_PHONE_NUMBER_ID ?? "",
+        e.WHATSAPP_TOKEN ?? "",
+        e.WHATSAPP_API_VERSION,
+      )
     : new MockWhatsAppProvider();
 }
 

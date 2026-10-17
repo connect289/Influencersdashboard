@@ -12,21 +12,49 @@ const base: Omit<TaxInput, "lines"> = {
   has_pan: true,
   gst: { registered: false, rate_bps: 1800 },
 };
-const section = (r: ReturnType<typeof estimateTax>, code: string) => r.sections.find((s) => s.code === code);
+const section = (r: ReturnType<typeof estimateTax>, code: string) =>
+  r.sections.find((s) => s.code === code);
 
 describe("estimateTax", () => {
   it("applies 194H above the FY threshold and leaves fees under theirs untaxed", () => {
-    const r = estimateTax({ ...base, lines: [l("commission", 25_000_00), l("milestone", 40_000_00)] });
-    expect(section(r, "194H")).toMatchObject({ base_paise: 25_000_00, taxable_paise: 25_000_00, tds_paise: 500_00 });
-    expect(section(r, "194J")).toMatchObject({ base_paise: 40_000_00, taxable_paise: 0, tds_paise: 0 });
-    expect(r).toMatchObject({ gross_paise: 65_000_00, tds_paise: 500_00, gst_paise: 0, net_paise: 64_500_00 });
+    const r = estimateTax({
+      ...base,
+      lines: [l("commission", 25_000_00), l("milestone", 40_000_00)],
+    });
+    expect(section(r, "194H")).toMatchObject({
+      base_paise: 25_000_00,
+      taxable_paise: 25_000_00,
+      tds_paise: 500_00,
+    });
+    expect(section(r, "194J")).toMatchObject({
+      base_paise: 40_000_00,
+      taxable_paise: 0,
+      tds_paise: 0,
+    });
+    expect(r).toMatchObject({
+      gross_paise: 65_000_00,
+      tds_paise: 500_00,
+      gst_paise: 0,
+      net_paise: 64_500_00,
+    });
   });
 
   it("catches up on the FY's untaxed amounts when the threshold is first crossed", () => {
     const lines = [l("fixed_fee", 25_000_00)];
-    const untaxed = estimateTax({ ...base, lines, fy_prior: { "194J": { base_paise: 30_000_00, taxed: false } } });
-    expect(section(untaxed, "194J")).toMatchObject({ taxable_paise: 55_000_00, tds_paise: 5_500_00 });
-    const taxed = estimateTax({ ...base, lines, fy_prior: { "194J": { base_paise: 60_000_00, taxed: true } } });
+    const untaxed = estimateTax({
+      ...base,
+      lines,
+      fy_prior: { "194J": { base_paise: 30_000_00, taxed: false } },
+    });
+    expect(section(untaxed, "194J")).toMatchObject({
+      taxable_paise: 55_000_00,
+      tds_paise: 5_500_00,
+    });
+    const taxed = estimateTax({
+      ...base,
+      lines,
+      fy_prior: { "194J": { base_paise: 60_000_00, taxed: true } },
+    });
     expect(section(taxed, "194J")).toMatchObject({ taxable_paise: 25_000_00, tds_paise: 2_500_00 });
   });
 
@@ -39,9 +67,15 @@ describe("estimateTax", () => {
     expect(componentOf({ type: "clawback" })).toBe("commission");
     expect(componentOf({ type: "adjustment" })).toBe("commission");
     expect(componentOf({ type: "usage_fee" })).toBe("usage_fee");
-    const r = estimateTax({ ...base, lines: [l("commission", 30_000_00), l("clawback", 12_000_00, "debit")] });
+    const r = estimateTax({
+      ...base,
+      lines: [l("commission", 30_000_00), l("clawback", 12_000_00, "debit")],
+    });
     expect(section(r, "194H")).toMatchObject({ base_paise: 18_000_00, tds_paise: 0 });
-    const neg = estimateTax({ ...base, lines: [l("commission", 1_000_00), l("clawback", 3_000_00, "debit")] });
+    const neg = estimateTax({
+      ...base,
+      lines: [l("commission", 1_000_00), l("clawback", 3_000_00, "debit")],
+    });
     expect(neg.sections).toEqual([]);
     expect(neg.gross_paise).toBe(-2_000_00);
   });
@@ -60,7 +94,12 @@ describe("estimateTax", () => {
 
   it("reports 194R on barter as Eduwit's liability without deducting it", () => {
     const r = estimateTax({ ...base, lines: [], non_cash_paise: 30_000_00 });
-    expect(r).toMatchObject({ gross_paise: 0, tds_paise: 0, eduwit_tds_paise: 3_000_00, net_paise: 0 });
+    expect(r).toMatchObject({
+      gross_paise: 0,
+      tds_paise: 0,
+      eduwit_tds_paise: 3_000_00,
+      net_paise: 0,
+    });
   });
 
   it("supports a per-transaction threshold", () => {

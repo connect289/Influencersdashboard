@@ -12,7 +12,12 @@ import { EmptyState, ErrorState, NoResults } from "@/components/ui/states";
 import { Table, Td, Th } from "@/components/ui/table";
 import { requireStaff } from "@/lib/auth/guards";
 import { BOARD_COLUMNS, boardColumn } from "@/lib/content/board";
-import { DELIVERABLE_VIEWS, listDeliverables, type DeliverableRow, type DeliverableView } from "@/lib/content/data";
+import {
+  DELIVERABLE_VIEWS,
+  listDeliverables,
+  type DeliverableRow,
+  type DeliverableView,
+} from "@/lib/content/data";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata() {
@@ -36,12 +41,20 @@ export default async function ContentPage({
   const { supabase } = await requireStaff("deliverable.read");
   const t = await getTranslations();
   const sp = await searchParams;
-  const view = (DELIVERABLE_VIEWS as readonly string[]).includes(sp.view ?? "") ? (sp.view as DeliverableView) : "open";
+  const view = (DELIVERABLE_VIEWS as readonly string[]).includes(sp.view ?? "")
+    ? (sp.view as DeliverableView)
+    : "open";
   const board = sp.layout === "board" && (view === "open" || view === "all");
   const q = (sp.q ?? "").slice(0, 80);
   const rows = await listDeliverables(supabase, { view, q }).catch(() => null);
   const area: ContentArea =
-    view === "review" ? "review" : view === "overdue" ? "overdue" : view === "live" ? "live" : "deliverables";
+    view === "review"
+      ? "review"
+      : view === "overdue"
+        ? "overdue"
+        : view === "live"
+          ? "live"
+          : "deliverables";
   const href = (p: Record<string, string | null>) => {
     const u = new URLSearchParams();
     for (const [k, v] of Object.entries({
@@ -55,7 +68,13 @@ export default async function ContentPage({
     return s ? `/admin/content?${s}` : "/admin/content";
   };
   const emptyKey =
-    view === "review" ? "emptyReview" : view === "overdue" ? "emptyOverdue" : view === "live" ? "emptyLive" : "empty";
+    view === "review"
+      ? "emptyReview"
+      : view === "overdue"
+        ? "emptyOverdue"
+        : view === "live"
+          ? "emptyLive"
+          : "empty";
   return (
     <>
       <PageHeader
@@ -71,7 +90,13 @@ export default async function ContentPage({
           <label htmlFor="ct-q" className="sr-only">
             {t("content.search")}
           </label>
-          <Input id="ct-q" name="q" defaultValue={q} placeholder={t("content.searchPlaceholder")} maxLength={80} />
+          <Input
+            id="ct-q"
+            name="q"
+            defaultValue={q}
+            placeholder={t("content.searchPlaceholder")}
+            maxLength={80}
+          />
           <Button type="submit" variant="secondary" aria-label={t("content.search")}>
             <Search />
           </Button>
@@ -119,7 +144,10 @@ export default async function ContentPage({
                 </h2>
                 <ul className="flex flex-col gap-2">
                   {items.map((r) => (
-                    <li key={r.id} className="rounded-xl bg-surface p-3 shadow-[var(--shadow-card)]">
+                    <li
+                      key={r.id}
+                      className="rounded-xl bg-surface p-3 shadow-[var(--shadow-card)]"
+                    >
                       <Row r={r} />
                       <p className="text-xs text-muted">
                         {r.creator_name} · {t(`platforms.${r.platform}`)}

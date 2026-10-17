@@ -37,7 +37,10 @@ export function SubmitStep({
             {steps[s] ? (
               t(`onboarding.steps.${s}`)
             ) : (
-              <Link href={`/creator/onboarding?step=${s}`} className="text-primary underline-offset-4 hover:underline">
+              <Link
+                href={`/creator/onboarding?step=${s}`}
+                className="text-primary underline-offset-4 hover:underline"
+              >
                 {t(`onboarding.steps.${s}`)}
               </Link>
             )}

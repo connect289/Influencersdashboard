@@ -23,7 +23,10 @@ export default async function ImportPage() {
     .limit(10);
   return (
     <>
-      <Link href="/admin/creators" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link
+        href="/admin/creators"
+        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+      >
         <ArrowLeft className="size-4" aria-hidden /> {t("nav.admin.creators")}
       </Link>
       <PageHeader title={t("creators.import.title")} description={t("creators.import.subtitle")} />

@@ -7,7 +7,13 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { fetchMe } from "@/lib/auth/guards";
 import { finalizeContract } from "@/lib/contracts/finalize";
-import { SIGN_ERRORS, signCodeInput, signInput, type SignCodeInput, type SignInput } from "@/lib/contracts/schemas";
+import {
+  SIGN_ERRORS,
+  signCodeInput,
+  signInput,
+  type SignCodeInput,
+  type SignInput,
+} from "@/lib/contracts/schemas";
 import { maskDestination, signingChannels } from "@/lib/contracts/signing";
 import { errorMessage, log } from "@/lib/log";
 import { emailProvider } from "@/lib/notify/email";
@@ -28,7 +34,11 @@ async function person() {
   return { userId: me.user_id, email: me.email ?? null, name, creatorId: me.creator?.id ?? null };
 }
 
-const refusal = z.object({ ok: z.literal(false), error: z.enum(SIGN_ERRORS), attempts_left: z.number().optional() });
+const refusal = z.object({
+  ok: z.literal(false),
+  error: z.enum(SIGN_ERRORS),
+  attempts_left: z.number().optional(),
+});
 
 function signFail(data: unknown, t: T): ActionResult<never> {
   const r = refusal.safeParse(data);
@@ -45,7 +55,9 @@ function refresh(contractId: string) {
   revalidatePath(`/admin/contracts/${contractId}`);
 }
 
-export async function requestSignCode(input: SignCodeInput): Promise<ActionResult<{ sentTo: string }>> {
+export async function requestSignCode(
+  input: SignCodeInput,
+): Promise<ActionResult<{ sentTo: string }>> {
   const t = await getTranslations();
   const parsed = signCodeInput.safeParse(input);
   if (!parsed.success) return fail(t("errors.invalidInput"));
@@ -88,11 +100,21 @@ export async function requestSignCode(input: SignCodeInput): Promise<ActionResul
         params: [issued.data.code, issued.data.number],
       });
   } catch (e) {
-    log.error("contracts.sign_code_delivery_failed", { channel: v.channel, error: errorMessage(e) });
+    log.error("contracts.sign_code_delivery_failed", {
+      channel: v.channel,
+      error: errorMessage(e),
+    });
     return fail(t("contracts.sign.errors.delivery"));
   }
-  const sentTo = maskDestination(v.channel, v.channel === "email" ? (p.email ?? "") : (dest.phone ?? ""));
-  return { ok: true, data: { sentTo }, message: t("contracts.sign.codeSent", { to: sentTo, minutes }) };
+  const sentTo = maskDestination(
+    v.channel,
+    v.channel === "email" ? (p.email ?? "") : (dest.phone ?? ""),
+  );
+  return {
+    ok: true,
+    data: { sentTo },
+    message: t("contracts.sign.codeSent", { to: sentTo, minutes }),
+  };
 }
 
 export async function signContract(input: SignInput): Promise<ActionResult<{ role: string }>> {
@@ -129,6 +151,7 @@ export async function signContract(input: SignInput): Promise<ActionResult<{ rol
   return {
     ok: true,
     data: { role: ok.data.role },
-    message: ok.data.role === "signatory" ? t("contracts.sign.countersigned") : t("contracts.sign.signed"),
+    message:
+      ok.data.role === "signatory" ? t("contracts.sign.countersigned") : t("contracts.sign.signed"),
   };
 }

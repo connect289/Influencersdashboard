@@ -15,12 +15,19 @@ export async function generateMetadata() {
   return { title: t("contracts.area.templates") };
 }
 
-export default async function TemplatePage({ params }: { params: Promise<{ templateId: string }> }) {
+export default async function TemplatePage({
+  params,
+}: {
+  params: Promise<{ templateId: string }>;
+}) {
   const { templateId } = await params;
   if (!z.uuid().safeParse(templateId).success) notFound();
   const { supabase, me } = await requireStaff("contract.read");
   const t = await getTranslations();
-  const [tpl, library] = await Promise.all([loadTemplate(supabase, templateId), loadLibrary(supabase)]);
+  const [tpl, library] = await Promise.all([
+    loadTemplate(supabase, templateId),
+    loadLibrary(supabase),
+  ]);
   if (!tpl) notFound();
   return (
     <>
@@ -35,7 +42,9 @@ export default async function TemplatePage({ params }: { params: Promise<{ templ
         description={
           <span className="flex flex-wrap items-center gap-2">
             {tpl.description}
-            {tpl.is_default ? <Badge family="success">{t("contracts.templates.defaultBadge")}</Badge> : null}
+            {tpl.is_default ? (
+              <Badge family="success">{t("contracts.templates.defaultBadge")}</Badge>
+            ) : null}
             {tpl.archived ? <Badge>{t("contracts.library.archivedBadge")}</Badge> : null}
           </span>
         }
@@ -50,7 +59,10 @@ export default async function TemplatePage({ params }: { params: Promise<{ templ
           header: tpl.header,
           footer: tpl.footer,
           isDefault: tpl.is_default,
-          clauses: tpl.clauses.map((c) => ({ clauseId: c.clause_id, condition: c.condition ?? "" })),
+          clauses: tpl.clauses.map((c) => ({
+            clauseId: c.clause_id,
+            condition: c.condition ?? "",
+          })),
         }}
         library={libraryOptions(library)}
         archived={tpl.archived}

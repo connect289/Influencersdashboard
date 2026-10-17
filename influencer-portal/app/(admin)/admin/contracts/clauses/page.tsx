@@ -18,7 +18,11 @@ export async function generateMetadata() {
   return { title: t("contracts.area.clauses") };
 }
 
-export default async function ClauseLibraryPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
+export default async function ClauseLibraryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ show?: string }>;
+}) {
   const { supabase, me } = await requireStaff("contract.read");
   const t = await getTranslations();
   const show = (await searchParams).show;
@@ -50,7 +54,9 @@ export default async function ClauseLibraryPage({ searchParams }: { searchParams
       />
       <ContractsNav current="clauses" />
       {unreviewed > 0 ? (
-        <Banner tone="warning">{t("contracts.library.unreviewedBanner", { count: unreviewed })}</Banner>
+        <Banner tone="warning">
+          {t("contracts.library.unreviewedBanner", { count: unreviewed })}
+        </Banner>
       ) : null}
       <nav className="my-3 flex gap-1" aria-label={t("contracts.library.filter")}>
         {(["all", "unreviewed", "archived"] as const).map((f) => (
@@ -60,7 +66,9 @@ export default async function ClauseLibraryPage({ searchParams }: { searchParams
             aria-current={filter === f ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm",
-              filter === f ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
+              filter === f
+                ? "bg-primary-soft font-medium text-primary"
+                : "text-muted hover:bg-surface-2",
             )}
           >
             {t(`contracts.library.filters.${f}`)}
@@ -69,7 +77,10 @@ export default async function ClauseLibraryPage({ searchParams }: { searchParams
       </nav>
       <Card>
         {rows.length === 0 ? (
-          <EmptyState title={t("contracts.library.empty")} description={t("contracts.library.emptyHint")} />
+          <EmptyState
+            title={t("contracts.library.empty")}
+            description={t("contracts.library.emptyHint")}
+          />
         ) : (
           <Table>
             <thead>
@@ -99,8 +110,12 @@ export default async function ClauseLibraryPage({ searchParams }: { searchParams
                   <Td>
                     <span className="flex flex-wrap gap-1">
                       {c.required ? <Badge>{t("contracts.flags.required")}</Badge> : null}
-                      {c.negotiable ? <Badge family="progress">{t("contracts.flags.negotiable")}</Badge> : null}
-                      {c.locked ? <Badge family="closed">{t("contracts.flags.locked")}</Badge> : null}
+                      {c.negotiable ? (
+                        <Badge family="progress">{t("contracts.flags.negotiable")}</Badge>
+                      ) : null}
+                      {c.locked ? (
+                        <Badge family="closed">{t("contracts.flags.locked")}</Badge>
+                      ) : null}
                       {c.archived ? <Badge>{t("contracts.library.archivedBadge")}</Badge> : null}
                     </span>
                   </Td>

@@ -48,7 +48,8 @@ const KNOWN: [RegExp, string][] = [
 
 function dbFail(error: { code?: string; message: string }, t: T): ActionResult<never> {
   if (error.code === "42501") return fail(t("errors.forbidden"));
-  for (const [re, key] of KNOWN) if (re.test(error.message)) return fail(t(key as "campaigns.errors.closed"));
+  for (const [re, key] of KNOWN)
+    if (re.test(error.message)) return fail(t(key as "campaigns.errors.closed"));
   if (error.code === "23505") return fail(t("campaigns.errors.alreadyApplied"));
   if (error.code === "22023" || error.code === "23514") return fail(t("errors.invalidInput"));
   log.warn("campaigns.db_error", { code: error.code, error: error.message });
@@ -108,19 +109,32 @@ export async function saveCampaign(input: CampaignInput): Promise<ActionResult<{
   });
   if (error) return dbFail(error, t);
   refreshAll(data);
-  return { ok: true, data: { id: data }, message: v.id ? t("campaigns.saved") : t("campaigns.created") };
+  return {
+    ok: true,
+    data: { id: data },
+    message: v.id ? t("campaigns.saved") : t("campaigns.created"),
+  };
 }
 
 export async function setCampaignStatus(campaignId: string, status: string): Promise<ActionResult> {
   const t = await getTranslations();
-  if (!uuid.safeParse(campaignId).success || !(CAMPAIGN_STATUSES as readonly string[]).includes(status))
+  if (
+    !uuid.safeParse(campaignId).success ||
+    !(CAMPAIGN_STATUSES as readonly string[]).includes(status)
+  )
     return fail(t("errors.invalidInput"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
-  const { error } = await supabase.rpc("campaign_set_status", { p_campaign: campaignId, p_status: status });
+  const { error } = await supabase.rpc("campaign_set_status", {
+    p_campaign: campaignId,
+    p_status: status,
+  });
   if (error) return dbFail(error, t);
   refreshAll(campaignId);
-  return { ok: true, message: t("campaigns.statusChanged", { status: t(`campaigns.statuses.${status as "open"}`) }) };
+  return {
+    ok: true,
+    message: t("campaigns.statusChanged", { status: t(`campaigns.statuses.${status as "open"}`) }),
+  };
 }
 
 export async function inviteToCampaign(
@@ -174,7 +188,10 @@ export async function searchProgrammes(q: string): Promise<ProgrammeHit[]> {
   if (!query.success) return [];
   const supabase = await session();
   if (!supabase) return [];
-  const { data, error } = await supabase.rpc("catalog_programmes_search", { p_q: query.data, p_limit: 20 });
+  const { data, error } = await supabase.rpc("catalog_programmes_search", {
+    p_q: query.data,
+    p_limit: 20,
+  });
   if (error) return [];
   return data;
 }
@@ -216,7 +233,8 @@ export async function applyToCampaign(input: ApplyInput): Promise<ActionResult<{
 
 export async function declineInvite(inviteId: string, reason: string): Promise<ActionResult> {
   const t = await getTranslations();
-  if (!uuid.safeParse(inviteId).success || reason.length > 300) return fail(t("errors.invalidInput"));
+  if (!uuid.safeParse(inviteId).success || reason.length > 300)
+    return fail(t("errors.invalidInput"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
   const { error } = await supabase.rpc("invite_decline", { p_invite: inviteId, p_reason: reason });
@@ -225,17 +243,28 @@ export async function declineInvite(inviteId: string, reason: string): Promise<A
   return { ok: true, message: t("campaigns.invites.declined") };
 }
 
-export async function makeOffer(appId: string, terms: OfferTerms, message: string): Promise<ActionResult> {
+export async function makeOffer(
+  appId: string,
+  terms: OfferTerms,
+  message: string,
+): Promise<ActionResult> {
   const t = await getTranslations();
   const p = offerTerms.safeParse(terms);
-  if (!uuid.safeParse(appId).success || message.length > 2000) return fail(t("errors.invalidInput"));
+  if (!uuid.safeParse(appId).success || message.length > 2000)
+    return fail(t("errors.invalidInput"));
   if (!p.success)
     return fail(
-      p.error.issues[0]?.message === "fee_required" ? t("campaigns.errors.feeRequired") : t("errors.invalidInput"),
+      p.error.issues[0]?.message === "fee_required"
+        ? t("campaigns.errors.feeRequired")
+        : t("errors.invalidInput"),
     );
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
-  const { error } = await supabase.rpc("offer_make", { p_app: appId, p_terms: p.data, p_message: message });
+  const { error } = await supabase.rpc("offer_make", {
+    p_app: appId,
+    p_terms: p.data,
+    p_message: message,
+  });
   if (error) return dbFail(error, t);
   refreshAll(undefined, appId);
   return { ok: true, message: t("campaigns.offers.sent") };
@@ -243,7 +272,8 @@ export async function makeOffer(appId: string, terms: OfferTerms, message: strin
 
 export async function acceptOffer(offerId: string, appId: string): Promise<ActionResult> {
   const t = await getTranslations();
-  if (!uuid.safeParse(offerId).success || !uuid.safeParse(appId).success) return fail(t("errors.invalidInput"));
+  if (!uuid.safeParse(offerId).success || !uuid.safeParse(appId).success)
+    return fail(t("errors.invalidInput"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
   const { error } = await supabase.rpc("offer_accept", { p_offer: offerId });
@@ -277,7 +307,10 @@ export async function rejectApplication(appId: string, reason: string): Promise<
     return fail(t("creators.errors.reason"));
   const supabase = await session();
   if (!supabase) return fail(t("errors.sessionEnded"));
-  const { error } = await supabase.rpc("application_reject", { p_app: appId, p_reason: reason.trim() });
+  const { error } = await supabase.rpc("application_reject", {
+    p_app: appId,
+    p_reason: reason.trim(),
+  });
   if (error) return dbFail(error, t);
   refreshAll(undefined, appId);
   return { ok: true, message: t("campaigns.review.rejected") };

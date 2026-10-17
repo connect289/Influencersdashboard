@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { codeStem, codeTag, looksLikeAccessCode, normalizeCode, suffix, suggestCode, SUFFIX_ALPHABET } from "./codes";
+import {
+  codeStem,
+  codeTag,
+  looksLikeAccessCode,
+  normalizeCode,
+  suffix,
+  suggestCode,
+  SUFFIX_ALPHABET,
+} from "./codes";
 
 describe("creator codes", () => {
   it.each([

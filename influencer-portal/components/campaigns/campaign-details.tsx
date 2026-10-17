@@ -38,14 +38,22 @@ export function CampaignDetails({
   const t = useTranslations();
   const rules = [
     eligibility.min_followers
-      ? t("campaigns.eligibility.minFollowersValue", { count: formatCompact(eligibility.min_followers) })
+      ? t("campaigns.eligibility.minFollowersValue", {
+          count: formatCompact(eligibility.min_followers),
+        })
       : null,
-    eligibility.platforms?.length ? eligibility.platforms.map((p) => t(`platforms.${p}`)).join(", ") : null,
-    eligibility.niches?.length ? t("campaigns.eligibility.nichesValue", { list: eligibility.niches.join(", ") }) : null,
+    eligibility.platforms?.length
+      ? eligibility.platforms.map((p) => t(`platforms.${p}`)).join(", ")
+      : null,
+    eligibility.niches?.length
+      ? t("campaigns.eligibility.nichesValue", { list: eligibility.niches.join(", ") })
+      : null,
     eligibility.languages?.length
       ? t("campaigns.eligibility.languagesValue", { list: eligibility.languages.join(", ") })
       : null,
-    eligibility.states?.length ? t("campaigns.eligibility.statesValue", { list: eligibility.states.join(", ") }) : null,
+    eligibility.states?.length
+      ? t("campaigns.eligibility.statesValue", { list: eligibility.states.join(", ") })
+      : null,
   ].filter((x): x is string => Boolean(x));
   return (
     <div className="flex flex-col gap-4">
@@ -91,7 +99,9 @@ export function CampaignDetails({
           <ul className="flex flex-col divide-y divide-line">
             {programmes.map((p) => (
               <li key={p.id} className="py-2 text-sm">
-                <span className="font-medium">{p.program_name ?? t("campaigns.details.programmeGone")}</span>
+                <span className="font-medium">
+                  {p.program_name ?? t("campaigns.details.programmeGone")}
+                </span>
                 {p.specialization ? ` (${p.specialization})` : ""}
                 {!p.available ? (
                   <Badge family="attention" className="ml-2">
@@ -99,7 +109,12 @@ export function CampaignDetails({
                   </Badge>
                 ) : null}
                 <span className="block text-xs text-muted">
-                  {[p.university, p.level, p.mode, p.fee_total ? formatRupees(p.fee_total, { whole: true }) : null]
+                  {[
+                    p.university,
+                    p.level,
+                    p.mode,
+                    p.fee_total ? formatRupees(p.fee_total, { whole: true }) : null,
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
                 </span>

@@ -19,7 +19,9 @@ import { createClient, type ServerSupabase } from "@/lib/supabase/server";
 /** Thrown when the Data API does not expose schema `inf` yet (PGRST106): a deployment setup step, not a user error. */
 export class SetupError extends Error {
   constructor() {
-    super("The portal cannot reach its data yet: add `inf` to the Supabase Data API's exposed schemas.");
+    super(
+      "The portal cannot reach its data yet: add `inf` to the Supabase Data API's exposed schemas.",
+    );
   }
 }
 
@@ -36,7 +38,8 @@ async function currentPath(): Promise<string> {
 export async function fetchMe(supabase: ServerSupabase): Promise<Me> {
   const { data, error } = await supabase.rpc("me");
   if (error) {
-    if (error.code === "PGRST106" || /schema must be one of/i.test(error.message)) throw new SetupError();
+    if (error.code === "PGRST106" || /schema must be one of/i.test(error.message))
+      throw new SetupError();
     throw new Error(`me() failed: ${error.message}`);
   }
   return meSchema.parse(data);
@@ -58,7 +61,9 @@ async function signOutWith(supabase: ServerSupabase, to: string): Promise<never>
  * Gate for every staff page. Registers the session, requires the emailed code (or a trusted device) and an active
  * staff profile, and returns 404 when the role lacks `permission` (screens a role can't use are hidden, not disabled).
  */
-export async function requireStaff(permission?: Permission): Promise<{ supabase: ServerSupabase; me: StaffMe }> {
+export async function requireStaff(
+  permission?: Permission,
+): Promise<{ supabase: ServerSupabase; me: StaffMe }> {
   const supabase = await signedInClient("/login/staff");
   let me = await fetchMe(supabase);
   if (me.kind !== "staff") redirect("/no-access");
@@ -69,7 +74,9 @@ export async function requireStaff(permission?: Permission): Promise<{ supabase:
   if (me.session?.revoked) return signOutWith(supabase, "/login/staff?reason=revoked");
   if (!me.session?.verified) {
     const token = (await cookies()).get(DEVICE_COOKIE)?.value;
-    const trusted = token ? (await supabase.rpc("device_trust_check", { p_token: token })).data === true : false;
+    const trusted = token
+      ? (await supabase.rpc("device_trust_check", { p_token: token })).data === true
+      : false;
     if (!trusted) redirect(`/verify?next=${encodeURIComponent(await currentPath())}`);
     me = await fetchMe(supabase);
   }
@@ -90,7 +97,8 @@ export async function requireCreator(): Promise<{ supabase: ServerSupabase; me: 
   if (me.kind === "agency") redirect("/agency");
   if (me.kind !== "creator") {
     const link = await supabase.rpc("creator_account_link");
-    if ((link.data as { ok?: boolean } | null)?.ok !== true) return signOutWith(supabase, "/no-access?portal=creator");
+    if ((link.data as { ok?: boolean } | null)?.ok !== true)
+      return signOutWith(supabase, "/no-access?portal=creator");
     me = await fetchMe(supabase);
   }
   if (!me.session?.registered) {
@@ -126,7 +134,9 @@ export async function requireAgency(): Promise<{ supabase: ServerSupabase; me: A
 }
 
 /** Throwing variant for server actions and route handlers (no redirects). */
-export async function assertStaff(permission?: Permission): Promise<{ supabase: ServerSupabase; me: StaffMe }> {
+export async function assertStaff(
+  permission?: Permission,
+): Promise<{ supabase: ServerSupabase; me: StaffMe }> {
   const supabase = await createClient();
   const me = await fetchMe(supabase);
   const staff = toStaffMe(me);

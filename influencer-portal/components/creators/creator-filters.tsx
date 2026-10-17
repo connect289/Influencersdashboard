@@ -69,7 +69,10 @@ export function CreatorFilters({
 
   const go = (f: Partial<Filters>, v = view) =>
     startNav(() => {
-      const query = creatorFiltersToQuery({ ...f, page: undefined }, { view: v === "kanban" ? "kanban" : undefined });
+      const query = creatorFiltersToQuery(
+        { ...f, page: undefined },
+        { view: v === "kanban" ? "kanban" : undefined },
+      );
       router.replace(query ? `${path}?${query}` : path, { scroll: false });
     });
 
@@ -121,7 +124,11 @@ export function CreatorFilters({
               {count ? <Badge family="progress">{count}</Badge> : null}
             </Button>
           </DialogTrigger>
-          <DialogContent title={t("creators.filters.title")} closeLabel={t("common.close")} className="md:max-w-2xl">
+          <DialogContent
+            title={t("creators.filters.title")}
+            closeLabel={t("common.close")}
+            className="md:max-w-2xl"
+          >
             <form
               className="flex flex-col gap-4"
               onSubmit={(e) => {
@@ -131,7 +138,9 @@ export function CreatorFilters({
               }}
             >
               <fieldset>
-                <legend className="mb-1.5 text-sm font-medium">{t("creators.filters.stage")}</legend>
+                <legend className="mb-1.5 text-sm font-medium">
+                  {t("creators.filters.stage")}
+                </legend>
                 <div className="flex flex-wrap gap-1.5">
                   {PIPELINE_STAGES.map((s) => (
                     <button
@@ -150,7 +159,9 @@ export function CreatorFilters({
                 </div>
               </fieldset>
               <fieldset>
-                <legend className="mb-1.5 text-sm font-medium">{t("creators.filters.status")}</legend>
+                <legend className="mb-1.5 text-sm font-medium">
+                  {t("creators.filters.status")}
+                </legend>
                 <div className="flex flex-wrap gap-1.5">
                   {CREATOR_STATUSES.map((s) => (
                     <button
@@ -174,7 +185,10 @@ export function CreatorFilters({
                     id="f-platform"
                     value={draft.platform ?? ""}
                     onChange={(e) =>
-                      setDraft({ ...draft, platform: (e.target.value || undefined) as Filters["platform"] })
+                      setDraft({
+                        ...draft,
+                        platform: (e.target.value || undefined) as Filters["platform"],
+                      })
                     }
                   >
                     <option value="">{t("creators.filters.any")}</option>
@@ -193,7 +207,10 @@ export function CreatorFilters({
                     inputMode="numeric"
                     value={draft.followers_min ?? ""}
                     onChange={(e) =>
-                      setDraft({ ...draft, followers_min: e.target.value ? Number(e.target.value) : undefined })
+                      setDraft({
+                        ...draft,
+                        followers_min: e.target.value ? Number(e.target.value) : undefined,
+                      })
                     }
                   />
                 </Field>
@@ -205,7 +222,10 @@ export function CreatorFilters({
                     inputMode="numeric"
                     value={draft.followers_max ?? ""}
                     onChange={(e) =>
-                      setDraft({ ...draft, followers_max: e.target.value ? Number(e.target.value) : undefined })
+                      setDraft({
+                        ...draft,
+                        followers_max: e.target.value ? Number(e.target.value) : undefined,
+                      })
                     }
                   />
                 </Field>
@@ -286,7 +306,10 @@ export function CreatorFilters({
                     id="f-deal"
                     value={draft.deal_model ?? ""}
                     onChange={(e) =>
-                      setDraft({ ...draft, deal_model: (e.target.value || undefined) as Filters["deal_model"] })
+                      setDraft({
+                        ...draft,
+                        deal_model: (e.target.value || undefined) as Filters["deal_model"],
+                      })
                     }
                   >
                     <option value="">{t("creators.filters.any")}</option>
@@ -302,7 +325,10 @@ export function CreatorFilters({
                     id="f-follow"
                     value={draft.follow_up ?? ""}
                     onChange={(e) =>
-                      setDraft({ ...draft, follow_up: (e.target.value || undefined) as Filters["follow_up"] })
+                      setDraft({
+                        ...draft,
+                        follow_up: (e.target.value || undefined) as Filters["follow_up"],
+                      })
                     }
                   >
                     <option value="">{t("creators.filters.any")}</option>
@@ -316,7 +342,9 @@ export function CreatorFilters({
                   type="checkbox"
                   className="size-4 accent-[var(--primary)]"
                   checked={draft.include_blocked ?? false}
-                  onChange={(e) => setDraft({ ...draft, include_blocked: e.target.checked || undefined })}
+                  onChange={(e) =>
+                    setDraft({ ...draft, include_blocked: e.target.checked || undefined })
+                  }
                 />
                 {t("creators.filters.includeBlocked")}
               </label>
@@ -350,9 +378,14 @@ export function CreatorFilters({
             ) : (
               savedViews.map((v) => (
                 <div key={v.id} className="flex items-center">
-                  <DropdownMenuItem className="flex-1" onSelect={() => router.replace(`${path}?${v.query}`)}>
+                  <DropdownMenuItem
+                    className="flex-1"
+                    onSelect={() => router.replace(`${path}?${v.query}`)}
+                  >
                     {v.name}
-                    {v.is_shared ? <span className="ml-2 text-xs text-muted">{t("creators.views.shared")}</span> : null}
+                    {v.is_shared ? (
+                      <span className="ml-2 text-xs text-muted">{t("creators.views.shared")}</span>
+                    ) : null}
                   </DropdownMenuItem>
                   {v.mine ? (
                     <button
@@ -367,7 +400,9 @@ export function CreatorFilters({
                 </div>
               ))
             )}
-            <DropdownMenuItem onSelect={() => setSaveOpen(true)}>{t("creators.views.saveCurrent")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setSaveOpen(true)}>
+              {t("creators.views.saveCurrent")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <Dialog open={saveOpen} onOpenChange={setSaveOpen}>

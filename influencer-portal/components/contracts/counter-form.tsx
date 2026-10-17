@@ -55,7 +55,10 @@ export function CounterFields({
   );
 }
 
-export function changesFrom(items: readonly CounterItem[], values: Readonly<Record<string, number>>): CounterChange[] {
+export function changesFrom(
+  items: readonly CounterItem[],
+  values: Readonly<Record<string, number>>,
+): CounterChange[] {
   return items.flatMap((it) => {
     const v = values[it.key];
     return v !== undefined && v !== it.value ? [{ key: it.key, value: v }] : [];
@@ -63,7 +66,13 @@ export function changesFrom(items: readonly CounterItem[], values: Readonly<Reco
 }
 
 /** Creator or agency: propose new numbers for the deal's terms. */
-export function CounterOfferDialog({ contractId, items }: { contractId: string; items: readonly CounterItem[] }) {
+export function CounterOfferDialog({
+  contractId,
+  items,
+}: {
+  contractId: string;
+  items: readonly CounterItem[];
+}) {
   const t = useTranslations();
   const { pending, run } = useAction();
   const [open, setOpen] = useState(false);
@@ -110,7 +119,12 @@ export function CounterOfferDialog({ contractId, items }: { contractId: string; 
               onChange={(k, v) => setValues((p) => ({ ...p, [k]: v }))}
             />
             <Field id="co-note" label={t("contracts.counter.note")}>
-              <Textarea id="co-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
+              <Textarea
+                id="co-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                maxLength={1000}
+              />
             </Field>
             <div className="flex justify-end">
               <Button type="submit" disabled={pending || changes.length === 0}>

@@ -28,12 +28,16 @@ function triggerText(t: T, x: Trigger): string {
 function milestoneText(t: T, m: Milestone, total: number): string {
   const share =
     m.share.type === "pct"
-      ? t("deals.summary.pctOf", { pct: m.share.pct, amount: money(Math.round((total * m.share.pct) / 100)) })
+      ? t("deals.summary.pctOf", {
+          pct: m.share.pct,
+          amount: money(Math.round((total * m.share.pct) / 100)),
+        })
       : money(m.share.amount_paise);
   const days = m.due_offset_days + m.payment_terms_days;
   const parts = [`${m.label}: ${share}, ${triggerText(t, m.trigger)}`];
   if (days) parts.push(t("deals.summary.paidWithin", { days }));
-  if (m.on_cancel.type === "pay_pct") parts.push(t("deals.summary.cancelPays", { pct: m.on_cancel.pct }));
+  if (m.on_cancel.type === "pay_pct")
+    parts.push(t("deals.summary.cancelPays", { pct: m.on_cancel.pct }));
   return parts.join(" · ");
 }
 
@@ -48,7 +52,12 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
 
 export function TermsSummary({ config: c }: { config: CompConfig }) {
   const t = useTranslations();
-  const empty = !c.fixed.length && !c.commission.length && !c.bonuses.length && !c.fees.length && !c.non_cash.length;
+  const empty =
+    !c.fixed.length &&
+    !c.commission.length &&
+    !c.bonuses.length &&
+    !c.fees.length &&
+    !c.non_cash.length;
   if (empty) return <p className="text-sm text-muted">{t("deals.summary.empty")}</p>;
   return (
     <div className="flex flex-col gap-4">
@@ -65,7 +74,9 @@ export function TermsSummary({ config: c }: { config: CompConfig }) {
                       periods: f.retainer.periods,
                       every: t(`deals.builder.${f.retainer.every}`),
                       when: t(
-                        f.retainer.pay_on === "period_start" ? "deals.builder.periodStart" : "deals.builder.periodEnd",
+                        f.retainer.pay_on === "period_start"
+                          ? "deals.builder.periodStart"
+                          : "deals.builder.periodEnd",
                       ),
                     })
                   : f.units > 1
@@ -92,7 +103,8 @@ export function TermsSummary({ config: c }: { config: CompConfig }) {
       {c.commission.length ? (
         <Block title={t("deals.sections.commission")}>
           {c.commission.map((r) => {
-            const rate = "amount_paise" in r.basis ? money(r.basis.amount_paise) : `${String(r.basis.pct)}%`;
+            const rate =
+              "amount_paise" in r.basis ? money(r.basis.amount_paise) : `${String(r.basis.pct)}%`;
             const extras: string[] = [];
             if (r.scope.type !== "all")
               extras.push(t("deals.summary.scope", { scope: t(`deals.scopes.${r.scope.type}`) }));
@@ -127,7 +139,8 @@ export function TermsSummary({ config: c }: { config: CompConfig }) {
               );
             return (
               <li key={r.id}>
-                <span className="font-medium">{r.label}</span>: {t(`deals.summary.bases.${r.basis.type}`, { rate })}
+                <span className="font-medium">{r.label}</span>:{" "}
+                {t(`deals.summary.bases.${r.basis.type}`, { rate })}
                 {r.basis.type === "pct_of_eduwit_commission"
                   ? ` (${t(r.basis.base === "net_of_gst" ? "deals.builder.netOfGst" : "deals.builder.grossInclGst")})`
                   : ""}
@@ -138,7 +151,9 @@ export function TermsSummary({ config: c }: { config: CompConfig }) {
           {c.recoupment.mode !== "none" ? (
             <li>
               {c.recoupment.mode === "full"
-                ? t("deals.summary.recoupFull", { amount: money(fixedValue(c, c.recoupment.fixed)) })
+                ? t("deals.summary.recoupFull", {
+                    amount: money(fixedValue(c, c.recoupment.fixed)),
+                  })
                 : t("deals.summary.recoupPartial", {
                     pct: c.recoupment.pct,
                     amount: money(fixedValue(c, c.recoupment.fixed)),
@@ -170,10 +185,17 @@ export function TermsSummary({ config: c }: { config: CompConfig }) {
                   (x) =>
                     `${t(`deals.bonusMetrics.${x.metric}`)} ${x.comparator === "gte" ? "≥" : "≤"} ${formatNumber(x.value)}`,
                 )
-                .join(b.conditions.op === "and" ? ` ${t("deals.summary.and")} ` : ` ${t("deals.summary.or")} `)}
+                .join(
+                  b.conditions.op === "and"
+                    ? ` ${t("deals.summary.and")} `
+                    : ` ${t("deals.summary.or")} `,
+                )}
               {" · "}
               {b.window.type === "dates"
-                ? t("deals.summary.dates", { from: formatDate(b.window.from), to: formatDate(b.window.to) })
+                ? t("deals.summary.dates", {
+                    from: formatDate(b.window.from),
+                    to: formatDate(b.window.to),
+                  })
                 : t(`deals.windows.${b.window.type}`)}
               {b.repeat === "every" ? ` · ${t("deals.builder.everyWindow")}` : ""}
             </li>
@@ -189,7 +211,10 @@ export function TermsSummary({ config: c }: { config: CompConfig }) {
               {p.type === "late_delivery"
                 ? t("deals.summary.late", {
                     grace: p.grace_days,
-                    rate: p.per_day.type === "pct" ? `${String(p.per_day.pct)}%` : money(p.per_day.amount_paise),
+                    rate:
+                      p.per_day.type === "pct"
+                        ? `${String(p.per_day.pct)}%`
+                        : money(p.per_day.amount_paise),
                   })
                 : p.type === "missed_deliverable"
                   ? p.action.type === "fixed"
@@ -208,9 +233,11 @@ export function TermsSummary({ config: c }: { config: CompConfig }) {
         <Block title={t("deals.sections.fees")}>
           {c.fees.map((f) => (
             <li key={f.id}>
-              <span className="font-medium">{f.label}</span> ({t(`deals.feeKinds.${f.kind}`)}): {money(f.amount_paise)},{" "}
-              {triggerText(t, f.trigger)}
-              {f.duration_days ? ` · ${t("deals.summary.duration", { days: f.duration_days })}` : ""}
+              <span className="font-medium">{f.label}</span> ({t(`deals.feeKinds.${f.kind}`)}):{" "}
+              {money(f.amount_paise)}, {triggerText(t, f.trigger)}
+              {f.duration_days
+                ? ` · ${t("deals.summary.duration", { days: f.duration_days })}`
+                : ""}
               {f.platforms.length ? ` · ${f.platforms.join(", ")}` : ""}
             </li>
           ))}
@@ -221,7 +248,8 @@ export function TermsSummary({ config: c }: { config: CompConfig }) {
         <Block title={t("deals.sections.non_cash")}>
           {c.non_cash.map((n) => (
             <li key={n.id}>
-              {n.label}: {money(n.value_paise)} <span className="text-muted">({t("deals.summary.notPaidOut")})</span>
+              {n.label}: {money(n.value_paise)}{" "}
+              <span className="text-muted">({t("deals.summary.notPaidOut")})</span>
             </li>
           ))}
         </Block>

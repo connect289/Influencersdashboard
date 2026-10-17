@@ -17,7 +17,11 @@ export async function generateMetadata() {
   return { title: t("content.area.penalties") };
 }
 
-export default async function PenaltiesPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function PenaltiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const { supabase, me } = await requireStaff("deliverable.read");
   const t = await getTranslations();
   const raw = (await searchParams).status;
@@ -28,7 +32,9 @@ export default async function PenaltiesPage({ searchParams }: { searchParams: Pr
         ? (raw as PenaltyStatus)
         : "proposed";
   const allowed =
-    me.permissions.has("penalty.approve") || me.permissions.has("ledger.read") || me.permissions.has("deal.read");
+    me.permissions.has("penalty.approve") ||
+    me.permissions.has("ledger.read") ||
+    me.permissions.has("deal.read");
   const rows = allowed ? await listPenalties(supabase, { status }).catch(() => null) : [];
   const canDecide = me.permissions.has("penalty.approve");
   return (
@@ -50,7 +56,9 @@ export default async function PenaltiesPage({ searchParams }: { searchParams: Pr
             aria-current={status === s ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-              status === s ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
+              status === s
+                ? "bg-primary-soft font-medium text-primary"
+                : "text-muted hover:bg-surface-2",
             )}
           >
             {s ? t(`content.penalties.statuses.${s}`) : t("content.penalties.all")}
@@ -61,7 +69,10 @@ export default async function PenaltiesPage({ searchParams }: { searchParams: Pr
         {rows === null ? (
           <ErrorState title={t("errors.loadFailed")} />
         ) : rows.length === 0 ? (
-          <EmptyState title={t("content.penalties.empty")} description={t("content.penalties.emptyHint")} />
+          <EmptyState
+            title={t("content.penalties.empty")}
+            description={t("content.penalties.emptyHint")}
+          />
         ) : (
           <Table>
             <thead>
@@ -88,7 +99,10 @@ export default async function PenaltiesPage({ searchParams }: { searchParams: Pr
                     <span className="block text-xs text-muted">{formatDate(p.proposed_at)}</span>
                   </Td>
                   <Td>
-                    <Link href={`/admin/deals/${p.deal_id}?tab=content`} className="hover:underline">
+                    <Link
+                      href={`/admin/deals/${p.deal_id}?tab=content`}
+                      className="hover:underline"
+                    >
                       {p.deal_title}
                     </Link>
                     <span className="block text-xs text-muted">{p.creator_name}</span>
@@ -106,8 +120,13 @@ export default async function PenaltiesPage({ searchParams }: { searchParams: Pr
                       <PenaltyActions id={p.id} />
                     ) : (
                       <>
-                        <StatusBadge status={p.status} label={t(`content.penalties.statuses.${p.status}`)} />
-                        {p.decision_note ? <span className="block text-xs text-muted">{p.decision_note}</span> : null}
+                        <StatusBadge
+                          status={p.status}
+                          label={t(`content.penalties.statuses.${p.status}`)}
+                        />
+                        {p.decision_note ? (
+                          <span className="block text-xs text-muted">{p.decision_note}</span>
+                        ) : null}
                       </>
                     )}
                   </Td>

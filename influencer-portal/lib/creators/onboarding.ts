@@ -26,7 +26,8 @@ export type OnboardingState = z.infer<typeof onboardingState>;
 
 /** The step to open: the requested one if valid, else the first unfinished one, else submit. */
 export function currentStep(state: OnboardingState, requested: string | undefined): WizardStep {
-  if (requested && (WIZARD_STEPS as readonly string[]).includes(requested)) return requested as WizardStep;
+  if (requested && (WIZARD_STEPS as readonly string[]).includes(requested))
+    return requested as WizardStep;
   return ONBOARDING_STEPS.find((s) => !state.steps[s]) ?? "submit";
 }
 

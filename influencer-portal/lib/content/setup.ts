@@ -51,13 +51,19 @@ const source = z.object({
 });
 
 /** The brief id for the deal (created when missing), or null when the deal is unknown or closed. */
-export async function setupContentForDeal(db: Db, dealId: string, now = new Date()): Promise<string | null> {
+export async function setupContentForDeal(
+  db: Db,
+  dealId: string,
+  now = new Date(),
+): Promise<string | null> {
   const { data, error } = await db.rpc("brief_source", { p_deal: dealId });
   if (error) throw new Error(error.message);
   if (data === null) return null;
   const src = source.parse(data);
   if (["completed", "terminated", "expired"].includes(src.deal.status)) return src.brief_id;
-  const template = briefTemplateContent.catch(briefTemplateContent.parse({})).parse(src.template?.content ?? {});
+  const template = briefTemplateContent
+    .catch(briefTemplateContent.parse({}))
+    .parse(src.template?.content ?? {});
   const agreed = src.deal.agreed_terms?.deliverables ?? [];
   let briefId = src.brief_id;
   if (!briefId) {

@@ -30,7 +30,10 @@ export function baseKey(key: string): string {
   return i === -1 ? key : key.slice(0, i);
 }
 
-export function diffLedger(desired: readonly LedgerLine[], posted: readonly PostedLine[]): LedgerDiff {
+export function diffLedger(
+  desired: readonly LedgerLine[],
+  posted: readonly PostedLine[],
+): LedgerDiff {
   const live = new Map<string, PostedLine>();
   const postings = new Map<string, number>();
   for (const p of posted) {
@@ -48,7 +51,8 @@ export function diffLedger(desired: readonly LedgerLine[], posted: readonly Post
       out.create.push(n === 0 ? d : { ...d, key: `${d.key}~${String(n + 1)}` });
       continue;
     }
-    const same = p.type === d.type && p.direction === d.direction && p.amount_paise === d.amount_paise;
+    const same =
+      p.type === d.type && p.direction === d.direction && p.amount_paise === d.amount_paise;
     if (same && d.confirmed_paise === p.confirmed_paise) out.unchanged += 1;
     else if (same && d.confirmed_paise > p.confirmed_paise)
       out.confirm.push({ key: p.key, confirmed_paise: d.confirmed_paise });
@@ -58,6 +62,7 @@ export function diffLedger(desired: readonly LedgerLine[], posted: readonly Post
       out.create.push({ ...d, key: `${d.key}~${String((postings.get(d.key) ?? 1) + 1)}` });
     }
   }
-  for (const [b, p] of live) if (!wanted.has(b)) out.reverse.push({ key: p.key, reason: "obsolete" });
+  for (const [b, p] of live)
+    if (!wanted.has(b)) out.reverse.push({ key: p.key, reason: "obsolete" });
   return out;
 }

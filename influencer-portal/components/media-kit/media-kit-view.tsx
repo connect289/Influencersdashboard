@@ -41,7 +41,9 @@ export function MediaKitView({ kit, avatar }: { kit: MediaKit; avatar: string | 
       </div>
       <dl className="grid grid-cols-3 gap-3">
         <div className="rounded-xl bg-surface p-3 text-center shadow-[var(--shadow-card)]">
-          <dd className="text-xl font-semibold tabular-nums">{formatCompact(kit.total_followers)}</dd>
+          <dd className="text-xl font-semibold tabular-nums">
+            {formatCompact(kit.total_followers)}
+          </dd>
           <dt className="text-xs text-muted">{t("mediaKit.reach")}</dt>
         </div>
         <div className="rounded-xl bg-surface p-3 text-center shadow-[var(--shadow-card)]">
@@ -49,7 +51,9 @@ export function MediaKitView({ kit, avatar }: { kit: MediaKit; avatar: string | 
           <dt className="text-xs text-muted">{t("mediaKit.platformsCount")}</dt>
         </div>
         <div className="rounded-xl bg-surface p-3 text-center shadow-[var(--shadow-card)]">
-          <dd className="text-xl font-semibold tabular-nums">{er === null ? "—" : `${String(er)}%`}</dd>
+          <dd className="text-xl font-semibold tabular-nums">
+            {er === null ? "—" : `${String(er)}%`}
+          </dd>
           <dt className="text-xs text-muted">{t("mediaKit.engagement")}</dt>
         </div>
       </dl>
@@ -78,7 +82,10 @@ export function MediaKitView({ kit, avatar }: { kit: MediaKit; avatar: string | 
           <CardHeader title={t("profile.platforms.title")} />
           <ul className="flex flex-col divide-y divide-line">
             {kit.platforms.map((p) => (
-              <li key={`${p.platform}-${p.handle}`} className="flex items-center gap-3 py-2.5 text-sm">
+              <li
+                key={`${p.platform}-${p.handle}`}
+                className="flex items-center gap-3 py-2.5 text-sm"
+              >
                 <a
                   href={p.url}
                   target="_blank"
@@ -88,8 +95,12 @@ export function MediaKitView({ kit, avatar }: { kit: MediaKit; avatar: string | 
                   {t(`platforms.${p.platform}`)} · @{p.handle}{" "}
                   <ExternalLink className="size-3.5 shrink-0" aria-hidden />
                 </a>
-                <span className="tabular-nums">{p.followers === null ? "—" : formatCompact(p.followers)}</span>
-                {p.engagement_rate !== null ? <span className="text-xs text-muted">{p.engagement_rate}%</span> : null}
+                <span className="tabular-nums">
+                  {p.followers === null ? "—" : formatCompact(p.followers)}
+                </span>
+                {p.engagement_rate !== null ? (
+                  <span className="text-xs text-muted">{p.engagement_rate}%</span>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -104,7 +115,9 @@ export function MediaKitView({ kit, avatar }: { kit: MediaKit; avatar: string | 
                 <span>
                   {t(`formats.${r.format}`)} · {t(`platforms.${r.platform}`)}
                 </span>
-                <span className="font-semibold tabular-nums">{formatPaise(r.suggested_paise, { whole: true })}</span>
+                <span className="font-semibold tabular-nums">
+                  {formatPaise(r.suggested_paise, { whole: true })}
+                </span>
               </li>
             ))}
           </ul>

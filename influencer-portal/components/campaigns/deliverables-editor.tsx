@@ -53,7 +53,9 @@ export function DeliverablesEditor({
             min={1}
             max={50}
             value={d.count}
-            onChange={(e) => set(i, { count: Math.max(1, Math.min(50, Number(e.target.value) || 1)) })}
+            onChange={(e) =>
+              set(i, { count: Math.max(1, Math.min(50, Number(e.target.value) || 1)) })
+            }
           />
           <Button
             type="button"

@@ -60,12 +60,15 @@ describe("seed clause library", () => {
     expect(new Set(SEED_CLAUSES.map((c) => c.category))).toEqual(new Set(CLAUSE_CATEGORIES));
     expect(new Set(SEED_CLAUSES.map((c) => c.key)).size).toBe(SEED_CLAUSES.length);
     for (const c of SEED_CLAUSES) expect(c.body.startsWith(DRAFT_MARKER), c.key).toBe(true);
-    expect(DEFAULT_TEMPLATE.clauses.map((c) => c.key).sort()).toEqual(SEED_CLAUSES.map((c) => c.key).sort());
+    expect(DEFAULT_TEMPLATE.clauses.map((c) => c.key).sort()).toEqual(
+      SEED_CLAUSES.map((c) => c.key).sort(),
+    );
   });
 
   it("uses only catalogue variables", () => {
     for (const c of SEED_CLAUSES)
-      for (const p of usedPaths(docFromText(c.body))) expect(VARIABLE_KEYS.has(p), `${c.key}: ${p}`).toBe(true);
+      for (const p of usedPaths(docFromText(c.body)))
+        expect(VARIABLE_KEYS.has(p), `${c.key}: ${p}`).toBe(true);
   });
 
   it.each(PRESET_KEYS)("renders cleanly for the %s preset", (key) => {
@@ -74,7 +77,14 @@ describe("seed clause library", () => {
       template,
       buildContext({
         ...base,
-        deal: { code: "DL-1", title: "T", starts_on: "2026-11-01", ends_on: null, model: key, config },
+        deal: {
+          code: "DL-1",
+          title: "T",
+          starts_on: "2026-11-01",
+          ends_on: null,
+          model: key,
+          config,
+        },
       }),
     );
     expect(r.errors).toEqual([]);
@@ -104,10 +114,19 @@ describe("seed clause library", () => {
       template,
       buildContext({
         ...base,
-        deal: { code: "DL-1", title: "T", starts_on: "2026-11-01", ends_on: null, model: "fixed_only", config },
+        deal: {
+          code: "DL-1",
+          title: "T",
+          starts_on: "2026-11-01",
+          ends_on: null,
+          model: "fixed_only",
+          config,
+        },
       }),
     );
-    expect(r.content.sections.map((s) => s.key)).toEqual(expect.arrayContaining(["exclusivity", "penalties"]));
+    expect(r.content.sections.map((s) => s.key)).toEqual(
+      expect.arrayContaining(["exclusivity", "penalties"]),
+    );
     expect(contractHtml(r.content)).toContain("edtech");
   });
 });

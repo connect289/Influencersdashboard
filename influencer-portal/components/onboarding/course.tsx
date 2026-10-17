@@ -26,7 +26,10 @@ export function Course({ content, passed }: { content: CourseContent; passed: bo
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader title={t("onboarding.course.lessonsTitle")} description={t("onboarding.course.lessonsHint")} />
+        <CardHeader
+          title={t("onboarding.course.lessonsTitle")}
+          description={t("onboarding.course.lessonsHint")}
+        />
         <ol className="flex flex-col gap-4">
           {content.lessons.map((l, i) => (
             <li key={l.id}>
@@ -43,7 +46,9 @@ export function Course({ content, passed }: { content: CourseContent; passed: bo
           title={t("onboarding.course.quizTitle")}
           description={t("onboarding.course.quizHint", { pct: content.pass_pct })}
         />
-        {passed && !result ? <Banner tone="success">{t("onboarding.course.alreadyPassed")}</Banner> : null}
+        {passed && !result ? (
+          <Banner tone="success">{t("onboarding.course.alreadyPassed")}</Banner>
+        ) : null}
         {result ? (
           <Banner tone={result.passed ? "success" : "warning"}>
             {result.passed
@@ -77,7 +82,10 @@ export function Course({ content, passed }: { content: CourseContent; passed: bo
                     />
                   ) : null}
                   {isWrong ? (
-                    <XCircle className="mt-0.5 size-4 shrink-0 text-danger" aria-label={t("onboarding.course.wrong")} />
+                    <XCircle
+                      className="mt-0.5 size-4 shrink-0 text-danger"
+                      aria-label={t("onboarding.course.wrong")}
+                    />
                   ) : null}
                   <span>
                     {i + 1}. {q.prompt}
@@ -101,12 +109,16 @@ export function Course({ content, passed }: { content: CourseContent; passed: bo
                     {o}
                   </label>
                 ))}
-                {isWrong && wrong.get(q.id) ? <p className="text-xs text-danger">{wrong.get(q.id)}</p> : null}
+                {isWrong && wrong.get(q.id) ? (
+                  <p className="text-xs text-danger">{wrong.get(q.id)}</p>
+                ) : null}
               </fieldset>
             );
           })}
           <Button type="submit" disabled={pending || answered < content.questions.length}>
-            {result && !result.passed ? t("onboarding.course.retry") : t("onboarding.course.submit")}
+            {result && !result.passed
+              ? t("onboarding.course.retry")
+              : t("onboarding.course.submit")}
           </Button>
           {answered < content.questions.length ? (
             <p className="text-xs text-muted">

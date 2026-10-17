@@ -32,13 +32,20 @@ export default async function NewDealPage({
       .order("updated_at", { ascending: false })
       .limit(200),
     creatorId
-      ? supabase.from("creators").select("id, display_name, handle").eq("id", creatorId).maybeSingle()
+      ? supabase
+          .from("creators")
+          .select("id, display_name, handle")
+          .eq("id", creatorId)
+          .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
   const today = istToday();
   return (
     <>
-      <Link href="/admin/deals" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link
+        href="/admin/deals"
+        className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+      >
         <ArrowLeft className="size-4" /> {t("nav.admin.deals")}
       </Link>
       <PageHeader
@@ -64,7 +71,13 @@ export default async function NewDealPage({
             presetId: c.default_preset_id,
           }))}
           initialCreator={
-            creator.data ? { id: creator.data.id, name: creator.data.display_name, handle: creator.data.handle } : null
+            creator.data
+              ? {
+                  id: creator.data.id,
+                  name: creator.data.display_name,
+                  handle: creator.data.handle,
+                }
+              : null
           }
           initialCampaignId={z.uuid().safeParse(sp.campaign).success ? (sp.campaign ?? "") : ""}
           today={today}

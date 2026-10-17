@@ -5,7 +5,13 @@ import { Dialog as D } from "radix-ui";
 import { Button } from "@/components/ui/button";
 import { SideNav, type NavLink } from "./nav-links";
 
-export function MobileNav({ links, labels }: { links: NavLink[]; labels: { open: string; title: string } }) {
+export function MobileNav({
+  links,
+  labels,
+}: {
+  links: NavLink[];
+  labels: { open: string; title: string };
+}) {
   const [open, setOpen] = useState(false);
   return (
     <D.Root open={open} onOpenChange={setOpen}>

@@ -15,13 +15,25 @@ import {
   type TriggerType,
 } from "@/lib/compensation/schema";
 
-export const SCOPE_TYPES = ["all", "programmes", "universities", "levels", "links", "deliverables"] as const;
+export const SCOPE_TYPES = [
+  "all",
+  "programmes",
+  "universities",
+  "levels",
+  "links",
+  "deliverables",
+] as const;
 export const SLAB_PERIODS = ["deal", "month", "campaign"] as const;
 export const SLAB_MODES = ["marginal", "retroactive"] as const;
 export const RECOUP_MODES = ["none", "full", "partial"] as const;
 export const BONUS_WINDOWS = ["deal", "month", "campaign", "dates"] as const;
 export const BONUS_AMOUNTS = ["fixed", "pct_of_fixed", "pct_of_commission"] as const;
-export const PENALTY_TYPES = ["late_delivery", "missed_deliverable", "disclosure", "breach_clawback"] as const;
+export const PENALTY_TYPES = [
+  "late_delivery",
+  "missed_deliverable",
+  "disclosure",
+  "breach_clawback",
+] as const;
 export const SECTIONS = [
   "fixed",
   "commission",
@@ -137,7 +149,13 @@ export function newRule(c: CompConfig, label: string): CommissionRule {
 }
 
 export function newFloor(c: CompConfig, label: string): FloorRule {
-  return { id: nextId("floor", allIds(c)), label, amount_paise: 5_000_00, period: "month", rules: [] };
+  return {
+    id: nextId("floor", allIds(c)),
+    label,
+    amount_paise: 5_000_00,
+    period: "month",
+    rules: [],
+  };
 }
 
 export function newBonus(c: CompConfig, label: string): BonusRule {
@@ -200,9 +218,13 @@ export function builderIssues(c: unknown): BuilderIssue[] {
 
 function toIssue(i: z.core.$ZodIssue): BuilderIssue {
   const [code, detail] = i.message.split(":") as [string, string | undefined];
-  const known = (VALIDATION_CODES as readonly string[]).includes(code) ? (code as ValidationCode) : null;
+  const known = (VALIDATION_CODES as readonly string[]).includes(code)
+    ? (code as ValidationCode)
+    : null;
   const head = i.path[0];
-  const section = (SECTIONS as readonly unknown[]).includes(head) ? (head as BuilderIssue["section"]) : "general";
+  const section = (SECTIONS as readonly unknown[]).includes(head)
+    ? (head as BuilderIssue["section"])
+    : "general";
   return { section, code: known, detail: known ? detail : undefined, path: i.path };
 }
 

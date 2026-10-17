@@ -12,7 +12,12 @@ describe("me", () => {
       email: "a@eduwit.in",
       kind: "staff",
       session: { registered: true, verified: true, revoked: false, verified_via: "email_code" },
-      staff: { full_name: "A", status: "active", is_signatory: true, roles: ["finance", "unknown_role"] },
+      staff: {
+        full_name: "A",
+        status: "active",
+        is_signatory: true,
+        roles: ["finance", "unknown_role"],
+      },
       creator: null,
     });
     const staff = toStaffMe(me);
@@ -37,11 +42,22 @@ describe("me", () => {
       signed_in: true,
       user_id: uid,
       kind: "creator" as const,
-      creator: { id: cid, display_name: "R", handle: "r", status: "active", is_blocked: false, is_test: false },
+      creator: {
+        id: cid,
+        display_name: "R",
+        handle: "r",
+        status: "active",
+        is_blocked: false,
+        is_test: false,
+      },
     };
     expect(toCreatorMe(meSchema.parse(base))?.creatorId).toBe(cid);
-    expect(toCreatorMe(meSchema.parse({ ...base, creator: { ...base.creator, status: "archived" } }))).toBeNull();
-    expect(toCreatorMe(meSchema.parse({ ...base, creator: { ...base.creator, is_blocked: true } }))).toBeNull();
+    expect(
+      toCreatorMe(meSchema.parse({ ...base, creator: { ...base.creator, status: "archived" } })),
+    ).toBeNull();
+    expect(
+      toCreatorMe(meSchema.parse({ ...base, creator: { ...base.creator, is_blocked: true } })),
+    ).toBeNull();
     expect(homeFor(meSchema.parse(base))).toBe("/creator");
   });
 
@@ -51,18 +67,31 @@ describe("me", () => {
       user_id: uid,
       email: "ola@acme.test",
       kind: "agency",
-      agency: { id: cid, name: "Acme", status: "active", member_name: "Ola", role: "owner", member_status: "active" },
+      agency: {
+        id: cid,
+        name: "Acme",
+        status: "active",
+        member_name: "Ola",
+        role: "owner",
+        member_status: "active",
+      },
     };
     const me = meSchema.parse(base);
     expect(toAgencyMe(me)).toMatchObject({ agencyId: cid, agencyName: "Acme", isOwner: true });
     expect(toCreatorMe(me)).toBeNull();
     expect(toStaffMe(me)).toBeNull();
     expect(homeFor(me)).toBe("/agency");
-    expect(toAgencyMe(meSchema.parse({ ...base, agency: { ...base.agency, status: "suspended" } }))).toBeNull();
-    expect(toAgencyMe(meSchema.parse({ ...base, agency: { ...base.agency, member_status: "removed" } }))).toBeNull();
+    expect(
+      toAgencyMe(meSchema.parse({ ...base, agency: { ...base.agency, status: "suspended" } })),
+    ).toBeNull();
+    expect(
+      toAgencyMe(meSchema.parse({ ...base, agency: { ...base.agency, member_status: "removed" } })),
+    ).toBeNull();
   });
 
   it("sends anyone else to no-access", () => {
-    expect(homeFor(meSchema.parse({ signed_in: true, user_id: uid, kind: "none" }))).toBe("/no-access");
+    expect(homeFor(meSchema.parse({ signed_in: true, user_id: uid, kind: "none" }))).toBe(
+      "/no-access",
+    );
   });
 });

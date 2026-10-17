@@ -65,7 +65,9 @@ export function StaffRowActions({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {status === "active" ? (
-              <DropdownMenuItem onSelect={() => setConfirm({ kind: "suspend" })}>{t("staff.suspend")}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setConfirm({ kind: "suspend" })}>
+                {t("staff.suspend")}
+              </DropdownMenuItem>
             ) : (
               <DropdownMenuItem onSelect={() => setConfirm({ kind: "reactivate" })}>
                 {t("staff.reactivate")}
@@ -86,7 +88,12 @@ export function StaffRowActions({
           >
             <div className="flex flex-col gap-4">
               <Field id="reason" label={t("staff.fields.reason")} required>
-                <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} />
+                <Input
+                  id="reason"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  maxLength={300}
+                />
               </Field>
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => setConfirm(null)}>
@@ -99,7 +106,11 @@ export function StaffRowActions({
                     run(() =>
                       confirm.kind === "signout"
                         ? signOutStaffEverywhere(userId, reason)
-                        : setStaffStatus(userId, confirm.kind === "suspend" ? "suspended" : "active", reason),
+                        : setStaffStatus(
+                            userId,
+                            confirm.kind === "suspend" ? "suspended" : "active",
+                            reason,
+                          ),
                     )
                   }
                 >

@@ -59,17 +59,32 @@ export function CreatorsTable({
   const page = filters.page ?? 1;
   const size = filters.page_size ?? 25;
   const pages = Math.max(1, Math.ceil(total / size));
-  const href = (patch: Partial<CreatorFilters>) => `${path}?${creatorFiltersToQuery({ ...filters, ...patch })}`;
+  const href = (patch: Partial<CreatorFilters>) =>
+    `${path}?${creatorFiltersToQuery({ ...filters, ...patch })}`;
   const sortHref = (key: NonNullable<CreatorFilters["sort"]>) =>
-    href({ sort: key, dir: filters.sort === key && filters.dir !== "desc" ? "desc" : "asc", page: undefined });
+    href({
+      sort: key,
+      dir: filters.sort === key && filters.dir !== "desc" ? "desc" : "asc",
+      page: undefined,
+    });
 
   const columns = useMemo<ColumnDef<CreatorListRow>[]>(() => {
     const sortable = (key: NonNullable<CreatorFilters["sort"]>, label: string) => {
       const active = filters.sort === key;
       return (
-        <Link href={sortHref(key)} className="inline-flex items-center gap-1 hover:text-ink" scroll={false}>
+        <Link
+          href={sortHref(key)}
+          className="inline-flex items-center gap-1 hover:text-ink"
+          scroll={false}
+        >
           {label}
-          {active ? filters.dir === "desc" ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" /> : null}
+          {active ? (
+            filters.dir === "desc" ? (
+              <ArrowDown className="size-3" />
+            ) : (
+              <ArrowUp className="size-3" />
+            )
+          ) : null}
           <span className="sr-only">{t("creators.table.sortBy", { column: label })}</span>
         </Link>
       );
@@ -80,7 +95,10 @@ export function CreatorsTable({
         header: () => sortable("name", t("creators.table.creator")),
         cell: ({ row }) => (
           <div className="min-w-0">
-            <Link href={`/admin/creators/${row.original.id}`} className="font-medium text-primary hover:underline">
+            <Link
+              href={`/admin/creators/${row.original.id}`}
+              className="font-medium text-primary hover:underline"
+            >
               {row.original.display_name}
             </Link>
             <span className="block text-xs text-muted">
@@ -106,7 +124,9 @@ export function CreatorsTable({
               status={row.original.pipeline_stage}
               label={t(`creators.stages.${row.original.pipeline_stage as PipelineStage}`)}
             />
-            {row.original.is_blocked ? <Badge family="problem">{t("creators.statuses.blocked")}</Badge> : null}
+            {row.original.is_blocked ? (
+              <Badge family="problem">{t("creators.statuses.blocked")}</Badge>
+            ) : null}
           </span>
         ),
       },
@@ -122,7 +142,11 @@ export function CreatorsTable({
           </span>
         ),
       },
-      { id: "owner", header: () => t("creators.fields.owner"), cell: ({ row }) => row.original.owner_name ?? "—" },
+      {
+        id: "owner",
+        header: () => t("creators.fields.owner"),
+        cell: ({ row }) => row.original.owner_name ?? "—",
+      },
       {
         id: "follow_up",
         header: () => sortable("follow_up", t("creators.table.followUp")),
@@ -136,7 +160,8 @@ export function CreatorsTable({
       {
         id: "last_activity",
         header: () => sortable("last_activity", t("creators.table.lastActivity")),
-        cell: ({ row }) => (row.original.last_activity_at ? formatRelative(row.original.last_activity_at) : "—"),
+        cell: ({ row }) =>
+          row.original.last_activity_at ? formatRelative(row.original.last_activity_at) : "—",
       },
     ];
     if (canWrite)
@@ -190,7 +215,9 @@ export function CreatorsTable({
           role="region"
           aria-label={t("creators.bulk.title")}
         >
-          <span className="font-medium text-primary">{t("creators.bulk.selected", { count: selectedIds.length })}</span>
+          <span className="font-medium text-primary">
+            {t("creators.bulk.selected", { count: selectedIds.length })}
+          </span>
           {(["tag_add", "tag_remove", "owner", "stage"] as const).map((k) => (
             <Button
               key={k}
@@ -275,7 +302,9 @@ export function CreatorsTable({
               className="rounded-lg bg-surface px-2 py-1 ring-1 ring-line-strong ring-inset"
               value={size}
               onChange={(e) => {
-                router.push(href({ page_size: Number(e.target.value), page: undefined }), { scroll: false });
+                router.push(href({ page_size: Number(e.target.value), page: undefined }), {
+                  scroll: false,
+                });
               }}
             >
               {PAGE_SIZES.map((n) => (
@@ -287,7 +316,11 @@ export function CreatorsTable({
           </label>
           {page > 1 ? (
             <Button asChild variant="secondary" size="sm">
-              <Link href={href({ page: page - 1 })} scroll={false} aria-label={t("creators.table.prev")}>
+              <Link
+                href={href({ page: page - 1 })}
+                scroll={false}
+                aria-label={t("creators.table.prev")}
+              >
                 <ChevronLeft />
               </Link>
             </Button>
@@ -295,7 +328,11 @@ export function CreatorsTable({
           <span className="tabular-nums">{t("creators.table.pageOf", { page, pages })}</span>
           {page < pages ? (
             <Button asChild variant="secondary" size="sm">
-              <Link href={href({ page: page + 1 })} scroll={false} aria-label={t("creators.table.next")}>
+              <Link
+                href={href({ page: page + 1 })}
+                scroll={false}
+                aria-label={t("creators.table.next")}
+              >
                 <ChevronRight />
               </Link>
             </Button>
@@ -314,7 +351,10 @@ export function CreatorsTable({
               onSubmit={(e) => {
                 e.preventDefault();
                 run(
-                  () => bulkCreators(selectedIds, { action: bulk, value } as Parameters<typeof bulkCreators>[1]),
+                  () =>
+                    bulkCreators(selectedIds, { action: bulk, value } as Parameters<
+                      typeof bulkCreators
+                    >[1]),
                   () => {
                     setBulk(null);
                     setSelection({});

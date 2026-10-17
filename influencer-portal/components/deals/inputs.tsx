@@ -54,7 +54,10 @@ export function RupeeInput({
 }: Base & { paise: number | null; onPaise: (p: number) => void }) {
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted" aria-hidden>
+      <span
+        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted"
+        aria-hidden
+      >
         ₹
       </span>
       <NumberText
@@ -73,7 +76,11 @@ export function RupeeInput({
 }
 
 /** A percentage with up to two decimals. */
-export function PctInput({ pct, onPct, ...props }: Base & { pct: number | null; onPct: (p: number) => void }) {
+export function PctInput({
+  pct,
+  onPct,
+  ...props
+}: Base & { pct: number | null; onPct: (p: number) => void }) {
   return (
     <div className="relative">
       <NumberText
@@ -87,7 +94,10 @@ export function PctInput({ pct, onPct, ...props }: Base & { pct: number | null; 
         }}
         onValue={(v) => onPct(v ?? 0)}
       />
-      <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted" aria-hidden>
+      <span
+        className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted"
+        aria-hidden
+      >
         %
       </span>
     </div>
@@ -95,7 +105,11 @@ export function PctInput({ pct, onPct, ...props }: Base & { pct: number | null; 
 }
 
 /** A whole number. */
-export function IntInput({ int, onInt, ...props }: Base & { int: number | null; onInt: (n: number) => void }) {
+export function IntInput({
+  int,
+  onInt,
+  ...props
+}: Base & { int: number | null; onInt: (n: number) => void }) {
   return (
     <NumberText
       {...props}

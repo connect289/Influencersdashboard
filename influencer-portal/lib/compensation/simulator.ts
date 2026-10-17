@@ -32,8 +32,10 @@ export const scenario = z
     gst_registered: z.boolean().default(false),
   })
   .superRefine((s, ctx) => {
-    if (s.qualified_leads > s.leads) ctx.addIssue({ code: "custom", path: ["qualified_leads"], message: "gt_leads" });
-    if (s.applications > s.leads) ctx.addIssue({ code: "custom", path: ["applications"], message: "gt_leads" });
+    if (s.qualified_leads > s.leads)
+      ctx.addIssue({ code: "custom", path: ["qualified_leads"], message: "gt_leads" });
+    if (s.applications > s.leads)
+      ctx.addIssue({ code: "custom", path: ["applications"], message: "gt_leads" });
     if (s.cancellations > s.enrollments)
       ctx.addIssue({ code: "custom", path: ["cancellations"], message: "gt_enrollments" });
   });
@@ -91,13 +93,16 @@ export function configDeliverables(c: CompConfig): string[] {
   };
   for (const f of c.fixed) for (const m of f.milestones) fromTrigger(m.trigger);
   for (const fee of c.fees) fromTrigger(fee.trigger);
-  for (const r of c.commission) if (r.scope.type === "deliverables") for (const d of r.scope.ids) ids.add(d);
+  for (const r of c.commission)
+    if (r.scope.type === "deliverables") for (const d of r.scope.ids) ids.add(d);
   return ids.size ? [...ids].sort() : ["d1"];
 }
 
 /** IST instant: `day` days after a date, at `minute` minutes past 10:00. */
 const istAt = (date: string, day: number, minute = 0) =>
-  new Date(Date.parse(istMidnight(addDays(date, day))) + 10 * 3_600_000 + minute * 60_000).toISOString();
+  new Date(
+    Date.parse(istMidnight(addDays(date, day))) + 10 * 3_600_000 + minute * 60_000,
+  ).toISOString();
 
 /** The synthetic event stream for a scenario. Units are spread evenly over the months; the deal ends after them. */
 export function scenarioEvents(
@@ -129,7 +134,8 @@ export function scenarioEvents(
   // Views: cumulative readings at the end of each month, split evenly across deliverables.
   for (let m = 1; m <= s.months; m++)
     deliverables.forEach((d, i) => {
-      const share = Math.floor(s.views / deliverables.length) + (i < s.views % deliverables.length ? 1 : 0);
+      const share =
+        Math.floor(s.views / deliverables.length) + (i < s.views % deliverables.length ? 1 : 0);
       push({
         type: "metric",
         at: istAt(addDays(addMonths(startsOn, m), -1), 0, 30 + i),
@@ -149,7 +155,11 @@ export function scenarioEvents(
       duplicate: false,
     });
     if (i < s.qualified_leads)
-      push({ type: "lead_qualified", at: istAt(startsOn, day + 1, i % 600), lead: `L${String(i)}` });
+      push({
+        type: "lead_qualified",
+        at: istAt(startsOn, day + 1, i % 600),
+        lead: `L${String(i)}`,
+      });
     if (i < s.applications)
       push({ type: "lead_applied", at: istAt(startsOn, day + 2, i % 600), lead: `L${String(i)}` });
   }
@@ -166,7 +176,12 @@ export function scenarioEvents(
       expected_commission_gross_paise: s.avg_commission_gross_paise,
     });
     const cancelled = i >= s.enrollments - s.cancellations;
-    if (cancelled) push({ type: "enrollment_cancelled", at: istAt(startsOn, day + 5, 600 + (i % 600)), enrollment });
+    if (cancelled)
+      push({
+        type: "enrollment_cancelled",
+        at: istAt(startsOn, day + 5, 600 + (i % 600)),
+        enrollment,
+      });
     else if (s.commission_received && s.avg_commission_gross_paise !== undefined)
       push({
         type: "commission_received",
@@ -185,7 +200,12 @@ export function scenarioEvents(
         rank: s.leaderboard_rank,
       });
     for (const w of ["deal", "campaign"])
-      push({ type: "leaderboard_rank", at: istAt(endsOn, 0, 201), window: w, rank: s.leaderboard_rank });
+      push({
+        type: "leaderboard_rank",
+        at: istAt(endsOn, 0, 201),
+        window: w,
+        rank: s.leaderboard_rank,
+      });
   }
   for (const f of c.fixed)
     for (const m of f.milestones)
@@ -203,7 +223,9 @@ export function simulationConfig(c: CompConfig): CompConfig {
     commission: c.commission.map((r) => ({ ...r, scope: { type: "all" as const } })),
     // Manual-release fees fire like milestones in a simulation (released at the end).
     fees: c.fees.map((f) =>
-      f.trigger.type === "manual_release" ? { ...f, trigger: { type: "on_campaign_end" as const } } : f,
+      f.trigger.type === "manual_release"
+        ? { ...f, trigger: { type: "on_campaign_end" as const } }
+        : f,
     ),
   };
 }
@@ -219,7 +241,11 @@ function bucket(l: LedgerLine): BreakdownKey {
   return "commission";
 }
 
-export function simulate(config: CompConfig, input: Scenario, o: SimulationOptions): SimulationResult {
+export function simulate(
+  config: CompConfig,
+  input: Scenario,
+  o: SimulationOptions,
+): SimulationResult {
   const c = simulationConfig(config);
   const { events, ends_on } = scenarioEvents(c, input, o.starts_on);
   // Run far enough past the end for holds, timers and dated milestones to settle.
@@ -230,7 +256,9 @@ export function simulate(config: CompConfig, input: Scenario, o: SimulationOptio
     r.confirmation.type === "after_hold_days" ? (r.confirmation.days ?? o.context.hold_days) : 0,
   );
   const settle =
-    [addDays(ends_on, 40 + Math.max(0, ...holds)), ...dated.map((d) => addDays(d, 1))].sort().at(-1) ?? ends_on;
+    [addDays(ends_on, 40 + Math.max(0, ...holds)), ...dated.map((d) => addDays(d, 1))]
+      .sort()
+      .at(-1) ?? ends_on;
   const result = computeLedger({
     deal: { id: "simulation", starts_on: o.starts_on, ends_on, campaign_ends_on: ends_on },
     versions: [{ id: "sim", effective_from: istMidnight(o.starts_on), config: c }],

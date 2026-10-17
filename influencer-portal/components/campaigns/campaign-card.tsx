@@ -27,10 +27,14 @@ export function CampaignCard({ c, href }: { c: CampaignPublic; href: string }) {
       <p className="text-xs text-muted">{t(`campaigns.objectives.${c.objective as "leads"}`)}</p>
       {c.deliverables.length ? (
         <p className="text-sm">
-          {c.deliverables.map((d) => `${String(d.count)} × ${t(`formats.${d.format}`)}`).join(" · ")}
+          {c.deliverables
+            .map((d) => `${String(d.count)} × ${t(`formats.${d.format}`)}`)
+            .join(" · ")}
         </p>
       ) : null}
-      {c.compensation_summary ? <p className="line-clamp-2 text-sm text-muted">{c.compensation_summary}</p> : null}
+      {c.compensation_summary ? (
+        <p className="line-clamp-2 text-sm text-muted">{c.compensation_summary}</p>
+      ) : null}
       <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
         {c.apply_by ? (
           <span className="flex items-center gap-1">
@@ -40,7 +44,8 @@ export function CampaignCard({ c, href }: { c: CampaignPublic; href: string }) {
         ) : null}
         {c.slots_left !== null ? (
           <span className="flex items-center gap-1">
-            <Users className="size-3.5" aria-hidden /> {t("campaigns.marketplace.slotsLeft", { count: c.slots_left })}
+            <Users className="size-3.5" aria-hidden />{" "}
+            {t("campaigns.marketplace.slotsLeft", { count: c.slots_left })}
           </span>
         ) : null}
       </div>

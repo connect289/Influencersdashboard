@@ -1,7 +1,12 @@
 "use client";
 // Last-resort boundary that replaces the root layout, so the i18n provider is not available here. It shows a
 // language-neutral symbol plus a retry; every other screen takes its text from messages/.
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
     <html lang="en">
       <body

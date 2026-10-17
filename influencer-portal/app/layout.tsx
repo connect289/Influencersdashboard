@@ -34,7 +34,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const locale = await getLocale();
   return (
-    <html lang={locale} suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html
+      lang={locale}
+      suppressHydrationWarning
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+    >
       <body className="min-h-dvh antialiased">
         <NextIntlClientProvider>
           <Providers nonce={nonce}>{children}</Providers>

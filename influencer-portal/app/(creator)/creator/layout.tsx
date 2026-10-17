@@ -7,7 +7,11 @@ import { CREATOR_NAV } from "@/lib/nav";
 export default async function CreatorLayout({ children }: { children: React.ReactNode }) {
   const { me } = await requireCreator();
   const t = await getTranslations();
-  const links: NavLink[] = CREATOR_NAV.map((i) => ({ href: i.href, label: t(i.labelKey), icon: i.icon }));
+  const links: NavLink[] = CREATOR_NAV.map((i) => ({
+    href: i.href,
+    label: t(i.labelKey),
+    icon: i.icon,
+  }));
   return (
     <PortalShell
       links={links}

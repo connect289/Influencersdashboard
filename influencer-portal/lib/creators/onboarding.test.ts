@@ -22,7 +22,10 @@ describe("onboarding wizard", () => {
     expect(currentStep(base, "admin")).toBe("kyc");
   });
   it("goes to submit when everything is done, and reports progress", () => {
-    const all = { ...base, steps: { profile: true, platforms: true, kyc: true, terms: true, course: true } };
+    const all = {
+      ...base,
+      steps: { profile: true, platforms: true, kyc: true, terms: true, course: true },
+    };
     expect(currentStep(all, undefined)).toBe("submit");
     expect(progressPct(base)).toBe(40);
     expect(progressPct(all)).toBe(100);

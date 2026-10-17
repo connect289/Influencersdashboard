@@ -22,7 +22,10 @@ const base = {
 
 describe("dryRun", () => {
   it("no change when the draft equals the current terms", () => {
-    const r = dryRun({ ...base, draft: { config: current, effective_from: "2026-12-01T00:00:00+05:30" } });
+    const r = dryRun({
+      ...base,
+      draft: { config: current, effective_from: "2026-12-01T00:00:00+05:30" },
+    });
     expect(r.delta_paise).toBe(0);
     expect(r.changes).toEqual([]);
   });
@@ -31,14 +34,22 @@ describe("dryRun", () => {
     const raised = compConfig.parse({
       ...current,
       commission: [
-        { ...current.commission[0], basis: { type: "pct_of_eduwit_commission", pct: 20, base: "net_of_gst" } },
+        {
+          ...current.commission[0],
+          basis: { type: "pct_of_eduwit_commission", pct: 20, base: "net_of_gst" },
+        },
       ],
     });
-    const r = dryRun({ ...base, draft: { config: raised, effective_from: "2026-12-01T00:00:00+05:30" } });
+    const r = dryRun({
+      ...base,
+      draft: { config: raised, effective_from: "2026-12-01T00:00:00+05:30" },
+    });
     expect(r.delta_paise).toBeGreaterThan(0);
     expect(r.delta_paise % 1_000_00).toBe(0); // whole enrolments at +₹1,000 each
     expect(
-      r.changes.every((c) => c.type === "commission" && (c.after_paise ?? 0) - (c.before_paise ?? 0) === 1_000_00),
+      r.changes.every(
+        (c) => c.type === "commission" && (c.after_paise ?? 0) - (c.before_paise ?? 0) === 1_000_00,
+      ),
     ).toBe(true);
     expect(r.changes.length).toBe(r.delta_paise / 1_000_00);
     expect(r.after.net_paise - r.before.net_paise).toBe(r.delta_paise);
@@ -46,14 +57,21 @@ describe("dryRun", () => {
 
   it("removing commission entirely from the start reverses those lines", () => {
     const fixedOnly = compConfig.parse({ ...current, commission: [] });
-    const r = dryRun({ ...base, draft: { config: fixedOnly, effective_from: "2026-11-01T00:00:01+05:30" } });
+    const r = dryRun({
+      ...base,
+      draft: { config: fixedOnly, effective_from: "2026-11-01T00:00:01+05:30" },
+    });
     expect(r.changes.every((c) => c.after_paise === null && c.type === "commission")).toBe(true);
     expect(r.delta_paise).toBe(-6_000_00);
   });
 
   it("needs the current terms", () => {
     expect(() =>
-      dryRun({ ...base, versions: [], draft: { config: current, effective_from: "2026-12-01T00:00:00+05:30" } }),
+      dryRun({
+        ...base,
+        versions: [],
+        draft: { config: current, effective_from: "2026-12-01T00:00:00+05:30" },
+      }),
     ).toThrow();
   });
 });

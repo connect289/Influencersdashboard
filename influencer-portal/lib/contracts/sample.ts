@@ -20,7 +20,9 @@ const FULL: CompConfig = compConfig.parse({
       amount: { type: "fixed", amount_paise: 5_000_00 },
     },
   ],
-  penalties: [{ id: "disc", type: "disclosure", label: "Missing #ad disclosure", amount_paise: 2_000_00 }],
+  penalties: [
+    { id: "disc", type: "disclosure", label: "Missing #ad disclosure", amount_paise: 2_000_00 },
+  ],
   fees: [
     {
       id: "excl",

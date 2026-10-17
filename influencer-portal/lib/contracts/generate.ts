@@ -41,20 +41,31 @@ const overridesSchema = z.record(z.string(), richDoc);
 export async function generateVersion(
   db: Db,
   contractId: string,
-  opts: { overrides?: Readonly<Record<string, RichDoc>>; note?: string; resolve?: readonly Resolution[] } = {},
+  opts: {
+    overrides?: Readonly<Record<string, RichDoc>>;
+    note?: string;
+    resolve?: readonly Resolution[];
+  } = {},
 ): Promise<GenerateResult> {
   const { data: row, error } = await db
     .from("contracts")
-    .select("id, number, deal_id, template_id, parent_contract_id, payee_agency_id, current_version_id")
+    .select(
+      "id, number, deal_id, template_id, parent_contract_id, payee_agency_id, current_version_id",
+    )
     .eq("id", contractId)
     .maybeSingle();
-  if (error) return { ok: false, error: "db", detail: [], message: error.message, code: error.code };
+  if (error)
+    return { ok: false, error: "db", detail: [], message: error.message, code: error.code };
   const c = contractRow.nullable().parse(row);
   if (!c) return { ok: false, error: "not_found", detail: [] };
 
   const [prev, parent, src, template] = await Promise.all([
     c.current_version_id
-      ? db.from("contract_versions").select("overrides").eq("id", c.current_version_id).maybeSingle()
+      ? db
+          .from("contract_versions")
+          .select("overrides")
+          .eq("id", c.current_version_id)
+          .maybeSingle()
       : Promise.resolve({ data: null }),
     c.parent_contract_id
       ? db.from("contracts").select("number").eq("id", c.parent_contract_id).maybeSingle()
@@ -64,7 +75,9 @@ export async function generateVersion(
   ]);
   if (!src || !template) return { ok: false, error: "not_found", detail: [] };
   if (!src.deal.comp_config) return { ok: false, error: "no_terms", detail: [] };
-  const kept = overridesSchema.catch({}).parse((prev.data as { overrides?: unknown } | null)?.overrides ?? {});
+  const kept = overridesSchema
+    .catch({})
+    .parse((prev.data as { overrides?: unknown } | null)?.overrides ?? {});
   const overrides = { ...kept, ...opts.overrides };
 
   const built = buildVersion(
@@ -79,7 +92,11 @@ export async function generateVersion(
     overrides,
   );
   if (built.errors.length || built.unknown.length)
-    return { ok: false, error: "template", detail: [...built.unknown.map((u) => `unknown:${u}`), ...built.errors] };
+    return {
+      ok: false,
+      error: "template",
+      detail: [...built.unknown.map((u) => `unknown:${u}`), ...built.errors],
+    };
 
   const { data: versionId, error: e2 } = await db.rpc("contract_version_add", {
     p_contract: c.id,
@@ -87,7 +104,11 @@ export async function generateVersion(
     p_html: built.html,
     p_overrides: overrides as never,
     p_note: opts.note ?? undefined,
-    p_resolve: (opts.resolve ?? []).map((r) => ({ id: r.id, status: r.status, note: r.note ?? null })),
+    p_resolve: (opts.resolve ?? []).map((r) => ({
+      id: r.id,
+      status: r.status,
+      note: r.note ?? null,
+    })),
     p_missing: built.missing,
   });
   if (e2) {
@@ -112,6 +133,10 @@ export async function draftContractForDeal(db: Db, dealId: string): Promise<stri
   if (e2) throw new Error(e2.message);
   const r = await generateVersion(db, id, { note: "Generated for the accepted offer" });
   if (!r.ok)
-    log.warn("contracts.draft_generation_failed", { deal_id: dealId, error: r.error, detail: r.detail.join(",") });
+    log.warn("contracts.draft_generation_failed", {
+      deal_id: dealId,
+      error: r.error,
+      detail: r.detail.join(","),
+    });
   return id;
 }

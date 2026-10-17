@@ -29,15 +29,24 @@ export async function createDealFromApplication(applicationId: string): Promise<
   if (!src || src.status !== "accepted") return null;
   const preset = src.preset_config === null ? null : compConfig.parse(src.preset_config);
   const config = configFromTerms(preset, offerTerms.parse(src.terms));
-  const { data: dealId, error: e2 } = await db.rpc("deal_from_application", { p_app: applicationId, p_config: config });
+  const { data: dealId, error: e2 } = await db.rpc("deal_from_application", {
+    p_app: applicationId,
+    p_config: config,
+  });
   if (e2) throw new Error(e2.message);
   // The draft contract follows the deal; a failure here leaves the deal intact and staff generate it by hand.
   await draftContractForDeal(db, dealId).catch((e: unknown) =>
-    log.warn("contracts.draft_failed", { deal_id: dealId, error: e instanceof Error ? e.message : String(e) }),
+    log.warn("contracts.draft_failed", {
+      deal_id: dealId,
+      error: e instanceof Error ? e.message : String(e),
+    }),
   );
   // Likewise the draft brief and deliverables (staff publish the brief once it is reviewed).
   await setupContentForDeal(db, dealId).catch((e: unknown) =>
-    log.warn("content.setup_failed", { deal_id: dealId, error: e instanceof Error ? e.message : String(e) }),
+    log.warn("content.setup_failed", {
+      deal_id: dealId,
+      error: e instanceof Error ? e.message : String(e),
+    }),
   );
   return dealId;
 }

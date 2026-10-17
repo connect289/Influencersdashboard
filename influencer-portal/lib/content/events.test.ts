@@ -113,7 +113,13 @@ describe("penaltyProposals", () => {
       }),
     ).toEqual([]);
     expect(
-      penaltyProposals({ deal, versions, context, as_of: "2026-12-01T00:00:00.000Z", facts: facts([{}]) }),
+      penaltyProposals({
+        deal,
+        versions,
+        context,
+        as_of: "2026-12-01T00:00:00.000Z",
+        facts: facts([{}]),
+      }),
     ).toEqual([]);
   });
   it("proposes the missed-deliverable and disclosure penalties", () => {
@@ -124,7 +130,11 @@ describe("penaltyProposals", () => {
       as_of: "2026-12-01T00:00:00.000Z",
       facts: facts([
         { cancelled_at: "2026-11-20T10:00:00.000Z" },
-        { config_ref: "reel2", live_at: "2026-11-09T10:00:00.000Z", disclosure_failed_at: "2026-11-09T12:00:00.000Z" },
+        {
+          config_ref: "reel2",
+          live_at: "2026-11-09T10:00:00.000Z",
+          disclosure_failed_at: "2026-11-09T12:00:00.000Z",
+        },
       ]),
     });
     expect(p.map((x) => [x.rule_id, x.subject, x.amount_paise]).sort()).toEqual([

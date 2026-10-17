@@ -3,7 +3,9 @@ import { agencyInput, memberInput } from "./schemas";
 
 describe("agency schemas", () => {
   it("normalises GSTIN and accepts blanks", () => {
-    expect(agencyInput.parse({ name: "Acme Talent", gstin: "27abcps1234k1z5" }).gstin).toBe("27ABCPS1234K1Z5");
+    expect(agencyInput.parse({ name: "Acme Talent", gstin: "27abcps1234k1z5" }).gstin).toBe(
+      "27ABCPS1234K1Z5",
+    );
     expect(agencyInput.safeParse({ name: "Acme" }).success).toBe(true);
   });
   it("rejects bad GSTIN, phone or a one-letter name", () => {

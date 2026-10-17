@@ -97,13 +97,21 @@ export function BriefEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      {unpublishedChanges && !dirty ? <Banner tone="warning">{t("content.brief.unpublished")}</Banner> : null}
+      {unpublishedChanges && !dirty ? (
+        <Banner tone="warning">{t("content.brief.unpublished")}</Banner>
+      ) : null}
       <Card>
-        <CardHeader title={t("content.brief.contentTitle")} description={t("content.brief.contentHint")} />
+        <CardHeader
+          title={t("content.brief.contentTitle")}
+          description={t("content.brief.contentHint")}
+        />
         <BriefFields value={v} onChange={setV} />
       </Card>
       <Card>
-        <CardHeader title={t("content.brief.claimsTitle")} description={t("content.brief.claimsHint")} />
+        <CardHeader
+          title={t("content.brief.claimsTitle")}
+          description={t("content.brief.claimsHint")}
+        />
         <ListEditor
           id="bf-claims"
           label={t("content.brief.approvedClaims")}
@@ -148,7 +156,8 @@ export function BriefEditor({
                 disabled={uploading}
                 onClick={() => file.current?.click()}
               >
-                <Paperclip /> {uploading ? t("content.upload.uploading") : t("content.brief.addAsset")}
+                <Paperclip />{" "}
+                {uploading ? t("content.upload.uploading") : t("content.brief.addAsset")}
               </Button>
             </>
           }
@@ -164,7 +173,12 @@ export function BriefEditor({
                   value={a.label}
                   maxLength={300}
                   onChange={(e) =>
-                    setV({ ...v, assets: v.assets.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })
+                    setV({
+                      ...v,
+                      assets: v.assets.map((x, j) =>
+                        j === i ? { ...x, label: e.target.value } : x,
+                      ),
+                    })
                   }
                 />
                 <Button
@@ -182,7 +196,9 @@ export function BriefEditor({
         )}
       </Card>
       <div className="sticky bottom-20 z-10 flex flex-wrap items-center justify-end gap-2 rounded-xl bg-surface/95 p-2 ring-1 ring-line backdrop-blur md:bottom-4">
-        {dirty ? <span className="mr-auto text-sm text-muted">{t("content.brief.unsaved")}</span> : null}
+        {dirty ? (
+          <span className="mr-auto text-sm text-muted">{t("content.brief.unsaved")}</span>
+        ) : null}
         <Button type="button" variant="secondary" disabled={pending || !dirty} onClick={save}>
           {t("common.save")}
         </Button>
@@ -211,8 +227,17 @@ export function BriefEditor({
                 );
               }}
             >
-              <Field id="bf-note" label={t("content.brief.versionNote")} hint={t("content.brief.versionNoteHint")}>
-                <Input id="bf-note" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+              <Field
+                id="bf-note"
+                label={t("content.brief.versionNote")}
+                hint={t("content.brief.versionNoteHint")}
+              >
+                <Input
+                  id="bf-note"
+                  maxLength={500}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
               </Field>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

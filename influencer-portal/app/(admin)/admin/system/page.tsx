@@ -20,7 +20,13 @@ interface Status {
     oldest_due_seconds: number | null;
   };
   deliveries: { queued: number; failed_24h: number };
-  cron: { job: string; schedule: string; active: boolean; last_status: string | null; last_run: string | null }[];
+  cron: {
+    job: string;
+    schedule: string;
+    active: boolean;
+    last_status: string | null;
+    last_run: string | null;
+  }[];
 }
 
 interface JobRow {
@@ -76,7 +82,9 @@ export default async function SystemPage() {
               {stat(t("system.jobs.dead"), s.jobs.dead, s.jobs.dead > 0)}
               {stat(
                 t("system.jobs.oldest"),
-                s.jobs.oldest_due_seconds === null ? "—" : `${Math.round(s.jobs.oldest_due_seconds / 60)} min`,
+                s.jobs.oldest_due_seconds === null
+                  ? "—"
+                  : `${Math.round(s.jobs.oldest_due_seconds / 60)} min`,
                 (s.jobs.oldest_due_seconds ?? 0) > 900,
               )}
             </dl>
@@ -87,7 +95,11 @@ export default async function SystemPage() {
               {stat(t("system.providers.email"), e.EMAIL_PROVIDER)}
               {stat(t("system.providers.whatsapp"), e.WHATSAPP_PROVIDER)}
               {stat(t("system.providers.liveMode"), e.LIVE_MODE)}
-              {stat(t("system.deliveries.failed"), s.deliveries.failed_24h, s.deliveries.failed_24h > 0)}
+              {stat(
+                t("system.deliveries.failed"),
+                s.deliveries.failed_24h,
+                s.deliveries.failed_24h > 0,
+              )}
             </dl>
           </Card>
           <Card className="lg:col-span-2">
@@ -97,7 +109,10 @@ export default async function SystemPage() {
             ) : (
               <ul className="divide-y divide-line">
                 {s.cron.map((c) => (
-                  <li key={c.job} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <li
+                    key={c.job}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
+                  >
                     <span className="font-mono">{c.job}</span>
                     <span className="text-muted">{c.schedule}</span>
                     <span className="text-muted">
@@ -146,10 +161,17 @@ export default async function SystemPage() {
                     {j.attempts}/{j.max_attempts}
                   </Td>
                   <Td className="text-muted">{formatRelative(j.run_at)}</Td>
-                  <Td className="max-w-64 truncate text-xs text-muted" title={j.last_error ?? undefined}>
+                  <Td
+                    className="max-w-64 truncate text-xs text-muted"
+                    title={j.last_error ?? undefined}
+                  >
                     {j.last_error ?? "—"}
                   </Td>
-                  <Td>{["dead", "failed", "cancelled"].includes(j.status) ? <RetryButton id={j.id} /> : null}</Td>
+                  <Td>
+                    {["dead", "failed", "cancelled"].includes(j.status) ? (
+                      <RetryButton id={j.id} />
+                    ) : null}
+                  </Td>
                 </tr>
               ))}
             </tbody>

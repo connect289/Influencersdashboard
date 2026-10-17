@@ -50,7 +50,8 @@ export async function saveStaff(input: StaffInput, invite: boolean): Promise<Act
   try {
     const { supabase } = await assertStaff("staff.manage");
     const admin = adminClient();
-    let userId: string | null = (await admin.rpc("auth_user_id_by_email", { p_email: v.email })).data;
+    let userId: string | null = (await admin.rpc("auth_user_id_by_email", { p_email: v.email }))
+      .data;
     if (!userId) {
       const created = await admin.auth.admin.createUser({
         email: v.email,
@@ -83,7 +84,10 @@ export async function saveStaff(input: StaffInput, invite: boolean): Promise<Act
       }
     }
     revalidatePath("/admin/staff");
-    return { ok: true, message: invite ? t("staff.invited", { email: v.email }) : t("staff.saved") };
+    return {
+      ok: true,
+      message: invite ? t("staff.invited", { email: v.email }) : t("staff.saved"),
+    };
   } catch (e) {
     return fail(e instanceof ForbiddenError ? e.message : t("errors.generic"));
   }
@@ -110,15 +114,22 @@ export async function setStaffStatus(
       p_status: parsed.data.status,
       p_reason: parsed.data.reason,
     });
-    if (error) return fail(/yourself/i.test(error.message) ? t("staff.errors.self") : dbError(error, t));
+    if (error)
+      return fail(/yourself/i.test(error.message) ? t("staff.errors.self") : dbError(error, t));
   } catch (e) {
     return fail(e instanceof ForbiddenError ? e.message : t("errors.generic"));
   }
   revalidatePath("/admin/staff");
-  return { ok: true, message: status === "suspended" ? t("staff.suspended") : t("staff.reactivated") };
+  return {
+    ok: true,
+    message: status === "suspended" ? t("staff.suspended") : t("staff.reactivated"),
+  };
 }
 
-export async function signOutStaffEverywhere(userId: string, reason: string): Promise<ActionResult> {
+export async function signOutStaffEverywhere(
+  userId: string,
+  reason: string,
+): Promise<ActionResult> {
   const t = await getTranslations();
   const parsed = z
     .object({ userId: z.uuid(), reason: z.string().trim().min(3).max(300) })

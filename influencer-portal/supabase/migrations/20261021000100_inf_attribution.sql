@@ -364,6 +364,15 @@ begin
   return v_id;
 end $$;
 
+-- S-12: the redirect asks Witty for an access code through Witty's own public function, exactly as the website does
+-- (the portal's only write path into another product's tables). Service role only.
+create or replace function inf.witty_issue_code(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+begin
+  if coalesce(auth.role(), '') <> 'service_role' then raise exception 'not allowed' using errcode = '42501'; end if;
+  return public.w2_issue_code(p);
+end $$;
+
 -- R-1: Witty validates a typed creator code (service role only; no personal data in or out).
 create or replace function inf.witty_resolve_code(p_code text) returns jsonb
 language sql stable security definer set search_path = '' as $$
@@ -412,6 +421,7 @@ begin
   elsif p ? 'from' then
     v_ids := array(select l.id from public.student_leads l
                     where l.created_at >= (p ->> 'from')::timestamptz and l.created_at < (p ->> 'to')::timestamptz and l.deleted_at is null
+                      and l.id > coalesce((p ->> 'after')::bigint, 0)
                     order by l.id limit v_limit);
   else
     -- Leads changed since the watermark, plus attributed leads whose B2C status changed.
@@ -483,7 +493,12 @@ begin
                        and exists (select 1 from inf.creator_contacts cc where cc.creator_id = cr.id and cc.kind = 'family'
                                      and cc.phone_hash = inf.pii_hash(l.whatsapp_number))))), '[]'),
            'existing', coalesce((select jsonb_agg(jsonb_build_object('creator_id', a.creator_id, 'status', a.status, 'id', a.id,
-                                                                     'stage', a.creator_stage, 'reason', a.stage_reason))
+                                                                     'stage', a.creator_stage, 'reason', a.stage_reason,
+                                                                     'link_id', a.link_id, 'code', a.code, 'deal_id', a.deal_id,
+                                                                     'deliverable_id', a.deliverable_id, 'campaign_id', a.campaign_id,
+                                                                     'touch', a.touch, 'attribution_reason', a.reason,
+                                                                     'touch_at', to_char(a.touch_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                                                                     'evidence_source', a.evidence_source))
                                   from inf.lead_attributions a where a.student_lead_id = l.id), '[]'),
            'stage', jsonb_build_object('stage', l.stage, 'lost_reason', l.lost_reason, 'enrollment_status', l.enrollment_status,
                                        'applied_at', l.applied_at, 'is_sales_ready', coalesce(l.is_sales_ready, false),
@@ -497,6 +512,7 @@ begin
    where t.list is not null or exists (select 1 from inf.lead_attributions a where a.student_lead_id = l.id);
 
   return jsonb_build_object('leads', v_out, 'scanned', coalesce(array_length(v_ids, 1), 0),
+                            'last_id', (select max(x) from unnest(v_ids) x),
                             'watermark', to_char(v_max at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
                             'rules', v_rules,
                             'stage_rules', coalesce((select jsonb_agg(jsonb_build_object('priority', m.priority, 'conditions', m.conditions,
@@ -960,7 +976,39 @@ language sql stable security definer set search_path = '' as $$
    where inf.has_perm('lead.read');
 $$;
 
--- Nightly: the lead sync can run inside the app job runner too; nothing extra here. Schedule the sweep (S-3).
+-- Saved views for the lead pipeline (creators, agencies and staff each keep their own; staff may share theirs).
+alter table inf.saved_views drop constraint saved_views_scope_check;
+alter table inf.saved_views add constraint saved_views_scope_check check (scope in ('creators', 'leads'));
+
+create or replace function inf.lead_view_save(p_name text, p_filters jsonb, p_shared boolean) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare v_id uuid; v_staff boolean := inf.has_perm('lead.read');
+begin
+  if auth.uid() is null or not (v_staff or inf.current_creator_id() is not null
+                                or exists (select 1 from inf.agency_members m where m.user_id = auth.uid() and m.status = 'active')) then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+  insert into inf.saved_views (scope, name, filters, is_shared) values ('leads', trim(p_name), p_filters, v_staff and coalesce(p_shared, false))
+  on conflict (owner_id, scope, name) do update set filters = excluded.filters, is_shared = excluded.is_shared
+  returning id into v_id;
+  return v_id;
+end $$;
+
+create or replace function inf.lead_view_delete(p_id uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  delete from inf.saved_views where id = p_id and owner_id = auth.uid() and scope = 'leads';
+end $$;
+
+create or replace function inf.lead_views() returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', v.id, 'name', v.name, 'filters', v.filters, 'shared', v.is_shared,
+                                               'mine', v.owner_id = auth.uid()) order by v.name), '[]')
+    from inf.saved_views v
+   where v.scope = 'leads' and (v.owner_id = auth.uid() or (v.is_shared and inf.has_perm('lead.read')));
+$$;
+
+-- Schedule the sweep (S-3).
 do $$
 begin
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
@@ -1022,5 +1070,8 @@ insert into inf.client_grants (object_type, object_name, grantee, privilege) val
   ('function', 'inf.leads_list(jsonb)', 'authenticated', 'execute'),
   ('function', 'inf.lead_detail(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.fraud_queue(jsonb)', 'authenticated', 'execute'),
-  ('function', 'inf.attribution_overview()', 'authenticated', 'execute');
+  ('function', 'inf.attribution_overview()', 'authenticated', 'execute'),
+  ('function', 'inf.lead_view_save(text, jsonb, boolean)', 'authenticated', 'execute'),
+  ('function', 'inf.lead_view_delete(uuid)', 'authenticated', 'execute'),
+  ('function', 'inf.lead_views()', 'authenticated', 'execute');
 call inf.apply_client_grants();

@@ -68,8 +68,10 @@ export function settingsDefinitionsSql(): { sql: string; hash: string } {
   const rows = SETTING_KEYS.map((key) => {
     const d = SETTINGS[key];
     const parsed = d.schema.safeParse(d.default);
-    if (!parsed.success) throw new Error(`Default for ${key} does not match its schema: ${parsed.error.message}`);
-    const confirmation = "needsConfirmation" in d && d.needsConfirmation ? sqlString(d.needsConfirmation) : "null";
+    if (!parsed.success)
+      throw new Error(`Default for ${key} does not match its schema: ${parsed.error.message}`);
+    const confirmation =
+      "needsConfirmation" in d && d.needsConfirmation ? sqlString(d.needsConfirmation) : "null";
     return `  (${[sqlString(key), sqlString(d.group), sqlString(d.label), sqlString(d.description), jsonLiteral(settingJsonSchema(key)), jsonLiteral(d.default), sqlString(d.edit), confirmation].join(", ")})`;
   });
   const body = [
@@ -146,7 +148,8 @@ export function clauseLibrarySql(): { sql: string; hash: string } {
       `  (${sqlString(c.key)}, ${sqlString(c.category)}, ${sqlString(c.title)}, ${jsonLiteral(docFromText(c.body))}, ${String(c.required)}, ${String(c.negotiable)}, ${String(c.locked)}, ${sqlString(`{${c.deal_types.join(",")}}`)}::text[])`,
   );
   const order = DEFAULT_TEMPLATE.clauses.map(
-    (c, i) => `  (${sqlString(c.key)}, ${String(i)}, ${c.condition === null ? "null" : sqlString(c.condition)})`,
+    (c, i) =>
+      `  (${sqlString(c.key)}, ${String(i)}, ${c.condition === null ? "null" : sqlString(c.condition)})`,
   );
   const body = [
     "create temporary table _seed (key text, category text, title text, body jsonb, required boolean, negotiable boolean, locked boolean, deal_types text[]) on commit drop;",
@@ -203,9 +206,14 @@ export const GENERATORS: Record<GeneratedKind, () => { sql: string; hash: string
 };
 
 /** The hash recorded in the newest migration of a kind (file names sort by timestamp). */
-export function latestRecordedHash(kind: GeneratedKind, files: { name: string; content: string }[]): string | null {
+export function latestRecordedHash(
+  kind: GeneratedKind,
+  files: { name: string; content: string }[],
+): string | null {
   const marker = new RegExp(`^-- generated: ${kind} sha256=([0-9a-f]{64})`, "m");
-  const hits = files.filter((f) => marker.test(f.content)).sort((a, b) => a.name.localeCompare(b.name));
+  const hits = files
+    .filter((f) => marker.test(f.content))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const last = hits.at(-1);
   return last ? (marker.exec(last.content)?.[1] ?? null) : null;
 }

@@ -13,7 +13,11 @@ export async function generateMetadata() {
 
 export default async function SettingsPage() {
   const { supabase, me } = await requireStaff();
-  if (!["settings.read", "settings.write", "tax.manage", "tier.manage"].some((p) => me.permissions.has(p as never)))
+  if (
+    !["settings.read", "settings.write", "tax.manage", "tier.manage"].some((p) =>
+      me.permissions.has(p as never),
+    )
+  )
     notFound();
   const t = await getTranslations();
   const { data, error } = await supabase.rpc("settings_list");
@@ -28,12 +32,17 @@ export default async function SettingsPage() {
         description={t("settings.subtitle")}
         help="/admin/help/super-admin#settings"
       />
-      {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
+      {error ? (
+        <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
+      ) : null}
       {!error && rows.length === 0 ? <EmptyState title={t("settings.empty")} /> : null}
       <div className="flex flex-col gap-8">
         {groups.map(({ g, rows: rs }) => (
           <section key={g} aria-labelledby={`group-${g}`} className="flex flex-col gap-4">
-            <h2 id={`group-${g}`} className="text-sm font-semibold tracking-wide text-muted uppercase">
+            <h2
+              id={`group-${g}`}
+              className="text-sm font-semibold tracking-wide text-muted uppercase"
+            >
               {t(`settingGroups.${g}`)}
             </h2>
             {rs.map((r) => (

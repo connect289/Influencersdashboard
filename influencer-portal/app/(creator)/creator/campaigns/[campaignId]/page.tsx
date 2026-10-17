@@ -16,7 +16,11 @@ export async function generateMetadata() {
   return { title: t("nav.creator.campaigns") };
 }
 
-export default async function CreatorCampaignPage({ params }: { params: Promise<{ campaignId: string }> }) {
+export default async function CreatorCampaignPage({
+  params,
+}: {
+  params: Promise<{ campaignId: string }>;
+}) {
   const { campaignId } = await params;
   if (!z.uuid().safeParse(campaignId).success) notFound();
   const { supabase, me } = await requireCreator();
@@ -24,15 +28,22 @@ export default async function CreatorCampaignPage({ params }: { params: Promise<
   const { data, error } = await supabase.rpc("campaign_for_creator", { p_campaign: campaignId });
   if (!error && !data) notFound();
   const parsed = campaignPublic.safeParse(data);
-  if (!parsed.success) return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
+  if (!parsed.success)
+    return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
   const c = parsed.data;
   const programmes = await loadProgrammes(supabase, campaignId);
   return (
     <>
-      <Link href="/creator/campaigns" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link
+        href="/creator/campaigns"
+        className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+      >
         <ArrowLeft className="size-4" aria-hidden /> {t("nav.creator.campaigns")}
       </Link>
-      <PageHeader title={c.name} description={t(`campaigns.objectives.${c.objective as "leads"}`)} />
+      <PageHeader
+        title={c.name}
+        description={t(`campaigns.objectives.${c.objective as "leads"}`)}
+      />
       <div className="flex flex-col gap-4">
         <ApplyPanel c={c} creatorId={me.creatorId} appBase="/creator/applications/" />
         <CampaignDetails

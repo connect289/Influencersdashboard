@@ -41,13 +41,21 @@ const schema = z
     const need = (cond: boolean, key: string, why: string) => {
       if (cond) ctx.addIssue({ code: "custom", path: [key], message: why });
     };
-    need(env.EMAIL_PROVIDER === "smtp" && !env.SMTP_HOST, "SMTP_HOST", "required when EMAIL_PROVIDER=smtp");
+    need(
+      env.EMAIL_PROVIDER === "smtp" && !env.SMTP_HOST,
+      "SMTP_HOST",
+      "required when EMAIL_PROVIDER=smtp",
+    );
     need(
       env.EMAIL_PROVIDER === "resend" && !env.RESEND_API_KEY,
       "RESEND_API_KEY",
       "required when EMAIL_PROVIDER=resend",
     );
-    need(env.EMAIL_PROVIDER === "brevo" && !env.BREVO_API_KEY, "BREVO_API_KEY", "required when EMAIL_PROVIDER=brevo");
+    need(
+      env.EMAIL_PROVIDER === "brevo" && !env.BREVO_API_KEY,
+      "BREVO_API_KEY",
+      "required when EMAIL_PROVIDER=brevo",
+    );
     need(
       env.WHATSAPP_PROVIDER === "meta" && (!env.WHATSAPP_PHONE_NUMBER_ID || !env.WHATSAPP_TOKEN),
       "WHATSAPP_TOKEN",
@@ -96,7 +104,9 @@ export function urlProjectRef(url: string): string | null {
 export function parseEnv(source: Record<string, string | undefined>): ServerEnv {
   const result = schema.safeParse(source);
   if (!result.success) {
-    const problems = result.error.issues.map((i) => `${i.path.join(".") || "(env)"}: ${i.message}`).join("; ");
+    const problems = result.error.issues
+      .map((i) => `${i.path.join(".") || "(env)"}: ${i.message}`)
+      .join("; ");
     throw new Error(`Invalid environment: ${problems}`);
   }
   return result.data;

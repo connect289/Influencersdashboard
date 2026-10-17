@@ -18,7 +18,12 @@ function inlineHtml(content: readonly Inline[] | undefined): string {
       if (i.type === "hardBreak") return "<br>";
       let s = escapeHtml(i.text);
       for (const m of i.marks ?? [])
-        s = m.type === "bold" ? `<strong>${s}</strong>` : m.type === "italic" ? `<em>${s}</em>` : `<u>${s}</u>`;
+        s =
+          m.type === "bold"
+            ? `<strong>${s}</strong>`
+            : m.type === "italic"
+              ? `<em>${s}</em>`
+              : `<u>${s}</u>`;
       return s;
     })
     .join("");

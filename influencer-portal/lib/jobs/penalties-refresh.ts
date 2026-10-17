@@ -42,7 +42,10 @@ const contextSchema = z.object({
 export const penaltiesRefresh: JobHandler = async (job) => {
   const { deal_id } = payloadSchema.parse(job.payload);
   const db = adminClient();
-  const [facts, ctx] = await Promise.all([db.rpc("deal_content_facts", { p_deal: deal_id }), db.rpc("comp_context")]);
+  const [facts, ctx] = await Promise.all([
+    db.rpc("deal_content_facts", { p_deal: deal_id }),
+    db.rpc("comp_context"),
+  ]);
   if (facts.error) throw new Error(facts.error.message);
   if (ctx.error) throw new Error(ctx.error.message);
   if (facts.data === null) return;

@@ -28,7 +28,9 @@ export function DealView({ deal }: { deal: DealDetail }) {
         <Card className="ring-2 ring-accent">
           <CardHeader
             title={
-              current ? t("deals.my.amendmentToReview", { version: pending.version }) : t("deals.my.termsToReview")
+              current
+                ? t("deals.my.amendmentToReview", { version: pending.version })
+                : t("deals.my.termsToReview")
             }
             description={t("deals.effectiveFrom", { date: formatDateTime(pending.effective_from) })}
           />
@@ -55,7 +57,10 @@ export function DealView({ deal }: { deal: DealDetail }) {
         <EmptyState title={t("deals.my.noTermsYet")} description={t("deals.my.noTermsYetHint")} />
       ) : null}
       {(current ?? pending) ? (
-        <CreatorSimulator dealId={deal.id} versionId={pending && !current ? pending.id : undefined} />
+        <CreatorSimulator
+          dealId={deal.id}
+          versionId={pending && !current ? pending.id : undefined}
+        />
       ) : null}
       {deal.versions.length > 1 ? (
         <section className="flex flex-col gap-2">

@@ -11,9 +11,27 @@ import {
 } from "./compliance";
 
 const claims: BannedClaim[] = [
-  { id: "guarantee", pattern: "guaranteed placement", kind: "phrase", severity: "block", note: "No outcome promises" },
-  { id: "pct", pattern: "100\\s*%\\s*(job|placement)", kind: "regex", severity: "block", note: null },
-  { id: "best", pattern: "best university", kind: "phrase", severity: "warn", note: "Unverifiable superlative" },
+  {
+    id: "guarantee",
+    pattern: "guaranteed placement",
+    kind: "phrase",
+    severity: "block",
+    note: "No outcome promises",
+  },
+  {
+    id: "pct",
+    pattern: "100\\s*%\\s*(job|placement)",
+    kind: "regex",
+    severity: "block",
+    note: null,
+  },
+  {
+    id: "best",
+    pattern: "best university",
+    kind: "phrase",
+    severity: "warn",
+    note: "Unverifiable superlative",
+  },
   { id: "free", pattern: "free", kind: "phrase", severity: "warn", note: null },
 ];
 const settings = {
@@ -34,15 +52,21 @@ describe("scanClaims", () => {
     expect(scanClaims("It's free!", claims).map((m) => m.claim_id)).toEqual(["free"]);
   });
   it("runs safe regex patterns", () => {
-    expect(scanClaims("100 % job after the course", claims).map((m) => m.text)).toEqual(["100 % job"]);
+    expect(scanClaims("100 % job after the course", claims).map((m) => m.text)).toEqual([
+      "100 % job",
+    ]);
     expect(scanClaims("100% Placement", claims).map((m) => m.claim_id)).toEqual(["pct"]);
   });
   it("works with Hindi text", () => {
-    const hi: BannedClaim[] = [{ id: "h", pattern: "पक्की नौकरी", kind: "phrase", severity: "block", note: null }];
+    const hi: BannedClaim[] = [
+      { id: "h", pattern: "पक्की नौकरी", kind: "phrase", severity: "block", note: null },
+    ];
     expect(scanClaims("इस कोर्स के बाद पक्की नौकरी मिलेगी", hi).map((m) => m.claim_id)).toEqual(["h"]);
   });
   it("skips unsafe patterns and caps the scanned length", () => {
-    const bad: BannedClaim[] = [{ id: "x", pattern: "(a+)+$", kind: "regex", severity: "block", note: null }];
+    const bad: BannedClaim[] = [
+      { id: "x", pattern: "(a+)+$", kind: "regex", severity: "block", note: null },
+    ];
     expect(scanClaims(`${"a".repeat(40)}!`, bad)).toEqual([]);
     const tail = `${"x ".repeat(MAX_SCAN_CHARS)} guaranteed placement`;
     expect(scanClaims(tail, claims)).toEqual([]);
@@ -78,22 +102,34 @@ describe("checkDisclosure", () => {
     expect(checkDisclosure("#AD at the start", "instagram", settings).present).toBe(true);
   });
   it("finds phrases", () => {
-    expect(checkDisclosure("This is a Paid  Partnership with Eduwit", "youtube", settings).found).toBe(
-      "paid partnership",
-    );
+    expect(
+      checkDisclosure("This is a Paid  Partnership with Eduwit", "youtube", settings).found,
+    ).toBe("paid partnership");
   });
   it("knows which platforms require it", () => {
-    expect(checkDisclosure("no tag", "linkedin", settings)).toEqual({ required: false, present: false, found: null });
+    expect(checkDisclosure("no tag", "linkedin", settings)).toEqual({
+      required: false,
+      present: false,
+      found: null,
+    });
   });
 });
 
 describe("scanSubmission", () => {
   it("blocks on a blocking claim or a missing required disclosure", () => {
-    expect(scanSubmission("Guaranteed placement! #ad", "final", "instagram", claims, settings).passed).toBe(false);
-    expect(scanSubmission("Great course", "final", "instagram", claims, settings).passed).toBe(false);
-    expect(scanSubmission("Great course #collab", "final", "instagram", claims, settings).passed).toBe(true);
+    expect(
+      scanSubmission("Guaranteed placement! #ad", "final", "instagram", claims, settings).passed,
+    ).toBe(false);
+    expect(scanSubmission("Great course", "final", "instagram", claims, settings).passed).toBe(
+      false,
+    );
+    expect(
+      scanSubmission("Great course #collab", "final", "instagram", claims, settings).passed,
+    ).toBe(true);
     // Warnings never block.
-    expect(scanSubmission("The best university #ad", "draft", "instagram", claims, settings).passed).toBe(true);
+    expect(
+      scanSubmission("The best university #ad", "draft", "instagram", claims, settings).passed,
+    ).toBe(true);
   });
   it("doesn't check the disclosure on concepts or on platforms that don't need it", () => {
     const concept = scanSubmission("Script idea", "concept", "instagram", claims, settings);

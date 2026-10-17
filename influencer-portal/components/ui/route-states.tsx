@@ -16,7 +16,13 @@ export function PageLoading() {
 }
 
 /** Route error boundary: never shows the raw error (it could carry data); offers a retry. */
-export function PageError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export function PageError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   const t = useTranslations();
   useEffect(() => {
     console.error("[route-error]", error.digest ?? "");
@@ -24,7 +30,9 @@ export function PageError({ error, reset }: { error: Error & { digest?: string }
   return (
     <ErrorState
       title={t("errors.pageFailed")}
-      description={error.digest ? t("errors.reference", { ref: error.digest }) : t("errors.tryAgain")}
+      description={
+        error.digest ? t("errors.reference", { ref: error.digest }) : t("errors.tryAgain")
+      }
       action={
         <Button variant="secondary" onClick={reset}>
           {t("common.retry")}

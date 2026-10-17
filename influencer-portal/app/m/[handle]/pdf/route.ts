@@ -11,7 +11,10 @@ import { createClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 /** Public media-kit PDF (only when the creator turned on their public page). */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ handle: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ handle: string }> },
+) {
   const { handle } = await params;
   if (!/^[a-z0-9._]{3,30}$/i.test(handle)) return new NextResponse("Not found", { status: 404 });
   if (!(await rateLimit("public_api", rateIp(request.headers))).ok)

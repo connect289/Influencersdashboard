@@ -66,7 +66,8 @@ export function ClauseEditor({
   const [v, setV] = useState(initial);
   const issues = useMemo(() => docIssues(v.body), [v.body]);
   const hasMarker = useMemo(() => plainText(v.body.content).includes(DRAFT_MARKER), [v.body]);
-  const set = <K extends keyof ClauseFormValue>(k: K, x: ClauseFormValue[K]) => setV((p) => ({ ...p, [k]: x }));
+  const set = <K extends keyof ClauseFormValue>(k: K, x: ClauseFormValue[K]) =>
+    setV((p) => ({ ...p, [k]: x }));
   const isNew = !v.id;
   const readOnly = !canWrite || archived;
 
@@ -97,11 +98,17 @@ export function ClauseEditor({
                 disabled={readOnly}
               />
             </Field>
-            <Field id="cl-key" label={t("contracts.library.fields.key")} hint={t("contracts.library.fields.keyHint")}>
+            <Field
+              id="cl-key"
+              label={t("contracts.library.fields.key")}
+              hint={t("contracts.library.fields.keyHint")}
+            >
               <Input
                 id="cl-key"
                 value={v.key}
-                onChange={(e) => set("key", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))}
+                onChange={(e) =>
+                  set("key", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))
+                }
                 pattern="[a-z][a-z0-9_]{1,59}"
                 maxLength={60}
                 required
@@ -123,7 +130,9 @@ export function ClauseEditor({
               </Select>
             </Field>
             <fieldset className="flex flex-col gap-1.5">
-              <legend className="mb-1.5 text-sm font-medium">{t("contracts.library.fields.dealTypes")}</legend>
+              <legend className="mb-1.5 text-sm font-medium">
+                {t("contracts.library.fields.dealTypes")}
+              </legend>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {DEAL_MODELS.map((m) => (
                   <label key={m} className="flex items-center gap-2 text-sm">
@@ -132,7 +141,12 @@ export function ClauseEditor({
                       checked={v.dealTypes.includes(m)}
                       disabled={readOnly}
                       onChange={(e) =>
-                        set("dealTypes", e.target.checked ? [...v.dealTypes, m] : v.dealTypes.filter((x) => x !== m))
+                        set(
+                          "dealTypes",
+                          e.target.checked
+                            ? [...v.dealTypes, m]
+                            : v.dealTypes.filter((x) => x !== m),
+                        )
                       }
                     />
                     {t(`deals.models.${m}`)}
@@ -142,7 +156,11 @@ export function ClauseEditor({
               <p className="text-xs text-muted">{t("contracts.library.fields.dealTypesHint")}</p>
             </fieldset>
           </div>
-          <Field id="cl-body" label={t("contracts.library.fields.body")} hint={t("contracts.library.fields.bodyHint")}>
+          <Field
+            id="cl-body"
+            label={t("contracts.library.fields.body")}
+            hint={t("contracts.library.fields.bodyHint")}
+          >
             {readOnly ? (
               <div className="rounded-lg border border-line p-3">
                 <DocView blocks={v.body.content} />
@@ -159,10 +177,14 @@ export function ClauseEditor({
             )}
           </Field>
           {issues.unknown.length ? (
-            <Banner tone="danger">{t("contracts.editor.unknown", { list: issues.unknown.join(", ") })}</Banner>
+            <Banner tone="danger">
+              {t("contracts.editor.unknown", { list: issues.unknown.join(", ") })}
+            </Banner>
           ) : null}
           {issues.errors.length ? (
-            <Banner tone="danger">{t("contracts.editor.errors", { list: issues.errors.join(", ") })}</Banner>
+            <Banner tone="danger">
+              {t("contracts.editor.errors", { list: issues.errors.join(", ") })}
+            </Banner>
           ) : null}
           <div className="flex flex-col gap-3">
             <SwitchField
@@ -179,7 +201,9 @@ export function ClauseEditor({
               hint={t("contracts.flags.negotiableHint")}
               checked={v.negotiable}
               disabled={readOnly}
-              onCheckedChange={(c) => setV((p) => ({ ...p, negotiable: c, locked: c ? false : p.locked }))}
+              onCheckedChange={(c) =>
+                setV((p) => ({ ...p, negotiable: c, locked: c ? false : p.locked }))
+              }
             />
             <SwitchField
               id="cl-locked"
@@ -187,7 +211,9 @@ export function ClauseEditor({
               hint={t("contracts.flags.lockedHint")}
               checked={v.locked}
               disabled={readOnly}
-              onCheckedChange={(c) => setV((p) => ({ ...p, locked: c, negotiable: c ? false : p.negotiable }))}
+              onCheckedChange={(c) =>
+                setV((p) => ({ ...p, locked: c, negotiable: c ? false : p.negotiable }))
+              }
             />
           </div>
           {canWrite && !archived ? (
@@ -215,7 +241,9 @@ export function ClauseEditor({
               {hasMarker ? <p className="text-muted">{t("contracts.library.markerHint")}</p> : null}
               {canReview && !reviewed && version ? (
                 <ConfirmDialog
-                  trigger={<Button variant="secondary">{t("contracts.library.markReviewed")}</Button>}
+                  trigger={
+                    <Button variant="secondary">{t("contracts.library.markReviewed")}</Button>
+                  }
                   title={t("contracts.library.markReviewed")}
                   description={t("contracts.library.markReviewedHint", { version })}
                   actionLabel={t("contracts.library.markReviewed")}
@@ -232,13 +260,17 @@ export function ClauseEditor({
                   }
                 />
               ) : null}
-              {!canReview && !reviewed ? <p className="text-muted">{t("contracts.library.reviewWho")}</p> : null}
+              {!canReview && !reviewed ? (
+                <p className="text-muted">{t("contracts.library.reviewWho")}</p>
+              ) : null}
             </div>
           </Card>
         ) : null}
         {!isNew && canWrite ? (
           <Card>
-            <CardHeader title={archived ? t("contracts.library.restore") : t("contracts.library.archive")} />
+            <CardHeader
+              title={archived ? t("contracts.library.restore") : t("contracts.library.archive")}
+            />
             <p className="mb-3 text-sm text-muted">
               {archived ? t("contracts.library.restoreHint") : t("contracts.library.archiveHint")}
             </p>
@@ -249,7 +281,9 @@ export function ClauseEditor({
                 </Button>
               }
               title={archived ? t("contracts.library.restore") : t("contracts.library.archive")}
-              actionLabel={archived ? t("contracts.library.restore") : t("contracts.library.archive")}
+              actionLabel={
+                archived ? t("contracts.library.restore") : t("contracts.library.archive")
+              }
               danger={!archived}
               pending={pending}
               onConfirm={(_r, close) =>

@@ -55,7 +55,12 @@ export function ConfirmDialog({
         >
           {reasonLabel ? (
             <Field id="confirm-reason" label={reasonLabel} required>
-              <Input id="confirm-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} />
+              <Input
+                id="confirm-reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                maxLength={300}
+              />
             </Field>
           ) : null}
           <div className="flex justify-end gap-2">

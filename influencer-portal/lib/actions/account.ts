@@ -25,7 +25,9 @@ export async function revokeSession(sessionId: string): Promise<ActionResult> {
   if (error) return fail(t("errors.generic"));
   revalidatePath("/admin/account");
   revalidatePath("/creator/account");
-  return data ? { ok: true, message: t("account.sessions.revoked") } : fail(t("account.sessions.alreadyEnded"));
+  return data
+    ? { ok: true, message: t("account.sessions.revoked") }
+    : fail(t("account.sessions.alreadyEnded"));
 }
 
 /** Sign out every other session of mine. */
@@ -35,9 +37,9 @@ export async function revokeOtherSessions(): Promise<ActionResult> {
   if (!ctx) return fail(t("errors.sessionEnded"));
   const { data, error } = await ctx.supabase.rpc("my_sessions");
   if (error) return fail(t("errors.generic"));
-  const others = (data as { session_id: string; is_current: boolean; revoked_at: string | null }[]).filter(
-    (s) => !s.is_current && !s.revoked_at,
-  );
+  const others = (
+    data as { session_id: string; is_current: boolean; revoked_at: string | null }[]
+  ).filter((s) => !s.is_current && !s.revoked_at);
   for (const s of others) await ctx.supabase.rpc("session_revoke", { p_session_id: s.session_id });
   revalidatePath("/admin/account");
   revalidatePath("/creator/account");

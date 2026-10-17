@@ -13,7 +13,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Banner, EmptyState, ErrorState } from "@/components/ui/states";
 import { requireCreator } from "@/lib/auth/guards";
 import { loadCreatorProfile, loadKyc } from "@/lib/creators/load";
-import { currentStep, onboardingState, progressPct, WIZARD_STEPS, type WizardStep } from "@/lib/creators/onboarding";
+import {
+  currentStep,
+  onboardingState,
+  progressPct,
+  WIZARD_STEPS,
+  type WizardStep,
+} from "@/lib/creators/onboarding";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -23,12 +29,17 @@ export async function generateMetadata() {
 }
 
 /** The onboarding wizard (spec 13): profile, platforms, KYC, terms, compliance course, then submit for approval. */
-export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ step?: string }> }) {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ step?: string }>;
+}) {
   const { supabase, me } = await requireCreator();
   const t = await getTranslations();
   const raw = await supabase.rpc("onboarding_state");
   const parsed = raw.error ? null : onboardingState.safeParse(raw.data);
-  if (!parsed?.success) return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
+  if (!parsed?.success)
+    return <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />;
   const state = parsed.data;
 
   if (state.approved)
@@ -91,7 +102,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
           <Card key={p.id}>
             <CardHeader
               title={p.title}
-              description={t("terms.version", { version: p.version, date: formatDate(p.effective_at) })}
+              description={t("terms.version", {
+                version: p.version,
+                date: formatDate(p.effective_at),
+              })}
             />
             <div className="mb-4 max-h-80 overflow-y-auto rounded-xl bg-surface-2 p-4 text-sm whitespace-pre-line">
               {p.body}
@@ -110,7 +124,13 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
         <Course content={data as unknown as CourseContent} passed={state.steps.course} />
       );
   } else {
-    body = <SubmitStep steps={state.steps} submitted={Boolean(state.submitted_at)} complete={state.complete} />;
+    body = (
+      <SubmitStep
+        steps={state.steps}
+        submitted={Boolean(state.submitted_at)}
+        complete={state.complete}
+      />
+    );
   }
 
   return (
@@ -128,9 +148,15 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
         aria-valuemax={100}
         aria-label={t("onboarding.progress")}
       >
-        <div className="h-full bg-primary transition-all" style={{ width: `${String(progressPct(state))}%` }} />
+        <div
+          className="h-full bg-primary transition-all"
+          style={{ width: `${String(progressPct(state))}%` }}
+        />
       </div>
-      <nav aria-label={t("onboarding.stepsLabel")} className="-mx-4 mb-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+      <nav
+        aria-label={t("onboarding.stepsLabel")}
+        className="-mx-4 mb-4 overflow-x-auto px-4 md:mx-0 md:px-0"
+      >
         <ol className="flex gap-1.5">
           {WIZARD_STEPS.map((s, i) => (
             <li key={s}>

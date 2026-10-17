@@ -6,17 +6,33 @@ import { EmptyState } from "@/components/ui/states";
 import type { MyDeliverableRow } from "@/lib/content/data";
 import { DeliverableStatusBadge, NextStep } from "./deliverable-bits";
 
-export async function MyDeliverables({ rows, hrefBase }: { rows: MyDeliverableRow[]; hrefBase: string }) {
+export async function MyDeliverables({
+  rows,
+  hrefBase,
+}: {
+  rows: MyDeliverableRow[];
+  hrefBase: string;
+}) {
   const t = await getTranslations();
   if (rows.length === 0)
-    return <EmptyState title={t("content.my.noDeliverables")} description={t("content.my.noDeliverablesHint")} />;
+    return (
+      <EmptyState
+        title={t("content.my.noDeliverables")}
+        description={t("content.my.noDeliverablesHint")}
+      />
+    );
   const groups = [
     { key: "todo", items: rows.filter((r) => r.pending_stage !== null) },
     {
       key: "waiting",
-      items: rows.filter((r) => r.pending_stage === null && r.status !== "completed" && r.status !== "cancelled"),
+      items: rows.filter(
+        (r) => r.pending_stage === null && r.status !== "completed" && r.status !== "cancelled",
+      ),
     },
-    { key: "done", items: rows.filter((r) => r.status === "completed" || r.status === "cancelled") },
+    {
+      key: "done",
+      items: rows.filter((r) => r.status === "completed" || r.status === "cancelled"),
+    },
   ] as const;
   return (
     <div className="flex flex-col gap-5">

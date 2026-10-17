@@ -13,13 +13,25 @@ const ts = z.string();
 const side = z.enum(["eduwit", "creator", "agency"]);
 const dueDates = z.partialRecord(z.enum(DUE_STAGES), z.string()).catch({});
 const toggles = z.object(
-  Object.fromEntries(STAGES.map((s) => [s, z.boolean()])) as Record<(typeof STAGES)[number], z.ZodBoolean>,
+  Object.fromEntries(STAGES.map((s) => [s, z.boolean()])) as Record<
+    (typeof STAGES)[number],
+    z.ZodBoolean
+  >,
 );
 const status = z.enum(DELIVERABLE_STATUSES);
 const platform = z.enum(PLATFORMS);
 const format = z.enum(CONTENT_FORMATS);
-const dealRef = z.object({ id: z.uuid(), code: z.string().nullable(), title: z.string(), status: z.string() });
-const creatorRef = z.object({ id: z.uuid(), display_name: z.string(), handle: z.string().nullable() });
+const dealRef = z.object({
+  id: z.uuid(),
+  code: z.string().nullable(),
+  title: z.string(),
+  status: z.string(),
+});
+const creatorRef = z.object({
+  id: z.uuid(),
+  display_name: z.string(),
+  handle: z.string().nullable(),
+});
 
 // ---------------------------------------------------------------------------------------------------------------
 // Briefs
@@ -35,7 +47,10 @@ export const briefTemplateRow = z.object({
 });
 export type BriefTemplateRow = z.infer<typeof briefTemplateRow>;
 
-export async function loadBriefTemplates(db: Db, includeArchived = false): Promise<BriefTemplateRow[]> {
+export async function loadBriefTemplates(
+  db: Db,
+  includeArchived = false,
+): Promise<BriefTemplateRow[]> {
   let q = db
     .from("brief_templates")
     .select("id, name, description, content, is_default, archived_at, updated_at")
@@ -64,8 +79,13 @@ export type BriefRow = z.infer<typeof briefRow>;
 export const BRIEF_STATES = ["draft", "unacknowledged", "acknowledged"] as const;
 export type BriefState = (typeof BRIEF_STATES)[number];
 
-export async function listBriefs(db: Db, f: { q?: string; state?: BriefState | null }): Promise<BriefRow[]> {
-  const { data, error } = await db.rpc("briefs_list", { p: { q: f.q ?? "", state: f.state ?? "" } });
+export async function listBriefs(
+  db: Db,
+  f: { q?: string; state?: BriefState | null },
+): Promise<BriefRow[]> {
+  const { data, error } = await db.rpc("briefs_list", {
+    p: { q: f.q ?? "", state: f.state ?? "" },
+  });
   if (error) throw new Error(error.message);
   return z.array(briefRow).parse(data);
 }
@@ -159,7 +179,9 @@ export async function loadBrief(db: Db, briefId: string): Promise<BriefDetail | 
 }
 
 /** Threads: top-level questions with their replies, oldest first. */
-export function threads(questions: readonly BriefQuestion[]): { root: BriefQuestion; replies: BriefQuestion[] }[] {
+export function threads(
+  questions: readonly BriefQuestion[],
+): { root: BriefQuestion; replies: BriefQuestion[] }[] {
   const roots = questions.filter((q) => q.parent_id === null);
   return roots.map((root) => ({ root, replies: questions.filter((q) => q.parent_id === root.id) }));
 }
@@ -287,7 +309,10 @@ export const publishedPost = z.object({
   oembed: oembed.nullable().catch(null),
   disclosure_ok: z.boolean().nullable(),
   verification_status: z.enum(["pending", "verified", "rejected", "replaced"]),
-  verification: z.object({ live: z.boolean(), disclosure: z.boolean(), matches: z.boolean() }).nullable().catch(null),
+  verification: z
+    .object({ live: z.boolean(), disclosure: z.boolean(), matches: z.boolean() })
+    .nullable()
+    .catch(null),
   verified_at: ts.nullable(),
   review_note: z.string().nullable(),
   created_at: ts,
@@ -433,7 +458,9 @@ export async function listPenalties(
   db: Db,
   f: { status?: PenaltyStatus | null; dealId?: string | null },
 ): Promise<PenaltyRow[]> {
-  const { data, error } = await db.rpc("penalties_list", { p: { status: f.status ?? "", deal_id: f.dealId ?? "" } });
+  const { data, error } = await db.rpc("penalties_list", {
+    p: { status: f.status ?? "", deal_id: f.dealId ?? "" },
+  });
   if (error) throw new Error(error.message);
   return z.array(penaltyRow).parse(data);
 }

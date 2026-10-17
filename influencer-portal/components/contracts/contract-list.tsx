@@ -7,7 +7,13 @@ import type { ContractRow } from "@/lib/contracts/data";
 import { formatDate } from "@/lib/format";
 
 /** A creator's (or managed creator's) contracts as cards, mobile-first. */
-export async function ContractList({ contracts, hrefBase }: { contracts: ContractRow[]; hrefBase: string }) {
+export async function ContractList({
+  contracts,
+  hrefBase,
+}: {
+  contracts: ContractRow[];
+  hrefBase: string;
+}) {
   const t = await getTranslations();
   if (contracts.length === 0)
     return <EmptyState title={t("contracts.my.empty")} description={t("contracts.my.emptyHint")} />;
@@ -24,7 +30,9 @@ export async function ContractList({ contracts, hrefBase }: { contracts: Contrac
               <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
                 <span>{c.number}</span>
                 <StatusBadge status={c.status} label={t(`contracts.statuses.${c.status}`)} />
-                {c.needs_action ? <Badge family="attention">{t("contracts.my.needsAction")}</Badge> : null}
+                {c.needs_action ? (
+                  <Badge family="attention">{t("contracts.my.needsAction")}</Badge>
+                ) : null}
                 <span>{t("contracts.my.updated", { date: formatDate(c.updated_at) })}</span>
               </p>
             </div>

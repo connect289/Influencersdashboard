@@ -1,5 +1,12 @@
 // One colour per status family, reused everywhere (spec 17). Components look statuses up here.
-export const STATUS_FAMILIES = ["neutral", "progress", "attention", "success", "problem", "closed"] as const;
+export const STATUS_FAMILIES = [
+  "neutral",
+  "progress",
+  "attention",
+  "success",
+  "problem",
+  "closed",
+] as const;
 export type StatusFamily = (typeof STATUS_FAMILIES)[number];
 
 const FAMILY_OF: Record<string, StatusFamily> = {

@@ -27,12 +27,23 @@ export type SharedFields = Pick<
   | "references"
 >;
 
-export function BriefFields<V extends SharedFields>({ value, onChange }: { value: V; onChange: (v: V) => void }) {
+export function BriefFields<V extends SharedFields>({
+  value,
+  onChange,
+}: {
+  value: V;
+  onChange: (v: V) => void;
+}) {
   const t = useTranslations();
-  const set = <K extends keyof SharedFields>(k: K, v: SharedFields[K]) => onChange({ ...value, [k]: v });
+  const set = <K extends keyof SharedFields>(k: K, v: SharedFields[K]) =>
+    onChange({ ...value, [k]: v });
   return (
     <div className="flex flex-col gap-5">
-      <Field id="bf-objective" label={t("content.brief.objective")} hint={t("content.brief.objectiveHint")}>
+      <Field
+        id="bf-objective"
+        label={t("content.brief.objective")}
+        hint={t("content.brief.objectiveHint")}
+      >
         <Textarea
           id="bf-objective"
           rows={3}
@@ -86,7 +97,12 @@ export function BriefFields<V extends SharedFields>({ value, onChange }: { value
       </div>
       <div className="grid gap-5 md:grid-cols-2">
         <Field id="bf-tone" label={t("content.brief.tone")}>
-          <Input id="bf-tone" maxLength={300} value={value.tone} onChange={(e) => set("tone", e.target.value)} />
+          <Input
+            id="bf-tone"
+            maxLength={300}
+            value={value.tone}
+            onChange={(e) => set("tone", e.target.value)}
+          />
         </Field>
         <Field id="bf-cta" label={t("content.brief.cta")} hint={t("content.brief.ctaHint")}>
           <Input

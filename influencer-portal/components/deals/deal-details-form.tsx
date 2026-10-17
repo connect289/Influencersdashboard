@@ -54,7 +54,11 @@ export function DealDetailsForm({
             />
           </Field>
           <Field id="dd-owner" label={t("deals.details.owner")}>
-            <Select id="dd-owner" value={v.ownerId} onChange={(e) => setV({ ...v, ownerId: e.target.value })}>
+            <Select
+              id="dd-owner"
+              value={v.ownerId}
+              onChange={(e) => setV({ ...v, ownerId: e.target.value })}
+            >
               <option value="">{t("deals.details.noOwner")}</option>
               {owners.map((o) => (
                 <option key={o.id} value={o.id}>

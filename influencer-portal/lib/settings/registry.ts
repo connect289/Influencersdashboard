@@ -10,7 +10,9 @@ import type { Permission } from "@/lib/auth/permissions";
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:MM");
 const pct = z.number().min(0).max(100);
 const days = (max: number) => z.number().int().min(0).max(max);
-const msisdn = z.string().regex(/^[1-9]\d{9,14}$/, "Digits only, with country code, e.g. 919643977407");
+const msisdn = z
+  .string()
+  .regex(/^[1-9]\d{9,14}$/, "Digits only, with country code, e.g. 919643977407");
 
 /** Fields a creator may ever see (LEAD_FIELD_WHITELIST.md SHOW/BAND rows). Phone and email are always masked. */
 export const CREATOR_VISIBLE_LEAD_FIELDS = [
@@ -77,13 +79,16 @@ export const SETTINGS = {
   "organisation.profile": def({
     group: "organisation",
     label: "Legal entity",
-    description: "Name, address and tax identifiers printed on contracts, statements and payout advice.",
+    description:
+      "Name, address and tax identifiers printed on contracts, statements and payout advice.",
     schema: z.strictObject({
       legal_name: z.string().min(2).max(200),
       trade_name: z.string().max(120),
       address: z.string().max(500),
       state_code: z.string().regex(/^(\d{2})?$/, "Two-digit GST state code"),
-      gstin: z.string().regex(/^(\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z])?$/, "15-character GSTIN"),
+      gstin: z
+        .string()
+        .regex(/^(\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z])?$/, "15-character GSTIN"),
       pan: z.string().regex(/^([A-Z]{5}\d{4}[A-Z])?$/, "10-character PAN"),
       support_email: z.string().max(200),
     }),
@@ -125,7 +130,8 @@ export const SETTINGS = {
   "attribution.fraud": def({
     group: "attribution",
     label: "Fraud signals",
-    description: "Thresholds that send leads to admin review. Signals never reject a lead automatically.",
+    description:
+      "Thresholds that send leads to admin review. Signals never reject a lead automatically.",
     schema: z.strictObject({
       velocity_leads_per_hour: z.number().int().min(1).max(10000),
       same_device_max_leads: z.number().int().min(1).max(1000),
@@ -158,6 +164,10 @@ export const SETTINGS = {
       issue_witty_access_codes: z.boolean(),
       utm_source: z.string().min(1).max(60),
       short_link_base: z.string().max(200),
+      website_base_url: z
+        .string()
+        .regex(/^https:\/\/[^\s/]+\.[^\s]+$/)
+        .max(200),
     }),
     default: {
       witty_whatsapp_number: "919643977407",
@@ -166,6 +176,7 @@ export const SETTINGS = {
       issue_witty_access_codes: true,
       utm_source: "influencer",
       short_link_base: "https://creators.eduwit.in/r/",
+      website_base_url: "https://eduwit.in",
     },
     edit: "settings.write",
   }),
@@ -226,7 +237,8 @@ export const SETTINGS = {
   "contracts.signing": def({
     group: "contracts",
     label: "Signing and reminders",
-    description: "OTP channels and limits, negotiation reminders, expiry reminders and the legal-review gate.",
+    description:
+      "OTP channels and limits, negotiation reminders, expiry reminders and the legal-review gate.",
     schema: z.strictObject({
       otp_channels: z
         .array(z.enum(["email", "whatsapp"]))
@@ -272,7 +284,16 @@ export const SETTINGS = {
         .max(6),
       disclosure_terms: z.array(z.string().min(2).max(60)).min(1).max(20),
       disclosure_required_platforms: z.array(
-        z.enum(["instagram", "youtube", "facebook", "linkedin", "x", "telegram", "moj_josh", "other"]),
+        z.enum([
+          "instagram",
+          "youtube",
+          "facebook",
+          "linkedin",
+          "x",
+          "telegram",
+          "moj_josh",
+          "other",
+        ]),
       ),
     }),
     default: {
@@ -360,7 +381,14 @@ export const SETTINGS = {
       bank_export: {
         delimiter: ",",
         header: true,
-        columns: ["beneficiary_name", "account_number", "ifsc", "amount_inr", "narration", "payout_ref"],
+        columns: [
+          "beneficiary_name",
+          "account_number",
+          "ifsc",
+          "amount_inr",
+          "narration",
+          "payout_ref",
+        ],
       },
     },
     edit: "tax.manage",
@@ -401,7 +429,8 @@ export const SETTINGS = {
   "scorecard.weights": def({
     group: "scorecard",
     label: "Score weights",
-    description: "Weights of the composite creator score (they need not sum to 1; they are normalised).",
+    description:
+      "Weights of the composite creator score (they need not sum to 1; they are normalised).",
     schema: z.strictObject({
       delivery: z.number().min(0).max(1),
       content: z.number().min(0).max(1),
@@ -415,7 +444,8 @@ export const SETTINGS = {
   "notifications.delivery": def({
     group: "notifications",
     label: "Delivery",
-    description: "Quiet hours (IST) for WhatsApp and digests. Mandatory events still arrive in-app and by email.",
+    description:
+      "Quiet hours (IST) for WhatsApp and digests. Mandatory events still arrive in-app and by email.",
     schema: z.strictObject({
       quiet_hours_start: hhmm,
       quiet_hours_end: hhmm,
@@ -453,7 +483,12 @@ export const SETTINGS = {
       click_anonymise_days: z.number().int().min(1).max(730),
       sign_in_log_days: z.number().int().min(30).max(3650),
     }),
-    default: { financial_records_years: 8, audit_log_years: 8, click_anonymise_days: 90, sign_in_log_days: 365 },
+    default: {
+      financial_records_years: 8,
+      audit_log_years: 8,
+      click_anonymise_days: 90,
+      sign_in_log_days: 365,
+    },
     edit: "settings.write",
   }),
 } as const;

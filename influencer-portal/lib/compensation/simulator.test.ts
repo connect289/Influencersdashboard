@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { EngineContext } from "./engine";
 import { SYSTEM_PRESETS } from "./presets";
 import { compConfig } from "./schema";
-import { configDeliverables, forCreator, scenario, scenarioEvents, simulate, type ScenarioInput } from "./simulator";
+import {
+  configDeliverables,
+  forCreator,
+  scenario,
+  scenarioEvents,
+  simulate,
+  type ScenarioInput,
+} from "./simulator";
 import { DEFAULT_TDS_SECTIONS } from "./tax";
 
 const context: EngineContext = {
@@ -12,9 +19,16 @@ const context: EngineContext = {
   penalty_cap_bps: 2000,
   confirm_partial_receipts: false,
 };
-const opts = { starts_on: "2026-11-01", context, sections: DEFAULT_TDS_SECTIONS, gst_rate_bps: 1800 };
-const sim = (config: unknown, s: ScenarioInput) => simulate(compConfig.parse(config), scenario.parse(s), opts);
-const amount = (r: ReturnType<typeof simulate>, key: string) => r.breakdown.find((b) => b.key === key)?.amount_paise;
+const opts = {
+  starts_on: "2026-11-01",
+  context,
+  sections: DEFAULT_TDS_SECTIONS,
+  gst_rate_bps: 1800,
+};
+const sim = (config: unknown, s: ScenarioInput) =>
+  simulate(compConfig.parse(config), scenario.parse(s), opts);
+const amount = (r: ReturnType<typeof simulate>, key: string) =>
+  r.breakdown.find((b) => b.key === key)?.amount_paise;
 
 describe("simulate", () => {
   it("fixed + commission: breakdown, tax, net and Eduwit economics", () => {
@@ -27,7 +41,11 @@ describe("simulate", () => {
     });
     expect(amount(r, "fixed")).toBe(15_000_00);
     expect(amount(r, "commission")).toBe(3_000_00);
-    expect(r).toMatchObject({ gross_paise: 18_000_00, penalties_paise: 0, net_payout_paise: 18_000_00 });
+    expect(r).toMatchObject({
+      gross_paise: 18_000_00,
+      penalties_paise: 0,
+      net_payout_paise: 18_000_00,
+    });
     expect(r.tax.tds_paise).toBe(0);
     expect(r.eduwit).toEqual({
       revenue_paise: 30_000_00,
@@ -42,7 +60,12 @@ describe("simulate", () => {
     const config = {
       ...SYSTEM_PRESETS.fixed_plus_commission.config,
       penalties: [
-        { id: "late", type: "late_delivery", label: "Late", per_day: { type: "amount", amount_paise: 500_00 } },
+        {
+          id: "late",
+          type: "late_delivery",
+          label: "Late",
+          per_day: { type: "amount", amount_paise: 500_00 },
+        },
       ],
     };
     const r = sim(config, {
@@ -78,7 +101,10 @@ describe("simulate", () => {
           {
             id: "views",
             label: "Views",
-            conditions: { op: "and", items: [{ metric: "views", comparator: "gte", value: 40_000 }] },
+            conditions: {
+              op: "and",
+              items: [{ metric: "views", comparator: "gte", value: 40_000 }],
+            },
             window: { type: "deal" },
             amount: { type: "fixed", amount_paise: 1_000_00 },
           },
@@ -92,12 +118,17 @@ describe("simulate", () => {
 
   it("is deterministic", () => {
     const s = { leads: 50, qualified_leads: 20, applications: 10, enrollments: 5, months: 3 };
-    expect(sim(SYSTEM_PRESETS.commission_only.config, s)).toEqual(sim(SYSTEM_PRESETS.commission_only.config, s));
+    expect(sim(SYSTEM_PRESETS.commission_only.config, s)).toEqual(
+      sim(SYSTEM_PRESETS.commission_only.config, s),
+    );
   });
 
   it("the creator view carries no Eduwit figures", () => {
     const r = forCreator(
-      sim(SYSTEM_PRESETS.commission_only.config, { enrollments: 1, avg_commission_gross_paise: 11_800_00 }),
+      sim(SYSTEM_PRESETS.commission_only.config, {
+        enrollments: 1,
+        avg_commission_gross_paise: 11_800_00,
+      }),
     );
     expect(r).not.toHaveProperty("eduwit");
     expect(JSON.stringify(r)).not.toContain("margin");
@@ -107,8 +138,16 @@ describe("simulate", () => {
 
 describe("scenario", () => {
   it("rejects impossible combinations", () => {
-    const r = scenario.safeParse({ leads: 2, qualified_leads: 3, enrollments: 1, cancellations: 2 });
-    expect(r.success ? [] : r.error.issues.map((i) => i.message)).toEqual(["gt_leads", "gt_enrollments"]);
+    const r = scenario.safeParse({
+      leads: 2,
+      qualified_leads: 3,
+      enrollments: 1,
+      cancellations: 2,
+    });
+    expect(r.success ? [] : r.error.issues.map((i) => i.message)).toEqual([
+      "gt_leads",
+      "gt_enrollments",
+    ]);
   });
 
   it("generates events within the scenario's months, ending with completion", () => {

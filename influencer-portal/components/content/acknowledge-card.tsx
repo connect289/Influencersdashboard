@@ -32,7 +32,12 @@ export function AcknowledgeCard({
     <Card className="mb-4 flex flex-col gap-3 ring-2 ring-primary/30">
       <p className="text-sm font-medium">{t("content.brief.ackTitle")}</p>
       <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" className="mt-1 size-4" checked={read} onChange={(e) => setRead(e.target.checked)} />
+        <input
+          type="checkbox"
+          className="mt-1 size-4"
+          checked={read}
+          onChange={(e) => setRead(e.target.checked)}
+        />
         <span>{t("content.brief.ackLabel")}</span>
       </label>
       <Button

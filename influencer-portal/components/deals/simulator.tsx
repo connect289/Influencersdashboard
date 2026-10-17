@@ -71,7 +71,11 @@ function ScenarioForm({
           />
         </Field>
         {staff ? (
-          <Field id="sim-comm" label={t("deals.scenario.avg_commission")} hint={t("deals.scenario.avgCommissionHint")}>
+          <Field
+            id="sim-comm"
+            label={t("deals.scenario.avg_commission")}
+            hint={t("deals.scenario.avgCommissionHint")}
+          >
             <RupeeInput
               id="sim-comm"
               paise={value.avg_commission_gross_paise ?? null}
@@ -83,7 +87,11 @@ function ScenarioForm({
       <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
         {(["commission_received", "has_pan", "gst_registered"] as const).map((k) => (
           <label key={k} className="flex items-center gap-2">
-            <input type="checkbox" checked={value[k]} onChange={(e) => set({ [k]: e.target.checked })} />
+            <input
+              type="checkbox"
+              checked={value[k]}
+              onChange={(e) => set({ [k]: e.target.checked })}
+            />
             {t(`deals.scenario.${k}`)}
           </label>
         ))}
@@ -92,7 +100,17 @@ function ScenarioForm({
   );
 }
 
-function Row({ label, value, strong, muted }: { label: string; value: number; strong?: boolean; muted?: boolean }) {
+function Row({
+  label,
+  value,
+  strong,
+  muted,
+}: {
+  label: string;
+  value: number;
+  strong?: boolean;
+  muted?: boolean;
+}) {
   return (
     <div
       className={`flex justify-between gap-3 py-1 text-sm ${strong ? "font-semibold" : ""} ${muted ? "text-muted" : ""}`}
@@ -108,7 +126,9 @@ function ResultView({ r }: { r: CreatorSimulation }) {
   return (
     <dl className="flex flex-col divide-y divide-line" aria-live="polite">
       <div className="pb-2">
-        {r.breakdown.length === 0 ? <p className="py-1 text-sm text-muted">{t("deals.simulator.nothing")}</p> : null}
+        {r.breakdown.length === 0 ? (
+          <p className="py-1 text-sm text-muted">{t("deals.simulator.nothing")}</p>
+        ) : null}
         {r.breakdown.map((b) => (
           <Row key={b.key} label={t(`deals.breakdown.${b.key}`)} value={b.amount_paise} />
         ))}
@@ -125,12 +145,18 @@ function ResultView({ r }: { r: CreatorSimulation }) {
               muted
             />
           ))}
-        {r.tax.gst_paise ? <Row label={t("deals.simulator.gst")} value={r.tax.gst_paise} muted /> : null}
-        {r.penalties_paise ? <Row label={t("deals.simulator.penalties")} value={-r.penalties_paise} muted /> : null}
+        {r.tax.gst_paise ? (
+          <Row label={t("deals.simulator.gst")} value={r.tax.gst_paise} muted />
+        ) : null}
+        {r.penalties_paise ? (
+          <Row label={t("deals.simulator.penalties")} value={-r.penalties_paise} muted />
+        ) : null}
       </div>
       <div className="pt-2">
         <Row label={t("deals.simulator.net")} value={r.net_payout_paise} strong />
-        {r.non_cash_paise ? <Row label={t("deals.simulator.nonCash")} value={r.non_cash_paise} muted /> : null}
+        {r.non_cash_paise ? (
+          <Row label={t("deals.simulator.nonCash")} value={r.non_cash_paise} muted />
+        ) : null}
       </div>
     </dl>
   );
@@ -155,22 +181,34 @@ export function StaffSimulator({
   taxConfirmed: boolean;
 }) {
   const t = useTranslations();
-  const [s, setS] = useState<Scenario>({ ...DEFAULT, avg_commission_gross_paise: estimatePaise ?? undefined });
+  const [s, setS] = useState<Scenario>({
+    ...DEFAULT,
+    avg_commission_gross_paise: estimatePaise ?? undefined,
+  });
   const deferred = useDeferredValue(s);
   const result = useMemo(() => {
     if (!config) return null;
     const parsed = scenarioSchema.safeParse(deferred);
     if (!parsed.success) return { error: true as const };
-    return simulate(config, parsed.data, { starts_on: startsOn, context, sections, gst_rate_bps: gstRateBps });
+    return simulate(config, parsed.data, {
+      starts_on: startsOn,
+      context,
+      sections,
+      gst_rate_bps: gstRateBps,
+    });
   }, [config, deferred, startsOn, context, sections, gstRateBps]);
   return (
     <Card>
       <CardHeader title={t("deals.simulator.title")} description={t("deals.simulator.staffHint")} />
       <div className="flex flex-col gap-4">
         <ScenarioForm value={s} onChange={setS} staff />
-        {!taxConfirmed ? <Banner tone="warning">{t("deals.simulator.confirmWithCa")}</Banner> : null}
+        {!taxConfirmed ? (
+          <Banner tone="warning">{t("deals.simulator.confirmWithCa")}</Banner>
+        ) : null}
         {!config ? <p className="text-sm text-muted">{t("deals.simulator.fixErrors")}</p> : null}
-        {result && "error" in result ? <p className="text-sm text-danger">{t("deals.errors.scenario")}</p> : null}
+        {result && "error" in result ? (
+          <p className="text-sm text-danger">{t("deals.errors.scenario")}</p>
+        ) : null}
         {result && !("error" in result) ? (
           <>
             <ResultView r={result} />
@@ -180,9 +218,16 @@ export function StaffSimulator({
                 <Row label={t("deals.simulator.revenue")} value={result.eduwit.revenue_paise} />
                 <Row label={t("deals.simulator.cost")} value={result.eduwit.cost_paise} />
                 {result.eduwit.cost_per_enrollment_paise !== null ? (
-                  <Row label={t("deals.simulator.costPerEnrolment")} value={result.eduwit.cost_per_enrollment_paise} />
+                  <Row
+                    label={t("deals.simulator.costPerEnrolment")}
+                    value={result.eduwit.cost_per_enrollment_paise}
+                  />
                 ) : null}
-                <Row label={t("deals.simulator.margin")} value={result.eduwit.margin_paise} strong />
+                <Row
+                  label={t("deals.simulator.margin")}
+                  value={result.eduwit.margin_paise}
+                  strong
+                />
               </dl>
               {result.eduwit.margin_bps !== null ? (
                 <p className="text-xs text-muted">
@@ -204,7 +249,11 @@ export function CreatorSimulator({ dealId, versionId }: { dealId: string; versio
   const t = useTranslations();
   const [s, setS] = useState<Scenario>(DEFAULT);
   const deferred = useDeferredValue(s);
-  const [state, setState] = useState<{ result: CreatorSimulation | null; error: string | null; key: string }>({
+  const [state, setState] = useState<{
+    result: CreatorSimulation | null;
+    error: string | null;
+    key: string;
+  }>({
     result: null,
     error: null,
     key: "",
@@ -216,7 +265,11 @@ export function CreatorSimulator({ dealId, versionId }: { dealId: string; versio
       const { avg_commission_gross_paise: _drop, ...scenario } = deferred;
       void simulateMyDeal({ dealId, versionId, scenario }).then((r) => {
         if (!live) return;
-        setState(r.ok ? { result: r.data ?? null, error: null, key } : { result: null, error: r.error, key });
+        setState(
+          r.ok
+            ? { result: r.data ?? null, error: null, key }
+            : { result: null, error: r.error, key },
+        );
       });
     }, 350);
     return () => {
@@ -227,7 +280,10 @@ export function CreatorSimulator({ dealId, versionId }: { dealId: string; versio
   const loading = state.key !== key;
   return (
     <Card>
-      <CardHeader title={t("deals.simulator.title")} description={t("deals.simulator.creatorHint")} />
+      <CardHeader
+        title={t("deals.simulator.title")}
+        description={t("deals.simulator.creatorHint")}
+      />
       <div className="flex flex-col gap-4">
         <ScenarioForm value={s} onChange={setS} staff={false} />
         {state.error ? <p className="text-sm text-danger">{state.error}</p> : null}

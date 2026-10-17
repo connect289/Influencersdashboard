@@ -7,7 +7,11 @@ import { AGENCY_NAV } from "@/lib/nav";
 export default async function AgencyLayout({ children }: { children: React.ReactNode }) {
   const { me } = await requireAgency();
   const t = await getTranslations();
-  const links: NavLink[] = AGENCY_NAV.map((i) => ({ href: i.href, label: t(i.labelKey), icon: i.icon }));
+  const links: NavLink[] = AGENCY_NAV.map((i) => ({
+    href: i.href,
+    label: t(i.labelKey),
+    icon: i.icon,
+  }));
   return (
     <PortalShell
       links={links}

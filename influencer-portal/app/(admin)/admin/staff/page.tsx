@@ -50,7 +50,9 @@ export default async function StaffPage() {
           />
         }
       />
-      {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
+      {error ? (
+        <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
+      ) : null}
       {!error && rows.length === 0 ? <EmptyState title={t("staff.empty")} /> : null}
       {rows.length > 0 ? (
         <Card className="p-0 md:p-0">
@@ -80,13 +82,17 @@ export default async function StaffPage() {
                           {ROLE_LABELS[role]}
                         </Badge>
                       ))}
-                      {r.is_signatory ? <Badge family="attention">{t("roles.signatory")}</Badge> : null}
+                      {r.is_signatory ? (
+                        <Badge family="attention">{t("roles.signatory")}</Badge>
+                      ) : null}
                     </div>
                   </Td>
                   <Td>
                     <StatusBadge status={r.status} label={t(`staff.status.${r.status}`)} />
                   </Td>
-                  <Td className="text-muted">{r.last_seen_at ? formatRelative(r.last_seen_at) : t("staff.never")}</Td>
+                  <Td className="text-muted">
+                    {r.last_seen_at ? formatRelative(r.last_seen_at) : t("staff.never")}
+                  </Td>
                   <Td>
                     <StaffRowActions
                       userId={r.user_id}

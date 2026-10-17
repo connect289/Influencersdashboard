@@ -14,7 +14,14 @@ import {
   type StageToggles,
 } from "./workflow";
 
-const all: StageToggles = { brief: true, concept: true, draft: true, schedule: true, verify: true, metrics: true };
+const all: StageToggles = {
+  brief: true,
+  concept: true,
+  draft: true,
+  schedule: true,
+  verify: true,
+  metrics: true,
+};
 const none: StageToggles = {
   brief: false,
   concept: false,
@@ -24,7 +31,11 @@ const none: StageToggles = {
   metrics: false,
 };
 
-function run(t: StageToggles, actions: Action[], from: DeliverableStatus = "not_started"): DeliverableStatus {
+function run(
+  t: StageToggles,
+  actions: Action[],
+  from: DeliverableStatus = "not_started",
+): DeliverableStatus {
   let s = from;
   for (const a of actions) {
     const r = move(s, a, t);
@@ -65,7 +76,10 @@ describe("move: the full path", () => {
 
   it("with every stage off, goes straight from start to live to completed", () => {
     expect(run(none, ["go_live", "complete"])).toBe("completed");
-    expect(move("not_started", "acknowledge_brief", none)).toEqual({ ok: false, error: "stage_off" });
+    expect(move("not_started", "acknowledge_brief", none)).toEqual({
+      ok: false,
+      error: "stage_off",
+    });
     expect(move("not_started", "submit_concept", none)).toEqual({ ok: false, error: "stage_off" });
     expect(move("live", "verify_live", none)).toEqual({ ok: false, error: "stage_off" });
     expect(move("live", "submit_metrics", none)).toEqual({ ok: false, error: "stage_off" });
@@ -73,15 +87,17 @@ describe("move: the full path", () => {
 
   it("skips the concept stage", () => {
     const t = { ...DEFAULT_TOGGLES, concept: false };
-    expect(run(t, ["acknowledge_brief", "submit_draft", "approve_draft", "go_live", "verify_live"])).toBe(
-      "live_verified",
-    );
+    expect(
+      run(t, ["acknowledge_brief", "submit_draft", "approve_draft", "go_live", "verify_live"]),
+    ).toBe("live_verified");
     expect(move("brief_acknowledged", "submit_concept", t).ok).toBe(false);
   });
 
   it("skips the draft stage: publishing follows the approved concept", () => {
     const t = { ...DEFAULT_TOGGLES, draft: false };
-    expect(run(t, ["acknowledge_brief", "submit_concept", "approve_concept", "go_live"])).toBe("live");
+    expect(run(t, ["acknowledge_brief", "submit_concept", "approve_concept", "go_live"])).toBe(
+      "live",
+    );
     expect(move("concept_approved", "submit_draft", t)).toEqual({ ok: false, error: "stage_off" });
   });
 
@@ -99,13 +115,20 @@ describe("move: the full path", () => {
   it("scheduling, when on, comes before going live", () => {
     expect(move("draft_approved", "go_live", all).ok).toBe(false);
     expect(move("draft_approved", "go_live", DEFAULT_TOGGLES).ok).toBe(true);
-    expect(move("draft_approved", "schedule", DEFAULT_TOGGLES)).toEqual({ ok: false, error: "stage_off" });
+    expect(move("draft_approved", "schedule", DEFAULT_TOGGLES)).toEqual({
+      ok: false,
+      error: "stage_off",
+    });
   });
 
   it("metrics off: completes right after verification; verification off: after live", () => {
-    expect(run({ ...DEFAULT_TOGGLES, metrics: false }, ["complete"], "live_verified")).toBe("completed");
+    expect(run({ ...DEFAULT_TOGGLES, metrics: false }, ["complete"], "live_verified")).toBe(
+      "completed",
+    );
     expect(move("live", "complete", { ...DEFAULT_TOGGLES, metrics: false }).ok).toBe(false);
-    expect(run({ ...DEFAULT_TOGGLES, verify: false }, ["submit_metrics", "complete"], "live")).toBe("completed");
+    expect(run({ ...DEFAULT_TOGGLES, verify: false }, ["submit_metrics", "complete"], "live")).toBe(
+      "completed",
+    );
   });
 
   it("cancel works from any open status and nothing moves after the end", () => {
@@ -129,19 +152,29 @@ describe("move: the full path", () => {
 
 describe("availableActions", () => {
   it("splits actions by side", () => {
-    expect(availableActions("brief_acknowledged", DEFAULT_TOGGLES, "creator")).toEqual(["submit_concept"]);
+    expect(availableActions("brief_acknowledged", DEFAULT_TOGGLES, "creator")).toEqual([
+      "submit_concept",
+    ]);
     expect(availableActions("concept_submitted", DEFAULT_TOGGLES, "eduwit")).toEqual([
       "approve_concept",
       "request_concept_changes",
       "cancel",
     ]);
     expect(availableActions("concept_submitted", DEFAULT_TOGGLES, "creator")).toEqual([]);
-    expect(availableActions("not_started", DEFAULT_TOGGLES, "system")).toEqual(["acknowledge_brief"]);
+    expect(availableActions("not_started", DEFAULT_TOGGLES, "system")).toEqual([
+      "acknowledge_brief",
+    ]);
     expect(availableActions("live", DEFAULT_TOGGLES, "creator")).toEqual(["go_live"]);
     expect(availableActions("live", DEFAULT_TOGGLES, "eduwit")).toEqual(["verify_live", "cancel"]);
   });
   it("lists enabled stages", () => {
-    expect(enabledStages(DEFAULT_TOGGLES)).toEqual(["brief", "concept", "draft", "verify", "metrics"]);
+    expect(enabledStages(DEFAULT_TOGGLES)).toEqual([
+      "brief",
+      "concept",
+      "draft",
+      "verify",
+      "metrics",
+    ]);
     expect(enabledStages(none)).toEqual([]);
   });
 });
@@ -177,17 +210,27 @@ describe("pending stage and overdue", () => {
     expect(pendingStage("live", none)).toBeNull();
   });
   it("flags overdue from the pending stage's due date", () => {
-    expect(overdue("brief_acknowledged", DEFAULT_TOGGLES, due, new Date("2026-11-01T18:00:00Z"))).toBeNull();
-    expect(overdue("brief_acknowledged", DEFAULT_TOGGLES, due, new Date("2026-11-02T00:00:00Z"))).toEqual({
+    expect(
+      overdue("brief_acknowledged", DEFAULT_TOGGLES, due, new Date("2026-11-01T18:00:00Z")),
+    ).toBeNull();
+    expect(
+      overdue("brief_acknowledged", DEFAULT_TOGGLES, due, new Date("2026-11-02T00:00:00Z")),
+    ).toEqual({
       stage: "concept",
       due_at: due.concept,
       days_late: 1,
     });
-    expect(overdue("draft_approved", DEFAULT_TOGGLES, due, new Date("2026-11-20T00:00:00Z"))?.days_late).toBe(5);
+    expect(
+      overdue("draft_approved", DEFAULT_TOGGLES, due, new Date("2026-11-20T00:00:00Z"))?.days_late,
+    ).toBe(5);
     // Waiting for review is never overdue for the creator.
-    expect(overdue("draft_submitted", DEFAULT_TOGGLES, due, new Date("2027-01-01T00:00:00Z"))).toBeNull();
+    expect(
+      overdue("draft_submitted", DEFAULT_TOGGLES, due, new Date("2027-01-01T00:00:00Z")),
+    ).toBeNull();
     // No due date for the stage: not overdue.
-    expect(overdue("brief_acknowledged", DEFAULT_TOGGLES, {}, new Date("2027-01-01T00:00:00Z"))).toBeNull();
+    expect(
+      overdue("brief_acknowledged", DEFAULT_TOGGLES, {}, new Date("2027-01-01T00:00:00Z")),
+    ).toBeNull();
   });
 });
 

@@ -28,7 +28,8 @@ export interface SimulatorProps {
 }
 
 export type EditorTarget =
-  { kind: "deal"; dealId: string } | { kind: "preset"; id: string; name: string; description: string };
+  | { kind: "deal"; dealId: string }
+  | { kind: "preset"; id: string; name: string; description: string };
 
 function IssueList({ issues }: { issues: BuilderIssue[] }) {
   const t = useTranslations();
@@ -46,7 +47,9 @@ function IssueList({ issues }: { issues: BuilderIssue[] }) {
                     i.section === "general" ? "" : t(`deals.sections.${i.section}`),
                     ...i.path
                       .slice(1)
-                      .map((p) => (typeof p === "number" ? `#${String(p + 1)}` : String(p).replace(/_/g, " "))),
+                      .map((p) =>
+                        typeof p === "number" ? `#${String(p + 1)}` : String(p).replace(/_/g, " "),
+                      ),
                   ]
                     .filter(Boolean)
                     .join(" › "),
@@ -87,7 +90,12 @@ function SavePresetDialog({ config }: { config: CompConfig }) {
           }}
         >
           <Field id="preset-name" label={t("deals.presets.name")} required>
-            <Input id="preset-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+            <Input
+              id="preset-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={80}
+            />
           </Field>
           <Field id="preset-desc" label={t("deals.presets.description")}>
             <Textarea
@@ -122,7 +130,9 @@ export function TermsEditor({
   const { pending, run } = useAction();
   const [config, setConfig] = useState<CompConfig>(initial);
   const [name, setName] = useState(target.kind === "preset" ? target.name : "");
-  const [description, setDescription] = useState(target.kind === "preset" ? target.description : "");
+  const [description, setDescription] = useState(
+    target.kind === "preset" ? target.description : "",
+  );
   const issues = useMemo(() => builderIssues(config), [config]);
   const valid = useMemo(() => (issues.length ? null : compConfig.parse(config)), [issues, config]);
   const invalidSections = useMemo(() => new Set(issues.map((i) => i.section)), [issues]);
@@ -152,7 +162,12 @@ export function TermsEditor({
           <Card>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field id="p-name" label={t("deals.presets.name")} required>
-                <Input id="p-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+                <Input
+                  id="p-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={80}
+                />
               </Field>
               <Field id="p-desc" label={t("deals.presets.description")}>
                 <Input
@@ -168,7 +183,9 @@ export function TermsEditor({
         <IssueList issues={issues} />
         <CompBuilder value={config} onChange={setConfig} invalidSections={invalidSections} />
         <div className="sticky bottom-20 z-10 flex flex-wrap items-center justify-end gap-2 rounded-xl bg-surface/95 p-2 ring-1 ring-line backdrop-blur md:bottom-4">
-          {dirty ? <span className="mr-auto text-xs text-muted">{t("deals.builder.unsaved")}</span> : null}
+          {dirty ? (
+            <span className="mr-auto text-xs text-muted">{t("deals.builder.unsaved")}</span>
+          ) : null}
           {target.kind === "deal" && valid ? <SavePresetDialog config={valid} /> : null}
           <Button
             type="button"

@@ -27,7 +27,11 @@ export const mediaKitSchema = z.object({
     }),
   ),
   rates: z.array(
-    z.object({ platform: z.enum(PLATFORMS), format: z.enum(CONTENT_FORMATS), suggested_paise: z.number() }),
+    z.object({
+      platform: z.enum(PLATFORMS),
+      format: z.enum(CONTENT_FORMATS),
+      suggested_paise: z.number(),
+    }),
   ),
   portfolio: z.array(z.object({ url: z.string(), title: z.string().nullable() })),
   generated_at: z.string(),
@@ -35,7 +39,11 @@ export const mediaKitSchema = z.object({
 export type MediaKit = z.infer<typeof mediaKitSchema>;
 
 export const AVATAR_BUCKET = "inf-public-avatars";
-export const AVATAR_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" } as const;
+export const AVATAR_TYPES = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+} as const;
 export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 
 export function avatarUrl(supabaseUrl: string, path: string | null): string | null {
@@ -48,7 +56,11 @@ export function averageEngagement(kit: Pick<MediaKit, "platforms">): number | nu
   const rows = kit.platforms.filter((p) => p.engagement_rate !== null && (p.followers ?? 0) > 0);
   const total = rows.reduce((s, p) => s + (p.followers ?? 0), 0);
   if (!total) return null;
-  return Math.round((rows.reduce((s, p) => s + (p.engagement_rate ?? 0) * (p.followers ?? 0), 0) / total) * 100) / 100;
+  return (
+    Math.round(
+      (rows.reduce((s, p) => s + (p.engagement_rate ?? 0) * (p.followers ?? 0), 0) / total) * 100,
+    ) / 100
+  );
 }
 
 /** File name for the PDF download. */

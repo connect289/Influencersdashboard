@@ -106,7 +106,8 @@ export default async function AdminOverview() {
     hint: t("overview.checks.liveHint"),
   });
 
-  const jobs = (status.data as { jobs?: { due: number; dead: number; failed: number } } | null)?.jobs;
+  const jobs = (status.data as { jobs?: { due: number; dead: number; failed: number } } | null)
+    ?.jobs;
   const remaining = checks.filter((c) => !c.done).length;
 
   return (
@@ -115,24 +116,39 @@ export default async function AdminOverview() {
         title={t("overview.title", { name: me.fullName.split(" ")[0] ?? me.fullName })}
         description={t("overview.subtitle")}
       />
-      {failed ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
+      {failed ? (
+        <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader
             title={t("overview.setupTitle")}
-            description={remaining === 0 ? t("overview.setupDone") : t("overview.setupRemaining", { count: remaining })}
+            description={
+              remaining === 0
+                ? t("overview.setupDone")
+                : t("overview.setupRemaining", { count: remaining })
+            }
           />
           <ul className="flex flex-col gap-1">
             {checks.map((c) => (
               <li key={c.key} className="flex items-start gap-3 rounded-xl px-2 py-2">
                 {c.done ? (
-                  <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" aria-label={t("overview.done")} />
+                  <CheckCircle2
+                    className="mt-0.5 size-5 shrink-0 text-success"
+                    aria-label={t("overview.done")}
+                  />
                 ) : (
-                  <Circle className="mt-0.5 size-5 shrink-0 text-faint" aria-label={t("overview.todo")} />
+                  <Circle
+                    className="mt-0.5 size-5 shrink-0 text-faint"
+                    aria-label={t("overview.todo")}
+                  />
                 )}
                 <div className="min-w-0">
                   {c.href && !c.done ? (
-                    <Link href={c.href} className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+                    <Link
+                      href={c.href}
+                      className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                    >
                       {c.label}
                     </Link>
                   ) : (
@@ -146,7 +162,10 @@ export default async function AdminOverview() {
         </Card>
         {jobs ? (
           <Card>
-            <CardHeader title={t("overview.systemTitle")} description={t("overview.systemSubtitle")} />
+            <CardHeader
+              title={t("overview.systemTitle")}
+              description={t("overview.systemSubtitle")}
+            />
             <dl className="grid grid-cols-3 gap-3 text-center">
               <div>
                 <dt className="text-xs text-muted">{t("system.jobs.due")}</dt>
@@ -158,7 +177,11 @@ export default async function AdminOverview() {
               </div>
               <div>
                 <dt className="text-xs text-muted">{t("system.jobs.dead")}</dt>
-                <dd className={`tabular text-2xl font-semibold ${jobs.dead > 0 ? "text-danger" : ""}`}>{jobs.dead}</dd>
+                <dd
+                  className={`tabular text-2xl font-semibold ${jobs.dead > 0 ? "text-danger" : ""}`}
+                >
+                  {jobs.dead}
+                </dd>
               </div>
             </dl>
             <Link
@@ -174,7 +197,10 @@ export default async function AdminOverview() {
           <CardHeader
             title={t("overview.myTasks")}
             actions={
-              <Link href="/admin/tasks" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+              <Link
+                href="/admin/tasks"
+                className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+              >
                 {t("creators.followUps.viewAll")}
               </Link>
             }

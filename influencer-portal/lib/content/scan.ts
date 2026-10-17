@@ -32,12 +32,26 @@ export async function scanAndRecord(input: {
     db.rpc("setting", { p_key: "content.review" }),
   ]);
   if (list.error) throw new Error(list.error.message);
-  const review = SETTINGS["content.review"].schema.catch(SETTINGS["content.review"].default).parse(setting.data);
-  const result = scanSubmission(input.text, input.kind, input.platform, claims.parse(list.data), review);
+  const review = SETTINGS["content.review"].schema
+    .catch(SETTINGS["content.review"].default)
+    .parse(setting.data);
+  const result = scanSubmission(
+    input.text,
+    input.kind,
+    input.platform,
+    claims.parse(list.data),
+    review,
+  );
   const blocking = result.claims.filter((m) => m.severity === "block");
   const matches = result.claims
     .slice(0, 50)
-    .map((m) => ({ claim_id: m.claim_id, severity: m.severity, text: m.text, index: m.index, note: m.note }));
+    .map((m) => ({
+      claim_id: m.claim_id,
+      severity: m.severity,
+      text: m.text,
+      index: m.index,
+      note: m.note,
+    }));
   const checks: { kind: string; passed: boolean; result: Json }[] = [
     { kind: "banned_claims", passed: blocking.length === 0, result: { claims: matches } },
   ];
@@ -48,7 +62,10 @@ export async function scanAndRecord(input: {
       passed: !d.required || d.present,
       result: { required: d.required, present: d.present, found: d.found },
     });
-  const { error } = await db.rpc("compliance_record", { p_submission: input.submissionId, p_checks: checks });
+  const { error } = await db.rpc("compliance_record", {
+    p_submission: input.submissionId,
+    p_checks: checks,
+  });
   if (error) throw new Error(error.message);
   return result;
 }

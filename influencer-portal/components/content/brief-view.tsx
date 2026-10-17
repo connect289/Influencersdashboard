@@ -24,7 +24,9 @@ function Lines({ items, tone }: { items: readonly string[]; tone?: "good" | "bad
         <li key={x} className="flex gap-2">
           <span
             aria-hidden
-            className={tone === "bad" ? "text-danger" : tone === "good" ? "text-success" : "text-muted"}
+            className={
+              tone === "bad" ? "text-danger" : tone === "good" ? "text-success" : "text-muted"
+            }
           >
             {tone === "bad" ? "✕" : tone === "good" ? "✓" : "•"}
           </span>
@@ -72,8 +74,11 @@ export function BriefView({
                     {p.specialization ? ` (${p.specialization})` : ""}
                   </span>
                   <span className="text-muted">
-                    {[p.mode, p.level, p.fee_total ? formatRupees(p.fee_total, { whole: true }) : null].filter(Boolean)
-                      .length
+                    {[
+                      p.mode,
+                      p.level,
+                      p.fee_total ? formatRupees(p.fee_total, { whole: true }) : null,
+                    ].filter(Boolean).length
                       ? ` · ${[p.mode, p.level, p.fee_total ? formatRupees(p.fee_total, { whole: true }) : null].filter(Boolean).join(" · ")}`
                       : ""}
                   </span>
@@ -97,7 +102,9 @@ export function BriefView({
         ) : null}
         {c.tone || c.languages.length ? (
           <Section title={t("content.brief.toneAndLanguage")}>
-            <p className="text-sm">{[c.tone, c.languages.join(", ")].filter(Boolean).join(" · ")}</p>
+            <p className="text-sm">
+              {[c.tone, c.languages.join(", ")].filter(Boolean).join(" · ")}
+            </p>
           </Section>
         ) : null}
       </Card>
@@ -106,9 +113,15 @@ export function BriefView({
           <CardHeader title={t("content.brief.deliverables")} />
           <ul className="flex flex-col divide-y divide-line">
             {deliverables.map((d) => {
-              const spec = c.deliverables.find((x) => x.platform === d.platform && x.format === d.format);
-              const duration = typeof d.specs.duration_s === "number" ? d.specs.duration_s : spec?.duration_s;
-              const ratio = typeof d.specs.aspect_ratio === "string" ? d.specs.aspect_ratio : spec?.aspect_ratio;
+              const spec = c.deliverables.find(
+                (x) => x.platform === d.platform && x.format === d.format,
+              );
+              const duration =
+                typeof d.specs.duration_s === "number" ? d.specs.duration_s : spec?.duration_s;
+              const ratio =
+                typeof d.specs.aspect_ratio === "string"
+                  ? d.specs.aspect_ratio
+                  : spec?.aspect_ratio;
               return (
                 <li key={d.id} className="py-2 text-sm">
                   <p className="font-medium">
@@ -130,7 +143,10 @@ export function BriefView({
         </Card>
       ) : null}
       <Card className="flex flex-col gap-5">
-        <CardHeader title={t("content.brief.rulesTitle")} description={t("content.brief.rulesHint")} />
+        <CardHeader
+          title={t("content.brief.rulesTitle")}
+          description={t("content.brief.rulesHint")}
+        />
         {c.disclosures.length ? (
           <Section title={t("content.brief.disclosures")}>
             <Lines items={c.disclosures} />

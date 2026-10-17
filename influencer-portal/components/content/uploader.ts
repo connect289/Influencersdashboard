@@ -62,13 +62,19 @@ async function tus(
   signal?: AbortSignal,
 ): Promise<string> {
   const base = `${publicEnv.supabaseUrl}/storage/v1/upload/resumable/sign`;
-  const common = (token: string) => ({ "Tus-Resumable": "1.0.0", "x-signature": token, apikey: publicEnv.supabaseKey });
+  const common = (token: string) => ({
+    "Tus-Resumable": "1.0.0",
+    "x-signature": token,
+    apikey: publicEnv.supabaseKey,
+  });
   let state = r;
   let offset = 0;
   if (state) {
-    const head = await fetch(state.location, { method: "HEAD", headers: common(state.token), signal }).catch(
-      () => null,
-    );
+    const head = await fetch(state.location, {
+      method: "HEAD",
+      headers: common(state.token),
+      signal,
+    }).catch(() => null);
     const o = head?.ok ? Number(head.headers.get("upload-offset")) : NaN;
     if (Number.isFinite(o)) offset = o;
     else state = null;

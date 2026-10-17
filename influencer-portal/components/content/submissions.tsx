@@ -53,7 +53,10 @@ export function EarlierSubmissions({
     <section className="flex flex-col gap-2" aria-label={t("content.review.earlier")}>
       <h2 className="text-sm font-semibold">{t("content.review.earlier")}</h2>
       {rest.map((s) => (
-        <details key={s.id} className="rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)]">
+        <details
+          key={s.id}
+          className="rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)]"
+        >
           <summary className="cursor-pointer">
             <SubmissionHeader s={s} />
           </summary>
@@ -75,5 +78,8 @@ export function EarlierSubmissions({
 
 /** Every file path a deliverable's page may need a link for. */
 export function deliverablePaths(d: DeliverableDetail): string[] {
-  return [...d.submissions.flatMap((s) => s.files.map((f) => f.path)), ...d.metrics.flatMap((m) => m.screenshot_paths)];
+  return [
+    ...d.submissions.flatMap((s) => s.files.map((f) => f.path)),
+    ...d.metrics.flatMap((m) => m.screenshot_paths),
+  ];
 }

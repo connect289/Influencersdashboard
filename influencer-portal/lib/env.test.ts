@@ -17,7 +17,9 @@ describe("environment", () => {
   });
 
   it("requires a long internal key", () => {
-    expect(() => parseEnv({ ...base, INF_INTERNAL_API_KEY: "short" })).toThrow(/INF_INTERNAL_API_KEY/);
+    expect(() => parseEnv({ ...base, INF_INTERNAL_API_KEY: "short" })).toThrow(
+      /INF_INTERNAL_API_KEY/,
+    );
   });
 
   it("requires provider credentials for the chosen provider", () => {
@@ -48,7 +50,11 @@ describe("environment", () => {
 
   it("never echoes secret values in errors", () => {
     try {
-      parseEnv({ ...base, SUPABASE_SERVICE_ROLE_KEY: "secret-value", INF_INTERNAL_API_KEY: "short-secret" });
+      parseEnv({
+        ...base,
+        SUPABASE_SERVICE_ROLE_KEY: "secret-value",
+        INF_INTERNAL_API_KEY: "short-secret",
+      });
     } catch (e) {
       expect(String(e)).not.toContain("short-secret");
     }

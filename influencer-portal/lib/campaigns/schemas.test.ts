@@ -17,8 +17,12 @@ describe("campaignInput", () => {
     expect(r.success).toBe(false);
     expect(r.error?.issues[0]?.message).toBe("end_before_start");
     expect(
-      campaignInput.safeParse({ name: "MBA push", objective: "leads", applyBy: "2026-12-01", endsOn: "2026-11-30" })
-        .success,
+      campaignInput.safeParse({
+        name: "MBA push",
+        objective: "leads",
+        applyBy: "2026-12-01",
+        endsOn: "2026-11-30",
+      }).success,
     ).toBe(false);
   });
   it("validates deliverables and eligibility", () => {
@@ -44,8 +48,12 @@ describe("offerTerms", () => {
   it("needs a fee for fixed and hybrid deals", () => {
     expect(offerTerms.safeParse({ deal_type: "fixed" }).success).toBe(false);
     expect(offerTerms.safeParse({ deal_type: "hybrid", fixed_fee_paise: 0 }).success).toBe(false);
-    expect(offerTerms.safeParse({ deal_type: "fixed", fixed_fee_paise: 1500000 }).success).toBe(true);
-    expect(offerTerms.safeParse({ deal_type: "commission", includes_commission: true }).success).toBe(true);
+    expect(offerTerms.safeParse({ deal_type: "fixed", fixed_fee_paise: 1500000 }).success).toBe(
+      true,
+    );
+    expect(
+      offerTerms.safeParse({ deal_type: "commission", includes_commission: true }).success,
+    ).toBe(true);
     expect(offerTerms.safeParse({ deal_type: "barter" }).success).toBe(true);
   });
   it("rejects fractional paise", () => {
@@ -57,8 +65,12 @@ describe("offerTerms", () => {
 describe("applyInput", () => {
   it("requires https sample links", () => {
     const base = { campaignId: id, creatorId: id, terms: { deal_type: "barter" as const } };
-    expect(applyInput.safeParse({ ...base, samples: ["https://instagram.com/p/1"] }).success).toBe(true);
-    expect(applyInput.safeParse({ ...base, samples: ["http://instagram.com/p/1"] }).success).toBe(false);
+    expect(applyInput.safeParse({ ...base, samples: ["https://instagram.com/p/1"] }).success).toBe(
+      true,
+    );
+    expect(applyInput.safeParse({ ...base, samples: ["http://instagram.com/p/1"] }).success).toBe(
+      false,
+    );
   });
 });
 

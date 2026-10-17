@@ -11,7 +11,12 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState, NoResults } from "@/components/ui/states";
 import { requireStaff } from "@/lib/auth/guards";
-import { activeFilterCount, creatorListResult, filtersToRpc, parseCreatorFilters } from "@/lib/creators/crm";
+import {
+  activeFilterCount,
+  creatorListResult,
+  filtersToRpc,
+  parseCreatorFilters,
+} from "@/lib/creators/crm";
 import { loadPickers, loadSavedViews } from "@/lib/creators/staff-data";
 
 export async function generateMetadata() {
@@ -31,7 +36,8 @@ export default async function CreatorsPage({
   const filters = parseCreatorFilters(sp);
   const rpc = filtersToRpc(filters);
   // The board shows up to 200 cards (most recently updated first); counts per stage are exact.
-  const listArgs = view === "kanban" ? { ...rpc, page: 1, page_size: 200, sort: "updated", dir: "desc" } : rpc;
+  const listArgs =
+    view === "kanban" ? { ...rpc, page: 1, page_size: 200, sort: "updated", dir: "desc" } : rpc;
   const [list, counts, pickers, views] = await Promise.all([
     supabase.rpc("creator_list", { p: listArgs as never }),
     view === "kanban"
@@ -81,7 +87,13 @@ export default async function CreatorsPage({
         actions={actions}
         help="/admin/help/influencer-manager#pipeline"
       />
-      <CreatorFilters filters={filters} view={view} owners={pickers.owners} tiers={pickers.tiers} savedViews={views} />
+      <CreatorFilters
+        filters={filters}
+        view={view}
+        owners={pickers.owners}
+        tiers={pickers.tiers}
+        savedViews={views}
+      />
       {!result ? (
         <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
       ) : result.total === 0 ? (

@@ -35,17 +35,34 @@ describe("creator filters in the URL", () => {
     expect(f.include_blocked).toBe(true);
   });
   it("accepts a clean multi-value stage list", () => {
-    expect(parseCreatorFilters({ stage: "prospect,contacted" }).stage).toEqual(["prospect", "contacted"]);
-    expect(parseCreatorFilters({ stage: ["active", "paused"] }).stage).toEqual(["active", "paused"]);
+    expect(parseCreatorFilters({ stage: "prospect,contacted" }).stage).toEqual([
+      "prospect",
+      "contacted",
+    ]);
+    expect(parseCreatorFilters({ stage: ["active", "paused"] }).stage).toEqual([
+      "active",
+      "paused",
+    ]);
   });
   it("round-trips through a query string", () => {
-    const f = parseCreatorFilters({ stage: "active,paused", niche: "mba", followers_min: "5000", sort: "name" });
+    const f = parseCreatorFilters({
+      stage: "active,paused",
+      niche: "mba",
+      followers_min: "5000",
+      sort: "name",
+    });
     const q = creatorFiltersToQuery(f);
     expect(q).toBe("followers_min=5000&niche=mba&sort=name&stage=active%2Cpaused");
     expect(parseCreatorFilters(Object.fromEntries(new URLSearchParams(q)))).toEqual(f);
   });
   it("counts active filters (not search, sort or paging) and builds RPC and saved-view payloads", () => {
-    const f = parseCreatorFilters({ q: "x", stage: "active", niche: "mba", sort: "name", page: "3" });
+    const f = parseCreatorFilters({
+      q: "x",
+      stage: "active",
+      niche: "mba",
+      sort: "name",
+      page: "3",
+    });
     expect(activeFilterCount(f)).toBe(2);
     expect(filtersForView(f)).toEqual({ q: "x", stage: ["active"], niche: "mba", sort: "name" });
     expect(filtersToRpc(parseCreatorFilters({}))).toMatchObject({
@@ -59,9 +76,13 @@ describe("creator filters in the URL", () => {
 
 describe("creatorInput", () => {
   it("normalises handles and validates phone", () => {
-    expect(creatorInput.parse({ displayName: "Riya", handle: "@Riya.Learns" }).handle).toBe("riya.learns");
+    expect(creatorInput.parse({ displayName: "Riya", handle: "@Riya.Learns" }).handle).toBe(
+      "riya.learns",
+    );
     expect(creatorInput.safeParse({ displayName: "Riya", handle: "ri" }).success).toBe(false);
-    expect(creatorInput.safeParse({ displayName: "Riya", handle: "riya", phone: "123" }).success).toBe(false);
+    expect(
+      creatorInput.safeParse({ displayName: "Riya", handle: "riya", phone: "123" }).success,
+    ).toBe(false);
   });
 });
 
@@ -75,14 +96,9 @@ describe("istToIso", () => {
 
 describe("CSV import preparation", () => {
   it("maps header aliases and reports missing required columns", () => {
-    expect(mapHeaders(["Full Name", "Username", "E-mail", "Mobile", "Profile URL", "x"]).map).toEqual([
-      "display_name",
-      "handle",
-      "email",
-      "phone",
-      "platform_url",
-      null,
-    ]);
+    expect(
+      mapHeaders(["Full Name", "Username", "E-mail", "Mobile", "Profile URL", "x"]).map,
+    ).toEqual(["display_name", "handle", "email", "phone", "platform_url", null]);
     expect(mapHeaders(["Name", "Email"]).missing).toEqual(["handle"]);
   });
   it("validates rows, normalises values and reports errors with file line numbers", () => {

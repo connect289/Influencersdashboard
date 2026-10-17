@@ -116,7 +116,10 @@ export const submissionInput = z
       .default(""),
     note: note(2000).default(""),
   })
-  .refine((v) => v.body !== "" || v.files.length > 0 || v.linkUrl !== "", { path: ["body"], message: "empty" });
+  .refine((v) => v.body !== "" || v.files.length > 0 || v.linkUrl !== "", {
+    path: ["body"],
+    message: "empty",
+  });
 export type SubmissionInput = z.input<typeof submissionInput>;
 
 export const checklistInput = z.object(
@@ -212,7 +215,10 @@ export const metricsInput = z
     screenshots: z.array(z.string().regex(FILE_PATH_RE)).max(5).default([]),
   })
   .refine(
-    (v) => [v.views, v.reach, v.likes, v.comments, v.shares, v.saves, v.clicks, v.watch_time_s].some((x) => x !== null),
+    (v) =>
+      [v.views, v.reach, v.likes, v.comments, v.shares, v.saves, v.clicks, v.watch_time_s].some(
+        (x) => x !== null,
+      ),
     {
       path: ["views"],
       message: "empty",

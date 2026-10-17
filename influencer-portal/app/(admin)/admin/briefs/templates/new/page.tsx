@@ -25,7 +25,12 @@ export default async function NewBriefTemplatePage() {
       <PageHeader title={t("content.templates.new")} description={t("content.templates.newHint")} />
       <TemplateForm
         id={null}
-        initial={{ name: "", description: "", isDefault: false, content: briefTemplateContent.parse({}) }}
+        initial={{
+          name: "",
+          description: "",
+          isDefault: false,
+          content: briefTemplateContent.parse({}),
+        }}
       />
     </>
   );

@@ -43,7 +43,10 @@ export async function AccountPage({
           </dl>
         </Card>
         <Card>
-          <CardHeader title={t("account.sessions.title")} description={t("account.sessions.subtitle")} />
+          <CardHeader
+            title={t("account.sessions.title")}
+            description={t("account.sessions.subtitle")}
+          />
           {sessions.error ? (
             <ErrorState title={t("errors.loadFailed")} />
           ) : (
@@ -52,7 +55,10 @@ export async function AccountPage({
         </Card>
         {showDevices ? (
           <Card>
-            <CardHeader title={t("account.devices.title")} description={t("account.devices.subtitle")} />
+            <CardHeader
+              title={t("account.devices.title")}
+              description={t("account.devices.subtitle")}
+            />
             {devices.error ? (
               <ErrorState title={t("errors.loadFailed")} />
             ) : (

@@ -19,11 +19,17 @@ export async function generateMetadata() {
   return { title: t("nav.admin.briefs") };
 }
 
-export default async function BriefsPage({ searchParams }: { searchParams: Promise<{ state?: string; q?: string }> }) {
+export default async function BriefsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ state?: string; q?: string }>;
+}) {
   const { supabase } = await requireStaff("brief.read");
   const t = await getTranslations();
   const sp = await searchParams;
-  const state = (BRIEF_STATES as readonly string[]).includes(sp.state ?? "") ? (sp.state as BriefState) : null;
+  const state = (BRIEF_STATES as readonly string[]).includes(sp.state ?? "")
+    ? (sp.state as BriefState)
+    : null;
   const q = (sp.q ?? "").slice(0, 80);
   const rows = await listBriefs(supabase, { q, state }).catch(() => null);
   const link = (s: BriefState | null) => {
@@ -52,7 +58,9 @@ export default async function BriefsPage({ searchParams }: { searchParams: Promi
             aria-current={state === s ? "page" : undefined}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap",
-              state === s ? "bg-primary-soft font-medium text-primary" : "text-muted hover:bg-surface-2",
+              state === s
+                ? "bg-primary-soft font-medium text-primary"
+                : "text-muted hover:bg-surface-2",
             )}
           >
             {s ? t(`content.briefs.states.${s}`) : t("content.briefs.all")}
@@ -64,7 +72,13 @@ export default async function BriefsPage({ searchParams }: { searchParams: Promi
         <label htmlFor="br-q" className="sr-only">
           {t("content.briefs.search")}
         </label>
-        <Input id="br-q" name="q" defaultValue={q} placeholder={t("content.briefs.searchPlaceholder")} maxLength={80} />
+        <Input
+          id="br-q"
+          name="q"
+          defaultValue={q}
+          placeholder={t("content.briefs.searchPlaceholder")}
+          maxLength={80}
+        />
         <Button type="submit" variant="secondary" aria-label={t("content.briefs.search")}>
           <Search />
         </Button>
@@ -76,7 +90,10 @@ export default async function BriefsPage({ searchParams }: { searchParams: Promi
           q || state ? (
             <NoResults title={t("content.briefs.noResults")} />
           ) : (
-            <EmptyState title={t("content.briefs.empty")} description={t("content.briefs.emptyHint")} />
+            <EmptyState
+              title={t("content.briefs.empty")}
+              description={t("content.briefs.emptyHint")}
+            />
           )
         ) : (
           <Table>
@@ -93,19 +110,30 @@ export default async function BriefsPage({ searchParams }: { searchParams: Promi
               {rows.map((r) => (
                 <tr key={r.id}>
                   <Td>
-                    <Link href={`/admin/briefs/${r.id}`} className="font-medium text-primary hover:underline">
+                    <Link
+                      href={`/admin/briefs/${r.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
                       {r.deal_title}
                     </Link>
-                    {r.deal_code ? <span className="block text-xs text-muted">{r.deal_code}</span> : null}
+                    {r.deal_code ? (
+                      <span className="block text-xs text-muted">{r.deal_code}</span>
+                    ) : null}
                   </Td>
                   <Td>
                     {r.creator_name}
-                    {r.handle ? <span className="block text-xs text-muted">@{r.handle}</span> : null}
+                    {r.handle ? (
+                      <span className="block text-xs text-muted">@{r.handle}</span>
+                    ) : null}
                   </Td>
                   <Td>{r.version ? t("content.briefs.versionN", { version: r.version }) : "—"}</Td>
                   <Td>
                     <span className="inline-flex flex-wrap gap-1">
-                      <Badge family={r.version === null ? "neutral" : r.acknowledged ? "success" : "attention"}>
+                      <Badge
+                        family={
+                          r.version === null ? "neutral" : r.acknowledged ? "success" : "attention"
+                        }
+                      >
                         {t(
                           `content.briefs.states.${r.version === null ? "draft" : r.acknowledged ? "acknowledged" : "unacknowledged"}`,
                         )}
