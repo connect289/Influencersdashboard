@@ -394,7 +394,7 @@ contacts only for `lead.contacts`, credit and reject with a reason, fraud review
 guides for every role; seed links and test leads attributed through the same sweep code. Two real defects were found
 and fixed on the way: Witty's `w2_issue_code` needed a `search_path` (D-123) and zod 4 enum-keyed records rejected
 partial stage facts. Gate on 17 Oct 2026: typecheck, lint and Prettier clean; 2,730 unit tests; 629 pgTAP assertions
-(19 files) on a fresh database built from the production baseline; Playwright: the full suite of 86 journeys (result recorded with the tag); seed works and is idempotent;
+(19 files) on a fresh database built from the production baseline; 84 Playwright journeys passed (2 screenshot specs skipped by design); seed works and is idempotent;
 production re-checked read-only (all 101 shared objects identical, hash `685ba089…`; `b2c_lead_status_v` columns and
 `w2_issue_code` configuration match the local copy; no `inf` schema, no `inf-*` buckets). Nothing outside schema `inf`
 was created or changed: no trigger on `student_leads`, no new shared column, `lead_intake()` untouched (S-3, S-12).
