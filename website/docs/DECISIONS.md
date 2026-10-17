@@ -446,3 +446,11 @@ these at the end (spec Section 0).
   (D-044). `robots.txt` blocks staff, account, API, campaign and utility routes, and everything on preview deployments.
   OG/Twitter images are generated with `next/og` (site default, universities, curated views, guides). Legacy redirects
   return 301 (not Next's default 308) and CI checks every entry.
+
+### D-065 · Tools run only from the project's own pinned binaries (incident, 17 Oct 2026)
+- **What happened:** one background Lighthouse run invoked `npx lhci`, and npx resolved the bare name to an unrelated
+  public package `lhci@4.1.2` ("placeholder", prints one line) instead of the project's `@lhci/cli`. Its code was read
+  afterwards: a single `console.log`, no install scripts, no file or network access. It was deleted from the npx cache.
+- **Change:** Lighthouse runs as `npm run lhci` (local `@lhci/cli` only); CI and configs call `npx --no …` so npx can never
+  download a same-named package; new dependencies are pinned to versions published at least two weeks earlier
+  (e.g. `@anthropic-ai/sdk` 0.131.0).

@@ -19,6 +19,7 @@
     "e2e": "playwright test",
     "check": "npm run typecheck && npm run lint && npm run test && npm run check:copy",
     "lh": "node scripts/lighthouse.mjs",
+    "lhci": "lhci autorun --config=lighthouserc.cjs",
     "axe": "node scripts/axe.mjs",
     "record:concepts": "node scripts/record-concepts.mjs",
     "shoot": "node scripts/shoot.mjs",

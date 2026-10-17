@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 9 — Technical SEO and analytics. Current step: 9.2 (build in progress: robots, sitemaps, OG images, indexing rules, events).**
+**Current phase: 10 — Admin. Current step: 10.2 (web9 admin back end written and tested locally; UI pages written; e2e next).**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -562,3 +562,54 @@ Witty runs on the website end to end — gate, streamed replies with programme c
 feedback, callbacks, history — through Witty's own prompts and catalogue function, with the decision rules implemented
 from Witty's published contract. It stays switched off until Witty's ENGINE is shared or proven equivalent (A-AGENT-1)
 and an API key is supplied (S-14). Also fixed: `[slug]` pages returned 500 whenever a cache tag expired (D-058).
+
+## Phase 9 — Technical SEO and analytics ✅ `website-phase-9-done`
+
+### Plan
+1. robots, sitemap index by type, OG/Twitter images, `WebSite` + `SearchAction`.
+2. Indexing and canonical rules (curated views only; panels noindex); admin title/description overrides.
+3. Redirects tested in CI entry by entry (301).
+4. Analytics: events per spec 13.3, Pixel ↔ Conversions API de-duplication, standard `SubmitApplication`.
+5. Performance pass and JS budgets in Lighthouse CI; docs.
+
+### Step log
+- 9.1 ✅ `app/robots.ts`, `app/sitemap.xml/route.ts`, `app/sitemaps/[file]/route.ts` (`lib/server/sitemap.ts` + tests),
+  `lib/og/card.tsx` with OG + Twitter images for the site, universities, curated views and guides; `websiteLd` on the home.
+- 9.2 ✅ `lib/search/seo.ts` rewritten (D-062) + tests; `?offering=` / `?group=` noindex; `lib/server/page-meta.ts`
+  (`web_pages` overrides) on every indexable page.
+- 9.3 ✅ Legacy redirects send 301 and `e2e/content.spec.ts` checks every entry and its destination.
+- 9.4 ✅ Event ids aligned (D-063); `filter_apply`, `programme_view`, `counsellor_click` (delegated listener for WhatsApp
+  and phone links), `callback_booked` and `advisor_message` with parameters.
+- 9.5 ✅ `docs/PERFORMANCE.md`; Lighthouse CI: median of 3, JS budget ≤ 250 KB per route, SEO budget skips filtered
+  finder URLs. Tooling hardened after the `npx lhci` incident (D-065). `e2e/seo.spec.ts` (robots, sitemaps, indexing,
+  structured data, OG images).
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 169 unit tests, copy check) | ✅ |
+| `npm run db:gate` | ✅ (no schema change in Phase 9; web1–8 as Phase 8) |
+| `npm run build` | ✅ (robots, sitemap index, OG images prerendered or per request) |
+| Playwright | ✅ 132 passed (laptop + Pixel 7), incl. `seo.spec.ts`, every legacy redirect, cache-expiry regression |
+| Lighthouse CI mobile, median of 3, 13 paths | ✅ all assertions: performance 92–99, LCP ≤ 1.9 s, TBT median ≤ 242 ms, CLS ≤ 0.07, JS 175–232 KB (budget 250 KB), a11y 100, SEO 100 on indexable pages |
+
+### Self-review (Phase 9 row; spec 13.1–13.3)
+| Item | Status |
+|---|---|
+| Unique titles, descriptions, H1s from templates with admin overrides | Done (`web_pages` overrides; editing UI in Phase 10) |
+| Structured data: EducationalOrganization (Eduwit, universities), ItemList of Course, BreadcrumbList, FAQPage, Organization, WebSite + SearchAction | Done |
+| `?offering=` deep links noindex, canonical to the finder view | Done |
+| Sitemap index split by type; robots; canonical URLs; OG and Twitter images via `next/og` | Done (D-064) |
+| Indexable filter combinations only from curated views | Done (D-062) |
+| Migration: 301 map, `/about` and `/legal/*` identical, redirects tested in CI | Done for the known URLs; the full crawl-based inventory is blocked on S-01 (`scripts/crawl-legacy-site.mjs` fills `content/redirects.ts`) |
+| Internal linking: curated views, university pages, resources → finder views, breadcrumbs, footer hubs | Done (engine for resource links in Phase 11) |
+| Performance: LCP/INP/CLS budgets on home, finder (incl. panel), university pages; hero static first; chat loads on interaction; JS budget per route in CI | Done (`docs/PERFORMANCE.md`) |
+| Consent manager gates GA4, Pixel, Clarity | Done (Phase 2 loader, verified) — IDs needed (S-16–S-18) |
+| Events (no PII) per 13.3 | Done |
+| Conversions API `Lead` on verified lead, hashed identifiers, de-duplicated with the Pixel via event id, consent respected | Done (D-047, D-063) — token needed (S-17) |
+
+### Phase 9 summary
+Search engines see only deliberate pages: the home, hubs, curated views, universities and guides, each with structured
+data, a canonical URL and a social image, listed in a sitemap index by type. Everything else is noindex with the right
+canonical. Analytics events match the spec, and browser and server conversion events share ids. Performance budgets,
+including JavaScript per route, are enforced in CI.

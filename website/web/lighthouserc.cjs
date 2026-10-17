@@ -4,7 +4,7 @@ const paths = ["/", "/programmes", "/programmes?programme=mba&spec=marketing", "
 module.exports = {
   ci: {
     collect: {
-      startServerCommand: "npx next start -p 3100",
+      startServerCommand: "npx --no next start -p 3100",
       startServerReadyPattern: "Ready",
       url: paths.map((p) => `http://localhost:3100${p}`),
       numberOfRuns: 3, // median of 3: TBT on the throttled profile varies ±100 ms between runs

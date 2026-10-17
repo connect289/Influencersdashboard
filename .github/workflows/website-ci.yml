@@ -79,7 +79,7 @@ jobs:
         run: npm run db:start
       - name: Export local keys
         run: |
-          npx supabase --workdir .. status -o env > /tmp/sb.env
+          npx --no supabase --workdir .. status -o env > /tmp/sb.env
           # shellcheck disable=SC1091
           . /tmp/sb.env
           {
@@ -90,11 +90,11 @@ jobs:
         run: npm run db:test
       - run: npm run build
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        run: npx --no playwright install --with-deps chromium
       - name: Playwright smoke + axe + admin auth
-        run: npx playwright test
+        run: npx --no playwright test
       - name: Lighthouse budgets (mobile, applied throttling)
-        run: npx lhci autorun --config=lighthouserc.cjs
+        run: npm run lhci # local @lhci/cli only (never let npx fetch a same-named registry package)
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
