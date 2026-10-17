@@ -1,7 +1,7 @@
 /**
- * Application/enquiry form transport (spec 9.1A). The UI talks only to this interface. Phase 5 ships a mock (no network,
- * nothing stored) so the form can be designed and tested; Phase 7 provides the server implementation (email code,
- * lead_intake via web_lead_upsert, outbox side effects).
+ * Application/enquiry form transport (spec 9.1A). The UI talks only to this interface: `serverApplicationClient`
+ * (lib/forms/server-client.ts) calls the server actions; the mock (no network, nothing stored) remains for the
+ * styleguide and unit tests.
  */
 export interface FormContext {
   kind: "offering" | "group" | "university" | "compare" | "advisor" | "contact";
@@ -9,6 +9,7 @@ export interface FormContext {
   groupKey?: string;
   universitySlug?: string;
   programmeLabel?: string;
+  creatorHandle?: string;
 }
 
 export interface ContactPayload {
@@ -18,16 +19,18 @@ export interface ContactPayload {
   consentVersion: string;
   marketing: boolean;
   turnstileToken?: string;
+  /** honeypot (hidden field) */
+  website?: string;
   idempotencyKey: string;
 }
 
 export type StartResult =
   | { status: "code_sent"; attemptId: string; resendInSeconds: number; maskedEmail: string }
-  | { status: "verified"; attemptId: string } // signed-in student: no code needed
+  | { status: "verified"; attemptId: string; reference?: string } // signed-in student: no code needed
   | { status: "error"; message: string };
 
 export type VerifyResult =
-  | { status: "verified"; reference: string }
+  | { status: "verified"; reference?: string }
   | { status: "wrong_code"; attemptsLeft: number }
   | { status: "expired" | "too_many_attempts" | "error"; message: string };
 
@@ -35,7 +38,7 @@ export interface ApplicationClient {
   start(context: FormContext, contact: ContactPayload): Promise<StartResult>;
   resend(attemptId: string): Promise<StartResult>;
   verify(attemptId: string, code: string): Promise<VerifyResult>;
-  saveStep(attemptId: string, step: number, data: Record<string, unknown>): Promise<{ ok: boolean }>;
+  saveStep(attemptId: string, step: number, data: Record<string, unknown>): Promise<{ ok: true } | { ok: false; message: string }>;
   submit(attemptId: string, data: Record<string, unknown>): Promise<{ ok: true; reference: string } | { ok: false; message: string }>;
 }
 
@@ -60,7 +63,7 @@ export const mockApplicationClient: ApplicationClient = {
   },
   async saveStep() {
     await wait(150);
-    return { ok: true };
+    return { ok: true as const };
   },
   async submit(attemptId) {
     await wait(500);

@@ -6,45 +6,7 @@ async function dismissConsent(page: Page) {
 }
 
 test.describe("detail panels, application form, university pages, curated views", () => {
-  test("application form inside the offering panel: steps, inline email code, review, reference", async ({ page }) => {
-    await page.goto("/programmes?programme=mba&view=flat");
-    await dismissConsent(page);
-    await page.locator("li a[href^='?offering=']").first().click();
-    const dialog = page.getByRole("dialog");
-    await dialog.getByRole("button", { name: "Apply now" }).click();
-    await expect(dialog.getByText("Step 1 of 5: Contact")).toBeVisible();
-    // validation: nothing filled
-    await dialog.getByRole("button", { name: "Verify email and continue" }).click();
-    await expect(dialog.getByText("Enter your full name (letters only).")).toBeVisible();
-    await dialog.getByLabel("Full name", { exact: true }).fill("Asha Rao");
-    await dialog.getByLabel("Mobile number", { exact: true }).fill("91234 56789");
-    await dialog.getByLabel("Email", { exact: true }).fill("asha@example.com");
-    await dialog.getByRole("checkbox", { name: /I agree that Eduwit/ }).check();
-    await dialog.getByRole("button", { name: "Verify email and continue" }).click();
-    await expect(dialog.getByText("Check your email")).toBeVisible();
-    // wrong code path (mock rejects 000000), then a right one
-    await dialog.getByRole("textbox").first().click();
-    await page.keyboard.type("000000");
-    await expect(dialog.getByText(/didn't match/)).toBeVisible();
-    await dialog.getByRole("textbox").first().click();
-    await page.keyboard.type("123456");
-    await expect(dialog.getByText("Step 2 of 5: Academic")).toBeVisible();
-    await expect(dialog.getByText("Email verified")).toBeVisible();
-    await dialog.getByLabel("Highest qualification").selectOption("graduation");
-    await expect(dialog.getByText("You meet the eligibility for this programme.")).toBeVisible();
-    await dialog.getByRole("button", { name: "Save and continue" }).click();
-    await expect(dialog.getByText("Step 3 of 5: Work and goals")).toBeVisible();
-    await dialog.getByText("Yes", { exact: true }).first().click();
-    await dialog.getByRole("button", { name: "Save and continue" }).click();
-    await dialog.getByText("WhatsApp", { exact: true }).click();
-    await dialog.getByRole("button", { name: "Save and continue" }).click();
-    await expect(dialog.getByText("Step 5 of 5: Review")).toBeVisible();
-    await expect(dialog).toContainText("Asha Rao");
-    await dialog.getByRole("button", { name: "Submit application request" }).click();
-    await expect(dialog.getByText("Application request received")).toBeVisible();
-    await expect(dialog).toContainText(/EDW-26-[A-Z0-9]{5}/);
-  });
-
+  // The application form flow (real email codes, lead assertions) lives in leads.spec.ts.
   test("programme group panel deep link lists universities and offers a picker form", async ({ page }) => {
     await page.goto("/programmes?programme=mba&group=mba:marketing");
     await dismissConsent(page);

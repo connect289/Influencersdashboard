@@ -1,10 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { removeShortlistAction } from "@/app/actions/account";
 
 /**
  * Anonymous shortlist and compare selection (spec 6.5): kept in localStorage (a per-device convenience), synced to the
- * account after sign-in (Phase 7). Every storage access is guarded; without storage the lists live for the page only.
+ * account after sign-in (ShortlistSync on /shortlist and /account). Every storage access is guarded; without storage the lists live for the page only.
  */
 type Key = "shortlist" | "compare";
 const STORAGE: Record<Key, string> = { shortlist: "ew_shortlist", compare: "ew_compare" };
@@ -71,6 +72,8 @@ export const saved = {
         key,
         cur.filter((x) => x !== id),
       );
+      // Signed-in students: remove from the account too (a no-op when signed out).
+      if (key === "shortlist") void removeShortlistAction(id).catch(() => undefined);
       return { added: false, full: false };
     }
     if (key === "compare" && cur.length >= COMPARE_MAX) return { added: false, full: true };

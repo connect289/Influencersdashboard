@@ -45,7 +45,9 @@ export async function rateLimit(l: Limit, id: string): Promise<{ ok: boolean; re
 export const LIMITS = {
   emailCodeSendPerEmail: { name: "code_email", limit: 5, windowSeconds: 3600 },
   emailCodeSendPerIp: { name: "code_ip", limit: 20, windowSeconds: 3600 },
+  emailCodeSendPerDevice: { name: "code_device", limit: 10, windowSeconds: 3600 },
   emailCodeVerifyPerEmail: { name: "verify_email", limit: 10, windowSeconds: 600 },
+  emailCodeVerifyPerIp: { name: "verify_ip", limit: 40, windowSeconds: 600 },
   formSubmitPerIp: { name: "form_ip", limit: 30, windowSeconds: 3600 },
   chatTurnPerSession: { name: "chat_session", limit: 30, windowSeconds: 600 },
   chatTurnPerIp: { name: "chat_ip", limit: 120, windowSeconds: 3600 },

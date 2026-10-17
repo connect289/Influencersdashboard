@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { CompareTray } from "@/components/finder/CompareTray";
 import { ShortlistView } from "@/components/finder/ShortlistView";
 import { getSettings } from "@/lib/server/settings";
+import { ShortlistSync } from "../account/AccountClient";
 
 export const metadata: Metadata = { title: "Your shortlist", robots: { index: false, follow: false } };
 
@@ -22,6 +23,7 @@ export default function ShortlistPage() {
       <Suspense>
         <View />
       </Suspense>
+      <ShortlistSync />
       <CompareTray />
     </main>
   );

@@ -11,7 +11,10 @@ import { INDIAN_STATES } from "@/content/india";
 import { whatsappLink } from "@/content/site";
 import { track } from "@/lib/client/analytics";
 import { eligibility, MIN_QUALIFICATION_LABEL, type Qualification } from "@/lib/finder/eligibility";
-import { mockApplicationClient, type ApplicationClient, type FormContext } from "@/lib/forms/client";
+import type { ApplicationClient, FormContext } from "@/lib/forms/client";
+import { serverApplicationClient } from "@/lib/forms/server-client";
+import { studentProfileAction } from "@/app/actions/account";
+import { Honeypot, useTurnstile } from "./Guard";
 import {
   normaliseEmail,
   normaliseIndianMobile,
@@ -66,7 +69,7 @@ export function ApplicationForm({
   target,
   goals,
   whatsapp,
-  client = mockApplicationClient,
+  client = serverApplicationClient,
   config = {},
 }: {
   target: FormTarget;
@@ -95,6 +98,21 @@ export function ApplicationForm({
   const [work, setWork] = useState<WorkInput>({ working: "", years: "", role: "", industry: "", goal: "", why: "" });
   const [prefs, setPrefs] = useState<PreferencesInput>({ intake: "", budget: "", emi: "", universities: [], city: "", state: "", contactMode: "", bestTime: "", questions: "" });
   const [errors, setErrors] = useState<Errors<string>>({});
+  const [honeypot, setHoneypot] = useState("");
+  const turnstile = useTurnstile();
+
+  // Signed-in students: pre-fill the contact step (they skip the code when the email matches; spec 9.1A).
+  useEffect(() => {
+    let live = true;
+    studentProfileAction()
+      .then((p) => {
+        if (live && p) setContact((c) => ({ ...c, name: c.name || p.name || "", phone: c.phone || p.phone?.replace(/^\+91/, "") || "", email: c.email || p.email }));
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const hidden = new Set(config.hidden ?? []);
   const optional = new Set(config.optional ?? []);
@@ -158,12 +176,17 @@ export function ApplicationForm({
           email: normaliseEmail(contact.email)!,
           consentVersion: CONSENT.form.version,
           marketing: contact.marketing,
+          turnstileToken: await turnstile.ready(),
+          website: honeypot,
           idempotencyKey: (idem.current ??= newKey()),
         });
-        if (r.status === "error") return setMessage(r.message);
+        if (r.status === "error") {
+          turnstile.reset();
+          return setMessage(r.message);
+        }
         setAttemptId(r.attemptId);
         if (r.status === "verified") {
-          setVerifiedRef(r.attemptId);
+          setVerifiedRef(r.reference ?? r.attemptId);
           setStep(1);
         } else {
           setMasked(r.maskedEmail);
@@ -173,8 +196,9 @@ export function ApplicationForm({
         return;
       }
       if (attemptId && step >= 1 && step <= 3) {
-        const data = step === 1 ? academic : step === 2 ? work : prefs;
-        await client.saveStep(attemptId, step + 1, data as unknown as Record<string, unknown>);
+        const data = step === 1 ? academic : step === 2 ? { ...work, goalLabel: goals.find((g) => g.value === work.goal)?.label } : prefs;
+        const saved = await client.saveStep(attemptId, step + 1, data as unknown as Record<string, unknown>);
+        if (!saved.ok) return setMessage(saved.message);
         track("form_step_complete", { form: formName, step: step + 1 });
       }
       setStep((s) => s + 1);
@@ -191,7 +215,7 @@ export function ApplicationForm({
     try {
       const r = await client.verify(attemptId, v);
       if (r.status === "verified") {
-        setVerifiedRef(r.reference);
+        setVerifiedRef(r.reference ?? attemptId);
         track("form_step_complete", { form: formName, step: 1 });
         track("lead_created", { surface: formName, event_id: r.reference });
         setPhase("form");
@@ -289,7 +313,7 @@ export function ApplicationForm({
       {phase === "code" ? (
         <div className="grid gap-3">
           <h3 className="text-text font-medium">Check your email</h3>
-          <p className="text-muted text-sm">We sent a 6-digit code to {masked}. It expires in 10 minutes.</p>
+          <p className="text-muted text-sm">We sent a 6-digit code to {masked}. It expires in 10 minutes. Can&apos;t see it? Check your spam or promotions folder.</p>
           <CodeInput value={code} onValueChange={setCode} onComplete={(v) => void verify(v)} invalid={!!codeError} disabled={busy} label="6-digit code from your email" />
           {codeError ? <p role="alert" className="text-danger text-sm">{codeError}</p> : null}
           <div className="flex flex-wrap items-center gap-3">
@@ -303,6 +327,7 @@ export function ApplicationForm({
                 if (!attemptId) return;
                 const r = await client.resend(attemptId);
                 if (r.status === "code_sent") setResendIn(r.resendInSeconds);
+                else if (r.status === "error") setCodeError(r.message);
               }}
               className="text-accent text-sm font-medium disabled:text-subtle"
             >
@@ -338,10 +363,12 @@ export function ApplicationForm({
             </span>
           </label>
           {errors.consent ? <p role="alert" className="text-danger -mt-2 text-xs font-medium">{errors.consent}</p> : null}
+          <Honeypot value={honeypot} onChange={setHoneypot} />
           <label className="text-muted flex items-start gap-3 text-sm">
             <input type="checkbox" className="accent-[var(--primary)] mt-0.5 size-5 shrink-0" checked={contact.marketing} onChange={(e) => setContact({ ...contact, marketing: e.target.checked })} />
             <span>{CONSENT.marketing} (optional)</span>
           </label>
+          {turnstile.widget}
         </div>
       ) : step === 1 ? (
         <div className="grid gap-4">

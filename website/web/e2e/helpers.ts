@@ -39,3 +39,38 @@ export async function fillCode(page: Page, code: string) {
   await page.keyboard.type(code);
   await expect(page.locator('input[name="code"]')).toHaveValue(code);
 }
+
+/** Unique test identities per run (DB code caps are per email; leads de-duplicate on phone). */
+export function uniqueEmail(prefix: string): string {
+  return `${prefix}.${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}@example.org`;
+}
+export function uniquePhone(): string {
+  // 10 digits starting 7–9, with enough variety to stay clear of the junk heuristics
+  let d = String(7 + Math.floor(Math.random() * 3));
+  while (d.length < 10) d += String(Math.floor(Math.random() * 10));
+  return /(\d)\1{4}/.test(d) ? uniquePhone() : d;
+}
+/** Each test gets its own client IP so per-IP limits stay realistic without blocking repeated runs. */
+export async function freshIp(page: Page) {
+  const ip = `10.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${1 + Math.floor(Math.random() * 250)}`;
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": ip });
+}
+
+/** Reads rows from the LOCAL database through PostgREST with the local secret key (assertions only). */
+export async function dbSelect<T = Record<string, unknown>>(table: string, query: string): Promise<T[]> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    headers: { apikey: secretKey(), authorization: `Bearer ${secretKey()}` },
+  });
+  if (!res.ok) throw new Error(`select ${table} failed ${res.status} ${await res.text()}`);
+  return (await res.json()) as T[];
+}
+
+/** Types a code into the inline OTP boxes (Radix one-time-code field) inside `scope`. */
+export async function typeCode(page: Page, scope: import("@playwright/test").Locator, code: string) {
+  await scope.getByRole("textbox").first().click();
+  await page.keyboard.type(code);
+}
+
+export function wrongCode(code: string): string {
+  return code === "111111" ? "222222" : "111111";
+}

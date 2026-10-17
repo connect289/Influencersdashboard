@@ -13,6 +13,9 @@ const BANNED = [
   /assured\s+(job|placement)/i,
   /\bbest\s+university\s+in\s+india\b/i,
   /\b(hurry|only\s+\d+\s+seats?\s+left|last\s+chance)\b/i,
+  // Blanket approval claims: approvals are per university, from the catalogue (3 universities state none).
+  /UGC[- ]entitled\s+(online|distance|universit|programme|program|degree|course)/i,
+  /\b(all|every|only)\s+(our\s+)?(universit\w*|programmes?|programs?|degrees?)\s+(are\s+)?(ugc|aicte|naac)/i,
 ];
 const ALLOW_FILE = /check-banned-phrases|\.test\.tsx?$/;
 let failures = 0;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, MessageCircle } from "lucide-react";
 import { CodeInput } from "@/components/ui/CodeInput";
 import { Field } from "@/components/ui/Field";
@@ -9,7 +9,10 @@ import { Input, Textarea } from "@/components/ui/Input";
 import { CONSENT } from "@/content/consent";
 import { whatsappLink } from "@/content/site";
 import { track } from "@/lib/client/analytics";
-import { mockApplicationClient, type ApplicationClient } from "@/lib/forms/client";
+import type { ApplicationClient } from "@/lib/forms/client";
+import { serverApplicationClient } from "@/lib/forms/server-client";
+import { studentProfileAction } from "@/app/actions/account";
+import { Honeypot, useTurnstile } from "./Guard";
 import { cleanName, normaliseEmail, normaliseIndianMobile, validateContact, type Errors } from "@/lib/forms/validate";
 
 /**
@@ -20,7 +23,17 @@ function newKey() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 }
 
-export function EnquiryForm({ whatsapp, programme = "", client = mockApplicationClient }: { whatsapp: string; programme?: string; client?: ApplicationClient }) {
+export function EnquiryForm({
+  whatsapp,
+  programme = "",
+  creatorHandle,
+  client = serverApplicationClient,
+}: {
+  whatsapp: string;
+  programme?: string;
+  creatorHandle?: string;
+  client?: ApplicationClient;
+}) {
   const [v, setV] = useState({ name: "", phone: "", email: "", consent: false, marketing: false, programme, message: "" });
   const [errors, setErrors] = useState<Errors<string>>({});
   const [phase, setPhase] = useState<"form" | "code" | "done">("form");
@@ -32,6 +45,27 @@ export function EnquiryForm({ whatsapp, programme = "", client = mockApplication
   const [reference, setReference] = useState<string | null>(null);
   // One idempotency key per form instance, created on the first submit (never during render or prerender).
   const idem = useRef<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
+  const [resendIn, setResendIn] = useState(0);
+  const turnstile = useTurnstile();
+
+  useEffect(() => {
+    let live = true;
+    studentProfileAction()
+      .then((p) => {
+        if (live && p) setV((c) => ({ ...c, name: c.name || p.name || "", phone: c.phone || p.phone?.replace(/^\+91/, "") || "", email: c.email || p.email }));
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   async function send() {
     const e: Errors<string> = validateContact(v);
@@ -41,14 +75,19 @@ export function EnquiryForm({ whatsapp, programme = "", client = mockApplication
     setBusy(true);
     try {
       track("form_view", { form: "enquiry" });
-      const r = await client.start({ kind: "contact", programmeLabel: v.programme || undefined }, {
+      const r = await client.start({ kind: "contact", programmeLabel: v.programme || undefined, creatorHandle }, {
         name: cleanName(v.name)!, phone: normaliseIndianMobile(v.phone)!, email: normaliseEmail(v.email)!,
-        consentVersion: CONSENT.form.version, marketing: v.marketing, idempotencyKey: (idem.current ??= newKey()),
+        consentVersion: CONSENT.form.version, marketing: v.marketing, turnstileToken: await turnstile.ready(), website: honeypot,
+        idempotencyKey: (idem.current ??= newKey()),
       });
-      if (r.status === "error") return setErrors({ form: r.message });
+      if (r.status === "error") {
+        turnstile.reset();
+        return setErrors({ form: r.message });
+      }
       setAttempt(r.attemptId);
       if (r.status === "verified") return void finish(r.attemptId);
       setMasked(r.maskedEmail);
+      setResendIn(r.resendInSeconds);
       setPhase("code");
     } finally {
       setBusy(false);
@@ -99,12 +138,25 @@ export function EnquiryForm({ whatsapp, programme = "", client = mockApplication
     return (
       <div className="grid gap-3">
         <h3 className="text-text font-medium">Check your email</h3>
-        <p className="text-muted text-sm">We sent a 6-digit code to {masked}. It expires in 10 minutes.</p>
+        <p className="text-muted text-sm">We sent a 6-digit code to {masked}. It expires in 10 minutes. Can&apos;t see it? Check your spam or promotions folder.</p>
         <CodeInput value={code} onValueChange={setCode} onComplete={(c) => void verify(c)} invalid={!!codeError} disabled={busy} label="6-digit code from your email" />
         {codeError ? <p role="alert" className="text-danger text-sm">{codeError}</p> : null}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button type="button" disabled={busy || code.length !== 6} onClick={() => void verify()} className="bg-primary text-on-primary inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold disabled:opacity-60">
             {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null} Verify and send
+          </button>
+          <button
+            type="button"
+            disabled={resendIn > 0 || busy}
+            onClick={async () => {
+              if (!attempt) return;
+              const r = await client.resend(attempt);
+              if (r.status === "code_sent") setResendIn(r.resendInSeconds);
+              else if (r.status === "error") setCodeError(r.message);
+            }}
+            className="text-accent text-sm font-medium disabled:text-subtle"
+          >
+            {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
           </button>
           <button type="button" onClick={() => setPhase("form")} className="text-muted text-sm hover:underline">Change email</button>
         </div>
@@ -142,6 +194,8 @@ export function EnquiryForm({ whatsapp, programme = "", client = mockApplication
         <input type="checkbox" className="accent-[var(--primary)] mt-0.5 size-5 shrink-0" checked={v.marketing} onChange={(e) => setV({ ...v, marketing: e.target.checked })} />
         <span>{CONSENT.marketing} (optional)</span>
       </label>
+      <Honeypot value={honeypot} onChange={setHoneypot} />
+      {turnstile.widget}
       {errors.form ? <p role="alert" className="text-danger text-sm">{errors.form}</p> : null}
       <button type="submit" disabled={busy} className="bg-primary text-on-primary inline-flex h-12 items-center gap-2 justify-self-start rounded-full px-6 text-sm font-semibold disabled:opacity-60">
         {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null} Verify email and send

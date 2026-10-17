@@ -40,24 +40,7 @@ test.describe("content pages", () => {
     await expect(page.getByRole("heading", { name: "Send an enquiry" })).toBeVisible();
   });
 
-  test("enquiry form: validation, email code, thank-you with reference", async ({ page }) => {
-    await page.goto("/contact#enquiry");
-    await dismissConsent(page);
-    const form = page.locator("#enquiry");
-    await form.getByRole("button", { name: "Verify email and send" }).click();
-    await expect(form.getByText("Enter a valid 10-digit Indian mobile number.")).toBeVisible();
-    await form.getByLabel("Full name", { exact: true }).fill("Ravi Kumar");
-    await form.getByLabel("Mobile number", { exact: true }).fill("9812345678");
-    await form.getByLabel("Email", { exact: true }).fill("ravi@example.com");
-    await form.getByRole("checkbox", { name: /I agree that Eduwit/ }).check();
-    await form.getByRole("button", { name: "Verify email and send" }).click();
-    await expect(form.getByText("Check your email")).toBeVisible();
-    await form.getByRole("textbox").first().click();
-    await page.keyboard.type("123456");
-    await expect(form.getByText("Thanks, we've got your enquiry")).toBeVisible();
-    await expect(form).toContainText(/EDW-26-/);
-  });
-
+  // The enquiry form flow (real email codes, lead assertions) lives in leads.spec.ts.
   test("legal pages keep their URLs; unmigrated text is not indexed and offers a contact", async ({ page }) => {
     for (const slug of ["terms-and-conditions", "privacy-policy", "disclaimer", "refund-policy", "cookie-policy", "data-privacy-opt-out"]) {
       const res = await page.goto(`/legal/${slug}`);

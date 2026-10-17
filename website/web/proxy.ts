@@ -26,6 +26,13 @@ export async function proxy(req: NextRequest) {
     const to = redirect.to.startsWith("/") ? new URL(redirect.to + req.nextUrl.search, req.url) : new URL(redirect.to);
     return NextResponse.redirect(to, redirect.code);
   }
+  // Signed-out visitors to the account area go straight to sign-in (a real 307 instead of a streamed redirect).
+  const path = req.nextUrl.pathname;
+  if (path.startsWith("/account") && !path.startsWith("/account/sign-in") && !req.cookies.get("ew_sid")) {
+    const to = new URL("/account/sign-in", req.url);
+    to.searchParams.set("next", path);
+    return NextResponse.redirect(to, 307);
+  }
   const requestId = req.headers.get("x-request-id") ?? req.headers.get("x-vercel-id") ?? crypto.randomUUID();
   const reqHeaders = new Headers(req.headers);
   reqHeaders.set("x-request-id", requestId);

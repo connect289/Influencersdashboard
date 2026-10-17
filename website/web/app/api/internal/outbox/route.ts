@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { isInternal } from "@/lib/server/internal-auth";
+import { rpc } from "@/lib/server/db";
 import { runOutbox } from "@/lib/server/outbox";
+import "@/lib/server/outbox-handlers";
 import { errorFields, log } from "@/lib/server/log";
 
 /**
@@ -10,7 +12,10 @@ import { errorFields, log } from "@/lib/server/log";
 async function handle(req: Request) {
   if (!isInternal(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   try {
-    return NextResponse.json(await runOutbox(25));
+    const result = await runOutbox(25);
+    // Optional push of unverified gate attempts (setting push_unverified_gate_leads, default off).
+    const unverified = await rpc<Record<string, unknown>>("web_push_unverified").catch(() => null);
+    return NextResponse.json({ ...result, unverified });
   } catch (err) {
     log("error", "outbox.run_failed", errorFields(err));
     return NextResponse.json({ error: "failed" }, { status: 500 });

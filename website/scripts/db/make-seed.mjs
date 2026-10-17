@@ -37,6 +37,8 @@ const sql = [
   "insert into public.w2_meta (key, value) values ('catalog_version', '6'::jsonb) on conflict do nothing;",
   "-- Website: map the catalogue and build the search read model (production does this via web_catalog_poll).",
   "select public.web_refresh_read_model();",
+  "-- e2e fixture: one admin-managed redirect (content.spec.ts).",
+  "insert into public.web_redirects (from_path, to_path, code, source) values ('/old-mba-page', '/programmes/online-mba', 301, 'admin') on conflict do nothing;",
   "",
 ].join("\n\n");
 writeFileSync(path.join(root, "supabase/seed.sql"), sql);

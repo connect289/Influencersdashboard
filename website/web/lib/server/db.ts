@@ -41,7 +41,9 @@ export async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Pr
   const { data, error } = await db().rpc(fn, args);
   const ms = Math.round(performance.now() - started);
   if (error) {
-    log("error", "db.rpc_failed", { fn, ms, code: error.code, message: error.message });
+    // Next's request-time prerender aborts in-flight fetches when it completes; that is not a database failure.
+    const aborted = error.message.includes("During prerendering, fetch() rejects");
+    log(aborted ? "debug" : "error", aborted ? "db.rpc_prerender_aborted" : "db.rpc_failed", { fn, ms, code: error.code, message: aborted ? undefined : error.message });
     throw new DbError(error.message, fn, error.code);
   }
   if (ms > 300) log("warn", "db.rpc_slow", { fn, ms });

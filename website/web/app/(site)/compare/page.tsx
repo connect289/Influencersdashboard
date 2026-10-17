@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SaveComparison } from "@/components/finder/SaveComparison";
 import { Suspense } from "react";
 import { GitCompareArrows } from "lucide-react";
 import { CompareTable } from "@/components/finder/CompareTable";
@@ -32,7 +33,12 @@ async function Comparison({ searchParams }: Props) {
       </div>
     );
   }
-  return <CompareTable items={items} advisorEnabled={settings.web_advisor_enabled} whatsapp={settings.counsellor_whatsapp} />;
+  return (
+    <>
+      <SaveComparison ids={items.map((i) => i.id)} />
+      <CompareTable items={items} advisorEnabled={settings.web_advisor_enabled} whatsapp={settings.counsellor_whatsapp} />
+    </>
+  );
 }
 
 /** /compare?ids=1,2,3 — the comparison lives in the URL so it can be shared (spec 6.5). */
