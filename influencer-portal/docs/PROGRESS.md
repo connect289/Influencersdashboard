@@ -2,8 +2,7 @@
 
 ## Now
 
-- **Current phase:** Phase 4 (Contracts) complete and tagged `phase-4-done` (summary under Phase 4). Next: Phase 5
-  (briefs, deliverables and content review).
+- **Current phase:** Phase 5 (Briefs and deliverables), step 5.1. Phase 4 (Contracts) complete and tagged `phase-4-done`.
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
 - **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.
@@ -297,3 +296,17 @@ beyond the approved storage bucket (S-4).
 | RLS on every new table with tests per role; no creator/agency path to student data | Done | pgTAP 016 (58); contracts never touch lead data |
 | Every screen: empty, loading, error, mobile states | Done | Shared state components; creator contract pages mobile-first |
 
+
+## Phase 5: Briefs and deliverables
+
+### Plan
+
+| Step | What | Main files | Tests |
+| --- | --- | --- | --- |
+| 5.1 | Pure modules: the deliverable workflow (states, per-deliverable stage toggles, allowed moves per side, overdue flag from per-stage due dates, revision counting), the compliance scan (banned phrases and safe patterns, configurable disclosure terms per platform, the ASCI checklist), platform URL validation and oEmbed URLs, the brief document (structured fields + rich text, generated from a template and the deal), and content events → engine events for penalty proposals | `lib/content/*` | exhaustive units |
+| 5.2 | Database: banned claims, brief templates, briefs with immutable versions, acknowledgements, Q&A; deliverables with stage toggles, due dates, revision limit, transitions history; versioned submissions (text, file, link), review comments (video timestamp, image region, resolve/reopen), compliance checks with overrides, published posts with verification, metric snapshots (source field for future APIs), penalty proposals; signed resumable uploads to `inf-deliverables` | `20261020000100_inf_content.sql` | pgTAP per role |
+| 5.3 | Briefs: templates (admin), the brief builder (Tiptap fields, approved claims from the catalogue, banned claims, disclosures, deliverables table, references, assets, hashtags, CTA, FAQs), versions and publish, creator acknowledgement (milestone event), Q&A; auto-generated with the deal for accepted offers | `app/(admin)/admin/briefs/*`, creator and agency brief pages | Playwright |
+| 5.4 | Deliverables: generated from the deal and brief, stage toggles and due dates, admin kanban + list and review queue, creator list; submissions with resumable upload; review with a video player and timestamped comments, image annotations, resolve/reopen; approve / request changes; revision limit with admin-approved extra revisions (optional fee) | `app/(admin)/admin/content/*`, `components/content/*` | Playwright |
+| 5.5 | Compliance: banned-claims library, automatic caption/script scan and disclosure check on every submission, the ASCI checklist required before approval, overrides with a reason | | units + Playwright |
+| 5.6 | Go-live (URL validation per platform, YouTube oEmbed preview), reviewer verification (live, disclosure, matches the approved version), metrics with screenshots at checkpoints, due-date reminders and overdue escalation, penalty proposals from the deal's rules with approval | jobs, nightly | pgTAP + units + Playwright |
+| 5.7 | Guides for every role, navigation, seed, phase gate | | gate |
