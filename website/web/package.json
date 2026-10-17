@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "check": "npm run typecheck && npm run lint && npm run test",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run check:copy",
     "lh": "node scripts/lighthouse.mjs",
     "axe": "node scripts/axe.mjs",
     "record:concepts": "node scripts/record-concepts.mjs",
@@ -28,7 +28,8 @@
     "db:seed:regen": "node ../scripts/db/make-seed.mjs",
     "db:snapshot:regen": "../scripts/db/make-min-snapshot.sh",
     "db:gate": "../scripts/db/build-replica.sh && ../scripts/db/apply-web-migrations.sh && ../scripts/db/test.sh postgresql://postgres:postgres@localhost:54330/postgres && ../scripts/db/check-shared-unchanged.sh && npm run db:reset && npm run db:test",
-    "e2e:laptop": "playwright test --project=laptop"
+    "e2e:laptop": "playwright test --project=laptop",
+    "check:copy": "node scripts/check-banned-phrases.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^11.8.0",

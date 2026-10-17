@@ -1,0 +1,106 @@
+# eduwit.in website (website/web + website/supabase): typecheck, lint, unit tests, banned-claim copy check, SQL tests on
+# a local Supabase stack, production build, Playwright smoke + axe (WCAG 2.1 AA), Lighthouse budgets, dependency audit.
+# No production secrets are used: everything runs against the local Supabase stack with mock adapters.
+name: website CI
+
+on:
+  pull_request:
+    paths:
+      - "website/**"
+      - ".github/workflows/website-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - ".github/workflows/website-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, lint, unit, copy, audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: website/web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run check:copy
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  e2e:
+    name: SQL tests, build, e2e, axe, Lighthouse
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: check
+    defaults:
+      run:
+        working-directory: website/web
+    env:
+      NEXT_PUBLIC_SITE_URL: http://localhost:3100
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      EMAIL_PROVIDER: smtp
+      EMAIL_SMTP_HOST: 127.0.0.1
+      EMAIL_SMTP_PORT: "54325"
+      EMAIL_FROM: "Eduwit <no-reply@eduwit.in>"
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+      WEB_SESSION_SECRET: ci-only-session-secret-0123456789abcdef
+      WEB_INTERNAL_KEY: ci-only-internal-key-0123456789abcdef
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/web/package-lock.json
+      - run: npm ci
+      - name: Start local Supabase (migrations + seed)
+        run: npm run db:start
+      - name: Export local keys
+        run: |
+          npx supabase --workdir .. status -o env > /tmp/sb.env
+          # shellcheck disable=SC1091
+          . /tmp/sb.env
+          {
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}"
+            echo "SUPABASE_SECRET_KEY=${SECRET_KEY:-$SERVICE_ROLE_KEY}"
+          } >> "$GITHUB_ENV"
+      - name: SQL tests
+        run: npm run db:test
+      - run: npm run build
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Playwright smoke + axe + admin auth
+        run: npx playwright test
+      - name: Lighthouse budgets (mobile, applied throttling)
+        run: npx lhci autorun --config=lighthouserc.cjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: website-e2e-reports
+          path: |
+            website/web/playwright-report
+            website/web/test-results
+            website/web/.lighthouseci
+          retention-days: 7

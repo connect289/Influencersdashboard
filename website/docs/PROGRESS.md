@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 2 — Foundation. Current step: 2.1 (plan).**
+**Current phase: 3 — Catalogue and taxonomy. Current step: 3.1 (plan).**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -8,8 +8,10 @@ self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-
 ## Environment state (17 Oct 2026)
 - Docker daemon started manually (`dockerd`), registry mirror `mirror.gcr.io` in `/etc/docker/daemon.json` (Docker Hub
   rate-limits this environment). Containers do not survive a new session: restart dockerd, then `npx supabase start`.
-- Supabase CLI 2.121 (`npm i supabase` in a scratch dir; Phase 2 adds it as a dev dependency) local stack from
-  `website/` (ports 54321–54324; started with `-x studio,imgproxy,edge-runtime,logflare,vector,supavisor`).
+- Supabase CLI 2.121 is a dev dependency of `web/`: `npm run db:start` (from `web/`) starts the local stack from
+  `website/` (API 54321, DB 54322, Mailpit 54324 UI / 54325 SMTP; `-x studio,imgproxy,edge-runtime,logflare,vector,supavisor`).
+- The environment pre-sets `SUPABASE_SERVICE_ROLE_KEY`, `SMTP_*` and `ANTHROPIC_BASE_URL` for other products: the
+  website reads only `SUPABASE_SECRET_KEY`, `EMAIL_SMTP_*`, `WEB_ANTHROPIC_BASE_URL` (D-027). `web/.env.local` is gitignored.
 - `prod-replica` container (port 54330): production-schema replica, built by `scripts/db/build-replica.sh` (~50 s);
   **all 42 fingerprint rows match production** for public, b2b, b2c, catalog (report: `docs/discovery/replica.md`).
 - Video recording: Playwright 1.64 wants ffmpeg-1013; use `PLAYWRIGHT_BROWSERS_PATH=<dir>` with
@@ -159,7 +161,7 @@ and all layout shift.
 
 ---
 
-## Phase 2 — Foundation
+## Phase 2 — Foundation ✅ `website-phase-2-done`
 
 ### Plan
 1. Supabase CLI as a dev dependency; `supabase/migrations/00000000000000_prod_snapshot.sql` (shared objects the site
@@ -182,4 +184,49 @@ and all layout shift.
 10. Gate, self-review, tag.
 
 ### Step log
-- 2.1 ⏳ plan written.
+- 2.1 ✅ Local DB baseline: Supabase CLI dev dep; `00000000000000_prod_snapshot.sql` generated from the replica by
+  `scripts/db/make-min-snapshot.sh` (15 shared tables + 15 functions, policies/foreign triggers filtered); seed from the
+  catalogue export (`make-seed.mjs`); `db:reset`, `db:test`; `web1_foundation` (settings + history, outbox with backoff,
+  audit log, funnel events, rate events, health); SQL security test (146 checks: RLS on, no anon/authenticated grants,
+  definer + empty search_path on every `web_` function). Commit 5b3b62f.
+- 2.2 ✅ `lib/server/env.ts` (zod; production refuses dev secrets), settings loader (`"use cache"` + tag), DB rpc helper,
+  KV (Upstash or memory), rate limits, logger with PII scrub, request id.
+- 2.3 ✅ Security: `proxy.ts` (request id, attribution cookies, nonce CSP on /account + /admin); static CSP + security
+  headers in `next.config.ts` (D-025). Verified on the production build: no CSP violations (e2e).
+- 2.4 ✅ Site shell: header (native popover menu), mobile action bar, footer (GST, address, legal, contact),
+  announcement bar, 404/error/global-error, thank-you.
+- 2.5 ✅ Consent (necessary/analytics/marketing) + loaders gated by consent and env; event API with allowlist and PII
+  strip; first-party attribution (D-026). Commit fb54a62.
+- 2.6 ✅ Observability: Sentry adapter (DSN-gated, idle-loaded on the client), `/api/health`, `/api/metrics` (bearer).
+- 2.7 ✅ Email adapter (SMTP / Resend / console) + templates; Mailpit locally.
+- 2.8 ✅ Admin auth: Supabase Auth sign-in + website email-code second factor (10 min, 5 attempts, 5 codes/h), signed MFA
+  cookie, trusted devices (30 days), roles, `web2_admin_auth` migration + 15 SQL checks; e2e sign-in passes. Commit 6ef7de7.
+- 2.9 ✅ CI: `.github/workflows/website-ci.yml` (typecheck, lint, unit, banned-claim copy check, prod-dep audit; SQL
+  tests on the Supabase CLI stack, build, Playwright smoke + axe both themes + admin auth, Lighthouse CI budgets via
+  `web/lighthouserc.cjs`). New: `e2e/smoke.spec.ts`, `scripts/check-banned-phrases.mjs` (`npm run check:copy`).
+- 2.10 ✅ Gate (below).
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 54 unit tests, copy check) | ✅ |
+| `npm run db:gate`: replica rebuilt → web1+web2 applied → SQL tests (146+18+15) → shared objects unchanged vs production → local reset → SQL tests | ✅ all pass; "shared objects unchanged: all rows match production" |
+| `npm run build` | ✅ |
+| Playwright (laptop + Pixel 7): smoke, consent, 404, health, headers, attribution PII, axe WCAG 2.1 AA both themes on /, /thank-you, /styleguide, admin sign-in | ✅ 25 passed, 1 skipped (admin flow runs on laptop only) |
+| Lighthouse CI (mobile, applied throttling, median of 2) | ✅ `/` perf 98 · a11y 100 · BP 96 · SEO 100 · LCP 1.7 s · TBT ≤120 ms; `/thank-you` perf 99; `/admin/login` perf 97–98 (both noindex by design) |
+| `npm audit --omit=dev` | ✅ 0 vulnerabilities |
+
+### Self-review (spec Section 17, Phase 2 row; Section 3A; Section 13)
+| Item | Status |
+|---|---|
+| Next.js app, TS strict, Tailwind, tokens from Phase 1 | Done |
+| Supabase local + replica, website migrations additive, RLS on every `web_` table, service-role only | Done |
+| Settings table + admin-editable flags (`web_advisor_enabled` off) | Done (admin UI in Phase 10) |
+| Outbox with retries/backoff/dead letter | Done (worker + pg_cron call in Phase 7, when there is something to send) |
+| Security headers, CSP, rate-limit primitives, PII scrub | Done |
+| Consent manager + analytics framework, no PII in events | Done (GA4/Pixel/Clarity IDs pending S-16..S-18) |
+| Attribution capture | Done (lead mapping used in Phase 7) |
+| Sentry, health, metrics, structured logs | Done (DSN pending S-19) |
+| Admin auth (Supabase Auth + second factor + roles) | Done (Google provider needs S-21; email sign-in works) |
+| CI with Lighthouse/axe gates | Done (workflow runs on PRs touching `website/**`; not yet observed on GitHub runners) |
+| Preview deploys on Vercel | Deferred — needs S-10 (Vercel project) |
