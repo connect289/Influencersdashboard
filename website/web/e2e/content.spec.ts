@@ -64,4 +64,16 @@ test.describe("content pages", () => {
     expect(admin.status()).toBe(301);
     expect(admin.headers().location).toContain("/programmes/online-mba");
   });
+
+  test("pages keep working after cache tags expire (settings, content, catalogue)", async ({ request }) => {
+    const key = process.env.WEB_INTERNAL_KEY ?? "dev-only-internal-key-0000000001";
+    const r = await request.post("/api/internal/revalidate", {
+      headers: { authorization: `Bearer ${key}` },
+      data: { tags: ["settings", "content", "catalog"], expire_now: true },
+    });
+    expect(r.ok()).toBe(true);
+    for (const path of ["/universities/nmims", "/programmes/online-mba", "/legal/privacy-policy", "/c/demo-creator", "/c/unknown-handle", "/about", "/"]) {
+      expect((await request.get(path)).status(), path).toBe(200);
+    }
+  });
 });

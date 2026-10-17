@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Cookie } from "lucide-react";
 import { setConsent, useConsent } from "@/lib/client/consent-store";
@@ -12,13 +11,12 @@ import { setConsent, useConsent } from "@/lib/client/consent-store";
  */
 export function ConsentBanner() {
   const { state, ready } = useConsent();
-  const path = usePathname();
   const [choose, setChoose] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const [marketing, setMarketing] = useState(false);
-  // Staff pages load no analytics, so no banner there. The banner is server-rendered so it paints with the page (no
-  // late paint, no layout shift); the boot script hides it before first paint when a choice is already stored.
-  if ((ready && state) || path?.startsWith("/admin")) return null;
+  // Mounted by the public (site) layout only. The banner is server-rendered so it paints with the page (no late paint,
+  // no layout shift); the boot script hides it before first paint when a choice is already stored.
+  if (ready && state) return null;
   return (
     <section
       aria-label="Cookie preferences"

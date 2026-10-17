@@ -68,6 +68,9 @@ insert into r select (public.web_agent_core_prompts() ? 'overlay'), 'prompts by 
 insert into r select not exists (select 1 from jsonb_array_elements(public.web_advisor_search('{"course":"mba"}')->'rows') e(x)
   where not exists (select 1 from public.web_offering_search s where s.id = (x->>'id')::bigint)), 'search returns only rows the website shows';
 insert into r select jsonb_typeof(public.web_advisor_kb('is an online degree valid')) = 'array', 'knowledge search returns a list';
+insert into r select not exists (select 1 from public.catalog_programs where active and course_key = 'mba')
+  or ((public.web_advisor_search('{"course":"MBA","level":"PG"}')->>'visible_total')::int > 0
+      and (public.web_advisor_search('{"course":"MA English"}')->>'visible_total')::int > 0), 'course names normalised to Witty''s catalogue keys';
 
 do $$ begin
   if exists (select 1 from r where not ok) then

@@ -74,3 +74,20 @@ export async function typeCode(page: Page, scope: import("@playwright/test").Loc
 export function wrongCode(code: string): string {
   return code === "111111" ? "222222" : "111111";
 }
+
+/** Sets a web_settings flag in the LOCAL database and expires the settings cache (used to switch Witty on/off). */
+export async function setSetting(baseURL: string, key: string, value: unknown) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/web_settings?key=eq.${encodeURIComponent(key)}`, {
+    method: "PATCH",
+    headers: { apikey: secretKey(), authorization: `Bearer ${secretKey()}`, "content-type": "application/json", prefer: "return=minimal" },
+    body: JSON.stringify({ value }),
+  });
+  if (!res.ok) throw new Error(`setSetting failed ${res.status} ${await res.text()}`);
+  const key2 = process.env.WEB_INTERNAL_KEY ?? "dev-only-internal-key-0000000001";
+  const r = await fetch(`${baseURL}/api/internal/revalidate`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${key2}`, "content-type": "application/json" },
+    body: JSON.stringify({ tags: ["settings"], expire_now: true }),
+  });
+  if (!r.ok) throw new Error(`revalidate failed ${r.status}`);
+}

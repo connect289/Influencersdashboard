@@ -5,6 +5,10 @@ import { EnquiryForm } from "@/components/forms/EnquiryForm";
 import { getCreator } from "@/lib/server/creators";
 import { getSettings } from "@/lib/server/settings";
 
+// Known params are prerendered; other params (and the shared shell, re-rendered when a cache tag expires) render on
+// demand. Reading `params` outside <Suspense> is allowed so the content stays in the static HTML (D-058).
+export const instant = false;
+
 type Props = { params: Promise<{ handle: string }> };
 
 export async function generateStaticParams() {

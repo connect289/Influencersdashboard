@@ -26,12 +26,16 @@ export function HomeHero({ stats, advisorEnabled, popular }: { stats: CatalogSta
               <WittyHeroOrb href="/witty" />
               <p className="text-muted max-w-xl text-base sm:text-lg">{WITTY.greeting}</p>
             </div>
-            <Link href="/witty" className="glass-strong hairline-lumen group flex w-full max-w-2xl items-center gap-3 rounded-[var(--radius-2xl)] p-2 pl-5 text-left transition-shadow hover:shadow-[var(--glow-amber)]">
-              <span className="text-subtle flex-1 truncate text-base">Ask Witty anything about online degrees…</span>
-              <span className="bg-primary text-on-primary grid size-12 place-items-center rounded-full shadow-[var(--glow-amber)]">
+            {/* A plain GET form: works before hydration and opens the full chat at /witty (D-057). */}
+            <form action="/witty" method="get" role="search" aria-label="Ask Witty" className="glass-strong hairline-lumen group flex w-full max-w-2xl items-center gap-3 rounded-[var(--radius-2xl)] p-2 pl-5 text-left transition-shadow focus-within:shadow-[var(--glow-amber)] hover:shadow-[var(--glow-amber)]">
+              <label htmlFor="hero-ask" className="sr-only">
+                Ask Witty
+              </label>
+              <input id="hero-ask" name="q" required maxLength={300} autoComplete="off" placeholder="Ask Witty anything about online degrees…" className="placeholder:text-subtle text-text min-w-0 flex-1 bg-transparent text-base outline-none" />
+              <button type="submit" aria-label="Ask Witty" className="bg-primary text-on-primary grid size-12 shrink-0 place-items-center rounded-full shadow-[var(--glow-amber)]">
                 <ArrowRight className="size-5 transition-transform group-hover:translate-x-0.5" aria-hidden />
-              </span>
-            </Link>
+              </button>
+            </form>
             <ul className="flex max-w-2xl flex-wrap justify-center gap-2" aria-label="Suggested questions">
               {WITTY.starters.map((s) => (
                 <li key={s}>

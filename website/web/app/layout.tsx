@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { AnalyticsLoader } from "@/components/consent/AnalyticsLoader";
-import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { BOOT_SCRIPT } from "@/lib/client/boot-script";
 import { fontVariables } from "@/lib/fonts";
 import { getSettings } from "@/lib/server/settings";
@@ -49,7 +48,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           Skip to content
         </a>
         {children}
-        <ConsentBanner />
         <AnalyticsLoader
           ga4={process.env.NEXT_PUBLIC_GA4_ID}
           pixel={process.env.NEXT_PUBLIC_META_PIXEL_ID}

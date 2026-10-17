@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { signOutAction } from "@/app/actions/account";
 import { rpc } from "@/lib/server/db";
+import { getSettings } from "@/lib/server/settings";
 import { currentStudent } from "@/lib/server/student-session";
 import { ConsentControls, PrivacyRequests, ShortlistSync } from "./AccountClient";
 
@@ -16,6 +17,15 @@ interface Account {
   applications: { reference: string; kind: string; status: string; programme: string | null; created_at: string; submitted_at: string | null }[];
   consents: { version: string; purposes: string[]; granted_at: string; withdrawn_at: string | null; body: string }[];
   requests: { kind: string; status: string; requested_at: string }[];
+}
+
+interface Chat {
+  id: string;
+  created_at: string;
+  last_turn_at: string | null;
+  turns: number;
+  open: boolean;
+  messages: { direction: "in" | "out"; content: string; created_at: string }[];
 }
 
 const date = (s: string) => new Date(s).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
@@ -35,7 +45,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 async function AccountBody() {
   const student = await currentStudent();
   if (!student) redirect("/account/sign-in?next=/account");
-  const a = await rpc<Account>("web_account", { p_student: student.studentId });
+  const [a, chats, settings] = await Promise.all([
+    rpc<Account>("web_account", { p_student: student.studentId }),
+    rpc<Chat[]>("web_advisor_history", { p_student: student.studentId }).catch(() => [] as Chat[]),
+    getSettings(),
+  ]);
   const active = a.consents.filter((c) => !c.withdrawn_at);
   const has = (p: string) => active.some((c) => c.purposes.includes(p));
   return (
@@ -77,6 +91,39 @@ async function AccountBody() {
           </p>
         )}
       </Section>
+
+      {settings.web_advisor_enabled || chats.length ? (
+        <Section title="Chats with Witty">
+          {chats.length ? (
+            <ul className="grid gap-3">
+              {chats.map((c) => (
+                <li key={c.id}>
+                  <details className="border-border rounded-[var(--radius-lg)] border p-3">
+                    <summary className="text-text cursor-pointer text-sm font-medium">
+                      {date(c.last_turn_at ?? c.created_at)} · {c.turns} {c.turns === 1 ? "message" : "messages"}
+                      {c.open ? <span className="text-success"> · ongoing</span> : null}
+                    </summary>
+                    <ol className="mt-3 grid gap-2 text-sm">
+                      {c.messages.map((m, i) => (
+                        <li key={i} className={m.direction === "in" ? "text-text" : "text-muted"}>
+                          <span className="font-medium">{m.direction === "in" ? "You" : "Witty"}:</span> {m.content}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted text-sm">No chats yet.</p>
+          )}
+          {settings.web_advisor_enabled ? (
+            <Link href="/witty" className="text-accent text-sm font-medium underline underline-offset-4">
+              {chats.some((c) => c.open) ? "Continue chatting with Witty" : "Chat with Witty"}
+            </Link>
+          ) : null}
+        </Section>
+      ) : null}
 
       <Section title="Shortlist">
         <ShortlistSync showSummary />

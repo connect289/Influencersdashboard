@@ -34,6 +34,7 @@
     "tax:report": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c \"select * from public.web_tax_unmapped()\" -c \"select jsonb_pretty(public.web_data_quality())\""
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.131.0",
     "@sentry/nextjs": "^11.8.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",

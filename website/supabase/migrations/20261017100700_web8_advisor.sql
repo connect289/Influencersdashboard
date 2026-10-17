@@ -102,10 +102,22 @@ $$;
 
 -- search_programmes (spec 7.3): Witty's own catalogue function (the STABLE variant, so the website never writes Witty's
 -- cache), restricted to rows the website shows (web_offering_search), so Witty and the finder always agree.
+-- w2_search_programs resolves the course through catalog_synonyms by exact alias (lower case, letters and digits only),
+-- so the course is normalised the same way first; "MA English" style courses fall back to course "ma" + specialization.
 create or replace function public.web_advisor_search(q jsonb)
 returns jsonb language plpgsql stable security definer set search_path = public as $$
-declare v jsonb := public.w2_search_programs(q); v_rows jsonb;
+declare
+  v_course text := nullif(regexp_replace(lower(coalesce(q->>'course', '')), '[^a-z0-9]', '', 'g'), '');
+  v_words text[] := regexp_split_to_array(btrim(coalesce(q->>'course', '')), '\s+');
+  v jsonb;
+  v_rows jsonb;
 begin
+  if v_course is not null then q := q || jsonb_build_object('course', v_course); end if;
+  v := public.w2_search_programs(q);
+  if v_course is not null and coalesce((v->>'total_for_course')::int, 0) = 0 and cardinality(v_words) > 1 and not (q ? 'specialization') then
+    q := q || jsonb_build_object('course', regexp_replace(lower(v_words[1]), '[^a-z0-9]', '', 'g'), 'specialization', array_to_string(v_words[2:], ' '));
+    v := public.w2_search_programs(q);
+  end if;
   select coalesce(jsonb_agg(r order by ord), '[]') into v_rows
   from jsonb_array_elements(coalesce(v->'rows', '[]')) with ordinality as e(r, ord)
   where exists (select 1 from public.web_offering_search s where s.id = (r->>'id')::bigint);

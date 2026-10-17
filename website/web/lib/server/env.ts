@@ -24,6 +24,8 @@ const schema = z.object({
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   TURNSTILE_SECRET_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
+  WEB_ANTHROPIC_BASE_URL: z.url().optional(), // never the environment's ANTHROPIC_BASE_URL (D-027)
+  WEB_ADVISOR_PROVIDER: z.enum(["auto", "claude", "mock"]).default("auto"),
   UPSTASH_REDIS_REST_URL: z.url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   NEXT_PUBLIC_GA4_ID: z.string().optional(),

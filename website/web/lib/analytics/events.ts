@@ -16,6 +16,8 @@ export const EVENTS = {
   email_code_sent: ["surface", "resend"],
   email_verified: ["surface"],
   advisor_message: ["turn", "mode"],
+  advisor_feedback: ["rating"],
+  advisor_restart: [],
   lead_created: ["surface", "event_id"],
   counsellor_click: ["surface", "channel"],
   callback_booked: ["surface"],

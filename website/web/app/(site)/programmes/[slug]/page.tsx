@@ -10,6 +10,10 @@ import { siteUrl } from "@/lib/server/env";
 import { curatedView, curatedViews, searchOfferings } from "@/lib/server/search";
 import { getSettings } from "@/lib/server/settings";
 
+// Known params are prerendered; other params (and the shared shell, re-rendered when a cache tag expires) render on
+// demand. Reading `params` outside <Suspense> is allowed so the content stays in the static HTML (D-058).
+export const instant = false;
+
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateStaticParams() {
