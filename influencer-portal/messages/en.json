@@ -4214,5 +4214,199 @@
       "page": "Page {n} of {of}",
       "payoutStatement": "Payout statement"
     }
+  },
+  "analytics": {
+    "groups": {
+      "funnel": "Lead funnel",
+      "quality": "Lead quality",
+      "spend": "Spend",
+      "economics": "Unit economics",
+      "health": "Programme health",
+      "operations": "Operations",
+      "earnings": "Creator earnings",
+      "finance": "Finance"
+    },
+    "metrics": {
+      "clicks": {
+        "label": "Clicks",
+        "definition": "Visits through tracking links. Bots and link previews are not counted."
+      },
+      "leads": {
+        "label": "Leads",
+        "definition": "Students who enquired through a creator's link or code and were credited to them."
+      },
+      "qualified_leads": {
+        "label": "Qualified",
+        "definition": "Leads that reached the Qualified stage or went further."
+      },
+      "allocated_leads": {
+        "label": "Allocated",
+        "definition": "Leads handed to an Eduwit counsellor, or further along."
+      },
+      "applications": {
+        "label": "Applied",
+        "definition": "Leads that applied to a programme or enrolled."
+      },
+      "enrollments": {
+        "label": "Enrolled",
+        "definition": "Leads that enrolled. Refunded or cancelled enrolments are not counted."
+      },
+      "click_to_lead_rate": {
+        "label": "Click to lead",
+        "definition": "Leads as a share of clicks. It can pass 100% when students type a creator code instead of clicking."
+      },
+      "qualification_rate": {
+        "label": "Qualification rate",
+        "definition": "Share of leads that reached Qualified or further."
+      },
+      "junk_rate": {
+        "label": "Junk",
+        "definition": "Share of leads closed as junk or test enquiries."
+      },
+      "duplicate_rate": {
+        "label": "Duplicates",
+        "definition": "Share of enquiries that were not credited because the student had already enquired."
+      },
+      "enrollment_rate": {
+        "label": "Enrolment rate",
+        "definition": "Share of leads that enrolled."
+      },
+      "committed_spend": {
+        "label": "Committed",
+        "definition": "Fixed fees, milestones, guarantees and extra fees Eduwit has agreed to pay on agreed and active deals, even with no leads."
+      },
+      "accrued_spend": {
+        "label": "Accrued",
+        "definition": "What creators earned in the period, net of penalties and clawbacks, before tax."
+      },
+      "paid_spend": {
+        "label": "Paid",
+        "definition": "Payouts sent in the period, before TDS."
+      },
+      "budget": {
+        "label": "Budget",
+        "definition": "The campaign budget."
+      },
+      "budget_used": {
+        "label": "Budget used",
+        "definition": "Accrued spend to date as a share of the campaign budget."
+      },
+      "revenue": {
+        "label": "Revenue",
+        "definition": "Eduwit's commission received in the period for enrolments from creator leads, excluding GST."
+      },
+      "expected_revenue": {
+        "label": "Expected revenue",
+        "definition": "Eduwit's commission still to be received for enrolments from creator leads, excluding GST."
+      },
+      "cost_per_lead": {
+        "label": "Cost per lead",
+        "definition": "Accrued spend divided by leads."
+      },
+      "cost_per_qualified_lead": {
+        "label": "Cost per qualified lead",
+        "definition": "Accrued spend divided by qualified leads."
+      },
+      "cost_per_enrollment": {
+        "label": "Cost per enrolment",
+        "definition": "Accrued spend divided by enrolments."
+      },
+      "net_roi": {
+        "label": "Net ROI",
+        "definition": "Revenue minus accrued spend, as a share of accrued spend."
+      },
+      "roas": {
+        "label": "ROAS",
+        "definition": "Revenue for every rupee of accrued spend."
+      },
+      "active_creators": {
+        "label": "Active creators",
+        "definition": "Creators whose status is Active now."
+      },
+      "new_creators": {
+        "label": "New creators",
+        "definition": "Creators approved in the period."
+      },
+      "dormant_creators": {
+        "label": "Dormant",
+        "definition": "Creators with no recent activity (the dormancy period is in Settings → Creators)."
+      },
+      "overdue_deliverables": {
+        "label": "Overdue deliverables",
+        "definition": "Deliverables past their due date that are not live yet."
+      },
+      "pending_reviews": {
+        "label": "Waiting for review",
+        "definition": "Concepts and drafts waiting for Eduwit's review."
+      },
+      "pending_negotiations": {
+        "label": "In negotiation",
+        "definition": "Deals and contracts waiting for an answer from either side."
+      },
+      "contracts_expiring": {
+        "label": "Contracts ending soon",
+        "definition": "Signed contracts whose deal ends in the next 30 days."
+      },
+      "payouts_due": {
+        "label": "Payouts due",
+        "definition": "Confirmed earnings that are due and not yet in a payout batch."
+      },
+      "kyc_pending": {
+        "label": "KYC to verify",
+        "definition": "KYC submissions waiting for Finance."
+      },
+      "fraud_flags": {
+        "label": "Fraud flags",
+        "definition": "Open fraud flags waiting for review."
+      },
+      "on_time_rate": {
+        "label": "On time",
+        "definition": "Share of deliverables due in the period that went live by their due date."
+      },
+      "earned_total": {
+        "label": "Total earned",
+        "definition": "Everything you have earned so far, net of penalties and clawbacks, before tax."
+      },
+      "earnings_pending": {
+        "label": "Pending",
+        "definition": "Earned, waiting for confirmation (for example until Eduwit receives its commission)."
+      },
+      "earnings_payable": {
+        "label": "Due to you",
+        "definition": "Confirmed and due. It goes out in the next payout run."
+      },
+      "earnings_paid": {
+        "label": "Paid",
+        "definition": "Paid to your bank account so far, before TDS."
+      },
+      "next_payout": {
+        "label": "Next payout",
+        "definition": "The date of the next payout run."
+      },
+      "fixed_received": {
+        "label": "Fixed fees earned",
+        "definition": "Fixed fees and milestones you have already earned on your deals."
+      },
+      "fixed_remaining": {
+        "label": "Fixed fees to come",
+        "definition": "Fixed fees and milestones still to earn on your agreed and active deals."
+      },
+      "liabilities": {
+        "label": "Owed to creators",
+        "definition": "Earned and not yet paid, confirmed or not."
+      },
+      "tds_deducted": {
+        "label": "TDS deducted",
+        "definition": "TDS deducted from payouts in the period."
+      },
+      "receipts_waiting": {
+        "label": "Waiting on Eduwit's commission",
+        "definition": "Creator commission that confirms once Eduwit receives its own commission."
+      },
+      "receipts_flagged": {
+        "label": "Flagged enrolments",
+        "definition": "Enrolments whose creator commission has waited longer than the reconciliation period."
+      }
+    }
   }
 }

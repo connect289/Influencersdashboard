@@ -5,6 +5,7 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { GENERATORS, latestRecordedHash, type GeneratedKind } from "@/lib/codegen/sql";
 import { ledgerMatrixSql } from "@/lib/codegen/ledger-matrix";
+import { metricsMarkdown } from "@/lib/codegen/metrics-doc";
 import { workflowMatrixSql } from "@/lib/codegen/workflow-matrix";
 
 const dir = join(import.meta.dirname, "..", "supabase", "migrations");
@@ -62,5 +63,22 @@ for (const [name, file, sql] of [
   else {
     writeFileSync(path, sql);
     console.info(`${name}: wrote supabase/tests/${file}`);
+  }
+}
+
+// docs/METRICS.md, from the metric registry and the English labels and definitions.
+{
+  const path = join(import.meta.dirname, "..", "docs", "METRICS.md");
+  const md = metricsMarkdown();
+  let current = "";
+  try {
+    current = readFileSync(path, "utf8");
+  } catch {
+    // First generation.
+  }
+  if (current === md) console.info("metrics-doc: up to date");
+  else {
+    writeFileSync(path, md);
+    console.info("metrics-doc: wrote docs/METRICS.md");
   }
 }
