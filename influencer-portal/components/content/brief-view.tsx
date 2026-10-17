@@ -2,9 +2,11 @@
 import { ExternalLink, Paperclip } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { DocView } from "@/components/contracts/doc-view";
+import { TrackingLink } from "@/components/links/tracking-link";
 import { Card, CardHeader } from "@/components/ui/card";
 import type { BriefContent } from "@/lib/content/brief";
 import type { BriefDetail } from "@/lib/content/data";
+import type { DeliverableLink } from "@/lib/leads/links";
 import { formatDate, formatRupees } from "@/lib/format";
 import { DueLine } from "./deliverable-bits";
 
@@ -42,12 +44,15 @@ export function BriefView({
   deliverables,
   assetLinks,
   programmes = [],
+  trackingLinks = {},
 }: {
   content: BriefContent;
   deliverables: BriefDetail["deliverables"];
   assetLinks: Record<string, string>;
   /** Live catalogue details of the brief's programmes. */
   programmes?: BriefDetail["programmes"];
+  /** Each deliverable's tracking link (spec 10.1: inserted automatically into the call to action). */
+  trackingLinks?: Record<string, DeliverableLink>;
 }) {
   const t = useTranslations();
   const c = content;
@@ -95,9 +100,12 @@ export function BriefView({
             <DocView blocks={c.key_messages.content} className="text-sm" />
           </Section>
         ) : null}
-        {c.cta.text ? (
+        {c.cta.text || Object.keys(trackingLinks).length ? (
           <Section title={t("content.brief.cta")}>
-            <p className="text-sm">{c.cta.text}</p>
+            {c.cta.text ? <p className="text-sm">{c.cta.text}</p> : null}
+            {Object.keys(trackingLinks).length ? (
+              <p className="text-sm text-muted">{t("content.brief.ctaLinks")}</p>
+            ) : null}
           </Section>
         ) : null}
         {c.tone || c.languages.length ? (
@@ -122,6 +130,7 @@ export function BriefView({
                 typeof d.specs.aspect_ratio === "string"
                   ? d.specs.aspect_ratio
                   : spec?.aspect_ratio;
+              const link = trackingLinks[d.id];
               return (
                 <li key={d.id} className="py-2 text-sm">
                   <p className="font-medium">
@@ -136,6 +145,11 @@ export function BriefView({
                       .join(" · ")}
                   </p>
                   <DueLine due={d.due_dates} />
+                  {link ? (
+                    <div className="mt-2">
+                      <TrackingLink link={link} />
+                    </div>
+                  ) : null}
                 </li>
               );
             })}

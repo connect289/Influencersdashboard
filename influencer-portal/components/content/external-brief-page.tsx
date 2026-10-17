@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Banner } from "@/components/ui/states";
 import { loadBrief, threads } from "@/lib/content/data";
 import { BRIEFS_BUCKET, signedLinks } from "@/lib/content/files";
+import { loadDeliverableLinks, noLinks } from "@/lib/leads/links";
 import type { ServerSupabase } from "@/lib/supabase/server";
 
 export async function ExternalBriefPage({
@@ -26,12 +27,13 @@ export async function ExternalBriefPage({
   const t = await getTranslations();
   const b = await loadBrief(supabase, briefId);
   if (!b || b.side === "eduwit" || !b.current) notFound();
-  const links = Object.fromEntries(
-    await signedLinks(
+  const [links, trackingLinks] = await Promise.all([
+    signedLinks(
       BRIEFS_BUCKET,
       b.current.content.assets.map((a) => a.path),
-    ),
-  );
+    ).then((x) => Object.fromEntries(x)),
+    loadDeliverableLinks(supabase, b.creator.id).catch(noLinks),
+  ]);
   const bk = back({ creatorId: b.creator.id, creatorName: b.creator.display_name });
   return (
     <>
@@ -66,6 +68,7 @@ export async function ExternalBriefPage({
           deliverables={b.deliverables}
           assetLinks={links}
           programmes={b.programmes}
+          trackingLinks={trackingLinks}
         />
         <BriefQa briefId={b.id} threads={threads(b.questions)} canAsk canAnswer={false} />
       </div>

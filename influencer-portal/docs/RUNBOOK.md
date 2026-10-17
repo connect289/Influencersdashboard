@@ -20,6 +20,10 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 | G-11 | A live email provider before contracts are sent (signing codes and signed copies). For WhatsApp codes, get the `contract_sign_code` template (two parameters: code, contract number) approved in Meta and add `whatsapp` to Settings → Contracts → OTP channels (D-91) | Phase 4 |
 | G-12 | Storage: raise the project's global upload size limit to at least 2 GB (the `inf-deliverables` bucket allows 2 GB videos; the default project limit is lower) and confirm resumable uploads are enabled | Phase 5 |
 | G-13 | Content compliance: Eduwit reviews the starting banned-claims list and the default brief template; counsel confirms the ASCI checklist wording and the disclosure terms per platform (Settings → Content) | Phase 5 |
+| G-14 | **Connecting attribution to live leads is a separate, owner-approved step (HARD STOP 6).** The migrations create the `inf-lead-sync` schedule, but nothing reads `student_leads` until the app runs with `LEAD_SYNC=on` (D-122). Before switching it on: confirm the read-only production drift check is clean, choose the backfill start date with the owner, then set `LEAD_SYNC=on`, redeploy, watch one sweep in System status and the Leads → Tools page, and run the backfill | Phase 6 |
+| G-15 | **Back up `inf_lead_ref_key`** (Vault, created by migration 20261021000100 if missing) with `inf_pii_key`. Rotating it changes every lead reference creators and staff have seen | Phase 6 |
+| G-16 | Witty and the website (approved R-1, R-3, R-5): Witty validates typed creator codes with `inf.witty_resolve_code` and keeps issuing access codes with `w2_issue_code`; the website's co-branded page reads `GET /api/public/v1/creators/<handle>`. Set Settings → Attribution → Links and Witty (Witty's number, message template, UTM source, short-link base, website address) before creators share links | Phase 6 |
+| G-17 | Review the attribution defaults (window, model, duplicate grace, self-referral) and the fraud thresholds with the owner, and confirm the stage rules against the CRM's current stage list (Leads → Stage rules) | Phase 6 |
 
 ## Operations
 
@@ -36,5 +40,13 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 - **Deliverable files** live in the private `inf-deliverables` bucket under `<deliverable id>/`; brief assets in
   `inf-briefs` under `<brief id>/`. Links are signed for an hour after an access check.
 - **Dormancy** runs inside the nightly `inf-nightly` job (`inf.nightly_prune()` → `inf.creators_flag_dormant()`).
+- **Lead sweep** (`inf-lead-sync`, every minute, only with `LEAD_SYNC=on`): reads new and changed leads read-only,
+  applies the rules and refreshes the masked creator feed. A warning `leads.stage_unmapped` means a CRM stage no rule
+  maps: add a stage rule. `leads.sweep_failed` returns 503 and the next minute retries from the same watermark. After a
+  rule or settings change, re-run a date range from Leads → Tools (manual decisions are kept).
+- **Fraud flags** never reject on their own; a manager clears or confirms each one with a reason (Leads → Fraud review).
+- **Short links** (`/r/<code>`): an unknown or switched-off code goes to `/link-inactive`. If Witty is slow or failing,
+  visitors still reach WhatsApp without an access code (log `redirect.witty_issue_failed`); attribution then relies on
+  the code in the message.
 - **Production schema drift check** (read-only): run `scripts/baseline/generate-baseline.sql` against production and
   compare with `scripts/baseline/exact.sql` (or compare per-object md5 hashes as done at the Phase 2 gate).

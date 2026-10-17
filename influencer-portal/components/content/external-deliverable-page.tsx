@@ -6,6 +6,7 @@ import { ArrowLeft, Clock } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { DeliverableStatusBadge, DueLine } from "@/components/content/deliverable-bits";
+import { TrackingLink } from "@/components/links/tracking-link";
 import { HistoryList } from "@/components/content/history-list";
 import { GoLiveForm, PostsList, ScheduleForm } from "@/components/content/live-panel";
 import { MediaReview } from "@/components/content/media-review";
@@ -25,6 +26,7 @@ import { loadDeliverable } from "@/lib/content/data";
 import { DELIVERABLES_BUCKET, signedLinks } from "@/lib/content/files";
 import { availableActions } from "@/lib/content/workflow";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { loadDeliverableLinks, noLinks } from "@/lib/leads/links";
 import type { ServerSupabase } from "@/lib/supabase/server";
 
 export async function ExternalDeliverablePage({
@@ -43,7 +45,11 @@ export async function ExternalDeliverablePage({
   const t = await getTranslations();
   const d = await loadDeliverable(supabase, deliverableId);
   if (!d || d.side === "eduwit") notFound();
-  const links = Object.fromEntries(await signedLinks(DELIVERABLES_BUCKET, deliverablePaths(d)));
+  const [links, trackingLinks] = await Promise.all([
+    signedLinks(DELIVERABLES_BUCKET, deliverablePaths(d)).then((x) => Object.fromEntries(x)),
+    loadDeliverableLinks(supabase, d.creator.id).catch(noLinks),
+  ]);
+  const trackingLink = trackingLinks[d.id] ?? null;
   const actions = availableActions(d.status, d.stages, "creator");
   const latest = d.submissions[0] ?? null;
   const bk = back({ creatorId: d.creator.id, creatorName: d.creator.display_name });
@@ -185,6 +191,13 @@ export async function ExternalDeliverablePage({
               <Clock className="size-4 text-muted" aria-hidden /> {waiting}
             </p>
             {d.status === "live" ? correction : null}
+          </Card>
+        ) : null}
+
+        {trackingLink && d.status !== "cancelled" ? (
+          <Card>
+            <CardHeader title={t("links.forThisPost")} description={t("links.forThisPostHint")} />
+            <TrackingLink link={trackingLink} />
           </Card>
         ) : null}
 

@@ -143,6 +143,7 @@ export const CREATOR: Guide = {
         {
           steps: [
             "Read the whole brief, tick the box and tap **Acknowledge brief**. Your deliverables start from here.",
+            "Each post in the brief shows its own tracking link and QR code. Use exactly that link in the post so its leads are credited to you.",
             "Ask anything under **Questions**; Eduwit answers there.",
             "If Eduwit updates the brief, you'll be told what changed and asked to acknowledge the new version.",
           ],
@@ -179,7 +180,7 @@ export const CREATOR: Guide = {
       title: "Your links and QR codes",
       blocks: [
         {
-          p: "[Links](/creator/links) is where you make a tracking link for each post. Every student who enquires through it is credited to you, so use a fresh link for each piece of content.",
+          p: "Every post in your deals gets its own tracking link and code automatically: you'll find it on the post in [Deliverables](/creator/deliverables) and next to each post in the brief. [Links](/creator/links) lists them all and lets you make extra ones (for your bio, a story series or another programme). Every student who enquires through a link is credited to you.",
         },
         {
           steps: [

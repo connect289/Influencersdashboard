@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { sweep } from "@/lib/attribution/sync";
+import { leadSyncEnabled, sweep } from "@/lib/attribution/sync";
 import { hasInternalKey } from "@/lib/internal-auth";
 import { errorMessage, log } from "@/lib/log";
 
@@ -10,6 +10,7 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
   if (!hasInternalKey(request.headers))
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!leadSyncEnabled()) return NextResponse.json({ disabled: true });
   try {
     const batches = await sweep(Date.now() + 40_000);
     const total = batches.reduce(

@@ -21,7 +21,6 @@ test.describe.serial("links and leads", () => {
     await creatorLogin(page, "riya.creator@example.test");
     await page.goto("/creator/links");
     await expect(page.getByText("RIYA-MBA1", { exact: true })).toBeVisible();
-    await page.getByLabel("Post").selectOption({ label: "Launch reel" });
     await page.getByLabel("Label").fill("Second reel");
     await page.getByRole("button", { name: "Create link" }).click();
     await expect(page.getByText(/^Link [A-Z0-9-]+ created\.$/)).toBeVisible();
@@ -36,6 +35,26 @@ test.describe.serial("links and leads", () => {
       (await item.getByRole("link", { name: "SVG" }).getAttribute("href")) ?? "",
     );
     expect(await svg.text()).toContain("<svg");
+  });
+
+  test("every post has its own link, shown on the deliverable and in the brief", async ({
+    page,
+  }) => {
+    await creatorLogin(page, "riya.creator@example.test");
+    await page.goto("/creator/deliverables");
+    await page
+      .getByRole("link", { name: /Launch reel/ })
+      .first()
+      .click();
+    await expect(page.getByText("Your link for this post")).toBeVisible();
+    await expect(page.getByText(/^RIYALEARNS-IG-[A-Z0-9]{3}$/)).toBeVisible();
+    await page.goto("/creator/briefs");
+    await page
+      .getByRole("link", { name: /Always-on MBA deal/ })
+      .first()
+      .click();
+    await expect(page.getByText(/Each post below has its own tracking link/)).toBeVisible();
+    await expect(page.getByText(/^RIYALEARNS-IG-[A-Z0-9]{3}$/)).toHaveCount(2);
   });
 
   test("the short link redirects to WhatsApp, counts people and ignores crawlers", async ({

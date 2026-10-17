@@ -19,6 +19,7 @@ const schema = z
       .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i)
       .optional(),
     LIVE_MODE: onOff,
+    LEAD_SYNC: onOff,
     EMAIL_PROVIDER: z.enum(["mock", "smtp", "resend", "brevo"]).default("mock"),
     EMAIL_FROM: z.string().min(3).default("Eduwit Creators <creators@eduwit.in>"),
     SMTP_HOST: z.string().optional(),

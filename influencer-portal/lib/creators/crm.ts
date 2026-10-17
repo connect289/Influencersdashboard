@@ -443,3 +443,17 @@ export const IMPORT_REASON_CODES = [
   "existing_phone",
   "existing_platform_handle",
 ] as const;
+
+/** The tabs of a creator's 360 page (staff). */
+export const CREATOR_TABS = [
+  "overview",
+  "profile",
+  "kyc",
+  "outreach",
+  "tasks",
+  "deals",
+  "links",
+  "agencies",
+  "history",
+] as const;
+export type CreatorTab = (typeof CREATOR_TABS)[number];

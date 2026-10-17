@@ -60,6 +60,8 @@ This repository holds three separate Eduwit products that share one Supabase pro
   before any UI uses them.
 - Every screen has empty, loading, error and mobile states. The creator portal is mobile-first.
 - Every new feature updates the matching guide in `lib/guides/content` (a test checks guide links resolve).
+- Attribution reads shared lead tables only through `inf.lead_sync_candidates` (service role) and only when
+  `LEAD_SYNC=on`; production keeps it off until go-live approval (HARD STOP 6).
 - No TODOs, placeholder screens or fake data in production code paths; mock data only in the seed script, which
   refuses to run against production.
 
@@ -73,16 +75,16 @@ influencer-portal/
   app/(auth)/…             sign-in, verify code, self sign-up
   app/m/[handle]/…         public media kit page and PDF
   app/legal/…              public terms
-  app/r/[code]/route.ts    tracking redirect (later)
+  app/r/[code]/route.ts    tracking redirect (logs the click, Witty access code, 302)
   app/api/…                health, metrics, signed-contract download, public API, internal jobs
   lib/compensation/        pure engine, simulator, tax estimate + tests
   lib/deals/               deal schemas, builder helpers, offer terms → config, dry-run, loaders
   lib/contracts/           document model, template engine, assembly, counter-offers, generation, PDF, signing
   lib/content/             workflow, compliance scan, URLs, brief document, penalty events (pure) + loaders, uploads
   lib/guides/              in-app guides (one per audience; update them with every feature)
-  lib/attribution/         pure rules + tests (later)
+  lib/attribution/         pure codes, links, bots, rules, stages, fraud, plan + tests; sweep (sync-core/sync), redirect
   lib/actions/             server actions (validate → one RPC → ActionResult)
-  lib/<domain>/            zod schemas, loaders and helpers (creators, agencies, campaigns, media-kit)
+  lib/<domain>/            zod schemas, loaders and helpers (creators, agencies, campaigns, media-kit, leads)
   lib/auth/permissions.ts  permission matrix (single source of truth)
   lib/supabase/            server / browser / admin clients
   components/              ui kit and domain components

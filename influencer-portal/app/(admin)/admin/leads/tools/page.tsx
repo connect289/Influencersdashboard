@@ -3,7 +3,9 @@ import { BackfillForm } from "@/components/leads/backfill-form";
 import { LeadsNav } from "@/components/leads/leads-nav";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { Banner } from "@/components/ui/states";
 import { requireStaff } from "@/lib/auth/guards";
+import { leadSyncEnabled } from "@/lib/attribution/sync";
 import { loadOverview } from "@/lib/leads/data";
 import { formatDateTime, istToday } from "@/lib/format";
 
@@ -25,6 +27,7 @@ export default async function LeadToolsPage() {
       />
       <LeadsNav current="tools" permissions={me.permissions} />
       <div className="flex flex-col gap-4">
+        {leadSyncEnabled() ? null : <Banner tone="warning">{t("leads.tools.disabled")}</Banner>}
         <Card>
           <CardHeader title={t("leads.tools.syncTitle")} description={t("leads.tools.syncHint")} />
           <p className="text-sm">

@@ -25,7 +25,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { LinksPanel } from "@/components/links/links-panel";
 import { requireStaff } from "@/lib/auth/guards";
-import type { CreatorStatus, PipelineStage } from "@/lib/creators/crm";
+import {
+  CREATOR_TABS,
+  type CreatorStatus,
+  type CreatorTab,
+  type PipelineStage,
+} from "@/lib/creators/crm";
 import { loadCreatorProfile, loadKyc } from "@/lib/creators/load";
 import { loadPickers } from "@/lib/creators/staff-data";
 import { loadTasks } from "@/lib/creators/tasks-data";
@@ -34,18 +39,6 @@ import { DEAL_STATUSES } from "@/lib/deals/schemas";
 import { formatCompact, formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TABS = [
-  "overview",
-  "profile",
-  "kyc",
-  "outreach",
-  "tasks",
-  "deals",
-  "links",
-  "agencies",
-  "history",
-] as const;
-type Tab = (typeof TABS)[number];
 
 export async function generateMetadata() {
   const t = await getTranslations();
@@ -65,7 +58,7 @@ export default async function Creator360({
   const { supabase, me } = await requireStaff("creator.read");
   const t = await getTranslations();
   const p = me.permissions;
-  const visible = TABS.filter(
+  const visible = CREATOR_TABS.filter(
     (x) =>
       (x !== "kyc" || p.has("kyc.read_masked")) &&
       (x !== "history" || p.has("audit.read")) &&
@@ -73,8 +66,8 @@ export default async function Creator360({
       (x !== "deals" || p.has("deal.read")) &&
       (x !== "links" || p.has("creator.read")),
   );
-  const requested = (await searchParams).tab as Tab | undefined;
-  const tab: Tab = requested && visible.includes(requested) ? requested : "overview";
+  const requested = (await searchParams).tab as CreatorTab | undefined;
+  const tab: CreatorTab = requested && visible.includes(requested) ? requested : "overview";
 
   const { data, error } = await loadCreatorProfile(supabase, creatorId);
   if (!error && !data) notFound();

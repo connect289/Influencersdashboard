@@ -21,6 +21,7 @@ import {
 import { AGENCY_GRANTS } from "@/lib/agencies/schemas";
 import {
   CREATOR_STATUSES,
+  CREATOR_TABS,
   IMPORT_REASON_CODES,
   OUTREACH_CHANNELS,
   OUTREACH_OUTCOMES,
@@ -137,9 +138,7 @@ describe("messages", () => {
       ...["block", "unblock", "delete"].flatMap((x) =>
         ["title", "body", "action"].map((y) => `creators.confirm.${x}.${y}`),
       ),
-      ...["overview", "profile", "kyc", "outreach", "tasks", "agencies", "history"].map(
-        (x) => `creators.tabs.${x}`,
-      ),
+      ...CREATOR_TABS.map((x) => `creators.tabs.${x}`),
       ...["tag_add", "tag_remove", "owner", "stage"].map((x) => `creators.bulk.${x}`),
       ...["open", "done", "cancelled"].map((x) => `tasks.statusDone.${x}`),
       ...WIZARD_STEPS.map((x) => `onboarding.steps.${x}`),

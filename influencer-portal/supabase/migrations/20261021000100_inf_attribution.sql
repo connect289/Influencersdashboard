@@ -289,6 +289,42 @@ exception when unique_violation then
   raise exception 'this code is taken' using errcode = '23505';
 end $$;
 
+-- Every deliverable gets its own tracking link and code when it is created (spec 9.1: one per creator, deal and
+-- deliverable), sending people to Witty. Codes follow lib/attribution/codes.ts (STEM-TAG-XXX, no-confusion alphabet).
+create or replace function inf.link_code_suggest(p_handle text, p_tag text) returns text
+language sql volatile set search_path = '' as $$
+  select (select case when length(h) >= 2 then h else left(h || 'CR', 2) end
+            from (select left(upper(regexp_replace(coalesce(p_handle, ''), '[^A-Za-z0-9]', '', 'g')), 12) as h) x)
+         || '-' || case lower(p_tag) when 'instagram' then 'IG' when 'youtube' then 'YT' when 'facebook' then 'FB'
+                     when 'linkedin' then 'LI' when 'x' then 'X' when 'telegram' then 'TG' when 'moj_josh' then 'MJ'
+                     else 'GO' end
+         || '-' || (select string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 1 + (get_byte(b, i) % 32), 1), '' order by i)
+                      from (select extensions.gen_random_bytes(3) as b) r, generate_series(0, 2) i);
+$$;
+
+create or replace function inf.deliverable_link_auto() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare
+  d inf.deals;
+  v_handle text;
+begin
+  select * into d from inf.deals where id = new.deal_id;
+  select c.handle into v_handle from inf.creators c where c.id = d.creator_id;
+  for i in 1..20 loop
+    begin
+      insert into inf.tracking_links (code, creator_id, deal_id, deliverable_id, campaign_id, destination, platform, label)
+      values (inf.link_code_suggest(v_handle, new.platform), d.creator_id, d.id, new.id, d.campaign_id, 'whatsapp_witty',
+              new.platform, left(new.title, 120));
+      return new;
+    exception when unique_violation then
+      null;  -- a taken code: try another suffix
+    end;
+  end loop;
+  raise exception 'could not create a tracking code' using errcode = '23505';
+end $$;
+create trigger deliverables_link_auto after insert on inf.deliverables
+  for each row execute function inf.deliverable_link_auto();
+
 create or replace function inf.link_set_active(p_link uuid, p_active boolean) returns void
 language plpgsql security definer set search_path = '' as $$
 declare l inf.tracking_links;

@@ -3,7 +3,7 @@
 -- limits and extensions, comments, go-live and verification, metrics, penalty proposals, and who can see what.
 begin;
 \ir _helpers.psql
-select plan(118);
+select plan(120);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('cara', array['content_reviewer']);
@@ -86,6 +86,12 @@ insert into ids select 'story', id from inf.deliverables where title = 'Story se
 select ok((select bool_and(code ~ '^DV-\d{5}$' and brief_id = (select id from ids where label = 'brief')) from inf.deliverables),
           'deliverables get a code and the brief');
 select is((select revision_limit from inf.deliverables where id = (select id from ids where label = 'reel')), 2, 'the default revision limit applies');
+select is((select count(*)::int from inf.tracking_links where deliverable_id in (select id from ids where label in ('reel', 'story'))), 2,
+          'each deliverable gets its own tracking link');
+select ok((select bool_and(code ~ '^[A-Z0-9]{2,12}(-[A-Z0-9]{1,8}){1,3}$' and destination = 'whatsapp_witty'
+                           and creator_id = (select id from ids where label = 'riya') and deal_id = (select id from ids where label = 'deal'))
+             from inf.tracking_links where deliverable_id in (select id from ids where label in ('reel', 'story'))),
+          'with a valid code, for the creator and deal, sent to Witty');
 
 select tests.as_person('riya');
 select is(inf.brief_detail((select id from ids where label = 'brief')), null, 'creators do not see an unpublished brief');

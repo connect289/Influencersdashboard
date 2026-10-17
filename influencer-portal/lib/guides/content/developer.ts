@@ -157,6 +157,7 @@ export const DEVELOPER: Guide = {
             "Creators and agencies read leads only from `inf.creator_lead_feed` and `SECURITY DEFINER` functions; phone and email are masked in the database (`inf.mask_phone`, `inf.mask_email`) and the lead reference is an HMAC (`inf.lead_ref`, Vault key `inf_lead_ref_key`).",
             "Jobs `leads.rerun` and `leads.backfill` re-plan a range; manual decisions are sticky. Stage rules live in `inf.stage_mappings` (defaults generated from `stage-rules.ts`).",
             "Public API: `GET /api/public/v1/creators/[handle]` returns public profile data only (rate limited, cacheable).",
+            "Nothing reads `student_leads` unless the server runs with `LEAD_SYNC=on` (local and CI: on; production: off until the owner approves connecting attribution to live leads). The seed attributes its test leads with `sync-core.ts` directly.",
           ],
         },
       ],

@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/states";
 import { requireStaff } from "@/lib/auth/guards";
 import { loadBrief, threads } from "@/lib/content/data";
 import { BRIEFS_BUCKET, signedLinks } from "@/lib/content/files";
+import { loadDeliverableLinks, noLinks } from "@/lib/leads/links";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +53,8 @@ export default async function BriefPage({
           ),
         )
       : {};
+  const trackingLinks =
+    tab === "preview" ? await loadDeliverableLinks(supabase, b.creator.id).catch(noLinks) : {};
 
   return (
     <>
@@ -125,6 +128,7 @@ export default async function BriefPage({
               deliverables={b.deliverables}
               assetLinks={links}
               programmes={b.programmes}
+              trackingLinks={trackingLinks}
             />
           ) : (
             <Card>

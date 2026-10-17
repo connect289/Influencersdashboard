@@ -601,6 +601,7 @@ export const INFLUENCER_MANAGER: Guide = {
         {
           list: [
             "The rules (in Settings, Attribution): self-referral first, then duplicates (a student who already enquired), then the attribution window (90 days by default). The default model credits the first creator and records later ones as assisted.",
+            "Every deliverable gets its own tracking link and code when it is created; creators see it on the post and in the brief, and can make extra links. Staff can make links for a creator from the Links tab on the creator's page.",
             "Open a lead to see its attribution history: every decision with the rule, the reason and who made it.",
             "**Credit this creator** or **Reject this attribution** with a reason to override the rules. Manual decisions stick: re-runs never undo them. Rejecting moves the credit to the next eligible creator, if any.",
             "Staff see the same masked contacts as creators. Only Super Admins see a student's phone and email, in the lead drawer.",

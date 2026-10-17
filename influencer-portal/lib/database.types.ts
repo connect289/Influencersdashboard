@@ -2542,6 +2542,9 @@ isOneToOne: false
 "leads_list":
 { Args: { "p": Json }; Returns: Json
                            },
+"link_code_suggest":
+{ Args: { "p_handle": string,"p_tag": string }; Returns: string
+                           },
 "link_create":
 { Args: { "p": Json }; Returns: string
                            },

@@ -1126,7 +1126,8 @@
       "tasks": "Tasks",
       "agencies": "Agency",
       "history": "History",
-      "deals": "Deals"
+      "deals": "Deals",
+      "links": "Links"
     },
     "overview": {
       "facts": "Summary",
@@ -2930,7 +2931,7 @@
       "donts": "Don'ts",
       "tone": "Tone",
       "cta": "Call to action",
-      "ctaHint": "The creator's tracking link or code is added in a later phase.",
+      "ctaHint": "What the creator should ask viewers to do. Each post's tracking link and QR code are added automatically below it.",
       "languages": "Languages",
       "hashtags": "Hashtags",
       "mentions": "Mentions",
@@ -2973,7 +2974,8 @@
       "acknowledge": "Acknowledge brief",
       "youAcknowledged": "You acknowledged this version of the brief.",
       "programmes": "Programmes",
-      "programmeInactive": "no longer offered"
+      "programmeInactive": "no longer offered",
+      "ctaLinks": "Each post below has its own tracking link and QR code. Use it in the post so leads are credited to you."
     },
     "briefs": {
       "subtitle": "One brief per deal: write it from a template, publish it, and answer the creator's questions.",
@@ -3459,7 +3461,10 @@
       "title": "This link is no longer active",
       "body": "The link you followed has been switched off. You can still reach Eduwit's counsellors on the website.",
       "cta": "Go to eduwit.in"
-    }
+    },
+    "codeLine": "Code:",
+    "forThisPost": "Your link for this post",
+    "forThisPostHint": "Put this link (or the QR code) in the post, caption or bio so every lead from it is credited to you."
   },
   "leads": {
     "subtitle": "Everyone who enquired through your links. Phone numbers and emails are always masked.",
@@ -3710,7 +3715,8 @@
       "subtitle": "Sync status and re-running attribution.",
       "syncTitle": "Lead sync",
       "syncHint": "Every minute the portal reads new and changed leads (read-only) and updates attributions and stages.",
-      "neverSynced": "No sync has run yet."
+      "neverSynced": "No sync has run yet.",
+      "disabled": "Lead sync is switched off on this server (LEAD_SYNC). No leads are read or attributed until it is switched on at go-live."
     },
     "errors": {
       "codeTaken": "That code is taken. Try again.",

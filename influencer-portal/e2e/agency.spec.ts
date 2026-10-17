@@ -9,7 +9,10 @@ test.describe.serial("agencies", () => {
     await staffLogin(page, "manager@example.test");
     await page.goto("/admin/agencies");
     await page.getByRole("button", { name: "Add agency" }).click();
-    await page.getByRole("dialog").getByRole("textbox", { name: "Name", exact: true }).fill("Northstar Creators");
+    await page
+      .getByRole("dialog")
+      .getByRole("textbox", { name: "Name", exact: true })
+      .fill("Northstar Creators");
     await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
     await expect(page).toHaveURL(/\/admin\/agencies\/[0-9a-f-]{36}/);
     await page.getByRole("button", { name: "Invite member" }).click();
@@ -38,7 +41,9 @@ test.describe.serial("agencies", () => {
     await expect(page).toHaveURL(/\/agency$/);
   });
 
-  test("the creator accepts with chosen permissions; the agency then sees the profile", async ({ page }) => {
+  test("the creator accepts with chosen permissions; the agency then sees the profile", async ({
+    page,
+  }) => {
     await creatorLogin(page, "arjun.creator@example.test");
     await expect(page).toHaveURL(/\/creator/);
     await page.goto("/creator/agency");
@@ -51,7 +56,7 @@ test.describe.serial("agencies", () => {
     await creatorLogin(page, ownerEmail);
     await expect(page).toHaveURL(/\/agency$/);
     await page.getByRole("link", { name: /Arjun/ }).click();
-    await expect(page.getByText("Negotiate and sign")).toBeVisible();
+    await expect(page.getByText("Negotiate and sign", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Platforms" })).toBeVisible();
     // Read-only: no edit controls, and no KYC or contact details anywhere.
     await expect(page.getByRole("button", { name: "Add platform" })).toHaveCount(0);
