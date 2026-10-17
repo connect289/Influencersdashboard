@@ -5,38 +5,19 @@ import { z } from "zod";
 import type { Db } from "@/lib/contracts/data";
 import { CHANNELS } from "@/lib/notify/catalogue";
 import { DIGEST_FREQUENCIES } from "@/lib/notify/digest";
+import { threadView, unreadCounts, type ThreadView, type UnreadCounts } from "./data-shapes";
 import { THREAD_TYPES, type InboxFilter, type ThreadRef } from "./schemas";
 
 const ts = z.string();
-const side = z.enum(["eduwit", "creator", "agency"]);
 
-export const messageRow = z.object({
-  id: z.uuid(),
-  author_side: side,
-  author_name: z.string().nullable(),
-  body: z.string(),
-  created_at: ts,
-  mine: z
-    .boolean()
-    .nullable()
-    .transform((v) => v === true),
-  attachments: z
-    .array(z.object({ id: z.uuid(), name: z.string(), path: z.string(), mime: z.string(), size_bytes: z.number() }))
-    .catch([]),
-});
-export type MessageRow = z.infer<typeof messageRow>;
-
-export const threadView = z.object({
-  thread_id: z.uuid().nullable(),
-  subject: z.string(),
-  side: side.nullable(),
-  can_post: z.boolean(),
-  staff_only: z.boolean(),
-  other_read_at: ts.nullable(),
-  my_read_at: ts.nullable(),
-  messages: z.array(messageRow),
-});
-export type ThreadView = z.infer<typeof threadView>;
+export {
+  messageRow,
+  threadView,
+  unreadCounts,
+  type MessageRow,
+  type ThreadView,
+  type UnreadCounts,
+} from "./data-shapes";
 
 /** A thread with its messages, or null when the caller may not read it. */
 export async function loadThread(db: Db, ref: ThreadRef): Promise<ThreadView | null> {
@@ -105,7 +86,7 @@ export async function loadNotifications(
     p_unread: opts.unread ?? false,
   });
   if (error) throw new Error(error.message);
-  return z.array(notificationRow).parse(data ?? []);
+  return z.object({ items: z.array(notificationRow) }).parse(data ?? { items: [] }).items;
 }
 
 export const preferencesView = z.object({
@@ -119,9 +100,6 @@ export async function loadPreferences(db: Db): Promise<PreferencesView> {
   if (error) throw new Error(error.message);
   return preferencesView.parse(data ?? { prefs: [], digest: null });
 }
-
-export const unreadCounts = z.object({ notifications: z.number(), messages: z.number() });
-export type UnreadCounts = z.infer<typeof unreadCounts>;
 
 export async function loadUnreadCounts(db: Db): Promise<UnreadCounts> {
   const { data, error } = await db.rpc("my_unread_counts");

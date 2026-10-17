@@ -3,7 +3,8 @@
 // Creates staff for every role, creators in several states (synthetic people, @example.test addresses), platform
 // terms, a few notifications and jobs, and a demo deal with its contract, brief and deliverables. Later phases extend
 // it with leads (Phase 6: demo links and synthetic test leads, attributed by the real sweep) and ledger history
-// (Phase 7: Riya's verified KYC, ledger lines and one paid payout, made through the same database functions Finance uses).
+// (Phase 7: Riya's verified KYC, ledger lines and one paid payout, made through the same database functions Finance uses)
+// and conversations, an announcement, a template and a webhook endpoint (Phase 9).
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -179,6 +180,101 @@ async function asStaff<T>(sql: pg.Client, email: string, fn: () => Promise<T>): 
   } catch (e) {
     await sql.query("rollback");
     throw e;
+  }
+}
+
+/** Runs as a creator (a verified OTP session), like asStaff. */
+async function asCreator<T>(sql: pg.Client, creatorId: string, fn: () => Promise<T>): Promise<T> {
+  await sql.query("begin");
+  try {
+    const u = await sql.query<{ user_id: string; email: string }>(
+      "select ca.user_id, c.email from inf.creator_accounts ca join inf.creators c on c.id = ca.creator_id where ca.creator_id = $1",
+      [creatorId],
+    );
+    const row = u.rows[0];
+    if (!row) throw new Error(`no account for creator ${creatorId}`);
+    const sid = randomUUID();
+    await sql.query(
+      "insert into inf.user_sessions (session_id, user_id, kind, verified_at, verified_via) values ($1, $2, 'creator', now(), 'otp')",
+      [sid, row.user_id],
+    );
+    const claims = {
+      sub: row.user_id,
+      role: "authenticated",
+      session_id: sid,
+      email: row.email,
+      amr: [{ method: "otp", timestamp: Math.floor(Date.now() / 1000) }],
+    };
+    await sql.query("select set_config('request.jwt.claims', $1, true), set_config('role', 'authenticated', true)", [
+      JSON.stringify(claims),
+    ]);
+    const r = await fn();
+    await sql.query("commit");
+    return r;
+  } catch (e) {
+    await sql.query("rollback");
+    throw e;
+  }
+}
+
+/**
+ * Phase 9: a support conversation and a deal conversation for Riya, a sent announcement, a custom email template and a
+ * webhook endpoint (nothing is delivered while LIVE_MODE is off). All through the same functions the app calls.
+ */
+async function seedCommunication(creatorId: string, dealId: string) {
+  const sql = new pg.Client({ connectionString: localDbUrl });
+  await sql.connect();
+  try {
+    const have = await sql.query("select 1 from inf.threads where entity_type = 'support' and entity_id = $1", [
+      creatorId,
+    ]);
+    if (have.rowCount) return;
+    await asCreator(sql, creatorId, () =>
+      sql.query("select inf.thread_post('support', $1, $2)", [
+        creatorId,
+        "Hi! When do the next MBA campaigns open? I'd like to plan my content calendar.",
+      ]),
+    );
+    await asStaff(sql, "manager@example.test", async () => {
+      await sql.query("select inf.thread_post('support', $1, $2)", [
+        creatorId,
+        "Hi Riya, two new campaigns open next week. You'll get an invitation here and by email.",
+      ]);
+      await sql.query("select inf.thread_post('deal', $1, $2)", [
+        dealId,
+        "The shoot brief is ready. Tell us here if the campus visit date doesn't work for you.",
+      ]);
+      await sql.query("select inf.announcement_save($1)", [
+        JSON.stringify({
+          title: "Welcome to Eduwit Creators",
+          body: "Your home page now shows announcements like this one. Messages about each deal, contract and payout are at the bottom of its page.",
+          link: "/creator/messages",
+          segment: {},
+          channels: [],
+          action: "send",
+        }),
+      ]);
+    });
+    await asStaff(sql, "admin@example.test", async () => {
+      await sql.query("select inf.notification_template_save($1)", [
+        JSON.stringify({
+          event: "payout.paid",
+          channel: "email",
+          subject: "Your payout of {{amount}} is on its way",
+          body: "Hi {{name}},\n\nWe've sent {{amount}} to your bank account (reference {{utr}}). Your payment advice is in Earnings.\n\nTeam Eduwit",
+        }),
+      ]);
+      await sql.query("select inf.webhook_endpoint_create($1)", [
+        JSON.stringify({
+          url: "https://hooks.example.test/eduwit",
+          description: "Demo endpoint (local only)",
+          events: ["lead.enrolled", "payout.paid"],
+          secret: `whsec_${randomUUID().replace(/-/g, "")}${randomUUID().replace(/-/g, "")}`,
+        }),
+      ]);
+    });
+  } finally {
+    await sql.end();
   }
 }
 
@@ -739,6 +835,7 @@ async function main() {
 
   if (riya.data && demo.data) {
     await seedFinance(riya.data.id, demo.data.id);
+    await seedCommunication(riya.data.id, demo.data.id);
     // The demo deal's own ledger run (posts nothing until the contract is countersigned; records committed spend).
     await runDealWith(db, demo.data.id, new Date().toISOString());
   }

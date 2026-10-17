@@ -152,3 +152,16 @@ export async function breachedPassword(
     return { checked: false, breached: false };
   }
 }
+
+/**
+ * Whether a state-changing request comes from this site: the browser's Origin header must name the host the request
+ * was sent to (forwarded host behind a proxy). Requests without an Origin are refused.
+ */
+export function isSameOrigin(origin: string | null, host: string | null): boolean {
+  if (!origin || !host) return false;
+  try {
+    return new URL(origin).host === host.split(",")[0]?.trim();
+  } catch {
+    return false;
+  }
+}

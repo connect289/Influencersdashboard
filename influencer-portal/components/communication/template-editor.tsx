@@ -85,6 +85,8 @@ export function TemplateEditor({ ev, liveMode }: { ev: TemplateEvent; liveMode: 
           className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
+            // The reset confirmation's own form submits through the React tree too.
+            if (e.target !== e.currentTarget) return;
             run(() =>
               saveTemplate({ event: ev.event, channel, subject: d.subject, body: d.body, waTemplateName: d.wa }),
             );

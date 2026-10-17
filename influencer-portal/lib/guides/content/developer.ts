@@ -180,6 +180,21 @@ export const DEVELOPER: Guide = {
       ],
     },
     {
+      id: "communication",
+      title: "Messages, notifications and webhooks",
+      blocks: [
+        {
+          list: [
+            "The event catalogue `lib/notify/catalogue.ts` (audience, required, default channels, template variables) is generated into `inf.notification_events`; add an event there before calling `inf.notify()` with it (a unit test checks every event the migrations emit).",
+            "Threads: `inf.thread_resolve(type, entity, creator)` decides who may read and write; screens use `inf.thread_get`, `inf.thread_post`, `inf.thread_mark_read`, `inf.my_threads` and the `Thread` server component (`components/messaging/thread.tsx`), which renders nothing for someone without access.",
+            "Attachments: `threadUploadUrl` signs an upload under `inf-documents/threads/<thread>/` after `inf.thread_open`; `/api/threads/file` checks `inf.thread_file_allowed`.",
+            "Delivery: `notify.deliver` renders the active template (`inf.notification_template_for`) with `lib/notify/compose.ts`; `digest.run` builds digests with `lib/notify/digest.ts`; `webhook.deliver` signs with `lib/webhooks/sign.ts` and connects only to public addresses (`lib/webhooks/ssrf.ts`, checked at connect time).",
+            "Receivers verify `X-Eduwit-Signature: t=<unix>,v1=<hex>` as HMAC-SHA256 of `<t>.<raw body>` with their secret and reject anything older than 5 minutes (`verify()` in `lib/webhooks/sign.ts` is the reference).",
+          ],
+        },
+      ],
+    },
+    {
       id: "jobs",
       title: "Background jobs and notifications",
       blocks: [

@@ -29,6 +29,9 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 | G-20 | Private buckets `inf-invoices` and `inf-documents` are created by migration 20261017000600 (ops); confirm they exist and are not public after the migrations run. Payment advice and Form 16A files are kept for the retention period; never make these buckets public | Phase 7 |
 | G-21 | Optional (approved R-4): the B2B team publishes `public.b2b_enrollment_money_v`; the receipts sync then reads it instead of `b2b.earnings` and `b2b.invoices` (one function to change, `inf.commission_receipts_sync`). Until then the read is limited to those two tables, read only | Phase 7 |
 | G-22 | Analytics: the migration schedules pg_cron `inf-analytics` (every 15 minutes, `inf.analytics_refresh()`); confirm it runs in System status after go-live. Review the metric definitions in `docs/METRICS.md` with the owner (especially committed spend, revenue basis and how deal-level fees are shown by platform), and decide whether the staff dashboards' Viewer role should see revenue | Phase 8 |
+| G-23 | Communication providers (HARD STOP 4): a live email provider (SMTP, Resend or Brevo) for notifications and digests, and for WhatsApp a Meta WhatsApp Business account with approved templates for each event you want on WhatsApp (enter each approved name in Communication → Templates; one variable per line in the template's order). Creators need a phone number on their profile. Then set `LIVE_MODE=on` | Phase 9 |
+| G-24 | Review the notification catalogue with the owner (which events are required, default channels, the digest defaults) and the wording of the main templates (contract, payout, KYC). pg_cron schedules created by the migration: `inf-announcements` (every 5 minutes), `inf-comm-daily` (09:00 IST), `inf-digests` (08:00 IST); confirm they run in System status | Phase 9 |
+| G-25 | Webhooks: register endpoints only after `LIVE_MODE=on`; give each receiving system its signing secret (shown once) and the verification rule (HMAC-SHA256 of `timestamp.body`, reject after 5 minutes). Point n8n at a public HTTPS address; internal addresses are refused by design | Phase 9 |
 
 ## Operations
 
@@ -66,6 +69,15 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
   data in place; the page shows when it last refreshed. Staff can press **Refresh** (skipped if the last refresh is under
   two minutes old). At 100k leads a refresh takes about 16 s; re-measure with `scripts/perf/analytics.sql` (local only,
   rolled back) after changing the views or functions.
+- **Notifications and messages:** each notification's email/WhatsApp copies are sent by the `notify.deliver` job; a
+  copy marked skipped says why (`live_mode_off`, `no_template`, `no_number`). Message attachments live in
+  `inf-documents/threads/<thread>/` and open through `/api/threads/file` after an access check. Announcements scheduled
+  for a time go out within five minutes (`inf-announcements`); a stuck one can be cancelled until it is sent.
+- **Digests** (`digest.run`, queued daily at 08:00 IST by `inf-digests`) are idempotent per person and day; re-running
+  the job for a date sends nothing twice.
+- **Webhooks:** each delivery is a `webhook.deliver` job; Communication → Webhooks shows the last 20 attempts with HTTP
+  status and error. An endpoint that keeps failing is marked "failing since"; pause it from the same page. After the
+  last retry a delivery stays failed; send a test event once the receiver is fixed.
 - **Production schema drift check** (read-only): run `scripts/baseline/generate-baseline.sql` against production and
   compare with `scripts/baseline/exact.sql`, or compare one md5 over all generated statements (production and a fresh
   local database must give the same hash; Phase 7 gate: 100 statements, `3f8bdfc5…`).

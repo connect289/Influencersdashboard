@@ -99,6 +99,8 @@ export function AnnouncementForm({
       className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
+        // Dialogs inside the form (send confirmation) submit their own forms; React bubbles those here too.
+        if (e.target !== e.currentTarget) return;
         submit("draft");
       }}
     >

@@ -4,11 +4,13 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { unreadCountsAction } from "@/lib/actions/messaging";
+import { fetchUnreadCounts } from "@/lib/messaging/client";
 import { createClient } from "@/lib/supabase/browser";
 
 /** Fallback check while the tab is visible, in case the Realtime connection drops. */
 const POLL_MS = 5 * 60_000;
+/** Fired by screens that mark notifications read, so the bell re-reads its count at once. */
+export const NOTIFICATIONS_CHANGED = "inf:notifications-changed";
 
 /**
  * The header bell: unread count, updated live through Realtime on the person's own notifications (RLS limits the
@@ -19,21 +21,30 @@ export function NotificationBell({ href, userId, initial }: { href: string; user
   const [count, setCount] = useState(initial);
   const pathname = usePathname();
 
+  // A server refresh (e.g. after "Mark all read") brings a new count from the layout.
+  const [seen, setSeen] = useState(initial);
+  if (seen !== initial) {
+    setSeen(initial);
+    setCount(initial);
+  }
+
   useEffect(() => {
     let alive = true;
     const check = () => {
       if (document.visibilityState !== "visible") return;
-      void unreadCountsAction().then((c) => {
-        if (alive) setCount(c.notifications);
+      void fetchUnreadCounts().then((c) => {
+        if (alive && c) setCount(c.notifications);
       });
     };
     check();
     const id = window.setInterval(check, POLL_MS);
     document.addEventListener("visibilitychange", check);
+    window.addEventListener(NOTIFICATIONS_CHANGED, check);
     return () => {
       alive = false;
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", check);
+      window.removeEventListener(NOTIFICATIONS_CHANGED, check);
     };
   }, [pathname]);
 
@@ -48,7 +59,7 @@ export function NotificationBell({ href, userId, initial }: { href: string; user
         () => {
           if (timer) clearTimeout(timer);
           timer = setTimeout(() => {
-            void unreadCountsAction().then((c) => setCount(c.notifications));
+            void fetchUnreadCounts().then((c) => c && setCount(c.notifications));
           }, 500);
         },
       )

@@ -50,6 +50,8 @@ export function ConfirmDialog({
           className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault();
+            // The dialog renders in a portal but React still bubbles its submit to any form around the trigger.
+            e.stopPropagation();
             onConfirm(reason.trim(), close);
           }}
         >

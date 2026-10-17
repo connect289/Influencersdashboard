@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   breachedPassword,
   buildCsp,
+  isSameOrigin,
   clientIp,
   isIdleExpired,
   pwnedCount,
@@ -122,5 +123,18 @@ describe("log redaction", () => {
       phone_e164: "[redacted]",
       nested: { password: "[redacted]", status: 429 },
     });
+  });
+});
+
+describe("isSameOrigin", () => {
+  it("accepts the site's own origin only", () => {
+    expect(isSameOrigin("https://creators.eduwit.in", "creators.eduwit.in")).toBe(true);
+    expect(isSameOrigin("http://localhost:3200", "localhost:3200")).toBe(true);
+    expect(isSameOrigin("https://creators.eduwit.in", "creators.eduwit.in, proxy.internal")).toBe(true);
+    expect(isSameOrigin("https://evil.example", "creators.eduwit.in")).toBe(false);
+    expect(isSameOrigin("https://creators.eduwit.in.evil.example", "creators.eduwit.in")).toBe(false);
+    expect(isSameOrigin(null, "creators.eduwit.in")).toBe(false);
+    expect(isSameOrigin("null", "creators.eduwit.in")).toBe(false);
+    expect(isSameOrigin("https://creators.eduwit.in", null)).toBe(false);
   });
 });

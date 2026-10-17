@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { useAction } from "@/components/ui/use-action";
 import { markNotificationsRead } from "@/lib/actions/messaging";
+import { markNotificationsReadNow } from "@/lib/messaging/client";
+import { NOTIFICATIONS_CHANGED } from "./bell";
 import { formatDateTime, formatRelative } from "@/lib/format";
 import type { NotificationRow } from "@/lib/messaging/data";
 import { cn } from "@/lib/utils";
@@ -34,7 +36,7 @@ export function NotificationList({
   function open(n: NotificationRow) {
     if (!n.read_at) {
       setItems((xs) => xs.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
-      void markNotificationsRead([n.id]);
+      void markNotificationsReadNow([n.id]).then(() => window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED)));
     }
     if (n.link) router.push(n.link);
   }
@@ -70,6 +72,7 @@ export function NotificationList({
               () => markNotificationsRead(null),
               () => {
                 setItems((xs) => xs.map((x) => ({ ...x, read_at: x.read_at ?? new Date().toISOString() })));
+                window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED));
                 router.refresh();
               },
             )

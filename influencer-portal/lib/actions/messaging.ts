@@ -8,19 +8,16 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { fetchMe } from "@/lib/auth/guards";
 import { log } from "@/lib/log";
-import { loadThread, loadUnreadCounts, type ThreadView, type UnreadCounts } from "@/lib/messaging/data";
 import { THREADS_BUCKET, threadFilePath } from "@/lib/messaging/files";
 import {
   digestInput,
   MESSAGING_DB_ERRORS,
   postInput,
   preferenceInput,
-  threadRef,
   uploadRequest,
   type DigestInput,
   type PostInput,
   type PreferenceInput,
-  type ThreadRef,
   type UploadRequest,
 } from "@/lib/messaging/schemas";
 import { adminClient } from "@/lib/supabase/admin";
@@ -102,14 +99,6 @@ export async function threadUploadUrl(input: UploadRequest): Promise<ActionResul
   });
 }
 
-export async function markThreadRead(threadId: string): Promise<ActionResult> {
-  return act(z.uuid(), threadId, async (db, id, t) => {
-    const { error } = await db.rpc("thread_mark_read", { p_thread: id });
-    if (error) return dbFail(error, t);
-    return { ok: true };
-  });
-}
-
 /** Marks some notifications read (null = every unread one). */
 export async function markNotificationsRead(ids: string[] | null): Promise<ActionResult> {
   return act(z.array(z.uuid()).max(100).nullable(), ids, async (db, v, t) => {
@@ -138,22 +127,5 @@ export async function setDigestPreference(input: DigestInput): Promise<ActionRes
     const { error } = await db.rpc("digest_preference_set", { p_frequency: v.frequency, p_channel: v.channel });
     if (error) return dbFail(error, t);
     return { ok: true, message: t("notifications.prefs.digestSaved") };
-  });
-}
-
-/** Header badge counts (polled by the bell). */
-export async function unreadCountsAction(): Promise<UnreadCounts> {
-  const supabase = await signedIn();
-  if (!supabase) return { notifications: 0, messages: 0 };
-  return loadUnreadCounts(supabase);
-}
-
-/** The thread as the caller sees it now (the panel re-reads it after posting and while it is open). */
-export async function fetchThread(input: ThreadRef): Promise<ActionResult<ThreadView>> {
-  return act(threadRef, input, async (db, v, t) => {
-    const view = await loadThread(db, v).catch(() => undefined);
-    if (view === undefined) return fail(t("errors.generic"));
-    if (view === null) return fail(t("errors.forbidden"));
-    return { ok: true, data: view };
   });
 }

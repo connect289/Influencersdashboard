@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Select, Textarea } from "@/components/ui/input";
 import { Banner } from "@/components/ui/states";
-import { fetchThread, markThreadRead, postMessage, threadUploadUrl } from "@/lib/actions/messaging";
+import { NOTIFICATIONS_CHANGED } from "@/components/notifications/bell";
+import { postMessage, threadUploadUrl } from "@/lib/actions/messaging";
+import { fetchThreadView, markThreadReadNow } from "@/lib/messaging/client";
 import { formatDateTime } from "@/lib/format";
 import type { ThreadView } from "@/lib/messaging/data";
 import { encodeMentions, hasUnread, messageParts } from "@/lib/messaging/mentions";
@@ -55,16 +57,18 @@ export function ThreadPanel({
   const ref = useRef(thread);
 
   const reload = useCallback(async () => {
-    const r = await fetchThread(ref.current);
-    if (r.ok && r.data) setView(r.data);
+    const next = await fetchThreadView(ref.current);
+    if (next) setView(next);
   }, []);
 
   // Mark read whenever the panel shows messages from others the reader has not seen.
   useEffect(() => {
     if (view.thread_id && hasUnread(view.messages, view.my_read_at)) {
       const id = view.thread_id;
-      void markThreadRead(id).then((r) => {
-        if (r.ok) setView((v) => ({ ...v, my_read_at: new Date().toISOString() }));
+      void markThreadReadNow(id).then((ok) => {
+        if (!ok) return;
+        setView((v) => ({ ...v, my_read_at: new Date().toISOString() }));
+        window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED));
       });
     }
   }, [view.thread_id, view.messages, view.my_read_at]);
