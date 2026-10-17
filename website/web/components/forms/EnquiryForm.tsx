@@ -85,7 +85,10 @@ export function EnquiryForm({
         return setErrors({ form: r.message });
       }
       setAttempt(r.attemptId);
-      if (r.status === "verified") return void finish(r.attemptId);
+      if (r.status === "verified") {
+        track("lead_created", { surface: "enquiry", event_id: r.attemptId });
+        return void finish(r.attemptId);
+      }
       setMasked(r.maskedEmail);
       setResendIn(r.resendInSeconds);
       setPhase("code");
@@ -110,7 +113,7 @@ export function EnquiryForm({
     try {
       const r = await client.verify(attempt, c);
       if (r.status === "verified") {
-        track("lead_created", { surface: "enquiry", event_id: r.reference });
+        track("lead_created", { surface: "enquiry", event_id: attempt });
         await finish(attempt);
       } else if (r.status === "wrong_code") {
         setCode("");

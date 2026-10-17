@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useOptimistic, useTransition } from "react";
 import { toQueryString, type FinderParams } from "@/lib/search/state";
+import { track } from "./analytics";
 
 /**
  * Finder navigation: the URL is the state (spec 6.4). Changing a filter replaces the URL (no new history entry per
@@ -25,6 +26,14 @@ export function useFinderNavigation(params: FinderParams, basePath?: string) {
   const go = useCallback(
     (next: Partial<FinderParams>, opts: { push?: boolean; keepPage?: boolean } = {}) => {
       const url = href(next, opts.keepPage);
+      const facets = Object.keys(next).filter((k) => !["page", "view", "sort", "q"].includes(k));
+      if (facets.length) {
+        const values = facets.reduce((n, k) => {
+          const v = (next as Record<string, unknown>)[k];
+          return n + (Array.isArray(v) ? v.length : v === undefined || v === null || v === "" ? 0 : 1);
+        }, 0);
+        track("filter_apply", { facet: facets.join(","), value_count: values });
+      }
       startTransition(() => {
         setOptimistic(next);
         if (opts.push) router.push(url, { scroll: false });

@@ -40,13 +40,10 @@ export function track(name: EventName, params: EventParams = {}) {
   if (allowed(consent, "marketing") && window.fbq) {
     if (name === "lead_created")
       window.fbq("track", "Lead", {}, clean.event_id ? { eventID: String(clean.event_id) } : undefined);
-    else if (name === "form_submit")
-      window.fbq(
-        "trackCustom",
-        "SubmitApplication",
-        {},
-        clean.event_id ? { eventID: String(clean.event_id) } : undefined,
-      );
+    // Meta standard event; only application forms (enquiries are not applications). Same event id as the server's
+    // Conversions API event (the application reference), so Meta de-duplicates them.
+    else if (name === "form_submit" && String(clean.form ?? "").startsWith("application"))
+      window.fbq("track", "SubmitApplication", {}, clean.event_id ? { eventID: String(clean.event_id) } : undefined);
   }
   const f = FUNNEL_STEPS[name];
   if (f) {

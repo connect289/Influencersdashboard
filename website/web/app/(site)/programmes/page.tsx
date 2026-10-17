@@ -7,7 +7,7 @@ import { parseFinderParams } from "@/lib/search/params";
 import { mergeParsed, parseQuery } from "@/lib/search/parse";
 import { finderIndexability } from "@/lib/search/seo";
 import { getSettings } from "@/lib/server/settings";
-import { searchOfferings } from "@/lib/server/search";
+import { curatedViews, searchOfferings } from "@/lib/server/search";
 
 /** Programme groups per "page"; small enough that a mid-range phone hydrates the first screen quickly. */
 const PAGE_SIZE = 12;
@@ -29,9 +29,11 @@ async function load(searchParams: Props["searchParams"]) {
 }
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
-  const { params, result } = await load(searchParams);
+  const [{ params, result }, sp, views] = await Promise.all([load(searchParams), searchParams, curatedViews()]);
   const heading = finderHeading(params, result.facets);
-  const { index, canonicalQuery } = finderIndexability(params);
+  const { index: filtersIndexable, canonical } = finderIndexability(params, views);
+  // Offering / programme-group panel deep links are not standalone pages (spec 13.1): noindex, canonical to the view.
+  const index = filtersIndexable && !sp.offering && !sp.group;
   const title = heading === "Find your programme" ? "Find online and distance programmes" : `${heading} — compare ${result.total_groups > 1 ? "programmes" : "universities"}`;
   return {
     title,
@@ -39,7 +41,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       result.total > 0
         ? `Compare ${result.total} ${heading === "Find your programme" ? "online and distance" : heading} options from ${result.facets.university.filter((u) => u.count > 0).length} universities: full fees, duration, approvals and eligibility.`
         : "Search online and distance programmes by full fee, duration, approvals and eligibility.",
-    alternates: { canonical: canonicalQuery ? `/programmes?${canonicalQuery}` : "/programmes" },
+    alternates: { canonical },
     robots: index ? undefined : { index: false, follow: true },
   };
 }

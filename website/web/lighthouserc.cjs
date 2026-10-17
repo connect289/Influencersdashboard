@@ -1,13 +1,13 @@
 // Lighthouse CI budgets (spec 3A/12): mobile form factor, applied (DevTools) throttling — slow 4G + 4x CPU — which is
 // what D-021 measures against. Runs against `next start` on :3100 with the local Supabase stack.
-const paths = ["/", "/programmes", "/programmes?programme=mba&spec=marketing", "/programmes/online-mba", "/universities", "/universities/nmims", "/about", "/contact", "/thank-you", "/account/sign-in", "/c/demo-creator", "/admin/login"];
+const paths = ["/", "/programmes", "/programmes?programme=mba&spec=marketing", "/programmes/online-mba", "/universities", "/universities/nmims", "/about", "/contact", "/thank-you", "/account/sign-in", "/c/demo-creator", "/witty", "/admin/login"];
 module.exports = {
   ci: {
     collect: {
       startServerCommand: "npx next start -p 3100",
       startServerReadyPattern: "Ready",
       url: paths.map((p) => `http://localhost:3100${p}`),
-      numberOfRuns: 2,
+      numberOfRuns: 3, // median of 3: TBT on the throttled profile varies ±100 ms between runs
       chromePath: process.env.CHROME_PATH || undefined,
       settings: {
         formFactor: "mobile",
@@ -31,11 +31,15 @@ module.exports = {
             "largest-contentful-paint": ["error", { maxNumericValue: 2500, aggregationMethod: "median-run" }],
             "cumulative-layout-shift": ["error", { maxNumericValue: 0.1 }],
             "total-blocking-time": ["error", { maxNumericValue: 300, aggregationMethod: "median-run" }],
+            // JavaScript budget per route (spec 13.2), transfer size: every route ships ≤ 250 KB of script today
+            // (173–228 KB); docs/PERFORMANCE.md.
+            "resource-summary:script:size": ["error", { maxNumericValue: 256000 }],
           },
         },
         {
-          // Public pages must be indexable; /admin, /account, /c/ and /thank-you are deliberately noindex.
-          matchingUrlPattern: "^(?!.*/(admin|account|c|thank-you)(/|$)).*$",
+          // Public pages must be indexable; /admin, /account, /c/, /thank-you and filtered finder URLs (?…) are
+          // deliberately noindex (only curated views are indexable, D-062).
+          matchingUrlPattern: "^(?!.*/(admin|account|c|thank-you)(/|$))(?!.*\\?).*$",
           assertions: { "categories:seo": ["error", { minScore: 0.95 }] },
         },
       ],

@@ -9,6 +9,7 @@ import { courseLd, faqLd, itemListLd, breadcrumbLd } from "@/lib/seo/jsonld";
 import { siteUrl } from "@/lib/server/env";
 import { curatedView, curatedViews, searchOfferings } from "@/lib/server/search";
 import { getSettings } from "@/lib/server/settings";
+import { withOverrides } from "@/lib/server/page-meta";
 
 // Known params are prerendered; other params (and the shared shell, re-rendered when a cache tag expires) render on
 // demand. Reading `params` outside <Suspense> is allowed so the content stays in the static HTML (D-058).
@@ -21,7 +22,7 @@ export async function generateStaticParams() {
   return views.length ? views.map((v) => ({ slug: v.slug })) : [{ slug: "online-mba" }];
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+async function baseMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const v = await curatedView(slug);
   if (!v) return { title: "Not found", robots: { index: false } };
@@ -82,4 +83,9 @@ export default async function CuratedViewPage({ params }: Props) {
       <View params={params} />
     </main>
   );
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { slug } = await props.params;
+  return withOverrides(`/programmes/${slug}`, await baseMetadata(props));
 }

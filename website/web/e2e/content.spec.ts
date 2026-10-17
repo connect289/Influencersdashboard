@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { LEGACY_REDIRECTS } from "../content/redirects";
 
 async function dismissConsent(page: Page) {
   const banner = page.getByRole("region", { name: "Cookie preferences" });
@@ -58,7 +59,7 @@ test.describe("content pages", () => {
 
   test("redirects: legacy map and admin-managed redirects", async ({ request }) => {
     const legacy = await request.get("/courses", { maxRedirects: 0 });
-    expect(legacy.status()).toBe(308);
+    expect(legacy.status()).toBe(301);
     expect(legacy.headers().location).toBe("/programmes");
     const admin = await request.get("/old-mba-page", { maxRedirects: 0 });
     expect(admin.status()).toBe(301);
@@ -74,6 +75,17 @@ test.describe("content pages", () => {
     expect(r.ok()).toBe(true);
     for (const path of ["/universities/nmims", "/programmes/online-mba", "/legal/privacy-policy", "/c/demo-creator", "/c/unknown-handle", "/about", "/"]) {
       expect((await request.get(path)).status(), path).toBe(200);
+    }
+  });
+
+  test("every legacy URL 301s to its new URL, and the destination works", async ({ request }) => {
+    for (const r of LEGACY_REDIRECTS) {
+      const from = r.source.replace(/:(\w+)/g, "sample-$1");
+      const to = r.destination.replace(/:(\w+)/g, "sample-$1");
+      const res = await request.get(from, { maxRedirects: 0 });
+      expect(res.status(), from).toBe(301);
+      expect(res.headers().location, from).toBe(to);
+      if (!to.includes("sample-")) expect((await request.get(to)).status(), to).toBe(200);
     }
   });
 });

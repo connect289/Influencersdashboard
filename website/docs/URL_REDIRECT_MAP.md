@@ -3,7 +3,7 @@
 **Status: partial.** The current site could not be crawled from the build environment (D-006, S-01). This map holds
 every URL known from the spec; it is completed automatically from `content/legacy/urls.txt` once
 `web/scripts/crawl-legacy-site.mjs` runs. The machine-readable source of truth is `web/content/redirects.ts`, which
-`next.config.ts` turns into permanent (308/301) redirects and which CI tests (Phase 9, spec 13.1 / 16.7). Admin-managed
+`next.config.ts` turns into 301 redirects and which CI tests entry by entry (`e2e/content.spec.ts`; spec 13.1 / 16.7). Admin-managed
 redirects (`web_redirects`, Phase 10) are applied after these.
 
 ## Rules

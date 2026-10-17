@@ -425,3 +425,24 @@ these at the end (spec Section 0).
   and the lead is updated every turn through `lead_intake` (`source_system='web_agent'`, Witty's payload keys and event
   types, idempotency `web:<session>:<turn>`). A retried message (same client id) replays the stored reply. The website
   never writes `w2_*` tables (the STABLE `w2_search_programs`, not the caching variant).
+
+## Phase 9
+
+### D-062 · Only the finder home and curated views are indexable (supersedes part of D-036)
+- **Why:** spec 13.1 — "indexable filter combinations: only the curated finder views created in the admin; no index bloat
+  from arbitrary facet URLs." Every filtered `/programmes?…` URL is now `noindex, follow` and canonicalises to the curated
+  view with the same programme/specialisation/level/category/university/mode filters, else the curated view for its
+  programme, else `/programmes`. `?offering=` / `?group=` panel deep links are always noindex. New landing pages come
+  from the admin (curated views) and the Phase 11 opportunity finder.
+
+### D-063 · One event id per conversion for the Pixel and the Conversions API
+- **Why:** de-duplication (spec 13.3). `Lead`: the gate attempt id (browser `lead_created` and the `capi_lead` job);
+  `SubmitApplication`: the application reference (browser `form_submit` and `capi_submit_application`). The Pixel sends
+  `SubmitApplication` as Meta's standard event, and only for application forms (not enquiries).
+
+### D-064 · Sitemaps, robots and social images
+- **Why:** spec 13.1. `/sitemap.xml` is an index of `/sitemaps/{pages,curated,universities,resources}.xml`, rendered per
+  request from cached data so new universities, views and guides appear without a deploy; legal pages join once migrated
+  (D-044). `robots.txt` blocks staff, account, API, campaign and utility routes, and everything on preview deployments.
+  OG/Twitter images are generated with `next/og` (site default, universities, curated views, guides). Legacy redirects
+  return 301 (not Next's default 308) and CI checks every entry.

@@ -7,12 +7,17 @@ import { COMPANY, whatsappLink } from "@/content/site";
 import { faqLd } from "@/lib/seo/jsonld";
 import { faqsFor } from "@/lib/server/content";
 import { getSettings } from "@/lib/server/settings";
+import { withOverrides } from "@/lib/server/page-meta";
 
-export const metadata: Metadata = {
+const META: Metadata = {
   title: "Contact Eduwit",
   description: "Call, WhatsApp or email Eduwit for free counselling on online and distance programmes, or send an enquiry.",
   alternates: { canonical: "/contact" },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return withOverrides("/contact", META);
+}
 
 export default async function ContactPage() {
   const [settings, faqs] = await Promise.all([getSettings(), faqsFor("contact")]);

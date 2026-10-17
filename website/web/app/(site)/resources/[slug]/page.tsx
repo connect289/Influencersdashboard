@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/format";
 import { breadcrumbLd } from "@/lib/seo/jsonld";
 import { resource, resourcesList } from "@/lib/server/content";
 import { siteUrl } from "@/lib/server/env";
+import { withOverrides } from "@/lib/server/page-meta";
 
 // Known params are prerendered; other params (and the shared shell, re-rendered when a cache tag expires) render on
 // demand. Reading `params` outside <Suspense> is allowed so the content stays in the static HTML (D-058).
@@ -19,7 +20,7 @@ export async function generateStaticParams() {
   return list.length ? list.map((r) => ({ slug: r.slug })) : [{ slug: "placeholder" }];
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+async function baseMetadata({ params }: Props): Promise<Metadata> {
   const r = await resource((await params).slug);
   if (!r) return { title: "Not found", robots: { index: false } };
   return { title: r.seo_title ?? r.title, description: r.seo_description ?? r.summary, alternates: { canonical: `/resources/${r.slug}` } };
@@ -57,4 +58,9 @@ export default async function ResourcePage({ params }: Props) {
       <Blocks blocks={r.body} />
     </main>
   );
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { slug } = await props.params;
+  return withOverrides(`/resources/${slug}`, await baseMetadata(props));
 }

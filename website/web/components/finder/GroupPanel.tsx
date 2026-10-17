@@ -34,6 +34,8 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
       .then((j) => {
         setRes({ key, g: (j.items as ProgrammeGroup[])[0] ?? null });
         track("panel_open", { kind: "group" });
+        const [programme, specs] = key.split(":");
+        track("programme_view", { programme, specialisation: specs, level: (j.items as ProgrammeGroup[])[0]?.level_id });
       })
       .catch(() => undefined);
     return () => ctrl.abort();

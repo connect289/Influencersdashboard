@@ -83,6 +83,21 @@ export function organizationLd(siteUrl: string): Json {
   };
 }
 
+/** WebSite with SearchAction (spec 13.1): the site search is the programme finder's free-text query. */
+export function websiteLd(siteUrl: string): Json {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: COMPANY.brand,
+    url: siteUrl,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: { "@type": "EntryPoint", urlTemplate: `${siteUrl}/programmes?q={search_term_string}` },
+      "query-input": "required name=search_term_string",
+    },
+  };
+}
+
 /** Serialises JSON-LD safely for an inline script (no "</script>" or HTML comment sequences survive). */
 export function serialiseLd(data: Json | Json[]): string {
   return JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");

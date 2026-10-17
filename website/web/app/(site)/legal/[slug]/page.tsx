@@ -5,6 +5,7 @@ import { Blocks } from "@/components/content/Blocks";
 import { COMPANY, LEGAL_PAGES } from "@/content/site";
 import { formatDate } from "@/lib/format";
 import { legalPage } from "@/lib/server/content";
+import { withOverrides } from "@/lib/server/page-meta";
 
 // Known params are prerendered; other params (and the shared shell, re-rendered when a cache tag expires) render on
 // demand. Reading `params` outside <Suspense> is allowed so the content stays in the static HTML (D-058).
@@ -16,7 +17,7 @@ export function generateStaticParams() {
   return LEGAL_PAGES.map((p) => ({ slug: p.slug }));
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+async function baseMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const known = LEGAL_PAGES.find((p) => p.slug === slug);
   if (!known) return { title: "Not found", robots: { index: false } };
@@ -58,4 +59,9 @@ export default async function LegalPage({ params }: Props) {
       )}
     </main>
   );
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { slug } = await props.params;
+  return withOverrides(`/legal/${slug}`, await baseMetadata(props));
 }

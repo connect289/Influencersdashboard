@@ -6,12 +6,17 @@ import { Disclosure } from "@/components/ui/Disclosure";
 import { HOW_IT_WORKS, SERVICES } from "@/content/home";
 import { faqLd } from "@/lib/seo/jsonld";
 import { faqsFor } from "@/lib/server/content";
+import { withOverrides } from "@/lib/server/page-meta";
 
-export const metadata: Metadata = {
+const META: Metadata = {
   title: "How it works",
   description: "Explore programmes, get matched to what fits you, and apply with a counsellor's help. Free counselling; no payment on this website.",
   alternates: { canonical: "/how-it-works" },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return withOverrides("/how-it-works", META);
+}
 
 const DO = [
   "Show every programme's full fee as the university publishes it, with the date it was last checked",

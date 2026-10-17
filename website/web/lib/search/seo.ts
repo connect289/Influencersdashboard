@@ -1,21 +1,38 @@
-import { toQueryString, type FinderParams } from "./params";
+import { parseFinderParams, toQueryString, type FinderParams } from "./params";
 
 /**
- * Indexing rules for finder URLs (spec 13): only deliberate, high-demand combinations are indexable — one programme
- * (optionally with one specialisation), or one level, category or university, with no other filters. Everything else
- * is `noindex, follow` and canonicalises to its nearest indexable view.
+ * Indexing rules for finder URLs (spec 13.1): the only indexable finder pages are the finder home and the curated finder
+ * views created in the admin (`/programmes/<slug>`). Every filtered `/programmes?…` URL is `noindex, follow` and
+ * canonicalises to the curated view with the same core filters, else to the curated view for its programme, else to
+ * the finder home — so arbitrary facet combinations never bloat the index (D-062).
  */
-export function finderIndexability(p: FinderParams): { index: boolean; canonicalQuery: string } {
-  const others =
-    p.q || p.mode.length || p.duration.length || p.naac.length || p.minq.length || p.state.length || p.format.length ||
-    p.fee_min || p.fee_max || p.ugc || p.aicte || p.nirf || p.workex || p.entrance || p.goal || p.qual || p.all ||
-    (p.sort && p.sort !== "relevance") || p.view === "flat" || (p.page && p.page > 1);
-  const single = (a: string[]) => a.length === 1;
-  const dims = [p.programme.length > 0, p.spec.length > 0, p.level.length > 0, p.category.length > 0, p.uni.length > 0].filter(Boolean).length;
-  const programmeView = single(p.programme) && p.spec.length <= 1 && !p.level.length && !p.category.length && !p.uni.length;
-  const simpleView = dims === 1 && (single(p.level) || single(p.category) || single(p.uni));
-  const index = !others && (dims === 0 || programmeView || simpleView);
-  const base = { programme: p.programme.slice(0, 1), spec: single(p.programme) ? p.spec.slice(0, 1) : [] } as Partial<FinderParams>;
-  const canonicalQuery = index ? toQueryString(p) : toQueryString(p.programme.length ? base : {});
-  return { index, canonicalQuery };
+export interface CuratedRef {
+  slug: string;
+  filters: Record<string, unknown>;
+}
+
+const CORE = ["programme", "spec", "level", "category", "uni", "mode"] as const;
+
+function core(p: Partial<FinderParams>): string {
+  const pick: Partial<FinderParams> = {};
+  for (const k of CORE) if ((p[k] as string[] | undefined)?.length) (pick as Record<string, unknown>)[k] = [...(p[k] as string[])].sort();
+  return toQueryString(pick);
+}
+
+function curatedParams(filters: Record<string, unknown>): FinderParams {
+  const raw: Record<string, string> = {};
+  for (const [k, v] of Object.entries(filters)) raw[k] = Array.isArray(v) ? v.join(",") : String(v);
+  return parseFinderParams(raw);
+}
+
+export function finderIndexability(p: FinderParams, curated: CuratedRef[] = []): { index: boolean; canonical: string } {
+  const all = toQueryString(p);
+  if (!all) return { index: true, canonical: "/programmes" };
+  const key = core(p);
+  const views = curated.map((c) => ({ slug: c.slug, params: curatedParams(c.filters) }));
+  const exact = key ? views.find((v) => core(v.params) === key) : undefined;
+  const byProgramme =
+    p.programme.length === 1 ? views.find((v) => v.params.programme.length === 1 && v.params.programme[0] === p.programme[0] && core(v.params) === core({ programme: p.programme })) : undefined;
+  const target = exact ?? byProgramme;
+  return { index: false, canonical: target ? `/programmes/${target.slug}` : "/programmes" };
 }

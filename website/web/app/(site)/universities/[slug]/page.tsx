@@ -14,6 +14,7 @@ import { breadcrumbLd, courseLd, itemListLd, universityLd } from "@/lib/seo/json
 import { siteUrl } from "@/lib/server/env";
 import { browse, searchOfferings, universities, universityDetails } from "@/lib/server/search";
 import { getSettings } from "@/lib/server/settings";
+import { withOverrides } from "@/lib/server/page-meta";
 
 // Known params are prerendered; other params (and the shared shell, re-rendered when a cache tag expires) render on
 // demand. Reading `params` outside <Suspense> is allowed so the content stays in the static HTML (D-058).
@@ -26,7 +27,7 @@ export async function generateStaticParams() {
   return list.length ? list.map((u) => ({ slug: u.slug })) : [{ slug: "nmims" }];
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+async function baseMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const u = await universityDetails(slug);
   if (!u) return { title: "University not found", robots: { index: false } };
@@ -152,4 +153,9 @@ export default async function UniversityPage({ params }: Props) {
       <University params={params} />
     </main>
   );
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { slug } = await props.params;
+  return withOverrides(`/universities/${slug}`, await baseMetadata(props));
 }

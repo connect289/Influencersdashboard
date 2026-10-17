@@ -187,6 +187,7 @@ export function ApplicationForm({
         setAttemptId(r.attemptId);
         if (r.status === "verified") {
           setVerifiedRef(r.reference ?? r.attemptId);
+          track("lead_created", { surface: formName, event_id: r.attemptId });
           setStep(1);
         } else {
           setMasked(r.maskedEmail);
@@ -217,7 +218,7 @@ export function ApplicationForm({
       if (r.status === "verified") {
         setVerifiedRef(r.reference ?? attemptId);
         track("form_step_complete", { form: formName, step: 1 });
-        track("lead_created", { surface: formName, event_id: r.reference });
+        track("lead_created", { surface: formName, event_id: attemptId });
         setPhase("form");
         setStep(1);
         scrollTop();

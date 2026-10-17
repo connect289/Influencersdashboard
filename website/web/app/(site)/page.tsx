@@ -4,17 +4,22 @@ import { FinalCta, GuidedTeaser, HomeFaq, HowItWorks, PopularProgrammes, Resourc
 import { JsonLd } from "@/components/seo/JsonLd";
 import { parseFinderParams } from "@/lib/search/params";
 import type { ProgrammeGroup } from "@/lib/search/types";
-import { faqLd, organizationLd } from "@/lib/seo/jsonld";
+import { faqLd, organizationLd, websiteLd } from "@/lib/seo/jsonld";
 import { homeContent } from "@/lib/server/content";
 import { siteUrl } from "@/lib/server/env";
 import { catalogStats, searchOfferings, universities } from "@/lib/server/search";
 import { getSettings } from "@/lib/server/settings";
+import { withOverrides } from "@/lib/server/page-meta";
 
-export const metadata: Metadata = {
+const META: Metadata = {
   title: { absolute: "Eduwit — Choose your education wisely" },
   description: "Compare online and distance programmes from Eduwit's partner universities: full fees, duration, approvals and eligibility, with free counselling.",
   alternates: { canonical: "/" },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return withOverrides("/", META);
+}
 
 /** Homepage (spec 8). Sections can be switched off in the admin (settings.sections). */
 export default async function Home() {
@@ -30,6 +35,7 @@ export default async function Home() {
   return (
     <main id="main">
       <JsonLd data={organizationLd(base)} />
+      <JsonLd data={websiteLd(base)} />
       {content.faqs.length && on("faq") ? <JsonLd data={faqLd(content.faqs)} /> : null}
       <HomeHero stats={stats} advisorEnabled={settings.web_advisor_enabled} popular={content.popular} />
       {on("popular") ? <PopularProgrammes groups={popular.items as ProgrammeGroup[]} /> : null}

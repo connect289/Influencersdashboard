@@ -5,12 +5,17 @@ import { UniversityMark } from "@/components/finder/UniversityMark";
 import { formatInrRange } from "@/lib/format";
 import { UGC_LABEL } from "@/lib/search/labels";
 import { universities } from "@/lib/server/search";
+import { withOverrides } from "@/lib/server/page-meta";
 
-export const metadata: Metadata = {
+const META: Metadata = {
   title: "Universities",
   description: "Universities offering online and distance programmes: UGC-DEB status, NAAC grade, NIRF rank, programmes and fees.",
   alternates: { canonical: "/universities" },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return withOverrides("/universities", META);
+}
 
 /** University directory (spec 4): university-level facts from the catalogue, each linking to its profile. */
 export default async function UniversitiesPage() {

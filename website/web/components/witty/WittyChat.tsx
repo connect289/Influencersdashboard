@@ -102,10 +102,12 @@ export function WittyChat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const started = useRef(false);
   const signedIn = useRef(false);
+  const turns = useRef(0);
   const router = useRouter();
 
   const apply = useCallback((b: WittyBootstrap) => {
     signedIn.current = b.signedIn;
+    turns.current = b.messages.filter((m) => m.role === "student").length;
     setBoot(b);
     setFallback(!b.enabled || b.degraded);
     setMessages(
@@ -170,7 +172,8 @@ export function WittyChat({
         { key: `w${messageId}`, role: "witty", text: "", streaming: true },
       ]);
       presence.set("thinking");
-      track("advisor_message", {});
+      turns.current += 1;
+      track("advisor_message", { turn: turns.current });
       let final = "";
       try {
         const res = await fetch("/api/witty", {
@@ -366,7 +369,7 @@ export function WittyChat({
                 e.preventDefault();
                 const r = await wittyCallbackAction({ date: callback.date, slot: callback.slot });
                 setCallback((c) => (r.ok ? { ...c, done: r.label } : { ...c, error: r.message }));
-                if (r.ok) track("callback_booked", {});
+                if (r.ok) track("callback_booked", { surface: "witty" });
               }}
             >
               <div className="grid gap-1 text-sm">

@@ -5,12 +5,17 @@ import { ABOUT } from "@/content/about";
 import { PRINCIPLES, SERVICES } from "@/content/home";
 import { COMPANY } from "@/content/site";
 import { catalogStats } from "@/lib/server/search";
+import { withOverrides } from "@/lib/server/page-meta";
 
-export const metadata: Metadata = {
+const META: Metadata = {
   title: "About Eduwit",
   description: "Eduwit Learning Services helps students choose and apply to online and distance programmes from partner universities, with free counselling.",
   alternates: { canonical: "/about" },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return withOverrides("/about", META);
+}
 
 export default async function AboutPage() {
   const stats = await catalogStats();

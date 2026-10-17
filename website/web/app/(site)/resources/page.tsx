@@ -2,12 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { formatDate } from "@/lib/format";
 import { resourcesList } from "@/lib/server/content";
+import { withOverrides } from "@/lib/server/page-meta";
 
-export const metadata: Metadata = {
+const META: Metadata = {
   title: "Guides",
   description: "Guides to choosing an online or distance programme, written and reviewed by named people.",
   alternates: { canonical: "/resources" },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return withOverrides("/resources", META);
+}
 
 /** Guides (spec 4, 13.4). Every guide has a named human author and reviewer. */
 export default async function ResourcesPage() {

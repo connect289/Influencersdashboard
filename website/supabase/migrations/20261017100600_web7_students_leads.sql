@@ -475,7 +475,8 @@ begin
       jsonb_build_object('kind', v_app.kind, 'reference', v_app.reference, 'email', v_a.email_norm, 'name', v_a.full_name, 'context', v_app.context));
     if v_app.kind = 'application' then
       perform public.web_outbox_enqueue('capi_submit_application', 'capi_submit:' || v_app.id::text,
-        jsonb_build_object('event_id', v_app.id, 'email', v_a.email_norm, 'phone', v_a.phone_e164, 'attribution', v_a.attribution,
+        -- event_id = the application reference, the same id the browser Pixel sends (de-duplication, D-047)
+        jsonb_build_object('event_id', v_app.reference, 'email', v_a.email_norm, 'phone', v_a.phone_e164, 'attribution', v_a.attribution,
                            'marketing_consent', v_a.consent_marketing));
     end if;
   end if;
