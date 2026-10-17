@@ -501,3 +501,23 @@ definer functions.
 | Leaderboard-rank bonuses | Deferred to Phase 8 | Leaderboards are a Phase 8 deliverable (spec 12); the engine supports the bonus and receives rank events once they exist (D-141) |
 | Connecting receipts and payouts to live data | Deferred (HARD STOP 6) | Receipts read live CRM tables only with `LEAD_SYNC=on`; go-live steps in RUNBOOK G-14, G-18 to G-21 |
 
+
+## Phase 8: Dashboards and analytics
+
+Spec Section 22 Phase 8 and spec 12. Every metric is defined once in a registry (`lib/analytics/metrics.ts`) that
+generates `docs/METRICS.md` and the UI tooltips. Staff dashboards read summary materialised views in schema `inf`
+refreshed by `pg_cron`; the creator home reads that creator's live rows through a `SECURITY DEFINER` function. Only
+aggregates leave the database; drill-downs open the existing screens, which keep their own permissions and masking.
+Tier status (Phase 10 scorecards and tiers) and announcements (Phase 9 communication) are out of this phase's scope.
+
+### Plan
+
+| Step | What | Main files | Tests |
+| --- | --- | --- | --- |
+| 8.1 | Pure modules: date range presets (today, 7, 30, 90 days, this month, last month, this FY, custom; IST) with the previous period; the metric registry (definition, unit, formula, source) and `METRICS.md` generator; funnel and conversion rates, unit economics (cost per lead, qualified lead and enrolment, revenue, net ROI, ROAS), lead quality, deltas; leaderboards; time series buckets | `lib/analytics/*` | exhaustive units, METRICS.md drift test |
+| 8.2 | Database: committed spend per deal (zero-performance simulation over the deal's term, stored by the runner), leaderboard opt-in, summary views (leads per attribution, clicks per day, spend per day, revenue per enrolment) with `inf.analytics_refresh()` every 15 minutes, read functions for overview, breakdowns, series, leaderboards, operations, campaign, creator 360, finance and the live creator dashboard | `20261023000100_inf_analytics.sql` | pgTAP per role |
+| 8.3 | Dashboard kit: date range control with comparison, KPI cards with tooltip and delta, SVG line, bar and funnel charts with a table fallback, breakdown tables with CSV export, data freshness | `components/analytics/*` | units + Playwright |
+| 8.4 | Creator home: earnings cards, fixed fee received vs remaining, the full action centre, lead funnel, leads over time, top content, programme and platform breakdowns, active campaigns and deals, leaderboard position (opt-in) | `app/(creator)/creator/page.tsx` | Playwright (incl. phone) |
+| 8.5 | Admin overview: programme health, spend (committed, accrued, paid; by deal model, campaign, creator; budget vs actual), unit economics by creator, campaign, platform, content type, programme and deal model, lead quality, operations, leaderboards | `app/(admin)/admin/analytics/*` | Playwright |
+| 8.6 | Campaign dashboard with per-creator comparison, creator 360° analytics, finance dashboard (liabilities, payouts by period, TDS by quarter, reconciliation status) | | Playwright |
+| 8.7 | `METRICS.md`, exports, guides, seed, performance check (100k leads, 1,000 creators, p95 under 2 s), phase gate | | gate |
