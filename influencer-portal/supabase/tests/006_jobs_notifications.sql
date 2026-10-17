@@ -18,17 +18,17 @@ select is(inf.job_finish((select id from inf.jobs where idem_key = 'once'), fals
 select is((select count(*)::int from inf.domain_events where type = 'system.job_dead'), 1, 'a dead job emits an event');
 
 -- Notifications
-select inf.notification_preference_set('lead.attributed', 'email', false)
+select inf.notification_preference_set('deliverable.due', 'email', false)
   from (select tests.as_person('alice')) x;
 select tests.reset();
-select ok(inf.notify((select user_id from tests.people where label = 'alice'), 'lead.attributed', 'New lead', 'A lead came in', '/creator/leads', '{}', false, 'n1') is not null, 'notification created');
-select is(inf.notify((select user_id from tests.people where label = 'alice'), 'lead.attributed', 'New lead', null, null, '{}', false, 'n1'),
+select ok(inf.notify((select user_id from tests.people where label = 'alice'), 'deliverable.due', 'Post due', 'Your post is due', '/creator/content', '{}', false, 'n1') is not null, 'notification created');
+select is(inf.notify((select user_id from tests.people where label = 'alice'), 'deliverable.due', 'Post due', null, null, '{}', false, 'n1'),
           (select id from inf.notifications where idem_key = 'n1'), 'notify is idempotent');
-select is((select count(*)::int from inf.notification_deliveries d join inf.notifications n on n.id = d.notification_id where n.idem_key = 'n1'), 0,
-          'email skipped because the creator turned it off');
+select is((select string_agg(d.channel, ',') from inf.notification_deliveries d join inf.notifications n on n.id = d.notification_id where n.idem_key = 'n1'),
+          'whatsapp', 'email skipped because the creator turned it off; WhatsApp stays on by the catalogue default');
 select ok(inf.notify((select user_id from tests.people where label = 'alice'), 'payout.paid', 'Payout sent', null, null, '{}', true, 'n2') is not null, 'mandatory notification');
-select is((select count(*)::int from inf.notification_deliveries d join inf.notifications n on n.id = d.notification_id where n.idem_key = 'n2'), 1,
-          'mandatory events are emailed regardless of preferences');
+select is((select count(*)::int from inf.notification_deliveries d join inf.notifications n on n.id = d.notification_id where n.idem_key = 'n2'), 2,
+          'mandatory events go to every default channel (email and WhatsApp) regardless of preferences');
 select throws_ok($$ select inf.notify(gen_random_uuid(), 'x.y', 't', null, 'https://evil.example', '{}', false, 'n3') $$, '23514', null,
                  'links must be in-app paths');
 

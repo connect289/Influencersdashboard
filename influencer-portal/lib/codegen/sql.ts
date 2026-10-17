@@ -10,6 +10,7 @@ import { compConfig } from "@/lib/compensation/schema";
 import { DEFAULT_STAGE_RULES } from "@/lib/attribution/stage-rules";
 import { docFromText } from "@/lib/contracts/doc";
 import { DEFAULT_TEMPLATE, SEED_CLAUSES } from "@/lib/contracts/library";
+import { EVENTS, type EventDef } from "@/lib/notify/catalogue";
 import { SETTINGS, SETTING_KEYS, settingJsonSchema } from "@/lib/settings/registry";
 
 export type GeneratedKind =
@@ -18,7 +19,8 @@ export type GeneratedKind =
   | "comp-config-schema"
   | "deal-presets"
   | "clause-library"
-  | "stage-mappings";
+  | "stage-mappings"
+  | "notification-events";
 
 export function sqlString(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
@@ -193,6 +195,24 @@ export function stageMappingsSql(): { sql: string; hash: string } {
   return withHeader("stage-mappings", body);
 }
 
+/** The notification catalogue (lib/notify/catalogue.ts): upserted on every change, removed events deleted. */
+export function notificationEventsSql(): { sql: string; hash: string } {
+  const arr = (xs: readonly string[]) => `array[${xs.map(sqlString).join(", ")}]::text[]`;
+  const rows = Object.entries<EventDef>(EVENTS).map(
+    ([k, d]) =>
+      `  (${sqlString(k)}, ${sqlString(d.group)}, ${arr(d.audience)}, ${String(d.mandatory)}, ${arr(d.channels)}, ${arr(d.vars)})`,
+  );
+  const body = [
+    "insert into inf.notification_events (event, grp, audience, mandatory, channels, vars) values",
+    rows.join(",\n"),
+    "on conflict (event) do update set grp = excluded.grp, audience = excluded.audience, mandatory = excluded.mandatory,",
+    "  channels = excluded.channels, vars = excluded.vars;",
+    `delete from inf.notification_events where event <> all (${arr(Object.keys(EVENTS))});`,
+    "",
+  ].join("\n");
+  return withHeader("notification-events", body);
+}
+
 export const GENERATORS: Record<GeneratedKind, () => { sql: string; hash: string }> = {
   "permission-matrix": permissionMatrixSql,
   "settings-definitions": settingsDefinitionsSql,
@@ -200,6 +220,7 @@ export const GENERATORS: Record<GeneratedKind, () => { sql: string; hash: string
   "deal-presets": dealPresetsSql,
   "clause-library": clauseLibrarySql,
   "stage-mappings": stageMappingsSql,
+  "notification-events": notificationEventsSql,
 };
 
 /** The hash recorded in the newest migration of a kind (file names sort by timestamp). */

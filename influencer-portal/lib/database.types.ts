@@ -65,6 +65,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"announcements": {
+                  Row: {
+                    "body": string,"channels": (string)[],"created_at": string,"created_by": string,"id": string,"link": string | null,"recipients": number | null,"scheduled_at": string | null,"segment": NonNullable<Json>,"sent_at": string | null,"status": string,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body": string,"channels"?: (string)[],"created_at"?: string,"created_by"?: string,"id"?: string,"link"?: string | null,"recipients"?: number | null,"scheduled_at"?: string | null,"segment"?: NonNullable<Json>,"sent_at"?: string | null,"status"?: string,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "body"?: string,"channels"?: (string)[],"created_at"?: string,"created_by"?: string,"id"?: string,"link"?: string | null,"recipients"?: number | null,"scheduled_at"?: string | null,"segment"?: NonNullable<Json>,"sent_at"?: string | null,"status"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"application_offers": {
                   Row: {
                     "application_id": string,"created_at": string,"created_by": string,"from_side": string,"id": string,"message": string | null,"status": string,"terms": NonNullable<Json>
@@ -1153,6 +1167,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"digest_preferences": {
+                  Row: {
+                    "channel": string,"frequency": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "channel"?: string,"frequency": string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "channel"?: string,"frequency"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"domain_events": {
                   Row: {
                     "actor_id": string | null,"id": number,"idem_key": string,"occurred_at": string,"payload": NonNullable<Json>,"subject_id": string,"subject_type": string,"type": string
@@ -1475,16 +1503,56 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"messages": {
+                },"message_attachments": {
                   Row: {
-                    "author_id": string,"author_side": string,"body": string,"created_at": string,"id": string,"thread_id": string
+                    "id": string,"message_id": string,"mime": string,"name": string,"path": string,"size_bytes": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"author_side": string,"body": string,"created_at"?: string,"id"?: string,"thread_id": string
+                    "id"?: string,"message_id": string,"mime": string,"name": string,"path": string,"size_bytes": number
                   }
                   Update: {
-                    "author_id"?: string,"author_side"?: string,"body"?: string,"created_at"?: string,"id"?: string,"thread_id"?: string
+                    "id"?: string,"message_id"?: string,"mime"?: string,"name"?: string,"path"?: string,"size_bytes"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "message_attachments_message_id_fkey"
+      columns: ["message_id"]
+isOneToOne: false
+      referencedRelation: "messages"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"message_mentions": {
+                  Row: {
+                    "message_id": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "message_id": string,"user_id": string
+                  }
+                  Update: {
+                    "message_id"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "message_mentions_message_id_fkey"
+      columns: ["message_id"]
+isOneToOne: false
+      referencedRelation: "messages"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"messages": {
+                  Row: {
+                    "author_id": string,"author_side": string,"body": string,"created_at": string,"id": string,"search": unknown,"thread_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string,"author_side": string,"body": string,"created_at"?: string,"id"?: string,"search"?: never,"thread_id": string
+                  }
+                  Update: {
+                    "author_id"?: string,"author_side"?: string,"body"?: string,"created_at"?: string,"id"?: string,"search"?: never,"thread_id"?: string
                   }
                   Relationships: [
                     {
@@ -1514,6 +1582,20 @@ isOneToOne: false
       referencedRelation: "notifications"
       referencedColumns: ["id"]
     }
+                  ]
+                },"notification_events": {
+                  Row: {
+                    "audience": (string)[],"channels": (string)[],"event": string,"grp": string,"mandatory": boolean,"vars": (string)[]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "audience": (string)[],"channels": (string)[],"event": string,"grp": string,"mandatory": boolean,"vars": (string)[]
+                  }
+                  Update: {
+                    "audience"?: (string)[],"channels"?: (string)[],"event"?: string,"grp"?: string,"mandatory"?: boolean,"vars"?: (string)[]
+                  }
+                  Relationships: [
+                    
                   ]
                 },"notification_preferences": {
                   Row: {
@@ -2151,19 +2233,45 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
-                },"threads": {
+                },"thread_reads": {
                   Row: {
-                    "created_at": string,"entity_id": string,"entity_type": string,"id": string
+                    "last_read_at": string,"thread_id": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"entity_id": string,"entity_type": string,"id"?: string
+                    "last_read_at"?: string,"thread_id": string,"user_id": string
                   }
                   Update: {
-                    "created_at"?: string,"entity_id"?: string,"entity_type"?: string,"id"?: string
+                    "last_read_at"?: string,"thread_id"?: string,"user_id"?: string
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "thread_reads_thread_id_fkey"
+      columns: ["thread_id"]
+isOneToOne: false
+      referencedRelation: "threads"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"threads": {
+                  Row: {
+                    "created_at": string,"creator_id": string | null,"entity_id": string,"entity_type": string,"id": string,"last_message_at": string | null,"staff_only": boolean
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"creator_id"?: string | null,"entity_id": string,"entity_type": string,"id"?: string,"last_message_at"?: string | null,"staff_only"?: boolean
+                  }
+                  Update: {
+                    "created_at"?: string,"creator_id"?: string | null,"entity_id"?: string,"entity_type"?: string,"id"?: string,"last_message_at"?: string | null,"staff_only"?: boolean
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "threads_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"tiers": {
                   Row: {
@@ -2241,6 +2349,40 @@ isOneToOne: false
                   }
                   Update: {
                     "auth_method"?: string | null,"created_at"?: string,"ip"?: unknown,"kind"?: string,"last_seen_at"?: string,"revoke_reason"?: string | null,"revoked_at"?: string | null,"revoked_by"?: string | null,"session_id"?: string,"user_agent"?: string | null,"user_id"?: string,"verified_at"?: string | null,"verified_via"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"webhook_deliveries": {
+                  Row: {
+                    "attempts": number,"created_at": string,"delivered_at": string | null,"endpoint_id": string,"event": string,"event_id": string,"id": number,"last_error": string | null,"last_status": number | null,"next_attempt_at": string,"payload": NonNullable<Json>,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"created_at"?: string,"delivered_at"?: string | null,"endpoint_id": string,"event": string,"event_id": string,"id"?: never,"last_error"?: string | null,"last_status"?: number | null,"next_attempt_at"?: string,"payload": NonNullable<Json>,"status"?: string
+                  }
+                  Update: {
+                    "attempts"?: number,"created_at"?: string,"delivered_at"?: string | null,"endpoint_id"?: string,"event"?: string,"event_id"?: string,"id"?: never,"last_error"?: string | null,"last_status"?: number | null,"next_attempt_at"?: string,"payload"?: NonNullable<Json>,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "webhook_deliveries_endpoint_id_fkey"
+      columns: ["endpoint_id"]
+isOneToOne: false
+      referencedRelation: "webhook_endpoints"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"webhook_endpoints": {
+                  Row: {
+                    "active": boolean,"created_at": string,"created_by": string,"description": string | null,"events": (string)[],"failing_since": string | null,"id": string,"last_success_at": string | null,"secret_enc": string,"updated_at": string,"url": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"created_at"?: string,"created_by"?: string,"description"?: string | null,"events": (string)[],"failing_since"?: string | null,"id"?: string,"last_success_at"?: string | null,"secret_enc": string,"updated_at"?: string,"url": string
+                  }
+                  Update: {
+                    "active"?: boolean,"created_at"?: string,"created_by"?: string,"description"?: string | null,"events"?: (string)[],"failing_since"?: string | null,"id"?: string,"last_success_at"?: string | null,"secret_enc"?: string,"updated_at"?: string,"url"?: string
                   }
                   Relationships: [
                     
@@ -2479,6 +2621,26 @@ isOneToOne: false
 "analytics_totals":
 { Args: { "p": Json }; Returns: Json
                            },
+"announcement_audience":
+{ Args: { "p_segment": Json }; Returns: {
+              "creator_id": string,"user_id": string
+            }[]
+                           },
+"announcement_audience_count":
+{ Args: { "p_segment": Json }; Returns: number
+                           },
+"announcement_cancel":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
+"announcement_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"announcements_list":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"announcements_send_due":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
 "application_deal_source":
 { Args: { "p_app": string }; Returns: Json
                            },
@@ -2654,6 +2816,9 @@ isOneToOne: false
                            },
 "code_hash":
 { Args: { "p_code": string,"p_salt": string,"p_user": string }; Returns: string
+                           },
+"comm_daily":
+{ Args: Record<PropertyKey, never>; Returns: undefined
                            },
 "commission_estimate":
 { Args: { "p_campaign": string }; Returns: number
@@ -2955,6 +3120,20 @@ isOneToOne: false
 "device_trust_check":
 { Args: { "p_token": string }; Returns: boolean
                            },
+"digest_facts":
+{ Args: { "p_creator": string,"p_days": number,"p_kind": string,"p_user": string }; Returns: Json
+                           },
+"digest_preference_set":
+{ Args: { "p_channel": string,"p_frequency": string }; Returns: undefined
+                           },
+"digest_recipients":
+{ Args: { "p_today": string }; Returns: {
+              "channel": string,"creator_id": string,"frequency": string,"kind": string,"user_id": string
+            }[]
+                           },
+"digest_send":
+{ Args: { "p_body": string,"p_channel": string,"p_date": string,"p_kind": string,"p_title": string,"p_user": string }; Returns: string
+                           },
 "eligibility_gaps":
 { Args: { "p_campaign": string,"p_creator": string }; Returns: (string)[]
                            },
@@ -2998,6 +3177,9 @@ isOneToOne: false
                            },
 "idle_limit":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"inr":
+{ Args: { "p_paise": number }; Returns: string
                            },
 "invite_decline":
 { Args: { "p_invite": string,"p_reason": string }; Returns: undefined
@@ -3214,6 +3396,11 @@ isOneToOne: false
 "media_kit_settings":
 { Args: { "p_creator": string,"p_public": boolean,"p_show_rates": boolean }; Returns: undefined
                            },
+"mentionable_staff":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "full_name": string,"user_id": string
+            }[]
+                           },
 "metrics_submit":
 { Args: { "p": Json,"p_deliverable": string }; Returns: number
                            },
@@ -3227,6 +3414,9 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: {
               "agency_name": string,"can_act_deliverables": boolean,"can_negotiate_sign": boolean,"can_view": boolean,"can_view_earnings": boolean,"link_id": string,"requested_at": string,"responded_at": string,"status": string
             }[]
+                           },
+"my_announcements":
+{ Args: { "p_limit"?: number }; Returns: Json
                            },
 "my_applications":
 { Args: { "p_creator"?: string }; Returns: {
@@ -3255,15 +3445,27 @@ isOneToOne: false
               "apply_by": string,"campaign_id": string,"campaign_name": string,"compensation_summary": string,"id": string,"message": string,"sent_at": string,"status": string
             }[]
                            },
+"my_notification_preferences":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "my_notifications":
 { Args: { "p_before"?: string,"p_limit"?: number }; Returns: {
               "body": string,"created_at": string,"data": Json,"event": string,"id": string,"link": string,"read_at": string,"title": string
             }[]
                            },
+"my_notifications_page":
+{ Args: { "p_before"?: string,"p_limit"?: number,"p_unread"?: boolean }; Returns: Json
+                           },
 "my_sessions":
 { Args: Record<PropertyKey, never>; Returns: {
               "created_at": string,"ip": unknown,"is_current": boolean,"kind": string,"last_seen_at": string,"revoked_at": string,"session_id": string,"user_agent": string,"verified": boolean
             }[]
+                           },
+"my_threads":
+{ Args: { "p"?: Json }; Returns: Json
+                           },
+"my_unread_counts":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "nightly_prune":
 { Args: Record<PropertyKey, never>; Returns: undefined
@@ -3273,6 +3475,24 @@ isOneToOne: false
                            },
 "notification_preference_set":
 { Args: { "p_channel": string,"p_enabled": boolean,"p_event": string }; Returns: undefined
+                           },
+"notification_template_for":
+{ Args: { "p_channel": string,"p_event": string }; Returns: Json
+                           },
+"notification_template_reset":
+{ Args: { "p_channel": string,"p_event": string }; Returns: undefined
+                           },
+"notification_template_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"notification_template_vars_ok":
+{ Args: { "p_event": string,"p_text": string }; Returns: boolean
+                           },
+"notification_templates_list":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"notifications_mark_all_read":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "notifications_mark_read":
 { Args: { "p_ids": (string)[] }; Returns: number
@@ -3549,6 +3769,27 @@ isOneToOne: false
 "terms_publish":
 { Args: { "p_body": string,"p_kind": string,"p_title": string }; Returns: string
                            },
+"thread_file_allowed":
+{ Args: { "p_path": string }; Returns: boolean
+                           },
+"thread_get":
+{ Args: { "p_creator"?: string,"p_entity": string,"p_type": string }; Returns: Json
+                           },
+"thread_mark_read":
+{ Args: { "p_thread": string }; Returns: undefined
+                           },
+"thread_open":
+{ Args: { "p_creator"?: string,"p_entity": string,"p_type": string }; Returns: string
+                           },
+"thread_post":
+{ Args: { "p_attachments"?: Json,"p_body": string,"p_creator": string,"p_entity": string,"p_type": string }; Returns: Json
+                           },
+"thread_resolve":
+{ Args: { "p_creator"?: string,"p_entity": string,"p_type": string }; Returns: Json
+                           },
+"thread_staff_followers":
+{ Args: { "p_owner": string,"p_thread": string }; Returns: string[]
+                           },
 "valid_gstin":
 { Args: { "p": string }; Returns: boolean
                            },
@@ -3557,6 +3798,33 @@ isOneToOne: false
                            },
 "valid_pan":
 { Args: { "p": string }; Returns: boolean
+                           },
+"webhook_delivery_get":
+{ Args: { "p_id": number }; Returns: Json
+                           },
+"webhook_delivery_result":
+{ Args: { "p_error": string,"p_id": number,"p_next_at": string,"p_outcome": string,"p_status": number }; Returns: undefined
+                           },
+"webhook_endpoint_create":
+{ Args: { "p": Json }; Returns: string
+                           },
+"webhook_endpoint_delete":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
+"webhook_endpoint_update":
+{ Args: { "p": Json,"p_id": string }; Returns: undefined
+                           },
+"webhook_enqueue":
+{ Args: { "p_endpoint": string,"p_event": string,"p_event_id": string,"p_payload": Json }; Returns: undefined
+                           },
+"webhook_host_ok":
+{ Args: { "p_url": string }; Returns: boolean
+                           },
+"webhook_test":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
+"webhooks_list":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "witty_issue_code":
 { Args: { "p": Json }; Returns: Json
