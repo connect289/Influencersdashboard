@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
+import { DealContent } from "@/components/content/deal-content";
 import { DealActions } from "@/components/deals/deal-actions";
 import { DealDetailsForm } from "@/components/deals/deal-details-form";
 import { DryRunPanel } from "@/components/deals/dry-run-panel";
@@ -23,7 +24,7 @@ import { commissionEstimate, loadCompContext, loadDeal, loadTdsSections, version
 import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TABS = ["terms", "versions", "dryRun", "details"] as const;
+const TABS = ["terms", "versions", "content", "dryRun", "details"] as const;
 const EMPTY = compConfig.parse({ schema_version: 1 });
 
 export async function generateMetadata() {
@@ -60,7 +61,10 @@ export default async function DealPage({
     !contracts.some((c) => (OPEN_CONTRACT_STATUSES as readonly string[]).includes(c.status));
   const draft = deal.draft_config ?? null;
   const amendmentDraft = draft !== null && current !== null;
-  const visible = TABS.filter((x) => (x === "dryRun" ? amendmentDraft && canWrite : x !== "details" || canWrite));
+  const canContent = me.permissions.has("brief.read") || me.permissions.has("deliverable.read");
+  const visible = TABS.filter((x) =>
+    x === "dryRun" ? amendmentDraft && canWrite : x === "content" ? canContent : x !== "details" || canWrite,
+  );
   const requested = (await searchParams).tab;
   const tab = visible.find((x) => x === requested) ?? "terms";
 
@@ -115,6 +119,8 @@ export default async function DealPage({
     }
   } else if (tab === "versions") {
     body = <VersionHistory versions={deal.versions} currentId={deal.current_version_id} />;
+  } else if (tab === "content") {
+    body = <DealContent supabase={supabase} deal={deal} permissions={me.permissions} />;
   } else if (tab === "dryRun" && draft) {
     body = (
       <div className="flex flex-col gap-4">

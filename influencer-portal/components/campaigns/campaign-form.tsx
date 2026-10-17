@@ -34,6 +34,7 @@ export interface CampaignFormValues {
   ownerId: string;
   presetId: string;
   contractTemplateId: string;
+  briefTemplateId: string;
   programmes: ProgrammeHit[];
 }
 
@@ -54,6 +55,7 @@ export const EMPTY_CAMPAIGN: CampaignFormValues = {
   ownerId: "",
   presetId: "",
   contractTemplateId: "",
+  briefTemplateId: "",
   programmes: [],
 };
 
@@ -153,12 +155,13 @@ function ProgrammePicker({ value, onChange }: { value: ProgrammeHit[]; onChange:
   );
 }
 
-/** The campaign builder (spec 13). The brief template joins in Phase 5. */
+/** The campaign builder (spec 13): details, eligibility, deliverables, programmes, preset and templates. */
 export function CampaignForm({
   initial,
   owners,
   presets,
   templates,
+  briefTemplates,
 }: {
   initial: CampaignFormValues;
   owners: { id: string; name: string }[];
@@ -166,6 +169,8 @@ export function CampaignForm({
   presets: { id: string; name: string }[];
   /** Contract templates; empty = the default template. */
   templates: { id: string; name: string }[];
+  /** Brief templates; empty = the default brief template. */
+  briefTemplates: { id: string; name: string }[];
 }) {
   const t = useTranslations();
   const router = useRouter();
@@ -205,6 +210,7 @@ export function CampaignForm({
               ownerId: v.ownerId,
               presetId: v.presetId,
               contractTemplateId: v.contractTemplateId,
+              briefTemplateId: v.briefTemplateId,
               programmeIds: v.programmes.map((p) => p.id),
             }),
           (data) => {
@@ -351,6 +357,25 @@ export function CampaignForm({
           >
             <option value="">{t("campaigns.fields.contractTemplateDefault")}</option>
             {templates.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field
+          id="cf-brief-template"
+          label={t("campaigns.fields.briefTemplate")}
+          hint={t("campaigns.fields.briefTemplateHint")}
+          className="mt-4"
+        >
+          <Select
+            id="cf-brief-template"
+            value={v.briefTemplateId}
+            onChange={(e) => set("briefTemplateId", e.target.value)}
+          >
+            <option value="">{t("campaigns.fields.briefTemplateDefault")}</option>
+            {briefTemplates.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>

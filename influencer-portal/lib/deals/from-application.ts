@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { offerTerms } from "@/lib/campaigns/schemas";
 import { compConfig } from "@/lib/compensation/schema";
+import { setupContentForDeal } from "@/lib/content/setup";
 import { draftContractForDeal } from "@/lib/contracts/generate";
 import { log } from "@/lib/log";
 import { adminClient } from "@/lib/supabase/admin";
@@ -17,7 +18,7 @@ const source = z.object({
 
 /**
  * Creates the deal for an accepted campaign application (idempotent): the campaign's preset with the agreed terms on
- * top, then its draft contract. Runs as the service role because it is system work that follows a completed acceptance; the database checks
+ * top, then its draft contract and its draft brief with deliverables. Runs as the service role because it is system work that follows a completed acceptance; the database checks
  * the application is accepted and refuses a second deal.
  */
 export async function createDealFromApplication(applicationId: string): Promise<string | null> {
@@ -33,6 +34,10 @@ export async function createDealFromApplication(applicationId: string): Promise<
   // The draft contract follows the deal; a failure here leaves the deal intact and staff generate it by hand.
   await draftContractForDeal(db, dealId).catch((e: unknown) =>
     log.warn("contracts.draft_failed", { deal_id: dealId, error: e instanceof Error ? e.message : String(e) }),
+  );
+  // Likewise the draft brief and deliverables (staff publish the brief once it is reviewed).
+  await setupContentForDeal(db, dealId).catch((e: unknown) =>
+    log.warn("content.setup_failed", { deal_id: dealId, error: e instanceof Error ? e.message : String(e) }),
   );
   return dealId;
 }

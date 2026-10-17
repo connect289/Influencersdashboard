@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { CampaignForm, EMPTY_CAMPAIGN } from "@/components/campaigns/campaign-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireStaff } from "@/lib/auth/guards";
+import { loadBriefTemplates } from "@/lib/content/data";
 import { templateOptions } from "@/lib/contracts/data";
 import { loadPickers } from "@/lib/creators/staff-data";
 import { presetOptions } from "@/lib/deals/data";
@@ -16,10 +17,11 @@ export async function generateMetadata() {
 export default async function NewCampaignPage() {
   const { supabase } = await requireStaff("campaign.write");
   const t = await getTranslations();
-  const [{ owners }, presets, templates] = await Promise.all([
+  const [{ owners }, presets, templates, briefTemplates] = await Promise.all([
     loadPickers(supabase),
     presetOptions(supabase),
     templateOptions(supabase),
+    loadBriefTemplates(supabase).then((r) => r.map((x) => ({ id: x.id, name: x.name }))),
   ]);
   return (
     <>
@@ -27,7 +29,13 @@ export default async function NewCampaignPage() {
         <ArrowLeft className="size-4" aria-hidden /> {t("nav.admin.campaigns")}
       </Link>
       <PageHeader title={t("campaigns.new")} description={t("campaigns.newHint")} />
-      <CampaignForm initial={EMPTY_CAMPAIGN} owners={owners} presets={presets} templates={templates} />
+      <CampaignForm
+        initial={EMPTY_CAMPAIGN}
+        owners={owners}
+        presets={presets}
+        templates={templates}
+        briefTemplates={briefTemplates}
+      />
     </>
   );
 }

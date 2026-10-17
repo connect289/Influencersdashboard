@@ -21,7 +21,8 @@
     "remove": "Remove",
     "next": "Next",
     "previous": "Previous",
-    "pagination": "Pages"
+    "pagination": "Pages",
+    "add": "Add"
   },
   "errors": {
     "generic": "Something went wrong. Try again in a moment.",
@@ -51,7 +52,9 @@
       "applications": "Applications",
       "deals": "Deals",
       "help": "Help",
-      "contracts": "Contracts"
+      "contracts": "Contracts",
+      "briefs": "Briefs",
+      "content": "Content"
     },
     "creator": {
       "home": "Home",
@@ -63,7 +66,9 @@
       "mediaKit": "Media kit",
       "deals": "My deals",
       "help": "Help",
-      "contracts": "Contracts"
+      "contracts": "Contracts",
+      "briefs": "Briefs",
+      "deliverables": "Deliverables"
     },
     "agency": {
       "home": "Creators",
@@ -851,7 +856,9 @@
     "noCampaigns": "No open invitations or applications.",
     "onBehalf": "On behalf of {name}",
     "dealsHint": "Deals and terms for this creator. With the negotiate grant you can accept or decline proposed terms.",
-    "contractsHint": "Contracts to review, comment on and sign for this creator."
+    "contractsHint": "Contracts to review, comment on and sign for this creator.",
+    "deliverablesHint": "Briefs and content you can act on for this creator.",
+    "briefFor": "Brief: {deal}"
   },
   "agencies": {
     "subtitle": "Talent agencies and managers, their team, and the creators who granted them access.",
@@ -1516,7 +1523,10 @@
       "presetByType": "Standard preset for the agreed deal type",
       "contractTemplate": "Contract template",
       "contractTemplateHint": "Contracts for this campaign's deals are generated from this template.",
-      "contractTemplateDefault": "The default template"
+      "contractTemplateDefault": "The default template",
+      "briefTemplate": "Brief template",
+      "briefTemplateDefault": "Default brief template",
+      "briefTemplateHint": "Each deal from this campaign starts its brief from this template."
     },
     "eligibility": {
       "minFollowers": "Minimum followers",
@@ -1819,7 +1829,8 @@
       "terms": "Terms",
       "versions": "Versions",
       "dryRun": "Dry run",
-      "details": "Details"
+      "details": "Details",
+      "content": "Content"
     },
     "statuses": {
       "draft": "Draft",
@@ -2776,6 +2787,618 @@
         "wrong_code": "That code isn't right. {left, plural, =0 {Ask for a new one.} one {# try left.} other {# tries left.}}",
         "delivery": "The code couldn't be sent. Try again, or choose another way.",
         "form": "Check the form: every section confirmed, your name, and the 6-digit code."
+      }
+    }
+  },
+  "content": {
+    "subtitle": "Every deliverable from brief to live post: review submissions, verify posts and track what is overdue.",
+    "areaNav": "Content sections",
+    "sections": "Deliverable sections",
+    "area": {
+      "deliverables": "Deliverables",
+      "review": "Review queue",
+      "overdue": "Overdue",
+      "live": "Live posts",
+      "claims": "Banned claims",
+      "penalties": "Penalties"
+    },
+    "search": "Search deliverables",
+    "searchPlaceholder": "Title, creator, deal or code",
+    "layout": {
+      "list": "List",
+      "board": "Board"
+    },
+    "includeClosed": "Include closed",
+    "openOnly": "Open only",
+    "noResults": "No deliverables match your search.",
+    "empty": "No open deliverables",
+    "emptyReview": "Nothing waiting for review",
+    "emptyOverdue": "Nothing is overdue",
+    "emptyLive": "No live posts yet",
+    "emptyHint": "Deliverables appear when a deal's brief is set up (Deal → Content).",
+    "awaitingVerification": "Live post to verify",
+    "overdueDays": "{count, plural, one {# day overdue} other {# days overdue}}",
+    "dueOn": "due {date}",
+    "statusReason": "Reason: {reason}",
+    "disclosureFailed": "The live post failed its disclosure check on {at}. A penalty may be proposed under the deal.",
+    "columns": {
+      "deliverable": "Deliverable",
+      "creator": "Creator and deal",
+      "status": "Status",
+      "next": "Next"
+    },
+    "tabs": {
+      "review": "Review",
+      "live": "Live",
+      "metrics": "Metrics",
+      "history": "History",
+      "settings": "Settings"
+    },
+    "board": {
+      "waiting_brief": "Waiting for brief",
+      "creating": "Creator working",
+      "in_review": "To review",
+      "ready": "Ready to post",
+      "live": "Live",
+      "done": "Done"
+    },
+    "statuses": {
+      "not_started": "Not started",
+      "brief_acknowledged": "Brief acknowledged",
+      "concept_submitted": "Concept submitted",
+      "concept_changes_requested": "Concept changes requested",
+      "concept_approved": "Concept approved",
+      "draft_submitted": "Draft submitted",
+      "draft_changes_requested": "Draft changes requested",
+      "draft_approved": "Draft approved",
+      "scheduled": "Scheduled",
+      "live": "Live",
+      "live_verified": "Live verified",
+      "metrics_submitted": "Metrics submitted",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "actions": {
+      "acknowledge_brief": "Brief acknowledged",
+      "submit_concept": "Concept submitted",
+      "approve_concept": "Concept approved",
+      "request_concept_changes": "Changes requested on the concept",
+      "submit_draft": "Draft submitted",
+      "approve_draft": "Draft approved",
+      "request_draft_changes": "Changes requested on the draft",
+      "schedule": "Scheduled",
+      "go_live": "Live link submitted",
+      "verify_live": "Live post verified",
+      "submit_metrics": "Metrics submitted",
+      "complete": "Completed",
+      "cancel": "Cancelled"
+    },
+    "stages": {
+      "brief": "Brief acknowledgement",
+      "concept": "Concept",
+      "draft": "Draft",
+      "schedule": "Scheduling",
+      "verify": "Live verification",
+      "metrics": "Metrics"
+    },
+    "stageHints": {
+      "brief": "The creator confirms they read the brief before starting.",
+      "concept": "Idea, script or storyboard approved before filming.",
+      "draft": "The final edit and caption approved before posting.",
+      "schedule": "The creator picks the posting time before going live.",
+      "verify": "A reviewer checks the live post and its disclosure.",
+      "metrics": "The creator reports numbers at the checkpoints."
+    },
+    "dueStages": {
+      "concept": "Concept",
+      "draft": "Draft",
+      "live": "Live",
+      "metrics": "Metrics"
+    },
+    "next": {
+      "concept": "Submit the concept",
+      "draft": "Submit the draft",
+      "live": "Post and share the live link",
+      "metrics": "Add the metrics"
+    },
+    "kinds": {
+      "concept": "Concept",
+      "draft": "Draft"
+    },
+    "submissionStatus": {
+      "submitted": "Waiting for review",
+      "approved": "Approved",
+      "changes_requested": "Changes requested"
+    },
+    "brief": {
+      "title": "Brief",
+      "contentTitle": "Brief",
+      "contentHint": "What the creator reads. Save as you go; publish when it is ready.",
+      "objective": "Objective",
+      "objectiveHint": "What this content should achieve, in one or two sentences.",
+      "audience": "Audience",
+      "keyMessages": "Key messages",
+      "disclosures": "Disclosure rules",
+      "dos": "Do's",
+      "donts": "Don'ts",
+      "tone": "Tone",
+      "cta": "Call to action",
+      "ctaHint": "The creator's tracking link or code is added in a later phase.",
+      "languages": "Languages",
+      "hashtags": "Hashtags",
+      "mentions": "Mentions",
+      "references": "References",
+      "referenceLabel": "Label",
+      "referenceUrl": "Link",
+      "faqs": "FAQs",
+      "question": "Question",
+      "answer": "Answer",
+      "claimsTitle": "Claims",
+      "claimsHint": "Facts the creator may state, generated from the catalogue. Edit to fit the campaign.",
+      "approvedClaims": "Approved claims",
+      "bannedClaims": "Never say",
+      "bannedHint": "From the banned-claims list when the brief was created. Every submission is scanned against the live list.",
+      "assets": "Assets",
+      "assetsHint": "Logos, b-roll and moodboard files for the creator (private links).",
+      "addAsset": "Add file",
+      "assetAdded": "File added. Save the brief to keep it.",
+      "assetLabel": "File label",
+      "noAssets": "No files yet.",
+      "unsaved": "Unsaved changes",
+      "unpublished": "The saved brief has changes the creator hasn't seen. Publish a new version to send them.",
+      "publish": "Publish brief",
+      "publishNew": "Publish new version",
+      "publishHint": "The creator is told and asked to acknowledge this version.",
+      "publishConfirm": "Publish",
+      "versionNote": "What changed",
+      "versionNoteHint": "Shown to the creator with the new version (optional).",
+      "versionLine": "Version {version} · {date}",
+      "whatChanged": "What changed: {note}",
+      "deliverables": "Deliverables",
+      "ratio": "Aspect ratio {ratio}",
+      "duration": "Up to {seconds} seconds",
+      "rulesTitle": "Rules",
+      "rulesHint": "Follow these in every piece. Submissions are checked automatically.",
+      "toneAndLanguage": "Tone and language",
+      "tagsAndMentions": "Hashtags and mentions",
+      "ackTitle": "Read the whole brief, then confirm.",
+      "ackLabel": "I have read this brief and will follow its rules, including the disclosure rules.",
+      "acknowledge": "Acknowledge brief",
+      "youAcknowledged": "You acknowledged this version of the brief."
+    },
+    "briefs": {
+      "subtitle": "One brief per deal: write it from a template, publish it, and answer the creator's questions.",
+      "areaNav": "Brief sections",
+      "area": {
+        "briefs": "Briefs",
+        "templates": "Templates"
+      },
+      "filter": "Filter briefs",
+      "all": "All",
+      "states": {
+        "draft": "Draft",
+        "unacknowledged": "Not acknowledged",
+        "acknowledged": "Acknowledged"
+      },
+      "search": "Search briefs",
+      "searchPlaceholder": "Deal, creator or code",
+      "noResults": "No briefs match.",
+      "empty": "No briefs yet",
+      "emptyHint": "A draft brief is created with each deal. You can also create one from a deal's Content tab.",
+      "columns": {
+        "deal": "Deal",
+        "creator": "Creator",
+        "version": "Version",
+        "state": "State",
+        "updated": "Updated"
+      },
+      "versionN": "v{version}",
+      "openQuestions": "{count, plural, one {# question} other {# questions}}",
+      "deal": "Deal",
+      "sections": "Brief sections",
+      "tabs": {
+        "edit": "Edit",
+        "preview": "Preview",
+        "versions": "Versions"
+      },
+      "versionsTitle": "Published versions",
+      "noVersions": "Not published yet",
+      "noVersionsHint": "Publish the brief to send it to the creator.",
+      "ackOn": "Acknowledged {date}",
+      "noDeliverables": "No deliverables on this deal yet.",
+      "created": "Brief and deliverables created.",
+      "saved": "Brief saved.",
+      "published": "Brief published. The creator has been told.",
+      "acknowledged": "Thanks. You can start work now."
+    },
+    "templates": {
+      "subtitle": "Defaults copied into each new brief, plus the workflow its deliverables start with.",
+      "new": "New template",
+      "newHint": "Set the defaults once; each campaign can pick its template.",
+      "name": "Name",
+      "description": "Description",
+      "default": "Default template",
+      "defaultHint": "Used when a campaign doesn't pick one.",
+      "isDefault": "Default",
+      "workflow": "Workflow",
+      "workflowHint": "Which stages new deliverables go through. Staff can change them per deliverable before work starts.",
+      "offsets": "Due dates",
+      "offsetsHint": "Days from the deal's start (or the day the brief is created, if later).",
+      "offsetLine": "{stage}: day {days}",
+      "defaults": "Brief defaults",
+      "defaultsHint": "Copied into each new brief, where staff can edit them.",
+      "saved": "Template saved.",
+      "archive": "Archive",
+      "archiveTitle": "Archive this template?",
+      "archiveHint": "Existing briefs keep their content. Campaigns using it fall back to the default.",
+      "archived": "Archived",
+      "archivedBanner": "This template is archived and can't be edited.",
+      "restore": "Restore",
+      "restored": "Template restored.",
+      "showArchived": "Show archived",
+      "hideArchived": "Hide archived",
+      "empty": "No templates",
+      "emptyHint": "Create one to set the defaults for new briefs.",
+      "updated": "Updated {date}"
+    },
+    "qa": {
+      "title": "Questions",
+      "hint": "Ask about anything in the brief. Eduwit answers here.",
+      "empty": "No questions yet.",
+      "ask": "Ask",
+      "askPlaceholder": "Your question",
+      "notePlaceholder": "Add a note for the creator",
+      "reply": "Reply",
+      "replyPlaceholder": "Your reply",
+      "asked": "Question sent.",
+      "replied": "Reply sent.",
+      "sides": {
+        "creator": "Creator",
+        "agency": "Agency",
+        "eduwit": "Eduwit"
+      }
+    },
+    "deal": {
+      "noBrief": "No brief yet.",
+      "briefDraft": "Draft: not yet sent to the creator.",
+      "briefPublished": "Published to the creator.",
+      "createBrief": "Create brief",
+      "openBrief": "Open brief",
+      "noDeliverables": "No deliverables",
+      "noDeliverablesHint": "Create the brief to add the agreed deliverables, or add them by hand."
+    },
+    "deliverables": {
+      "add": "Add deliverables",
+      "addHint": "One row per piece. Several pieces get numbered titles.",
+      "addConfirm": "Add",
+      "platform": "Platform",
+      "format": "Format",
+      "count": "How many",
+      "added": "{count, plural, one {Deliverable added.} other {# deliverables added.}}",
+      "saved": "Deliverable saved.",
+      "completed": "Deliverable completed.",
+      "cancelled": "Deliverable cancelled."
+    },
+    "settings": {
+      "title": "Settings",
+      "name": "Title",
+      "duration": "Length (seconds)",
+      "ratio": "Aspect ratio",
+      "revisionLimit": "Revision rounds",
+      "notes": "Notes for the creator",
+      "stages": "Stages",
+      "stagesLocked": "Stages are fixed once work has started.",
+      "due": "Due dates",
+      "ruleId": "Rule id in the deal",
+      "ruleIdHint": "When the deal's compensation names this deliverable (milestones, penalties), enter that id.",
+      "closeTitle": "Close",
+      "closeHint": "Complete when everything is in, or cancel with a reason.",
+      "complete": "Mark completed",
+      "cancel": "Cancel deliverable",
+      "cancelTitle": "Cancel this deliverable?",
+      "cancelHint": "The creator is told. A missed-deliverable penalty may be proposed under the deal."
+    },
+    "upload": {
+      "add": "Add files",
+      "hint": "Videos (MP4, MOV, WebM), images (JPG, PNG, WebP) or PDF. Large videos resume if the connection drops.",
+      "uploading": "Uploading…",
+      "uploadingFile": "Uploading {name}",
+      "pause": "Pause",
+      "paused": "Upload paused. Add the same file again to resume."
+    },
+    "submit": {
+      "body": {
+        "concept": "Your concept",
+        "draft": "Caption or script"
+      },
+      "bodyHint": {
+        "concept": "The idea, script or storyboard. It is checked against the banned claims.",
+        "draft": "Exactly what you will post, including the disclosure (for example #ad). It is checked automatically."
+      },
+      "files": "Files",
+      "link": "Link",
+      "linkHint": "Optional: a private link to the video if you host it elsewhere.",
+      "note": "Note for Eduwit",
+      "send": {
+        "concept": "Submit concept",
+        "draft": "Submit draft"
+      },
+      "sent": "Submitted for review.",
+      "sentWithFlags": "Submitted. The automatic check flagged something; Eduwit will look at it."
+    },
+    "review": {
+      "title": "Review {kind} v{version}",
+      "round": "{kind} v{version}",
+      "revisions": "{left, plural, =0 {No revision rounds left} one {# revision round left} other {# revision rounds left}}",
+      "approve": "Approve",
+      "requestChanges": "Request changes",
+      "note": "Note to the creator",
+      "noteHint": "Required when asking for changes.",
+      "approved": "Approved. The creator has been told.",
+      "changesSent": "Changes requested. The creator has been told.",
+      "overridden": "Check overridden.",
+      "rescan": "Run the check again",
+      "rescanned": "Check run again.",
+      "scanMissing": "The automatic check hasn't run on this submission yet.",
+      "nothingYet": "Nothing submitted yet",
+      "nothingYetHint": "Submissions appear here when the creator sends their concept or draft.",
+      "earlier": "Earlier rounds",
+      "openLink": "Open the link",
+      "creatorNote": "Creator's note: {note}",
+      "eduwitSaid": "Eduwit:"
+    },
+    "checks": {
+      "title": "Checks",
+      "banned_claims": "Banned claims",
+      "disclosure": "Disclosure",
+      "asci_checklist": "ASCI checklist",
+      "passed": "passed",
+      "failed": "failed",
+      "overridden": "overridden",
+      "severity": {
+        "block": "Blocks approval",
+        "warn": "Warning"
+      },
+      "disclosureMissing": "No disclosure term found (for example #ad or \"paid partnership\").",
+      "override": "Override",
+      "overrideTitle": "Override this check?",
+      "overrideHint": "Only when you are sure it is fine. Your reason is recorded.",
+      "overrideReason": "Overridden: {reason}",
+      "reason": "Reason"
+    },
+    "asci": {
+      "title": "ASCI checklist",
+      "hint": "Confirm each point before the final approval.",
+      "items": {
+        "disclosure_upfront": "The disclosure appears up front (first line or first seconds).",
+        "disclosure_clear": "The disclosure is clear and easy to notice.",
+        "disclosure_language": "The disclosure is in the same language as the content.",
+        "disclosure_in_video": "For video, the disclosure is said or shown in the video itself.",
+        "approved_claims_only": "Only approved claims are made.",
+        "genuine_experience": "It reflects the creator's genuine view or experience.",
+        "no_misleading_results": "No misleading promises of results, jobs or salaries."
+      }
+    },
+    "comments": {
+      "title": "Comments",
+      "empty": "No comments yet.",
+      "placeholder": "Add a comment",
+      "add": "Comment",
+      "added": "Comment added.",
+      "atTime": "At the current video time",
+      "dragHint": "Drag on an image to mark an area.",
+      "areaMarked": "Area marked",
+      "area": "Area {n}",
+      "resolve": "Resolve",
+      "reopen": "Reopen",
+      "resolved": "Resolved"
+    },
+    "extensions": {
+      "limitReached": "The revision limit is reached.",
+      "reason": "Why another round?",
+      "fee": "Extra fee (₹)",
+      "feeHint": "Paid to the creator, if any.",
+      "request": "Request an extra round",
+      "requested": "Extra round requested.",
+      "pending": "Extra round requested: {reason} (fee {fee}).",
+      "waiting": "Waiting for a manager to approve it.",
+      "approve": "Approve extra round",
+      "reject": "Reject",
+      "rejectTitle": "Reject the extra round?",
+      "approved": "Extra round approved.",
+      "rejected": "Extra round rejected.",
+      "history": {
+        "approved": "Extra round approved {date}: {reason}",
+        "rejected": "Extra round rejected {date}: {reason}"
+      }
+    },
+    "live": {
+      "title": "Live post",
+      "url": "Live link",
+      "correctUrl": "Corrected live link",
+      "urlHint": "The public link to your post on the platform.",
+      "postedOn": "Posted on",
+      "submit": "Submit live link",
+      "submitted": "Live link submitted. Eduwit will verify it.",
+      "schedule": "Schedule",
+      "scheduleAt": "Posting time (IST)",
+      "scheduleHint": "When you plan to post.",
+      "scheduled": "Scheduled.",
+      "scheduledFor": "Scheduled for {at}",
+      "none": "No live link yet.",
+      "postedLine": "Posted {date}",
+      "reviewNote": "Eduwit: {note}",
+      "verifyTitle": "Check the post",
+      "verifyItems": {
+        "live": "The post is live and public.",
+        "disclosure": "The disclosure is present and clear.",
+        "matches": "It matches the approved version."
+      },
+      "verifyNote": "Note (optional)",
+      "rejectNote": "What is wrong?",
+      "verify": "Verify",
+      "reject": "Ask for a fix",
+      "verified": "Live post verified.",
+      "rejected": "The creator has been asked to fix the post.",
+      "statuses": {
+        "pending": "To verify",
+        "verified": "Verified",
+        "rejected": "Needs a fix",
+        "replaced": "Replaced"
+      }
+    },
+    "metrics": {
+      "title": "Metrics",
+      "staffHint": "Reported by the creator with screenshots of their insights.",
+      "checkpoint": "Checkpoint",
+      "adhoc": "Other time",
+      "hours": "{count, plural, one {# hour} other {# hours}}",
+      "days": "{count, plural, one {# day} other {# days}}",
+      "alreadyIn": "(added)",
+      "fields": {
+        "views": "Views",
+        "reach": "Reach",
+        "likes": "Likes",
+        "comments": "Comments",
+        "shares": "Shares",
+        "saves": "Saves",
+        "clicks": "Link clicks",
+        "watch_time_s": "Watch time (s)"
+      },
+      "screenshots": "Screenshots of your insights",
+      "save": "Save metrics",
+      "saved": "Metrics saved.",
+      "none": "No metrics yet.",
+      "proof": "Proof",
+      "shot": "Screenshot {n}",
+      "sources": {
+        "manual": "Entered",
+        "screenshot": "Screenshot",
+        "api": "From the platform"
+      }
+    },
+    "history": {
+      "title": "History",
+      "empty": "Nothing has happened yet.",
+      "sides": {
+        "creator": "Creator",
+        "agency": "Agency",
+        "eduwit": "Eduwit",
+        "system": "System"
+      }
+    },
+    "claims": {
+      "subtitle": "Phrases and patterns that block or flag a submission. Every concept and draft is scanned against the active list.",
+      "listTitle": "{count, plural, one {# entry} other {# entries}}",
+      "add": "Add a claim",
+      "edit": "Edit claim",
+      "pattern": "Phrase or pattern",
+      "phraseHint": "Matched as whole words, any spacing, any case.",
+      "regexHint": "A regular expression. Unsafe patterns (nested repeats, backreferences) are refused.",
+      "kind": "Type",
+      "phrase": "Phrase",
+      "regex": "Pattern",
+      "severity": "Effect",
+      "note": "Why (shown to the reviewer)",
+      "active": "Active",
+      "saved": "Banned claims saved.",
+      "tryTitle": "Try a sentence",
+      "tryHint": "See what the scan would flag.",
+      "noHits": "Nothing flagged."
+    },
+    "penalties": {
+      "title": "Penalty proposals",
+      "subtitle": "Penalties the deal's rules propose (late, missed or undisclosed content). Nothing is charged until someone approves it.",
+      "filter": "Filter proposals",
+      "all": "All",
+      "statuses": {
+        "proposed": "Proposed",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn"
+      },
+      "columns": {
+        "what": "What",
+        "deal": "Deal",
+        "amount": "Amount",
+        "status": "Status"
+      },
+      "forfeits": "{count, plural, one {# milestone forfeited} other {# milestones forfeited}}",
+      "approve": "Approve",
+      "approveTitle": "Approve this penalty?",
+      "approveHint": "It is applied with the deal's ledger and the creator is told.",
+      "reject": "Reject",
+      "rejectTitle": "Reject this penalty?",
+      "approved": "Penalty approved.",
+      "rejected": "Penalty rejected.",
+      "empty": "No proposals here",
+      "emptyHint": "Proposals appear when a deliverable goes live late, is cancelled or fails its disclosure check.",
+      "openAll": "All proposals"
+    },
+    "my": {
+      "subtitle": "What to make, what is due and what Eduwit said.",
+      "groups": {
+        "todo": "To do",
+        "waiting": "With Eduwit",
+        "done": "Done"
+      },
+      "noDeliverables": "No deliverables yet",
+      "noDeliverablesHint": "They appear once a deal is agreed and its brief is sent.",
+      "briefsSubtitle": "Read each brief and acknowledge it before you start.",
+      "noBriefs": "No briefs yet",
+      "noBriefsHint": "Eduwit sends a brief for each agreed deal.",
+      "readAndAcknowledge": "Read and acknowledge",
+      "openBrief": "Open brief",
+      "ackFirst": "Read and acknowledge the brief to start.",
+      "overdue": "{count, plural, one {This is # day overdue.} other {This is # days overdue.}} Submit it now or tell Eduwit what's holding it up.",
+      "fixDisclosure": "Eduwit found the disclosure missing on your post. Fix the post and submit the corrected link.",
+      "nextTitle": "Your next step",
+      "waitBrief": "Waiting for the brief.",
+      "waitReview": "Eduwit is reviewing your submission.",
+      "waitVerify": "Eduwit is checking your live post.",
+      "waitComplete": "Thanks. Eduwit will mark this complete.",
+      "done": "All done. Thank you!",
+      "cancelled": "This deliverable was cancelled."
+    },
+    "errors": {
+      "briefExists": "This deal already has a brief.",
+      "briefEmpty": "The brief is empty.",
+      "briefUnchanged": "Nothing changed since the last version.",
+      "briefNewer": "A newer version of the brief exists. Reload to read it.",
+      "briefInvalid": "Some brief fields are incomplete. Check links start with https:// and every FAQ has an answer.",
+      "dealClosed": "This deal is closed.",
+      "stagesLocked": "Stages can only change before work starts.",
+      "deliverableClosed": "This deliverable is closed.",
+      "notNow": "That step isn't available now. Reload to see the latest status.",
+      "submissionEmpty": "Add text, a file or a link.",
+      "invalidFile": "One of the files isn't valid. Upload it again.",
+      "alreadyReviewed": "This submission has already been reviewed.",
+      "scanPending": "The automatic check hasn't run yet. Run it again first.",
+      "checksFailed": "A check failed. Ask for changes, or override it with a reason.",
+      "checklist": "Complete the ASCI checklist first.",
+      "changesNote": "Say what should change.",
+      "revisionLimit": "The revision limit is reached. Request an extra round first.",
+      "extensionPending": "An extra round is already waiting for approval.",
+      "alreadyDecided": "This has already been decided.",
+      "nothingToOverride": "Nothing to override.",
+      "futureDate": "The posting date can't be in the future.",
+      "alreadyChecked": "This post has already been checked.",
+      "verifyNote": "Say what is wrong.",
+      "liveFirst": "Submit the live link first.",
+      "futureSchedule": "Choose a future time.",
+      "templateName": "A template with this name exists.",
+      "claimExists": "That phrase is already in the list.",
+      "reasonRequired": "A reason is required.",
+      "invalidRegion": "That area isn't valid.",
+      "unsafePattern": "That pattern could be slow or isn't valid. Simplify it.",
+      "tooLarge": "Files of this type can be up to {mb} MB.",
+      "fileType": "{name} isn't a supported file type.",
+      "uploadFailed": "The upload failed. Try again.",
+      "metricsEmpty": "Enter at least one number.",
+      "url": {
+        "invalid": "That doesn't look like a link to a post.",
+        "not_https": "The link must start with https://",
+        "wrong_platform": "That link is for a different platform."
       }
     }
   }

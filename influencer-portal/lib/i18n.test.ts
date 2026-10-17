@@ -60,6 +60,11 @@ import {
   VALIDATION_CODES,
 } from "@/lib/deals/builder";
 import { DEAL_DB_ERRORS, DEAL_MODELS, DEAL_STATUSES, VERSION_ORIGINS, VERSION_STATES } from "@/lib/deals/schemas";
+import { BOARD_COLUMNS } from "@/lib/content/board";
+import { ASCI_CHECKLIST } from "@/lib/content/compliance";
+import { BRIEF_STATES, DELIVERABLE_VIEWS, METRIC_FIELDS, PENALTY_STATUSES } from "@/lib/content/data";
+import { CONTENT_DB_ERRORS } from "@/lib/content/schemas";
+import { ACTIONS, DELIVERABLE_STATUSES, DUE_STAGES, STAGES } from "@/lib/content/workflow";
 import en from "@/messages/en.json";
 
 const root = join(import.meta.dirname, "..");
@@ -191,6 +196,44 @@ describe("messages", () => {
       ...["unknown_item", "invalid_value", "no_change", "invalid_config"].map((x) => `contracts.errors.counter.${x}`),
       ...SIGN_ERRORS.map((x) => `contracts.sign.errors.${x}`),
       ...SIGN_CHANNELS.map((x) => `contracts.sign.channels.${x}`),
+    ];
+    for (const k of keys) expect(has(k), k).toBe(true);
+  });
+
+  it("labels every content status, action, stage, check and error", () => {
+    const keys = [
+      ...DELIVERABLE_STATUSES.map((x) => `content.statuses.${x}`),
+      ...ACTIONS.map((x) => `content.actions.${x}`),
+      ...STAGES.flatMap((x) => [`content.stages.${x}`, `content.stageHints.${x}`]),
+      ...DUE_STAGES.flatMap((x) => [`content.dueStages.${x}`, `content.next.${x}`]),
+      ...BOARD_COLUMNS.map((x) => `content.board.${x}`),
+      ...DELIVERABLE_VIEWS.filter((x) => x !== "all").map(
+        (x) => `content.${x === "open" ? "empty" : `empty${x[0]?.toUpperCase() ?? ""}${x.slice(1)}`}`,
+      ),
+      ...BRIEF_STATES.map((x) => `content.briefs.states.${x}`),
+      ...PENALTY_STATUSES.map((x) => `content.penalties.statuses.${x}`),
+      ...METRIC_FIELDS.map((x) => `content.metrics.fields.${x}`),
+      ...ASCI_CHECKLIST.map((x) => `content.asci.items.${x}`),
+      ...["banned_claims", "disclosure", "asci_checklist"].map((x) => `content.checks.${x}`),
+      ...["block", "warn"].map((x) => `content.checks.severity.${x}`),
+      ...["concept", "draft"].flatMap((x) => [
+        `content.kinds.${x}`,
+        `content.submit.body.${x}`,
+        `content.submit.bodyHint.${x}`,
+        `content.submit.send.${x}`,
+      ]),
+      ...["submitted", "approved", "changes_requested"].map((x) => `content.submissionStatus.${x}`),
+      ...["pending", "verified", "rejected", "replaced"].map((x) => `content.live.statuses.${x}`),
+      ...["live", "disclosure", "matches"].map((x) => `content.live.verifyItems.${x}`),
+      ...["manual", "screenshot", "api"].map((x) => `content.metrics.sources.${x}`),
+      ...["creator", "agency", "eduwit"].map((x) => `content.qa.sides.${x}`),
+      ...["creator", "agency", "eduwit", "system"].map((x) => `content.history.sides.${x}`),
+      ...["todo", "waiting", "done"].map((x) => `content.my.groups.${x}`),
+      ...["review", "live", "metrics", "history", "settings"].map((x) => `content.tabs.${x}`),
+      ...["edit", "preview", "versions"].map((x) => `content.briefs.tabs.${x}`),
+      ...["deliverables", "review", "overdue", "live", "claims", "penalties"].map((x) => `content.area.${x}`),
+      ...CONTENT_DB_ERRORS.map(([, k]) => `content.errors.${k}`),
+      ...["invalid", "not_https", "wrong_platform"].map((x) => `content.errors.url.${x}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);
   });

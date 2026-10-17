@@ -11,6 +11,8 @@ describe("staff navigation", () => {
       "/admin/applications",
       "/admin/deals",
       "/admin/contracts",
+      "/admin/briefs",
+      "/admin/content",
       "/admin/tasks",
       "/admin/agencies",
       "/admin/kyc",

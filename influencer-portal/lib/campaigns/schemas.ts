@@ -77,6 +77,7 @@ export const campaignInput = z
     ownerId: z.union([z.literal(""), z.uuid()]).default(""),
     presetId: z.union([z.literal(""), z.uuid()]).default(""),
     contractTemplateId: z.union([z.literal(""), z.uuid()]).default(""),
+    briefTemplateId: z.union([z.literal(""), z.uuid()]).default(""),
     programmeIds: z.array(z.number().int().positive()).max(30).default([]),
   })
   .refine((v) => !v.startsOn || !v.endsOn || v.endsOn >= v.startsOn, { path: ["endsOn"], message: "end_before_start" })

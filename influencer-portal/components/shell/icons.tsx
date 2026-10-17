@@ -1,6 +1,8 @@
 import {
   Activity,
   BadgeCheck,
+  Clapperboard,
+  ClipboardList,
   Building2,
   Contact,
   ListChecks,
@@ -40,4 +42,6 @@ export const ICONS: Record<IconName, LucideIcon> = {
   handshake: Handshake,
   signature: FileSignature,
   help: CircleHelp,
+  clipboard: ClipboardList,
+  clapperboard: Clapperboard,
 };

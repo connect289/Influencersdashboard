@@ -4,6 +4,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { GrantBadges } from "@/components/agency/grant-badges";
+import { MyDeliverables } from "@/components/content/my-deliverables";
 import { ContractList } from "@/components/contracts/contract-list";
 import { DealList } from "@/components/deals/deal-list";
 import { PlatformsCard } from "@/components/creator-profile/platforms-card";
@@ -14,6 +15,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { requireAgency } from "@/lib/auth/guards";
+import { loadMyBriefs, loadMyDeliverables } from "@/lib/content/data";
 import { loadMyContracts } from "@/lib/contracts/data";
 import type { Database } from "@/lib/database.types";
 import { loadMyDeals } from "@/lib/deals/data";
@@ -40,9 +42,12 @@ export default async function AgencyCreatorPage({ params }: { params: Promise<{ 
   const failed = links.error ?? platforms.error ?? rates.error ?? portfolio.error;
   const negotiates = link?.can_negotiate_sign === true;
   const seesDeals = negotiates || link?.can_view_earnings === true;
-  const [deals, contracts] = await Promise.all([
+  const acts = link?.can_act_deliverables === true;
+  const [deals, contracts, deliverables, briefs] = await Promise.all([
     seesDeals ? loadMyDeals(supabase, creatorId).catch(() => null) : [],
     negotiates ? loadMyContracts(supabase, creatorId).catch(() => null) : [],
+    acts ? loadMyDeliverables(supabase, creatorId).catch(() => null) : [],
+    acts ? loadMyBriefs(supabase, creatorId).catch(() => null) : [],
   ]);
   let inviteRows: Database["inf"]["Functions"]["my_invites"]["Returns"] = [];
   let appRows: Database["inf"]["Functions"]["my_applications"]["Returns"] = [];
@@ -122,6 +127,32 @@ export default async function AgencyCreatorPage({ params }: { params: Promise<{ 
                 <ErrorState title={t("errors.loadFailed")} />
               ) : (
                 <DealList deals={deals} hrefBase="/agency/deals" />
+              )}
+            </Card>
+          ) : null}
+          {acts ? (
+            <Card>
+              <CardHeader title={t("nav.creator.deliverables")} description={t("agencyPortal.deliverablesHint")} />
+              {deliverables === null || briefs === null ? (
+                <ErrorState title={t("errors.loadFailed")} />
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {briefs.length ? (
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {briefs.map((b) => (
+                        <li key={b.id} className="flex flex-wrap items-center gap-2">
+                          <Link href={`/agency/briefs/${b.id}`} className="font-medium text-primary hover:underline">
+                            {t("agencyPortal.briefFor", { deal: b.deal_title })}
+                          </Link>
+                          {b.acknowledged ? null : (
+                            <Badge family="attention">{t("content.my.readAndAcknowledge")}</Badge>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <MyDeliverables rows={deliverables} hrefBase="/agency/deliverables" />
+                </div>
               )}
             </Card>
           ) : null}

@@ -102,6 +102,7 @@ export async function saveCampaign(input: CampaignInput): Promise<ActionResult<{
       owner_id: v.ownerId,
       default_preset_id: v.presetId,
       contract_template_id: v.contractTemplateId,
+      brief_template_id: v.briefTemplateId,
       programme_ids: v.programmeIds.map(String),
     },
   });

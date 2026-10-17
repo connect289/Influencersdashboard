@@ -16,6 +16,7 @@ import { Table, Td, Th } from "@/components/ui/table";
 import { requireStaff } from "@/lib/auth/guards";
 import type { CampaignStatus } from "@/lib/campaigns/schemas";
 import { deliverablesOf, eligibilityOf, formValuesOf, loadProgrammes } from "@/lib/campaigns/data";
+import { loadBriefTemplates } from "@/lib/content/data";
 import { templateOptions } from "@/lib/contracts/data";
 import { loadPickers } from "@/lib/creators/staff-data";
 import { presetOptions } from "@/lib/deals/data";
@@ -195,13 +196,21 @@ export default async function CampaignPage({
       </Card>
     );
   } else {
-    const [{ owners }, presets, templates] = await Promise.all([
+    const [{ owners }, presets, templates, briefTemplates] = await Promise.all([
       loadPickers(supabase),
       presetOptions(supabase),
       templateOptions(supabase),
+      loadBriefTemplates(supabase).then((r) => r.map((x) => ({ id: x.id, name: x.name }))),
+      loadBriefTemplates(supabase).then((r) => r.map((x) => ({ id: x.id, name: x.name }))),
     ]);
     body = (
-      <CampaignForm initial={formValuesOf(c, programmes)} owners={owners} presets={presets} templates={templates} />
+      <CampaignForm
+        initial={formValuesOf(c, programmes)}
+        owners={owners}
+        presets={presets}
+        templates={templates}
+        briefTemplates={briefTemplates}
+      />
     );
   }
 
