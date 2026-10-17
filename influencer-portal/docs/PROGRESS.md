@@ -574,3 +574,21 @@ columns the analytics reads exist). Nothing outside schema `inf` was created or 
 | Guides for every audience | Done | All staff `#analytics`, `#analytics-campaigns`, `#analytics-finance`; viewer; creator `#home`; developer `#analytics` |
 | Leaderboard-rank bonuses in the engine (Phase 7 carry-over) | Blocked (HARD STOP 5) | The engine accepts rank events, but paying money on rank needs the owner to define the leaderboard: which measure (enrolments, ROI, on-time), among which creators (all, the campaign, opted-in only), at which moment, and how ties are paid. No spec answer or configurable default exists; listed under Blockers |
 
+
+## Phase 9: Communication
+
+Spec Section 22 Phase 9, spec 14 and the webhook part of spec 18. Builds on the Phase 1 notification core
+(`inf.notify`, deliveries, preferences, templates table, mock/SMTP/Resend/Brevo/Meta adapters behind `LIVE_MODE`) and
+the Phase 2 application threads. Nothing leaves the system until real providers are configured (HARD STOP 4):
+emails and WhatsApp messages go to the mock adapters, webhooks are delivered only to endpoints staff register.
+
+### Plan
+
+| Step | What | Main files | Tests |
+| --- | --- | --- | --- |
+| 9.1 | Pure modules: the event catalogue (audience, mandatory, channels, variables, default copy), template rendering with variables and escaping, preference resolution, announcement segments, digest building, @mention parsing, webhook signing (HMAC-SHA256) and retry schedule | `lib/notify/*`, `lib/messaging/*`, `lib/webhooks/*` | exhaustive units |
+| 9.2 | Database: threads on every entity (campaign, application, deal, contract clause, brief, deliverable, payout, lead for staff only, support) with attachments, mentions, read receipts, unread counts and full-text search; notification centre and preferences; template versions; announcements with segments and scheduling; digests; webhook endpoints, subscriptions and delivery log; the missing catalogue events | `20261024000100_inf_communication.sql` | pgTAP per role |
+| 9.3 | Notification centre: bell with unread count (Realtime), the centre page, mark read, per-event channel preferences (mandatory events locked) | `components/notifications/*` | Playwright |
+| 9.4 | Threads everywhere: one thread panel on each entity page for staff, creators and agencies (with their grants), support conversations, staff inbox with search | `components/threads/*` | Playwright |
+| 9.5 | Admin tools: template editor (variables, preview, test send), announcements (segment, schedule), digests, webhooks (endpoints, events, signing secret, delivery log, test) | `app/(admin)/admin/communication/*` | Playwright |
+| 9.6 | Guides, seed, phase gate | | gate |
