@@ -44,7 +44,7 @@ Tick in order. Details for every step: `RUNBOOK.md` §5–§7. Nothing here has 
 
 ## Go-live day
 
-- [ ] Point-in-time recovery on; restore point noted
+- [ ] Full `pg_dump` of production taken and stored safely (Free plan: no point-in-time recovery)
 - [ ] Website migrations web1…web13 applied (each in a transaction, `lock_timeout` 5 s); `check-shared-unchanged.sh` OK
 - [ ] Approved shared changes applied in order s07 → s05 → s01 → s04 (→ s06); s02/s03 **not** now
 - [ ] Vault secret `web_internal_key` created; jobs `web_catalog_poll`, `web_outbox_worker`, `web_seo_daily` listed in `cron.job`

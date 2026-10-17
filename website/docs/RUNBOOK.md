@@ -82,7 +82,9 @@ Everything below is rehearsed by `scripts/db/go-live-dry-run.sh`.
    (`s01_lead_intake_email_verified.rollback.sql`); if it differs, regenerate s01 (§8) before applying it.
 
 **Go-live day (quiet hour, e.g. 07:00 IST)**
-6. **Backup:** confirm Supabase point-in-time recovery is on, note the timestamp (restore point).
+6. **Backup:** the Supabase organisation is on the Free plan (no point-in-time recovery or automatic backups), so take a
+   full dump first: `pg_dump "$PROD_DB_URL" -Fc --no-owner -f eduwit-prod-before-website-<date>.dump` and keep it safe
+   (it contains personal data).
 7. **Apply website migrations** to production in order (`supabase/migrations/20261017100000_…` to `…101200_web13…`;
    never `00000000000000_prod_snapshot.sql`), each in its own transaction with `set lock_timeout = '5s'`. Expected
    ≈ 1–5 s in total plus the first read-model build (≈ 3 s). Then `scripts/db/check-shared-unchanged.sh <prod-url>`
@@ -140,7 +142,7 @@ After 14 stable days: raise the TTL back to 3600 s and retire the Hostinger site
   privacy requests for DPDP), then `scripts/db/rollback-web.sql`. It refuses if any shared object depends on a website
   object, removes the website's pg_cron jobs and every `web_*` object, and leaves leads and touchpoints in the shared
   tables untouched.
-- **Last resort:** Supabase point-in-time recovery to the restore point (§5 step 6) — this also rewinds Witty and the
+- **Last resort:** restore the full dump taken in §5 step 6 (the Free plan has no point-in-time recovery) — this also rewinds Witty and the
   CRMs, so only with every product owner's agreement.
 
 ## 8. Incidents
