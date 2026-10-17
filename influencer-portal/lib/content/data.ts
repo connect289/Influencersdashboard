@@ -122,6 +122,19 @@ export const briefDetail = z.object({
     }),
   ),
   acknowledged_current: z.boolean(),
+  programmes: z.array(
+    z.object({
+      id: z.number().int(),
+      program_name: z.string().nullable(),
+      specialization: z.string().nullable(),
+      university: z.string(),
+      mode: z.string().nullable(),
+      level: z.string().nullable(),
+      fee_total: z.number().nullable(),
+      fee_yearly: z.number().nullable(),
+      active: z.boolean().nullable(),
+    }),
+  ),
   questions: z.array(briefQuestion),
   deliverables: z.array(
     z.object({

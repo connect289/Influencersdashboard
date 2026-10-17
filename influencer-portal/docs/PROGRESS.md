@@ -2,11 +2,12 @@
 
 ## Now
 
-- **Current phase:** Phase 5 (Briefs and deliverables), step 5.1. Phase 4 (Contracts) complete and tagged `phase-4-done`.
+- **Current phase:** Phase 6 (Tracking and attribution), step 6.1 (plan). Phase 5 (Briefs and deliverables) complete
+  and tagged `phase-5-done`.
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
 - **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.
-- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-4-done`
+- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-5-done`
   exist in the local repository only. Push them from a normal clone with `git push origin --tags`.
 - **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
   the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
@@ -310,3 +311,53 @@ beyond the approved storage bucket (S-4).
 | 5.5 | Compliance: banned-claims library, automatic caption/script scan and disclosure check on every submission, the ASCI checklist required before approval, overrides with a reason | | units + Playwright |
 | 5.6 | Go-live (URL validation per platform, YouTube oEmbed preview), reviewer verification (live, disclosure, matches the approved version), metrics with screenshots at checkpoints, due-date reminders and overdue escalation, penalty proposals from the deal's rules with approval | jobs, nightly | pgTAP + units + Playwright |
 | 5.7 | Guides for every role, navigation, seed, phase gate | | gate |
+
+### Phase 5 summary
+
+Built: brief templates (defaults, stages and due-date offsets) and one versioned brief per deal, created with the deal
+for accepted campaign offers (campaign template or default; approved claims written from catalogue facts; programmes
+shown with live catalogue details), published to the creator, acknowledged per version (starting the deliverables and
+emitting the milestone event) with a Q&A thread; deliverables with per-deliverable stage switches, due dates, revision
+limits and full transition history, on a workflow defined once in TypeScript and mirrored in SQL (a generated pgTAP
+matrix proves they agree for all 14 × 13 × 64 combinations); versioned, immutable submissions (text, files through
+signed resumable uploads, links); a review workspace with timestamped video comments, image area annotations,
+resolve/reopen, server-recorded banned-claims and disclosure scans with reasoned overrides, the ASCI checklist at the
+last pre-publish approval, and extra revision rounds approved by a manager; go-live with per-platform URL checks and
+YouTube oEmbed, reviewer verification, metrics with screenshots at checkpoints, due/overdue/escalation/metrics
+reminders, and penalty proposals computed by the compensation engine for a manager to approve; staff list, board and
+review queue, the deal Content tab, creator and agency pages (mobile-first), the banned-claims editor and guides for
+every role. Gate on 17 Oct 2026: typecheck, lint and format clean; 2,450 unit tests; 551 pgTAP assertions (18 files);
+72 Playwright journeys passed (2 screenshot specs skipped by design); migrations apply on a fresh database built from
+the production baseline; seed works; production re-checked read-only (all 101 shared objects identical, hash
+`685ba089…`, no `inf` schema, no `inf-*` buckets). Nothing outside schema `inf` was added; the brief functions only
+read `catalog_*` (approved R-1).
+
+### Phase 5 requirement checklist (spec Section 22 Phase 5, spec 10 and 16)
+
+| Requirement | Status | Where / note |
+| --- | --- | --- |
+| Brief builder: objective, programmes (live from the catalogue), audience, key messages (Tiptap) | Done | `components/content/brief-editor.tsx`, `brief-fields.tsx`; `inf.brief_detail` returns programmes live |
+| Approved claims from catalogue facts; banned claims; mandatory disclosures | Done | `approvedClaims()` (D-102), banned list copied at creation, disclosure rules from the template |
+| Do's and don'ts, tone, languages, deliverables table (type, platform, count, duration, aspect ratio, due dates) | Done | Brief fields; deliverables shown from the deal's deliverable rows with specs and due dates |
+| References, moodboard, brand assets, hashtags, mentions, FAQs | Done | References (links), assets in the private `inf-briefs` bucket (images, videos, fonts, archives) |
+| CTA with auto-inserted tracking link, code and QR per deliverable | Deferred | Tracking links, codes and QR arrive in Phase 6; the CTA text field is ready and the guide says so |
+| Templates; auto-generated from the campaign template with the deal | Done | `/admin/briefs/templates`, campaign builder field, `setupContentForDeal` (D-101) |
+| Versioned; creator acknowledgement as a timestamped event that can trigger a milestone; Q&A thread | Done | `inf.brief_publish`, `inf.brief_acknowledge` (`brief.acknowledged`), `brief_questions` (D-100) |
+| Brief links to its deal and contract | Done | Brief header links to the deal, whose page lists its contracts |
+| Deliverable states incl. Cancelled and computed Overdue; stages switchable per deliverable | Done | `lib/content/workflow.ts`, `inf.deliverable_next`, matrix test (D-99) |
+| Kanban plus list | Done | `/admin/content` list and board (read-only board, D-112); creator grouped list |
+| Submissions: text, files (video, image, PDF) via resumable upload, links; every submission versioned | Done | `uploader.ts` (TUS over 6 MB, D-106), immutable `deliverable_submissions` |
+| Video player with timestamped comments that seek; image annotations (point or region); resolve/reopen | Done | `components/content/media-review.tsx` (D-107) |
+| Caption checks: banned-claims scan and configurable disclosure rule | Done | `scanSubmission`, `content.review` setting, server-recorded (D-103) |
+| Revision limit; extra revisions with admin approval and optional fee | Done | D-105; fee paid through the ledger in Phase 7 |
+| Go-live: URL validation per platform, oEmbed where available, reviewer verification (live, disclosure, matches) | Done | `checkPostUrl`, YouTube oEmbed, `inf.post_verify` (D-108) |
+| Metrics with screenshots at checkpoints; `source` field for future APIs | Done | `post_metric_snapshots` (D-109) |
+| Due-date reminders and overdue escalation | Done | `inf.content_remind` in the nightly job (D-110) |
+| Late delivery (and missed, disclosure) proposes penalties per the deal; approval | Done | `penalties.refresh` job, `/admin/content/penalties` (D-111); posting to the ledger is Phase 7 |
+| ASCI checklist per deliverable required before approval | Done | D-104 |
+| Banned-claims list configurable; matches block approval unless overridden with a reason | Done | `/admin/content/claims`, `compliance.manage`, `compliance.override` (D-103, D-113) |
+| Contract compliance tracker per creator (spec 16) | Deferred | Needs the scorecard data of Phase 9; obligations met/missed are recorded now (transitions, checks, penalties) |
+| Notifications for brief, submission, review, comments, verification, reminders | Done | `inf.content_notify` → `inf.notify` (in-app plus queued email copies) |
+| Guides for every role | Done | Content Reviewer guide rewritten; Influencer Manager, creator, agency, Super Admin settings and developer guides |
+| RLS on every new table, tests per role; no creator or agency path to student data | Done | pgTAP 018 (118) and 017 matrix; content never touches lead data |
+| Every screen: empty, loading, error, mobile states | Done | Shared state components; creator and agency pages mobile-first; Deliverables is a phone tab |

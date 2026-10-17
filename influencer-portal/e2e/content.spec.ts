@@ -113,6 +113,7 @@ test.describe.serial("content: brief → concept → draft → live → metrics"
     await creatorLogin(page, "riya.creator@example.test");
     await openReel(page, "/creator/deliverables");
     await expect(page.getByText("Eduwit: Lovely idea. Drop the placement line.")).toBeVisible();
+    await page.waitForLoadState("networkidle");
     await page.getByLabel("Caption or script").fill("#ad My honest online MBA story, from fees to exams.");
     await page.locator("#sub-files").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: png(320, 200) });
     await expect(page.getByText("cover.png")).toBeVisible();

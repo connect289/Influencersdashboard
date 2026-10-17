@@ -18,6 +18,8 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 | G-9 | Contracts: counsel reviews every clause and the default template, and a Super Admin marks each clause reviewed (the seed clauses start unreviewed and carry the DRAFT marker; keep the legal-review gate on). Counsel also confirms the consent text (`inf.consent_texts` v1), OTP click-sign for creator agreements, and stamp duty per state (D-84, D-97) | Phase 4 |
 | G-10 | Name at least one Authorised Signatory with a designation; set the organisation's legal name, address, GSTIN and PAN (printed in contracts) | Phase 4 |
 | G-11 | A live email provider before contracts are sent (signing codes and signed copies). For WhatsApp codes, get the `contract_sign_code` template (two parameters: code, contract number) approved in Meta and add `whatsapp` to Settings → Contracts → OTP channels (D-91) | Phase 4 |
+| G-12 | Storage: raise the project's global upload size limit to at least 2 GB (the `inf-deliverables` bucket allows 2 GB videos; the default project limit is lower) and confirm resumable uploads are enabled | Phase 5 |
+| G-13 | Content compliance: Eduwit reviews the starting banned-claims list and the default brief template; counsel confirms the ASCI checklist wording and the disclosure terms per platform (Settings → Content) | Phase 5 |
 
 ## Operations
 
@@ -28,6 +30,11 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
   `integrity_failed_at` (event `contract.integrity_failed`) must be investigated before anyone relies on it: compare the
   stored version's HTML hash with the signatures' `document_sha256` and the file's hash with `inf.contract_files`.
 - **Contract reminders and expiry** run inside the nightly job (`inf.contracts_remind()`).
+- **Content reminders** (due dates, overdue, escalation, missing metrics) run inside the nightly job
+  (`inf.content_remind()`). Penalty proposals are recomputed by the `penalties.refresh` job; nothing is charged until a
+  manager approves a proposal.
+- **Deliverable files** live in the private `inf-deliverables` bucket under `<deliverable id>/`; brief assets in
+  `inf-briefs` under `<brief id>/`. Links are signed for an hour after an access check.
 - **Dormancy** runs inside the nightly `inf-nightly` job (`inf.nightly_prune()` → `inf.creators_flag_dormant()`).
 - **Production schema drift check** (read-only): run `scripts/baseline/generate-baseline.sql` against production and
   compare with `scripts/baseline/exact.sql` (or compare per-object md5 hashes as done at the Phase 2 gate).

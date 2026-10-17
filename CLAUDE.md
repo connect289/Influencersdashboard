@@ -78,6 +78,7 @@ influencer-portal/
   lib/compensation/        pure engine, simulator, tax estimate + tests
   lib/deals/               deal schemas, builder helpers, offer terms → config, dry-run, loaders
   lib/contracts/           document model, template engine, assembly, counter-offers, generation, PDF, signing
+  lib/content/             workflow, compliance scan, URLs, brief document, penalty events (pure) + loaders, uploads
   lib/guides/              in-app guides (one per audience; update them with every feature)
   lib/attribution/         pure rules + tests (later)
   lib/actions/             server actions (validate → one RPC → ActionResult)

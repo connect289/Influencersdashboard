@@ -5,7 +5,7 @@ import { DocView } from "@/components/contracts/doc-view";
 import { Card, CardHeader } from "@/components/ui/card";
 import type { BriefContent } from "@/lib/content/brief";
 import type { BriefDetail } from "@/lib/content/data";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatRupees } from "@/lib/format";
 import { DueLine } from "./deliverable-bits";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -39,10 +39,13 @@ export function BriefView({
   content,
   deliverables,
   assetLinks,
+  programmes = [],
 }: {
   content: BriefContent;
   deliverables: BriefDetail["deliverables"];
   assetLinks: Record<string, string>;
+  /** Live catalogue details of the brief's programmes. */
+  programmes?: BriefDetail["programmes"];
 }) {
   const t = useTranslations();
   const c = content;
@@ -57,6 +60,29 @@ export function BriefView({
         {c.audience ? (
           <Section title={t("content.brief.audience")}>
             <p className="text-sm whitespace-pre-line">{c.audience}</p>
+          </Section>
+        ) : null}
+        {programmes.length ? (
+          <Section title={t("content.brief.programmes")}>
+            <ul className="flex flex-col gap-1 text-sm">
+              {programmes.map((p) => (
+                <li key={p.id}>
+                  <span className="font-medium">
+                    {p.university} {p.program_name}
+                    {p.specialization ? ` (${p.specialization})` : ""}
+                  </span>
+                  <span className="text-muted">
+                    {[p.mode, p.level, p.fee_total ? formatRupees(p.fee_total, { whole: true }) : null].filter(Boolean)
+                      .length
+                      ? ` · ${[p.mode, p.level, p.fee_total ? formatRupees(p.fee_total, { whole: true }) : null].filter(Boolean).join(" · ")}`
+                      : ""}
+                  </span>
+                  {p.active === false ? (
+                    <span className="text-danger"> · {t("content.brief.programmeInactive")}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
           </Section>
         ) : null}
         {c.key_messages.content.length ? (

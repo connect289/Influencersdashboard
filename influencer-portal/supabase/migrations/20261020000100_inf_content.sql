@@ -682,6 +682,13 @@ begin
                                            order by x.version)
                             from inf.brief_versions x where x.brief_id = b.id), '[]'),
     'acknowledged_current', exists (select 1 from inf.brief_acknowledgements a where a.version_id = b.current_version_id),
+    -- The brief's programmes with live catalogue details (the version you see: the working copy for staff).
+    'programmes', coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'program_name', p.program_name, 'specialization', p.specialization,
+                                                                'university', u.name, 'mode', p.mode, 'level', p.level, 'fee_total', p.fee_total,
+                                                                'fee_yearly', p.fee_yearly, 'active', p.active) order by p.program_name)
+                              from public.catalog_programs p join public.catalog_universities u on u.id = p.university_id
+                             where p.id in (select (x)::bigint from jsonb_array_elements_text(
+                                              case when v_side = 'eduwit' then b.draft_content else v.content end -> 'programme_ids') x)), '[]'),
     'questions', coalesce((select jsonb_agg(jsonb_build_object('id', q.id, 'parent_id', q.parent_id, 'author_side', q.author_side, 'body', q.body,
                                                                'created_at', q.created_at, 'mine', q.author_id = auth.uid()) order by q.created_at)
                              from inf.brief_questions q where q.brief_id = b.id), '[]'),

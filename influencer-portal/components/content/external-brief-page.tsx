@@ -50,7 +50,12 @@ export async function ExternalBriefPage({
       ) : null}
       <AcknowledgeCard briefId={b.id} versionId={b.current.id} acknowledged={b.acknowledged_current} />
       <div className="flex flex-col gap-4">
-        <BriefView content={b.current.content} deliverables={b.deliverables} assetLinks={links} />
+        <BriefView
+          content={b.current.content}
+          deliverables={b.deliverables}
+          assetLinks={links}
+          programmes={b.programmes}
+        />
         <BriefQa briefId={b.id} threads={threads(b.questions)} canAsk canAnswer={false} />
       </div>
     </>

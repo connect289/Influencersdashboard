@@ -72,6 +72,8 @@ test.describe.serial("creator CRM", () => {
 
   test("import prospects from CSV: check first, then import; duplicates are skipped", async ({ page }) => {
     await page.goto("/admin/creators/import");
+    // The file input only reacts once the page has hydrated.
+    await page.waitForLoadState("networkidle");
     const csv = [
       "name,handle,email,platform,profile url,followers",
       "Om Physics,om.physics,om@example.test,youtube,https://youtube.com/@om,52000",

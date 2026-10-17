@@ -111,7 +111,7 @@ export default async function BriefPage({
               unpublishedChanges={unpublished && b.current !== null}
             />
           ) : tab === "preview" ? (
-            <BriefView content={draft} deliverables={b.deliverables} assetLinks={links} />
+            <BriefView content={draft} deliverables={b.deliverables} assetLinks={links} programmes={b.programmes} />
           ) : (
             <Card>
               <CardHeader title={t("content.briefs.versionsTitle")} />

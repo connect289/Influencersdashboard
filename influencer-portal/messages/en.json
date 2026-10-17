@@ -2964,7 +2964,9 @@
       "ackTitle": "Read the whole brief, then confirm.",
       "ackLabel": "I have read this brief and will follow its rules, including the disclosure rules.",
       "acknowledge": "Acknowledge brief",
-      "youAcknowledged": "You acknowledged this version of the brief."
+      "youAcknowledged": "You acknowledged this version of the brief.",
+      "programmes": "Programmes",
+      "programmeInactive": "no longer offered"
     },
     "briefs": {
       "subtitle": "One brief per deal: write it from a template, publish it, and answer the creator's questions.",
