@@ -613,3 +613,22 @@ Search engines see only deliberate pages: the home, hubs, curated views, univers
 data, a canonical URL and a social image, listed in a sitemap index by type. Everything else is noindex with the right
 canonical. Analytics events match the spec, and browser and server conversion events share ids. Performance budgets,
 including JavaScript per route, are enforced in CI.
+
+## Phase 10 — Admin ✅ `website-phase-10-done`
+
+### Plan
+1. `web9_admin`: entity allow-list, audited save/delete, settings with role checks, dashboards (overview, funnels, Witty
+   insights, outbox, audit, taxonomy options, privacy requests).
+2. Admin UI: shell and navigation, dashboard, generic content list/edit for 12 content types, flags and settings,
+   funnels and insights, data quality, taxonomy mapping, outbox with retries, privacy requests, audit log.
+3. Revalidate on publish; application form configuration (deferred from Phase 7).
+4. Tests, docs, gate.
+
+### Step log
+- 10.1 ✅ `20261017100800_web9_admin.sql` (1 table, 15 functions) + `supabase/tests/80_web_admin.test.sql` (25 checks).
+- 10.2 ✅ `web/lib/admin/entities.ts` (+ tests), `app/admin/content-actions.ts`, `components/admin/*`, pages under
+  `app/admin/{content,settings,insights,data-quality,taxonomy,outbox,audit,privacy}`; dashboard replaced.
+- 10.3 ✅ Saves expire cache tags (`settings`, `content`, `pages`, `redirects`, `catalog`); university and synonym edits refresh
+  the read model; `application_form` setting read by the form (D-069). Rejected saves keep the editor's input.
+- 10.4 ✅ `e2e/admin.spec.ts`: curated view created → live at `/programmes/<slug>` → audited → deleted; testimonial consent
+  rule; announcement bar live; every dashboard loads; axe on admin screens; viewer is read-only.

@@ -454,3 +454,29 @@ these at the end (spec Section 0).
 - **Change:** Lighthouse runs as `npm run lhci` (local `@lhci/cli` only); CI and configs call `npx --no …` so npx can never
   download a same-named package; new dependencies are pinned to versions published at least two weeks earlier
   (e.g. `@anthropic-ai/sdk` 0.131.0).
+
+## Phase 10
+
+### D-066 · One allow-listed, audited save path for all admin content
+- **Why:** spec 11 lists a dozen editable content types. Instead of a function per table, `web_admin_entities` declares
+  each type's table, key, editable columns, minimum role, cache tags and whether rows may be deleted;
+  `web_admin_save` / `web_admin_delete` write only those columns, re-check the role, enforce content rules the tables
+  cannot express (testimonials need consent to publish, guides need author + reviewer, accepted consent texts are never
+  reworded) and write the audit row (before/after) in the same transaction. The UI is generated from
+  `web/lib/admin/entities.ts`; saving expires the entity's cache tags so the public site updates at once.
+  Programme data stays in the shared catalogue (read-only here); university pages edit only editorial fields.
+
+### D-067 · Admin roles
+- **Viewer:** reads everything. **Content editor:** content, curated views, SEO overrides, redirects, synonyms, taxonomy
+  mapping, announcement and homepage sections. **Super admin:** additionally feature flags (Witty on/off, unverified
+  pushes, phone OTP, documents), legal pages, consent texts, outbox retries, privacy requests. Enforced in the page
+  guard (`requireAdmin`) and again in every database function.
+
+### D-068 · Funnels mix server truth and consented client beacons
+- **Why:** gate submitted / code sent / verified / first message / qualified and form steps come from the website's own
+  tables (exact). Hero view, gate open, panel open and form start come from `web_funnel_events` beacons, counted per
+  anonymous id only with analytics consent (otherwise per event), so the top of the funnel is approximate.
+
+### D-069 · Application form fields configurable in the admin
+- **Why:** spec 9.1A. Setting `application_form` lists non-core fields to hide or make optional; the form reads it when
+  opened. Contact details, the email code and consent cannot be hidden.

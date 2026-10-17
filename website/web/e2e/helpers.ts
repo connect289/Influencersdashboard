@@ -91,3 +91,38 @@ export async function setSetting(baseURL: string, key: string, value: unknown) {
   });
   if (!r.ok) throw new Error(`revalidate failed ${r.status}`);
 }
+
+/** Inserts or updates a row in the LOCAL database through PostgREST (test fixtures only). */
+export async function dbUpsert(table: string, row: Record<string, unknown>, onConflict: string) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
+    method: "POST",
+    headers: { apikey: secretKey(), authorization: `Bearer ${secretKey()}`, "content-type": "application/json", prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) throw new Error(`upsert ${table} failed ${res.status} ${await res.text()}`);
+}
+
+/** Staff sign-in with password + the email-code second factor (admin-auth.spec covers the flow itself). */
+export async function adminSignIn(page: Page, email: string, password: string) {
+  await ensureStaffUser(email, password);
+  await page.goto("/admin/login");
+  await page.getByLabel("Work email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(/\/admin\/verify/);
+  const sentAt = new Date();
+  await page.getByRole("button", { name: "Send code" }).click();
+  await expect(page.getByText(/We sent a 6-digit code/)).toBeVisible();
+  await fillCode(page, await latestCode(email, sentAt));
+  await page.getByRole("button", { name: "Verify" }).click();
+  await expect(page.getByRole("heading", { name: "Website admin" })).toBeVisible();
+}
+
+/** Clears the LOCAL admin code log so repeated test runs stay under the hourly code cap. */
+export async function resetAdminCodes() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/web_admin_codes?id=gte.0`, {
+    method: "DELETE",
+    headers: { apikey: secretKey(), authorization: `Bearer ${secretKey()}` },
+  });
+  if (!res.ok) throw new Error(`reset admin codes failed ${res.status}`);
+}

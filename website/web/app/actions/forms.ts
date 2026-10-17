@@ -9,7 +9,16 @@ import { errorFields, log } from "@/lib/server/log";
 import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
 import { requestContext } from "@/lib/server/request";
 import { offeringCards } from "@/lib/server/search";
+import { getSettings } from "@/lib/server/settings";
 import { currentStudent } from "@/lib/server/student-session";
+
+/** Non-core application-form fields the admin may hide or make optional (spec 9.1A). */
+const CONFIGURABLE = new Set(["stream", "score", "yearOfPassing", "board", "role", "industry", "goal", "why", "intake", "budget", "emi", "city", "state", "bestTime", "questions"]);
+
+export async function formConfigAction(): Promise<{ hidden: string[]; optional: string[] }> {
+  const c = (await getSettings()).application_form;
+  return { hidden: c.hidden.filter((f) => CONFIGURABLE.has(f)), optional: c.optional.filter((f) => CONFIGURABLE.has(f)) };
+}
 
 /**
  * Server actions behind the application form, the enquiry form and the Witty gate (spec 9.1A, 9.1, 7.2). Every input

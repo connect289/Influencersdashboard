@@ -1,41 +1,57 @@
 import { Suspense } from "react";
-import { Logo } from "@/components/brand/Logo";
+import { AdminShell, Card, Stat } from "@/components/admin/AdminShell";
 import { requireAdmin } from "@/lib/server/admin";
-import { signOutAdmin } from "./actions";
+import { rpc } from "@/lib/server/db";
 
 export const metadata = { title: "Dashboard" };
 
-async function Dashboard() {
-  const s = await requireAdmin("viewer");
+interface Overview {
+  leads_today: number;
+  leads_7d: number;
+  applications_7d: number;
+  chats_7d: number;
+  outbox_dead: number;
+  outbox_pending: number;
+  unmapped: number;
+  needs_review: number;
+  privacy_requests_open: number;
+}
+
+async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
+  const [s, sp] = await Promise.all([requireAdmin("viewer"), searchParams]);
+  const o = await rpc<Overview>("web_admin_overview");
   return (
-    <div className="grid gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Website admin</h1>
-          <p className="text-muted text-sm">
-            Signed in as {s.email} · {s.role.replace("_", " ")}
-          </p>
-        </div>
-        <form action={signOutAdmin}>
-          <button type="submit" className="border-border h-10 rounded-full border px-4 text-sm">
-            Sign out
-          </button>
-        </form>
+    <AdminShell session={s} title="Website admin">
+      {sp.denied ? (
+        <p role="alert" className="text-danger text-sm">
+          Your role cannot open that page.
+        </p>
+      ) : null}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Verified leads today" value={o.leads_today} href="/admin/insights" />
+        <Stat label="Verified leads, 7 days" value={o.leads_7d} href="/admin/insights" />
+        <Stat label="Application requests, 7 days" value={o.applications_7d} href="/admin/insights" />
+        <Stat label="Witty conversations, 7 days" value={o.chats_7d} href="/admin/insights" />
+        <Stat label="Outbox: dead letters" value={o.outbox_dead} href="/admin/outbox?status=dead" />
+        <Stat label="Outbox: pending" value={o.outbox_pending} href="/admin/outbox" />
+        <Stat label="Offerings without a mapping" value={o.unmapped + o.needs_review} href="/admin/taxonomy" />
+        <Stat label="Open privacy requests" value={o.privacy_requests_open} href="/admin/privacy" />
       </div>
-      <p className="border-border-strong text-muted rounded-[var(--radius-lg)] border border-dashed p-5">
-        Content, curated views, taxonomy, data quality, advisor insights, outbox and SEO tools arrive in Phases 10–11.
-      </p>
-    </div>
+      <Card title="What you can do here">
+        <p className="text-muted text-sm">
+          Edit content, curated finder views, SEO overrides and redirects; switch features on or off; map catalogue rows to the
+          taxonomy; watch the lead funnels, Witty&apos;s answers and the outbox. Programme data (fees, approvals, eligibility) is
+          managed in the shared catalogue, not here. Every change is recorded in the audit log.
+        </p>
+      </Card>
+    </AdminShell>
   );
 }
 
-export default function AdminHome() {
+export default function AdminHome({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   return (
-    <main id="main" className="container-site grid gap-8 py-8">
-      <Logo height={28} />
-      <Suspense fallback={<div className="skeleton h-24" />}>
-        <Dashboard />
-      </Suspense>
-    </main>
+    <Suspense fallback={<div className="skeleton m-8 h-24" />}>
+      <Dashboard searchParams={searchParams} />
+    </Suspense>
   );
 }

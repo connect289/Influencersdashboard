@@ -14,6 +14,7 @@ import { eligibility, MIN_QUALIFICATION_LABEL, type Qualification } from "@/lib/
 import type { ApplicationClient, FormContext } from "@/lib/forms/client";
 import { serverApplicationClient } from "@/lib/forms/server-client";
 import { studentProfileAction } from "@/app/actions/account";
+import { formConfigAction } from "@/app/actions/forms";
 import { Honeypot, useTurnstile } from "./Guard";
 import {
   normaliseEmail,
@@ -114,8 +115,20 @@ export function ApplicationForm({
     };
   }, []);
 
-  const hidden = new Set(config.hidden ?? []);
-  const optional = new Set(config.optional ?? []);
+  const [adminConfig, setAdminConfig] = useState<FormConfig | null>(null);
+  useEffect(() => {
+    let live = true;
+    formConfigAction()
+      .then((c) => {
+        if (live) setAdminConfig(c);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  const hidden = new Set([...(config.hidden ?? []), ...(adminConfig?.hidden ?? [])]);
+  const optional = new Set([...(config.optional ?? []), ...(adminConfig?.optional ?? [])]);
   const show = (f: string) => !hidden.has(f);
 
   const context: FormContext = useMemo(

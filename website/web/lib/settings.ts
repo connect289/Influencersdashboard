@@ -25,6 +25,10 @@ export const settingsSchema = z.object({
     .object({ max_tokens_per_session: z.number(), turn_timeout_ms: z.number(), max_turns_per_session: z.number() })
     .default({ max_tokens_per_session: 60000, turn_timeout_ms: 20000, max_turns_per_session: 40 }),
   sections: z.record(z.string(), z.boolean()).default({}),
+  /** Application form: non-core fields to hide or make optional (spec 9.1A; contact and consent are locked). */
+  application_form: z
+    .object({ hidden: z.array(z.string()).default([]), optional: z.array(z.string()).default([]) })
+    .default({ hidden: [], optional: [] }),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
