@@ -38,7 +38,7 @@ grant select, insert on eids to authenticated, service_role;
 
 insert into ids values ('deal', gen_random_uuid());
 insert into inf.deals (id, creator_id, title, status, starts_on, deal_model, agreed_at)
-select (select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Riya deal', 'active', current_date - 30, 'hybrid', now();
+select (select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Riya deal', 'active', (now() at time zone 'Asia/Kolkata')::date - 30, 'hybrid', now();
 insert into ids select 'version', gen_random_uuid();
 insert into inf.deal_versions (id, deal_id, version, comp_config, config_hash, origin, effective_from, state)
 select (select id from ids where label = 'version'), (select id from ids where label = 'deal'), 1, p.comp_config, inf.config_hash(p.comp_config),
@@ -57,25 +57,25 @@ grant select on plan to service_role, authenticated;
 insert into plan values ('first', jsonb_build_object('as_of', now(), 'create', jsonb_build_array(
   jsonb_build_object('key', (select id from ids where label = 'version') || ':fee:signing:fire', 'type', 'milestone', 'direction', 'credit',
                      'amount_paise', 750000, 'confirmed_paise', 750000, 'rule_id', 'fee', 'version_id', (select id from ids where label = 'version'),
-                     'subject', 'fee.signing', 'period', to_char(current_date, 'YYYY-MM'), 'due_on', current_date - 1, 'note', 'Content fee: On signing',
+                     'subject', 'fee.signing', 'period', to_char((now() at time zone 'Asia/Kolkata')::date, 'YYYY-MM'), 'due_on', (now() at time zone 'Asia/Kolkata')::date - 1, 'note', 'Content fee: On signing',
                      'tds_component', 'milestone'),
   jsonb_build_object('key', (select id from ids where label = 'version') || ':commission:enrol:b2b:9:accrue', 'type', 'commission', 'direction', 'credit',
                      'amount_paise', 100000, 'confirmed_paise', 0, 'rule_id', 'commission', 'version_id', (select id from ids where label = 'version'),
-                     'subject', 'enrol:b2b:9', 'period', to_char(current_date, 'YYYY-MM'), 'due_on', current_date, 'note', 'Commission per enrolment',
+                     'subject', 'commission:enrol:b2b:9', 'period', to_char((now() at time zone 'Asia/Kolkata')::date, 'YYYY-MM'), 'due_on', (now() at time zone 'Asia/Kolkata')::date, 'note', 'Commission per enrolment',
                      'tds_component', 'commission'))));
 
 select tests.as_person('fin');
 select throws_ok($$ select inf.ledger_apply((select id from ids where label = 'deal'), (select p from plan where k = 'first')) $$, '42501', null,
   'only the runner applies plans');
 select throws_ok($$ insert into inf.ledger_entries (creator_id, type, direction, amount_paise, status, source, event_key, period, due_on)
-                    values ((select id from ids where label = 'riya'), 'adjustment', 'credit', 1, 'accrued', 'adjustment', 'x', '2026-11', current_date) $$,
+                    values ((select id from ids where label = 'riya'), 'adjustment', 'credit', 1, 'accrued', 'adjustment', 'x', '2026-11', (now() at time zone 'Asia/Kolkata')::date) $$,
   '42501', null, 'clients cannot write the ledger');
 
 select tests.act_as_service();
 select is(inf.ledger_apply((select id from ids where label = 'deal'), (select p from plan where k = 'first')) ->> 'created', '2', 'the plan posts two lines');
 select is(inf.ledger_apply((select id from ids where label = 'deal'), (select p from plan where k = 'first')) ->> 'created', '0', 'applying again posts nothing');
 insert into eids select 'fee', id from inf.ledger_entries where subject = 'fee.signing';
-insert into eids select 'commission', id from inf.ledger_entries where subject = 'enrol:b2b:9';
+insert into eids select 'commission', id from inf.ledger_entries where subject = 'commission:enrol:b2b:9';
 select is((select status from inf.ledger_entries where id = (select id from eids where label = 'fee')), 'payable', 'a confirmed, due line is payable');
 select is((select status from inf.ledger_entries where id = (select id from eids where label = 'commission')), 'accrued', 'an unconfirmed line is accrued');
 select is((select count(*)::int from inf.ledger_status_events where entry_id = (select id from eids where label = 'fee')), 1, 'posting logs the first status');
@@ -188,9 +188,9 @@ select tests.as_person('fin');
 select throws_ok($$ select inf.payout_batch_cancel((select id from ids where label = 'batch'), 'Oops') $$, '22023', null,
   'a batch sent to the bank cannot be cancelled');
 select throws_ok($$ select inf.payouts_mark_paid(jsonb_build_array(jsonb_build_object('payout_ref', (select ref from inf.payouts where id = (select id from ids where label = 'payout')),
-                    'utr', 'HDFCN52026113012345', 'paid_on', current_date + 3))) $$, '22023', null, 'a payment date cannot be in the future');
+                    'utr', 'HDFCN52026113012345', 'paid_on', (now() at time zone 'Asia/Kolkata')::date + 3))) $$, '22023', null, 'a payment date cannot be in the future');
 select is(inf.payouts_mark_paid(jsonb_build_array(jsonb_build_object('payout_ref', (select ref from inf.payouts where id = (select id from ids where label = 'payout')),
-          'utr', 'HDFCN52026113012345', 'paid_on', current_date))), 1, 'finance marks the payout paid');
+          'utr', 'HDFCN52026113012345', 'paid_on', (now() at time zone 'Asia/Kolkata')::date))), 1, 'finance marks the payout paid');
 select is((select status from inf.ledger_entries where id = (select id from eids where label = 'fee')), 'paid', 'its entries are paid');
 select is((select status from inf.ledger_entries where event_key = 'penalty:pen-1'), 'paid', 'including the recovered penalty');
 select is((select sum(case direction when 'credit' then amount_paise else -amount_paise end)::bigint from inf.ledger_entries
@@ -220,12 +220,12 @@ select throws_ok($$ select inf.payout_batch_approve((select id from ids where la
 select tests.as_person('riya');
 select ok(inf.invoice_upload_allowed((select id from ids where label = 'payout2')), 'the creator may upload the invoice');
 select throws_ok($$ select inf.invoice_submit(jsonb_build_object('payout_id', (select id from ids where label = 'payout2'), 'number', 'RS-007',
-                    'issued_on', current_date, 'gstin', '27ABCPS1234K1ZM',
+                    'issued_on', (now() at time zone 'Asia/Kolkata')::date, 'gstin', '27ABCPS1234K1ZM',
                     'taxable_paise', 90000, 'gst_paise', 16200,
                     'file_path', (select id from ids where label = 'riya') || '/' || (select id from ids where label = 'payout2') || '/inv.pdf')) $$,
   '22023', 'the invoice amounts must match the payout', 'amounts must match');
 select lives_ok($$ insert into ids select 'invoice', inf.invoice_submit(jsonb_build_object('payout_id', (select id from ids where label = 'payout2'),
-                   'number', 'RS-007', 'issued_on', current_date, 'gstin', '27ABCPS1234K1ZM',
+                   'number', 'RS-007', 'issued_on', (now() at time zone 'Asia/Kolkata')::date, 'gstin', '27ABCPS1234K1ZM',
                    'taxable_paise', 100000, 'gst_paise', 18000,
                    'file_path', (select id from ids where label = 'riya') || '/' || (select id from ids where label = 'payout2') || '/inv.pdf')) $$,
   'a matching invoice is submitted');
@@ -276,7 +276,7 @@ insert into inf.lead_attributions (student_lead_id, creator_id, code, touch, sta
 select (select id from rx where label = 'lead'), (select creator_id from tests.people where label = 'riya'), 'RIYA-RCPT', 'first', 'credited',
        'referral_code', now(), now();
 with e as (insert into public.enrollments (lead_id, source_product, status, enrolled_on)
-           values ((select id from rx where label = 'lead'), 'b2b', 'verified', current_date) returning id)
+           values ((select id from rx where label = 'lead'), 'b2b', 'verified', (now() at time zone 'Asia/Kolkata')::date) returning id)
 insert into rx select 'enr', id from e;
 with i as (insert into b2b.invoices (status, total_inr, received_inr) values ('partly_paid', 28320, 14160) returning id)
 insert into rx select 'inv', id from i;

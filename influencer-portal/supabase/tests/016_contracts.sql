@@ -21,7 +21,7 @@ insert into ids select label, creator_id from tests.people where creator_id is n
 -- An agreed deal for Riya (as the deal-from-application path creates it).
 insert into ids values ('deal', gen_random_uuid());
 insert into inf.deals (id, creator_id, title, status, starts_on, deal_model, agreed_at)
-select (select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Diwali deal', 'agreed', current_date, 'fixed_only', now();
+select (select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Diwali deal', 'agreed', (now() at time zone 'Asia/Kolkata')::date, 'fixed_only', now();
 insert into inf.deal_versions (deal_id, version, comp_config, config_hash, origin, effective_from, state, decided_at)
 select (select id from ids where label = 'deal'), 1, p.comp_config, inf.config_hash(p.comp_config), 'builder', now(), 'accepted', now()
   from inf.deal_presets p where p.key = 'fixed_only';
@@ -175,11 +175,11 @@ select is((select kind || '/' || (template_id = (select id from inf.contract_tem
 update inf.contracts set expires_on = (now() at time zone 'Asia/Kolkata')::date + 30 where id = (select id from ids where label = 'contract');
 select ok(inf.contracts_remind() >= 1, 'the nightly run sends the 30-day expiry reminder');
 select ok(exists (select 1 from inf.notifications where event = 'contract.expiring'), 'the parties are told the contract expires');
-update inf.contracts set effective_on = current_date - 60, expires_on = (now() at time zone 'Asia/Kolkata')::date - 1 where id = (select id from ids where label = 'contract');
+update inf.contracts set effective_on = (now() at time zone 'Asia/Kolkata')::date - 60, expires_on = (now() at time zone 'Asia/Kolkata')::date - 1 where id = (select id from ids where label = 'contract');
 select inf.contracts_remind();
 select is((select status from inf.contracts where id = (select id from ids where label = 'contract')), 'expired', 'past its expiry date the contract expires');
 select tests.as_person('mona');
-insert into ids select 'renewal', inf.deal_renew((select id from ids where label = 'deal'), current_date + 1, null);
+insert into ids select 'renewal', inf.deal_renew((select id from ids where label = 'deal'), (now() at time zone 'Asia/Kolkata')::date + 1, null);
 select tests.reset();
 select is((select renewal_of from inf.deals where id = (select id from ids where label = 'renewal')), (select id from ids where label = 'deal'), 'a renewal points at the deal it renews');
 insert into inf.deal_versions (deal_id, version, comp_config, config_hash, origin, effective_from, state, decided_at)

@@ -30,7 +30,7 @@ select is((select count(*)::int from inf.campaign_programmes where campaign_id =
 select throws_ok($$ select inf.campaign_save('{"name":"Bad prog","objective":"leads","programme_ids":["123456"]}') $$, '22023', null, 'unknown catalogue programme refused');
 select throws_ok($$ select inf.campaign_set_status((select id from ids where label = 'camp'), 'open') $$, '22023', null, 'cannot open without deliverables and an end date');
 select inf.campaign_save(jsonb_build_object('id', (select id from ids where label = 'camp'), 'name', 'MBA Diwali push', 'objective', 'leads',
-  'budget_paise', 50000000, 'slots', 2, 'internal_notes', 'Target 300 leads', 'ends_on', (current_date + 30)::text,
+  'budget_paise', 50000000, 'slots', 2, 'internal_notes', 'Target 300 leads', 'ends_on', ((now() at time zone 'Asia/Kolkata')::date + 30)::text,
   'compensation_summary', 'Fixed fee plus commission per enrolment',
   'deliverables', '[{"platform":"instagram","format":"reel","count":2}]'::jsonb,
   'eligibility', '{"min_followers":10000,"platforms":["instagram"],"niches":["mba"]}'::jsonb));
@@ -89,7 +89,7 @@ select is((select accepted_terms ->> 'fixed_fee_paise' from inf.campaign_applica
 -- Invites: invite-only campaign, agency negotiates for the creator.
 select tests.as_person('mona');
 insert into ids select 'vip', inf.campaign_save(jsonb_build_object('name', 'VIP invite', 'objective', 'awareness', 'visibility', 'invite_only',
-  'ends_on', (current_date + 10)::text, 'deliverables', '[{"platform":"instagram","format":"story","count":3}]'::jsonb));
+  'ends_on', ((now() at time zone 'Asia/Kolkata')::date + 10)::text, 'deliverables', '[{"platform":"instagram","format":"story","count":3}]'::jsonb));
 select inf.campaign_set_status((select id from ids where label = 'vip'), 'invite_only');
 select is(inf.campaign_invite((select id from ids where label = 'vip'), array[(select id from ids where label = 'arjun'), (select id from ids where label = 'tiny')], 'You would be great'), 2, 'two invites sent');
 select tests.as_person('riya');

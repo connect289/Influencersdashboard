@@ -112,7 +112,7 @@ export function LinkBuilder({
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-medium">{t("links.builder.destination")}</legend>
           <div className="grid gap-2 sm:grid-cols-3">
-            {DESTINATIONS.map((d) => (
+            {DESTINATIONS.filter((d) => staff || d !== "custom_url").map((d) => (
               <label
                 key={d}
                 className="flex cursor-pointer items-start gap-2 rounded-xl p-3 text-sm ring-1 ring-line has-checked:ring-2 has-checked:ring-primary"

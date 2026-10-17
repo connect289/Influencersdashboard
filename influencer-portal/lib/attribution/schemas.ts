@@ -102,6 +102,7 @@ export type StageRuleInput = z.input<typeof stageRuleInput>;
 /** Database messages → leads.errors.* keys (first match wins). */
 export const ATTRIBUTION_DB_ERRORS: readonly [RegExp, string][] = [
   [/this code is taken/, "codeTaken"],
+  [/custom addresses are set by Eduwit/, "customUrlStaff"],
   [/links need an agreed deal/, "needsDeal"],
   [/programme not in this campaign/, "programme"],
   [/invalid (deal|deliverable|programme)/, "invalidTarget"],

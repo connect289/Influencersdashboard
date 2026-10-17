@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPublicAddress } from "./ssrf";
+import { isPublicAddress, literalHostAllowed } from "./ssrf";
 
 describe("webhook address check", () => {
   it("allows public addresses", () => {
@@ -38,5 +38,21 @@ describe("webhook address check", () => {
   it("treats IPv4-mapped public addresses as public", () => {
     expect(isPublicAddress("::ffff:8.8.8.8")).toBe(true);
     expect(isPublicAddress("172.32.0.1")).toBe(true);
+  });
+
+  it("refuses private addresses written as the host, in any form the URL parser accepts", () => {
+    for (const u of [
+      "https://127.0.0.1/hook",
+      "https://2130706433/hook",
+      "https://0x7f.1/hook",
+      "https://0177.0.0.1/hook",
+      "https://[::1]/hook",
+      "https://100.64.0.1/hook",
+      "https://169.254.169.254/latest",
+      "not a url",
+    ])
+      expect(literalHostAllowed(u), u).toBe(false);
+    for (const u of ["https://hooks.example.com/x", "https://8.8.8.8/x", "https://[2606:4700::1111]/x"])
+      expect(literalHostAllowed(u), u).toBe(true);
   });
 });

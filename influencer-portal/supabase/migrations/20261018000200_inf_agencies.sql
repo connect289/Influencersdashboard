@@ -267,7 +267,7 @@ create or replace function inf.agency_member_add(p_agency uuid, p_email text, p_
 language plpgsql security definer set search_path = '' as $$
 declare v_id uuid; v_email text := lower(trim(p_email));
 begin
-  if not (inf.has_perm('agency.manage') or (inf.current_agency_id() = p_agency and inf.current_agency_role() = 'owner')) then
+  if not (inf.has_perm('agency.manage') or coalesce(inf.current_agency_id() = p_agency and inf.current_agency_role() = 'owner', false)) then
     raise exception 'not allowed' using errcode = '42501';
   end if;
   if exists (select 1 from inf.staff_profiles where lower(email) = v_email)
@@ -286,7 +286,7 @@ declare v_agency uuid;
 begin
   select agency_id into v_agency from inf.agency_members where id = p_member and status = 'active';
   if v_agency is null then raise exception 'no such member' using errcode = '22023'; end if;
-  if not (inf.has_perm('agency.manage') or (inf.current_agency_id() = v_agency and inf.current_agency_role() = 'owner')) then
+  if not (inf.has_perm('agency.manage') or coalesce(inf.current_agency_id() = v_agency and inf.current_agency_role() = 'owner', false)) then
     raise exception 'not allowed' using errcode = '42501';
   end if;
   if (select role from inf.agency_members where id = p_member) = 'owner'
@@ -306,7 +306,7 @@ create or replace function inf.agency_link_request(p_agency uuid, p_creator uuid
 language plpgsql security definer set search_path = '' as $$
 declare v_id uuid; v_user uuid; v_agency_name text;
 begin
-  if not (inf.has_perm('agency.manage') or (inf.current_agency_id() = p_agency and inf.current_agency_role() = 'owner')) then
+  if not (inf.has_perm('agency.manage') or coalesce(inf.current_agency_id() = p_agency and inf.current_agency_role() = 'owner', false)) then
     raise exception 'not allowed' using errcode = '42501';
   end if;
   if not exists (select 1 from inf.creators where id = p_creator and status not in ('blocked', 'archived')) then
@@ -329,7 +329,7 @@ create or replace function inf.agency_link_request_by_handle(p_agency uuid, p_ha
 language plpgsql security definer set search_path = '' as $$
 declare v_creator uuid;
 begin
-  if not (inf.has_perm('agency.manage') or (inf.current_agency_id() = p_agency and inf.current_agency_role() = 'owner')) then
+  if not (inf.has_perm('agency.manage') or coalesce(inf.current_agency_id() = p_agency and inf.current_agency_role() = 'owner', false)) then
     raise exception 'not allowed' using errcode = '42501';
   end if;
   select id into v_creator from inf.creators

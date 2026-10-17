@@ -8,7 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 export async function POST(request: NextRequest) {
   const site = new URL(env().NEXT_PUBLIC_SITE_URL);
   const origin = request.headers.get("origin");
-  if (origin && origin !== site.origin) return new NextResponse("Forbidden", { status: 403 });
+  // Browsers always send Origin on a POST; a request without one is not from the sign-out form.
+  if (origin !== site.origin) return new NextResponse("Forbidden", { status: 403 });
   const form = await request.formData().catch(() => null);
   const target = safeNext(formText(form, "to") || null, "/login");
   const supabase = await createClient();

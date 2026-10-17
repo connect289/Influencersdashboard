@@ -1089,7 +1089,7 @@ export const FINANCE: Guide = {
         },
         {
           list: [
-            "**Record receipt** overrides the CRM for one enrolment (`b2b:<id>` or `b2c:<id>`) with a reason, for example a payment the CRM does not show yet. Withdraw the override to go back to the CRM's figures.",
+            "**Record receipt** overrides the CRM for one enrolment (`b2b:<id>` or `b2c:<id>`) with a reason, for example a payment the CRM does not show yet. **Update** on an enrolment's row fills in the enrolment for you. Withdraw the override to go back to the CRM's figures.",
             "A received commission confirms the creator lines waiting on it; a reversal claws them back.",
             "Lines still waiting after the reconciliation period (90 days by default, Settings → Finance) are flagged for follow-up.",
           ],

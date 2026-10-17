@@ -37,9 +37,9 @@ insert into ids select label, creator_id from tests.people where creator_id is n
 -- An agreed deal and a draft deal for Riya.
 insert into ids values ('deal', gen_random_uuid()), ('draft_deal', gen_random_uuid());
 insert into inf.deals (id, creator_id, title, status, starts_on, deal_model, agreed_at)
-select (select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Diwali deal', 'agreed', current_date, 'fixed_only', now();
+select (select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Diwali deal', 'agreed', (now() at time zone 'Asia/Kolkata')::date, 'fixed_only', now();
 insert into inf.deals (id, creator_id, title, status, starts_on, deal_model)
-select (select id from ids where label = 'draft_deal'), (select id from ids where label = 'riya'), 'Holi deal', 'draft', current_date, 'fixed_only';
+select (select id from ids where label = 'draft_deal'), (select id from ids where label = 'riya'), 'Holi deal', 'draft', (now() at time zone 'Asia/Kolkata')::date, 'fixed_only';
 insert into inf.deal_versions (deal_id, version, comp_config, config_hash, origin, effective_from, state, decided_at)
 select (select id from ids where label = 'deal'), 1, p.comp_config, inf.config_hash(p.comp_config), 'builder', now(), 'accepted', now()
   from inf.deal_presets p where p.key = 'fixed_only';
@@ -243,9 +243,9 @@ select throws_ok($$ select inf.review_comment_set_resolved((select id from ids w
 -- Go-live, verification and metrics
 -- ---------------------------------------------------------------------------------------------------------------
 select tests.as_person('riya');
-select throws_ok($$ select inf.post_submit((select id from ids where label = 'reel'), 'https://www.instagram.com/reel/abc/', current_date + 5) $$, '22023', null,
+select throws_ok($$ select inf.post_submit((select id from ids where label = 'reel'), 'https://www.instagram.com/reel/abc/', (now() at time zone 'Asia/Kolkata')::date + 5) $$, '22023', null,
                  'the posting date cannot be in the future');
-select lives_ok($$ select inf.post_submit((select id from ids where label = 'reel'), 'https://www.instagram.com/reel/abc/', current_date) $$, 'the creator goes live');
+select lives_ok($$ select inf.post_submit((select id from ids where label = 'reel'), 'https://www.instagram.com/reel/abc/', (now() at time zone 'Asia/Kolkata')::date) $$, 'the creator goes live');
 select tests.reset();
 select ok((select live_at is not null and status = 'live' from inf.deliverables where id = (select id from ids where label = 'reel')), 'live with a timestamp');
 select is((select count(*)::int from inf.jobs where kind = 'penalties.refresh'), 1, 'going live queues a penalty refresh');
@@ -260,7 +260,7 @@ select tests.reset();
 select ok((select disclosure_failed_at is not null and status = 'live' from inf.deliverables where id = (select id from ids where label = 'reel')),
           'the disclosure failure is recorded and the post stays live');
 select tests.as_person('riya');
-select lives_ok($$ select inf.post_submit((select id from ids where label = 'reel'), 'https://www.instagram.com/reel/abc2/', current_date) $$, 'the corrected link');
+select lives_ok($$ select inf.post_submit((select id from ids where label = 'reel'), 'https://www.instagram.com/reel/abc2/', (now() at time zone 'Asia/Kolkata')::date) $$, 'the corrected link');
 select tests.as_person('cara');
 select lives_ok($$ select inf.post_verify((select id from inf.published_posts where verification_status = 'pending'), true, true, true) $$, 'verified');
 select tests.reset();

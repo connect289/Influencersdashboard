@@ -664,9 +664,9 @@ create trigger messages_append_only before update or delete on inf.messages for 
 -- platforms, media kit, preferences and the creator's message text, blocks the account and ends its sessions; keeps
 -- financial and contract records (with the KYC they need) until purge_on, when the nightly job purges the KYC. The
 -- server action then removes the sign-in account.
-create or replace function inf.privacy_deletion_decide(p_request uuid, p_approve boolean, p_note text, p_purge_on date default null) returns uuid
+create or replace function inf.privacy_deletion_decide(p_request uuid, p_approve boolean, p_note text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare r inf.privacy_requests; v_user uuid; f jsonb;
+declare r inf.privacy_requests; v_user uuid; f jsonb; v_purge date; v_avatar text; v_proof text; v_files jsonb := '[]';
 begin
   if not inf.has_perm('privacy.manage') then raise exception 'not allowed' using errcode = '42501'; end if;
   select * into r from inf.privacy_requests where id = p_request and kind = 'deletion' for update;
@@ -679,6 +679,17 @@ begin
     f := inf.privacy_deletion_facts(p_request);
     if (f ->> 'open_deals')::int > 0 then raise exception 'the creator still has open deals' using errcode = '22023'; end if;
     if (f ->> 'balance_paise')::bigint <> 0 then raise exception 'money is still owed' using errcode = '22023'; end if;
+    -- Same rule as deletionPlan (lib/privacy/plan.ts): kept records go retention_years after the last one; none, none kept.
+    v_purge := case when f ->> 'last_record_on' is not null
+                    then ((f ->> 'last_record_on')::date + make_interval(years => (f ->> 'retention_years')::int))::date end;
+    select avatar_path into v_avatar from inf.creators where id = r.creator_id;
+    select proof_path into v_proof from inf.creator_kyc where creator_id = r.creator_id;
+    if v_avatar is not null then v_files := v_files || jsonb_build_object('bucket', 'inf-public-avatars', 'path', v_avatar); end if;
+    if v_purge is null then
+      -- No financial or contract record needs the KYC: it goes now, with its proof file.
+      delete from inf.creator_kyc where creator_id = r.creator_id;
+      if v_proof is not null then v_files := v_files || jsonb_build_object('bucket', 'inf-kyc', 'path', v_proof); end if;
+    end if;
     perform set_config('inf.privacy_erase', 'on', true);
     update inf.messages m set body = '[removed at the creator''s request]'
       from inf.threads t where t.id = m.thread_id and t.creator_id = r.creator_id and m.author_side = 'creator';
@@ -692,8 +703,8 @@ begin
            blocked_reason = 'Deleted at the creator''s request'
      where id = r.creator_id;
     update inf.user_sessions set revoked_at = now(), revoke_reason = 'deleted' where user_id = v_user and revoked_at is null;
-    update inf.privacy_requests set status = 'completed', decided_by = auth.uid(), decided_at = now(), decision_note = trim(p_note),
-           plan = f, purge_on = p_purge_on
+    update inf.privacy_requests set status = case when v_purge is null then 'purged' else 'completed' end, decided_by = auth.uid(),
+           decided_at = now(), decision_note = trim(p_note), plan = f, purge_on = v_purge
      where id = r.id;
   end if;
   if v_user is not null then
@@ -702,7 +713,8 @@ begin
                        case when p_approve then 'Financial and contract records are kept as the law requires, then removed.'
                             else trim(p_note) end, null, jsonb_build_object('request_id', r.id), true, 'privacy_decided:' || r.id);
   end if;
-  return v_user;
+  -- The app bans the sign-in account and removes the listed storage files.
+  return jsonb_build_object('user_id', v_user, 'files', v_files);
 end $$;
 
 create or replace function inf.privacy_requests_list(p_status text default null) returns jsonb
@@ -740,7 +752,7 @@ create trigger sign_in_log_append_only before update or delete on inf.sign_in_lo
 
 create or replace function inf.retention_run() returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare s jsonb := inf.setting('retention.privacy'); v_clicks int; v_signins int; v_audit int; v_kyc int; v_exports int;
+declare s jsonb := inf.setting('retention.privacy'); v_clicks int; v_signins int; v_audit int; v_kyc int; v_exports int; v_files jsonb;
 begin
   update inf.link_clicks set ip_hash = null, user_agent = null, referrer = null
    where clicked_at < now() - make_interval(days => coalesce((s ->> 'click_anonymise_days')::int, 90))
@@ -754,9 +766,14 @@ begin
   perform set_config('inf.retention_purge', 'off', true);
   -- Deleted creators: KYC kept for the retention period goes when it ends.
   with due as (update inf.privacy_requests set status = 'purged'
-                where kind = 'deletion' and status = 'completed' and purge_on <= inf.ist_date(now()) returning creator_id)
-  delete from inf.creator_kyc k using due where k.creator_id = due.creator_id;
-  get diagnostics v_kyc = row_count;
+                where kind = 'deletion' and status = 'completed' and purge_on <= inf.ist_date(now()) returning creator_id),
+       gone as (delete from inf.creator_kyc k using due where k.creator_id = due.creator_id returning k.proof_path)
+  select count(*), coalesce(jsonb_agg(jsonb_build_object('bucket', 'inf-kyc', 'path', proof_path)) filter (where proof_path is not null), '[]')
+    into v_kyc, v_files from gone;
+  -- Their proof files are removed from storage by the storage.remove job.
+  if jsonb_array_length(v_files) > 0 then
+    perform inf.job_enqueue('storage.remove', jsonb_build_object('files', v_files), now(), 'storage_remove:kyc:' || inf.ist_date(now()));
+  end if;
   update inf.privacy_requests set status = 'expired' where kind = 'export' and status = 'ready' and file_expires_at <= now();
   get diagnostics v_exports = row_count;
   return jsonb_build_object('clicks_anonymised', v_clicks, 'sign_ins_deleted', v_signins, 'audit_deleted', v_audit,
@@ -849,6 +866,6 @@ insert into inf.client_grants (object_type, object_name, grantee, privilege) val
   ('function', 'inf.my_privacy_requests()', 'authenticated', 'execute'),
   ('function', 'inf.privacy_export_allowed(uuid)', 'authenticated', 'execute'),
   ('function', 'inf.privacy_deletion_facts(uuid)', 'authenticated', 'execute'),
-  ('function', 'inf.privacy_deletion_decide(uuid, boolean, text, date)', 'authenticated', 'execute'),
+  ('function', 'inf.privacy_deletion_decide(uuid, boolean, text)', 'authenticated', 'execute'),
   ('function', 'inf.privacy_requests_list(text)', 'authenticated', 'execute');
 call inf.apply_client_grants();

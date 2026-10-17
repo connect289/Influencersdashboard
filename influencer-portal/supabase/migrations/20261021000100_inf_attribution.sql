@@ -282,6 +282,10 @@ begin
   if not (v_staff or coalesce(v_creator = inf.current_creator_id(), false) or inf.agency_can(v_creator, 'negotiate')) then
     raise exception 'not allowed' using errcode = '42501';
   end if;
+  -- A custom address turns the short link into a redirect anywhere, so only staff set one (no open redirect).
+  if p ->> 'destination' = 'custom_url' and not v_staff then
+    raise exception 'custom addresses are set by Eduwit' using errcode = '42501';
+  end if;
   if nullif(p ->> 'deal_id', '') is not null then
     select * into d from inf.deals where id = (p ->> 'deal_id')::uuid;
     if d.id is null or d.creator_id <> v_creator then raise exception 'invalid deal' using errcode = '22023'; end if;

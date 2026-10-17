@@ -35,8 +35,9 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 
 ## Operations
 
-- **Public media kits** (`/m/<handle>`) exist only for approved creators who turned the page on; responses are rate
-  limited per IP and cached for five minutes. Every page carries `X-Robots-Tag: noindex`.
+- **Public media kits** (`/m/<handle>`) exist only for approved creators who turned the page on; pages are cached for
+  five minutes and the PDF route is rate limited per IP (60 a minute). Every page carries `X-Robots-Tag: noindex`.
+  Before go-live, add `/m/*` to the edge rate limit (Vercel firewall) as well (`docs/SECURITY_REVIEW.md`).
 - **Signed contracts** live in the private `inf-contracts` bucket, written once by the service role. Downloads go only
   through `/api/contracts/<id>/pdf`, which re-verifies the document and PDF hashes. A contract flagged
   `integrity_failed_at` (event `contract.integrity_failed`) must be investigated before anyone relies on it: compare the
@@ -81,3 +82,10 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 - **Production schema drift check** (read-only): run `scripts/baseline/generate-baseline.sql` against production and
   compare with `scripts/baseline/exact.sql`, or compare one md5 over all generated statements (production and a fresh
   local database must give the same hash; Phase 7 gate: 100 statements, `3f8bdfc5…`).
+- **Storage clean-up** (`storage.remove` jobs): an approved deletion removes the creator's photo (and KYC proofs no
+  record needs) at once; KYC kept for the retention period is purged by `inf.retention_run()` on its date, which queues
+  this job for the proof file. A failed job retries; it only ever removes files under `inf-public-avatars` and `inf-kyc`.
+- **Custom link addresses** are set by staff only (Leads → links on the creator's page); creators and agencies always
+  link to Witty, the website or a programme page, so `/r/<code>` cannot be used as an open redirect.
+- **Webhook endpoints** must be public HTTPS addresses; addresses written as IP numbers in any form are checked before
+  connecting, names when they resolve.

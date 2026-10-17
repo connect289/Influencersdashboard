@@ -26,7 +26,7 @@ function Decide({ r }: { r: PlannedRequest }) {
   const [note, setNote] = useState("");
   const decide = (approve: boolean) =>
     run(
-      () => decideDeletion({ requestId: r.id, approve, note, purgeOn: approve ? (r.plan?.purge_on ?? null) : null }),
+      () => decideDeletion({ requestId: r.id, approve, note }),
       () => {
         setOpen(false);
         router.refresh();

@@ -3,7 +3,7 @@
 -- history, stage events, the masked creator feed), masking proofs, overrides, fraud review and who sees what.
 begin;
 \ir _helpers.psql
-select plan(76);
+select plan(77);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('asha', array['super_admin']);
@@ -18,10 +18,10 @@ grant select, insert, update on ids to authenticated, service_role;
 insert into ids select label, creator_id from tests.people where creator_id is not null;
 insert into ids values ('deal', gen_random_uuid());
 insert into inf.deals (id, creator_id, title, status, starts_on, deal_model, agreed_at)
-select (select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Riya deal', 'agreed', current_date, 'fixed_only', now();
+select (select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Riya deal', 'agreed', (now() at time zone 'Asia/Kolkata')::date, 'fixed_only', now();
 insert into ids values ('arjun_deal', gen_random_uuid());
 insert into inf.deals (id, creator_id, title, status, starts_on, deal_model, agreed_at)
-select (select id from ids where label = 'arjun_deal'), (select id from ids where label = 'arjun'), 'Arjun deal', 'active', current_date, 'fixed_only', now();
+select (select id from ids where label = 'arjun_deal'), (select id from ids where label = 'arjun'), 'Arjun deal', 'active', (now() at time zone 'Asia/Kolkata')::date, 'fixed_only', now();
 create temporary table leads (label text primary key, id bigint);
 grant select, insert on leads to authenticated, service_role;
 
@@ -75,9 +75,12 @@ select tests.as_person('arjun');
 select throws_ok($$ select inf.link_create(jsonb_build_object('creator_id', (select id from ids where label = 'riya'),
   'deal_id', (select id from ids where label = 'deal'), 'code', 'ARJUN-FOR-RIYA', 'destination', 'whatsapp_witty')) $$, '42501', null,
   'another creator cannot make links for her');
+select throws_ok($$ select inf.link_create(jsonb_build_object('creator_id', (select id from ids where label = 'arjun'),
+  'deal_id', (select id from ids where label = 'arjun_deal'), 'code', 'ARJUN-EVIL', 'destination', 'custom_url', 'custom_url', 'https://evil.example/login')) $$,
+  '42501', null, 'creators cannot point a link at any address (no open redirect)');
 select lives_ok($$ insert into ids select 'arjun_link', inf.link_create(jsonb_build_object('creator_id', (select id from ids where label = 'arjun'),
-  'deal_id', (select id from ids where label = 'arjun_deal'), 'code', 'ARJUN-YT-22', 'destination', 'custom_url', 'custom_url', 'https://eduwit.in/mba')) $$,
-  'arjun makes his own custom link');
+  'deal_id', (select id from ids where label = 'arjun_deal'), 'code', 'ARJUN-YT-22', 'destination', 'whatsapp_witty')) $$,
+  'arjun makes his own link');
 select is((select count(*)::int from inf.tracking_links), 1, 'creators only see their own links');
 select tests.as_person('mona');
 select is(jsonb_array_length(inf.links_list((select id from ids where label = 'riya'))), 1, 'staff list a creator''s links');
@@ -218,7 +221,7 @@ select is(jsonb_array_length(inf.fraud_queue('{}')), 1, 'the manager sees the qu
 select lives_ok($$ select inf.fraud_decide((select id from inf.fraud_flags limit 1), false, 'Launch day spike, expected') $$, 'and clears it with a reason');
 select throws_ok($$ select inf.stage_mapping_save('{"priority":5,"conditions":[{"field":"stage","in":["x"]}],"creator_stage":"new"}') $$, '42501', null,
   'only settings editors change stage rules');
-select lives_ok($$ select inf.lead_backfill(current_date - 30, current_date) $$, 'a manager queues a backfill');
+select lives_ok($$ select inf.lead_backfill((now() at time zone 'Asia/Kolkata')::date - 30, (now() at time zone 'Asia/Kolkata')::date) $$, 'a manager queues a backfill');
 
 select * from finish();
 rollback;

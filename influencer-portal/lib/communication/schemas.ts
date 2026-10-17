@@ -1,6 +1,7 @@
 // Admin communication tools (spec 14, 18): notification templates (versions, variables, preview, test send),
 // announcements to creators or a segment, and outbound webhook endpoints. Shared by the server actions and forms.
 import { z } from "zod";
+import { literalHostAllowed } from "@/lib/webhooks/ssrf";
 import { eventDef } from "@/lib/notify/catalogue";
 import { unknownVars } from "@/lib/notify/render";
 import { segmentSchema } from "@/lib/notify/segments";
@@ -71,7 +72,8 @@ export const webhookCreateInput = z.object({
   url: z
     .url()
     .max(500)
-    .refine((u) => u.startsWith("https://"), { message: "https" }),
+    .refine((u) => u.startsWith("https://"), { message: "https" })
+    .refine(literalHostAllowed, { message: "private" }),
   description: z.string().trim().max(200).default(""),
   events: z.array(z.enum(WEBHOOK_EVENTS)).min(1),
 });

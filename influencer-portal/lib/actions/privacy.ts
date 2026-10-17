@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { fetchMe } from "@/lib/auth/guards";
 import { log } from "@/lib/log";
+import { removeFiles, storageFiles } from "@/lib/jobs/storage-remove";
 import { adminClient } from "@/lib/supabase/admin";
 import { createClient, type ServerSupabase } from "@/lib/supabase/server";
 import { fail, type ActionResult } from "./result";
@@ -62,7 +63,6 @@ const decideInput = z.object({
   requestId: z.uuid(),
   approve: z.boolean(),
   note: z.string().trim().min(3).max(1000),
-  purgeOn: z.iso.date().nullable(),
 });
 
 export async function decideDeletion(input: z.input<typeof decideInput>): Promise<ActionResult> {
@@ -71,17 +71,23 @@ export async function decideDeletion(input: z.input<typeof decideInput>): Promis
   if (!p.success) return fail(t("errors.invalidInput"));
   const db = await signedIn();
   if (!db) return fail(t("errors.sessionEnded"));
-  const { data: userId, error } = await db.rpc("privacy_deletion_decide", {
+  const { data, error } = await db.rpc("privacy_deletion_decide", {
     p_request: p.data.requestId,
     p_approve: p.data.approve,
     p_note: p.data.note,
-    p_purge_on: p.data.purgeOn ?? undefined,
   });
   if (error) return dbFail(error, t);
-  if (p.data.approve && userId) {
-    // The sign-in account can no longer be used (records that reference it are kept).
-    const banned = await adminClient().auth.admin.updateUserById(userId, { ban_duration: "876000h" });
-    if (banned.error) log.error("privacy.ban_failed", { error: banned.error.message });
+  const done = z.object({ user_id: z.uuid().nullable(), files: storageFiles }).parse(data);
+  if (p.data.approve) {
+    // The sign-in account can no longer be used (records that reference it are kept), and the photo (and KYC proofs
+    // nothing needs any more) leave storage.
+    if (done.user_id) {
+      const banned = await adminClient().auth.admin.updateUserById(done.user_id, { ban_duration: "876000h" });
+      if (banned.error) log.error("privacy.ban_failed", { error: banned.error.message });
+    }
+    await removeFiles(done.files).catch((e: unknown) =>
+      log.error("privacy.files_failed", { error: e instanceof Error ? e.message : String(e) }),
+    );
   }
   revalidatePath("/admin/privacy");
   return { ok: true, message: t(p.data.approve ? "privacy.staff.done" : "privacy.staff.rejected") };

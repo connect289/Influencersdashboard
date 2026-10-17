@@ -1,7 +1,18 @@
 // Outbound webhooks must only reach the public internet (spec 18, security): loopback, private, link-local, carrier
 // NAT, multicast and reserved ranges are refused, for IPv4, IPv6 and IPv4-mapped IPv6. The delivery job checks every
 // address a host resolves to at connect time, so a DNS answer that changes after the check cannot reach inside. Pure.
-import { isIP } from "node:net";
+
+/** 4 or 6 for an IP address, 0 otherwise (no node:net, so forms in the browser can use these checks). */
+function isIP(s: string): 0 | 4 | 6 {
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(s)) return 4;
+  if (!s.includes(":") || !/^[0-9a-f:.]+$/i.test(s)) return 0;
+  try {
+    new URL(`http://[${s}]/`);
+    return 6;
+  } catch {
+    return 0;
+  }
+}
 
 function v4Public(ip: string): boolean {
   const p = ip.split(".").map(Number);
@@ -44,4 +55,19 @@ export function isPublicAddress(ip: string): boolean {
   if (kind === 4) return v4Public(ip);
   if (kind === 6) return v6Public(ip);
   return false;
+}
+
+/**
+ * Whether a URL's host may be contacted before any DNS lookup: an address written as the host (also in decimal, hex or
+ * short forms, which the URL parser turns into dotted IPv4) must be public, because Node skips the connect-time lookup
+ * check for literal addresses. Names are checked when they resolve.
+ */
+export function literalHostAllowed(url: string): boolean {
+  let host: string;
+  try {
+    host = new URL(url).hostname.replace(/^\[|\]$/g, "");
+  } catch {
+    return false;
+  }
+  return isIP(host) === 0 || isPublicAddress(host);
 }

@@ -3742,7 +3742,7 @@ isOneToOne: false
 { Args: { "p_disclosure": boolean,"p_live": boolean,"p_matches": boolean,"p_note"?: string,"p_post": string }; Returns: undefined
                            },
 "privacy_deletion_decide":
-{ Args: { "p_approve": boolean,"p_note": string,"p_purge_on"?: string,"p_request": string }; Returns: string
+{ Args: { "p_approve": boolean,"p_note": string,"p_request": string }; Returns: Json
                            },
 "privacy_deletion_facts":
 { Args: { "p_request": string }; Returns: Json

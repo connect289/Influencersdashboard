@@ -4,7 +4,7 @@
 -- carry no contact details, and the catalogue events raised by the ledger and fraud checks.
 begin;
 \ir _helpers.psql
-select plan(74);
+select plan(75);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('cara', array['content_reviewer']);
@@ -37,7 +37,7 @@ insert into ids select label, creator_id from tests.people where creator_id is n
 insert into ids values ('deal', gen_random_uuid()), ('campaign', gen_random_uuid());
 insert into inf.campaigns (id, name, objective, created_by) values ((select id from ids where label = 'campaign'), 'Comm push', 'leads', (select user_id from tests.people where label = 'mona'));
 insert into inf.deals (id, creator_id, title, status, starts_on, deal_model, agreed_at, owner_id)
-values ((select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Riya reel deal', 'active', current_date - 10, 'hybrid', now(),
+values ((select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Riya reel deal', 'active', (now() at time zone 'Asia/Kolkata')::date - 10, 'hybrid', now(),
         (select user_id from tests.people where label = 'mona'));
 with l as (insert into public.student_leads (whatsapp_number, student_name, stage) values ('910000008801', 'Comm Lead', 'new') returning id)
 insert into inf.lead_attributions (student_lead_id, creator_id, code, touch, status, evidence_source, touch_at, lead_created_at, creator_stage)
@@ -231,21 +231,27 @@ select throws_ok($$ select inf.webhook_delivery_get(1) $$, '42501', null, 'clien
 -- ---------------------------------------------------------------------------------------------------------------
 select tests.reset();
 select inf.ledger_post(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'deal_id', (select id from ids where label = 'deal'),
-  'type', 'commission', 'direction', 'credit', 'amount_paise', 123450, 'source', 'engine', 'event_key', 'comm:enrol', 'subject', 'enrol:b2b:991',
-  'attribution_id', (select id from ids where label = 'attribution'), 'tds_component', 'commission', 'due_on', current_date));
+  'type', 'commission', 'direction', 'credit', 'amount_paise', 123450, 'source', 'engine', 'event_key', 'comm:enrol', 'subject', 'commission:enrol:b2b:991',
+  'attribution_id', (select id from ids where label = 'attribution'), 'tds_component', 'commission', 'due_on', (now() at time zone 'Asia/Kolkata')::date));
 select is((select n.title from inf.notifications n join tests.people p on p.user_id = n.user_id where p.label = 'riya' and n.event = 'lead.enrolled'),
           'A student enrolled: ₹1,234.50 earned', 'an enrolment tells the creator what she earned');
 select inf.ledger_post(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'deal_id', (select id from ids where label = 'deal'),
   'type', 'milestone', 'direction', 'credit', 'amount_paise', 500000, 'confirmed_paise', 500000, 'source', 'engine', 'event_key', 'comm:milestone',
-  'tds_component', 'milestone', 'due_on', current_date, 'note', 'First reel live'));
+  'tds_component', 'milestone', 'due_on', (now() at time zone 'Asia/Kolkata')::date, 'note', 'First reel live'));
 select is((select n.title || '|' || n.mandatory from inf.notifications n join tests.people p on p.user_id = n.user_id where p.label = 'riya' and n.event = 'ledger.payable'),
           '₹5,000.00 is due to you|true', 'a fixed amount that is due is announced (mandatory)');
 select inf.ledger_post(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'deal_id', (select id from ids where label = 'deal'),
   'type', 'reversal', 'direction', 'debit', 'amount_paise', 123450, 'confirmed_paise', 0, 'source', 'reversal', 'event_key', 'rev:comm:enrol',
-  'subject', 'enrol:b2b:991', 'reverses_id', (select id from inf.ledger_entries where event_key = 'comm:enrol'), 'due_on', current_date, 'note', 'No longer earned'));
+  'subject', 'commission:enrol:b2b:991', 'reverses_id', (select id from inf.ledger_entries where event_key = 'comm:enrol'), 'due_on', (now() at time zone 'Asia/Kolkata')::date, 'note', 'No longer earned'));
 select is((select n.title || '|' || n.body from inf.notifications n join tests.people p on p.user_id = n.user_id where p.label = 'riya' and n.event = 'lead.clawed_back'),
           '₹1,234.50 commission no longer earned|The enrolment was cancelled or refunded. It had not been paid, so nothing is recovered.',
           'a refunded enrolment is explained to the creator');
+select inf.ledger_post(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'deal_id', (select id from ids where label = 'deal'),
+  'type', 'clawback', 'direction', 'debit', 'amount_paise', 50000, 'confirmed_paise', 50000, 'source', 'engine', 'event_key', 'claw:enrol',
+  'subject', 'commission:enrol:b2b:992', 'tds_component', 'commission', 'due_on', (now() at time zone 'Asia/Kolkata')::date,
+  'note', 'Enrolment cancelled or refunded'));
+select is((select n.title from inf.notifications n join tests.people p on p.user_id = n.user_id where p.label = 'riya' and n.event = 'lead.clawed_back'
+            and n.data ->> 'amount' = '₹500.00'), '₹500.00 commission no longer earned', 'so is a clawback inside the window (the engine''s clawback line)');
 select lives_ok($$ select inf.comm_daily() $$, 'the daily nudges run');
 select is((select count(*)::int from inf.notifications n join tests.people p on p.user_id = n.user_id where p.label = 'riya' and n.event = 'kyc.action_needed'), 1,
           'money is due but KYC is not verified: the creator is asked to finish it');

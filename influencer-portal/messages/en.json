@@ -3809,7 +3809,8 @@
       "noLead": "That lead doesn't exist.",
       "alreadyDecided": "This has already been decided.",
       "range": "Choose a range of up to 400 days.",
-      "priorityTaken": "Another rule has this priority."
+      "priorityTaken": "Another rule has this priority.",
+      "customUrlStaff": "Only Eduwit can send a link to a custom address."
     }
   },
   "finance": {

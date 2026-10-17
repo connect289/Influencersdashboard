@@ -984,15 +984,25 @@ declare v_user uuid; v_lead text; v_orig inf.ledger_entries;
 begin
   select ca.user_id into v_user from inf.creator_accounts ca where ca.creator_id = new.creator_id;
   if v_user is null then return null; end if;
-  if tg_op = 'INSERT' and new.type = 'commission' and new.direction = 'credit' and new.subject like 'enrol:%' then
+  if tg_op = 'INSERT' and new.type = 'commission' and new.direction = 'credit' and new.subject ~ '(^|:)enrol:' then
     select inf.lead_ref(a.student_lead_id) into v_lead from inf.lead_attributions a where a.id = new.attribution_id;
     perform inf.notify(v_user, 'lead.enrolled', 'A student enrolled: ' || inf.inr(new.amount_paise) || ' earned',
                        'Commission for lead ' || coalesce(v_lead, 'from your link') || '. It is confirmed when Eduwit receives its commission.',
                        '/creator/earnings', jsonb_build_object('entry_id', new.id, 'amount', inf.inr(new.amount_paise), 'lead', v_lead), false,
                        'lead_enrolled:' || new.creator_id || ':' || new.subject);
+  elsif tg_op = 'INSERT' and new.type = 'clawback' and new.direction = 'debit' and new.subject ~ '(^|:)enrol:' then
+    -- A refund or cancellation inside the clawback window: the engine posts a clawback line against the commission.
+    perform inf.notify(v_user, 'lead.clawed_back', inf.inr(new.amount_paise) || ' commission no longer earned',
+                       'The enrolment was cancelled or refunded. '
+                       || case when exists (select 1 from inf.ledger_entries o where o.deal_id = new.deal_id and o.subject = new.subject
+                                              and o.type = 'commission' and o.paid_paise > 0)
+                               then 'What was already paid is recovered from your next payouts.'
+                               else 'It had not been paid, so nothing is recovered.' end,
+                       '/creator/earnings', jsonb_build_object('entry_id', new.id, 'amount', inf.inr(new.amount_paise)), true,
+                       'lead_clawed_back:' || new.creator_id || ':' || new.subject);
   elsif tg_op = 'INSERT' and new.type = 'reversal' and new.note = 'No longer earned' then
     select * into v_orig from inf.ledger_entries where id = new.reverses_id;
-    if v_orig.type = 'commission' and v_orig.subject like 'enrol:%' then
+    if v_orig.type = 'commission' and v_orig.subject ~ '(^|:)enrol:' then
       perform inf.notify(v_user, 'lead.clawed_back', inf.inr(v_orig.amount_paise) || ' commission no longer earned',
                          'The enrolment was cancelled or refunded. '
                          || case when new.confirmed_paise > 0 then inf.inr(new.confirmed_paise) || ' already paid is recovered from your next payouts.'

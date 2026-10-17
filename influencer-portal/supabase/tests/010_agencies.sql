@@ -1,7 +1,7 @@
 -- Agencies: membership linking, creator-granted permissions, isolation between agencies, no KYC or contact access.
 begin;
 \ir _helpers.psql
-select plan(27);
+select plan(32);
 
 select tests.make_creator('riya');
 select tests.make_creator('arjun');
@@ -18,8 +18,21 @@ insert into ids select 'zen', inf.agency_save('{"name":"Zen Mgmt"}');
 select lives_ok($$ select inf.agency_member_add((select creator_id from ids where label = 'acme'), 'Owner@Acme.test', 'Ola Owner', 'owner') $$, 'staff invites an agency owner');
 select lives_ok($$ select inf.agency_member_add((select creator_id from ids where label = 'zen'), 'zed@zen.test', 'Zed', 'owner') $$, 'and one for the other agency');
 select throws_ok($$ select inf.agency_member_add((select creator_id from ids where label = 'acme'), 'riya@creator.test', 'Riya', 'member') $$, '22023', null, 'a creator''s email cannot become an agency member');
+insert into ids select 'zed_member', id from inf.agency_members where email = 'zed@zen.test';
 select tests.as_person('rev');
 select throws_ok($$ select inf.agency_save('{"name":"Rogue"}') $$, '42501', null, 'content reviewer cannot create agencies');
+-- People outside the agency get null from current_agency_id(); the owner check must still refuse them.
+select throws_ok($$ select inf.agency_member_add((select creator_id from ids where label = 'acme'), 'evil@else.test', 'Evil', 'owner') $$,
+  '42501', null, 'staff without agency.manage cannot add agency members');
+select throws_ok($$ select inf.agency_member_remove((select creator_id from ids where label = 'zed_member')) $$,
+  '42501', null, 'or remove them');
+select tests.as_person('riya');
+select throws_ok($$ select inf.agency_member_add((select creator_id from ids where label = 'acme'), 'evil@else.test', 'Evil', 'owner') $$,
+  '42501', null, 'a creator cannot add themselves as an agency owner');
+select throws_ok($$ select inf.agency_link_request((select creator_id from ids where label = 'acme'), (select creator_id from ids where label = 'arjun')) $$,
+  '42501', null, 'or send link requests in an agency''s name');
+select throws_ok($$ select inf.agency_link_request_by_handle((select creator_id from ids where label = 'acme'), 'anyone') $$,
+  '42501', null, 'by handle either');
 
 -- The owner signs in: first sign-in links the membership by verified email.
 select tests.reset();

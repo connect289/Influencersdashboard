@@ -456,7 +456,10 @@ begin
   if not inf.has_perm('commission_receipt.write') then raise exception 'not allowed' using errcode = '42501'; end if;
   if coalesce(char_length(trim(p ->> 'reason')), 0) < 3 then raise exception 'a reason is required' using errcode = '22023'; end if;
   if v_ref !~ '^(b2b|b2c):\d+$' then raise exception 'invalid enrolment reference' using errcode = '22023'; end if;
+  -- The lead comes from an earlier receipt, the enrolment itself (read-only), or the form when neither exists yet.
   v_lead := coalesce((select r.student_lead_id from inf.eduwit_commission_receipts r where r.enrollment_ref = v_ref order by r.id desc limit 1),
+                     case when v_ref like 'b2b:%' then (select e.lead_id from public.enrollments e where e.id = substr(v_ref, 5)::bigint)
+                          else (select m.lead_id from public.b2c_enrollment_money_v m where m.enrollment_id = substr(v_ref, 5)::bigint limit 1) end,
                      nullif(p ->> 'student_lead_id', '')::bigint);
   if v_lead is null then raise exception 'no such lead' using errcode = '22023'; end if;
   insert into inf.eduwit_commission_receipts (student_lead_id, enrollment_ref, gross_paise, gst_paise, net_paise, received_paise, received_on,
@@ -581,8 +584,9 @@ begin
 
   for v in select * from jsonb_array_elements(coalesce(p -> 'create', '[]')) loop
     v_attr := case
-      when v ->> 'subject' ~ '^(lead|qualified|applied):[0-9a-f-]{36}$' then split_part(v ->> 'subject', ':', 2)::uuid
-      when v ->> 'subject' like 'enrol:%' then nullif(p -> 'enrolment_leads' ->> substr(v ->> 'subject', 7), '')::uuid
+      -- Engine subjects are '<rule>:lead:<attribution>' (or qualified/applied) and '<rule>:enrol:<enrolment ref>'.
+      when v ->> 'subject' ~ '(^|:)(lead|qualified|applied):[0-9a-f-]{36}$' then substring(v ->> 'subject' from '([0-9a-f-]{36})$')::uuid
+      when v ->> 'subject' ~ '(^|:)enrol:' then nullif(p -> 'enrolment_leads' ->> substring(v ->> 'subject' from 'enrol:(.+)$'), '')::uuid
     end;
     v_id := inf.ledger_post(jsonb_build_object(
       'creator_id', d.creator_id, 'deal_id', d.id, 'deal_version_id', v ->> 'version_id', 'type', v ->> 'type',
@@ -1402,7 +1406,7 @@ language sql stable security definer set search_path = '' as $$
                                                              'confirmed_paise', e.confirmed_paise, 'reversed', e.reversed_by_id is not null,
                                                              'at', e.posted_at, 'creator_name', c.display_name, 'deal_title', d.title))
                            from inf.ledger_entries e join inf.creators c on c.id = e.creator_id left join inf.deals d on d.id = e.deal_id
-                          where e.type in ('commission', 'clawback') and e.subject like 'enrol:%'), '[]'),
+                          where e.type in ('commission', 'clawback') and e.subject ~ '(^|:)enrol:'), '[]'),
     'receipts', coalesce((select jsonb_agg(jsonb_build_object('enrollment_ref', r.enrollment_ref, 'expected_paise', nullif(r.gross_paise, 0),
                                                               'received_paise', r.received_paise, 'received_on', r.received_on,
                                                               'status', r.status, 'source', r.source, 'reason', r.reason,

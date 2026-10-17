@@ -194,7 +194,7 @@ export const CREATOR: Guide = {
         },
         {
           steps: [
-            "Pick the deal, and if you like the post and the programme. Choose where the link goes: WhatsApp (Eduwit's counsellor bot, with a ready-made message), your page on the Eduwit website, or another https page.",
+            "Pick the deal, and if you like the post and the programme. Choose where the link goes: WhatsApp (Eduwit's counsellor bot, with a ready-made message) or your page on the Eduwit website. For another web page, ask your Eduwit manager to make the link.",
             "Say where you'll share it (Instagram, YouTube and so on) and add a label only you see.",
             "Tap **Create link**. Copy the short link, or download the QR code as PNG or SVG for videos, stories and print.",
           ],

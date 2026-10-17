@@ -34,9 +34,9 @@ async function signedIn(): Promise<ServerSupabase | null> {
 }
 
 function dbFail(error: { code?: string; message: string }, t: T): ActionResult<never> {
-  if (error.code === "42501") return fail(t("errors.forbidden"));
   for (const [re, key] of ATTRIBUTION_DB_ERRORS)
     if (re.test(error.message)) return fail(t(`leads.errors.${key}` as "leads.errors.codeTaken"));
+  if (error.code === "42501") return fail(t("errors.forbidden"));
   if (error.code === "22023" || error.code === "23514" || error.code === "23505") return fail(t("errors.invalidInput"));
   log.warn("attribution.db_error", { code: error.code, error: error.message });
   return fail(t("errors.generic"));

@@ -6,7 +6,7 @@ import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { request } from "node:https";
 import type { LookupFunction } from "node:net";
 import { SIGNATURE_HEADER, signatureHeader } from "./sign";
-import { isPublicAddress } from "./ssrf";
+import { isPublicAddress, literalHostAllowed } from "./ssrf";
 
 const TIMEOUT_MS = 10_000;
 
@@ -34,6 +34,8 @@ export interface DeliveryAttempt {
 export function postWebhook(url: string, secret: string, body: string, now = new Date()): Promise<DeliveryAttempt> {
   const target = new URL(url);
   if (target.protocol !== "https:") return Promise.resolve({ status: null, error: "https only", blocked: true });
+  // The lookup below is skipped for literal addresses, so check those here.
+  if (!literalHostAllowed(url)) return Promise.resolve({ status: null, error: "address not allowed", blocked: true });
   const timestamp = Math.floor(now.getTime() / 1000);
   return new Promise((resolve) => {
     const req = request(

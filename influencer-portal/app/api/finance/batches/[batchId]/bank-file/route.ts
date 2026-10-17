@@ -20,9 +20,12 @@ const rowSchema = z.object({
 /**
  * The bank bulk-upload file for an approved batch (payout.manage). inf.payout_bank_rows() decrypts the account
  * numbers, audits the export and moves the batch to processing; the provider (lib/ledger/provider.ts, v1: the bank
- * file) builds the file here and it is never stored.
+ * file) builds the file here and it is never stored. Cross-site requests are refused (Sec-Fetch-Site).
  */
-export async function GET(_request: Request, { params }: { params: Promise<{ batchId: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ batchId: string }> }) {
+  // Downloading changes the batch (it moves to processing), so a link on another site must not trigger it.
+  const site = request.headers.get("sec-fetch-site");
+  if (site && site !== "same-origin" && site !== "none") return new Response("Forbidden", { status: 403 });
   const { batchId } = await params;
   if (!z.uuid().safeParse(batchId).success) return new Response("Not found", { status: 404 });
   const supabase = await createClient();

@@ -3,7 +3,7 @@
 // on Eduwit's payment after N days, and receipts the ledger has not caught up with yet. Pure.
 
 export interface CommissionEntry {
-  /** Engine subject of the line: `enrol:<enrollment ref>` for enrolment-based commission. */
+  /** Engine subject of the line: `<rule>:enrol:<enrollment ref>` for enrolment-based commission. */
   subject: string;
   direction: "credit" | "debit";
   amount_paise: number;
@@ -31,8 +31,7 @@ export interface ReconRow {
   flag: "overdue" | "received_not_confirmed" | null;
 }
 
-export const enrollmentOf = (subject: string): string | null =>
-  subject.startsWith("enrol:") ? subject.slice(6) : null;
+export const enrollmentOf = (subject: string): string | null => /(?:^|:)enrol:(.+)$/.exec(subject)?.[1] ?? null;
 
 export function reconcile(
   entries: readonly CommissionEntry[],

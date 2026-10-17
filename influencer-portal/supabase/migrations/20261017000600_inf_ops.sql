@@ -261,6 +261,7 @@ create table inf.rate_hits (
   primary key (key, window_start)
 );
 
+-- Server only (service role): keys are chosen by the caller, so clients must never call it (they could lock others out).
 create or replace function inf.rate_check(p_key text, p_limit int, p_seconds int) returns boolean
 language plpgsql security definer set search_path = '' as $$
 declare v_window timestamptz; v_hits int;
@@ -440,9 +441,7 @@ insert into inf.client_grants (object_type, object_name, grantee, privilege) val
   ('function', 'inf.terms_publish(text, text, text)', 'authenticated', 'execute'),
   ('function', 'inf.system_status()', 'authenticated', 'execute'),
   ('function', 'inf.jobs_recent(text, int)', 'authenticated', 'execute'),
-  ('function', 'inf.rate_check(text, int, int)', 'authenticated', 'execute'),
   ('function', 'inf.health()', 'authenticated', 'execute'),
-  ('function', 'inf.rate_check(text, int, int)', 'anon', 'execute'),
   ('function', 'inf.health()', 'anon', 'execute');
 
 -- Realtime: in-app notifications (S-6). RLS above limits each subscriber to their own rows.

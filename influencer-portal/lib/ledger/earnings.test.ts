@@ -7,7 +7,7 @@ import {
   statementMonths,
   type EarningEntry,
 } from "./earnings";
-import { reconcile } from "./reconcile";
+import { enrollmentOf, reconcile } from "./reconcile";
 
 const e = (over: Partial<EarningEntry>): EarningEntry & { label: string } => ({
   type: "milestone",
@@ -116,8 +116,14 @@ describe("monthly statement", () => {
 });
 
 describe("reconciliation", () => {
+  it("reads the enrolment from the engine's subject (<rule>:enrol:<ref>)", () => {
+    expect(enrollmentOf("commission:enrol:b2b:9")).toBe("b2b:9");
+    expect(enrollmentOf("enrol:b2c:4")).toBe("b2c:4");
+    expect(enrollmentOf("commission:lead:5b7e3a52-8f2c-4d1e-9a6b-1c2d3e4f5a6b")).toBeNull();
+    expect(enrollmentOf("fee.signing")).toBeNull();
+  });
   const entry = {
-    subject: "enrol:b2b:9",
+    subject: "commission:enrol:b2b:9",
     direction: "credit" as const,
     amount_paise: 100_000,
     confirmed_paise: 0,
@@ -141,7 +147,11 @@ describe("reconciliation", () => {
   });
   it("flags receipts the ledger has not confirmed yet, and ignores reversed and non-enrolment lines", () => {
     const rows = reconcile(
-      [entry, { ...entry, subject: "lead:a1" }, { ...entry, subject: "enrol:b2b:10", reversed: true }],
+      [
+        entry,
+        { ...entry, subject: "commission:lead:a1" },
+        { ...entry, subject: "commission:enrol:b2b:10", reversed: true },
+      ],
       [{ enrollment_ref: "b2b:9", expected_paise: 1_180_000, received_paise: 1_180_000, status: "received" }],
       90,
       "2026-08-02T00:00:00.000Z",

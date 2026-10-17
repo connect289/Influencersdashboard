@@ -83,13 +83,13 @@ select is(jsonb_array_length(inf.deal_presets_list()), 0, 'creators do not list 
 -- ---------------------------------------------------------------------------------------------------------------
 select tests.as_person('mona');
 insert into ids select 'deal', inf.deal_create(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'title', 'Always-on MBA deal',
-  'starts_on', current_date::text, 'ends_on', (current_date + 90)::text, 'comp_config', (select c from cfg where label = 'fixed'),
+  'starts_on', (now() at time zone 'Asia/Kolkata')::date::text, 'ends_on', ((now() at time zone 'Asia/Kolkata')::date + 90)::text, 'comp_config', (select c from cfg where label = 'fixed'),
   'internal_notes', 'Max 20k'));
 select is((select status || '/' || deal_model from inf.deals where id = (select id from ids where label = 'deal')), 'draft/fixed_only', 'draft deal with its model');
-select throws_ok($$ select inf.deal_create(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'title', 'Bad', 'starts_on', current_date::text, 'comp_config', '{"schema_version":1,"fixed":"x"}'::jsonb)) $$,
+select throws_ok($$ select inf.deal_create(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'title', 'Bad', 'starts_on', (now() at time zone 'Asia/Kolkata')::date::text, 'comp_config', '{"schema_version":1,"fixed":"x"}'::jsonb)) $$,
                  '22023', null, 'invalid config refused');
 select tests.as_person('riya');
-select throws_ok($$ select inf.deal_create(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'title', 'Mine', 'starts_on', current_date::text, 'comp_config', (select c from cfg where label = 'fixed'))) $$,
+select throws_ok($$ select inf.deal_create(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'title', 'Mine', 'starts_on', (now() at time zone 'Asia/Kolkata')::date::text, 'comp_config', (select c from cfg where label = 'fixed'))) $$,
                  '42501', null, 'creators cannot create deals');
 select is(inf.deal_detail((select id from ids where label = 'deal')) ->> 'status', 'draft', 'creator can open the deal record');
 select is(jsonb_array_length(inf.my_deals((select id from ids where label = 'riya'))), 0, 'but drafts are not in My deals');
@@ -100,7 +100,7 @@ select lives_ok($$ select inf.deal_update((select id from ids where label = 'dea
 insert into ids select 'v1', inf.deal_propose((select id from ids where label = 'deal'));
 select is((select status || '/' || coalesce(draft_config::text, 'none') from inf.deals where id = (select id from ids where label = 'deal')), 'proposed/none', 'proposed; working copy cleared');
 select is((select to_char(effective_from at time zone 'Asia/Kolkata', 'HH24:MI') from inf.deal_versions where id = (select id from ids where label = 'v1')), '00:00', 'first version starts at midnight IST');
-select throws_ok($$ select inf.deal_update((select id from ids where label = 'deal'), jsonb_build_object('ends_on', (current_date + 120)::text)) $$, '22023', null, 'dates are fixed while proposed');
+select throws_ok($$ select inf.deal_update((select id from ids where label = 'deal'), jsonb_build_object('ends_on', ((now() at time zone 'Asia/Kolkata')::date + 120)::text)) $$, '22023', null, 'dates are fixed while proposed');
 
 select tests.as_person('riya');
 select is(inf.deal_detail((select id from ids where label = 'deal')) ? 'internal_notes', false, 'creator never sees internal notes');

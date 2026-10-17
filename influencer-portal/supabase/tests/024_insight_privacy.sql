@@ -3,7 +3,7 @@
 -- financial records and blanks only the creator's own message text, and that append-only tables stay append-only.
 begin;
 \ir _helpers.psql
-select plan(62);
+select plan(64);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('sam', array['super_admin']);
@@ -13,8 +13,8 @@ update inf.creators set approved_at = now() - interval '7 months', phone_e164 = 
  where id = (select creator_id from tests.people where label = 'riya');
 
 -- The scorecard period is the current month; dates below are relative to its first day.
-create temporary table per as select date_trunc('month', current_date)::date as m0,
-       (date_trunc('month', current_date) + interval '1 month - 1 day')::date as m1, to_char(current_date, 'YYYY-MM') as label;
+create temporary table per as select date_trunc('month', (now() at time zone 'Asia/Kolkata')::date)::date as m0,
+       (date_trunc('month', (now() at time zone 'Asia/Kolkata')::date) + interval '1 month - 1 day')::date as m1, to_char((now() at time zone 'Asia/Kolkata')::date, 'YYYY-MM') as label;
 grant select on per to authenticated, service_role;
 create temporary table ids (label text primary key, id uuid);
 grant select, insert, update on ids to authenticated, service_role;
@@ -44,7 +44,7 @@ select l.id, (select id from ids where label = 'riya'), 'RIYA-SC', case when rig
 -- Spend: a ₹1,000 milestone posted now (this month).
 select inf.ledger_post(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'deal_id', (select id from ids where label = 'deal'),
   'type', 'milestone', 'direction', 'credit', 'amount_paise', 100000, 'source', 'engine', 'event_key', 'sc:m1', 'tds_component', 'milestone',
-  'due_on', current_date + 60));
+  'due_on', (now() at time zone 'Asia/Kolkata')::date + 60));
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- Tiers
@@ -99,7 +99,7 @@ select throws_ok($$ update inf.scorecards set composite = 99 $$, '42501', null, 
 
 select tests.as_person('mona');
 select lives_ok($$ select inf.scorecard_save(jsonb_build_object('creator_id', (select id from ids where label = 'riya'), 'kind', 'on_demand',
-                     'period', (select label from per), 'period_from', (select m0 from per), 'period_to', current_date, 'facts', '{}'::jsonb, 'scores', '{}'::jsonb,
+                     'period', (select label from per), 'period_from', (select m0 from per), 'period_to', (now() at time zone 'Asia/Kolkata')::date, 'facts', '{}'::jsonb, 'scores', '{}'::jsonb,
                      'composite', 20, 'weights', '{}'::jsonb, 'tier_after', (select id from ids where label = 'bronze'), 'change', 'down')) $$,
                 'a manager runs a card on demand');
 select tests.reset();
@@ -109,7 +109,7 @@ select tests.as_person('mona');
 select is(jsonb_array_length(inf.creator_scorecards((select id from ids where label = 'riya')) -> 'cards'), 2, 'staff see the creator''s cards');
 select is(inf.programme_scorecards((select label from per)) -> 'items' -> 0 ->> 'tier', 'Silver', 'and the programme list for a month');
 select is((inf.programme_scorecards((select label from per), 0, 1) ->> 'total')::int >= 1, true, 'which is paginated with a total');
-select throws_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), current_date + 30, 'VIP', (select id from ids where label = 'gold')) $$,
+select throws_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), (now() at time zone 'Asia/Kolkata')::date + 30, 'VIP', (select id from ids where label = 'gold')) $$,
                  '42501', null, 'manual tiers need tier.manage');
 
 select tests.as_person('riya');
@@ -121,9 +121,9 @@ select tests.as_person('arjun');
 select throws_ok($$ select inf.tier_status((select id from ids where label = 'riya')) $$, '42501', null, 'nor anyone else''s');
 
 select tests.as_person('sam');
-select throws_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), current_date + 30, 'x', (select id from ids where label = 'gold')) $$,
+select throws_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), (now() at time zone 'Asia/Kolkata')::date + 30, 'x', (select id from ids where label = 'gold')) $$,
                  '22023', null, 'a manual tier needs a reason');
-select lives_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), current_date + 30, 'Flagship partner this quarter',
+select lives_ok($$ select inf.tier_set_manual((select id from ids where label = 'riya'), (now() at time zone 'Asia/Kolkata')::date + 30, 'Flagship partner this quarter',
                      (select id from ids where label = 'gold')) $$, 'the Super Admin sets a manual tier');
 select tests.reset();
 select is((select reason || ':' || note from inf.tier_history where creator_id = (select id from ids where label = 'riya') order by id desc limit 1),
@@ -133,7 +133,7 @@ select is((select reason || ':' || note from inf.tier_history where creator_id =
 -- Early campaign access (Gold has none, Silver 3 days: the longest is 3)
 -- ---------------------------------------------------------------------------------------------------------------
 select tests.as_person('sam');
-select inf.tier_set_manual((select id from ids where label = 'riya'), current_date + 30, 'Back to Silver', (select id from ids where label = 'silver'));
+select inf.tier_set_manual((select id from ids where label = 'riya'), (now() at time zone 'Asia/Kolkata')::date + 30, 'Back to Silver', (select id from ids where label = 'silver'));
 select tests.reset();
 insert into inf.campaigns (id, name, objective, status, visibility, created_by)
 values ((select id from ids where label = 'campaign'), 'Early access drive', 'leads', 'open', 'open', (select user_id from tests.people where label = 'mona'));
@@ -200,15 +200,17 @@ select is((select count(*)::int from inf.notifications n join tests.people p on 
 select tests.as_person('mona');
 select is(inf.privacy_requests_list(), '[]'::jsonb, 'requests need privacy.manage');
 select tests.as_person('sam');
-select throws_ok($$ select inf.privacy_deletion_decide((select id from ids where label = 'deletion'), true, 'Verified by email', current_date + 2920) $$,
+select throws_ok($$ select inf.privacy_deletion_decide((select id from ids where label = 'deletion'), true, 'Verified by email') $$,
                  '22023', null, 'not while a deal is open');
 select tests.reset();
 update inf.deals set status = 'completed' where id = (select id from ids where label = 'deal');
 select tests.as_person('sam');
 select is((inf.privacy_deletion_facts((select id from ids where label = 'deletion')) ->> 'last_record_on')::date, (now() at time zone 'Asia/Kolkata')::date, 'the last financial record');
-select lives_ok($$ select inf.privacy_deletion_decide((select id from ids where label = 'deletion'), true, 'Verified by email', current_date + 2922) $$,
+select lives_ok($$ select inf.privacy_deletion_decide((select id from ids where label = 'deletion'), true, 'Verified by email') $$,
                 'the request is carried out');
 select tests.reset();
+select is((select purge_on from inf.privacy_requests where id = (select id from ids where label = 'deletion')),
+          ((now() at time zone 'Asia/Kolkata')::date + interval '8 years')::date, 'kept records are purged 8 years after the last one (set by the database)');
 select is((select display_name || ':' || coalesce(email, '-') || ':' || status from inf.creators where id = (select id from ids where label = 'riya')),
           'Deleted creator:-:archived', 'the profile is erased');
 select is((select m.body from inf.messages m join inf.threads t on t.id = m.thread_id where t.creator_id = (select id from ids where label = 'riya')
@@ -221,13 +223,17 @@ select throws_ok($$ update inf.messages set body = 'x' $$, '42501', null, 'messa
 -- ---------------------------------------------------------------------------------------------------------------
 -- Retention
 -- ---------------------------------------------------------------------------------------------------------------
-insert into inf.creator_kyc (creator_id, status) values ((select id from ids where label = 'riya'), 'verified') on conflict do nothing;
-update inf.privacy_requests set purge_on = current_date - 1 where id = (select id from ids where label = 'deletion');
+insert into inf.creator_kyc (creator_id, status, proof_path)
+  values ((select id from ids where label = 'riya'), 'verified', (select id from ids where label = 'riya') || '/pan.pdf')
+  on conflict (creator_id) do update set proof_path = excluded.proof_path;
+update inf.privacy_requests set purge_on = (now() at time zone 'Asia/Kolkata')::date - 1 where id = (select id from ids where label = 'deletion');
 insert into inf.sign_in_log (at, email, portal, method, outcome) values (now() - interval '3 years', 'old@example.test', 'creator', 'email_otp', 'ok');
 insert into inf.audit_log (at, entity_type, action) values (now() - interval '9 years', 'test', 'insert'), (now(), 'test', 'insert');
 create temporary table rr as select inf.retention_run() as v;
 select is((select (v ->> 'kyc_purged')::int from rr), 1, 'KYC kept for a deleted creator goes when the retention period ends');
 select is((select status from inf.privacy_requests where id = (select id from ids where label = 'deletion')), 'purged', 'and the request says so');
+select is((select payload -> 'files' -> 0 ->> 'bucket' from inf.jobs where kind = 'storage.remove' order by id desc limit 1), 'inf-kyc',
+          'and its proof file is queued for removal from storage');
 select is((select count(*)::int from inf.audit_log where entity_type = 'test'), 1, 'audit entries older than the retention period are removed');
 select is((select count(*)::int from inf.sign_in_log where email = 'old@example.test'), 0, 'and old sign-in records');
 select throws_ok($$ delete from inf.audit_log where entity_type = 'test' $$, '42501', null, 'the audit log stays append-only otherwise');
