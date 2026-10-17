@@ -526,3 +526,27 @@ these at the end (spec Section 0).
   The checker reads the intro as the first real paragraph after the H1, counts streamed Suspense content (crawlers render
   it), and counts links from header, footer and hub pages (`/`, `/programmes`, `/universities`, `/resources`) as inbound.
   After the change the local average is 95; what remains is content work (university intros in the admin, S-46/S-53).
+
+## Phase 12
+
+### D-076 · Seven immutable SQL helpers keep no `search_path` setting (security review L12)
+- **Why:** `web_norm`, `web_slugify`, `web_naac_rank`, `web_eligibility`, `web_duration_bucket`, `web_jarr` and
+  `web_admin_role_ok` are `IMMUTABLE` SQL functions that call only built-ins (pg_catalog is always searched first, so
+  they cannot be shadowed) or schema-qualified `public.web_norm`; they are revoked from browser roles. A `SET` clause
+  would stop Postgres inlining them, and `web_norm` runs inside search predicates. The Supabase advisor will list them as
+  `function_search_path_mutable`; this entry is the reason. **To change:** `alter function … set search_path = ''`.
+
+### D-077 · Rate limits on a deployed site never depend on one server instance (security review M3)
+- **Why:** without Upstash (S-15) the in-memory store would give each Vercel instance its own counters. On production
+  and preview without Upstash, limits use the Postgres limiter; if neither store is reachable, limits that cost money or
+  write to the shared CRM (code sends and checks, chat turns, form submits, callbacks) refuse, while browsing limits
+  (search, beacons) allow, so an outage of the limiter never takes the finder down. **To change:** `failClosed` per limit
+  in `web/lib/server/rate-limit.ts`.
+
+### D-078 · Staff Supabase sessions are confined to `/admin` (security review M4)
+- **Why:** staff tokens are valid against the shared production project. They are now HttpOnly and sent only to
+  `/admin`; public pages (which allow inline scripts, D-025) never receive them. All staff auth flows are server-side.
+
+### D-079 · Callback requests: one per day and slot, three a day (security review M2)
+- **Why:** each request updates the shared lead. A repeat of the same day and slot returns the existing booking without a
+  new `lead_intake` call; a fourth request in 24 hours is refused with a pointer to WhatsApp.

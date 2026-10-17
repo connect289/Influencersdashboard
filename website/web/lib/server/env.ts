@@ -54,9 +54,10 @@ export function env(): Env {
     );
   }
   const e = parsed.data;
-  if (e.APP_ENV === "production") {
+  // Deployed environments (production and preview) never run on the dev fallback secrets, which are public in the repo.
+  if (e.APP_ENV === "production" || e.APP_ENV === "preview") {
     const missing = (["SUPABASE_SECRET_KEY", "WEB_SESSION_SECRET", "WEB_INTERNAL_KEY"] as const).filter((k) => !e[k]);
-    if (missing.length) throw new Error(`Missing required production secrets: ${missing.join(", ")}`);
+    if (missing.length) throw new Error(`Missing required ${e.APP_ENV} secrets: ${missing.join(", ")}`);
   }
   cached = e;
   return e;
@@ -71,7 +72,13 @@ export function isProduction(): boolean {
   return env().APP_ENV === "production";
 }
 
-/** Dev-only fallback secret; refused in production by env(). */
+/** Production or preview (a Vercel deployment, possibly several server instances). */
+export function isDeployed(): boolean {
+  const a = env().APP_ENV;
+  return a === "production" || a === "preview";
+}
+
+/** Dev-only fallback secret; refused in production and preview by env(). */
 export function sessionSecret(): string {
   return env().WEB_SESSION_SECRET ?? "dev-only-session-secret-not-for-production-use-0001";
 }

@@ -58,3 +58,15 @@ export const FUNNEL_STEPS: Partial<
   form_step_complete: { funnel: "form", step: "step" },
   form_submit: { funnel: "form", step: "submitted" },
 };
+
+/**
+ * Server-side re-check of a funnel beacon's context: only the allow-listed parameters of the event(s) that map to this
+ * funnel step survive (the browser is not trusted to have sanitised them), scrubbed and length-limited.
+ */
+export function funnelContext(funnel: string, step: string, context: EventParams = {}): Record<string, string | number | boolean> {
+  const names = (Object.keys(FUNNEL_STEPS) as EventName[]).filter((n) => {
+    const f = FUNNEL_STEPS[n]!;
+    return f.funnel === funnel && (n === "form_step_complete" ? /^step_\w{1,20}$/.test(step) : f.step === step);
+  });
+  return Object.assign({}, ...names.map((n) => sanitiseEvent(n, context))) as Record<string, string | number | boolean>;
+}

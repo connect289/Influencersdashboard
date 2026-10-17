@@ -1,15 +1,20 @@
 import { connection } from "next/server";
-import { env } from "@/lib/server/env";
+import { env, isDeployed } from "@/lib/server/env";
 import { dbConfigured, rpc } from "@/lib/server/db";
-import { kv } from "@/lib/server/kv";
+import { isInternal } from "@/lib/server/internal-auth";
+import { kv, kvShared } from "@/lib/server/kv";
+import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
+import { ipFrom } from "@/lib/server/request";
 
 /**
  * Health for uptime checks and the future oversight system (spec 9.4, 15): database, read model, outbox backlog,
  * email provider, AI provider and key-value store. 200 when the site can take leads; 503 when the database is down.
- * Reports configuration state only — never secrets.
+ * Public callers get only { ok }; the detail (configuration state, never secrets) needs the internal bearer key.
  */
-export async function GET() {
+export async function GET(req: Request) {
   await connection();
+  const detail = isInternal(req);
+  if (!detail && !(await rateLimit(LIMITS.beaconPerIp, ipFrom(req))).ok) return Response.json({ ok: true }, { status: 429 });
   const started = performance.now();
   const e = env();
   const checks: Record<string, unknown> = {};
@@ -30,7 +35,7 @@ export async function GET() {
   }
   try {
     await kv().set("health:ping", Date.now(), 60);
-    checks.kv = { ok: true, store: e.UPSTASH_REDIS_REST_URL ? "upstash" : "memory" };
+    checks.kv = { ok: true, store: kvShared() ? "upstash" : isDeployed() ? "memory (rate limits use Postgres)" : "memory" };
   } catch {
     checks.kv = { ok: false };
   }
@@ -38,7 +43,7 @@ export async function GET() {
   checks.ai = { ok: true, configured: !!e.ANTHROPIC_API_KEY, mode: e.ANTHROPIC_API_KEY ? "live" : "mock" };
   checks.turnstile = { configured: !!e.TURNSTILE_SECRET_KEY };
   return Response.json(
-    { ok, env: e.APP_ENV, ms: Math.round(performance.now() - started), checks },
+    detail ? { ok, env: e.APP_ENV, ms: Math.round(performance.now() - started), checks } : { ok },
     { status: ok ? 200 : 503, headers: { "cache-control": "no-store" } },
   );
 }

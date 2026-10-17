@@ -26,7 +26,7 @@ Status: ☐ needed · ◐ partly · ☑ done
 | S-19 | Sentry DSN | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | console | ☐ |
 | S-20 | Google Search Console access (service account added as a user on the eduwit.in property, or owner OAuth) | `GSC_SA_EMAIL`, `GSC_SA_PRIVATE_KEY`, `GSC_SITE_URL` | sample data | ☐ |
 | S-21 | Google OAuth client for admin sign-in (Supabase Auth Google provider; already used by the CRMs) | Supabase dashboard | email sign-in | ☐ |
-| S-22 | Session signing secret (32+ random bytes) | `WEB_SESSION_SECRET` | dev default (refused in production) | ☐ |
+| S-22 | Session signing secret (32+ random bytes), for production **and preview** | `WEB_SESSION_SECRET` | dev default (refused in production and preview) | ☐ |
 | S-23 | Internal key for pg_cron → website calls (outbox worker, revalidation) | `WEB_INTERNAL_KEY` | dev default | ☐ |
 | S-24 | Hostinger DNS access for the cut-over (only at go-live) | — | — | ☐ |
 | S-25 | Phone-OTP provider (SMS or WhatsApp) — only if `require_phone_otp` is ever turned on | `PHONE_OTP_PROVIDER`, provider keys | adapter disabled | ☐ (not needed at launch) |

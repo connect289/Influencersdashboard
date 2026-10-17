@@ -1,4 +1,5 @@
 import banned from "@/content/banned-claims.json" with { type: "json" };
+import { isLocalPath } from "@/lib/security/paths";
 
 /**
  * On-page checker (spec 13.4): runs on the rendered HTML of curated views, university pages and guides. Checks title and
@@ -67,7 +68,7 @@ export function extractFacts(path: string, html: string): PageFacts {
   });
   const imgs = [...body.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
   const hrefs = (s: string) =>
-    [...new Set([...s.matchAll(/<a\b[^>]*href="([^"]+)"/gi)].map((m) => decode(m[1]!)).filter((h) => h.startsWith("/") && !h.startsWith("//")).map((l) => l.split("#")[0]!).filter(Boolean))];
+    [...new Set([...s.matchAll(/<a\b[^>]*href="([^"]+)"/gi)].map((m) => decode(m[1]!)).filter(isLocalPath).map((l) => l.split("#")[0]!).filter(Boolean))];
   return {
     path,
     title: strip(head.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? ""),

@@ -42,9 +42,11 @@ test.describe("site shell", () => {
     await expect(page.getByRole("searchbox").or(page.getByPlaceholder(/Search/))).toBeVisible();
   });
 
-  test("health endpoint reports the database", async ({ request }) => {
-    const res = await request.get("/api/health");
-    expect(res.status()).toBe(200);
+  test("health endpoint: { ok } in public, detail with the internal key", async ({ request }) => {
+    const pub = await request.get("/api/health");
+    expect(pub.status()).toBe(200);
+    expect(await pub.json()).toEqual({ ok: true });
+    const res = await request.get("/api/health", { headers: { authorization: `Bearer ${process.env.WEB_INTERNAL_KEY ?? "dev-only-internal-key-0000000001"}` } });
     const j = await res.json();
     expect(j.checks.db.ok).toBe(true);
     expect(JSON.stringify(j)).not.toMatch(/sb_secret|eyJhbGci/);

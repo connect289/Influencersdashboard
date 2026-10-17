@@ -62,12 +62,13 @@ export async function runOnPageChecks(limit = 200): Promise<{ checked: number; a
       return res?.ok ? extractFacts(h, await res.text()).siteLinks : [];
     }),
   );
-  // Broken internal links: every unique internal link on the checked pages, fetched once.
+  // Broken internal links: every unique internal link on the checked pages, fetched once (same-site paths only, redirects
+  // not followed, so a crafted link can never make the checker fetch another host).
   const links = [...new Set(ok.flatMap((f) => f.facts!.internalLinks))].slice(0, 400);
   const status = new Map<string, number>();
   await Promise.all(
     links.map(async (l) => {
-      const r = await fetch(siteUrl(l), { method: "GET", redirect: "follow", headers: { "user-agent": UA }, signal: AbortSignal.timeout(15000) }).catch(() => null);
+      const r = await fetch(siteUrl(l), { method: "GET", redirect: "manual", headers: { "user-agent": UA }, signal: AbortSignal.timeout(15000) }).catch(() => null);
       status.set(l, r?.status ?? 0);
     }),
   );

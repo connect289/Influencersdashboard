@@ -2,6 +2,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
+import { STAFF_COOKIE_OPTIONS } from "@/lib/security/staff-cookies";
 import { env } from "./env";
 
 /**
@@ -15,6 +16,7 @@ export async function staffAuth() {
   const e = env();
   if (!e.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) throw new Error("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is not set");
   return createServerClient(e.NEXT_PUBLIC_SUPABASE_URL, e.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
+    cookieOptions: STAFF_COOKIE_OPTIONS,
     cookies: {
       getAll: () => store.getAll(),
       setAll: (list) => {

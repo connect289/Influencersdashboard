@@ -18,6 +18,22 @@ function expire(tags: unknown) {
   for (const t of Array.isArray(tags) ? tags : []) if (typeof t === "string") revalidateTag(t, { expire: 0 });
 }
 
+/** The record key from the form: only the entity's key columns, as strings or numbers (never other fields). */
+function parseKey(cols: string[], json: string): Record<string, string | number> | null {
+  try {
+    const raw = JSON.parse(json) as Record<string, unknown>;
+    const out: Record<string, string | number> = {};
+    for (const c of cols) {
+      const v = raw?.[c];
+      if (typeof v !== "string" && typeof v !== "number") return null;
+      out[c] = v;
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
 export async function saveEntityAction(_prev: AdminFormState, form: FormData): Promise<AdminFormState> {
   const entity = String(form.get("__entity") ?? "");
   const cfg = entityConfig(entity);
@@ -30,11 +46,9 @@ export async function saveEntityAction(_prev: AdminFormState, form: FormData): P
   const { row, errors } = parseEntityForm(cfg, form, isNew);
   if (Object.keys(errors).length) return { error: "Please fix the highlighted fields.", fieldErrors: errors, values };
   if (!isNew) {
-    try {
-      Object.assign(row, JSON.parse(keyJson));
-    } catch {
-      return { error: "Invalid record key.", values };
-    }
+    const key = parseKey(cfg.key, keyJson);
+    if (!key) return { error: "Invalid record key.", values };
+    Object.assign(row, key);
   }
   let saved: { ok: boolean; error?: string; tags?: string[]; row?: Record<string, unknown> };
   try {
@@ -56,7 +70,8 @@ export async function deleteEntityAction(form: FormData): Promise<void> {
   const cfg = entityConfig(entity);
   if (!cfg) return;
   const s = await requireAdmin(cfg.minRole);
-  const key = JSON.parse(String(form.get("__key") ?? "{}")) as Record<string, unknown>;
+  const key = parseKey(cfg.key, String(form.get("__key") ?? ""));
+  if (!key) redirect(`/admin/content/${entity}?deleted=0`);
   const r = await rpc<{ ok: boolean; tags?: string[] }>("web_admin_delete", { p_entity: entity, p_key: key, p_actor: s.userId, p_actor_email: s.email, p_role: s.role });
   if (r.ok) expire(r.tags);
   redirect(`/admin/content/${entity}?deleted=${r.ok ? 1 : 0}`);

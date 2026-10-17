@@ -58,6 +58,14 @@ insert into r select (public.web_callback_request((select (val #>> '{}')::uuid f
   ((now() at time zone 'Asia/Kolkata')::date + 1), 'evening') ->> 'ok')::boolean, 'callback booked';
 insert into r select (select preferred_counseling_time like 'Callback %evening%' from public.student_leads where id = (select (val->>'lead_id')::bigint from v where k = 'verify')), 'callback slot on the lead';
 insert into r select (public.web_callback_request((select (val #>> '{}')::uuid from v where k = 'sid'), null, ((now() at time zone 'Asia/Kolkata')::date + 30), 'evening') ->> 'reason') = 'bad_date', 'callback limited to the next 14 days';
+-- web11 (M2): the same slot again is a no-op for the lead; at most 3 requests a day.
+insert into r select (public.web_callback_request((select (val #>> '{}')::uuid from v where k = 'sid'), null, ((now() at time zone 'Asia/Kolkata')::date + 1), 'evening') ->> 'duplicate')::boolean
+  and (select count(*) from public.touchpoints where idempotency_key like 'web:callback:%' and lead_id = (select (val->>'lead_id')::bigint from v where k = 'verify')) = 1,
+  'same callback slot again: no second lead update';
+insert into r select (public.web_callback_request((select (val #>> '{}')::uuid from v where k = 'sid'), null, ((now() at time zone 'Asia/Kolkata')::date + 2), 'morning') ->> 'ok')::boolean
+  and (public.web_callback_request((select (val #>> '{}')::uuid from v where k = 'sid'), null, ((now() at time zone 'Asia/Kolkata')::date + 3), 'morning') ->> 'ok')::boolean
+  and (public.web_callback_request((select (val #>> '{}')::uuid from v where k = 'sid'), null, ((now() at time zone 'Asia/Kolkata')::date + 4), 'morning') ->> 'reason') = 'too_many',
+  'at most 3 callback requests a day';
 
 -- History and restart.
 insert into r select jsonb_array_length(public.web_advisor_history((select (val #>> '{}')::uuid from v where k = 'sid'))) = 1, 'history lists the conversation';

@@ -4,7 +4,8 @@ import { env } from "./env";
 
 /**
  * Fast key-value store for rate limits, verification-attempt counters, circuit-breaker state and hot caches
- * (spec 3A). Upstash Redis in production; an in-memory store for local dev and tests.
+ * (spec 3A). Upstash Redis in production; an in-memory store for local dev and tests. Without Upstash on a deployed
+ * environment, rate limits use Postgres instead (rate-limit.ts) and the health check reports it.
  */
 export interface KvStore {
   get<T>(key: string): Promise<T | null>;
@@ -61,6 +62,12 @@ class UpstashKv implements KvStore {
 }
 
 let store: KvStore | null = null;
+
+/** True when the store is shared across server instances (Upstash). The in-memory store is per instance. */
+export function kvShared(): boolean {
+  const e = env();
+  return !!(e.UPSTASH_REDIS_REST_URL && e.UPSTASH_REDIS_REST_TOKEN);
+}
 const g = globalThis as unknown as { __ewMemKv?: MemoryKv };
 
 export function kv(): KvStore {

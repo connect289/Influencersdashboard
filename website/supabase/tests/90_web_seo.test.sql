@@ -2,6 +2,9 @@
 -- 404 monitor with one-click redirects and chain detection, on-page checks, link suggestions. Runs on the replica too.
 begin;
 create temp table r (ok boolean, name text) on commit drop;
+-- start from no Search Console data (a local database may hold sample rows from e2e runs; rolled back at the end)
+delete from public.web_seo_daily;
+delete from public.web_seo_keywords;
 
 insert into r select (public.web_seo_import(jsonb_build_array(
   jsonb_build_object('day', current_date - 3, 'query', 'Online MBA fees', 'page', '/programmes/online-mba', 'clicks', 12, 'impressions', 400, 'position', 6.2),
@@ -37,6 +40,15 @@ insert into r select public.web_link_suggestions_add('[{"from_slug":"how-to-choo
 select public.web_link_decide((select id from public.web_link_suggestions where from_slug = 'how-to-choose'), 'approved', 'ed@eduwit.in');
 insert into r select (public.web_resource_links('how-to-choose')->0->>'href') = '/programmes/online-mba', 'approved links appear on the guide';
 insert into r select (select count(*) from public.web_local_seo_tasks) >= 7, 'local SEO checklist seeded';
+-- web11 (L4): 404 rows not seen for 90 days are pruned; recent ones stay.
+insert into public.web_404_log (path, last_seen) values ('/stale-404-test', now() - interval '120 days'), ('/fresh-404-test', now());
+create temp table pr on commit drop as select public.web_404_prune(90) as n;  -- own statement (snapshot visibility)
+insert into r select (select n from pr) >= 1 and not exists (select 1 from public.web_404_log where path = '/stale-404-test')
+  and exists (select 1 from public.web_404_log where path = '/fresh-404-test'), '404 log pruned after 90 days';
+-- web11 (L2): redirect targets must stay on site or be https.
+insert into r select not exists (select 1 from (values ('//evil.com'), ('/\evil.com'), ('/ x')) v(t)
+  where t ~ (select substring(pg_get_constraintdef(oid) from $q$'(.*)'::text$q$) from pg_constraint where conname = 'web_redirects_to_path_check')),
+  'redirect targets cannot leave the site except over https';
 
 do $$ begin
   if exists (select 1 from r where not ok) then

@@ -3,6 +3,13 @@ begin;
 create temp table r (ok boolean, name text) on commit drop;
 insert into public.web_admin_users (email, role) values ('editor@eduwit.in', 'content_editor'), ('old@eduwit.in', 'viewer');
 update public.web_admin_users set active = false where email = 'old@eduwit.in';
+-- Supabase Auth records (web11 / L13: the first link needs a confirmed auth email)
+insert into auth.users (id, email, email_confirmed_at) values
+  ('00000000-0000-0000-0000-000000000001', 'editor@eduwit.in', now()),
+  ('00000000-0000-0000-0000-000000000004', 'unconfirmed@eduwit.in', null);
+insert into public.web_admin_users (email, role) values ('unconfirmed@eduwit.in', 'viewer');
+insert into r select public.web_admin_resolve('00000000-0000-0000-0000-000000000004', 'unconfirmed@eduwit.in') is null, 'unconfirmed auth email is not linked';
+insert into r select public.web_admin_resolve('00000000-0000-0000-0000-000000000005', 'editor@eduwit.in') is null, 'a token claim alone (no matching confirmed auth user) is not linked';
 
 insert into r select (public.web_admin_resolve('00000000-0000-0000-0000-000000000001', 'Editor@Eduwit.in') ->> 'role') = 'content_editor', 'allow-listed email resolves and links (case-insensitive)';
 insert into r select (select user_id from public.web_admin_users where email = 'editor@eduwit.in') = '00000000-0000-0000-0000-000000000001', 'user id linked on first sign-in';

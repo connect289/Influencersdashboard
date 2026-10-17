@@ -97,5 +97,9 @@ test.describe("admin", () => {
     await expect(page.getByText("Read only for your role.")).toBeVisible();
     await page.goto("/admin/settings");
     await expect(page.getByLabel("Witty on the website")).toBeDisabled();
+    // student emails in privacy requests are for super admins only (security review L7)
+    await expect(page.getByRole("link", { name: "Privacy requests" })).toHaveCount(0);
+    await page.goto("/admin/privacy");
+    await expect(page.getByRole("heading", { level: 1, name: "Privacy requests" })).toHaveCount(0);
   });
 });

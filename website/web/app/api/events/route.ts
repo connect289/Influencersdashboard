@@ -2,7 +2,7 @@ import { z } from "zod";
 import { dbConfigured, rpc } from "@/lib/server/db";
 import { ipFrom } from "@/lib/server/request";
 import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
-import { scrub } from "@/lib/security/scrub";
+import { funnelContext } from "@/lib/analytics/events";
 
 /** Funnel counters for the admin insights (spec 11). Anonymous; no personal data accepted or stored. */
 const body = z.object({
@@ -19,14 +19,14 @@ const body = z.object({
 export async function POST(req: Request) {
   const parsed = body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return new Response(null, { status: 204 });
-  const rl = await rateLimit(LIMITS.searchPerIp, ipFrom(req));
+  const rl = await rateLimit(LIMITS.beaconPerIp, ipFrom(req));
   if (!rl.ok || !dbConfigured()) return new Response(null, { status: 204 });
   try {
     await rpc("web_funnel_track", {
       p_funnel: parsed.data.funnel,
       p_step: parsed.data.step,
       p_anon_id: parsed.data.anon,
-      p_context: scrub(parsed.data.context ?? {}),
+      p_context: funnelContext(parsed.data.funnel, parsed.data.step, parsed.data.context),
     });
   } catch {
     // analytics never fails the client

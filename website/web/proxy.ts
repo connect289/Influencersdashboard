@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { encodeTouch, touchFromUrl } from "@/lib/attribution";
+import { isLocalPath } from "@/lib/security/paths";
+import { STAFF_COOKIE_OPTIONS } from "@/lib/security/staff-cookies";
 import { BOOT_SCRIPT } from "@/lib/client/boot-script";
 import { buildCsp } from "@/lib/security/csp";
 import { findRedirect, recordRedirectHit } from "@/lib/server/redirects";
@@ -21,7 +23,8 @@ const MAX_AGE = 60 * 60 * 24 * 90;
 export async function proxy(req: NextRequest) {
   // Admin-managed redirects (old URLs, renamed slugs) before anything else.
   const redirect = await findRedirect(req.nextUrl.pathname);
-  if (redirect) {
+  // Only same-site paths or https URLs are followed (the database enforces the same rule; defence in depth).
+  if (redirect && (isLocalPath(redirect.to) || redirect.to.startsWith("https://"))) {
     recordRedirectHit(req.nextUrl.pathname.replace(/\/+$/, "") || "/");
     const to = redirect.to.startsWith("/") ? new URL(redirect.to + req.nextUrl.search, req.url) : new URL(redirect.to);
     return NextResponse.redirect(to, redirect.code);
@@ -67,6 +70,7 @@ export async function proxy(req: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
       {
+        cookieOptions: STAFF_COOKIE_OPTIONS,
         cookies: {
           getAll: () => req.cookies.getAll(),
           setAll: (list) => {

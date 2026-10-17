@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AdminShell, Card, Stat } from "@/components/admin/AdminShell";
+import { scrubString } from "@/lib/security/scrub";
 import { requireAdmin } from "@/lib/server/admin";
 import { rpc } from "@/lib/server/db";
 
@@ -91,7 +92,7 @@ async function View({ searchParams }: { searchParams: Promise<{ days?: string }>
         <Card title="Top first questions">
           <ol className="grid list-decimal gap-1 pl-5 text-sm">
             {a.top_questions.map((q) => (
-              <li key={q.text}>{q.text} <span className="text-subtle">({q.n})</span></li>
+              <li key={q.text}>{scrubString(q.text)} <span className="text-subtle">({q.n})</span></li>
             ))}
           </ol>
         </Card>
@@ -101,8 +102,8 @@ async function View({ searchParams }: { searchParams: Promise<{ days?: string }>
           <ul className="grid gap-3 text-sm">
             {a.thumbs_down.map((t) => (
               <li key={t.at} className="border-border border-b pb-3 last:border-0">
-                <p className="text-muted">Q: {t.question ?? "—"}</p>
-                <p>A ({t.mode}): {t.reply}</p>
+                <p className="text-muted">Q: {t.question ? scrubString(t.question) : "—"}</p>
+                <p>A ({t.mode}): {scrubString(t.reply)}</p>
               </li>
             ))}
           </ul>

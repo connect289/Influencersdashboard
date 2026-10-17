@@ -9,7 +9,8 @@ export const metadata = { title: "Privacy requests" };
 interface Req { id: number; email_norm: string; kind: string; status: string; requested_at: string; processed_at: string | null; processed_by: string | null; note: string | null }
 
 async function View() {
-  const s = await requireAdmin("viewer");
+  // Student emails: super admins only (they process the requests).
+  const s = await requireAdmin("super_admin");
   const rows = await rpc<Req[]>("web_admin_privacy_requests");
   return (
     <AdminShell session={s} title="Privacy requests">

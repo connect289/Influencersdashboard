@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitiseEvent } from "./events";
+import { sanitiseEvent, funnelContext } from "./events";
 
 describe("analytics events carry no PII", () => {
   it("drops parameters that are not allow-listed", () => {
@@ -17,5 +17,13 @@ describe("analytics events carry no PII", () => {
       query_length: 12,
       results: 40,
     });
+  });
+});
+
+describe("funnelContext", () => {
+  it("keeps only the allow-listed keys of the matching event", () => {
+    expect(funnelContext("form", "submitted", { form: "application", offering_id: 7, email: "a@b.co", name: "Asha" })).toEqual({ form: "application", offering_id: 7 });
+    expect(funnelContext("form", "step_2", { form: "application", step: 2, phone: "9876543210" })).toEqual({ form: "application", step: 2 });
+    expect(funnelContext("gate", "nonsense", { surface: "hero" })).toEqual({});
   });
 });

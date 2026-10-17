@@ -3,6 +3,7 @@
 import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/server/admin";
+import { isLocalPath } from "@/lib/security/paths";
 import { rpc } from "@/lib/server/db";
 import type { Brief } from "@/lib/server/seo/toolkit";
 import { generateBrief, generateDraft, refreshLinkSuggestions, runOnPageChecks, syncSearchConsole } from "@/lib/server/seo/toolkit";
@@ -102,7 +103,7 @@ export async function draftAction(form: FormData): Promise<void> {
 export async function redirect404Action(form: FormData): Promise<void> {
   const s = await requireAdmin("content_editor");
   const to = String(form.get("to") ?? "").trim();
-  if (!/^\/[^\s]*$|^https:\/\/\S+$/.test(to)) back("/admin/seo/404", "Enter a site path (/…) or an https URL.");
+  if (!isLocalPath(to) && !/^https:\/\/[^\s/\\?#]+(?:[/?#]\S*)?$/.test(to)) back("/admin/seo/404", "Enter a site path (/…) or an https URL.");
   const r = await rpc<{ ok: boolean; error?: string }>("web_404_redirect", { p_path: String(form.get("path")), p_to: to, p_actor: s.userId, p_actor_email: s.email, p_role: s.role });
   if (r.ok) revalidateTag("redirects", { expire: 0 });
   back("/admin/seo/404", r.ok ? "Redirect created." : (r.error ?? "Failed."));

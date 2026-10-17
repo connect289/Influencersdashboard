@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { rpc } from "@/lib/server/db";
+import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
 import { resendCode, startVerification, verifyCode, type StartOutcome, type VerifyOutcome } from "@/lib/server/gate";
 import { errorFields, log } from "@/lib/server/log";
 import { clearStudentSession, currentStudent } from "@/lib/server/student-session";
@@ -70,6 +71,7 @@ export async function saveComparisonAction(offeringIds: number[]): Promise<{ ok:
   if (!s) return { ok: false, message: "Sign in to save comparisons." };
   const p = z.array(z.number().int().positive()).min(2).max(4).safeParse(offeringIds);
   if (!p.success) return { ok: false, message: "Pick 2 to 4 programmes to save." };
+  if (!(await rateLimit(LIMITS.savePerStudent, `cmp:${s.studentId}`)).ok) return { ok: false, message: "That's a lot of saves. Please try again later." };
   await rpc("web_comparison_save", { p_student: s.studentId, p_ids: p.data });
   return { ok: true };
 }

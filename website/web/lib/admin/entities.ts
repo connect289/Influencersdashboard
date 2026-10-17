@@ -2,6 +2,8 @@
  * Admin content editor configuration (spec 11). Each entity maps to an allow-listed table in web_admin_entities
  * (migration web9); the server re-checks columns and roles. Field types drive the generic list and edit screens.
  */
+import { isLocalPath } from "@/lib/security/paths";
+
 export type FieldType = "text" | "textarea" | "number" | "bool" | "json" | "tags" | "select" | "datetime" | "url";
 
 export interface Field {
@@ -198,7 +200,7 @@ export const ENTITIES: EntityConfig[] = [
     canDelete: true,
     fields: [
       { name: "from_path", label: "From path", type: "text", required: true, key: true },
-      { name: "to_path", label: "To (path or https URL)", type: "text", required: true },
+      { name: "to_path", label: "To (path or https URL)", type: "url", required: true },
       { name: "code", label: "Status", type: "select", options: ["301", "302", "307", "308"], required: true },
       { name: "source", label: "Source", type: "select", options: ["admin", "404_monitor", "slug_change", "legacy_map"] },
     ],
@@ -297,6 +299,8 @@ export function entityConfig(entity: string): EntityConfig | undefined {
 }
 
 /** Converts a submitted form into the JSON row the database expects. Pure; returns field errors. */
+const HTTPS_URL = /^https:\/\/[^\s/\\?#]+(?:[/?#]\S*)?$/;
+
 export function parseEntityForm(cfg: EntityConfig, form: FormData, isNew: boolean): { row: Record<string, unknown>; errors: Record<string, string> } {
   const row: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
@@ -349,7 +353,7 @@ export function parseEntityForm(cfg: EntityConfig, form: FormData, isNew: boolea
         else row[f.name] = f.name === "code" ? Number(raw) : raw;
         break;
       case "url":
-        if (!/^https:\/\/\S+$/.test(raw) && !raw.startsWith("/")) errors[f.name] = `${f.label} must start with https:// or /.`;
+        if (!HTTPS_URL.test(raw) && !isLocalPath(raw)) errors[f.name] = `${f.label} must be a site path (/…) or an https:// URL.`;
         else row[f.name] = raw;
         break;
       default:

@@ -192,8 +192,10 @@ export async function runTurn(o: {
       emit({ type: "token", text: tail });
     }
     let reply = parseReply(r.text) ?? "";
-    const check = (text: string) =>
-      verifyReply({
+    // Witty's verifier, plus one web-only rule: links reach a reply only through brochure placeholders filled from the
+    // catalogue, so a literal URL written by the model is rejected (rewrite, then the safe fallback).
+    const check = (text: string) => [
+      ...verifyReply({
         reply: text,
         mode: plan.mode,
         askText: plan.askText,
@@ -204,7 +206,9 @@ export async function runTurn(o: {
         rows: plan.rows,
         universityNames,
         mayPromiseCallback: plan.mayPromiseCallback,
-      });
+      }),
+      ...(/\bhttps?:\/\/|\bwww\./i.test(text) ? ["raw_url"] : []),
+    ];
     let errors = check(reply);
     if (errors.length) {
       verifyErrors.push(...errors);

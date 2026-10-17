@@ -2,10 +2,10 @@ import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
 import { signOutAdmin } from "@/app/admin/actions";
 import { ENTITIES } from "@/lib/admin/entities";
-import type { AdminSession } from "@/lib/server/admin";
+import { hasRole, type AdminSession } from "@/lib/server/admin";
 
 /** Admin frame: navigation by area, current user and role, sign out. Server component. */
-const AREAS = [
+const AREAS: { href: string; label: string; min?: "super_admin" }[] = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/settings", label: "Flags and settings" },
   { href: "/admin/insights", label: "Funnels and Witty insights" },
@@ -13,7 +13,7 @@ const AREAS = [
   { href: "/admin/data-quality", label: "Data quality" },
   { href: "/admin/taxonomy", label: "Taxonomy mapping" },
   { href: "/admin/outbox", label: "Outbox" },
-  { href: "/admin/privacy", label: "Privacy requests" },
+  { href: "/admin/privacy", label: "Privacy requests", min: "super_admin" },
   { href: "/admin/audit", label: "Audit log" },
 ];
 
@@ -26,7 +26,7 @@ export function AdminShell({ session, title, children }: { session: AdminSession
         </Link>
         <nav aria-label="Admin" className="mt-6 grid gap-5 text-sm">
           <ul className="grid gap-1">
-            {AREAS.map((a) => (
+            {AREAS.filter((a) => !a.min || hasRole(session, a.min)).map((a) => (
               <li key={a.href}>
                 <Link href={a.href} className="hover:bg-surface-hover block rounded-[var(--radius-md)] px-2 py-1.5">
                   {a.label}

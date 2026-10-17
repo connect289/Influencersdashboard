@@ -295,6 +295,8 @@ export async function verifyCode(attemptId: string, code: string): Promise<Verif
   try {
     const info = await attemptInfo(attemptId);
     if (!info) return { status: "expired", message: MESSAGES.expired! };
+    // Per email too, so cycling resends from many IPs cannot multiply the guesses on one address.
+    if (!(await rateLimit(LIMITS.emailCodeVerifyPerEmail, info.email)).ok) return { status: "error", message: MESSAGES.rate_limited! };
     const r = await rpc<{ ok: boolean; reason?: string; status?: string; attempts_left?: number; session_id?: string; lead_id?: number | null }>(
       "web_gate_verify",
       { p_attempt: attemptId, p_code_hash: codeHash(info.key, code), p_ua_hash: hashId(userAgent) },

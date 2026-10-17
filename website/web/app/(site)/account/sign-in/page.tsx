@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { safeLocalPath } from "@/lib/security/paths";
 import { currentStudent } from "@/lib/server/student-session";
 import { SignInForm } from "./SignInForm";
 
 export const metadata: Metadata = { title: "Sign in", robots: { index: false, follow: false } };
 
-const safeNext = (n?: string) => (n && n.startsWith("/") && !n.startsWith("//") ? n : "/account");
+const safeNext = (n?: string) => safeLocalPath(n, "/account");
 
 async function Body({ searchParams }: { searchParams: Promise<{ next?: string; signed_out?: string }> }) {
   const sp = await searchParams;

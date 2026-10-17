@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { rpc } from "@/lib/server/db";
+import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
 import { getSettings } from "@/lib/server/settings";
 import { currentStudent } from "@/lib/server/student-session";
 import { breakerOpen } from "@/lib/server/web-advisor/breaker";
@@ -31,6 +32,7 @@ export async function wittyBootstrapAction(fresh = false): Promise<WittyBootstra
   if (!settings.web_advisor_enabled || !student) {
     return { enabled: settings.web_advisor_enabled, degraded, signedIn: !!student, firstName: student?.name?.split(" ")[0] ?? null, messages: [] };
   }
+  if (fresh && !(await rateLimit(LIMITS.savePerStudent, `fresh:${student.studentId}`)).ok) fresh = false;
   const s = await openSession(student, fresh);
   const messages: WittyMessage[] = (s?.messages ?? []).map((m) => ({
     id: m.id,
@@ -56,6 +58,10 @@ export async function wittyCallbackAction(input: { date: string; slot: string })
   if (!student) return { ok: false, message: "Please verify your email first." };
   const p = callbackSchema.safeParse(input);
   if (!p.success) return { ok: false, message: "Pick a day and a time." };
+  // Each request updates the shared lead through lead_intake, so it is capped per student (and once per day and slot
+  // in the database).
+  if (!(await rateLimit(LIMITS.callbackPerStudent, String(student.studentId))).ok)
+    return { ok: false, message: "You've already asked for a callback. Our counsellor will call you; for anything urgent, use WhatsApp." };
   const s = await openSession(student);
   const r = await rpc<{ ok: boolean; label?: string; reason?: string }>("web_callback_request", {
     p_student: student.studentId,
@@ -63,5 +69,12 @@ export async function wittyCallbackAction(input: { date: string; slot: string })
     p_date: p.data.date,
     p_slot: p.data.slot,
   });
-  return r.ok ? { ok: true, label: r.label } : { ok: false, message: r.reason === "bad_date" ? "Pick a day in the next two weeks." : "We couldn't book that. Please try WhatsApp." };
+  if (r.ok) return { ok: true, label: r.label };
+  const message =
+    r.reason === "bad_date"
+      ? "Pick a day in the next two weeks."
+      : r.reason === "too_many"
+        ? "You've already asked for a callback. Our counsellor will call you; for anything urgent, use WhatsApp."
+        : "We couldn't book that. Please try WhatsApp.";
+  return { ok: false, message };
 }

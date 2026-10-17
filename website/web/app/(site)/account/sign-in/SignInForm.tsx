@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { safeLocalPath } from "@/lib/security/paths";
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { signInResendAction, signInStartAction, signInVerifyAction } from "@/app/actions/account";
@@ -44,7 +45,7 @@ export function SignInForm({ next }: { next: string }) {
         turnstile.reset();
         return setError(r.message);
       }
-      if (r.status === "verified") return router.replace(next);
+      if (r.status === "verified") return router.replace(safeLocalPath(next, "/account"));
       setAttempt(r.attemptId);
       setMasked(r.maskedEmail);
       setResendIn(r.resendIn);
@@ -61,7 +62,7 @@ export function SignInForm({ next }: { next: string }) {
     try {
       const r = await signInVerifyAction(attempt, v);
       if (r.status === "verified") {
-        router.replace(next);
+        router.replace(safeLocalPath(next, "/account"));
         router.refresh();
       } else if (r.status === "wrong_code") {
         setCode("");
