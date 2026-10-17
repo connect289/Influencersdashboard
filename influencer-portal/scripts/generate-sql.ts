@@ -4,6 +4,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { GENERATORS, latestRecordedHash, type GeneratedKind } from "@/lib/codegen/sql";
+import { workflowMatrixSql } from "@/lib/codegen/workflow-matrix";
 
 const dir = join(import.meta.dirname, "..", "supabase", "migrations");
 const files = readdirSync(dir)
@@ -38,5 +39,22 @@ for (const [kind, build] of Object.entries(GENERATORS) as [GeneratedKind, () => 
   const stamp = recorded === null ? firstSlot[kind] : nextStamp();
   const name = `${stamp}_inf_${kind.replace(/-/g, "_")}.sql`;
   writeFileSync(join(dir, name), sql);
+  // Later kinds in this run must sort after it (migration versions are unique).
+  files.push({ name, content: sql });
   console.info(`${kind}: wrote ${name}`);
+}
+
+// The generated pgTAP matrix that keeps the database workflow in step with lib/content/workflow.ts.
+const matrix = join(import.meta.dirname, "..", "supabase", "tests", "017_workflow_matrix.sql");
+const sql = workflowMatrixSql();
+let current = "";
+try {
+  current = readFileSync(matrix, "utf8");
+} catch {
+  // First generation.
+}
+if (current === sql) console.info("workflow-matrix: up to date");
+else {
+  writeFileSync(matrix, sql);
+  console.info("workflow-matrix: wrote supabase/tests/017_workflow_matrix.sql");
 }

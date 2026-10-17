@@ -57,6 +57,7 @@ export const PERMISSIONS = {
   "deliverable.review": { area: "content", label: "Review, comment, approve or reject content" },
   "deliverable.verify_live": { area: "content", label: "Verify live posts" },
   "compliance.override": { area: "content", label: "Override compliance checks (with a reason)" },
+  "compliance.manage": { area: "content", label: "Edit the banned-claims list" },
   // Leads
   "lead.read": { area: "leads", label: "View the lead pipeline" },
   "lead.contacts": { area: "leads", label: "See students' phone and email" },
@@ -145,6 +146,7 @@ export const ROLE_GRANTS: Record<StaffRole, readonly Permission[]> = {
     "deliverable.review",
     "deliverable.verify_live",
     "compliance.override",
+    "compliance.manage",
     "message.read",
     "message.write",
   ],

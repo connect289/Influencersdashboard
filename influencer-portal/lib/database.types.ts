@@ -99,6 +99,138 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"banned_claims": {
+                  Row: {
+                    "active": boolean,"created_at": string,"created_by": string | null,"id": string,"kind": string,"note": string | null,"pattern": string,"severity": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"kind"?: string,"note"?: string | null,"pattern": string,"severity"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "active"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"kind"?: string,"note"?: string | null,"pattern"?: string,"severity"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"brief_acknowledgements": {
+                  Row: {
+                    "acknowledged_at": string,"brief_id": string,"id": number,"side": string,"user_id": string,"version_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "acknowledged_at"?: string,"brief_id": string,"id"?: never,"side": string,"user_id"?: string,"version_id": string
+                  }
+                  Update: {
+                    "acknowledged_at"?: string,"brief_id"?: string,"id"?: never,"side"?: string,"user_id"?: string,"version_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "brief_acknowledgements_brief_id_fkey"
+      columns: ["brief_id"]
+isOneToOne: false
+      referencedRelation: "briefs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "brief_acknowledgements_version_id_fkey"
+      columns: ["version_id"]
+isOneToOne: true
+      referencedRelation: "brief_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"brief_questions": {
+                  Row: {
+                    "author_id": string,"author_side": string,"body": string,"brief_id": string,"created_at": string,"id": string,"parent_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string,"author_side": string,"body": string,"brief_id": string,"created_at"?: string,"id"?: string,"parent_id"?: string | null
+                  }
+                  Update: {
+                    "author_id"?: string,"author_side"?: string,"body"?: string,"brief_id"?: string,"created_at"?: string,"id"?: string,"parent_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "brief_questions_brief_id_fkey"
+      columns: ["brief_id"]
+isOneToOne: false
+      referencedRelation: "briefs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "brief_questions_parent_id_fkey"
+      columns: ["parent_id"]
+isOneToOne: false
+      referencedRelation: "brief_questions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"brief_templates": {
+                  Row: {
+                    "archived_at": string | null,"content": NonNullable<Json>,"created_at": string,"created_by": string | null,"description": string | null,"id": string,"is_default": boolean,"name": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"is_default"?: boolean,"name": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"is_default"?: boolean,"name"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"brief_versions": {
+                  Row: {
+                    "brief_id": string,"content": NonNullable<Json>,"id": string,"note": string | null,"published_at": string,"published_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "brief_id": string,"content": NonNullable<Json>,"id"?: string,"note"?: string | null,"published_at"?: string,"published_by"?: string | null,"version": number
+                  }
+                  Update: {
+                    "brief_id"?: string,"content"?: NonNullable<Json>,"id"?: string,"note"?: string | null,"published_at"?: string,"published_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "brief_versions_brief_id_fkey"
+      columns: ["brief_id"]
+isOneToOne: false
+      referencedRelation: "briefs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"briefs": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"current_version_id": string | null,"deal_id": string,"draft_content": NonNullable<Json>,"id": string,"template_id": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"current_version_id"?: string | null,"deal_id": string,"draft_content"?: NonNullable<Json>,"id"?: string,"template_id"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"current_version_id"?: string | null,"deal_id"?: string,"draft_content"?: NonNullable<Json>,"id"?: string,"template_id"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "briefs_current_version_fk"
+      columns: ["current_version_id"]
+isOneToOne: false
+      referencedRelation: "brief_versions"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "briefs_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: true
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "briefs_template_id_fkey"
+      columns: ["template_id"]
+isOneToOne: false
+      referencedRelation: "brief_templates"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"campaign_applications": {
                   Row: {
                     "accepted_terms": Json | null,"campaign_id": string,"created_at": string,"creator_id": string,"decided_at": string | null,"decided_by": string | null,"id": string,"pitch": string | null,"rejection_reason": string | null,"sample_links": (string)[],"source": string,"status": string,"submitted_by": string,"updated_at": string
@@ -179,17 +311,23 @@ isOneToOne: false
                   ]
                 },"campaigns": {
                   Row: {
-                    "apply_by": string | null,"budget_paise": number | null,"compensation_summary": string | null,"contract_template_id": string | null,"created_at": string,"created_by": string,"default_preset_id": string | null,"deliverables": NonNullable<Json>,"description": string | null,"eligibility": NonNullable<Json>,"ends_on": string | null,"id": string,"internal_notes": string | null,"name": string,"objective": string,"owner_id": string | null,"slots": number | null,"starts_on": string | null,"status": string,"updated_at": string,"visibility": string
+                    "apply_by": string | null,"brief_template_id": string | null,"budget_paise": number | null,"compensation_summary": string | null,"contract_template_id": string | null,"created_at": string,"created_by": string,"default_preset_id": string | null,"deliverables": NonNullable<Json>,"description": string | null,"eligibility": NonNullable<Json>,"ends_on": string | null,"id": string,"internal_notes": string | null,"name": string,"objective": string,"owner_id": string | null,"slots": number | null,"starts_on": string | null,"status": string,"updated_at": string,"visibility": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"contract_template_id"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name": string,"objective": string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
+                    "apply_by"?: string | null,"brief_template_id"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"contract_template_id"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name": string,"objective": string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
                   }
                   Update: {
-                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"contract_template_id"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name"?: string,"objective"?: string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
+                    "apply_by"?: string | null,"brief_template_id"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"contract_template_id"?: string | null,"created_at"?: string,"created_by"?: string,"default_preset_id"?: string | null,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name"?: string,"objective"?: string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "campaigns_brief_template_id_fkey"
+      columns: ["brief_template_id"]
+isOneToOne: false
+      referencedRelation: "brief_templates"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "campaigns_contract_template_id_fkey"
       columns: ["contract_template_id"]
 isOneToOne: false
@@ -280,6 +418,32 @@ isOneToOne: false
       columns: ["deal_version_id"]
 isOneToOne: false
       referencedRelation: "deal_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"compliance_checks": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"deliverable_id": string,"id": string,"kind": string,"overridden": boolean,"overridden_at": string | null,"overridden_by": string | null,"override_reason": string | null,"passed": boolean,"result": NonNullable<Json>,"submission_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"deliverable_id": string,"id"?: string,"kind": string,"overridden"?: boolean,"overridden_at"?: string | null,"overridden_by"?: string | null,"override_reason"?: string | null,"passed": boolean,"result"?: NonNullable<Json>,"submission_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"deliverable_id"?: string,"id"?: string,"kind"?: string,"overridden"?: boolean,"overridden_at"?: string | null,"overridden_by"?: string | null,"override_reason"?: string | null,"passed"?: boolean,"result"?: NonNullable<Json>,"submission_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "compliance_checks_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "compliance_checks_submission_id_fkey"
+      columns: ["submission_id"]
+isOneToOne: false
+      referencedRelation: "deliverable_submissions"
       referencedColumns: ["id"]
     }
                   ]
@@ -821,6 +985,72 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"deliverable_submissions": {
+                  Row: {
+                    "author_side": string,"body": string | null,"created_at": string,"created_by": string | null,"creator_note": string | null,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"deliverable_id": string,"files": NonNullable<Json>,"id": string,"kind": string,"link_url": string | null,"status": string,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_side": string,"body"?: string | null,"created_at"?: string,"created_by"?: string | null,"creator_note"?: string | null,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"deliverable_id": string,"files"?: NonNullable<Json>,"id"?: string,"kind": string,"link_url"?: string | null,"status"?: string,"version": number
+                  }
+                  Update: {
+                    "author_side"?: string,"body"?: string | null,"created_at"?: string,"created_by"?: string | null,"creator_note"?: string | null,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"deliverable_id"?: string,"files"?: NonNullable<Json>,"id"?: string,"kind"?: string,"link_url"?: string | null,"status"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deliverable_submissions_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"deliverable_transitions": {
+                  Row: {
+                    "action": string,"actor_id": string | null,"actor_side": string,"at": string,"deliverable_id": string,"from_status": string,"id": number,"note": string | null,"to_status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "action": string,"actor_id"?: string | null,"actor_side": string,"at"?: string,"deliverable_id": string,"from_status": string,"id"?: never,"note"?: string | null,"to_status": string
+                  }
+                  Update: {
+                    "action"?: string,"actor_id"?: string | null,"actor_side"?: string,"at"?: string,"deliverable_id"?: string,"from_status"?: string,"id"?: never,"note"?: string | null,"to_status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deliverable_transitions_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"deliverables": {
+                  Row: {
+                    "brief_id": string | null,"cancelled_at": string | null,"code": string,"completed_at": string | null,"concept_approved_at": string | null,"config_ref": string | null,"created_at": string,"created_by": string | null,"deal_id": string,"disclosure_failed_at": string | null,"draft_approved_at": string | null,"due_dates": NonNullable<Json>,"extra_revisions": number,"format": string,"id": string,"live_at": string | null,"platform": string,"position": number,"revision_limit": number,"revisions_used": number,"scheduled_for": string | null,"specs": NonNullable<Json>,"stages": NonNullable<Json>,"status": string,"status_reason": string | null,"title": string,"updated_at": string,"verified_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "brief_id"?: string | null,"cancelled_at"?: string | null,"code"?: string,"completed_at"?: string | null,"concept_approved_at"?: string | null,"config_ref"?: string | null,"created_at"?: string,"created_by"?: string | null,"deal_id": string,"disclosure_failed_at"?: string | null,"draft_approved_at"?: string | null,"due_dates"?: NonNullable<Json>,"extra_revisions"?: number,"format": string,"id"?: string,"live_at"?: string | null,"platform": string,"position"?: number,"revision_limit"?: number,"revisions_used"?: number,"scheduled_for"?: string | null,"specs"?: NonNullable<Json>,"stages"?: NonNullable<Json>,"status"?: string,"status_reason"?: string | null,"title": string,"updated_at"?: string,"verified_at"?: string | null
+                  }
+                  Update: {
+                    "brief_id"?: string | null,"cancelled_at"?: string | null,"code"?: string,"completed_at"?: string | null,"concept_approved_at"?: string | null,"config_ref"?: string | null,"created_at"?: string,"created_by"?: string | null,"deal_id"?: string,"disclosure_failed_at"?: string | null,"draft_approved_at"?: string | null,"due_dates"?: NonNullable<Json>,"extra_revisions"?: number,"format"?: string,"id"?: string,"live_at"?: string | null,"platform"?: string,"position"?: number,"revision_limit"?: number,"revisions_used"?: number,"scheduled_for"?: string | null,"specs"?: NonNullable<Json>,"stages"?: NonNullable<Json>,"status"?: string,"status_reason"?: string | null,"title"?: string,"updated_at"?: string,"verified_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deliverables_brief_id_fkey"
+      columns: ["brief_id"]
+isOneToOne: false
+      referencedRelation: "briefs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deliverables_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"domain_events": {
                   Row: {
                     "actor_id": string | null,"id": number,"idem_key": string,"occurred_at": string,"payload": NonNullable<Json>,"subject_id": string,"subject_type": string,"type": string
@@ -965,6 +1195,38 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"penalty_proposals": {
+                  Row: {
+                    "amount_paise": number,"created_at": string,"deal_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"deliverable_id": string | null,"forfeits": (string)[],"id": string,"key": string,"proposed_at": string,"reason": string,"rule_id": string,"status": string,"subject": string,"updated_at": string,"version_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_paise": number,"created_at"?: string,"deal_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"deliverable_id"?: string | null,"forfeits"?: (string)[],"id"?: string,"key": string,"proposed_at": string,"reason": string,"rule_id": string,"status"?: string,"subject": string,"updated_at"?: string,"version_id": string
+                  }
+                  Update: {
+                    "amount_paise"?: number,"created_at"?: string,"deal_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"deliverable_id"?: string | null,"forfeits"?: (string)[],"id"?: string,"key"?: string,"proposed_at"?: string,"reason"?: string,"rule_id"?: string,"status"?: string,"subject"?: string,"updated_at"?: string,"version_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "penalty_proposals_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "penalty_proposals_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "penalty_proposals_version_id_fkey"
+      columns: ["version_id"]
+isOneToOne: false
+      referencedRelation: "deal_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"permissions": {
                   Row: {
                     "area": string,"key": string,"label": string
@@ -978,6 +1240,52 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"post_metric_snapshots": {
+                  Row: {
+                    "captured_at": string,"checkpoint": string,"clicks": number | null,"comments": number | null,"created_by": string | null,"deliverable_id": string,"id": number,"likes": number | null,"published_post_id": string,"reach": number | null,"saves": number | null,"screenshot_paths": (string)[],"shares": number | null,"source": string,"views": number | null,"watch_time_s": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "captured_at"?: string,"checkpoint": string,"clicks"?: number | null,"comments"?: number | null,"created_by"?: string | null,"deliverable_id": string,"id"?: never,"likes"?: number | null,"published_post_id": string,"reach"?: number | null,"saves"?: number | null,"screenshot_paths"?: (string)[],"shares"?: number | null,"source"?: string,"views"?: number | null,"watch_time_s"?: number | null
+                  }
+                  Update: {
+                    "captured_at"?: string,"checkpoint"?: string,"clicks"?: number | null,"comments"?: number | null,"created_by"?: string | null,"deliverable_id"?: string,"id"?: never,"likes"?: number | null,"published_post_id"?: string,"reach"?: number | null,"saves"?: number | null,"screenshot_paths"?: (string)[],"shares"?: number | null,"source"?: string,"views"?: number | null,"watch_time_s"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "post_metric_snapshots_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "post_metric_snapshots_published_post_id_fkey"
+      columns: ["published_post_id"]
+isOneToOne: false
+      referencedRelation: "published_posts"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"published_posts": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"deliverable_id": string,"disclosure_ok": boolean | null,"id": string,"live_url": string,"oembed": Json | null,"posted_on": string,"review_note": string | null,"verification": Json | null,"verification_status": string,"verified_at": string | null,"verified_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"deliverable_id": string,"disclosure_ok"?: boolean | null,"id"?: string,"live_url": string,"oembed"?: Json | null,"posted_on": string,"review_note"?: string | null,"verification"?: Json | null,"verification_status"?: string,"verified_at"?: string | null,"verified_by"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"deliverable_id"?: string,"disclosure_ok"?: boolean | null,"id"?: string,"live_url"?: string,"oembed"?: Json | null,"posted_on"?: string,"review_note"?: string | null,"verification"?: Json | null,"verification_status"?: string,"verified_at"?: string | null,"verified_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "published_posts_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"rate_hits": {
                   Row: {
@@ -1006,6 +1314,58 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"review_comments": {
+                  Row: {
+                    "author_id": string,"author_side": string,"body": string,"created_at": string,"deliverable_id": string,"id": string,"image_region": Json | null,"parent_id": string | null,"resolved_at": string | null,"resolved_by": string | null,"submission_id": string,"video_timestamp_ms": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string,"author_side": string,"body": string,"created_at"?: string,"deliverable_id": string,"id"?: string,"image_region"?: Json | null,"parent_id"?: string | null,"resolved_at"?: string | null,"resolved_by"?: string | null,"submission_id": string,"video_timestamp_ms"?: number | null
+                  }
+                  Update: {
+                    "author_id"?: string,"author_side"?: string,"body"?: string,"created_at"?: string,"deliverable_id"?: string,"id"?: string,"image_region"?: Json | null,"parent_id"?: string | null,"resolved_at"?: string | null,"resolved_by"?: string | null,"submission_id"?: string,"video_timestamp_ms"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "review_comments_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "review_comments_parent_id_fkey"
+      columns: ["parent_id"]
+isOneToOne: false
+      referencedRelation: "review_comments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "review_comments_submission_id_fkey"
+      columns: ["submission_id"]
+isOneToOne: false
+      referencedRelation: "deliverable_submissions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"revision_extensions": {
+                  Row: {
+                    "decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"deliverable_id": string,"fee_paise": number,"id": string,"reason": string,"requested_at": string,"requested_by": string | null,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"deliverable_id": string,"fee_paise"?: number,"id"?: string,"reason": string,"requested_at"?: string,"requested_by"?: string | null,"status"?: string
+                  }
+                  Update: {
+                    "decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"deliverable_id"?: string,"fee_paise"?: number,"id"?: string,"reason"?: string,"requested_at"?: string,"requested_by"?: string | null,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "revision_extensions_deliverable_id_fkey"
+      columns: ["deliverable_id"]
+isOneToOne: false
+      referencedRelation: "deliverables"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"role_permissions": {
                   Row: {
@@ -1403,6 +1763,9 @@ isOneToOne: false
               "creator_id": string,"display_name": string,"followers": number,"handle": string,"kyc_status": string,"owner_name": string,"source": string,"submitted_at": string
             }[]
                            },
+"asci_items":
+{ Args: Record<PropertyKey, never>; Returns: (string)[]
+                           },
 "audit":
 { Args: { "p_action": string,"p_after"?: Json,"p_before"?: Json,"p_entity_id": string,"p_entity_type": string }; Returns: undefined
                            },
@@ -1412,8 +1775,47 @@ isOneToOne: false
 "avatar_set":
 { Args: { "p_creator": string,"p_path"?: string }; Returns: undefined
                            },
+"banned_claim_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"banned_claims_active":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "bootstrap_super_admin":
 { Args: { "p_designation": string,"p_email": string,"p_full_name": string }; Returns: string
+                           },
+"brief_acknowledge":
+{ Args: { "p_brief": string,"p_version": string }; Returns: undefined
+                           },
+"brief_asset_allowed":
+{ Args: { "p_brief": string,"p_path": string }; Returns: boolean
+                           },
+"brief_create":
+{ Args: { "p": Json }; Returns: string
+                           },
+"brief_detail":
+{ Args: { "p_brief": string }; Returns: Json
+                           },
+"brief_publish":
+{ Args: { "p_brief": string,"p_note"?: string }; Returns: string
+                           },
+"brief_question_add":
+{ Args: { "p_body": string,"p_brief": string,"p_parent"?: string }; Returns: string
+                           },
+"brief_save":
+{ Args: { "p_brief": string,"p_content": Json }; Returns: undefined
+                           },
+"brief_source":
+{ Args: { "p_deal": string }; Returns: Json
+                           },
+"brief_template_archive":
+{ Args: { "p_archived": boolean,"p_template": string }; Returns: undefined
+                           },
+"brief_template_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"briefs_list":
+{ Args: { "p": Json }; Returns: Json
                            },
 "campaign_apply":
 { Args: { "p_campaign": string,"p_creator": string,"p_pitch": string,"p_samples": (string)[],"p_terms": Json }; Returns: string
@@ -1506,8 +1908,23 @@ isOneToOne: false
 "comp_run_record":
 { Args: { "p_as_of": string,"p_deal": string,"p_kind": string,"p_summary": Json,"p_version": string }; Returns: number
                            },
+"compliance_override":
+{ Args: { "p_check": string,"p_reason": string }; Returns: undefined
+                           },
+"compliance_record":
+{ Args: { "p_checks": Json,"p_submission": string }; Returns: undefined
+                           },
 "config_hash":
 { Args: { "p": Json }; Returns: string
+                           },
+"content_notify":
+{ Args: { "p_admin_link": string,"p_body": string,"p_creator_link": string,"p_deal": string,"p_event": string,"p_key": string,"p_title": string,"p_to": string }; Returns: undefined
+                           },
+"content_remind":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"content_side":
+{ Args: { "p_deal": string }; Returns: string
                            },
 "contract_comment_add":
 { Args: { "p_body": string,"p_clause": string,"p_contract": string,"p_parent"?: string }; Returns: string
@@ -1653,6 +2070,9 @@ isOneToOne: false
 "current_session_id":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
+"deal_content_facts":
+{ Args: { "p_deal": string }; Returns: Json
+                           },
 "deal_create":
 { Args: { "p": Json }; Returns: string
                            },
@@ -1708,6 +2128,42 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: number
                            },
 "deals_list":
+{ Args: { "p": Json }; Returns: Json
+                           },
+"deliverable_apply":
+{ Args: { "p_action": string,"p_id": string,"p_note": string,"p_side": string }; Returns: string
+                           },
+"deliverable_detail":
+{ Args: { "p_id": string }; Returns: Json
+                           },
+"deliverable_file_allowed":
+{ Args: { "p_deliverable": string,"p_path": string }; Returns: boolean
+                           },
+"deliverable_next":
+{ Args: { "p_action": string,"p_from": string,"s": Json }; Returns: string
+                           },
+"deliverable_overdue_days":
+{ Args: { "p_due": Json,"p_now"?: string,"p_status": string,"s": Json }; Returns: number
+                           },
+"deliverable_pending":
+{ Args: { "p_status": string,"s": Json }; Returns: string
+                           },
+"deliverable_schedule":
+{ Args: { "p_at": string,"p_id": string }; Returns: undefined
+                           },
+"deliverable_set_status":
+{ Args: { "p_action": string,"p_id": string,"p_reason"?: string }; Returns: undefined
+                           },
+"deliverable_update":
+{ Args: { "p": Json,"p_id": string }; Returns: undefined
+                           },
+"deliverable_upload_allowed":
+{ Args: { "p_id": string }; Returns: boolean
+                           },
+"deliverables_create":
+{ Args: { "p_deal": string,"p_items": Json }; Returns: number
+                           },
+"deliverables_list":
 { Args: { "p": Json }; Returns: Json
                            },
 "delivery_result":
@@ -1828,6 +2284,9 @@ isOneToOne: false
 "media_kit_settings":
 { Args: { "p_creator": string,"p_public": boolean,"p_show_rates": boolean }; Returns: undefined
                            },
+"metrics_submit":
+{ Args: { "p": Json,"p_deliverable": string }; Returns: number
+                           },
 "mfa_issue":
 { Args: { "p_session": string,"p_user": string }; Returns: Json
                            },
@@ -1844,10 +2303,16 @@ isOneToOne: false
               "campaign_id": string,"campaign_name": string,"created_at": string,"id": string,"open_offer_from": string,"source": string,"status": string,"updated_at": string
             }[]
                            },
+"my_briefs":
+{ Args: { "p_creator": string }; Returns: Json
+                           },
 "my_contracts":
 { Args: { "p_creator": string }; Returns: Json
                            },
 "my_deals":
+{ Args: { "p_creator": string }; Returns: Json
+                           },
+"my_deliverables":
 { Args: { "p_creator": string }; Returns: Json
                            },
 "my_devices":
@@ -1900,6 +2365,15 @@ isOneToOne: false
 "outreach_log":
 { Args: { "p_channel": string,"p_creator": string,"p_direction": string,"p_next_follow_up"?: string,"p_notes": string,"p_outcome": string }; Returns: string
                            },
+"penalties_list":
+{ Args: { "p": Json }; Returns: Json
+                           },
+"penalty_decide":
+{ Args: { "p_approve": boolean,"p_id": string,"p_note"?: string }; Returns: undefined
+                           },
+"penalty_proposals_sync":
+{ Args: { "p_deal": string,"p_items": Json }; Returns: number
+                           },
 "pii_decrypt":
 { Args: { "p": string }; Returns: string
                            },
@@ -1924,6 +2398,12 @@ isOneToOne: false
 "portfolio_save":
 { Args: { "p": Json,"p_creator": string }; Returns: string
                            },
+"post_submit":
+{ Args: { "p_deliverable": string,"p_oembed"?: Json,"p_posted_on": string,"p_url": string }; Returns: string
+                           },
+"post_verify":
+{ Args: { "p_disclosure": boolean,"p_live": boolean,"p_matches": boolean,"p_note"?: string,"p_post": string }; Returns: undefined
+                           },
 "rate_card_delete":
 { Args: { "p_creator": string,"p_id": string }; Returns: undefined
                            },
@@ -1944,6 +2424,18 @@ isOneToOne: false
                            },
 "request_user_agent":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"review_comment_add":
+{ Args: { "p_body": string,"p_parent"?: string,"p_region"?: Json,"p_submission": string,"p_timestamp_ms"?: number }; Returns: string
+                           },
+"review_comment_set_resolved":
+{ Args: { "p_comment": string,"p_resolved": boolean }; Returns: undefined
+                           },
+"revision_extension_decide":
+{ Args: { "p_approve": boolean,"p_id": string,"p_note"?: string }; Returns: undefined
+                           },
+"revision_extension_request":
+{ Args: { "p_deliverable": string,"p_fee_paise"?: number,"p_reason": string }; Returns: string
                            },
 "saved_view_delete":
 { Args: { "p_id": string }; Returns: undefined
@@ -2004,6 +2496,12 @@ isOneToOne: false
                            },
 "status_for_stage":
 { Args: { "p_stage": string,"p_status": string }; Returns: string
+                           },
+"submission_add":
+{ Args: { "p": Json,"p_deliverable": string }; Returns: string
+                           },
+"submission_review":
+{ Args: { "p_checklist"?: Json,"p_decision": string,"p_note": string,"p_submission": string }; Returns: undefined
                            },
 "system_status":
 { Args: Record<PropertyKey, never>; Returns: Json

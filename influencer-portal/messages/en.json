@@ -413,7 +413,10 @@
     "sign_in_log_days": "Keep the sign-in log (days)",
     "course_pass_pct": "Compliance quiz pass mark (%)",
     "require_kyc_to_submit": "Require KYC before onboarding can be submitted",
-    "eduwit_commission_gst_pct": "GST on Eduwit's partner commission (%)"
+    "eduwit_commission_gst_pct": "GST on Eduwit's partner commission (%)",
+    "due_reminder_days": "Reminder days before a due date",
+    "overdue_escalation_days": "Escalate to the deal owner after (days overdue)",
+    "metrics_grace_hours": "Grace period for metrics (hours)"
   },
   "settingOptions": {
     "first_touch": "First touch",

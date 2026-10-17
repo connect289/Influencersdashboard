@@ -292,6 +292,23 @@ export const SETTINGS = {
     },
     edit: "settings.write",
   }),
+  "content.schedule": def({
+    group: "content",
+    label: "Due dates and reminders",
+    description:
+      "Reminders before deliverable due dates, when overdue work is escalated to the deal owner, and how long after the post metrics are due.",
+    schema: z.strictObject({
+      due_reminder_days: z.array(z.number().int().min(1).max(30)).max(5),
+      overdue_escalation_days: z.number().int().min(1).max(30),
+      metrics_grace_hours: z
+        .number()
+        .int()
+        .min(0)
+        .max(24 * 14),
+    }),
+    default: { due_reminder_days: [2], overdue_escalation_days: 2, metrics_grace_hours: 48 },
+    edit: "settings.write",
+  }),
   "content.uploads": def({
     group: "content",
     label: "Upload limits",

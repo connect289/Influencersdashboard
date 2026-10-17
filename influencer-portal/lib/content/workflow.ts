@@ -1,5 +1,5 @@
 // The deliverable workflow (spec 10.2). Pure: given a deliverable's status, its stage switches and an action, it says
-// what happens next. The database applies the same moves (inf.deliverable_move), so this module drives the UI and
+// what happens next. The database applies the same moves (inf.deliverable_next), so this module drives the UI and
 // the tests that keep both in step.
 //
 // Not started → Brief acknowledged → Concept submitted ⇄ Concept changes requested → Concept approved → Draft
