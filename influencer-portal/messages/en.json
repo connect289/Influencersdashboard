@@ -3358,7 +3358,8 @@
       "waitVerify": "Eduwit is checking your live post.",
       "waitComplete": "Thanks. Eduwit will mark this complete.",
       "done": "All done. Thank you!",
-      "cancelled": "This deliverable was cancelled."
+      "cancelled": "This deliverable was cancelled.",
+      "changeLink": "Need to change the link?"
     },
     "errors": {
       "briefExists": "This deal already has a brief.",

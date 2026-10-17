@@ -1,11 +1,13 @@
 // Demo and test data for the LOCAL stack only (spec 17: never run against production).
 // Usage: npm run seed            (reads .env.local; idempotent: safe to run again)
 // Creates staff for every role, creators in several states (synthetic people, @example.test addresses), platform
-// terms, a few notifications and jobs, a demo deal and its contract. Later phases extend it with leads and ledger
-// history.
+// terms, a few notifications and jobs, and a demo deal with its contract, brief and deliverables. Later phases extend
+// it with leads and ledger history.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { briefTemplateContent, buildBrief } from "@/lib/content/brief";
+import { planDeliverables } from "@/lib/content/plan";
 import { buildVersion, contractSource, templateSource } from "@/lib/contracts/build";
 import type { Database } from "@/lib/database.types";
 
@@ -391,6 +393,65 @@ async function main() {
         negotiation_deadline: new Date(Date.now() + 7 * 86_400_000).toISOString(),
       })
       .eq("id", created.data);
+  }
+
+  // The demo deal's brief, published to Riya (not yet acknowledged), with two deliverables: a reel through every
+  // stage and a story that skips concept and draft. Built as the app builds it; published as version 1.
+  const hasBrief = demo.data
+    ? await db.from("briefs").select("id").eq("deal_id", demo.data.id).maybeSingle()
+    : { data: null };
+  if (demo.data && !hasBrief.data) {
+    const src = await db.rpc("brief_source", { p_deal: demo.data.id });
+    if (src.error) throw new Error(`brief source: ${src.error.message}`);
+    const source = src.data as {
+      template: { id: string; content: unknown } | null;
+      banned: string[];
+      disclosure_terms: string[];
+    };
+    const template = briefTemplateContent.parse(source.template?.content ?? {});
+    const content = buildBrief({
+      template,
+      campaign: null,
+      agreed: [],
+      programmes: [],
+      banned: source.banned,
+      disclosureTerms: source.disclosure_terms,
+    });
+    content.objective =
+      "Help working professionals understand what an online MBA involves, and send them to Eduwit for free counselling.";
+    content.approved_claims = [
+      "Online MBA programmes listed by Eduwit are from UGC-entitled universities.",
+      "Classes are online, with recorded lectures for working professionals.",
+    ];
+    const brief = await db.rpc("brief_create", {
+      p: { deal_id: demo.data.id, template_id: source.template?.id ?? null, content },
+    });
+    if (brief.error) throw new Error(`brief: ${brief.error.message}`);
+    const start = new Date().toISOString();
+    const reel = planDeliverables([{ platform: "instagram", format: "reel", count: 1 }], start, template);
+    const story = planDeliverables([{ platform: "instagram", format: "story", count: 1 }], start, {
+      ...template,
+      stages: { ...template.stages, concept: false, draft: false, metrics: false },
+    });
+    const items = [
+      { ...reel[0], title: "Launch reel", config_ref: "reel1" },
+      { ...story[0], title: "Story set" },
+    ];
+    const made = await db.rpc("deliverables_create", { p_deal: demo.data.id, p_items: items as never });
+    if (made.error) throw new Error(`deliverables: ${made.error.message}`);
+    const version = await db
+      .from("brief_versions")
+      .insert({
+        brief_id: brief.data,
+        version: 1,
+        content: content as never,
+        note: null,
+        published_by: owner?.user_id ?? null,
+      })
+      .select("id")
+      .single();
+    if (version.error) throw new Error(`brief version: ${version.error.message}`);
+    await db.from("briefs").update({ current_version_id: version.data.id }).eq("id", brief.data);
   }
 
   const terms = await db.from("terms_versions").select("kind");

@@ -46,26 +46,45 @@ export async function ExternalDeliverablePage({
   const doneCheckpoints = d.metrics.map((m) => m.checkpoint);
   const live = d.posts.find((p) => p.verification_status !== "replaced");
 
-  let next: React.ReactNode;
+  const pendingPost = d.posts.some((p) => p.verification_status === "pending");
+  const correction = (
+    <details className="mt-3">
+      <summary className="cursor-pointer text-sm text-primary">{t("content.my.changeLink")}</summary>
+      <div className="mt-3">
+        <GoLiveForm deliverableId={d.id} correcting />
+      </div>
+    </details>
+  );
+
+  let next: React.ReactNode = null;
   if (actions.includes("submit_concept")) next = <SubmitForm deliverableId={d.id} kind="concept" />;
   else if (actions.includes("submit_draft")) next = <SubmitForm deliverableId={d.id} kind="draft" />;
-  else if (actions.includes("schedule") || actions.includes("go_live"))
+  else if (d.status === "live") {
+    // Live: metrics come next when verification is off; a rejected post needs a corrected link.
+    if (actions.includes("submit_metrics"))
+      next = (
+        <>
+          <MetricsForm deliverableId={d.id} checkpoints={d.metric_checkpoints} done={doneCheckpoints} />
+          {correction}
+        </>
+      );
+    else if (!pendingPost) next = <GoLiveForm deliverableId={d.id} correcting />;
+  } else if (actions.includes("schedule") || actions.includes("go_live"))
     next = (
       <div className="flex flex-col gap-5">
         {actions.includes("schedule") ? <ScheduleForm deliverableId={d.id} current={d.scheduled_for} /> : null}
-        {actions.includes("go_live") ? <GoLiveForm deliverableId={d.id} correcting={d.status === "live"} /> : null}
+        {actions.includes("go_live") ? <GoLiveForm deliverableId={d.id} correcting={false} /> : null}
       </div>
     );
   else if (actions.includes("submit_metrics"))
     next = <MetricsForm deliverableId={d.id} checkpoints={d.metric_checkpoints} done={doneCheckpoints} />;
-  else next = null;
 
   const waiting =
     d.status === "not_started"
       ? t("content.my.waitBrief")
       : d.status === "concept_submitted" || d.status === "draft_submitted"
         ? t("content.my.waitReview")
-        : d.status === "live" && d.stages.verify
+        : d.status === "live" && pendingPost
           ? t("content.my.waitVerify")
           : d.status === "metrics_submitted"
             ? t("content.my.waitComplete")
@@ -138,6 +157,7 @@ export async function ExternalDeliverablePage({
             <p className="flex items-center gap-2 text-sm">
               <Clock className="size-4 text-muted" aria-hidden /> {waiting}
             </p>
+            {d.status === "live" ? correction : null}
           </Card>
         ) : null}
 

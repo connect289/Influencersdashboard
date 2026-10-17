@@ -4,7 +4,8 @@ export const CREATOR: Guide = {
   slug: "creator",
   audience: "creator",
   title: "Creator guide",
-  summary: "Getting set up, finding campaigns, agreeing your deal terms, and working with an agency.",
+  summary:
+    "Getting set up, finding campaigns, agreeing your deal terms, briefs and deliverables, and working with an agency.",
   sections: [
     {
       id: "sign-in",
@@ -124,6 +125,47 @@ export const CREATOR: Guide = {
       ],
     },
     {
+      id: "briefs",
+      title: "Your briefs",
+      blocks: [
+        {
+          p: "For each agreed deal, Eduwit sends a brief: what to make, the messages, the claims you may use, the rules (including how to disclose the partnership) and the due dates. [Briefs](/creator/briefs) lists them.",
+        },
+        {
+          steps: [
+            "Read the whole brief, tick the box and tap **Acknowledge brief**. Your deliverables start from here.",
+            "Ask anything under **Questions**; Eduwit answers there.",
+            "If Eduwit updates the brief, you'll be told what changed and asked to acknowledge the new version.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "deliverables",
+      title: "Your deliverables",
+      blocks: [
+        {
+          p: "[Deliverables](/creator/deliverables) shows what to do next, what is with Eduwit and what is done. Open one to see **Your next step**.",
+        },
+        {
+          steps: [
+            "**Concept**: send your idea, script or storyboard (text, files or a link).",
+            "**Draft**: send the edit and exactly the caption you will post, including the disclosure (for example #ad). Large videos upload in pieces and resume if your connection drops.",
+            "Eduwit approves or asks for changes, with comments pinned to moments in your video or areas of your images. Reply to comments and send the next version.",
+            "**Go live**: post it, then submit the public link and the date you posted.",
+            "**Metrics**: at each checkpoint (for example 24 hours, 7 days and 30 days after posting) enter your numbers and add screenshots of your insights.",
+          ],
+        },
+        {
+          list: [
+            "Every submission is checked automatically against the claims you must never make and, for drafts, the disclosure rules.",
+            "You get reminders before due dates. Late or missing work, or a post without the disclosure, can carry a penalty under your deal, so tell Eduwit early if something is holding you up.",
+            "Eduwit checks your live post. If something is wrong (for example the disclosure is missing), fix the post and submit the corrected link.",
+          ],
+        },
+      ],
+    },
+    {
       id: "tax",
       title: "Tax on your earnings",
       blocks: [
@@ -216,7 +258,7 @@ export const AGENCY: Guide = {
             head: ["Permission", "What you can do"],
             rows: [
               ["View", "See the creator's profile, platforms and media kit"],
-              ["Act on deliverables", "Handle content for their deals (from Phase 5)"],
+              ["Act on deliverables", "Read and acknowledge briefs, submit content, go live and report metrics"],
               [
                 "Negotiate and sign",
                 "Answer invitations, apply to campaigns, counter-offer, accept or decline deal terms, negotiate and sign contracts",
@@ -224,6 +266,22 @@ export const AGENCY: Guide = {
               ["View earnings", "See their deals and earnings"],
             ],
           },
+        },
+      ],
+    },
+    {
+      id: "deliverables",
+      title: "Briefs and deliverables",
+      blocks: [
+        {
+          p: "With the act on deliverables permission, open a creator from [Your creators](/agency) to see their briefs and deliverables.",
+        },
+        {
+          list: [
+            "Read and acknowledge briefs, and ask Eduwit questions, for the creator.",
+            "Upload concepts and drafts (large videos resume if the connection drops), reply to Eduwit's comments, submit live links and report metrics.",
+            "Everything you do is shown as done by the agency.",
+          ],
         },
       ],
     },

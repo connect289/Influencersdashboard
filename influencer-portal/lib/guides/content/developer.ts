@@ -117,6 +117,22 @@ export const DEVELOPER: Guide = {
       ],
     },
     {
+      id: "content",
+      title: "Briefs, deliverables and compliance",
+      blocks: [
+        {
+          list: [
+            "`lib/content/workflow.ts` is the deliverable state machine (stages can be switched off). The database mirrors it in `inf.deliverable_next` / `inf.deliverable_pending`; `supabase/tests/017_workflow_matrix.sql` is generated from the TypeScript (`npm run gen:sql`) and checks every status × action × stage combination, and a unit test fails if it is stale.",
+            "Every move goes through `inf.deliverable_apply` (transition row, event, timestamps). Submissions are immutable except their decision; file paths must sit under `<deliverable id>/`.",
+            "Compliance (`compliance.ts`): banned-claim scan with safe regex checks and the disclosure check. The server records results with the service role (`inf.compliance_record` refuses anyone else) so a client cannot report a clean scan.",
+            "Uploads (`components/content/uploader.ts`): one-time signed uploads to the private `inf-deliverables` bucket; files over 6 MB use Supabase's resumable (TUS) endpoint with the signed token. Links are signed for an hour after an `inf.*_allowed` check.",
+            "Penalties: going live, cancelling or failing the disclosure check enqueues `penalties.refresh`, which runs the compensation engine (`lib/content/events.ts`) and syncs `inf.penalty_proposals`. Approval is manual; the ledger posts approved ones (Phase 7).",
+            "Nightly: `inf.content_remind()` (due, overdue, escalation and metrics reminders) runs inside `inf.nightly_prune()`.",
+          ],
+        },
+      ],
+    },
+    {
       id: "jobs",
       title: "Background jobs and notifications",
       blocks: [

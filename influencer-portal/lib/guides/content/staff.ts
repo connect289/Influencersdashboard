@@ -130,7 +130,10 @@ export const SUPER_ADMIN: Guide = {
                 "Influencer Manager",
                 "Creators, outreach, campaigns, applications, deals, agencies; reads leads, ledger and payouts",
               ],
-              ["Content Reviewer", "Reads creators and campaigns; reviews briefs and deliverables (from Phase 5)"],
+              [
+                "Content Reviewer",
+                "Reviews submissions, overrides compliance checks with a reason, verifies live posts and edits the banned-claims list",
+              ],
               ["Finance", "KYC verification and reveal, TDS and GST settings, ledger, payouts; read-only elsewhere"],
               ["Viewer", "Analytics and scorecards, read-only"],
             ],
@@ -170,6 +173,10 @@ export const SUPER_ADMIN: Guide = {
                 "Payout cycle, two-person approval, KYC needed for payout, GST rate and SAC, bank export columns",
               ],
               ["Creators", "Dormancy, auto-approval of sign-ups, course pass mark, KYC required to submit onboarding"],
+              [
+                "Content",
+                "Revision limit, disclosure terms and platforms, metric checkpoints, reminder and escalation days, upload sizes",
+              ],
               ["Security", "Idle sign-out, trusted-device length"],
               ["Retention and privacy", "How long records are kept"],
             ],
@@ -471,6 +478,60 @@ export const INFLUENCER_MANAGER: Guide = {
       ],
     },
     {
+      id: "briefs",
+      title: "Briefs",
+      blocks: [
+        {
+          p: "Every deal gets one brief. For a deal from an accepted application, a draft brief and its deliverables are created at once; for other deals open the deal's **Content** tab and click **Create brief**.",
+        },
+        {
+          steps: [
+            "The draft is filled from the campaign's brief template (or the default), the agreed deliverables and the catalogue: approved claims are written from the programmes' fees, mode, recognitions and eligibility.",
+            "Edit it in [Briefs](/admin/briefs): objective, audience, key messages, disclosure rules, do's and don'ts, tone, languages, hashtags, references, files and FAQs. **Save** as you go.",
+            "**Publish brief**. The creator (and their agency with the deliverables permission) is told and must acknowledge it before starting. Acknowledging starts the deliverables and can trigger a milestone.",
+            "To change it later, edit and **Publish new version** with a note on what changed; the creator acknowledges the new version.",
+            "Answer the creator's questions in the **Questions** panel; open questions show on the briefs list.",
+          ],
+        },
+        {
+          p: "[Templates](/admin/briefs/templates) hold the defaults copied into new briefs, plus the stages and due-date offsets for new deliverables. Each campaign can pick its template in the campaign builder.",
+        },
+      ],
+    },
+    {
+      id: "deliverables",
+      title: "Deliverables",
+      blocks: [
+        {
+          p: "Deliverables move through: brief acknowledged → concept → draft → (scheduled) → live → verified → metrics → completed. Each stage can be switched off per deliverable before work starts, under the deliverable's **Settings** tab.",
+        },
+        {
+          list: [
+            "**Due dates** come from the template's offsets and can be changed per deliverable. Reminders go out before each date; overdue work is flagged to the creator on day 1 and to you after 2 days (Settings → Content).",
+            "**Rule id**: if the deal's compensation names a deliverable (a milestone paid when it goes live, or a late-delivery penalty), enter that id so the right rules apply.",
+            "**Extra revision rounds** a reviewer requests come to you (any role with deal editing) to approve or reject.",
+            "**Complete** a deliverable when everything is in, or **Cancel** it with a reason.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "penalties",
+      title: "Penalty proposals",
+      blocks: [
+        {
+          p: "When a deliverable goes live late, is cancelled or fails its disclosure check, the deal's penalty rules are worked out and appear as proposals in [Penalties](/admin/content/penalties) and on the deal's Content tab. Nothing is charged automatically.",
+        },
+        {
+          list: [
+            "**Approve** a proposal you agree with; it is applied with the deal's ledger and the creator is told.",
+            "**Reject** with a reason when there is a good explanation.",
+            "If the facts change (for example the due date is moved), the proposal is updated or withdrawn while it is still open.",
+          ],
+        },
+      ],
+    },
+    {
       id: "agencies",
       title: "Agencies",
       blocks: [
@@ -485,34 +546,103 @@ export const INFLUENCER_MANAGER: Guide = {
 export const CONTENT_REVIEWER: Guide = {
   slug: "content-reviewer",
   audience: "content_reviewer",
-  title: "Content Reviewer",
-  summary: "What you can see today, and the review work that arrives with briefs and deliverables.",
+  title: "Content Reviewer: reviewing content and verifying posts",
+  summary:
+    "The review queue, compliance checks and overrides, comments on videos and images, revision limits, live verification and the banned-claims list.",
   sections: [
     {
-      id: "today",
-      title: "What you can use today",
+      id: "queue",
+      title: "Your queue",
       blocks: [
         {
-          list: [
-            "[Creators](/admin/creators): read profiles, platforms and outreach history to understand who you will review.",
-            "[Campaigns](/admin/campaigns): read the brief-level details, deliverables and programmes of each campaign.",
+          p: "[Content](/admin/content) lists every open deliverable as a list or a board. The tabs along the top filter it:",
+        },
+        {
+          table: {
+            head: ["Tab", "Shows"],
+            rows: [
+              ["Deliverables", "Everything open, sorted by the next due date"],
+              ["Review queue", "Concepts and drafts waiting for you, and live posts to verify"],
+              ["Overdue", "Work past its due date (the creator is reminded on day 1; the deal owner after 2 days)"],
+              ["Live posts", "Everything that has gone live"],
+              ["Banned claims", "The list every submission is scanned against"],
+              ["Penalties", "Penalties the deal rules propose, for a manager to approve"],
+            ],
+          },
+        },
+        { tip: "You're notified when work is submitted to a deal you own (or to any deal without an owner)." },
+      ],
+    },
+    {
+      id: "review",
+      title: "Reviewing a submission",
+      blocks: [
+        {
+          p: "Open a deliverable from the queue. The **Review** tab shows the latest concept or draft: the script or caption, the files and any link, with the checks and the decision panel beside it.",
+        },
+        {
+          steps: [
+            'Read the **checks**. Every submission is scanned when it is sent: **banned claims** (a blocking match stops approval; a warning is for you to judge) and, for drafts, the **disclosure** (for example #ad or "paid partnership" on platforms that require it).',
+            "Watch or look through the files. Tick **At the current video time** to pin a comment to a moment; drag on an image to mark an area. Comments are numbered on the image; click one to jump to it.",
+            "To approve, every failed check must be fixed or **overridden** (you give a reason; it is recorded). The last approval before posting also needs the **ASCI checklist** ticked.",
+            "Or **Request changes** with a note saying what to change. Each request uses one revision round.",
           ],
+        },
+        {
+          list: [
+            "The revision limit is set per deliverable (2 by default, Settings → Content). At the limit, **Request an extra round** with a reason and an optional fee for the creator; a manager approves it.",
+            "If the scan did not run (the panel says so), use **Run the check again**. Run it again after changing the banned-claims list, too.",
+            "Earlier rounds stay below, each with its comments and decision.",
+          ],
+        },
+        {
+          warning:
+            "Override a check only when you are sure the content is fine in context, for example a banned phrase quoted to debunk it.",
         },
       ],
     },
     {
-      id: "coming",
-      title: "Coming with briefs and deliverables (Phase 5)",
+      id: "live",
+      title: "Verifying live posts",
       blocks: [
         {
-          list: [
-            "A review queue for concepts, drafts and final content, with version history.",
-            "Comments on videos and images, revision limits, and approve / request changes.",
-            "A compliance scan against approved claims and the banned-claims list, and disclosure checks per platform; overriding a check needs a reason.",
-            "Go-live verification of posted content.",
+          p: "When the creator submits the live link (validated for the platform; YouTube links show the video's title and thumbnail), it appears in the review queue and the **Live** tab.",
+        },
+        {
+          steps: [
+            "Open the link and check: it is live and public, the disclosure is there and clear, and it matches the approved version.",
+            "**Verify** if all three are true. Otherwise untick what is wrong, say why, and **Ask for a fix**: the creator submits a corrected link.",
           ],
         },
-        { p: "This guide is updated as each part arrives." },
+        {
+          p: "A missing disclosure is recorded on the deliverable and, if the deal has a disclosure penalty, a penalty is proposed for a manager to approve.",
+        },
+      ],
+    },
+    {
+      id: "metrics",
+      title: "Metrics",
+      blocks: [
+        {
+          p: "After going live the creator reports views, reach, likes and more at the checkpoints (24 hours, 7 days and 30 days by default, Settings → Content), with screenshots of their insights. They appear on the **Metrics** tab. Missing metrics are flagged to the deal owner after the grace period.",
+        },
+      ],
+    },
+    {
+      id: "claims",
+      title: "The banned-claims list",
+      blocks: [
+        {
+          p: '[Banned claims](/admin/content/claims) is the list every concept and draft is scanned against. It starts with common problem phrases for education promotion (guaranteed placements, "no exams", unverifiable superlatives): review it and make it yours.',
+        },
+        {
+          list: [
+            "A **phrase** matches as whole words, in any case and with any spacing.",
+            "A **pattern** is a regular expression for variations (for example `100\\s*%\\s*placement`). Patterns that could be slow are refused.",
+            "**Blocks approval** stops approval until fixed or overridden; **Warning** only flags it.",
+            "Use **Try a sentence** to see what the scan would flag before saving.",
+          ],
+        },
       ],
     },
   ],
