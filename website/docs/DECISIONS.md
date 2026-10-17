@@ -75,3 +75,77 @@ these at the end (spec Section 0).
   against production, for the "copy of the production schema" gate. A Supabase development branch was not created: it
   is billed and lives in the production organisation, and the local replica gives the same assurance.
 - **Change:** `supabase branches create` can be used later; the migrations are branch-ready.
+
+### D-009 · Lead path: `lead_intake()` with `source_system = 'web_agent'`, through one website wrapper
+- **Decision:** every website lead (Witty gate, built-in application form, counselling/enquiry forms) is created and
+  enriched by `public.lead_intake(p jsonb)` called from a website-owned wrapper `web_lead_upsert(p jsonb)` (SECURITY
+  DEFINER, service role only). In **one transaction** the wrapper calls `lead_intake`, records the submission in
+  `web_lead_submissions` (idempotency key unique → double taps never duplicate), stores what `lead_intake` cannot hold
+  (email-verified timestamp, exact offering, junk score) in `web_` tables, and writes side effects to `web_outbox`.
+  `source_system = 'web_agent'` (already trusted by `lead_intake`: later self-reported values overwrite, first-touch
+  attribution and consent never do). `lead.source` (→ `lead_source`) is `website_agent` for the Witty gate (spec 7.2:
+  "exact value per the existing contract") and `website_form` for forms (`web|form` → B2B channel `web_form`).
+- **Why:** spec rule 2.1 ("leads are written only through `lead_intake()`"); Witty uses the same direct path, so the CRMs
+  already handle it; one path keeps duplicate handling (match on phone) identical everywhere.
+- **Not chosen:** the B2B Intake API (`POST crm.eduwit.in/v1/leads`), which `docs/HANDOVER.md` suggests for website
+  forms. It also ends in `lead_intake`, but as an untrusted `api` source (fills only empty fields, so steps 2–4 of the
+  application form could not update a course Witty recorded earlier), adds a network hop to another product on the
+  critical path, and cannot share a transaction with the website's outbox. **Change:** the `LeadWriter` interface has an
+  `IntakeApiLeadWriter` implementation; switch with `web_settings.lead_writer = 'intake_api'`.
+
+### D-010 · Website chat transcript in `web_advisor_messages` until the shared table has a channel column
+- **Decision:** spec 7.5 asks for the shared messages table. `w2_messages` has no channel column and six CRM functions
+  compute the WhatsApp 24-hour window from it; writing web turns there would break other products. Web turns go to
+  `web_advisor_messages` with **exactly the `w2_messages` columns plus `channel='web'` and `session_id`**; the shared
+  change is A-AGENT-2/3. **Change:** after approval, a one-off copy + switching the writer (`web_settings.transcript_target`).
+
+### D-011 · Claude for the website agent, same prompts and contract as Witty (Gemini)
+- **Decision:** the spec names the Claude API; Witty runs on Gemini `gemini-3.6-flash`. The website uses Claude with the
+  same prompts (by reference) and JSON contracts: extractor on `claude-haiku-5-5`, counselor on `claude-sonnet-5-5`,
+  both configurable in `web_settings`. A `ModelProvider` interface keeps a Gemini adapter possible if the owner wants
+  identical model behaviour. **Change:** `web_settings.web_advisor_models`.
+
+### D-012 · Witty on the website ships switched off until its engine is verified against Witty's own code
+- **Decision:** `web_advisor_enabled` defaults to **false** in production. The web adapter (`lib/witty-core`) implements
+  Witty's published contract (fact keys, asks, phases, modes, enums, hand-off texts, guardrails) and is fully built and
+  tested, but the exact decision rules (ask order, HOT/WARM/COLD) live in n8n code that could not be read (A-AGENT-1).
+  Spec 7.3 forbids inventing different reasoning and allows launch before the agent is ready.
+- **Change:** supply the export; verify with the harness; flip the flag in the admin (no redeploy).
+
+### D-013 · "Regular" (on-campus) catalogue rows are hidden from the finder by default
+- **Why:** the site markets online and ODL programmes (spec §1); 7 catalogue rows have mode `Regular`.
+- **Change:** setting `finder_include_regular_mode` (admin).
+
+### D-014 · The homepage trust line is computed from data and drops claims the data does not support
+- **Decision:** "29 universities · 715+ programmes" are counted live from the mapped, visible catalogue. "100% UGC-DEB
+  entitled" is shown only when every listed university's catalogue text states UGC-DEB approval/entitlement. Today 4 of
+  29 say "Not Stated in Source", so the line reads "29 universities · 715+ programmes · UGC-DEB status shown for every
+  programme where the university has stated it" → shortened in UI to "29 partner universities · 715+ online & ODL
+  programmes · approvals shown from university records".
+- **Why:** spec rule 3 (no invented facts) and 10.4 (no fake counters) outrank the example copy in spec 8.1.
+- **Change:** fix the four universities' data in the catalogue; the line updates itself.
+
+### D-015 · "Easy EMI available" appears with every fee; an EMI amount only when the catalogue has one
+- **Why:** owner decision (spec 18: "Show the full fee publicly … with 'Easy EMI available' alongside it") and spec 14
+  ("If the catalogue has an EMI amount, show 'from ₹X/month'; never invent one"). `fee_other.Emi` holds an amount but not
+  its period, so the "from ₹X/month" form is used only once the catalogue confirms the period (A-TAX-2); until then the
+  panel shows "EMI from ₹X" without "/month" when an amount exists.
+
+### D-016 · "Talk to a counsellor" opens WhatsApp to Witty's number with a pre-filled message
+- **Why:** spec 18 Q8 is open; Witty's engine already treats "talk to a counsellor" as `asks_human` and hands off to a
+  human, so conversations stay in one inbox (Chatwoot) and the CRMs see them. Number +91 96439 77407
+  (`docs/go-live-setup.md`). The call button uses the business line +91-9650683269.
+- **Change:** `web_settings.counsellor_whatsapp` / `counsellor_phone` in the admin.
+
+### D-017 · Email provider assumption: SMTP via the Google Workspace relay, sender `no-reply@eduwit.in`
+- **Why:** the B2C CRM already sends through `smtp-relay.gmail.com:587`; no new vendor needed. A Resend adapter is also
+  built. **Change:** `EMAIL_PROVIDER` env (S-12).
+
+### D-018 · Creator pages use a typed provider with a mock until the Influencer Portal API exists
+- **Why:** no public creator API is specified (spec 9.3, 18 Q9). The website does not read `public.influencers`
+  directly (that would publish creator data without an agreed contract). **Change:** set `CREATOR_API_URL` and switch
+  `web_settings.creator_provider` to `http`.
+
+### D-019 · Data minimisation on leads: no IP address is sent to `lead_intake`
+- **Why:** spec rule 5 (minimal data). Device type is sent; IP is used only transiently for rate limiting and stored only
+  as a salted hash in `web_gate_attempts` for abuse analysis (deleted after 90 days).
