@@ -2,6 +2,7 @@
 import { Bookmark, Columns3, Filter, List, Search, Trash2, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { DEAL_MODELS } from "@/lib/deals/schemas";
 import { useEffect, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -280,6 +281,22 @@ export function CreatorFilters({
                     </Select>
                   </Field>
                 ) : null}
+                <Field id="f-deal" label={t("creators.filters.dealType")}>
+                  <Select
+                    id="f-deal"
+                    value={draft.deal_model ?? ""}
+                    onChange={(e) =>
+                      setDraft({ ...draft, deal_model: (e.target.value || undefined) as Filters["deal_model"] })
+                    }
+                  >
+                    <option value="">{t("creators.filters.any")}</option>
+                    {DEAL_MODELS.map((m) => (
+                      <option key={m} value={m}>
+                        {t(`deals.models.${m}`)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
                 <Field id="f-follow" label={t("creators.filters.followUp")}>
                   <Select
                     id="f-follow"

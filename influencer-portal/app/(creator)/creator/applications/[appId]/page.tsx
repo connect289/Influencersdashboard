@@ -4,10 +4,12 @@ import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { ApplicationView } from "@/components/campaigns/application-view";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState } from "@/components/ui/states";
 import { requireCreator } from "@/lib/auth/guards";
 import { loadApplication } from "@/lib/campaigns/data";
+import { loadMyDeals } from "@/lib/deals/data";
 
 export async function generateMetadata() {
   const t = await getTranslations();
@@ -21,6 +23,10 @@ export default async function CreatorApplicationPage({ params }: { params: Promi
   const t = await getTranslations();
   const { app, error } = await loadApplication(supabase, appId);
   if (!error && !app) notFound();
+  const deal =
+    app?.status === "accepted"
+      ? (await loadMyDeals(supabase, app.creator.id).catch(() => [])).find((d) => d.application_id === app.id)
+      : undefined;
   return (
     <>
       <Link
@@ -33,7 +39,16 @@ export default async function CreatorApplicationPage({ params }: { params: Promi
         <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
       ) : (
         <>
-          <PageHeader title={app.campaign.name} />
+          <PageHeader
+            title={app.campaign.name}
+            actions={
+              deal ? (
+                <Button asChild>
+                  <Link href={`/creator/deals/${deal.id}`}>{t("deals.my.viewDeal")}</Link>
+                </Button>
+              ) : null
+            }
+          />
           <ApplicationView app={app} />
         </>
       )}

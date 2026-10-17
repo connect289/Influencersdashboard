@@ -17,6 +17,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import type { CampaignStatus } from "@/lib/campaigns/schemas";
 import { deliverablesOf, eligibilityOf, formValuesOf, loadProgrammes } from "@/lib/campaigns/data";
 import { loadPickers } from "@/lib/creators/staff-data";
+import { presetOptions } from "@/lib/deals/data";
 import { formatCompact, formatDateTime, formatPaise, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -193,8 +194,8 @@ export default async function CampaignPage({
       </Card>
     );
   } else {
-    const { owners } = await loadPickers(supabase);
-    body = <CampaignForm initial={formValuesOf(c, programmes)} owners={owners} />;
+    const [{ owners }, presets] = await Promise.all([loadPickers(supabase), presetOptions(supabase)]);
+    body = <CampaignForm initial={formValuesOf(c, programmes)} owners={owners} presets={presets} />;
   }
 
   return (

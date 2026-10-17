@@ -100,6 +100,7 @@ export async function saveCampaign(input: CampaignInput): Promise<ActionResult<{
       compensation_summary: v.compensationSummary,
       internal_notes: v.internalNotes,
       owner_id: v.ownerId,
+      default_preset_id: v.presetId,
       programme_ids: v.programmeIds.map(String),
     },
   });

@@ -24,10 +24,12 @@ import type { CreatorStatus, PipelineStage } from "@/lib/creators/crm";
 import { loadCreatorProfile, loadKyc } from "@/lib/creators/load";
 import { loadPickers } from "@/lib/creators/staff-data";
 import { loadTasks } from "@/lib/creators/tasks-data";
+import { dealRowSchema } from "@/lib/deals/data";
+import { DEAL_STATUSES } from "@/lib/deals/schemas";
 import { formatCompact, formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TABS = ["overview", "profile", "kyc", "outreach", "tasks", "agencies", "history"] as const;
+const TABS = ["overview", "profile", "kyc", "outreach", "tasks", "deals", "agencies", "history"] as const;
 type Tab = (typeof TABS)[number];
 
 export async function generateMetadata() {
@@ -52,7 +54,8 @@ export default async function Creator360({
     (x) =>
       (x !== "kyc" || p.has("kyc.read_masked")) &&
       (x !== "history" || p.has("audit.read")) &&
-      (x !== "tasks" || p.has("task.write")),
+      (x !== "tasks" || p.has("task.write")) &&
+      (x !== "deals" || p.has("deal.read")),
   );
   const requested = (await searchParams).tab as Tab | undefined;
   const tab: Tab = requested && visible.includes(requested) ? requested : "overview";
@@ -281,6 +284,44 @@ export default async function Creator360({
           related={{ type: "creator", id: c.id }}
           showRelated={false}
         />
+      </Card>
+    );
+  } else if (tab === "deals") {
+    const { data: deals, error: dealsError } = await supabase.rpc("deals_list", {
+      p: { creator_id: creatorId, status: [...DEAL_STATUSES], page_size: 100 },
+    });
+    const rows = z.object({ rows: z.array(dealRowSchema) }).safeParse(deals);
+    body = (
+      <Card>
+        <CardHeader
+          title={t("creators.tabs.deals")}
+          actions={
+            p.has("deal.write") ? (
+              <Button asChild size="sm">
+                <Link href={`/admin/deals/new?creator=${creatorId}`}>{t("deals.new.button")}</Link>
+              </Button>
+            ) : null
+          }
+        />
+        {dealsError || !rows.success ? (
+          <ErrorState title={t("errors.loadFailed")} />
+        ) : rows.data.rows.length === 0 ? (
+          <EmptyState title={t("deals.creatorEmpty")} />
+        ) : (
+          <ul className="flex flex-col divide-y divide-line">
+            {rows.data.rows.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center gap-2 py-3">
+                <Link href={`/admin/deals/${d.id}`} className="font-medium text-primary hover:underline">
+                  {d.title}
+                </Link>
+                <StatusBadge status={d.status} label={t(`deals.statuses.${d.status}`)} />
+                <span className="text-xs text-muted">
+                  {d.code} · {t(`deals.models.${d.deal_model}`)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
     );
   } else if (tab === "agencies") {

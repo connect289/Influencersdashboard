@@ -32,6 +32,29 @@ import {
   STATUS_MOVES,
   VISIBILITIES,
 } from "@/lib/campaigns/schemas";
+import {
+  BASIS_TYPES,
+  BONUS_METRICS,
+  CONFIRMATIONS,
+  FEE_KINDS,
+  FIXED_BASES,
+  METRICS,
+  TRIGGER_TYPES,
+} from "@/lib/compensation/schema";
+import { BREAKDOWN_KEYS } from "@/lib/compensation/simulator";
+import { ENTRY_TYPES } from "@/lib/compensation/engine";
+import {
+  BONUS_AMOUNTS,
+  BONUS_WINDOWS,
+  PENALTY_TYPES,
+  RECOUP_MODES,
+  SCOPE_TYPES,
+  SECTIONS,
+  SLAB_MODES,
+  SLAB_PERIODS,
+  VALIDATION_CODES,
+} from "@/lib/deals/builder";
+import { DEAL_DB_ERRORS, DEAL_MODELS, DEAL_STATUSES, VERSION_ORIGINS, VERSION_STATES } from "@/lib/deals/schemas";
 import en from "@/messages/en.json";
 
 const root = join(import.meta.dirname, "..");
@@ -105,6 +128,47 @@ describe("messages", () => {
       ...["self", "invited"].map((x) => `onboarding.queue.source.${x}`),
       ...["name", "email", "handle", "url", "followers", "consent", "generic"].map((x) => `auth.signup.errors.${x}`),
       ...["pending", "submitted", "verified", "rejected"].map((s) => `kyc.status.${s}`),
+      ...DEAL_STATUSES.flatMap((x) => [`deals.statuses.${x}`, `deals.moves.${x}`, `deals.moveHints.${x}`]),
+      ...DEAL_MODELS.map((x) => `deals.models.${x}`),
+      ...VERSION_STATES.map((x) => `deals.versionStates.${x}`),
+      ...VERSION_ORIGINS.map((x) => `deals.origins.${x}`),
+      ...DEAL_DB_ERRORS.map(([, k]) => `deals.errors.${k}`),
+      ...ENTRY_TYPES.map((x) => `deals.entryTypes.${x}`),
+      ...TRIGGER_TYPES.map((x) => `deals.triggers.${x}`),
+      ...METRICS.map((x) => `deals.metrics.${x}`),
+      ...FIXED_BASES.map((x) => `deals.fixedBases.${x}`),
+      ...BASIS_TYPES.flatMap((x) => [`deals.bases.${x}`, `deals.summary.bases.${x}`]),
+      ...CONFIRMATIONS.map((x) => `deals.confirmations.${x}`),
+      ...FEE_KINDS.map((x) => `deals.feeKinds.${x}`),
+      ...BONUS_METRICS.map((x) => `deals.bonusMetrics.${x}`),
+      ...BONUS_AMOUNTS.map((x) => `deals.bonusAmounts.${x}`),
+      ...BONUS_WINDOWS.map((x) => `deals.windows.${x}`),
+      ...PENALTY_TYPES.map((x) => `deals.penaltyTypes.${x}`),
+      ...RECOUP_MODES.map((x) => `deals.recoupModes.${x}`),
+      ...SCOPE_TYPES.map((x) => `deals.scopes.${x}`),
+      ...SECTIONS.flatMap((x) => [`deals.sections.${x}`, `deals.sectionHints.${x}`]),
+      ...SLAB_MODES.map((x) => `deals.slabModes.${x}`),
+      ...SLAB_PERIODS.map((x) => `deals.slabPeriods.${x}`),
+      ...VALIDATION_CODES.map((x) => `deals.validation.${x}`),
+      ...BREAKDOWN_KEYS.map((x) => `deals.breakdown.${x}`),
+      ...["per_unit_paise", "per_month_paise", "lifetime_paise"].map((x) => `deals.caps.${x}`),
+      ...["pct_of_fixed", "pct_of_commission"].map((x) => `deals.summary.bonusPct.${x}`),
+      ...["terms", "versions", "dryRun", "details"].map((x) => `deals.tabs.${x}`),
+      ...[
+        "leads",
+        "qualified_leads",
+        "applications",
+        "enrollments",
+        "cancellations",
+        "views",
+        "days_late",
+        "disclosure_issues",
+        "months",
+        "commission_received",
+        "has_pan",
+        "gst_registered",
+      ].map((x) => `deals.scenario.${x}`),
+      ...["week", "month"].map((x) => `deals.builder.${x}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);
   });

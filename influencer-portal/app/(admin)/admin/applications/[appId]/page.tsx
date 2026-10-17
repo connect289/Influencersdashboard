@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { ApplicationView } from "@/components/campaigns/application-view";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState } from "@/components/ui/states";
 import { requireStaff } from "@/lib/auth/guards";
@@ -31,6 +32,10 @@ export default async function AdminApplicationPage({ params }: { params: Promise
       : Promise.resolve({ data: [] as { label: string; body: string }[] }),
   ]);
   if (!error && !app) notFound();
+  const { data: deal } =
+    app?.status === "accepted" && me.permissions.has("deal.read")
+      ? await supabase.from("deals").select("id, code").eq("application_id", appId).maybeSingle()
+      : { data: null };
   return (
     <>
       <Link
@@ -49,6 +54,13 @@ export default async function AdminApplicationPage({ params }: { params: Promise
               <Link href={`/admin/campaigns/${app.campaign.id}`} className="hover:underline">
                 {app.campaign.name}
               </Link>
+            }
+            actions={
+              deal ? (
+                <Button asChild>
+                  <Link href={`/admin/deals/${deal.id}`}>{t("deals.openDeal", { code: deal.code })}</Link>
+                </Button>
+              ) : null
             }
           />
           <ApplicationView app={app} templates={templates.data ?? []} />

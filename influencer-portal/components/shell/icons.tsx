@@ -6,6 +6,8 @@ import {
   ListChecks,
   Megaphone,
   FileText,
+  Handshake,
+  CircleHelp,
   Home,
   IdCard,
   Inbox,
@@ -34,4 +36,6 @@ export const ICONS: Record<IconName, LucideIcon> = {
   megaphone: Megaphone,
   inbox: Inbox,
   fileText: FileText,
+  handshake: Handshake,
+  help: CircleHelp,
 };

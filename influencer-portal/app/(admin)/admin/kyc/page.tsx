@@ -21,7 +21,7 @@ export default async function KycQueuePage() {
   const rows = data ?? [];
   return (
     <>
-      <PageHeader title={t("kyc.queue.title")} description={t("kyc.queue.subtitle")} />
+      <PageHeader title={t("kyc.queue.title")} description={t("kyc.queue.subtitle")} help="/admin/help/finance#kyc" />
       <Card>
         {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
         {!error && rows.length === 0 ? (

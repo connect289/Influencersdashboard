@@ -1,7 +1,7 @@
 // Demo and test data for the LOCAL stack only (spec 17: never run against production).
 // Usage: npm run seed            (reads .env.local; idempotent: safe to run again)
 // Creates staff for every role, creators in several states (synthetic people, @example.test addresses), platform
-// terms, and a few notifications and jobs. Later phases extend it with campaigns, deals, leads and ledger history.
+// terms, and a few notifications and jobs. Later phases extend it with leads and ledger history.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -296,6 +296,53 @@ async function main() {
         .single();
       if (ins.error) throw new Error(`campaign: ${ins.error.message}`);
     }
+  }
+
+  // A demo deal for Riya: agreed terms (fixed + commission), active. Built as the service role, like the deal that
+  // follows an accepted application.
+  const dealTitle = "Always-on MBA deal (demo)";
+  const existingDeal = await db.from("deals").select("id").eq("title", dealTitle).maybeSingle();
+  if (riya.data && !existingDeal.data) {
+    const preset = await db.from("deal_presets").select("id, comp_config").eq("key", "fixed_plus_commission").single();
+    if (preset.error) throw new Error(`preset: ${preset.error.message}`);
+    const startsOn = new Date(Date.now() + 330 * 60_000 - 20 * 86_400_000).toISOString().slice(0, 10);
+    const deal = await db
+      .from("deals")
+      .insert({
+        creator_id: riya.data.id,
+        title: dealTitle,
+        status: "active",
+        starts_on: startsOn,
+        preset_id: preset.data.id,
+        deal_model: "hybrid",
+        owner_id: owner?.user_id ?? null,
+        agreed_at: new Date().toISOString(),
+        activated_at: new Date().toISOString(),
+        status_reason: "Demo data",
+        created_by: owner?.user_id ?? null,
+      })
+      .select("id")
+      .single();
+    if (deal.error) throw new Error(`deal: ${deal.error.message}`);
+    const hash = await db.rpc("config_hash", { p: preset.data.comp_config });
+    const version = await db
+      .from("deal_versions")
+      .insert({
+        deal_id: deal.data.id,
+        version: 1,
+        comp_config: preset.data.comp_config,
+        config_hash: hash.data ?? "",
+        origin: "builder",
+        preset_id: preset.data.id,
+        effective_from: new Date(`${startsOn}T00:00:00+05:30`).toISOString(),
+        state: "accepted",
+        proposed_by: owner?.user_id ?? null,
+        decided_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    if (version.error) throw new Error(`deal version: ${version.error.message}`);
+    await db.from("deals").update({ current_version_id: version.data.id }).eq("id", deal.data.id);
   }
 
   const terms = await db.from("terms_versions").select("kind");

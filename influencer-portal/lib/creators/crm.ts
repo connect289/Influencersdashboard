@@ -83,6 +83,8 @@ export const creatorFilterSchema = z.object({
     .catch(undefined),
   tag: optionalText(40).catch(undefined),
   follow_up: z.enum(["overdue", "today"]).optional().catch(undefined),
+  /** Creators with an open deal of this type (proposed, negotiating, agreed or active). */
+  deal_model: z.enum(["commission_only", "fixed_only", "hybrid", "barter", "custom"]).optional().catch(undefined),
   include_blocked: z
     .enum(["1"])
     .optional()

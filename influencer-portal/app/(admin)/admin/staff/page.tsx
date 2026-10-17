@@ -38,6 +38,7 @@ export default async function StaffPage() {
       <PageHeader
         title={t("nav.admin.staff")}
         description={t("staff.subtitle")}
+        help="/admin/help/super-admin#roles"
         actions={
           <StaffDialog
             invite

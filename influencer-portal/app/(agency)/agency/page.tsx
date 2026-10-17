@@ -22,7 +22,11 @@ export default async function AgencyHome() {
   const rows = data ?? [];
   return (
     <>
-      <PageHeader title={t("agencyPortal.title")} description={t("agencyPortal.subtitle", { agency: me.agencyName })} />
+      <PageHeader
+        title={t("agencyPortal.title")}
+        description={t("agencyPortal.subtitle", { agency: me.agencyName })}
+        help="/agency/help/agency#linking"
+      />
       <div className="flex flex-col gap-4">
         <Card>
           <CardHeader title={t("agencyPortal.creators")} />

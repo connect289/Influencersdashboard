@@ -109,3 +109,8 @@ export function fyQuarter(value: Date | string | number): "Q1" | "Q2" | "Q3" | "
   if (month >= 10) return "Q3";
   return "Q4";
 }
+
+/** Today's date in IST as YYYY-MM-DD. */
+export function istToday(now: Date = new Date()): string {
+  return new Date(now.getTime() + 330 * 60_000).toISOString().slice(0, 10);
+}

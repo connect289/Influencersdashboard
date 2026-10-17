@@ -9,6 +9,7 @@ describe("staff navigation", () => {
       "/admin/creators",
       "/admin/campaigns",
       "/admin/applications",
+      "/admin/deals",
       "/admin/tasks",
       "/admin/agencies",
       "/admin/kyc",
@@ -16,12 +17,14 @@ describe("staff navigation", () => {
       "/admin/settings",
       "/admin/audit",
       "/admin/system",
+      "/admin/help",
     ]);
   });
   it("hides what a Viewer can't use", () => {
     expect(visibleStaffNav(permissionsFor({ roles: ["viewer"], isSignatory: false })).map((i) => i.href)).toEqual([
       "/admin",
       "/admin/tasks",
+      "/admin/help",
     ]);
   });
   it("shows Finance the settings it can edit", () => {

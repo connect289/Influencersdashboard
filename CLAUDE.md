@@ -59,6 +59,7 @@ This repository holds three separate Eduwit products that share one Supabase pro
 - The compensation engine (`lib/compensation`) and attribution logic are pure, deterministic and fully unit-tested
   before any UI uses them.
 - Every screen has empty, loading, error and mobile states. The creator portal is mobile-first.
+- Every new feature updates the matching guide in `lib/guides/content` (a test checks guide links resolve).
 - No TODOs, placeholder screens or fake data in production code paths; mock data only in the seed script, which
   refuses to run against production.
 
@@ -74,7 +75,9 @@ influencer-portal/
   app/legal/…              public terms
   app/r/[code]/route.ts    tracking redirect (later)
   app/api/…                health, metrics, public API, internal jobs
-  lib/compensation/        pure engine + tests (later)
+  lib/compensation/        pure engine, simulator, tax estimate + tests
+  lib/deals/               deal schemas, builder helpers, offer terms → config, dry-run, loaders
+  lib/guides/              in-app guides (one per audience; update them with every feature)
   lib/attribution/         pure rules + tests (later)
   lib/actions/             server actions (validate → one RPC → ActionResult)
   lib/<domain>/            zod schemas, loaders and helpers (creators, agencies, campaigns, media-kit)
@@ -95,7 +98,7 @@ influencer-portal/
 | Command | What |
 | --- | --- |
 | `node scripts/db.mjs start` / `stop` / `reset` | Local Supabase (Docker Hub images; refuses remote targets). Reset rebuilds from the shared baseline + every migration |
-| `npm run gen:sql` | Regenerate migrations from `lib/auth/permissions.ts` and `lib/settings/registry.ts` (a unit test fails if stale) |
+| `npm run gen:sql` | Regenerate migrations from the permission matrix, settings registry, compensation schema and system presets (a unit test fails if stale) |
 | `node scripts/db.mjs types` | Regenerate `lib/database.types.ts` after a schema change (CI checks drift) |
 | `npm run seed` | Local demo data (staff password `Local-Demo-Password-2026`; Mailpit at http://127.0.0.1:54424 shows emails) |
 | `npm run dev` | App on http://localhost:3200 (needs `.env.local`; copy `.env.example`, keys from `npx supabase status`) |

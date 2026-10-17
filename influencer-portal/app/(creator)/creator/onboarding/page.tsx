@@ -115,7 +115,11 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title={t("onboarding.title")} description={t("onboarding.subtitle", { pct: progressPct(state) })} />
+      <PageHeader
+        title={t("onboarding.title")}
+        description={t("onboarding.subtitle", { pct: progressPct(state) })}
+        help="/creator/help/creator#onboarding"
+      />
       <div
         className="mb-4 h-2 overflow-hidden rounded-full bg-surface-2"
         role="progressbar"

@@ -57,6 +57,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
       <PageHeader
         title={t("nav.admin.campaigns")}
         description={t("campaigns.subtitle")}
+        help="/admin/help/influencer-manager#campaigns"
         actions={
           me.permissions.has("campaign.write") ? (
             <Button asChild>

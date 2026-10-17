@@ -605,6 +605,98 @@ language sql stable security definer set search_path = '' as $$
    where a.id = p_app and coalesce(auth.role(), '') = 'service_role';
 $$;
 
+-- creator_rows: unchanged, plus the "deal type" filter of the creator CRM (deferred from Phase 2, D-49).
+create or replace function inf.creator_rows(p jsonb) returns table (
+  id uuid, display_name text, handle text, email text, status text, pipeline_stage text, is_blocked boolean,
+  city text, state text, niches text[], languages text[], tags text[], owner_id uuid, tier_id uuid,
+  updated_at timestamptz, last_activity_at timestamptz, last_contacted_at timestamptz, followers bigint,
+  platforms text[], next_follow_up_at timestamptz, owner_name text, tier_name text, has_account boolean)
+language sql stable security definer set search_path = '' as $$
+  with stats as (
+    select pl.creator_id, sum(coalesce(pl.followers, 0))::bigint as followers, array_agg(distinct pl.platform) as platforms
+      from inf.creator_platforms pl group by pl.creator_id
+  ), follow as (
+    select o.creator_id, min(o.next_follow_up_at) as next_follow_up_at
+      from inf.outreach_activities o where o.next_follow_up_at is not null and o.follow_up_done_at is null
+     group by o.creator_id
+  )
+  select c.id, c.display_name, c.handle, c.email, c.status, c.pipeline_stage, c.is_blocked, c.city, c.state, c.niches,
+         c.languages, c.tags, c.owner_id, c.tier_id, c.updated_at, c.last_activity_at, c.last_contacted_at,
+         coalesce(s.followers, 0), coalesce(s.platforms, '{}'), f.next_follow_up_at, sp.full_name, t.name,
+         exists (select 1 from inf.creator_accounts a where a.creator_id = c.id)
+    from inf.creators c
+    left join stats s on s.creator_id = c.id
+    left join follow f on f.creator_id = c.id
+    left join inf.staff_profiles sp on sp.user_id = c.owner_id
+    left join inf.tiers t on t.id = c.tier_id
+   where (coalesce((p ->> 'include_blocked')::boolean, false) or not c.is_blocked)
+     and (nullif(trim(p ->> 'q'), '') is null
+          or (c.display_name || ' ' || c.handle || ' ' || coalesce(c.email, '')) ilike '%' || replace(replace(replace(trim(p ->> 'q'), '\', '\\'), '%', '\%'), '_', '\_') || '%')
+     and (coalesce(jsonb_array_length(p -> 'status'), 0) = 0 or c.status in (select jsonb_array_elements_text(p -> 'status')))
+     and (coalesce(jsonb_array_length(p -> 'stage'), 0) = 0 or c.pipeline_stage in (select jsonb_array_elements_text(p -> 'stage')))
+     and (nullif(p ->> 'platform', '') is null or (p ->> 'platform') = any(coalesce(s.platforms, '{}')))
+     and (nullif(p ->> 'followers_min', '') is null or coalesce(s.followers, 0) >= (p ->> 'followers_min')::bigint)
+     and (nullif(p ->> 'followers_max', '') is null or coalesce(s.followers, 0) <= (p ->> 'followers_max')::bigint)
+     and (nullif(p ->> 'niche', '') is null or lower(p ->> 'niche') = any(c.niches))
+     and (nullif(p ->> 'language', '') is null or exists (select 1 from unnest(c.languages) l where lower(l) = lower(p ->> 'language')))
+     and (nullif(p ->> 'city', '') is null or lower(c.city) = lower(p ->> 'city'))
+     and (nullif(p ->> 'state', '') is null or lower(c.state) = lower(p ->> 'state'))
+     and (nullif(p ->> 'tier_id', '') is null or c.tier_id = (p ->> 'tier_id')::uuid)
+     and (nullif(p ->> 'owner_id', '') is null
+          or (p ->> 'owner_id' = 'me' and c.owner_id = auth.uid())
+          or (p ->> 'owner_id' = 'none' and c.owner_id is null)
+          or (p ->> 'owner_id' not in ('me', 'none') and c.owner_id::text = p ->> 'owner_id'))
+     and (nullif(p ->> 'tag', '') is null or lower(p ->> 'tag') = any(c.tags))
+     and (nullif(p ->> 'follow_up', '') is null
+          or (p ->> 'follow_up' = 'overdue' and f.next_follow_up_at < now())
+          or (p ->> 'follow_up' = 'today' and f.next_follow_up_at < (date_trunc('day', now() at time zone 'Asia/Kolkata') + interval '1 day') at time zone 'Asia/Kolkata'))
+     and (nullif(p ->> 'deal_model', '') is null or exists (
+          select 1 from inf.deals d where d.creator_id = c.id and d.deal_model = p ->> 'deal_model'
+             and d.status in ('proposed', 'negotiating', 'agreed', 'active')));
+$$;
+
+-- campaign_save: unchanged, plus the campaign's default deal preset (spec 13 "deal preset(s) offered").
+create or replace function inf.campaign_save(p jsonb) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare v_id uuid := nullif(p ->> 'id', '')::uuid; v_prog bigint; v_pos int := 0;
+begin
+  if not inf.has_perm('campaign.write') then raise exception 'not allowed' using errcode = '42501'; end if;
+  if v_id is null then
+    insert into inf.campaigns (name, objective, description, visibility, starts_on, ends_on, apply_by, budget_paise, slots,
+                               eligibility, deliverables, compensation_summary, internal_notes, owner_id, default_preset_id)
+    values (trim(p ->> 'name'), p ->> 'objective', nullif(trim(p ->> 'description'), ''), coalesce(nullif(p ->> 'visibility', ''), 'open'),
+            nullif(p ->> 'starts_on', '')::date, nullif(p ->> 'ends_on', '')::date, nullif(p ->> 'apply_by', '')::date,
+            nullif(p ->> 'budget_paise', '')::bigint, nullif(p ->> 'slots', '')::int, coalesce(p -> 'eligibility', '{}'),
+            coalesce(p -> 'deliverables', '[]'), nullif(trim(p ->> 'compensation_summary'), ''), nullif(trim(p ->> 'internal_notes'), ''),
+            coalesce(nullif(p ->> 'owner_id', '')::uuid, auth.uid()), nullif(p ->> 'default_preset_id', '')::uuid)
+    returning id into v_id;
+  else
+    update inf.campaigns set name = trim(p ->> 'name'), objective = p ->> 'objective', description = nullif(trim(p ->> 'description'), ''),
+           visibility = coalesce(nullif(p ->> 'visibility', ''), visibility), starts_on = nullif(p ->> 'starts_on', '')::date,
+           ends_on = nullif(p ->> 'ends_on', '')::date, apply_by = nullif(p ->> 'apply_by', '')::date,
+           budget_paise = nullif(p ->> 'budget_paise', '')::bigint, slots = nullif(p ->> 'slots', '')::int,
+           eligibility = coalesce(p -> 'eligibility', '{}'), deliverables = coalesce(p -> 'deliverables', '[]'),
+           compensation_summary = nullif(trim(p ->> 'compensation_summary'), ''), internal_notes = nullif(trim(p ->> 'internal_notes'), ''),
+           owner_id = nullif(p ->> 'owner_id', '')::uuid,
+           default_preset_id = case when p ? 'default_preset_id' then nullif(p ->> 'default_preset_id', '')::uuid else default_preset_id end
+     where id = v_id;
+    if not found then raise exception 'no such campaign' using errcode = '22023'; end if;
+  end if;
+  if p ? 'programme_ids' then
+    delete from inf.campaign_programmes where campaign_id = v_id
+      and programme_id not in (select (x)::bigint from jsonb_array_elements_text(p -> 'programme_ids') x);
+    for v_prog in select (x)::bigint from jsonb_array_elements_text(p -> 'programme_ids') x loop
+      if not exists (select 1 from public.catalog_programs where id = v_prog) then
+        raise exception 'unknown programme %', v_prog using errcode = '22023';
+      end if;
+      insert into inf.campaign_programmes (campaign_id, programme_id, position) values (v_id, v_prog, v_pos)
+      on conflict (campaign_id, programme_id) do update set position = excluded.position;
+      v_pos := v_pos + 1;
+    end loop;
+  end if;
+  return v_id;
+end $$;
+
 -- offer_accept: unchanged, plus the deal job.
 create or replace function inf.offer_accept(p_offer uuid) returns void
 language plpgsql security definer set search_path = '' as $$
@@ -710,7 +802,7 @@ create or replace function inf.my_deals(p_creator uuid) returns jsonb
 language sql stable security definer set search_path = '' as $$
   select coalesce(jsonb_agg(jsonb_build_object('id', d.id, 'code', d.code, 'title', d.title, 'status', d.status,
                                                'deal_model', d.deal_model, 'starts_on', d.starts_on, 'ends_on', d.ends_on,
-                                               'campaign_name', c.name,
+                                               'campaign_name', c.name, 'application_id', d.application_id,
                                                'pending', exists (select 1 from inf.deal_versions v where v.deal_id = d.id and v.state = 'proposed'))
                             order by d.updated_at desc), '[]')
     from inf.deals d left join inf.campaigns c on c.id = d.campaign_id

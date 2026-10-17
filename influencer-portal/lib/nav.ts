@@ -18,6 +18,8 @@ export const ICON_NAMES = [
   "megaphone",
   "inbox",
   "fileText",
+  "handshake",
+  "help",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 
@@ -34,6 +36,7 @@ export const STAFF_NAV: StaffNavItem[] = [
   { href: "/admin/creators", labelKey: "nav.admin.creators", icon: "contact", anyOf: ["creator.read"] },
   { href: "/admin/campaigns", labelKey: "nav.admin.campaigns", icon: "megaphone", anyOf: ["campaign.read"] },
   { href: "/admin/applications", labelKey: "nav.admin.applications", icon: "inbox", anyOf: ["campaign.read"] },
+  { href: "/admin/deals", labelKey: "nav.admin.deals", icon: "handshake", anyOf: ["deal.read"] },
   { href: "/admin/tasks", labelKey: "nav.admin.tasks", icon: "checklist" },
   { href: "/admin/agencies", labelKey: "nav.admin.agencies", icon: "building", anyOf: ["agency.manage"] },
   { href: "/admin/kyc", labelKey: "nav.admin.kyc", icon: "badgeCheck", anyOf: ["kyc.read_masked"] },
@@ -46,6 +49,7 @@ export const STAFF_NAV: StaffNavItem[] = [
   },
   { href: "/admin/audit", labelKey: "nav.admin.audit", icon: "scroll", anyOf: ["audit.read"] },
   { href: "/admin/system", labelKey: "nav.admin.system", icon: "activity", anyOf: ["system.read"] },
+  { href: "/admin/help", labelKey: "nav.admin.help", icon: "help" },
 ];
 
 export function visibleStaffNav(permissions: ReadonlySet<Permission>): StaffNavItem[] {
@@ -61,17 +65,20 @@ export interface CreatorNavItem {
 export const CREATOR_NAV: CreatorNavItem[] = [
   { href: "/creator", labelKey: "nav.creator.home", icon: "home" },
   { href: "/creator/campaigns", labelKey: "nav.creator.campaigns", icon: "megaphone" },
+  { href: "/creator/deals", labelKey: "nav.creator.deals", icon: "handshake" },
   { href: "/creator/profile", labelKey: "nav.creator.profile", icon: "idCard" },
   { href: "/creator/kyc", labelKey: "nav.creator.kyc", icon: "badgeCheck" },
   { href: "/creator/media-kit", labelKey: "nav.creator.mediaKit", icon: "fileText" },
   { href: "/creator/agency", labelKey: "nav.creator.agency", icon: "building" },
   { href: "/creator/account", labelKey: "nav.creator.account", icon: "user" },
+  { href: "/creator/help", labelKey: "nav.creator.help", icon: "help" },
 ];
 
 export const AGENCY_NAV: CreatorNavItem[] = [
   { href: "/agency", labelKey: "nav.agency.home", icon: "users" },
   { href: "/agency/team", labelKey: "nav.agency.team", icon: "building" },
   { href: "/agency/account", labelKey: "nav.agency.account", icon: "user" },
+  { href: "/agency/help", labelKey: "nav.agency.help", icon: "help" },
 ];
 
 /** Active when the path is the item or below it (except the portal root, which matches exactly). */

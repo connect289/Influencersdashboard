@@ -64,5 +64,10 @@ test.describe.serial("campaigns, applications and negotiation", () => {
     await expect(page.getByText("Offer accepted.")).toBeVisible();
     await expect(page.getByText(/Accepted\. The agreed terms are final/)).toBeVisible();
     await expect(page.getByText("₹12,000").first()).toBeVisible();
+    // The deal is created from the agreed terms at once.
+    await page.reload();
+    await page.getByRole("link", { name: "View my deal" }).click();
+    await expect(page.getByText("Terms in force (version 1)")).toBeVisible();
+    await expect(page.getByText("₹12,000").first()).toBeVisible();
   });
 });

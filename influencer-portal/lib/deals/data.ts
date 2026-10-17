@@ -101,6 +101,7 @@ export const dealRowSchema = z.object({
   owner_id: z.uuid().nullable().optional(),
   updated_at: z.string().optional(),
   pending: z.boolean(),
+  application_id: z.uuid().nullable().optional(),
 });
 export type DealRow = z.infer<typeof dealRowSchema>;
 
@@ -170,4 +171,19 @@ export async function commissionEstimate(campaignId: string | null): Promise<num
   const { data, error } = await adminClient().rpc("commission_estimate", { p_campaign: campaignId });
   if (error) throw new Error(error.message);
   return data;
+}
+
+export async function loadMyDeals(supabase: ServerSupabase, creatorId: string): Promise<DealRow[]> {
+  const { data, error } = await supabase.rpc("my_deals", { p_creator: creatorId });
+  if (error) throw new Error(error.message);
+  return z.array(dealRowSchema).parse(data);
+}
+
+/** Active presets as picker options; empty for staff who cannot read deals. */
+export async function presetOptions(supabase: ServerSupabase): Promise<{ id: string; name: string }[]> {
+  const { data } = await supabase.rpc("deal_presets_list", { p_include_archived: false });
+  return z
+    .array(z.object({ id: z.uuid(), name: z.string() }))
+    .catch([])
+    .parse(data ?? []);
 }

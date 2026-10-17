@@ -14,7 +14,6 @@ import {
   simulate,
   type CreatorSimulation,
   type ScenarioInput,
-  type SimulationResult,
 } from "@/lib/compensation/simulator";
 import { commissionEstimate, loadCompContext, loadDeal, loadTdsSections, versionsOf } from "@/lib/deals/data";
 import { dryRun, type DryRunResult } from "@/lib/deals/dry-run";
@@ -193,42 +192,6 @@ export async function archivePreset(id: string, archived: boolean): Promise<Acti
   if (error) return dbFail(error, t);
   revalidatePath("/admin/deals", "layout");
   return { ok: true, message: archived ? t("deals.presets.archived") : t("deals.presets.restored") };
-}
-
-const staffSimInput = z.object({
-  config: compConfig,
-  scenario,
-  startsOn: z.iso.date(),
-  campaignId: z.union([z.literal(""), z.uuid()]).default(""),
-});
-
-/** The builder's live simulator (staff): full result including Eduwit economics. */
-export async function simulateTerms(
-  input: z.input<typeof staffSimInput>,
-): Promise<ActionResult<SimulationResult & { commission_estimate_paise: number | null; tax_confirmed: boolean }>> {
-  const t = await getTranslations();
-  const parsed = staffSimInput.safeParse(input);
-  if (!parsed.success) return fail(t("deals.errors.scenario"));
-  const s = await signedIn();
-  if (!s) return fail(t("errors.sessionEnded"));
-  if (!s.staff) return fail(t("errors.forbidden"));
-  const v = parsed.data;
-  const [ctx, tds, estimate] = await Promise.all([
-    loadCompContext(s.supabase),
-    loadTdsSections(s.supabase),
-    commissionEstimate(v.campaignId || null),
-  ]);
-  const sc = {
-    ...v.scenario,
-    avg_commission_gross_paise: v.scenario.avg_commission_gross_paise ?? estimate ?? undefined,
-  };
-  const result = simulate(v.config, sc, {
-    starts_on: v.startsOn,
-    context: ctx.engine,
-    sections: tds.sections,
-    gst_rate_bps: ctx.gst_rate_bps,
-  });
-  return { ok: true, data: { ...result, commission_estimate_paise: estimate, tax_confirmed: tds.confirmed } };
 }
 
 const creatorSimInput = z.object({ dealId: z.uuid(), versionId: z.uuid().optional(), scenario });

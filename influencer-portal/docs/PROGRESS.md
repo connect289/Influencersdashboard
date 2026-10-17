@@ -2,7 +2,7 @@
 
 ## Now
 
-- **Current phase:** Phase 3 (Deals and the compensation engine), starting.
+- **Current phase:** Phase 3 (Deals and the compensation engine): 3.1–3.4 done, 3.5 (screens) in progress, then 3.6 (in-app guides, requested 17 Oct 2026) and the gate.
 - **Phase 2:** complete and tagged `phase-2-done` (summary below).
 - **Phase 1:** complete and tagged `phase-1-done`.
 - **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done`, `phase-1-done` and `phase-2-done`
@@ -183,3 +183,41 @@ No migrations, no app code and no tests in Phase 0 (the spec says "no app code y
 - **Known issues found:** legacy influencer objects expose students' full rows to 3 legacy accounts and store plain-text
   passwords (`SHARED_CHANGES.md` §E); leaked-password protection is off; shared Supabase Auth means creators will hold
   `authenticated` JWTs on the same project as every other product (RK-2).
+
+## Phase 3: Deals and the compensation engine
+
+### Plan
+
+| Step | What | Main files | Tests |
+| --- | --- | --- | --- |
+| 3.1 | Compensation config schema (zod), system presets, generated JSON Schema for the database check | `lib/compensation/{money,schema,presets,events}.ts`, `20261018000650_inf_comp_config_schema.sql` | schema units, codegen drift |
+| 3.2 | Pure engine: full deterministic replay, stable ledger keys, penalty proposals; ledger diff | `lib/compensation/{engine,diff}.ts` | 66 engine tests (every basis, slabs, recoupment, caps, floors, milestones per trigger, clawbacks, amendments, rounding, presets), mutation-checked |
+| 3.3 | Simulator (scenario → events → engine) and TDS/GST estimate | `lib/compensation/{simulator,tax}.ts` | units |
+| 3.4 | Deals database: presets, deals, immutable versions, amendments, TDS table, deal from accepted offer, dry-run | `20261018000700_inf_deals.sql`, `lib/deals/*`, `lib/actions/deals.ts` | pgTAP 015 (53), units |
+| 3.5 | Screens: deals list, new deal, builder with live simulator, versions, dry-run, presets; creator and agency deal views with accept/decline and a read-only simulator; campaign default preset; Creator 360 deals tab | `app/(admin)/admin/deals/*`, `app/(creator)/creator/deals/*`, `components/deals/*` | Playwright journeys |
+| 3.6 | In-app guides for every user type (Super Admin, Influencer Manager, Content Reviewer, Finance, Analyst, creator, agency, developer): a Help area in each portal with setup steps and how each module works, kept current by every later phase | `app/*/help/*`, `lib/guides/*` | units (every guide link resolves, every role has a guide), Playwright |
+| 3.7 | Phase gate | | |
+
+### Phase 3 requirement checklist (spec Section 22 Phase 3, and spec 5 "Deals", 6, 11 TDS defaults, 13 auto-generation)
+
+| Requirement | Status | Where / note |
+| --- | --- | --- |
+| Compensation engine as a pure TypeScript module, deterministic, no I/O | Done | `lib/compensation/engine.ts` (full replay; D-63) |
+| Every component type of 6.1 (fixed + milestones per trigger, commission bases, scope, slabs marginal/retroactive, caps, floors, recoupment none/full/partial, confirmation, clawback windows, effective dates, bonuses with AND/OR, penalties, additional fees, non-cash) | Done | `lib/compensation/schema.ts`; builder covers every field |
+| Tests: every basis, both slab modes, recoupment, caps and floors, milestones per trigger, clawbacks inside/outside window, retroactive top-ups, amendments mid-period, rounding, exact presets | Done | `engine.test.ts` (66) + mutation checks; `money`, `schema`, `diff`, `tax`, `simulator` tests |
+| Presets Commission only / Fixed + Commission / Fixed only; admins save new presets | Done | Generated system presets; preset pages, "Save as preset" |
+| Deal builder with live earnings simulator (per-component breakdown, TDS, net payout, Eduwit cost per enrolment and margin from catalogue commission data) | Done | `components/deals/terms-editor.tsx`, `simulator.tsx`; catalogue estimate via `inf.commission_estimate` (S-11) |
+| Creator read-only simulator without Eduwit margin or commission amounts | Done | Server-side `simulateMyDeal` + `forCreator` (D-75, D-79) |
+| Deals and immutable versions; any change after agreement is an amendment | Done | `20261018000700_inf_deals.sql` (D-71); pgTAP 015 proves immutability |
+| Validated JSONB config with a generated SQL check (D-05) | Done | `inf.comp_config_errors` = generated JSON Schema + cross-field rules; SQL and zod agree on the shared corpus |
+| Recompute / dry-run before amending | Done | Dry-run tab over a projected scenario, recorded in `comp_runs` (D-76). The "against posted entries" mode arrives with the ledger (Phase 7) |
+| Ledger posting keyed on deal version + rule + subject + event, idempotent | Partial | Keys and the posting diff are built and tested (`diff.ts`); the runner that posts them needs the ledger tables and domain events of Phases 5–7 |
+| Deal auto-generated when a campaign offer is accepted | Done | Accept action + `deal.from_application` job (D-74). Contract, brief and deliverables follow in Phases 4–5 |
+| TDS table with defaults marked "confirm with CA" | Done | `inf.tds_sections` (194H, 194J, 194R); Finance editing screen arrives with the Finance module (Phase 7); function and permission exist now |
+| Campaign builder: default deal preset (deferred in Phase 2) | Done | Campaign form, `campaign_save` |
+| Creator 360: deals tab; creator CRM deal-type filter (deferred in Phase 2) | Done | D-78 |
+| Penalty proposals table and approval | Deferred | Proposals are computed by the engine now; storing and approving them needs deliverables (Phase 5) and the ledger (Phase 7) |
+| In-app guides for every user type (owner request) | Done | Help in all three portals, nine guides, search, contextual links (D-77) |
+| RLS on every new table, tests per role; no creator/agency path to student phone or email | Done | pgTAP 015 (53) + 013 job check |
+| Every screen: empty, loading, error, mobile states | Done | Shared state components; creator deal pages mobile-first |
+

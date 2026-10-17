@@ -32,6 +32,7 @@ export interface CampaignFormValues {
   compensationSummary: string;
   internalNotes: string;
   ownerId: string;
+  presetId: string;
   programmes: ProgrammeHit[];
 }
 
@@ -50,6 +51,7 @@ export const EMPTY_CAMPAIGN: CampaignFormValues = {
   compensationSummary: "",
   internalNotes: "",
   ownerId: "",
+  presetId: "",
   programmes: [],
 };
 
@@ -149,13 +151,16 @@ function ProgrammePicker({ value, onChange }: { value: ProgrammeHit[]; onChange:
   );
 }
 
-/** The campaign builder (spec 13). Deal presets and brief/contract templates join in Phase 3–5. */
+/** The campaign builder (spec 13). Brief and contract templates join in Phases 4–5. */
 export function CampaignForm({
   initial,
   owners,
+  presets,
 }: {
   initial: CampaignFormValues;
   owners: { id: string; name: string }[];
+  /** Deal presets the campaign can offer by default (accepted applications start from it). */
+  presets: { id: string; name: string }[];
 }) {
   const t = useTranslations();
   const router = useRouter();
@@ -193,6 +198,7 @@ export function CampaignForm({
               compensationSummary: v.compensationSummary,
               internalNotes: v.internalNotes,
               ownerId: v.ownerId,
+              presetId: v.presetId,
               programmeIds: v.programmes.map((p) => p.id),
             }),
           (data) => {
@@ -311,6 +317,21 @@ export function CampaignForm({
       <Card>
         <CardHeader title={t("campaigns.fields.deliverables")} description={t("campaigns.fields.deliverablesHint")} />
         <DeliverablesEditor value={v.deliverables} onChange={(d) => set("deliverables", d)} idPrefix="cf-d" />
+        <Field
+          id="cf-preset"
+          label={t("campaigns.fields.preset")}
+          hint={t("campaigns.fields.presetHint")}
+          className="mt-4"
+        >
+          <Select id="cf-preset" value={v.presetId} onChange={(e) => set("presetId", e.target.value)}>
+            <option value="">{t("campaigns.fields.presetByType")}</option>
+            {presets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field
           id="cf-comp"
           label={t("campaigns.fields.compensation")}

@@ -23,7 +23,11 @@ export default async function SettingsPage() {
     .filter((x) => x.rows.length);
   return (
     <>
-      <PageHeader title={t("nav.admin.settings")} description={t("settings.subtitle")} />
+      <PageHeader
+        title={t("nav.admin.settings")}
+        description={t("settings.subtitle")}
+        help="/admin/help/super-admin#settings"
+      />
       {error ? <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} /> : null}
       {!error && rows.length === 0 ? <EmptyState title={t("settings.empty")} /> : null}
       <div className="flex flex-col gap-8">

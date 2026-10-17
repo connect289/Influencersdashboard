@@ -79,6 +79,7 @@ export default async function CreatorsPage({
         title={t("nav.admin.creators")}
         description={result ? t("creators.count", { count: result.total }) : t("creators.subtitle")}
         actions={actions}
+        help="/admin/help/influencer-manager#pipeline"
       />
       <CreatorFilters filters={filters} view={view} owners={pickers.owners} tiers={pickers.tiers} savedViews={views} />
       {!result ? (

@@ -48,6 +48,7 @@ const FAMILY_OF: Record<string, StatusFamily> = {
   confirmed: "success",
   paid: "success",
   accepted: "success",
+  agreed: "success",
   verified: "success",
   credited: "success",
   manually_credited: "success",
@@ -56,6 +57,7 @@ const FAMILY_OF: Record<string, StatusFamily> = {
   ok: "success",
   // problem
   rejected: "problem",
+  declined: "problem",
   overdue: "problem",
   failed: "problem",
   lost: "problem",

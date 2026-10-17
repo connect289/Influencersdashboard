@@ -103,7 +103,11 @@ export default async function CreatorCampaignsPage({ searchParams }: { searchPar
 
   return (
     <>
-      <PageHeader title={t("nav.creator.campaigns")} description={t("campaigns.marketplace.subtitle")} />
+      <PageHeader
+        title={t("nav.creator.campaigns")}
+        description={t("campaigns.marketplace.subtitle")}
+        help="/creator/help/creator#campaigns"
+      />
       {!approved ? (
         <div className="mb-4 flex flex-col gap-2">
           <Banner tone="warning">{t("campaigns.marketplace.finishOnboarding")}</Banner>
