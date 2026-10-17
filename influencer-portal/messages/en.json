@@ -3449,7 +3449,7 @@
     "inactiveBadge": "Off",
     "copy": "Copy",
     "copied": "Link copied.",
-    "stats": "{clicks} clicks · {leads} leads",
+    "stats": "Clicks: {clicks} · Leads: {leads}",
     "createdOn": "created {date}",
     "noDetails": "General link",
     "empty": "No links yet",

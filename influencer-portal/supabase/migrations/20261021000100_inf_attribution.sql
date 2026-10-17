@@ -370,6 +370,9 @@ create or replace function inf.witty_issue_code(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 begin
   if coalesce(auth.role(), '') <> 'service_role' then raise exception 'not allowed' using errcode = '42501'; end if;
+  -- Witty's function has no search_path of its own and names its tables unqualified, so it needs public for this call
+  -- (transaction-local; the function's empty search_path is restored on return). It is called exactly as Witty calls it.
+  perform set_config('search_path', 'public', true);
   return public.w2_issue_code(p);
 end $$;
 

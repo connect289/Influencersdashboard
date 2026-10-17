@@ -3,7 +3,7 @@
 -- history, stage events, the masked creator feed), masking proofs, overrides, fraud review and who sees what.
 begin;
 \ir _helpers.psql
-select plan(71);
+select plan(72);
 
 select tests.make_staff('mona', array['influencer_manager']);
 select tests.make_staff('asha', array['super_admin']);
@@ -98,6 +98,8 @@ insert into leads select 'self', (public.lead_intake(jsonb_build_object('phone',
 select tests.as_person('mona');
 select throws_ok($$ select inf.lead_sync_candidates('{"since":"-infinity"}') $$, '42501', null, 'staff cannot run the sweep');
 select tests.act_as_service();
+select ok(inf.witty_issue_code('{"source":"influencer","utm_source":"influencer","creator_code":"RIYA-IG-AA"}') ->> 'code' ~ '^[A-Z0-9]{6}$',
+          'the redirect gets a Witty access code through the wrapper');
 create temporary table cand as select inf.lead_sync_candidates('{"since":"-infinity"}') as c;
 grant select on cand to service_role, authenticated;
 select is(jsonb_array_length((select c -> 'leads' from cand)), 3, 'three leads carry creator evidence (the organic one is skipped)');
