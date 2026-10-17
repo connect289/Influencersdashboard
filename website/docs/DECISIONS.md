@@ -171,6 +171,9 @@ these at the end (spec Section 0).
   set `"dark"` to always lead with the luminous theme. The visitor's own toggle choice always wins.
 
 ### D-023 · Concept A (Luminous) chosen; Concept B (Prism) preserved and switchable
+- **Owner confirmed Concept A on 17 Oct 2026** ("Concept A is better, move ahead with it"). `design_concept` stays `"a"`.
+  Concept B remains switchable until the owner asks for it to be removed (removing it would delete the `/concepts/b/*`
+  pages and B tokens; nothing in A depends on them).
 - **Why / scoring:** `docs/design/CONCEPTS.md`. **Preserved:** all B tokens, layouts and pages stay in the codebase
   (`data-concept="b"`, `/concepts/b/*`), selectable via `web_settings.design_concept`; also a local branch `concept-b`
   at the Phase 1 commit. That branch is **not pushed**: this session may only push `claude/inspiring-babbage-8asj1y`
