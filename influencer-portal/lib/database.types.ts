@@ -203,6 +203,40 @@ isOneToOne: false
       referencedColumns: ["user_id"]
     }
                   ]
+                },"clause_versions": {
+                  Row: {
+                    "body": NonNullable<Json>,"clause_id": string,"created_at": string,"created_by": string | null,"locked": boolean,"negotiable": boolean,"required": boolean,"reviewed_at": string | null,"reviewed_by": string | null,"title": string,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body": NonNullable<Json>,"clause_id": string,"created_at"?: string,"created_by"?: string | null,"locked"?: boolean,"negotiable"?: boolean,"required"?: boolean,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"title": string,"version": number
+                  }
+                  Update: {
+                    "body"?: NonNullable<Json>,"clause_id"?: string,"created_at"?: string,"created_by"?: string | null,"locked"?: boolean,"negotiable"?: boolean,"required"?: boolean,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"title"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "clause_versions_clause_id_fkey"
+      columns: ["clause_id"]
+isOneToOne: false
+      referencedRelation: "clauses"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"clauses": {
+                  Row: {
+                    "archived_at": string | null,"category": string,"created_at": string,"created_by": string | null,"current_version": number,"deal_types": (string)[],"id": string,"key": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"category": string,"created_at"?: string,"created_by"?: string | null,"current_version"?: number,"deal_types"?: (string)[],"id"?: string,"key": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"category"?: string,"created_at"?: string,"created_by"?: string | null,"current_version"?: number,"deal_types"?: (string)[],"id"?: string,"key"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"client_grants": {
                   Row: {
                     "grantee": string,"object_name": string,"object_type": string,"privilege": string
@@ -240,6 +274,220 @@ isOneToOne: false
       columns: ["deal_version_id"]
 isOneToOne: false
       referencedRelation: "deal_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"consent_texts": {
+                  Row: {
+                    "body": string,"created_at": string,"created_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body": string,"created_at"?: string,"created_by"?: string | null,"version": number
+                  }
+                  Update: {
+                    "body"?: string,"created_at"?: string,"created_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"contract_change_requests": {
+                  Row: {
+                    "clause_key": string | null,"contract_id": string,"created_at": string,"created_by": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"from_side": string,"id": string,"kind": string,"note": string | null,"proposed_body": Json | null,"proposed_terms": Json | null,"resolved_in_version_id": string | null,"status": string,"version_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "clause_key"?: string | null,"contract_id": string,"created_at"?: string,"created_by"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"from_side": string,"id"?: string,"kind": string,"note"?: string | null,"proposed_body"?: Json | null,"proposed_terms"?: Json | null,"resolved_in_version_id"?: string | null,"status"?: string,"version_id": string
+                  }
+                  Update: {
+                    "clause_key"?: string | null,"contract_id"?: string,"created_at"?: string,"created_by"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"from_side"?: string,"id"?: string,"kind"?: string,"note"?: string | null,"proposed_body"?: Json | null,"proposed_terms"?: Json | null,"resolved_in_version_id"?: string | null,"status"?: string,"version_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "contract_change_requests_contract_id_fkey"
+      columns: ["contract_id"]
+isOneToOne: false
+      referencedRelation: "contracts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contract_change_requests_resolved_in_version_id_fkey"
+      columns: ["resolved_in_version_id"]
+isOneToOne: false
+      referencedRelation: "contract_versions"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contract_change_requests_version_id_fkey"
+      columns: ["version_id"]
+isOneToOne: false
+      referencedRelation: "contract_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"contract_comments": {
+                  Row: {
+                    "author_id": string,"author_side": string,"body": string,"clause_key": string,"contract_id": string,"created_at": string,"id": string,"parent_id": string | null,"resolved_at": string | null,"resolved_by": string | null,"version_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string,"author_side": string,"body": string,"clause_key": string,"contract_id": string,"created_at"?: string,"id"?: string,"parent_id"?: string | null,"resolved_at"?: string | null,"resolved_by"?: string | null,"version_id": string
+                  }
+                  Update: {
+                    "author_id"?: string,"author_side"?: string,"body"?: string,"clause_key"?: string,"contract_id"?: string,"created_at"?: string,"id"?: string,"parent_id"?: string | null,"resolved_at"?: string | null,"resolved_by"?: string | null,"version_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "contract_comments_contract_id_fkey"
+      columns: ["contract_id"]
+isOneToOne: false
+      referencedRelation: "contracts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contract_comments_parent_id_fkey"
+      columns: ["parent_id"]
+isOneToOne: false
+      referencedRelation: "contract_comments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contract_comments_version_id_fkey"
+      columns: ["version_id"]
+isOneToOne: false
+      referencedRelation: "contract_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"contract_files": {
+                  Row: {
+                    "contract_id": string,"created_at": string,"id": string,"kind": string,"sha256": string,"storage_path": string,"version_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "contract_id": string,"created_at"?: string,"id"?: string,"kind"?: string,"sha256": string,"storage_path": string,"version_id": string
+                  }
+                  Update: {
+                    "contract_id"?: string,"created_at"?: string,"id"?: string,"kind"?: string,"sha256"?: string,"storage_path"?: string,"version_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "contract_files_contract_id_fkey"
+      columns: ["contract_id"]
+isOneToOne: false
+      referencedRelation: "contracts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contract_files_version_id_fkey"
+      columns: ["version_id"]
+isOneToOne: false
+      referencedRelation: "contract_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"contract_sign_codes": {
+                  Row: {
+                    "attempts": number,"channel": string,"code_hash": string,"consumed_at": string | null,"contract_id": string,"created_at": string,"expires_at": string,"id": string,"role": string,"salt": string,"user_id": string,"version_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"channel": string,"code_hash": string,"consumed_at"?: string | null,"contract_id": string,"created_at"?: string,"expires_at": string,"id"?: string,"role": string,"salt": string,"user_id": string,"version_id": string
+                  }
+                  Update: {
+                    "attempts"?: number,"channel"?: string,"code_hash"?: string,"consumed_at"?: string | null,"contract_id"?: string,"created_at"?: string,"expires_at"?: string,"id"?: string,"role"?: string,"salt"?: string,"user_id"?: string,"version_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "contract_sign_codes_contract_id_fkey"
+      columns: ["contract_id"]
+isOneToOne: false
+      referencedRelation: "contracts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contract_sign_codes_version_id_fkey"
+      columns: ["version_id"]
+isOneToOne: false
+      referencedRelation: "contract_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"contract_templates": {
+                  Row: {
+                    "archived_at": string | null,"created_at": string,"created_by": string | null,"description": string | null,"footer": NonNullable<Json>,"header": NonNullable<Json>,"id": string,"is_default": boolean,"key": string | null,"name": string,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"footer"?: NonNullable<Json>,"header"?: NonNullable<Json>,"id"?: string,"is_default"?: boolean,"key"?: string | null,"name": string,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"footer"?: NonNullable<Json>,"header"?: NonNullable<Json>,"id"?: string,"is_default"?: boolean,"key"?: string | null,"name"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"contract_versions": {
+                  Row: {
+                    "content": NonNullable<Json>,"contract_id": string,"created_at": string,"created_by": string | null,"deal_version_id": string,"html": string,"id": string,"note": string | null,"overrides": NonNullable<Json>,"sha256": string,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "content": NonNullable<Json>,"contract_id": string,"created_at"?: string,"created_by"?: string | null,"deal_version_id": string,"html": string,"id"?: string,"note"?: string | null,"overrides"?: NonNullable<Json>,"sha256": string,"version": number
+                  }
+                  Update: {
+                    "content"?: NonNullable<Json>,"contract_id"?: string,"created_at"?: string,"created_by"?: string | null,"deal_version_id"?: string,"html"?: string,"id"?: string,"note"?: string | null,"overrides"?: NonNullable<Json>,"sha256"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "contract_versions_contract_id_fkey"
+      columns: ["contract_id"]
+isOneToOne: false
+      referencedRelation: "contracts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contract_versions_deal_version_id_fkey"
+      columns: ["deal_version_id"]
+isOneToOne: false
+      referencedRelation: "deal_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"contracts": {
+                  Row: {
+                    "closed_at": string | null,"countersigned_at": string | null,"created_at": string,"created_by": string | null,"creator_signed_at": string | null,"current_version_id": string | null,"deal_id": string,"effective_on": string | null,"expires_on": string | null,"id": string,"integrity_failed_at": string | null,"kind": string,"negotiation_deadline": string | null,"number": string,"parent_contract_id": string | null,"payee_agency_id": string | null,"sent_at": string | null,"stamp_duty_reference": string | null,"status": string,"status_reason": string | null,"template_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "closed_at"?: string | null,"countersigned_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"creator_signed_at"?: string | null,"current_version_id"?: string | null,"deal_id": string,"effective_on"?: string | null,"expires_on"?: string | null,"id"?: string,"integrity_failed_at"?: string | null,"kind"?: string,"negotiation_deadline"?: string | null,"number"?: string,"parent_contract_id"?: string | null,"payee_agency_id"?: string | null,"sent_at"?: string | null,"stamp_duty_reference"?: string | null,"status"?: string,"status_reason"?: string | null,"template_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "closed_at"?: string | null,"countersigned_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"creator_signed_at"?: string | null,"current_version_id"?: string | null,"deal_id"?: string,"effective_on"?: string | null,"expires_on"?: string | null,"id"?: string,"integrity_failed_at"?: string | null,"kind"?: string,"negotiation_deadline"?: string | null,"number"?: string,"parent_contract_id"?: string | null,"payee_agency_id"?: string | null,"sent_at"?: string | null,"stamp_duty_reference"?: string | null,"status"?: string,"status_reason"?: string | null,"template_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "contracts_current_version_fk"
+      columns: ["current_version_id"]
+isOneToOne: false
+      referencedRelation: "contract_versions"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contracts_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contracts_parent_contract_id_fkey"
+      columns: ["parent_contract_id"]
+isOneToOne: false
+      referencedRelation: "contracts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contracts_payee_agency_id_fkey"
+      columns: ["payee_agency_id"]
+isOneToOne: false
+      referencedRelation: "agencies"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contracts_template_id_fkey"
+      columns: ["template_id"]
+isOneToOne: false
+      referencedRelation: "contract_templates"
       referencedColumns: ["id"]
     }
                   ]
@@ -849,6 +1097,38 @@ isOneToOne: true
                   Relationships: [
                     
                   ]
+                },"signatures": {
+                  Row: {
+                    "consent_text": string,"consent_version": number,"contract_id": string,"document_sha256": string,"geo": Json | null,"id": string,"ip": unknown,"otp_channel": string,"otp_reference": string,"signed_at": string,"signed_at_ist": string,"signer_designation": string | null,"signer_name": string,"signer_role": string,"signer_user_id": string,"user_agent": string | null,"version_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "consent_text": string,"consent_version": number,"contract_id": string,"document_sha256": string,"geo"?: Json | null,"id"?: string,"ip"?: unknown,"otp_channel": string,"otp_reference": string,"signed_at"?: string,"signed_at_ist"?: string,"signer_designation"?: string | null,"signer_name": string,"signer_role": string,"signer_user_id": string,"user_agent"?: string | null,"version_id": string
+                  }
+                  Update: {
+                    "consent_text"?: string,"consent_version"?: number,"contract_id"?: string,"document_sha256"?: string,"geo"?: Json | null,"id"?: string,"ip"?: unknown,"otp_channel"?: string,"otp_reference"?: string,"signed_at"?: string,"signed_at_ist"?: string,"signer_designation"?: string | null,"signer_name"?: string,"signer_role"?: string,"signer_user_id"?: string,"user_agent"?: string | null,"version_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "signatures_consent_version_fkey"
+      columns: ["consent_version"]
+isOneToOne: false
+      referencedRelation: "consent_texts"
+      referencedColumns: ["version"]
+    },{
+      foreignKeyName: "signatures_contract_id_fkey"
+      columns: ["contract_id"]
+isOneToOne: false
+      referencedRelation: "contracts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "signatures_version_id_fkey"
+      columns: ["version_id"]
+isOneToOne: false
+      referencedRelation: "contract_versions"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"staff_profiles": {
                   Row: {
                     "created_at": string,"created_by": string | null,"email": string,"full_name": string,"is_signatory": boolean,"last_seen_at": string | null,"signatory_designation": string | null,"status": string,"updated_at": string,"user_id": string
@@ -916,6 +1196,32 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"template_clauses": {
+                  Row: {
+                    "clause_id": string,"condition": string | null,"position": number,"template_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "clause_id": string,"condition"?: string | null,"position": number,"template_id": string
+                  }
+                  Update: {
+                    "clause_id"?: string,"condition"?: string | null,"position"?: number,"template_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "template_clauses_clause_id_fkey"
+      columns: ["clause_id"]
+isOneToOne: false
+      referencedRelation: "clauses"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "template_clauses_template_id_fkey"
+      columns: ["template_id"]
+isOneToOne: false
+      referencedRelation: "contract_templates"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"terms_acceptances": {
                   Row: {
@@ -1143,6 +1449,30 @@ isOneToOne: false
               "fee_total": number,"id": number,"level": string,"mode": string,"program_name": string,"specialization": string,"university": string
             }[]
                            },
+"change_request_create":
+{ Args: { "p": Json,"p_contract": string }; Returns: string
+                           },
+"change_request_decide":
+{ Args: { "p_note": string,"p_request": string,"p_status": string }; Returns: undefined
+                           },
+"change_request_withdraw":
+{ Args: { "p_request": string }; Returns: undefined
+                           },
+"clause_archive":
+{ Args: { "p_archived": boolean,"p_clause": string }; Returns: undefined
+                           },
+"clause_history":
+{ Args: { "p_clause": string }; Returns: Json
+                           },
+"clause_library":
+{ Args: { "p_include_archived"?: boolean }; Returns: Json
+                           },
+"clause_mark_reviewed":
+{ Args: { "p_clause": string,"p_version": number }; Returns: undefined
+                           },
+"clause_save":
+{ Args: { "p": Json }; Returns: string
+                           },
 "code_hash":
 { Args: { "p_code": string,"p_salt": string,"p_user": string }; Returns: string
                            },
@@ -1166,6 +1496,63 @@ isOneToOne: false
                            },
 "config_hash":
 { Args: { "p": Json }; Returns: string
+                           },
+"contract_comment_add":
+{ Args: { "p_body": string,"p_clause": string,"p_contract": string,"p_parent"?: string }; Returns: string
+                           },
+"contract_comment_resolve":
+{ Args: { "p_comment": string }; Returns: undefined
+                           },
+"contract_create":
+{ Args: { "p": Json }; Returns: string
+                           },
+"contract_detail":
+{ Args: { "p_contract": string }; Returns: Json
+                           },
+"contract_file_record":
+{ Args: { "p_contract": string,"p_path": string,"p_sha256": string,"p_version": string }; Returns: undefined
+                           },
+"contract_integrity":
+{ Args: { "p_contract": string }; Returns: Json
+                           },
+"contract_notify":
+{ Args: { "p_body": string,"p_contract": string,"p_event": string,"p_title": string,"p_to": string }; Returns: undefined
+                           },
+"contract_send":
+{ Args: { "p_contract": string }; Returns: undefined
+                           },
+"contract_set_ready":
+{ Args: { "p_contract": string }; Returns: undefined
+                           },
+"contract_set_status":
+{ Args: { "p_contract": string,"p_reason"?: string,"p_status": string }; Returns: undefined
+                           },
+"contract_side":
+{ Args: { "p_contract": string }; Returns: string
+                           },
+"contract_sign":
+{ Args: { "p_code": string,"p_consent_version": number,"p_contract": string,"p_ip": string,"p_name": string,"p_sha256": string,"p_user": string,"p_user_agent": string,"p_version": string }; Returns: Json
+                           },
+"contract_sign_code_issue":
+{ Args: { "p_channel": string,"p_contract": string,"p_user": string }; Returns: Json
+                           },
+"contract_signer_role":
+{ Args: { "p_contract": string,"p_user": string }; Returns: string
+                           },
+"contract_source":
+{ Args: { "p_deal": string }; Returns: Json
+                           },
+"contract_version_add":
+{ Args: { "p_content": Json,"p_contract": string,"p_html": string,"p_note"?: string,"p_overrides": Json,"p_resolve"?: Json }; Returns: string
+                           },
+"contract_version_html":
+{ Args: { "p_version": string }; Returns: Json
+                           },
+"contracts_list":
+{ Args: { "p": Json }; Returns: Json
+                           },
+"contracts_remind":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "course_content":
 { Args: Record<PropertyKey, never>; Returns: Json
@@ -1278,11 +1665,17 @@ isOneToOne: false
 "deal_propose":
 { Args: { "p_deal": string,"p_effective_from"?: string,"p_note"?: string }; Returns: string
                            },
+"deal_renew":
+{ Args: { "p_deal": string,"p_ends_on": string,"p_starts_on": string }; Returns: string
+                           },
 "deal_set_status":
 { Args: { "p_deal": string,"p_reason"?: string,"p_status": string }; Returns: undefined
                            },
 "deal_update":
 { Args: { "p": Json,"p_deal": string }; Returns: undefined
+                           },
+"deal_version_from_counter":
+{ Args: { "p_config": Json,"p_request": string }; Returns: string
                            },
 "deal_version_json":
 { Args: { "v": Omit<Database["inf"]['Tables']["deal_versions"]['Row'], Database["inf"]['Tables']["deal_versions"]['ComputedFields']> }; Returns: Json
@@ -1432,6 +1825,9 @@ isOneToOne: false
 { Args: { "p_creator"?: string }; Returns: {
               "campaign_id": string,"campaign_name": string,"created_at": string,"id": string,"open_offer_from": string,"source": string,"status": string,"updated_at": string
             }[]
+                           },
+"my_contracts":
+{ Args: { "p_creator": string }; Returns: Json
                            },
 "my_deals":
 { Args: { "p_creator": string }; Returns: Json
@@ -1605,6 +2001,15 @@ isOneToOne: false
                            },
 "tds_sections_list":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"template_archive":
+{ Args: { "p_archived": boolean,"p_template": string }; Returns: undefined
+                           },
+"template_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"template_source":
+{ Args: { "p_template": string }; Returns: Json
                            },
 "terms_accept":
 { Args: { "p_terms_version_id": string }; Returns: undefined

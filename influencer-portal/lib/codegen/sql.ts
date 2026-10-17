@@ -7,9 +7,12 @@ import { PERMISSIONS, ROLE_GRANTS, STAFF_ROLES, type Permission } from "@/lib/au
 import { z } from "zod";
 import { PRESET_KEYS, SYSTEM_PRESETS } from "@/lib/compensation/presets";
 import { compConfig } from "@/lib/compensation/schema";
+import { docFromText } from "@/lib/contracts/doc";
+import { DEFAULT_TEMPLATE, SEED_CLAUSES } from "@/lib/contracts/library";
 import { SETTINGS, SETTING_KEYS, settingJsonSchema } from "@/lib/settings/registry";
 
-export type GeneratedKind = "permission-matrix" | "settings-definitions" | "comp-config-schema" | "deal-presets";
+export type GeneratedKind =
+  "permission-matrix" | "settings-definitions" | "comp-config-schema" | "deal-presets" | "clause-library";
 
 export function sqlString(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
@@ -24,7 +27,7 @@ function withHeader(kind: GeneratedKind, body: string): { sql: string; hash: str
   const header = [
     `-- generated: ${kind} sha256=${hash}`,
     "-- DO NOT EDIT. Produced by `npm run gen:sql` from lib/auth/permissions.ts, lib/settings/registry.ts,",
-    "-- lib/compensation/schema.ts and lib/compensation/presets.ts.",
+    "-- lib/compensation/schema.ts, lib/compensation/presets.ts and lib/contracts/library.ts.",
     "",
   ].join("\n");
   return { sql: header + body, hash };
@@ -127,11 +130,52 @@ export function dealPresetsSql(): { sql: string; hash: string } {
   return withHeader("deal-presets", body);
 }
 
+/**
+ * The seed clause library and default template (spec 8.1). Insert-only: once seeded, the library belongs to staff
+ * (edits create new versions), so later changes to the seed never overwrite it.
+ */
+export function clauseLibrarySql(): { sql: string; hash: string } {
+  const clauses = SEED_CLAUSES.map(
+    (c) =>
+      `  (${sqlString(c.key)}, ${sqlString(c.category)}, ${sqlString(c.title)}, ${jsonLiteral(docFromText(c.body))}, ${String(c.required)}, ${String(c.negotiable)}, ${String(c.locked)}, ${sqlString(`{${c.deal_types.join(",")}}`)}::text[])`,
+  );
+  const order = DEFAULT_TEMPLATE.clauses.map(
+    (c, i) => `  (${sqlString(c.key)}, ${String(i)}, ${c.condition === null ? "null" : sqlString(c.condition)})`,
+  );
+  const body = [
+    "create temporary table _seed (key text, category text, title text, body jsonb, required boolean, negotiable boolean, locked boolean, deal_types text[]) on commit drop;",
+    "insert into _seed values",
+    clauses.join(",\n") + ";",
+    "insert into inf.clauses (key, category, deal_types) select key, category, deal_types from _seed on conflict (key) do nothing;",
+    "insert into inf.clause_versions (clause_id, version, title, body, required, negotiable, locked)",
+    "select c.id, 1, s.title, s.body, s.required, s.negotiable, s.locked from _seed s join inf.clauses c on c.key = s.key",
+    "on conflict (clause_id, version) do nothing;",
+    "",
+    "insert into inf.contract_templates (key, name, description, title, header, footer, is_default)",
+    `select ${sqlString(DEFAULT_TEMPLATE.key)}, ${sqlString(DEFAULT_TEMPLATE.name)}, ${sqlString(DEFAULT_TEMPLATE.description)}, ${sqlString(DEFAULT_TEMPLATE.title)},`,
+    `       ${jsonLiteral(docFromText(DEFAULT_TEMPLATE.header))}, ${jsonLiteral(docFromText(DEFAULT_TEMPLATE.footer))},`,
+    "       not exists (select 1 from inf.contract_templates where is_default and archived_at is null)",
+    `where not exists (select 1 from inf.contract_templates where key = ${sqlString(DEFAULT_TEMPLATE.key)});`,
+    "insert into inf.template_clauses (template_id, clause_id, position, condition)",
+    "select t.id, c.id, o.position, o.condition",
+    "  from (values",
+    order.join(",\n"),
+    "  ) as o(key, position, condition)",
+    "  join inf.clauses c on c.key = o.key",
+    `  join inf.contract_templates t on t.key = ${sqlString(DEFAULT_TEMPLATE.key)}`,
+    " where not exists (select 1 from inf.template_clauses x where x.template_id = t.id)",
+    "on conflict do nothing;",
+    "",
+  ].join("\n");
+  return withHeader("clause-library", body);
+}
+
 export const GENERATORS: Record<GeneratedKind, () => { sql: string; hash: string }> = {
   "permission-matrix": permissionMatrixSql,
   "settings-definitions": settingsDefinitionsSql,
   "comp-config-schema": compConfigSchemaSql,
   "deal-presets": dealPresetsSql,
+  "clause-library": clauseLibrarySql,
 };
 
 /** The hash recorded in the newest migration of a kind (file names sort by timestamp). */

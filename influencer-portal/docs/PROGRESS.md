@@ -2,10 +2,14 @@
 
 ## Now
 
-- **Current phase:** Phase 3 (Deals and the compensation engine): 3.1–3.4 done, 3.5 (screens) in progress, then 3.6 (in-app guides, requested 17 Oct 2026) and the gate.
+- **Current phase:** Phase 4 (Contracts), step 4.1 done (template engine, clause seed); 4.2 database written.
+- **Phase 3:** complete and tagged `phase-3-done` (summary under Phase 3).
+- **Open item:** in two full Playwright runs on 17 Oct 2026 the CRM import journey failed because the manager's fresh
+  session was treated as revoked right after the emailed-code step; the next full run and isolated runs passed and no
+  session row was revoked. Re-check at the Phase 4 gate (trace evidence in `test-results` of those runs).
 - **Phase 2:** complete and tagged `phase-2-done` (summary below).
 - **Phase 1:** complete and tagged `phase-1-done`.
-- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done`, `phase-1-done` and `phase-2-done`
+- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-3-done`
   exist in the local repository only. Push them from a normal clone with `git push origin --tags`.
 - **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
   the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
@@ -198,6 +202,18 @@ No migrations, no app code and no tests in Phase 0 (the spec says "no app code y
 | 3.6 | In-app guides for every user type (Super Admin, Influencer Manager, Content Reviewer, Finance, Analyst, creator, agency, developer): a Help area in each portal with setup steps and how each module works, kept current by every later phase | `app/*/help/*`, `lib/guides/*` | units (every guide link resolves, every role has a guide), Playwright |
 | 3.7 | Phase gate | | |
 
+### Phase 3 summary
+
+Built: the compensation config schema with a generated SQL check, three system presets, the pure engine (full replay,
+stable ledger keys, penalty proposals) with a posting diff, the earnings simulator and TDS/GST estimate, deals with
+immutable versions, proposals, amendments and a dry-run, deal creation from accepted campaign offers, the deal
+builder with a live simulator, preset management, creator and agency deal views, and in-app guides for every user
+type (owner request). Gate on 17 Oct 2026: typecheck, lint and format clean; 1,671 unit tests; 371 pgTAP assertions
+(15 files); 46 Playwright journeys passed (2 screenshot specs skipped by design); migrations apply on a fresh
+database; production re-checked read-only (all 101 shared objects identical, no `inf` schema). Deferred with reason:
+ledger posting runner and penalty approvals (need deliverables and the ledger, Phases 5–7), the Finance TDS editing
+screen (Phase 7).
+
 ### Phase 3 requirement checklist (spec Section 22 Phase 3, and spec 5 "Deals", 6, 11 TDS defaults, 13 auto-generation)
 
 | Requirement | Status | Where / note |
@@ -221,3 +237,17 @@ No migrations, no app code and no tests in Phase 0 (the spec says "no app code y
 | RLS on every new table, tests per role; no creator/agency path to student phone or email | Done | pgTAP 015 (53) + 013 job check |
 | Every screen: empty, loading, error, mobile states | Done | Shared state components; creator deal pages mobile-first |
 
+
+## Phase 4: Contracts
+
+### Plan
+
+| Step | What | Main files | Tests |
+| --- | --- | --- | --- |
+| 4.1 | Pure contract template engine: a restricted rich-text document model (the editor's JSON, whitelisted nodes, rendered by us, so no HTML is ever trusted), variables `{{a.b}}` with a picker list, block and inline conditionals `{{#if}}…{{else}}…{{/if}}`, compensation tables generated from the deal config, canonical JSON + SHA-256, word-level diff between versions; seed of 20 clause categories marked "DRAFT — requires legal review" | `lib/contracts/*` | exhaustive units |
+| 4.2 | Database: clause library with versions and legal-review marks, templates with ordered clauses, contracts, immutable contract versions, clause comments, change requests, versioned consent texts, signing codes (6 digits, 10 min, 5 attempts, cooldown), append-only signatures; states Draft → Sent → In negotiation → Ready to sign → Signed by creator → Countersigned (Active) → Completed / Terminated / Expired, plus Void and Superseded | `2026101900xxxx_inf_contracts.sql` | pgTAP per role, immutability, append-only |
+| 4.3 | Admin: clause library and template editor (rich-text editor, variable picker, conditionals, clause flags, legal-review gate), contract generation from a deal, versions with diffs | `app/(admin)/admin/contracts/*`, `components/contracts/*` | Playwright |
+| 4.4 | Creator negotiation: clause-anchored comments, suggested edits on negotiable clauses only, structured compensation counter-offer (creates a proposed deal version), admin accept / reject / counter, every round a new version with a diff, deadline reminders | creator and agency contract pages | Playwright |
+| 4.5 | OTP click-sign and countersign: confirm each section, typed legal name, versioned consent, code by the configured channel(s), full signature evidence (version, document hash, IP, user agent, UTC/IST), final PDF with a signature certificate stored immutably and sent to all parties, hash re-verified on every download, deal activated on countersign | `lib/contracts/pdf.tsx`, routes | units + Playwright |
+| 4.6 | Amendments (new contract linked to the parent, from an accepted deal amendment), renewals (clone deal and contract), expiry reminders at 30/15/7 days, stamp duty note and reference field | jobs, nightly | pgTAP + units |
+| 4.7 | Guides updated for every role; phase gate | `lib/guides/content/*` | gate |
