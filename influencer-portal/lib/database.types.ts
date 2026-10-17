@@ -65,6 +65,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"application_offers": {
+                  Row: {
+                    "application_id": string,"created_at": string,"created_by": string,"from_side": string,"id": string,"message": string | null,"status": string,"terms": NonNullable<Json>
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "application_id": string,"created_at"?: string,"created_by"?: string,"from_side": string,"id"?: string,"message"?: string | null,"status"?: string,"terms": NonNullable<Json>
+                  }
+                  Update: {
+                    "application_id"?: string,"created_at"?: string,"created_by"?: string,"from_side"?: string,"id"?: string,"message"?: string | null,"status"?: string,"terms"?: NonNullable<Json>
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "application_offers_application_id_fkey"
+      columns: ["application_id"]
+isOneToOne: false
+      referencedRelation: "campaign_applications"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"audit_log": {
                   Row: {
                     "action": string,"actor_id": string | null,"actor_role": string | null,"after": Json | null,"at": string,"before": Json | null,"entity_id": string | null,"entity_type": string,"id": number,"ip": unknown,"request_id": string | null,"user_agent": string | null
@@ -78,6 +98,104 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"campaign_applications": {
+                  Row: {
+                    "accepted_terms": Json | null,"campaign_id": string,"created_at": string,"creator_id": string,"decided_at": string | null,"decided_by": string | null,"id": string,"pitch": string | null,"rejection_reason": string | null,"sample_links": (string)[],"source": string,"status": string,"submitted_by": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_terms"?: Json | null,"campaign_id": string,"created_at"?: string,"creator_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"id"?: string,"pitch"?: string | null,"rejection_reason"?: string | null,"sample_links"?: (string)[],"source"?: string,"status"?: string,"submitted_by"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "accepted_terms"?: Json | null,"campaign_id"?: string,"created_at"?: string,"creator_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"id"?: string,"pitch"?: string | null,"rejection_reason"?: string | null,"sample_links"?: (string)[],"source"?: string,"status"?: string,"submitted_by"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "campaign_applications_campaign_id_fkey"
+      columns: ["campaign_id"]
+isOneToOne: false
+      referencedRelation: "campaigns"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "campaign_applications_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"campaign_invites": {
+                  Row: {
+                    "application_id": string | null,"campaign_id": string,"creator_id": string,"id": string,"message": string | null,"responded_at": string | null,"sent_at": string,"sent_by": string,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "application_id"?: string | null,"campaign_id": string,"creator_id": string,"id"?: string,"message"?: string | null,"responded_at"?: string | null,"sent_at"?: string,"sent_by"?: string,"status"?: string
+                  }
+                  Update: {
+                    "application_id"?: string | null,"campaign_id"?: string,"creator_id"?: string,"id"?: string,"message"?: string | null,"responded_at"?: string | null,"sent_at"?: string,"sent_by"?: string,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "campaign_invites_application_fk"
+      columns: ["application_id"]
+isOneToOne: false
+      referencedRelation: "campaign_applications"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "campaign_invites_campaign_id_fkey"
+      columns: ["campaign_id"]
+isOneToOne: false
+      referencedRelation: "campaigns"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "campaign_invites_creator_id_fkey"
+      columns: ["creator_id"]
+isOneToOne: false
+      referencedRelation: "creators"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"campaign_programmes": {
+                  Row: {
+                    "campaign_id": string,"position": number,"programme_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "campaign_id": string,"position"?: number,"programme_id": number
+                  }
+                  Update: {
+                    "campaign_id"?: string,"position"?: number,"programme_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "campaign_programmes_campaign_id_fkey"
+      columns: ["campaign_id"]
+isOneToOne: false
+      referencedRelation: "campaigns"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"campaigns": {
+                  Row: {
+                    "apply_by": string | null,"budget_paise": number | null,"compensation_summary": string | null,"created_at": string,"created_by": string,"deliverables": NonNullable<Json>,"description": string | null,"eligibility": NonNullable<Json>,"ends_on": string | null,"id": string,"internal_notes": string | null,"name": string,"objective": string,"owner_id": string | null,"slots": number | null,"starts_on": string | null,"status": string,"updated_at": string,"visibility": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"created_at"?: string,"created_by"?: string,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name": string,"objective": string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
+                  }
+                  Update: {
+                    "apply_by"?: string | null,"budget_paise"?: number | null,"compensation_summary"?: string | null,"created_at"?: string,"created_by"?: string,"deliverables"?: NonNullable<Json>,"description"?: string | null,"eligibility"?: NonNullable<Json>,"ends_on"?: string | null,"id"?: string,"internal_notes"?: string | null,"name"?: string,"objective"?: string,"owner_id"?: string | null,"slots"?: number | null,"starts_on"?: string | null,"status"?: string,"updated_at"?: string,"visibility"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "campaigns_owner_id_fkey"
+      columns: ["owner_id"]
+isOneToOne: false
+      referencedRelation: "staff_profiles"
+      referencedColumns: ["user_id"]
+    }
                   ]
                 },"client_grants": {
                   Row: {
@@ -363,6 +481,26 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"messages": {
+                  Row: {
+                    "author_id": string,"author_side": string,"body": string,"created_at": string,"id": string,"thread_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string,"author_side": string,"body": string,"created_at"?: string,"id"?: string,"thread_id": string
+                  }
+                  Update: {
+                    "author_id"?: string,"author_side"?: string,"body"?: string,"created_at"?: string,"id"?: string,"thread_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "messages_thread_id_fkey"
+      columns: ["thread_id"]
+isOneToOne: false
+      referencedRelation: "threads"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"notification_deliveries": {
                   Row: {
                     "attempts": number,"channel": string,"created_at": string,"error": string | null,"id": number,"notification_id": string,"provider": string | null,"provider_ref": string | null,"sent_at": string | null,"status": string
@@ -469,6 +607,20 @@ isOneToOne: false
                   }
                   Update: {
                     "hits"?: number,"key"?: string,"window_start"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"reason_templates": {
+                  Row: {
+                    "active": boolean,"body": string,"id": string,"kind": string,"label": string,"position": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"body": string,"id"?: string,"kind": string,"label": string,"position"?: number
+                  }
+                  Update: {
+                    "active"?: boolean,"body"?: string,"id"?: string,"kind"?: string,"label"?: string,"position"?: number
                   }
                   Relationships: [
                     
@@ -663,6 +815,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"threads": {
+                  Row: {
+                    "created_at": string,"entity_id": string,"entity_type": string,"id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"entity_id": string,"entity_type": string,"id"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"entity_id"?: string,"entity_type"?: string,"id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"tiers": {
                   Row: {
                     "active": boolean,"benefits": NonNullable<Json>,"created_at": string,"entry_rules": NonNullable<Json>,"id": string,"name": string,"rank": number,"updated_at": string
@@ -749,6 +915,32 @@ isOneToOne: false
 "agency_set_status":
 { Args: { "p_agency": string,"p_reason": string,"p_status": string }; Returns: undefined
                            },
+"application_detail":
+{ Args: { "p_app": string }; Returns: Json
+                           },
+"application_message":
+{ Args: { "p_app": string,"p_body": string }; Returns: string
+                           },
+"application_notify":
+{ Args: { "p_app": string,"p_body": string,"p_event": string,"p_title": string,"p_to": string }; Returns: undefined
+                           },
+"application_reject":
+{ Args: { "p_app": string,"p_reason": string }; Returns: undefined
+                           },
+"application_shortlist":
+{ Args: { "p_app": string }; Returns: undefined
+                           },
+"application_side":
+{ Args: { "p_creator": string }; Returns: string
+                           },
+"application_withdraw":
+{ Args: { "p_app": string }; Returns: undefined
+                           },
+"applications_list":
+{ Args: { "p_campaign"?: string,"p_status"?: (string)[] }; Returns: {
+              "campaign_id": string,"campaign_name": string,"created_at": string,"creator_id": string,"display_name": string,"followers": number,"handle": string,"id": string,"open_offer_from": string,"source": string,"status": string,"updated_at": string
+            }[]
+                           },
 "approvals_queue":
 { Args: Record<PropertyKey, never>; Returns: {
               "creator_id": string,"display_name": string,"followers": number,"handle": string,"kyc_status": string,"owner_name": string,"source": string,"submitted_at": string
@@ -763,11 +955,48 @@ isOneToOne: false
 "bootstrap_super_admin":
 { Args: { "p_designation": string,"p_email": string,"p_full_name": string }; Returns: string
                            },
+"campaign_apply":
+{ Args: { "p_campaign": string,"p_creator": string,"p_pitch": string,"p_samples": (string)[],"p_terms": Json }; Returns: string
+                           },
+"campaign_for_creator":
+{ Args: { "p_campaign": string,"p_creator"?: string }; Returns: Json
+                           },
+"campaign_invite":
+{ Args: { "p_campaign": string,"p_creators": (string)[],"p_message": string }; Returns: number
+                           },
+"campaign_programmes_view":
+{ Args: { "p_campaign": string }; Returns: {
+              "available": boolean,"fee_total": number,"id": number,"level": string,"mode": string,"program_name": string,"specialization": string,"university": string
+            }[]
+                           },
+"campaign_public":
+{ Args: { "c": Omit<Database["inf"]['Tables']["campaigns"]['Row'], Database["inf"]['Tables']["campaigns"]['ComputedFields']>,"p_creator": string }; Returns: Json
+                           },
+"campaign_save":
+{ Args: { "p": Json }; Returns: string
+                           },
+"campaign_set_status":
+{ Args: { "p_campaign": string,"p_status": string }; Returns: undefined
+                           },
+"campaign_stats":
+{ Args: { "p_campaign": string }; Returns: Json
+                           },
 "can_edit_creator":
 { Args: { "p_creator": string }; Returns: boolean
                            },
+"can_negotiate_for":
+{ Args: { "p_creator": string }; Returns: boolean
+                           },
+"can_see_campaign":
+{ Args: { "p_campaign": string }; Returns: boolean
+                           },
 "can_view_creator":
 { Args: { "p_creator": string }; Returns: boolean
+                           },
+"catalog_programmes_search":
+{ Args: { "p_limit"?: number,"p_q": string }; Returns: {
+              "fee_total": number,"id": number,"level": string,"mode": string,"program_name": string,"specialization": string,"university": string
+            }[]
                            },
 "code_hash":
 { Args: { "p_code": string,"p_salt": string,"p_user": string }; Returns: string
@@ -862,6 +1091,9 @@ isOneToOne: false
 "device_trust_check":
 { Args: { "p_token": string }; Returns: boolean
                            },
+"eligibility_gaps":
+{ Args: { "p_campaign": string,"p_creator": string }; Returns: (string)[]
+                           },
 "emit_event":
 { Args: { "p_idem_key": string,"p_payload": Json,"p_subject_id": string,"p_subject_type": string,"p_type": string }; Returns: number
                            },
@@ -881,6 +1113,12 @@ isOneToOne: false
                            },
 "idle_limit":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"invite_decline":
+{ Args: { "p_invite": string,"p_reason": string }; Returns: undefined
+                           },
+"invite_withdraw":
+{ Args: { "p_invite": string }; Returns: undefined
                            },
 "is_staff":
 { Args: Record<PropertyKey, never>; Returns: boolean
@@ -944,6 +1182,9 @@ isOneToOne: false
 "kyc_view":
 { Args: { "p_creator": string }; Returns: Json
                            },
+"marketplace":
+{ Args: { "p_all"?: boolean,"p_creator"?: string }; Returns: Json
+                           },
 "me":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
@@ -958,9 +1199,19 @@ isOneToOne: false
               "agency_name": string,"can_act_deliverables": boolean,"can_negotiate_sign": boolean,"can_view": boolean,"can_view_earnings": boolean,"link_id": string,"requested_at": string,"responded_at": string,"status": string
             }[]
                            },
+"my_applications":
+{ Args: { "p_creator"?: string }; Returns: {
+              "campaign_id": string,"campaign_name": string,"created_at": string,"id": string,"open_offer_from": string,"source": string,"status": string,"updated_at": string
+            }[]
+                           },
 "my_devices":
 { Args: Record<PropertyKey, never>; Returns: {
               "created_at": string,"expires_at": string,"id": string,"label": string,"last_used_at": string
+            }[]
+                           },
+"my_invites":
+{ Args: { "p_creator"?: string }; Returns: {
+              "apply_by": string,"campaign_id": string,"campaign_name": string,"compensation_summary": string,"id": string,"message": string,"sent_at": string,"status": string
             }[]
                            },
 "my_notifications":
@@ -987,6 +1238,12 @@ isOneToOne: false
                            },
 "notify":
 { Args: { "p_body": string,"p_channels"?: (string)[],"p_data": Json,"p_event": string,"p_idem_key": string,"p_link": string,"p_mandatory": boolean,"p_title": string,"p_user": string }; Returns: string
+                           },
+"offer_accept":
+{ Args: { "p_offer": string }; Returns: undefined
+                           },
+"offer_make":
+{ Args: { "p_app": string,"p_message": string,"p_terms": Json }; Returns: string
                            },
 "onboarding_state":
 { Args: { "p_creator"?: string }; Returns: Json

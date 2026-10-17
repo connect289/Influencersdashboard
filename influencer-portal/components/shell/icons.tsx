@@ -4,8 +4,10 @@ import {
   Building2,
   Contact,
   ListChecks,
+  Megaphone,
   Home,
   IdCard,
+  Inbox,
   ScrollText,
   Settings,
   Shield,
@@ -28,4 +30,6 @@ export const ICONS: Record<IconName, LucideIcon> = {
   building: Building2,
   contact: Contact,
   checklist: ListChecks,
+  megaphone: Megaphone,
+  inbox: Inbox,
 };

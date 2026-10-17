@@ -43,14 +43,17 @@
       "kyc": "KYC review",
       "agencies": "Agencies",
       "creators": "Creators",
-      "tasks": "Tasks"
+      "tasks": "Tasks",
+      "campaigns": "Campaigns",
+      "applications": "Applications"
     },
     "creator": {
       "home": "Home",
       "account": "Account",
       "profile": "Profile",
       "kyc": "KYC",
-      "agency": "Manager"
+      "agency": "Manager",
+      "campaigns": "Campaigns"
     },
     "agency": {
       "home": "Creators",
@@ -826,7 +829,11 @@
     "emptyMember": "Your agency's owner can ask creators to link with the agency.",
     "granted": "They let you:",
     "teamSubtitle": "People from your agency who can sign in here.",
-    "agency": "Agency"
+    "agency": "Agency",
+    "campaigns": "Campaigns",
+    "campaignsHint": "Invitations and applications you can handle for this creator.",
+    "noCampaigns": "No open invitations or applications.",
+    "onBehalf": "On behalf of {name}"
   },
   "agencies": {
     "subtitle": "Talent agencies and managers, their team, and the creators who granted them access.",
@@ -1345,6 +1352,326 @@
       "bulk": "Invite to portal",
       "none": "Nobody could be invited (an email is needed, and they mustn't have an account already).",
       "sent": "{count, plural, one {# invitation} other {# invitations}} sent.{skipped, plural, =0 {} other { # skipped (no email or already signed up).}}{failed, plural, =0 {} other { # emails failed.}}"
+    }
+  },
+  "campaigns": {
+    "subtitle": "Build campaigns, open them to the marketplace or invite creators, and review applications.",
+    "new": "New campaign",
+    "newHint": "Start as a draft. Open it when the deliverables and dates are set.",
+    "create": "Create campaign",
+    "created": "Campaign created.",
+    "saved": "Campaign saved.",
+    "statusChanged": "Campaign is now {status}.",
+    "empty": "No campaigns here",
+    "emptyHint": "Create a campaign to start inviting creators.",
+    "allLive": "All (not archived)",
+    "filterByStatus": "Filter by status",
+    "applicationsSubtitle": "Applications across all campaigns. Ones waiting for you come first.",
+    "applicationsEmpty": "No applications here",
+    "applicationsEmptyHint": "Creators apply from the marketplace, or answer your invitations.",
+    "applicationViews": {
+      "review": "To review",
+      "accepted": "Accepted",
+      "closed": "Closed"
+    },
+    "objectives": {
+      "leads": "Generate leads",
+      "enrolments": "Drive enrolments",
+      "awareness": "Build awareness",
+      "content": "Create content"
+    },
+    "statuses": {
+      "draft": "Draft",
+      "open": "Open",
+      "invite_only": "Invite only",
+      "active": "Active",
+      "paused": "Paused",
+      "completed": "Completed",
+      "archived": "Archived"
+    },
+    "visibilities": {
+      "open": "Open marketplace",
+      "invite_only": "Invite only",
+      "both": "Open and invited"
+    },
+    "visibilityHints": {
+      "open": "Eligible creators can find and apply.",
+      "invite_only": "Only creators you invite can see it.",
+      "both": "Eligible creators can apply, and you can invite others."
+    },
+    "moves": {
+      "open": "Open",
+      "invite_only": "Make invite-only",
+      "active": "Mark active",
+      "paused": "Pause",
+      "completed": "Complete",
+      "archived": "Archive"
+    },
+    "moveBodies": {
+      "completed": "No new applications or invitations after this.",
+      "archived": "The campaign is hidden from lists."
+    },
+    "dealTypes": {
+      "fixed": "Fixed fee",
+      "commission": "Commission only",
+      "hybrid": "Fixed fee + commission",
+      "barter": "Barter"
+    },
+    "dealTypeHints": {
+      "fixed": "A set fee for the deliverables.",
+      "commission": "Paid per confirmed enrolment, under the campaign's commission terms.",
+      "hybrid": "A set fee plus commission per confirmed enrolment.",
+      "barter": "No cash fee (for example, a free course)."
+    },
+    "applicationStatuses": {
+      "submitted": "Submitted",
+      "shortlisted": "Shortlisted",
+      "countered": "In negotiation",
+      "accepted": "Accepted",
+      "rejected": "Not selected",
+      "withdrawn": "Withdrawn"
+    },
+    "gaps": {
+      "not_approved": "your profile isn't approved yet",
+      "platform": "platform",
+      "followers": "follower count",
+      "niche": "topics",
+      "language": "language",
+      "geography": "location",
+      "unknown": "profile"
+    },
+    "tabs": {
+      "label": "Campaign sections",
+      "overview": "Overview",
+      "applications": "Applications",
+      "invites": "Invitations",
+      "edit": "Edit"
+    },
+    "table": {
+      "status": "Status",
+      "toReview": "To review",
+      "accepted": "Accepted",
+      "updated": "Updated"
+    },
+    "stats": {
+      "to_review": "To review",
+      "accepted": "Accepted",
+      "applications": "Applications",
+      "invites_open": "Open invites"
+    },
+    "form": {
+      "basics": "Basics",
+      "schedule": "Dates, budget and slots",
+      "eligibility": "Who can apply",
+      "eligibilityHint": "Leave blank for no restriction. Creators must also be approved."
+    },
+    "fields": {
+      "name": "Campaign name",
+      "objective": "Objective",
+      "visibility": "Visibility",
+      "description": "Description",
+      "descriptionHint": "What the campaign is about, shown to creators.",
+      "programmes": "Programmes",
+      "programmesHint": "From Eduwit's catalogue. Creators see these as the programmes to promote.",
+      "searchProgrammes": "Search programmes or universities",
+      "noProgrammes": "No programmes match.",
+      "removeProgramme": "Remove {name}",
+      "startsOn": "Starts",
+      "endsOn": "Ends",
+      "applyBy": "Apply by",
+      "budget": "Budget (₹)",
+      "budgetHint": "Internal only; creators never see it.",
+      "slots": "Slots",
+      "slotsHint": "How many creators you'll accept. Blank for no limit.",
+      "deliverables": "Deliverables",
+      "deliverablesHint": "What each creator makes.",
+      "addDeliverable": "Add deliverable",
+      "count": "How many",
+      "compensation": "Compensation summary",
+      "compensationHint": "Shown to creators on the campaign card, e.g. \"₹10,000–25,000 fixed plus commission per enrolment\".",
+      "internalNotes": "Internal notes",
+      "internalNotesHint": "Only staff see these."
+    },
+    "eligibility": {
+      "minFollowers": "Minimum followers",
+      "platforms": "Platforms",
+      "niches": "Topics",
+      "languages": "Languages",
+      "states": "States",
+      "minFollowersValue": "{count}+ followers",
+      "nichesValue": "Topics: {list}",
+      "languagesValue": "Languages: {list}",
+      "statesValue": "States: {list}"
+    },
+    "details": {
+      "whatYouDo": "What you'll make",
+      "numbers": "Numbers",
+      "internal": "Internal",
+      "programmeGone": "Programme no longer in the catalogue",
+      "unavailable": "Not currently offered"
+    },
+    "terms": {
+      "dealType": "Deal type",
+      "fixedFee": "Fixed fee",
+      "fixedFeeRupees": "Fixed fee (₹)",
+      "commission": "Commission",
+      "commissionYes": "Per confirmed enrolment, under the campaign's commission terms",
+      "usageRights": "Usage rights",
+      "usageHint": "e.g. \"Eduwit may boost the reel for 30 days\".",
+      "exclusivity": "Exclusivity",
+      "exclusivityDays": "Exclusivity (days)",
+      "days": "{count, plural, one {# day} other {# days}}",
+      "notes": "Notes"
+    },
+    "invites": {
+      "title": "Invitations",
+      "invite": "Invite creators",
+      "hint": "Invited creators can accept, decline or counter.",
+      "find": "Find creators by name or handle",
+      "onlyApproved": "Only approved, active creators can be invited.",
+      "message": "Message (optional)",
+      "send": "Send {count, plural, =0 {invitations} one {# invitation} other {# invitations}}",
+      "sent": "{count, plural, one {# invitation} other {# invitations}} sent.{skipped, plural, =0 {} other { # skipped (already invited, applied, or not approved).}}",
+      "empty": "No invitations yet",
+      "emptyHint": "Invite creators who fit this campaign.",
+      "openFirst": "Open the campaign to invite creators.",
+      "sentOn": "Sent {date}",
+      "openApplication": "Open application",
+      "withdraw": "Withdraw",
+      "withdrawTitle": "Withdraw this invitation?",
+      "withdrawn": "Invitation withdrawn.",
+      "decline": "Decline",
+      "declineTitle": "Decline this invitation?",
+      "declineReason": "Reason (optional, at least 3 characters)",
+      "declined": "Invitation declined.",
+      "statuses": {
+        "sent": "Waiting",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "countered": "Countered",
+        "withdrawn": "Withdrawn"
+      }
+    },
+    "marketplace": {
+      "subtitle": "Campaigns you can join, invitations, and your applications.",
+      "tabs": {
+        "open": "Open",
+        "invited": "Invited",
+        "applications": "My applications"
+      },
+      "empty": "No campaigns for you right now",
+      "emptyHint": "New campaigns that match your profile appear here.",
+      "noInvites": "No invitations yet",
+      "noApplications": "You haven't applied to anything yet",
+      "invited": "Invited",
+      "applyBy": "Apply by {date}",
+      "slotsLeft": "{count, plural, =0 {No slots left} one {# slot left} other {# slots left}}",
+      "finishOnboarding": "Finish onboarding and get approved to see and apply to campaigns."
+    },
+    "apply": {
+      "title": "Apply",
+      "hint": "Tell us why you're a good fit and propose your terms.",
+      "inviteTitle": "You're invited",
+      "inviteHint": "Accept the campaign as offered, counter with your own terms, or decline.",
+      "respond": "Respond to the invitation",
+      "acceptInvite": "Accept invitation",
+      "counterInvite": "Counter",
+      "sendCounter": "Send counter-offer",
+      "pitch": "Your pitch",
+      "pitchHint": "Your audience, past results, and how you'd present the programme.",
+      "samples": "Sample links",
+      "samplesHint": "Up to 10 links starting with https://, separated by spaces or new lines.",
+      "yourTerms": "Your terms",
+      "submit": "Send application",
+      "sent": "Application sent.",
+      "countered": "Counter-offer sent.",
+      "alreadyTitle": "You've already applied",
+      "open": "Open my application",
+      "notEligible": "You can't apply yet because of: {reasons}.",
+      "withdraw": "Withdraw application",
+      "withdrawTitle": "Withdraw your application?",
+      "withdrawBody": "You can't re-apply to this campaign afterwards.",
+      "withdrawn": "Application withdrawn."
+    },
+    "offers": {
+      "counter": "Make a counter-offer",
+      "counterTitle": "Counter-offer",
+      "message": "Message (optional)",
+      "send": "Send offer",
+      "sent": "Offer sent.",
+      "accept": "Accept this offer",
+      "acceptTitle": "Accept this offer?",
+      "acceptBody": "These terms become final for this campaign. The deal and contract are prepared from them.",
+      "accepted": "Offer accepted.",
+      "waiting": "Waiting for the other side to respond.",
+      "from": {
+        "creator": "Creator's proposal",
+        "eduwit": "Eduwit's offer"
+      },
+      "statuses": {
+        "open": "On the table",
+        "superseded": "Replaced",
+        "accepted": "Accepted",
+        "rejected": "Closed"
+      }
+    },
+    "application": {
+      "offers": "Offers",
+      "noOffers": "No offers yet.",
+      "messages": "Messages",
+      "noMessages": "No messages yet.",
+      "writeMessage": "Write a message",
+      "send": "Send",
+      "summary": "Application",
+      "creator": "Creator",
+      "campaign": "Campaign",
+      "source": "Came from",
+      "applied": "Applied",
+      "actions": "Actions",
+      "agreedTerms": "Agreed terms",
+      "acceptedBanner": "Accepted. The agreed terms are final; the deal, contract and brief come next.",
+      "withdrawnBanner": "This application was withdrawn.",
+      "yourMove": "Waiting for you",
+      "newOffer": "New offer",
+      "sources": {
+        "marketplace": "Marketplace",
+        "invite": "Invitation"
+      },
+      "sides": {
+        "creator": "Creator",
+        "agency": "Agency",
+        "eduwit": "Eduwit"
+      }
+    },
+    "review": {
+      "shortlist": "Shortlist",
+      "shortlisted": "Shortlisted. The creator has been told.",
+      "reject": "Reject",
+      "rejectTitle": "Reject {name}'s application?",
+      "rejectBody": "The creator sees your reason.",
+      "reason": "Reason",
+      "rejected": "Application rejected.",
+      "templates": "Reason templates",
+      "templatesHint": "Pick one to reject with a ready-made message.",
+      "rejectWithTemplate": "Reject with this message"
+    },
+    "errors": {
+      "notReady": "Add deliverables and an end date before opening the campaign.",
+      "transition": "That status change isn't allowed.",
+      "programme": "One of the programmes is no longer in the catalogue.",
+      "inviteDraft": "Open the campaign before inviting creators.",
+      "closed": "This campaign isn't taking applications.",
+      "inviteOnly": "This campaign is invite-only.",
+      "notEligible": "This creator doesn't meet the campaign's rules.",
+      "noSlots": "All slots are filled.",
+      "alreadyApplied": "There's already an application for this campaign.",
+      "answered": "This invitation has already been answered.",
+      "offerClosed": "That offer or application is no longer open.",
+      "ownOffer": "The other side has to accept this offer.",
+      "sample": "Sample links must start with https://",
+      "feeRequired": "Enter the fixed fee.",
+      "dates": "The end date is before the start date.",
+      "applyBy": "The apply-by date is after the end date."
     }
   }
 }

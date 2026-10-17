@@ -6,9 +6,12 @@ import { z } from "zod";
 import { GrantBadges } from "@/components/agency/grant-badges";
 import { PlatformsCard } from "@/components/creator-profile/platforms-card";
 import { PortfolioCard, RateCardCard } from "@/components/creator-profile/profile-lists";
+import { Badge, StatusBadge } from "@/components/ui/badge";
+import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { ErrorState } from "@/components/ui/states";
+import { EmptyState, ErrorState } from "@/components/ui/states";
 import { requireAgency } from "@/lib/auth/guards";
+import type { Database } from "@/lib/database.types";
 
 export async function generateMetadata() {
   const t = await getTranslations();
@@ -30,6 +33,17 @@ export default async function AgencyCreatorPage({ params }: { params: Promise<{ 
   const link = (links.data ?? []).find((l) => l.creator_id === creatorId && l.link_status === "active");
   if (!links.error && !link) notFound();
   const failed = links.error ?? platforms.error ?? rates.error ?? portfolio.error;
+  const negotiates = link?.can_negotiate_sign === true;
+  let inviteRows: Database["inf"]["Functions"]["my_invites"]["Returns"] = [];
+  let appRows: Database["inf"]["Functions"]["my_applications"]["Returns"] = [];
+  if (negotiates) {
+    const [i, a] = await Promise.all([
+      supabase.rpc("my_invites", { p_creator: creatorId }),
+      supabase.rpc("my_applications", { p_creator: creatorId }),
+    ]);
+    inviteRows = (i.data ?? []).filter((x) => x.status === "sent");
+    appRows = a.data ?? [];
+  }
   return (
     <>
       <Link href="/agency" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
@@ -43,6 +57,42 @@ export default async function AgencyCreatorPage({ params }: { params: Promise<{ 
           <div className="flex items-center gap-2 text-sm text-muted">
             {t("agencyPortal.granted")} <GrantBadges grants={link} />
           </div>
+          {negotiates ? (
+            <Card>
+              <CardHeader title={t("agencyPortal.campaigns")} description={t("agencyPortal.campaignsHint")} />
+              {inviteRows.length === 0 && appRows.length === 0 ? (
+                <EmptyState title={t("agencyPortal.noCampaigns")} />
+              ) : (
+                <ul className="flex flex-col divide-y divide-line">
+                  {inviteRows.map((i) => (
+                    <li key={i.id} className="flex items-center gap-3 py-2.5">
+                      <Link
+                        href={`/agency/creators/${creatorId}/campaigns/${i.campaign_id}`}
+                        className="min-w-0 flex-1 text-sm font-medium text-primary hover:underline"
+                      >
+                        {i.campaign_name}
+                      </Link>
+                      <Badge family="attention">{t("campaigns.marketplace.invited")}</Badge>
+                    </li>
+                  ))}
+                  {appRows.map((a) => (
+                    <li key={a.id} className="flex items-center gap-3 py-2.5">
+                      <Link
+                        href={`/agency/applications/${a.id}`}
+                        className="min-w-0 flex-1 text-sm font-medium text-primary hover:underline"
+                      >
+                        {a.campaign_name}
+                      </Link>
+                      <StatusBadge
+                        status={a.status}
+                        label={t(`campaigns.applicationStatuses.${a.status as "submitted"}`)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          ) : null}
           <PlatformsCard creatorId={creatorId} platforms={platforms.data ?? []} canEdit={false} />
           <RateCardCard creatorId={creatorId} rates={rates.data ?? []} canEdit={false} />
           <PortfolioCard creatorId={creatorId} items={portfolio.data ?? []} canEdit={false} />

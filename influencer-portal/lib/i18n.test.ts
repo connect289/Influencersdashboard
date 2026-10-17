@@ -23,6 +23,15 @@ import {
   TASK_PRIORITIES,
 } from "@/lib/creators/crm";
 import { WIZARD_STEPS } from "@/lib/creators/onboarding";
+import {
+  APPLICATION_STATUSES,
+  CAMPAIGN_STATUSES,
+  DEAL_TYPES,
+  ELIGIBILITY_GAPS,
+  OBJECTIVES,
+  STATUS_MOVES,
+  VISIBILITIES,
+} from "@/lib/campaigns/schemas";
 import en from "@/messages/en.json";
 
 const root = join(import.meta.dirname, "..");
@@ -79,6 +88,19 @@ describe("messages", () => {
       ...["tag_add", "tag_remove", "owner", "stage"].map((x) => `creators.bulk.${x}`),
       ...["open", "done", "cancelled"].map((x) => `tasks.statusDone.${x}`),
       ...WIZARD_STEPS.map((x) => `onboarding.steps.${x}`),
+      ...OBJECTIVES.map((x) => `campaigns.objectives.${x}`),
+      ...CAMPAIGN_STATUSES.map((x) => `campaigns.statuses.${x}`),
+      ...VISIBILITIES.flatMap((x) => [`campaigns.visibilities.${x}`, `campaigns.visibilityHints.${x}`]),
+      ...DEAL_TYPES.flatMap((x) => [`campaigns.dealTypes.${x}`, `campaigns.dealTypeHints.${x}`]),
+      ...APPLICATION_STATUSES.map((x) => `campaigns.applicationStatuses.${x}`),
+      ...ELIGIBILITY_GAPS.map((x) => `campaigns.gaps.${x}`),
+      ...Object.values(STATUS_MOVES)
+        .flat()
+        .map((x) => `campaigns.moves.${x}`),
+      ...["sent", "accepted", "declined", "countered", "withdrawn"].map((x) => `campaigns.invites.statuses.${x}`),
+      ...["open", "superseded", "accepted", "rejected"].map((x) => `campaigns.offers.statuses.${x}`),
+      ...["creator", "agency", "eduwit"].map((x) => `campaigns.application.sides.${x}`),
+      ...["to_review", "accepted", "applications", "invites_open"].map((x) => `campaigns.stats.${x}`),
       ...["approve", "changes", "decline"].map((x) => `onboarding.review.done.${x}`),
       ...["self", "invited"].map((x) => `onboarding.queue.source.${x}`),
       ...["name", "email", "handle", "url", "followers", "consent", "generic"].map((x) => `auth.signup.errors.${x}`),

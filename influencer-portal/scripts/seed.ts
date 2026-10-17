@@ -219,6 +219,56 @@ async function main() {
       responded_at: new Date().toISOString(),
     });
 
+  // Demo catalogue (local only: the real catalogue belongs to Witty) and two demo campaigns.
+  const pub = db.schema("public" as never) as unknown as typeof db;
+  const uni = await pub.from("catalog_universities" as never).select("id").eq("name", "Demo State University").maybeSingle();
+  let uniId = (uni.data as { id: number } | null)?.id;
+  if (!uniId) {
+    const ins = await pub.from("catalog_universities" as never).insert({ name: "Demo State University" } as never).select("id").single();
+    uniId = (ins.data as { id: number } | null)?.id;
+  }
+  if (uniId) {
+    const have = await pub.from("catalog_programs" as never).select("id").eq("university_id", uniId);
+    if (!(have.data as unknown[] | null)?.length)
+      await pub.from("catalog_programs" as never).insert([
+        { university_id: uniId, program_name: "Online MBA", specialization: "Marketing", level: "PG", mode: "online", fee_total: 150000 },
+        { university_id: uniId, program_name: "Online BBA", specialization: "Finance", level: "UG", mode: "online", fee_total: 90000 },
+      ] as never);
+  }
+  const ends = new Date(Date.now() + 45 * 86_400_000).toISOString().slice(0, 10);
+  const demoCampaigns = [
+    {
+      name: "Online MBA winter push (demo)",
+      objective: "leads",
+      status: "open",
+      visibility: "open",
+      ends_on: ends,
+      slots: 10,
+      budget_paise: 500_000_00,
+      deliverables: [{ platform: "instagram", format: "reel", count: 2 }],
+      compensation_summary: "₹10,000–25,000 fixed fee plus commission per confirmed enrolment",
+      description: "DEMO: promote the Online MBA to working professionals. Two reels over four weeks.",
+      owner_id: owner?.user_id ?? null,
+    },
+    {
+      name: "Founders' circle (demo, invite only)",
+      objective: "awareness",
+      status: "invite_only",
+      visibility: "invite_only",
+      ends_on: ends,
+      deliverables: [{ platform: "youtube", format: "youtube_video", count: 1 }],
+      compensation_summary: "Fixed fee, agreed per creator",
+      owner_id: owner?.user_id ?? null,
+    },
+  ];
+  for (const c of demoCampaigns) {
+    const found = await db.from("campaigns").select("id").eq("name", c.name).maybeSingle();
+    if (!found.data) {
+      const ins = await db.from("campaigns").insert({ ...c, created_by: owner?.user_id ?? null } as never).select("id").single();
+      if (ins.error) throw new Error(`campaign: ${ins.error.message}`);
+    }
+  }
+
   const terms = await db.from("terms_versions").select("kind");
   const have = new Set((terms.data ?? []).map((t) => t.kind));
   const demoTerms = [

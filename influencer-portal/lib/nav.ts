@@ -15,6 +15,8 @@ export const ICON_NAMES = [
   "building",
   "contact",
   "checklist",
+  "megaphone",
+  "inbox",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 
@@ -29,6 +31,8 @@ export interface StaffNavItem {
 export const STAFF_NAV: StaffNavItem[] = [
   { href: "/admin", labelKey: "nav.admin.overview", icon: "home" },
   { href: "/admin/creators", labelKey: "nav.admin.creators", icon: "contact", anyOf: ["creator.read"] },
+  { href: "/admin/campaigns", labelKey: "nav.admin.campaigns", icon: "megaphone", anyOf: ["campaign.read"] },
+  { href: "/admin/applications", labelKey: "nav.admin.applications", icon: "inbox", anyOf: ["campaign.read"] },
   { href: "/admin/tasks", labelKey: "nav.admin.tasks", icon: "checklist" },
   { href: "/admin/agencies", labelKey: "nav.admin.agencies", icon: "building", anyOf: ["agency.manage"] },
   { href: "/admin/kyc", labelKey: "nav.admin.kyc", icon: "badgeCheck", anyOf: ["kyc.read_masked"] },
@@ -55,6 +59,7 @@ export interface CreatorNavItem {
 
 export const CREATOR_NAV: CreatorNavItem[] = [
   { href: "/creator", labelKey: "nav.creator.home", icon: "home" },
+  { href: "/creator/campaigns", labelKey: "nav.creator.campaigns", icon: "megaphone" },
   { href: "/creator/profile", labelKey: "nav.creator.profile", icon: "idCard" },
   { href: "/creator/kyc", labelKey: "nav.creator.kyc", icon: "badgeCheck" },
   { href: "/creator/agency", labelKey: "nav.creator.agency", icon: "building" },
