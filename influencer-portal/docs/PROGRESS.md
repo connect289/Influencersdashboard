@@ -2,12 +2,12 @@
 
 ## Now
 
-- **Current phase:** Phase 10 (Scorecards, tiers, compliance and polish), step 10.4 (passes). Steps 10.1 to 10.3
-  done. Phase 9 (Communication) complete and tagged `phase-9-done`.
+- **Current phase:** Phase 10 (Scorecards, tiers, compliance and polish): steps 10.1 to 10.5 built; the final gate run is in progress, then `phase-10-done` and **HARD STOP 6
+  (production go-live)**: waiting for the owner's approval and the items in `docs/RUNBOOK.md` (G-1 to G-29).
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
 - **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.
-- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-9-done`
+- **Tags:** the git proxy in this environment refuses tag pushes; `phase-0-done` to `phase-10-done`
   exist in the local repository only. Push them from a normal clone with `git push origin --tags`.
 - **Phase 0:** approved by the owner on 16 Oct 2026 ("approve all defaults"): every default in `PHASE0_FINDINGS.md` §7,
   the ERD, `SHARED_CHANGES.md` (S-1 to S-15, R-1 to R-5), the whitelist with the recommended hidden fields and
@@ -657,3 +657,57 @@ tax sign-offs already listed in the RUNBOOK.
 | 10.3 | Screens: tiers and scorecard settings, creator 360 Scorecard and Compliance tabs, programme scorecard list, creator home tier status and progress, recommendations at deal renewal, creator privacy page (download my data, request deletion, communication consents) and the staff privacy-requests queue, audit viewer filters | `app/(admin)/…`, `app/(creator)/…`, `components/scorecards/*`, `components/privacy/*` | Playwright |
 | 10.4 | Passes: accessibility (axe checks on key screens, keyboard paths), performance (paginated lists, scorecard computation at 1,000 creators), security review (OWASP checklist, rate limits, CSP, file checks, service-role use) written to `docs/SECURITY_REVIEW.md`, and the spec 20 end-to-end journeys mapped to specs with any missing one added | `e2e/*`, `docs/SECURITY_REVIEW.md` | gate |
 | 10.5 | Docs: production runbook completed, `docs/ADMIN_GUIDE.md` and `docs/CREATOR_GUIDE.md` generated from the in-app guides (a test keeps them in step), seed, phase gate | `docs/*`, `scripts/*` | gate |
+
+### Phase 10 summary
+
+Every approved creator gets a monthly scorecard (and one on demand): delivery, content against their own baseline, lead
+quality, economics and compliance, each 0–100, with a weighted composite from the score weights setting; parts without
+data are left out instead of scored zero (D-172, D-173). Tiers have entry rules and benefits set by the Super Admin; the
+monthly run promotes at once and demotes only after the configured months below, and a manual tier holds until its
+date (D-174). Benefits act where they belong: the commission uplift is offered in the deal builder, early access delays
+new campaigns for lower tiers, and Finance sees each tier's payout cycle when preparing a batch (D-180). Renewal
+recommendations come from rules behind a `Recommender` interface, each with the facts that triggered it (D-175). The
+creator 360 has Scorecard and Compliance tabs (obligations met, missed, open or waived per deliverable, D-176),
+Analytics has a paginated programme scorecard list, and the creator home shows the tier and what the next one needs.
+DPDP: consent records for every change to notification channels and digests, a data export built on download, and
+deletion requests decided by staff with `privacy.manage` from a plan of what is erased and what is kept until the
+retention period ends; the purge date is computed in the database and storage files are removed (D-177, D-181, D-187).
+Retention runs nightly (D-178). The audit viewer gained a record-id filter (D-182).
+
+The polish passes: axe checks (WCAG 2.1 A/AA) on the key screens of every portal fixed muted-text contrast on tinted
+surfaces, text in the faint colour, keyboard scrolling of wide tables and in-text links; the performance script now
+times scorecard facts at 1,000 creators (about 5 seconds for the whole monthly run) and the programme list (under
+10 ms a page). The security review (`docs/SECURITY_REVIEW.md`) found one high issue (agency owner checks that a null
+comparison silently passed) and fixed it with the medium and low findings (D-186). The spec 20 journeys are mapped in
+`docs/TESTING.md`; the missing ones (enrolment to confirmed commission, duplicate and self-referral reasons, clawback,
+deal kinds against exact ledgers) were added in `e2e/journeys.spec.ts` on the real sweep, runner and Finance screens,
+and they found three defects in earlier phases: commission subjects did not match their consumers, so lines were not
+tied to leads, reconciliation was empty and the enrolment notification never fired (D-183); a receipt could not be
+recorded from a reconciliation row before a CRM receipt existed (D-184); and a clawback did not notify the creator
+(D-185). The runbook now has the full go-live checklist (G-1 to G-29), deployment, rollback, backups and incidents;
+`docs/ADMIN_GUIDE.md` and `docs/CREATOR_GUIDE.md` are generated from the in-app guides with a drift test; unhandled
+server errors are logged with their digest (`instrumentation.ts`).
+
+Gate: unit, pgTAP, typecheck, lint, Prettier, types and seed are green; the final full Playwright run is in progress and its result is recorded here when it completes.
+
+### Phase 10 requirement checklist (spec Section 22 Phase 10, spec 15, 16, 19 and 20)
+
+| Requirement | Status | Where / note |
+| --- | --- | --- |
+| Monthly and on-demand scorecard: delivery, content vs baseline, lead quality, economics, compliance | Done | `lib/scorecards/score.ts`, `inf.scorecard_facts`, `scorecards.run` (D-172, D-173) |
+| Weighted composite with weights in settings | Done | Setting `scorecard.weights` |
+| Tiers with configurable entry rules and benefits (uplift, priority access, faster payout cycle) | Done | Settings → Tiers; uplift in the deal builder, early access in the marketplace, cycle on the Finance prepare card (D-174, D-180) |
+| Rules-based renewal recommendations, pluggable for AI | Done | `lib/scorecards/recommend.ts` (`Recommender`), deal Terms tab (D-175) |
+| ASCI checklist, claims library and banned-claims scan, KYC gate, terms re-acceptance | Done (Phases 2, 5, 7) | Unchanged |
+| Contract compliance tracker per creator | Done | Creator 360 → Compliance (D-176) |
+| DPDP: masked student data, export and deletion with financial retention, communication consents | Done | Creator Account → Manage my data, Admin → Privacy requests (D-177, D-181, D-187) |
+| Audit log viewer with filters | Done | `/admin/audit`: type, action, person, record id, dates (D-182) |
+| Data retention configurable; click logs anonymised | Done | `inf.retention_run()` nightly (D-178) |
+| Accessibility pass | Done | `e2e/a11y.spec.ts`, contrast test extended |
+| Performance pass (paginated lists, scorecards at 1,000 creators) | Done | `scripts/perf/analytics.sql`; programme list paginated |
+| Security review | Done | `docs/SECURITY_REVIEW.md` (D-186) |
+| Full end-to-end suite covering spec 20 | Done | `docs/TESTING.md`, `e2e/journeys.spec.ts` |
+| Production runbook | Done | `docs/RUNBOOK.md` |
+| Admin and creator user guides | Done | `docs/ADMIN_GUIDE.md`, `docs/CREATOR_GUIDE.md` (generated) |
+| Error tracking | Partly (HARD STOP 4) | Structured `request.error` logs now; Sentry needs a DSN (G-27) |
+| Production go-live | Waiting (HARD STOP 6) | Owner approval, providers, legal and CA sign-offs (RUNBOOK) |
