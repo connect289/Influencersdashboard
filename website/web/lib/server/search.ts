@@ -4,6 +4,7 @@ import { scrubString } from "@/lib/security/scrub";
 import { toSearchInput, type FinderParams } from "@/lib/search/params";
 import type {
   CatalogStats,
+  OfferingCard,
   OfferingDetails,
   SearchResult,
   Suggestions,
@@ -57,6 +58,13 @@ export async function offeringDetails(id: number, qual?: string): Promise<Offeri
   catalogCache();
   if (!dbConfigured()) return null;
   return rpc<OfferingDetails | null>("web_offering_details", { p_id: id, p_qual: qual ?? null });
+}
+
+export async function offeringCards(ids: number[], qual?: string): Promise<OfferingCard[]> {
+  "use cache";
+  catalogCache();
+  if (!dbConfigured() || ids.length === 0) return [];
+  return rpc<OfferingCard[]>("web_offering_cards", { p_ids: ids.slice(0, 100), p_qual: qual ?? null });
 }
 
 export async function compareOfferings(ids: number[], qual?: string): Promise<OfferingDetails[]> {

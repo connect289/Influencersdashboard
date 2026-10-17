@@ -16,12 +16,13 @@ export function ConsentBanner() {
   const [choose, setChoose] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const [marketing, setMarketing] = useState(false);
-  // Staff pages load no analytics, so no banner there.
-  if (!ready || state || path?.startsWith("/admin")) return null;
+  // Staff pages load no analytics, so no banner there. The banner is server-rendered so it paints with the page (no
+  // late paint, no layout shift); the boot script hides it before first paint when a choice is already stored.
+  if ((ready && state) || path?.startsWith("/admin")) return null;
   return (
     <section
       aria-label="Cookie preferences"
-      className="glass-strong fixed inset-x-3 bottom-20 z-[var(--z-toast)] mx-auto max-w-2xl rounded-[var(--radius-xl)] p-4 sm:p-5 md:bottom-4"
+      className="consent-banner glass-strong fixed inset-x-3 bottom-20 z-[var(--z-toast)] mx-auto max-w-2xl rounded-[var(--radius-xl)] p-4 sm:p-5 md:bottom-4"
     >
       <div className="flex gap-3">
         <Cookie className="text-amber-text mt-0.5 size-5 shrink-0" aria-hidden />

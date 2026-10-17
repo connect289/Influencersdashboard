@@ -252,3 +252,38 @@ these at the end (spec Section 0).
 - **Why:** returning the whole catalogue for "zzzz" looks broken. Unknown words next to known ones ("mba xyzzy") are
   ignored and reported ("We ignored: xyzzy"); a query with nothing recognisable goes to the zero-results path: closest
   matches by trigram distance, the count without the query, and "Ask Witty" (spec 6.4).
+
+## Phase 4
+
+### D-035 · Finder metadata streams to browsers; crawlers get it in <head>
+- **Why:** the finder's title, description and robots rules depend on the search state, so under Cache Components they
+  are rendered per request. Next streams such metadata to browsers and serves it blocking in `<head>` to HTML-limited
+  crawlers (its built-in list: Bing, social previews, WhatsApp, Lighthouse…); Google renders the streamed version.
+  Lighthouse 13 no longer puts "Chrome-Lighthouse" in its user agent, so `lighthouserc.cjs` sets it to measure the
+  crawler path. Finder pages set `instant = false` (navigations into them wait for their metadata; the shell and
+  skeleton still prerender).
+
+### D-036 · Finder URL state: server-rendered results, optimistic controls, cumulative "Show more"
+- **Why:** spec 6.4 "URL is the state". Filters replace the URL (no history entry per click) and the server renders the
+  results; controls update optimistically (`useOptimistic`) so a tick shows instantly. The offering panel uses
+  `history.pushState` (`?offering=`) so Back closes it without a server round trip. "Show more" sets `?page=N` and the
+  server renders the first N pages (12 groups each), so Back/Forward and reloads restore the same list and scroll.
+  Indexable finder URLs: the finder home and single programme (± one specialisation), level, category or university
+  views; everything else is `noindex, follow` with a canonical to the nearest indexable view (`lib/search/seo.ts`).
+
+### D-037 · The consent banner is server-rendered and hidden before paint once a choice exists
+- **Why:** rendering it after hydration made it the LCP element on the finder (render delay 3.4 s). It now ships in the
+  HTML; the inline boot script sets `<html data-consent>` when the `ew_consent` cookie exists and CSS hides the banner
+  before first paint. No late paint, no layout shift. **Change:** `ConsentBanner`, `boot-script.ts`, `globals.css`.
+
+### D-038 · "Ask Witty" falls back to a WhatsApp counsellor while Witty is off
+- **Why:** spec 6.1 wants "Ask Witty" always visible, but Witty stays off until the shared engine is verified (D-012).
+  Every Ask Witty button (`AskWitty`) opens `/witty?q=…` when `web_advisor_enabled` is on, and otherwise WhatsApp to the
+  counsellor number with the question pre-filled — never a dead end. The same component serves the circuit breaker later.
+
+### D-039 · Finder client code is kept small
+- **Why:** budgets (spec 13.2). URL-state helpers that client code needs live in `lib/search/state.ts` (no zod); parsing
+  with zod stays server-side (`lib/search/params.ts`). The offering panel, guided finder, mobile filter sheet, fee
+  slider and toast host load on demand; the view toggle is plain buttons. First page = 12 programme groups; separate
+  Suspense boundaries split hydration. Result: ~222 KB gz JS on `/programmes` (≈145 KB shared framework), Lighthouse
+  mobile 94–97, LCP 1.7 s, TBT ≤ 270 ms, CLS 0.

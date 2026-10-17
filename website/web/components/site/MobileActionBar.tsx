@@ -19,7 +19,7 @@ export function MobileActionBar({ advisorEnabled, phone }: { advisorEnabled: boo
         <Sparkles className="size-5" aria-hidden />
         {advisorEnabled ? "Ask Witty" : "Counselling"}
       </Link>
-      <Link href="/account/shortlist" className={`${item} relative`}>
+      <Link href="/shortlist" className={`${item} relative`}>
         <span className="relative">
           <Heart className="size-5" aria-hidden />
           <SavedCount list="shortlist" className="absolute -top-2 -right-3" />

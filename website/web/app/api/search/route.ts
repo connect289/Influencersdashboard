@@ -14,11 +14,20 @@ export async function GET(req: NextRequest) {
   const limited = await rateLimit(LIMITS.searchPerIp, ipFrom(req));
   if (!limited.ok) return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: { "Retry-After": "60" } });
 
-  const raw = parseFinderParams(req.nextUrl.searchParams);
+  const sp = req.nextUrl.searchParams;
+  const raw = parseFinderParams(sp);
   const params = raw.q ? mergeParsed(raw, parseQuery(raw.q)) : raw;
+  // Extras that are not part of the shareable URL state: one group's offerings (expanding a card) and the page size
+  // (the mobile filter sheet asks for counts only).
+  const group = sp.get("group");
+  const size = Number(sp.get("page_size"));
+  const extra = {
+    ...(group && /^[a-z0-9-]+:[a-z0-9+-]+$/.test(group) ? { group_key: group } : {}),
+    ...(Number.isInteger(size) && size >= 1 && size <= 100 ? { page_size: size } : {}),
+  };
   const started = performance.now();
   try {
-    const result = await searchOfferings(params);
+    const result = await searchOfferings(params, extra);
     const latencyMs = Math.round(performance.now() - started);
     after(() => logSearch({ q: raw.q, filters: JSON.parse(JSON.stringify(params)), results: result.total, latencyMs, source: "api" }));
     return NextResponse.json(

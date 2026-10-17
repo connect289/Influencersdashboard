@@ -58,6 +58,7 @@ insert into r select (select f->>'eligibility' = 'eligible' from jsonb_array_ele
 -- zero results never dead-end
 insert into r select (pg_temp.s('{"programme":["bca"],"mode":["ODL"]}') ->> 'total')::int = 0
   and (pg_temp.s('{"programme":["bca"],"mode":["ODL"]}') -> 'relaxations') @> '[{"filter": "mode", "count": 1}]', 'zero results: which filter to relax and what it gives';
+insert into r select jsonb_typeof(pg_temp.s('{"programme":["bca"],"mode":["ODL"]}') -> 'facets' -> 'fee') = 'object', 'fee facet is an object even with zero results';
 insert into r select (pg_temp.s('{"q":"qwzxv"}') ->> 'total')::int = 0 and jsonb_array_length(pg_temp.s('{"q":"qwzxv"}') -> 'closest') > 0
   and (pg_temp.s('{"q":"qwzxv"}') ->> 'without_query')::int = 5, 'zero results from text: closest matches + count without the query';
 

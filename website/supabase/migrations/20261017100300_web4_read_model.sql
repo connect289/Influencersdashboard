@@ -459,7 +459,7 @@ declare
   v_view text := coalesce(nullif(p->>'view', ''), 'grouped');
   v_group text := nullif(p->>'group_key', '');
   v_incl boolean := coalesce((p->>'include_offerings')::boolean, false) or v_group is not null;
-  v_size int := least(50, greatest(1, coalesce(nullif(p->>'page_size', '')::int, 20)));
+  v_size int := least(100, greatest(1, coalesce(nullif(p->>'page_size', '')::int, 20)));
   v_page int := greatest(1, coalesce(nullif(p->>'page', '')::int, 1));
   g_prog text[]; g_spec text[];
   v_words text[] := public.web_jarr(v_res->'unmatched');
@@ -674,8 +674,17 @@ begin
                 left join counts c on c.facet = 'format' and c.value = f.id),
       'goal', (select coalesce(jsonb_agg(jsonb_build_object('value', t.id, 'label', t.label, 'count', coalesce(c.n, 0)) order by t.sort), '[]')
                 from public.web_tax_goal_tags t left join counts c on c.facet = 'goal' and c.value = t.id where t.active),
-      'fee', (select jsonb_build_object('min', min(z.fee_total), 'max', max(z.fee_total), 'on_request', count(*) filter (where z.fee_total is null))
-              from (select fee_total from ok union all select fee_total from one where one.fails[1] = 'fee') z),
+      'fee', coalesce((select jsonb_build_object('min', min(z.fee_total), 'max', max(z.fee_total), 'on_request', count(*) filter (where z.fee_total is null),
+                'global_min', gb.lo, 'global_max', gb.hi,
+                'histogram', (select jsonb_agg(coalesce(h.n, 0) order by k.i) from generate_series(0, 15) k(i)
+                              left join (select least(15, floor((z2.fee_total - gb.lo) / nullif(gb.hi - gb.lo, 0) * 16))::int as i, count(*) n
+                                         from (select fee_total from ok union all select fee_total from one where one.fails[1] = 'fee') z2
+                                         where z2.fee_total is not null group by 1) h on h.i = k.i))
+              from (select fee_total from ok union all select fee_total from one where one.fails[1] = 'fee') z,
+                   (select min(fee_total) lo, max(fee_total) hi from public.web_offering_search where visible) gb
+              group by gb.lo, gb.hi),
+              jsonb_build_object('min', null, 'max', null, 'on_request', 0, 'global_min', (select min(fee_total) from public.web_offering_search where visible),
+                'global_max', (select max(fee_total) from public.web_offering_search where visible), 'histogram', '[]'::jsonb)),
       'ugc_deb', coalesce((select n from counts where facet = 'ugc_deb' and value = 'true'), 0),
       'aicte', coalesce((select n from counts where facet = 'aicte' and value = 'true'), 0),
       'nirf', coalesce((select n from counts where facet = 'nirf' and value = 'true'), 0),
@@ -704,6 +713,27 @@ begin
   end if;
   return v_out;
 end $$;
+
+-- Free text → URL filters for the search box (spec 6.4 "natural language into structured filters"): entities become
+-- facet values (universities as slugs, modes as URL values); words that matched nothing structured stay as text.
+create or replace function public.web_resolve_to_filters(p_q text)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  with r as (select public.web_resolve_query(p_q) as v)
+  select jsonb_build_object(
+    'programme', r.v->'programme', 'spec', r.v->'specialisation', 'level', r.v->'level', 'category', r.v->'category',
+    'mode', coalesce((select jsonb_agg(case m when 'ODL' then 'odl' else lower(m) end) from jsonb_array_elements_text(r.v->'mode') m), '[]'),
+    'uni', coalesce((select jsonb_agg(p.slug order by p.slug) from jsonb_array_elements_text(r.v->'university') u
+                     join public.web_university_profiles p on p.catalog_university_id = u::bigint), '[]'),
+    -- leftover words are kept as text only if some visible offering contains them; the rest are reported as ignored
+    'text', coalesce((select jsonb_agg(w) from jsonb_array_elements_text(r.v->'unmatched') w
+                      where exists (select 1 from public.web_offering_search o where o.visible
+                                    and o.search_doc @@ to_tsquery('simple', quote_literal(w) || ':*'))), '[]'),
+    'ignored', coalesce((select jsonb_agg(w) from jsonb_array_elements_text(r.v->'unmatched') w
+                      where not exists (select 1 from public.web_offering_search o where o.visible
+                                    and o.search_doc @@ to_tsquery('simple', quote_literal(w) || ':*'))), '[]'),
+    'corrected', r.v->'corrected')
+  from r
+$$;
 
 -- Instant suggestions grouped as Programmes · Specialisations (as programme + specialisation groups) · Universities.
 -- Guides are added by the website from web_resources (Phase 6).
@@ -794,6 +824,14 @@ begin
                      from public.web_offering_search a where a.visible and a.group_key = o.group_key and a.id <> o.id)
   ));
 end $$;
+
+-- Cards for a list of offering ids (shortlist), in the given order; hidden or unknown ids are skipped.
+create or replace function public.web_offering_cards(p_ids bigint[], p_qual text default null)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(public.web_offering_card(o, public.web_eligibility(p_qual, o.level_id, o.min_qualification)) order by t.ord), '[]')
+  from unnest(p_ids[1:100]) with ordinality t(i, ord)
+  join public.web_offering_search o on o.id = t.i and o.visible
+$$;
 
 create or replace function public.web_compare_offerings(p_ids bigint[], p_qual text default null)
 returns jsonb language sql stable security definer set search_path = '' as $$
@@ -912,9 +950,9 @@ begin
     'public.web_derive_duration(text, jsonb, numeric, numeric, numeric)', 'public.web_naac_rank(text)',
     'public.web_university_facts(text, text[])', 'public.web_eligibility(text, text, text)', 'public.web_duration_bucket(integer)',
     'public.web_catalog_fingerprint()', 'public.web_refresh_read_model()', 'public.web_catalog_poll()',
-    'public.web_resolve_query(text)', 'public.web_jarr(jsonb)', 'public.web_offering_card(public.web_offering_search, text)',
+    'public.web_resolve_query(text)', 'public.web_resolve_to_filters(text)', 'public.web_jarr(jsonb)', 'public.web_offering_card(public.web_offering_search, text)',
     'public.web_search(jsonb)', 'public.web_suggest(text, integer)', 'public.web_offering_details(bigint, text)',
-    'public.web_compare_offerings(bigint[], text)', 'public.web_universities()', 'public.web_university_details(text)',
+    'public.web_compare_offerings(bigint[], text)', 'public.web_offering_cards(bigint[], text)', 'public.web_universities()', 'public.web_university_details(text)',
     'public.web_catalog_stats()', 'public.web_browse()', 'public.web_search_log_add(jsonb)', 'public.web_data_quality()'
   ] loop
     execute format('revoke all on function %s from public, anon, authenticated', f);

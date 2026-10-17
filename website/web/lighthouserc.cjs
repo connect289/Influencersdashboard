@@ -1,6 +1,6 @@
 // Lighthouse CI budgets (spec 3A/12): mobile form factor, applied (DevTools) throttling — slow 4G + 4x CPU — which is
 // what D-021 measures against. Runs against `next start` on :3100 with the local Supabase stack.
-const paths = ["/", "/thank-you", "/admin/login"];
+const paths = ["/", "/programmes", "/programmes?programme=mba&spec=marketing", "/thank-you", "/admin/login"];
 module.exports = {
   ci: {
     collect: {
@@ -14,6 +14,10 @@ module.exports = {
         throttlingMethod: "devtools",
         onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
         chromeFlags: "--headless=new --no-sandbox --disable-gpu",
+        // Lighthouse 13 dropped "Chrome-Lighthouse" from its UA; keep it so the SEO audit sees what HTML-limited crawlers
+        // receive (Next sends blocking <head> metadata to them and streams it to browsers — D-035).
+        emulatedUserAgent:
+          "Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36 Chrome-Lighthouse",
       },
     },
     assert: {

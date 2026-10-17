@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 4 — Programme finder. Current step: 4.1 (plan).**
+**Current phase: 5 — Detail panel and university pages. Current step: 5.1 (plan).**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -291,3 +291,62 @@ and all layout shift.
 | p95 < 150 ms at 10k | Done for filtered queries; unfiltered default ~145 ms DB time and served from the edge cache; measured again in Phase 12 load test |
 | Intakes facet | Deferred — no data in the catalogue (A-TAX-2); facet hidden |
 | University state facet | Deferred — needs S-46; facet appears automatically when data exists |
+
+---
+
+## Phase 4 — Programme finder ✅ `website-phase-4-done`
+
+### Plan
+1. Search box with grouped, keyboard-navigable suggestions; free text → structured filters (`/api/search/resolve`).
+2. `/programmes`: server-rendered results from URL state; facet rail (desktop) and staged bottom sheet (mobile);
+   applied-filter chips; sort; grouped/flat views; cumulative "Show more"; eligibility marking; indexing rules.
+3. Group cards (expand on demand with current filters), offering rows, offering panel (deep link `?offering=`).
+4. Guided finder (qualification → goal → budget/duration), browse-by-category entry, Ask Witty (with fallback).
+5. Zero results: relaxations with counts, closest matches, Ask Witty.
+6. Compare (tray, `/compare?ids=`, highlights, hide identical, share) and anonymous shortlist (`/shortlist`).
+7. Search quality suite; finder e2e + axe; Lighthouse budgets on the finder.
+
+### Step log
+- 4.1 ✅ `SearchBox` (WAI-ARIA combobox), `/api/search/resolve` + `web_resolve_to_filters` (entities → URL filters,
+  unknown words dropped or kept as text only if they match the catalogue).
+- 4.2 ✅ `/programmes` page, `FinderView`, `FacetPanel` (all spec 6.3 facets that have data; zero-count disabled;
+  hierarchy via counts), `MobileFilters` (staged, live count), `lib/client/use-finder.ts` (URL navigation, optimistic
+  state, panel pushState), `lib/search/{labels,seo,state}.ts` (+ tests).
+- 4.3 ✅ `ResultGroup`, `OfferingResult`, `UniversityMark`, `OfferingPanel` (fees + breakdown, key facts with sources,
+  eligibility text, approvals with plain-language explainers in `content/explainers.ts`, other universities,
+  "Data last verified", fee disclaimer; Apply section is a counsellor hand-off until the form lands in Phase 5/7).
+- 4.4 ✅ `GuidedFinder`, category browse pills, `AskWitty` fallback (D-038).
+- 4.5 ✅ `ZeroResults`; SQL: fee facet always an object (bug found by e2e), fee histogram for the slider.
+- 4.6 ✅ `CompareTray`, `CompareTable` + `lib/finder/compare.ts` (+ tests), `/compare`, `/shortlist`,
+  `/api/offerings?ids=` + `web_offering_cards`; mobile bar's Shortlist → `/shortlist`; `Toaster`.
+- 4.7 ✅ `supabase/tests/50_search_quality.test.sql` (31 real-catalogue queries: abbreviations, full names, Hinglish,
+  typos, universities, levels, modes, categories, no dead ends; skipped on the empty replica); `e2e/finder.spec.ts`
+  (11 tests × 2 devices incl. axe with the panel open, both themes); Lighthouse: consent banner SSR (D-037), JS diet
+  (D-039).
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 93 unit tests, copy check) | ✅ |
+| SQL tests local (460 + 18 + 15 + 48 + 42 + 31 quality) | ✅ |
+| `npm run build` | ✅ |
+| Playwright (smoke, a11y, admin, catalogue API, finder) | ✅ 48 passed |
+| Lighthouse CI mobile, applied throttling | ✅ `/` 97–98; `/programmes` 94–96; `/programmes?programme=mba&spec=marketing` 97; LCP 1.6–1.7 s; TBT ≤ 270 ms; CLS 0; a11y 100; SEO 100 |
+
+### Self-review (spec 6.1–6.5, Phase 4 row)
+| Item | Status |
+|---|---|
+| Search box with grouped instant suggestions, keyboard navigable | Done (Guides group arrives with resources in Phase 6) |
+| Guided finder with live narrowing, back/edit at every step | Done |
+| Browse by level, category, university | Done (facets + category pills; university directory in Phase 5) |
+| "Not sure? Ask Witty" always visible | Done (counsellor fallback while Witty is off) |
+| Grouped results with the spec's card fields; expand to offerings; flat view | Done (logos only where permitted, S-41) |
+| Eligibility awareness; hide not eligible with a toggle | Done |
+| Facets incl. live counts, disabled zero options, hierarchy, chips, clear all, mobile sheet with live count | Done; intake and state facets wait for data (A-TAX-2, S-46) |
+| Typo tolerance, synonyms, prefix, relevance; NL parsing; sorting; URL state | Done |
+| Zero results never dead-end | Done |
+| Pagination with load-more and scroll restore | Done (cumulative pages) |
+| p95 < 150 ms | Done (Phase 3 benchmark; edge-cached API) |
+| Compare up to 4 with highlights, hide identical, shareable URL; Discuss with Witty / counsellor | Done |
+| Anonymous shortlist; sync after sign-up | Done locally; sync in Phase 7 |
+| Search quality suite | Done (31 cases) |

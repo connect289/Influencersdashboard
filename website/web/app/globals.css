@@ -557,3 +557,8 @@
   .site-menu:popover-open { translate: 0 0; }
   @starting-style { .site-menu:popover-open { translate: 100% 0; } }
 }
+
+/* Consent already stored: hide the server-rendered banner before first paint (boot script sets data-consent). */
+html[data-consent] .consent-banner {
+  display: none;
+}

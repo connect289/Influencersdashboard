@@ -128,7 +128,7 @@ export interface Facets {
   duration: FacetOption[];
   format: FacetOption[];
   goal: FacetOption[];
-  fee: { min: number | null; max: number | null; on_request: number };
+  fee: { min: number | null; max: number | null; on_request: number; global_min?: number; global_max?: number; histogram?: number[] };
   ugc_deb: number;
   aicte: number;
   nirf: number;
