@@ -223,7 +223,7 @@ test.describe.serial("links and leads", () => {
     await d.getByLabel("Reason").fill("Family members enquiring from one phone");
     await d.getByRole("button", { name: "Clear" }).click();
     await expect(page.getByText("Flag cleared.")).toBeVisible();
-    await expect(page.getByText("Nothing to review")).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: "Same device" })).toHaveCount(0);
   });
 
   test("a Super Admin adds a stage rule; a manager can only read them", async ({ page }) => {

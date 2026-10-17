@@ -284,7 +284,8 @@ async function seedCommunication(creatorId: string, dealId: string) {
 }
 
 /**
- * Phase 10: Bronze, Silver and Gold tiers (made by the Super Admin through inf.tier_save), then last month's scorecard
+ * Phase 10: Bronze, Silver and Gold tiers (made by the Super Admin through inf.tier_save; no early access, so new demo
+ * campaigns reach every creator at once), then last month's scorecard
  * for every active demo creator through the same runner and save as the monthly job, which also places them in a tier.
  */
 async function seedInsight() {
@@ -300,13 +301,13 @@ async function seedInsight() {
             name: "Silver",
             rank: 2,
             entry_rules: { min_score: 55, min_months_active: 0 },
-            benefits: { commission_uplift_pct: 5, early_access_days: 3, payout_cycle: "fortnightly" },
+            benefits: { commission_uplift_pct: 5, payout_cycle: "fortnightly" },
           },
           {
             name: "Gold",
             rank: 3,
             entry_rules: { min_score: 80, min_enrollments_90d: 10, min_compliance: 80 },
-            benefits: { commission_uplift_pct: 10, early_access_days: 7, payout_cycle: "weekly" },
+            benefits: { commission_uplift_pct: 10, payout_cycle: "weekly" },
           },
         ])
           await sql.query("select inf.tier_save($1)", [JSON.stringify(t)]);

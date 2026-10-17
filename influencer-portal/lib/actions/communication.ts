@@ -61,8 +61,10 @@ async function act<S extends z.ZodType, Res extends ActionResult<unknown>>(
   const t = await getTranslations();
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
-    const unknown = parsed.error.issues.some((i) => i.message === "unknown_vars");
-    return fail(unknown ? t("communication.errors.unknownVars") : t("errors.invalidInput"));
+    const issue = (m: string) => parsed.error.issues.some((i) => i.message === m);
+    if (issue("unknown_vars")) return fail(t("communication.errors.unknownVars"));
+    if (issue("private")) return fail(t("communication.errors.privateUrl"));
+    return fail(t("errors.invalidInput"));
   }
   const s = await staffSession();
   if (!s) return fail(t("errors.sessionEnded"));

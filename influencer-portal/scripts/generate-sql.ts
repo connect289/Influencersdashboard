@@ -5,6 +5,7 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { GENERATORS, latestRecordedHash, type GeneratedKind } from "@/lib/codegen/sql";
 import { ledgerMatrixSql } from "@/lib/codegen/ledger-matrix";
+import { GUIDE_DOCS, guideMarkdown, type GuideDoc } from "@/lib/codegen/guides-doc";
 import { metricsMarkdown } from "@/lib/codegen/metrics-doc";
 import { workflowMatrixSql } from "@/lib/codegen/workflow-matrix";
 
@@ -81,5 +82,22 @@ for (const [name, file, sql] of [
   else {
     writeFileSync(path, md);
     console.info("metrics-doc: wrote docs/METRICS.md");
+  }
+}
+
+// docs/ADMIN_GUIDE.md and docs/CREATOR_GUIDE.md, from the in-app guides.
+for (const doc of Object.keys(GUIDE_DOCS) as GuideDoc[]) {
+  const path = join(import.meta.dirname, "..", "docs", doc);
+  const md = guideMarkdown(doc);
+  let current = "";
+  try {
+    current = readFileSync(path, "utf8");
+  } catch {
+    // First generation.
+  }
+  if (current === md) console.info(`guides-doc: ${doc} up to date`);
+  else {
+    writeFileSync(path, md);
+    console.info(`guides-doc: wrote docs/${doc}`);
   }
 }

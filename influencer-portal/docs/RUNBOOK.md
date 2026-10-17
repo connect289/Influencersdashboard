@@ -1,9 +1,10 @@
 # Runbook
 
-Operating and go-live notes for the Influencer Portal. The full deployment checklist, dry-run report and rollback
-script are completed in Phase 10 (HARD STOP 6); items are collected here as each phase adds them.
+Operating and go-live notes for the Influencer Portal: the go-live checklist (everything the owner, counsel, the CA and
+the providers must supply), the deployment and rollback procedure, backups, incidents and day-to-day operations. Going
+live is HARD STOP 6: nothing here is run against production without the owner's approval.
 
-## Go-live checklist (collected so far)
+## Go-live checklist
 
 | # | Item | Added |
 | --- | --- | --- |
@@ -32,6 +33,64 @@ script are completed in Phase 10 (HARD STOP 6); items are collected here as each
 | G-23 | Communication providers (HARD STOP 4): a live email provider (SMTP, Resend or Brevo) for notifications and digests, and for WhatsApp a Meta WhatsApp Business account with approved templates for each event you want on WhatsApp (enter each approved name in Communication → Templates; one variable per line in the template's order). Creators need a phone number on their profile. Then set `LIVE_MODE=on` | Phase 9 |
 | G-24 | Review the notification catalogue with the owner (which events are required, default channels, the digest defaults) and the wording of the main templates (contract, payout, KYC). pg_cron schedules created by the migration: `inf-announcements` (every 5 minutes), `inf-comm-daily` (09:00 IST), `inf-digests` (hourly, sends at the digest hour in Settings → Notifications), `inf-scorecards` (1st of the month, 06:00 IST); confirm they run in System status | Phase 9 |
 | G-25 | Webhooks: register endpoints only after `LIVE_MODE=on`; give each receiving system its signing secret (shown once) and the verification rule (HMAC-SHA256 of `timestamp.body`, reject after 5 minutes). Point n8n at a public HTTPS address; internal addresses are refused by design | Phase 9 |
+| G-26 | Privacy and retention with counsel and the CA: the financial-records retention period (Settings → Retention and privacy, default 8 years), click anonymisation and sign-in log periods, the privacy notice (grievance officer contact, data export and deletion), and who holds `privacy.manage`. Decide whether creators may request deletion in the portal from day one | Phase 10 |
+| G-27 | Error tracking (HARD STOP 4): a Sentry project and DSN (or the team's tracker). Until then unhandled server errors are logged as `request.error` with the route, digest and request id (`instrumentation.ts`) | Phase 10 |
+| G-28 | Hosting (HARD STOP 4): the Vercel project, the domain and TLS, environment variables from `.env.example` (production values, `NEXT_PUBLIC_SITE_URL` on the real domain), and the edge rate limit for `/m/*`; per-IP limits trust Vercel's client IP header (`docs/SECURITY_REVIEW.md`) | Phase 10 |
+| G-29 | Tiers and scorecards: the Super Admin creates the tiers (Settings → Tiers) and confirms the score weights and thresholds; no tiers exist until then, and the first monthly scorecards run on the 1st after go-live | Phase 10 |
+
+## Deployment
+
+Prerequisites: G-1 to G-29 answered, the owner's written go-live approval, and a green CI run (typecheck, lint, unit,
+pgTAP, Playwright) on the release commit.
+
+1. **Dry run on a copy.** First run the read-only drift check (`scripts/baseline/generate-baseline.sql`, see
+   Operations): the shared objects must match the recorded baseline hash, or stop and re-check `SHARED_CHANGES.md`.
+   Then restore the latest production backup into a new Supabase project (or a branch), apply the baseline repair and
+   every `inf` migration there (G-1), point a preview deployment at it and walk the main journeys (staff sign-in,
+   creator sign-in, a deal, a contract preview, the Finance screens). The pgTAP suite and Playwright run on the local
+   stack in CI; they never run against a hosted project.
+2. **Production database.** In a quiet window, take a manual backup, then `supabase migration repair --status applied
+   00000000000000` and `supabase db push` (only the `inf` migrations run). Expose `inf` (G-2), create the Vault secrets
+   (G-3) and back up `inf_pii_key` and `inf_lead_ref_key` (G-4, G-15).
+3. **Application.** Set the production environment variables with `LIVE_MODE=off`, `LEAD_SYNC=off` and
+   `PAYOUT_PROVIDER=bank_file`, deploy, and check `/api/health`, staff sign-in with the emailed code, and System status
+   (all pg_cron jobs present, the job queue draining).
+4. **Set-up in the console.** Organisation profile and signatories (G-10), settings reviewed with the owner (attribution,
+   finance, content, notifications, retention), tiers (G-29), staff accounts and roles.
+5. **Providers.** Configure email (and WhatsApp templates), send a test from Communication → Templates, then
+   `LIVE_MODE=on` (G-23).
+6. **Live leads (separate approval, G-14).** `LEAD_SYNC=on`, watch one sweep, run the backfill.
+
+**Rollback.** The portal only adds the `inf` schema, its buckets and its cron jobs; nothing shared is changed. To stop
+the portal: set `LIVE_MODE=off` and `LEAD_SYNC=off` and redeploy (no email, WhatsApp or lead reads), or unschedule the
+`inf-*` cron jobs (`select cron.unschedule(jobname) from cron.job where jobname like 'inf-%'`). To roll back the
+application, redeploy the previous Vercel build. Database rollback is a restore of the pre-deploy backup into a new
+project; never drop `inf` on the live project while Finance records exist in it.
+
+## Backups and recovery
+
+- Supabase daily backups (and point-in-time recovery on the plan that has it) cover the `inf` schema with the rest of
+  the project. Before each production migration, take a manual backup.
+- Vault keys are not useful without the backup of `inf_pii_key` and `inf_lead_ref_key` (G-4, G-15): keep both in the
+  company password manager.
+- Storage: signed contracts (`inf-contracts`) are written once and verified by hash on every download; payment advice,
+  Form 16A and invoices are private. Keep bucket versioning or a nightly copy of `inf-contracts`, `inf-documents` and
+  `inf-invoices` to another region.
+- Restore drill (once before go-live, then yearly): restore a backup into a new project, point a preview deployment at
+  it, sign in as staff, open a signed contract (hash verifies) and a payment advice.
+
+## Incidents
+
+- **Money shown wrongly**: put the creator's lines on hold (Finance → Ledger → Hold) before investigating; the ledger is
+  append-only, corrections are adjustments. Re-run the deal from its Ledger tab after fixing the cause.
+- **A student's contact details visible to a creator or agency**: switch the creator portal off by blocking the
+  affected accounts (Creators → Block), capture the audit log, and treat it as a DPDP incident (notify the owner and
+  the grievance officer the same day).
+- **Lead sweep failing**: System status shows the last sweep; `leads.sweep_failed` retries from the same watermark.
+  Switch `LEAD_SYNC=off` if it misbehaves; nothing else depends on it.
+- **Provider outage**: notifications queue and retry with backoff; nothing is lost. Webhook deliveries retry for 24
+  hours.
+- Every unhandled server error is logged as `request.error` with a digest the user can quote.
 
 ## Operations
 
