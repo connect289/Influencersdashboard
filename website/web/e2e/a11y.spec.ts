@@ -17,8 +17,10 @@ async function axe(page: Page, include?: string) {
   const r = await b.analyze();
   return r.violations.filter((v) => v.impact !== "minor").map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`);
 }
+/** Switches the theme on a loaded page and waits for colour transitions to finish (axe must not measure mid-fade). */
 async function theme(page: Page, t: "dark" | "light") {
   await page.evaluate((x) => document.querySelectorAll("[data-theme]").forEach((el) => el.setAttribute("data-theme", x)), t);
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
 }
 async function dismissConsent(page: Page) {
   const banner = page.getByRole("region", { name: "Cookie preferences" });
@@ -50,7 +52,10 @@ test.describe("accessibility audit: remaining pages", () => {
 });
 
 test.describe("accessibility audit: dialogs and forms", () => {
-  test.beforeEach(async ({ page }) => freshIp(page));
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await freshIp(page);
+  });
 
   test("application form: step 1 with errors, code entry, step 2 (both themes)", async ({ page }) => {
     await page.goto("/programmes?programme=mba&view=flat");
@@ -95,11 +100,21 @@ test.describe("accessibility audit: keyboard", () => {
 
   test("skip link is the first stop and moves focus to the content", async ({ page }) => {
     await page.goto("/about");
-    await dismissConsent(page);
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/#main$/);
+  });
+
+  test("choosing in the cookie banner keeps keyboard focus on the page", async ({ page }) => {
+    await page.goto("/about");
+    const banner = page.getByRole("region", { name: "Cookie preferences" });
+    await banner.getByRole("button", { name: "Only necessary" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(banner).toBeHidden();
+    await expect(page.locator("#main")).toBeFocused();
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => document.getElementById("main")!.contains(document.activeElement))).toBe(true);
   });
 
   test("detail panel: opens from the keyboard, traps focus, Escape closes and returns focus", async ({ page }) => {
@@ -125,7 +140,10 @@ test.describe("accessibility audit: Witty", () => {
   test.skip(({ isMobile }) => isMobile, "global flag; laptop project only");
   test.beforeAll(async () => setSetting(BASE, "web_advisor_enabled", true));
   test.afterAll(async () => setSetting(BASE, "web_advisor_enabled", false));
-  test.beforeEach(async ({ page }) => freshIp(page));
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await freshIp(page);
+  });
 
   test("gate and a conversation (both themes)", async ({ page }) => {
     await expect.poll(async () => (await page.request.get("/witty")).status()).toBe(200);
@@ -144,6 +162,8 @@ test.describe("accessibility audit: Witty", () => {
     await typeCode(page, region, await latestCode(email, sent));
     const log = page.getByRole("log", { name: "Conversation" });
     await expect(log.getByText(/options that could suit you/)).toBeVisible();
+    // Send is enabled once the reply has finished streaming and there is text to send
+    await page.getByLabel("Message Witty").fill("Marketing");
     await expect(page.getByRole("button", { name: "Send" })).toBeEnabled();
     for (const t of ["dark", "light"] as const) {
       await theme(page, t);

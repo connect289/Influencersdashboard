@@ -14,6 +14,16 @@ export function ConsentBanner() {
   const [choose, setChoose] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const [marketing, setMarketing] = useState(false);
+  // The banner disappears with the button that had focus; hand keyboard focus to the main content instead of losing it.
+  const decide = (a: boolean, m: boolean, from: HTMLElement) => {
+    const hadFocus = from.closest("[aria-label='Cookie preferences']")?.contains(document.activeElement);
+    setConsent(a, m);
+    const main = document.getElementById("main");
+    if (hadFocus && main) {
+      if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
+      main.focus({ preventScroll: true });
+    }
+  };
   // Mounted by the public (site) layout only. The banner is server-rendered so it paints with the page (no late paint,
   // no layout shift); the boot script hides it before first paint when a choice is already stored.
   if (ready && state) return null;
@@ -63,7 +73,7 @@ export function ConsentBanner() {
             {choose ? (
               <button
                 type="button"
-                onClick={() => setConsent(analytics, marketing)}
+                onClick={(e) => decide(analytics, marketing, e.currentTarget)}
                 className="bg-primary text-on-primary h-10 rounded-full px-4 font-semibold"
               >
                 Save choices
@@ -72,14 +82,14 @@ export function ConsentBanner() {
               <>
                 <button
                   type="button"
-                  onClick={() => setConsent(true, true)}
+                  onClick={(e) => decide(true, true, e.currentTarget)}
                   className="bg-primary text-on-primary h-10 rounded-full px-4 font-semibold"
                 >
                   Accept all
                 </button>
                 <button
                   type="button"
-                  onClick={() => setConsent(false, false)}
+                  onClick={(e) => decide(false, false, e.currentTarget)}
                   className="border-border-strong text-text h-10 rounded-full border px-4 font-semibold"
                 >
                   Only necessary

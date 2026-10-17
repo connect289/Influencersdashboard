@@ -739,3 +739,9 @@ items: S-20 (Search Console), S-50 (authors and reviewers), S-51 (hours), S-52 (
 7. Final report; **stop** for the owner's go-live approval (no production apply, deploy or DNS change).
 
 ### Step log
+- 12.1 ✅ Security review: 4 medium + 13 low findings, 16 fixed, L12 accepted (D-076). `docs/SECURITY_REVIEW.md`,
+  migration `20261017101000_web11_hardening.sql`, D-076–D-079. `npm audit`: production 0; 22 dev-only (Lighthouse CI
+  chain, eslint-config-next). Full e2e on the hardened build: 144 passed, 0 failed.
+- 12.2 ✅ Accessibility audit: `e2e/a11y.spec.ts` (30 checks: remaining pages, cookie banner, application form states,
+  signed-in account, Witty gate and conversation, keyboard). Two focus bugs fixed (panel focus return, banner focus).
+  `docs/ACCESSIBILITY.md`.

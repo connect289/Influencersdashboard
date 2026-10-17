@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { Dialog } from "radix-ui";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,11 +26,26 @@ export function Panel({
   footer?: React.ReactNode;
   className?: string;
 }) {
+  // Panels open from links that change the URL (deep links), not from a Radix trigger, so remember what had focus when
+  // the panel opened and give it back on close (or the same link, if the list re-rendered meanwhile).
+  const returnTo = useRef<{ el: HTMLElement | null; href: string | null }>({ el: null, href: null });
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="panel-overlay fixed inset-0 z-[var(--z-overlay)] bg-[rgb(2_6_13/0.55)] backdrop-blur-[3px]" />
         <Dialog.Content
+          onOpenAutoFocus={() => {
+            const el = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+            returnTo.current = { el, href: el?.getAttribute("href") ?? null };
+          }}
+          onCloseAutoFocus={(e) => {
+            const { el, href } = returnTo.current;
+            const target = el?.isConnected ? el : href ? document.querySelector<HTMLElement>(`a[href="${CSS.escape(href)}"]`) : null;
+            if (target) {
+              e.preventDefault();
+              target.focus({ preventScroll: true });
+            }
+          }}
           className={cn(
             "panel-content glass-strong fixed inset-0 z-[var(--z-panel)] flex flex-col outline-none md:inset-y-3 md:right-3 md:left-auto md:w-[min(600px,calc(100vw-1.5rem))] md:rounded-[var(--radius-2xl)]",
             className,
