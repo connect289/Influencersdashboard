@@ -4,9 +4,11 @@
 // `npm run gen:sql`).
 import { createHash } from "node:crypto";
 import { PERMISSIONS, ROLE_GRANTS, STAFF_ROLES, type Permission } from "@/lib/auth/permissions";
+import { z } from "zod";
+import { compConfig } from "@/lib/compensation/schema";
 import { SETTINGS, SETTING_KEYS, settingJsonSchema } from "@/lib/settings/registry";
 
-export type GeneratedKind = "permission-matrix" | "settings-definitions";
+export type GeneratedKind = "permission-matrix" | "settings-definitions" | "comp-config-schema";
 
 export function sqlString(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
@@ -20,7 +22,8 @@ function withHeader(kind: GeneratedKind, body: string): { sql: string; hash: str
   const hash = createHash("sha256").update(body).digest("hex");
   const header = [
     `-- generated: ${kind} sha256=${hash}`,
-    "-- DO NOT EDIT. Produced by `npm run gen:sql` from lib/auth/permissions.ts and lib/settings/registry.ts.",
+    "-- DO NOT EDIT. Produced by `npm run gen:sql` from lib/auth/permissions.ts, lib/settings/registry.ts and",
+    "-- lib/compensation/schema.ts.",
     "",
   ].join("\n");
   return { sql: header + body, hash };
@@ -72,9 +75,34 @@ export function settingsDefinitionsSql(): { sql: string; hash: string } {
   return withHeader("settings-definitions", body);
 }
 
+/** JSON Schema of a deal version's compensation config (D-05). Structural checks only; the reconciliation rules
+ * (milestones add up, ids unique, references exist) are re-checked by the hand-written inf.comp_config_errors(). */
+export function compConfigSchemaJson(): Record<string, unknown> {
+  const schema = z.toJSONSchema(compConfig, {
+    target: "draft-2020-12",
+    io: "output",
+    unrepresentable: "throw",
+    reused: "inline",
+  }) as Record<string, unknown>;
+  delete schema.$schema;
+  return schema;
+}
+
+export function compConfigSchemaSql(): { sql: string; hash: string } {
+  const body = [
+    "create or replace function inf.comp_config_schema() returns jsonb",
+    "language sql immutable set search_path = '' as $$",
+    `  select ${jsonLiteral(compConfigSchemaJson())};`,
+    "$$;",
+    "",
+  ].join("\n");
+  return withHeader("comp-config-schema", body);
+}
+
 export const GENERATORS: Record<GeneratedKind, () => { sql: string; hash: string }> = {
   "permission-matrix": permissionMatrixSql,
   "settings-definitions": settingsDefinitionsSql,
+  "comp-config-schema": compConfigSchemaSql,
 };
 
 /** The hash recorded in the newest migration of a kind (file names sort by timestamp). */
