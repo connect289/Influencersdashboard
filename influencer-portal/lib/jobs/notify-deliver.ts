@@ -4,8 +4,10 @@ import { env } from "@/lib/env";
 import { log, errorMessage } from "@/lib/log";
 import { composeEmail, composeWhatsApp, type Template } from "@/lib/notify/compose";
 import { emailProvider } from "@/lib/notify/email";
+import { inQuietHours, sendAfterQuiet } from "@/lib/notify/quiet";
 import { ProviderError } from "@/lib/notify/types";
 import { whatsAppProvider } from "@/lib/notify/whatsapp";
+import { SETTINGS } from "@/lib/settings/registry";
 import { adminClient } from "@/lib/supabase/admin";
 import type { JobHandler } from "./types";
 
@@ -40,7 +42,8 @@ async function templateFor(db: Db, event: string, channel: "email" | "whatsapp")
  * Delivers the queued email/WhatsApp copies of one in-app notification, using the staff-edited template for the event
  * when there is one. Idempotent: only rows still 'queued' are sent. Nothing leaves the system unless LIVE_MODE=on
  * (rows are marked skipped with the reason). WhatsApp needs an approved provider template for the event and the
- * creator's number; otherwise that copy is skipped with the reason.
+ * creator's number; otherwise that copy is skipped with the reason. During quiet hours (setting notifications.delivery)
+ * the WhatsApp copy waits and the job runs again when they end.
  */
 export const notifyDeliver: JobHandler = async (job) => {
   const { notification_id } = payloadSchema.parse(job.payload);
@@ -87,10 +90,26 @@ export const notifyDeliver: JobHandler = async (job) => {
   };
   const site = env().NEXT_PUBLIC_SITE_URL;
   const who = await recipient(db, n.user_id);
+  const delivery = SETTINGS["notifications.delivery"].schema
+    .catch(SETTINGS["notifications.delivery"].default)
+    .parse((await db.rpc("setting", { p_key: "notifications.delivery" })).data);
+  const now = new Date();
+  const quiet = inQuietHours(now, delivery.quiet_hours_start, delivery.quiet_hours_end);
   let retryable: Error | null = null;
   for (const d of queued) {
     try {
       if (d.channel === "whatsapp") {
+        if (quiet) {
+          // Quiet hours: the WhatsApp copy stays queued and this job runs again when they end.
+          const at = sendAfterQuiet(now, delivery.quiet_hours_start, delivery.quiet_hours_end);
+          await db.rpc("job_enqueue", {
+            p_kind: "notify.deliver",
+            p_payload: { notification_id },
+            p_run_at: at.toISOString(),
+            p_idem_key: `notify:${notification_id}:after-quiet:${at.toISOString()}`,
+          });
+          continue;
+        }
         const msg = composeWhatsApp(facts, await templateFor(db, n.event, "whatsapp"), who.name, who.phone, site);
         if (!msg) {
           await result(d.id, "skipped", { error: who.phone ? "no_template" : "no_number" });
