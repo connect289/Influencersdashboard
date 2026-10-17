@@ -179,3 +179,27 @@ these at the end (spec Section 0).
 ### D-024 · Concept B uses Inter's display optical size instead of Roboto Flex
 - **Why:** Roboto Flex's variable file is 190 KB (Latin); Inter (already the body face) has an optical-size axis whose
   large sizes form a display cut — one 71 KB file serves the whole concept with the same kinetic weight shifts.
+
+## Phase 2
+
+### D-025 · CSP: strict without nonces on static pages, nonce + strict-dynamic on /account and /admin
+- **Why:** a nonce forces every page to render per request (Next docs: static optimisation, ISR and CDN caching are
+  disabled), which contradicts spec 3A's static-first design and the performance budgets. Prerendered pages contain
+  Next's inline RSC payload scripts, so they need `'unsafe-inline'` for scripts; every other directive is strict
+  (`object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`, no `unsafe-eval`, host
+  allow-lists). The XSS surface is small: all content renders through React escaping; the only raw HTML is the fixed
+  boot script and JSON-LD. Dynamic sensitive areas (account, admin) use a per-request nonce with `'strict-dynamic'`.
+  **Change:** `lib/security/csp.ts`, `next.config.ts`, `proxy.ts`.
+
+### D-026 · Attribution is first-party and necessary; funnel analytics are anonymous without analytics consent
+- **Attribution** (UTM, click ids, referrer host, landing path, creator code) is stored in two first-party httpOnly
+  cookies (`ew_ft` first touch, `ew_lt` last touch; 90 days; no personal data) and attached only to the student's own
+  enquiry so it is credited correctly — not used to follow people across sites. **Funnel counters** for the admin are
+  recorded without any identifier unless analytics consent is given (then a tab-scoped random id in sessionStorage).
+  GA4/Clarity need analytics consent, Meta Pixel needs marketing consent. **Change:** `lib/attribution.ts`,
+  `lib/client/analytics.ts`, Cookie Policy update proposal (Phase 6).
+
+### D-027 · The website reads its Supabase key from `SUPABASE_SECRET_KEY`
+- **Why:** this build environment pre-sets `SUPABASE_SERVICE_ROLE_KEY` to the **B2B staging** project's service key;
+  process variables override `.env.local`, so a generic name could silently point the website at another product's
+  project. A website-specific name (Supabase's current term for the key) prevents that everywhere.

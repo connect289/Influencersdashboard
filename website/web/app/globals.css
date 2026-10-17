@@ -548,3 +548,12 @@
     height: auto;
   }
 }
+
+/* ---------- Phone menu (native popover) ---------- */
+.site-menu { inset: 0 0 0 auto; border: none; border-left: 1px solid var(--border); }
+.site-menu::backdrop { background: rgb(2 6 13 / 0.55); backdrop-filter: blur(3px); }
+@supports (transition-behavior: allow-discrete) {
+  .site-menu { transition: translate var(--dur-slow) var(--ease-out-expo), display var(--dur-slow) allow-discrete, overlay var(--dur-slow) allow-discrete; translate: 100% 0; }
+  .site-menu:popover-open { translate: 0 0; }
+  @starting-style { .site-menu:popover-open { translate: 100% 0; } }
+}

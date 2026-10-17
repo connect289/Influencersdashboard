@@ -15,7 +15,7 @@ Status: ☐ needed · ◐ partly · ☑ done
 | # | Item | Env vars | Mock until then | Status |
 |---|---|---|---|---|
 | S-10 | Vercel project (root dir `website/web`, region `bom1`) | — | local only | ☐ |
-| S-11 | Supabase service-role key for production (set only at go-live) | `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | local stack | ☐ |
+| S-11 | Supabase service-role key for production (set only at go-live) | `SUPABASE_SECRET_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | local stack | ☐ |
 | S-12 | Transactional email provider for verification codes and confirmations (sender e.g. `no-reply@eduwit.in`, SPF/DKIM/DMARC) | `EMAIL_PROVIDER` (`smtp`/`resend`), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `RESEND_API_KEY` | Mailpit locally; console log otherwise | ☐ |
 | S-13 | Cloudflare Turnstile site key and secret | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Turnstile test keys (always pass) | ☐ |
 | S-14 | Anthropic API key for Witty on the website | `ANTHROPIC_API_KEY` | scripted mock agent | ☐ |
