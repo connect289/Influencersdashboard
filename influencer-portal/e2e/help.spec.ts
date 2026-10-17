@@ -15,7 +15,7 @@ test.describe("in-app guides", () => {
     await expect(
       page.getByRole("link", { name: /Influencer Manager: creators, campaigns, deals and contracts/ }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: /Finance: KYC, tax settings and payouts/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Finance: KYC, tax, ledger and payouts/ })).toBeVisible();
     // The developer guide needs system access.
     await expect(page.getByRole("link", { name: /Developer guide/ })).toHaveCount(0);
     await page.goto("/admin/help/developer");

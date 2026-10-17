@@ -174,7 +174,7 @@ export const SUPER_ADMIN: Guide = {
               ["Contracts", "Signing code channels and limits, negotiation reminders, legal-review gate"],
               [
                 "Finance",
-                "Payout cycle, two-person approval, KYC needed for payout, GST rate and SAC, bank export columns",
+                "Payout cycle, two-person approval, KYC needed for payout, minimum payout, agency-payee handling, GST rate and SAC, bank export columns, reconciliation flag",
               ],
               ["Creators", "Dormancy, auto-approval of sign-ups, course pass mark, KYC required to submit onboarding"],
               [
@@ -557,6 +557,22 @@ export const INFLUENCER_MANAGER: Guide = {
       ],
     },
     {
+      id: "deal-ledger",
+      title: "A deal's earnings",
+      blocks: [
+        {
+          p: "The **Ledger** tab on a deal shows what the deal has posted for the creator: each fee, milestone, commission, bonus, penalty and clawback with its status, and the totals.",
+        },
+        {
+          list: [
+            "The ledger updates by itself when something changes what the deal earns. **Next run** previews what would change; **Run now** applies it at once.",
+            "**Release** pays a milestone whose trigger is a manual release. **Record a breach** proposes the deal's breach penalties for approval. Both need a reason and cannot be undone.",
+            "Approved penalties appear here as debits. Questions about holds or payouts go to Finance.",
+          ],
+        },
+      ],
+    },
+    {
       id: "leads",
       title: "Leads and attribution",
       blocks: [
@@ -728,8 +744,9 @@ export const CONTENT_REVIEWER: Guide = {
 export const FINANCE: Guide = {
   slug: "finance",
   audience: "finance",
-  title: "Finance: KYC, tax settings and payouts",
-  summary: "Verifying creators' KYC, the TDS and GST set-up, and the ledger and payouts that arrive in Phase 7.",
+  title: "Finance: KYC, tax, ledger and payouts",
+  summary:
+    "Verifying creators' KYC, the TDS and GST set-up, the creator ledger, payout batches, GST invoices, Form 16A and Eduwit's commission receipts.",
   sections: [
     {
       id: "kyc",
@@ -788,15 +805,107 @@ export const FINANCE: Guide = {
       ],
     },
     {
-      id: "coming",
-      title: "Coming with the ledger (Phase 7)",
+      id: "ledger",
+      title: "The creator ledger",
+      blocks: [
+        {
+          p: "[Finance](/admin/finance) lists every ledger line: what each creator has earned and what was deducted or paid. Lines are never edited or deleted; a correction is a new line (a reversal or an adjustment), so the history always adds up.",
+        },
+        {
+          table: {
+            head: ["Status", "Meaning"],
+            rows: [
+              [
+                "Accrued",
+                "Earned under the deal, not yet confirmed (for example commission waiting for Eduwit's own commission)",
+              ],
+              ["Confirmed", "Approved, due on a later date (payment terms or the end of a hold)"],
+              ["Payable", "Due: it goes into the next payout batch"],
+              ["In batch", "Part of a payout batch that is being paid"],
+              ["Paid", "Settled by a payout"],
+              ["Reversed / clawed back", "Cancelled; anything already paid is recovered from later payouts"],
+            ],
+          },
+        },
+        {
+          list: [
+            "Deals post to the ledger by themselves: the compensation engine replays each deal when a lead moves, an enrolment is confirmed, a deliverable goes live, a milestone is released or a penalty is approved, and nightly for dates and holds.",
+            "**Adjustment** posts a credit or a debit for a creator, with a reason and an optional deal and due date.",
+            "**Hold** stops a line (or all of a creator's open lines) from being paid until you release it. Holds need a reason and are audited.",
+            "Filter by status, type or month; open a creator's name to see only their ledger.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "payouts",
+      title: "Payout batches",
+      blocks: [
+        {
+          steps: [
+            "Open [Payouts](/admin/finance/payouts) and **Prepare batch**. Every creator with payable lines becomes a payout: gross, TDS per section (with the financial-year threshold catch-up), GST for creators with a verified GSTIN, and the net amount.",
+            "Creators who cannot be paid yet are listed as skipped with the reason: KYC not verified, below the minimum payout, waiting for tax confirmation, or a contract that names an agency as payee. Debits net against credits; a negative total is carried forward.",
+            "Remove any payout you don't want in this run (its lines go back to payable).",
+            "**Approve** the batch. With two-person approval on (Settings → Finance → Payouts) a second, different person must approve too. Payouts that need a GST invoice must have an accepted invoice first.",
+            "Download the **bank file** and upload it to the bank's bulk payment portal. The file is built when you download it and never stored.",
+            "When the bank confirms, **Mark paid** one payout with its UTR and date, or upload the bank's response file to mark many at once. A failed payment is marked **Failed** and its lines return to payable.",
+          ],
+        },
+        {
+          list: [
+            "Marking paid posts the TDS, GST and payout lines, records TDS for the quarter, and sends the creator a payment advice PDF and a notification.",
+            "A draft or approved batch can be **cancelled** with a reason until it is sent to the bank.",
+            "References: batches `PB-<FY>-0001`, payouts `PO-<FY>-00001`.",
+          ],
+        },
+        {
+          warning:
+            "Bank details are decrypted only to build the bank file, and each download is recorded in the audit log. Never save the file anywhere shared.",
+        },
+      ],
+    },
+    {
+      id: "invoices",
+      title: "GST invoices and payout statements",
       blocks: [
         {
           list: [
-            "The creator ledger: accrued → confirmed → payable → in payout batch → paid, plus reversals, holds and clawbacks.",
-            "Recording Eduwit's commission receipts and reconciliation against accrued commission.",
-            "Payout batches with a gross / TDS / GST / net summary, optional two-person approval, bank bulk-upload export, UTR marking and payment advice PDFs.",
-            "Quarterly TDS summaries and Form 16A uploads for creators to download.",
+            "A creator with a verified GSTIN uploads a tax invoice for each payout from their Earnings page. The portal checks the number, the date, the GSTIN and that the taxable value and GST match the payout (within ₹1).",
+            "Review them in [Invoices](/admin/finance/invoices): open the file, then **Accept**, or **Reject** with a note the creator sees. They can upload again.",
+            "Creators without GST get a payout statement (`PS-…`) instead; there is nothing to review.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "tds",
+      title: "TDS and Form 16A",
+      blocks: [
+        {
+          list: [
+            "TDS is deducted when a payout is paid, using the creator's total for the financial year (so earlier untaxed amounts are caught up when a threshold is crossed).",
+            "[TDS](/admin/finance/tds) shows TDS by quarter and section, per creator, ready for your return.",
+            "After filing, upload each creator's Form 16A for the quarter (PDF). The creator is notified and downloads it from Earnings.",
+          ],
+        },
+        {
+          warning:
+            "When TDS is deducted (at payout rather than when earnings are credited) is a default to confirm with your CA.",
+        },
+      ],
+    },
+    {
+      id: "receipts",
+      title: "Eduwit's commission receipts and reconciliation",
+      blocks: [
+        {
+          p: "Commission that is confirmed \"when Eduwit is paid\" waits for Eduwit's own commission from the university. [Receipts](/admin/finance/receipts) shows each enrolment's receipt as the CRMs record it (B2B enrolments and B2C enrolment money), with the creator commission waiting on it.",
+        },
+        {
+          list: [
+            "**Record receipt** overrides the CRM for one enrolment (`b2b:<id>` or `b2c:<id>`) with a reason, for example a payment the CRM does not show yet. Withdraw the override to go back to the CRM's figures.",
+            "A received commission confirms the creator lines waiting on it; a reversal claws them back.",
+            "Lines still waiting after the reconciliation period (90 days by default, Settings → Finance) are flagged for follow-up.",
           ],
         },
       ],

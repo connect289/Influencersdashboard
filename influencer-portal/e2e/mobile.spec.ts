@@ -19,3 +19,14 @@ test("admin console on a phone opens the menu", async ({ page }) => {
   await page.getByRole("button", { name: "Open menu" }).click();
   await expect(page.getByRole("dialog").getByRole("link", { name: "Overview" })).toBeVisible();
 });
+
+test("earnings on a phone fit the screen and list entries as cards", async ({ page }) => {
+  await creatorLogin(page, "riya.creator@example.test");
+  await page.getByRole("navigation", { name: "Main navigation" }).last().getByRole("button", { name: "More" }).click();
+  await page.getByRole("dialog").getByRole("link", { name: "Earnings" }).click();
+  await expect(page).toHaveURL(/\/creator\/earnings/);
+  await expect(page.getByRole("group", { name: "Due to you", exact: true })).toBeVisible();
+  await expect(page.getByText("Signing fee (demo)").filter({ visible: true }).first()).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});

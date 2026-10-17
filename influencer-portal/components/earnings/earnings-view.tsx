@@ -18,7 +18,7 @@ const ENTRY_LIMIT = 100;
 
 function Tile({ label, paise, hint, strong }: { label: string; paise: number; hint?: string; strong?: boolean }) {
   return (
-    <div className="rounded-xl border border-line bg-surface p-3">
+    <div role="group" aria-label={label} className="rounded-xl border border-line bg-surface p-3">
       <p className="text-xs text-muted">{label}</p>
       <p className={strong ? "text-xl font-semibold tabular-nums" : "text-lg font-medium tabular-nums"}>
         {formatPaise(paise)}

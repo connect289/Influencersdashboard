@@ -150,6 +150,22 @@ export const DEVELOPER: Guide = {
       ],
     },
     {
+      id: "ledger",
+      title: "Ledger and payouts",
+      blocks: [
+        {
+          list: [
+            "Pure modules in `lib/ledger`: `facts.ts` (deal facts → engine events), `plan.ts` (engine output vs posted lines → new, confirm and reverse operations), `lifecycle.ts` (`statusOf`, mirrored by `inf.ledger_status_of`; the generated test `020_ledger_status_matrix.sql` keeps them in step), `payout.ts` and `prepare.ts` (gross, TDS with FY catch-up, GST, net, skip reasons), `bank-file.ts`, `utr.ts`, `invoice.ts`, `earnings.ts` and `reconcile.ts`. All are unit-tested.",
+            "The runner (`runner-core.ts`) loads `inf.ledger_facts`, runs the compensation engine, plans and applies through `inf.ledger_apply`. Domain events enqueue `ledger.run` per deal (debounced per minute); `inf.ledger_nightly` handles dates and holds.",
+            "`inf.ledger_entries` is append-only: a guard trigger refuses changes to amounts; status, confirmed, paid and holds change only inside writer functions (`inf.ledger_writer_on()` / `inf.ledger_writer_restore()`).",
+            "Payouts: `inf.payout_batch_create`, `payout_batch_approve` (distinct second approver), `payout_bank_rows` (audited decryption; the file is streamed, never stored), `payouts_mark_paid` (settlement lines, TDS records, `payout.advice` job, notification).",
+            "Enrolment receipts come from `public.enrollments` (B2B) and `public.b2c_enrollment_money_v` (B2C) via `inf.commission_receipts_sync`, called after the lead sweep; manual overrides win unless withdrawn.",
+            "Files: GST invoices in `inf-invoices`, advice and Form 16A in `inf-documents`; downloads go through `/api/finance/file` after `inf.finance_file_allowed`.",
+          ],
+        },
+      ],
+    },
+    {
       id: "jobs",
       title: "Background jobs and notifications",
       blocks: [

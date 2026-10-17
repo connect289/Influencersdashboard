@@ -94,7 +94,7 @@ export const CREATOR: Guide = {
           ],
         },
         {
-          tip: "The simulator is an estimate for planning. Your earnings statements (coming soon) show what you actually earn.",
+          tip: "The simulator is an estimate for planning. [Earnings](/creator/earnings) shows what you actually earn.",
         },
       ],
     },
@@ -213,6 +213,35 @@ export const CREATOR: Guide = {
       ],
     },
     {
+      id: "earnings",
+      title: "Your earnings and payouts",
+      blocks: [
+        {
+          p: "[Earnings](/creator/earnings) shows what you have earned and when it will be paid.",
+        },
+        {
+          table: {
+            head: ["Total", "Meaning"],
+            rows: [
+              ["Pending", "Earned, waiting for confirmation (for example until Eduwit receives its commission)"],
+              ["Confirmed", "Approved, due on a later date"],
+              ["Due to you", "Goes out in the next payout run"],
+              ["Paid", "Already paid to your bank account (before TDS)"],
+            ],
+          },
+        },
+        {
+          list: [
+            "**By deal** shows what each deal has earned, net of any penalties or clawbacks. The earning status of each lead is in [Leads](/creator/leads).",
+            "Each payout shows the gross amount, TDS and GST deducted or added, and the net paid. When it is paid you get a notification and a **payment advice** PDF with the bank reference (UTR).",
+            "If you are GST-registered, **upload your GST invoice** for each payout: raise it to Eduwit for the taxable value and GST shown, then upload the PDF or photo. Payment waits for it. If Eduwit can't accept it, you'll see why and can upload again.",
+            "Download a **monthly statement** PDF for any month: opening balance, every line and closing balance.",
+            "Payouts need a verified KYC. If anything is held, Eduwit's Finance team will tell you why.",
+          ],
+        },
+      ],
+    },
+    {
       id: "tax",
       title: "Tax on your earnings",
       blocks: [
@@ -220,7 +249,7 @@ export const CREATOR: Guide = {
           list: [
             "Eduwit deducts TDS as the law requires, for example 2% on commission and 10% on fees once your yearly total passes the threshold. Without a verified PAN the rate is 20%, so complete your KYC.",
             "If you are GST-registered with a verified GSTIN, GST is added to your payout and you upload a tax invoice.",
-            "TDS certificates (Form 16A) will be available to download from your earnings pages.",
+            "Your TDS certificates (Form 16A) appear in [Earnings](/creator/earnings) each quarter once Eduwit has filed its return.",
           ],
         },
       ],
@@ -314,7 +343,7 @@ export const AGENCY: Guide = {
                 "Negotiate and sign",
                 "Answer invitations, apply to campaigns, counter-offer, accept or decline deal terms, negotiate and sign contracts",
               ],
-              ["View earnings", "See their deals and earnings"],
+              ["View earnings", "See their deals, earnings, payouts and statements (never bank details)"],
             ],
           },
         },
@@ -347,6 +376,21 @@ export const AGENCY: Guide = {
           list: [
             "With the negotiate and sign permission you can make tracking links and QR codes for the creator's deals.",
             "Leads are credited to the creator, never to the agency.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "earnings",
+      title: "A creator's earnings",
+      blocks: [
+        {
+          p: "With the view earnings permission, open a creator from [Your creators](/agency) and choose **Open earnings**. You see what they see: totals, payouts, earnings by deal, monthly statements and TDS certificates.",
+        },
+        {
+          list: [
+            "Only the creator can upload their GST invoice; the page tells you when a payout is waiting for one.",
+            "Payouts go to the creator's own bank account. If a contract names your agency as payee, Eduwit's Finance team arranges that payment separately.",
           ],
         },
       ],

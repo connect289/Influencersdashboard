@@ -2,15 +2,20 @@
 // Usage: npm run seed            (reads .env.local; idempotent: safe to run again)
 // Creates staff for every role, creators in several states (synthetic people, @example.test addresses), platform
 // terms, a few notifications and jobs, and a demo deal with its contract, brief and deliverables. Later phases extend
-// it with leads (Phase 6: demo links and synthetic test leads, attributed by the real sweep) and ledger history.
+// it with leads (Phase 6: demo links and synthetic test leads, attributed by the real sweep) and ledger history
+// (Phase 7: Riya's verified KYC, ledger lines and one paid payout, made through the same database functions Finance uses).
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import pg from "pg";
 import { briefTemplateContent, buildBrief } from "@/lib/content/brief";
 import { planDeliverables } from "@/lib/content/plan";
 import { buildVersion, contractSource, templateSource } from "@/lib/contracts/build";
 import { syncBatchWith } from "@/lib/attribution/sync-core";
+import { DEFAULT_TDS_SECTIONS } from "@/lib/compensation/tax";
 import type { Database } from "@/lib/database.types";
+import { buildPayout } from "@/lib/ledger/payout";
 
 function loadEnv(): Record<string, string> {
   const out: Record<string, string> = {};
@@ -137,6 +142,159 @@ async function authUser(email: string, password: string | null, fullName: string
   });
   if (created.error) throw new Error(`createUser ${email}: ${created.error.message}`);
   return created.data.user.id;
+}
+
+// Finance steps run as real staff (a verified session and the JWT claims PostgREST would set) over a direct connection
+// to the local database, so the seed goes through the same permission checks and functions as the app.
+const dbPort = /\[db\][^[]*?\nport = (\d+)/.exec(
+  readFileSync(join(process.cwd(), "supabase", "config.toml"), "utf8"),
+)?.[1];
+const localDbUrl = `postgresql://postgres:postgres@${new URL(url).hostname}:${dbPort ?? "54422"}/postgres`;
+
+async function asStaff<T>(sql: pg.Client, email: string, fn: () => Promise<T>): Promise<T> {
+  await sql.query("begin");
+  try {
+    const u = await sql.query<{ user_id: string }>("select user_id from inf.staff_profiles where email = $1", [email]);
+    const uid = u.rows[0]?.user_id;
+    if (!uid) throw new Error(`no staff ${email}`);
+    const sid = randomUUID();
+    await sql.query(
+      "insert into inf.user_sessions (session_id, user_id, kind, verified_at, verified_via) values ($1, $2, 'staff', now(), 'email_code')",
+      [sid, uid],
+    );
+    const claims = {
+      sub: uid,
+      role: "authenticated",
+      session_id: sid,
+      email,
+      amr: [{ method: "password", timestamp: Math.floor(Date.now() / 1000) }],
+    };
+    await sql.query("select set_config('request.jwt.claims', $1, true), set_config('role', 'authenticated', true)", [
+      JSON.stringify(claims),
+    ]);
+    const r = await fn();
+    await sql.query("commit");
+    return r;
+  } catch (e) {
+    await sql.query("rollback");
+    throw e;
+  }
+}
+
+async function seedFinance(creatorId: string, dealId: string) {
+  const sql = new pg.Client({ connectionString: localDbUrl });
+  await sql.connect();
+  try {
+    const have = await sql.query("select 1 from inf.ledger_entries where creator_id = $1 limit 1", [creatorId]);
+    if (have.rowCount) return;
+    await asStaff(sql, "finance@example.test", async () => {
+      const saved = await sql.query<{ r: { ok: boolean; error?: string } }>(
+        "select inf.kyc_save($1, 'ABCPS1234K', 'Riya Sharma', 'unregistered', null, '50100123456789', 'HDFC0001234', 'Riya Sharma') as r",
+        [creatorId],
+      );
+      if (!saved.rows[0]?.r.ok) throw new Error(`kyc: ${saved.rows[0]?.r.error ?? "failed"}`);
+      await sql.query("select inf.kyc_verify($1, true, '', false)", [creatorId]);
+    });
+    // Demo ledger lines (posted as manual lines, so the deal's own engine run never touches them).
+    const today = new Date(Date.now() + 330 * 60_000);
+    const day = (n: number) => new Date(today.getTime() + n * 86_400_000).toISOString().slice(0, 10);
+    const lines = [
+      {
+        key: "signing",
+        type: "milestone",
+        amount: 60_000_00,
+        confirmed: 60_000_00,
+        due: day(-20),
+        note: "Signing fee",
+      },
+      {
+        key: "reel",
+        type: "milestone",
+        amount: 10_000_00,
+        confirmed: 10_000_00,
+        due: day(-2),
+        note: "Launch reel live",
+      },
+      {
+        key: "usage",
+        type: "usage_fee",
+        amount: 5_000_00,
+        confirmed: 5_000_00,
+        due: day(25),
+        note: "Usage rights (90 days)",
+      },
+      {
+        key: "commission",
+        type: "commission",
+        amount: 4_000_00,
+        confirmed: 0,
+        due: day(30),
+        note: "Enrolment commission",
+      },
+    ];
+    const ids: Record<string, number> = {};
+    for (const l of lines) {
+      const r = await sql.query<{ id: string }>("select inf.ledger_post($1) as id", [
+        {
+          creator_id: creatorId,
+          deal_id: dealId,
+          type: l.type,
+          direction: "credit",
+          amount_paise: l.amount,
+          confirmed_paise: l.confirmed,
+          source: "adjustment",
+          event_key: `seed:${creatorId}:${l.key}`,
+          rule_id: "manual",
+          tds_component: l.type,
+          due_on: l.due,
+          note: `${l.note} (demo)`,
+        },
+      ]);
+      ids[l.key] = Number(r.rows[0]?.id);
+    }
+    // One payout for the signing fee, run end to end: prepared, approved by two people, exported and marked paid.
+    const plan = buildPayout({
+      entries: [
+        {
+          id: ids.signing ?? 0,
+          type: "milestone",
+          direction: "credit",
+          remaining_paise: 60_000_00,
+          tds_component: "milestone",
+        },
+      ],
+      profile: { kyc_verified: true, has_pan: true, charges_gst: false, agency_payee: false },
+      rules: {
+        kyc_required: true,
+        min_payout_paise: 0,
+        gst_rate_bps: 1800,
+        require_invoice: true,
+        hold_until_tax_confirmed: false,
+        sections_confirmed: true,
+        sections: DEFAULT_TDS_SECTIONS,
+      },
+      fy_prior: {},
+    });
+    if (!plan.ok) throw new Error(`payout: ${plan.reason}`);
+    const batch = await asStaff(sql, "finance@example.test", async () => {
+      const b = await sql.query<{ id: string }>("select inf.payout_batch_create($1) as id", [
+        { note: "Demo payout run", filters: {}, payouts: [{ creator_id: creatorId, ...plan.payout }] },
+      ]);
+      const id = b.rows[0]?.id ?? "";
+      await sql.query("select inf.payout_batch_approve($1)", [id]);
+      return id;
+    });
+    await asStaff(sql, "admin@example.test", () => sql.query("select inf.payout_batch_approve($1)", [batch]));
+    await asStaff(sql, "finance@example.test", async () => {
+      await sql.query("select inf.payout_bank_rows($1)", [batch]);
+      const ref = await sql.query<{ ref: string }>("select ref from inf.payouts where batch_id = $1", [batch]);
+      await sql.query("select inf.payouts_mark_paid($1)", [
+        JSON.stringify([{ payout_ref: ref.rows[0]?.ref, utr: "HDFCN26101700001", paid_on: day(-1) }]),
+      ]);
+    });
+  } finally {
+    await sql.end();
+  }
 }
 
 async function main() {
@@ -577,6 +735,8 @@ async function main() {
     }
     await syncBatchWith(db, { lead_ids: ids }, "backfill");
   }
+
+  if (riya.data && demo.data) await seedFinance(riya.data.id, demo.data.id);
 
   const terms = await db.from("terms_versions").select("kind");
   const have = new Set((terms.data ?? []).map((t) => t.kind));
