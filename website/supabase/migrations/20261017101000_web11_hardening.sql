@@ -168,3 +168,24 @@ begin
   return jsonb_build_object('phone', p_attempt.phone_e164, 'source_system', 'web_agent', 'event_type', p_event,
     'lead', v_lead, 'attribution', a, 'is_test', p_attempt.is_test, 'occurred_at', now());
 end $$;
+
+-- Staff management in the admin (super admins only): the allow-list of staff emails and roles. Rows are deactivated,
+-- never deleted (audit). The last active super admin cannot be demoted or deactivated.
+create or replace function public.web_admin_users_keep_super()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  new.email := lower(btrim(new.email));
+  if tg_op = 'UPDATE' and old.role = 'super_admin' and old.active and not (new.role = 'super_admin' and new.active)
+     and not exists (select 1 from public.web_admin_users u where u.email <> old.email and u.role = 'super_admin' and u.active) then
+    raise exception 'the last active super admin cannot be demoted or deactivated';
+  end if;
+  return new;
+end $$;
+revoke all on function public.web_admin_users_keep_super() from public, anon, authenticated;
+drop trigger if exists web_admin_users_keep_super on public.web_admin_users;
+create trigger web_admin_users_keep_super before insert or update on public.web_admin_users
+  for each row execute function public.web_admin_users_keep_super();
+
+insert into public.web_admin_entities (entity, tbl, key_cols, cols, min_role, tags, can_delete, order_by)
+values ('staff', 'web_admin_users', '{email}', '{email,role,display_name,active}', 'super_admin', '{}', false, 'email')
+on conflict (entity) do nothing;

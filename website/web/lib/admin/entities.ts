@@ -260,6 +260,23 @@ export const ENTITIES: EntityConfig[] = [
     ],
   },
   {
+    entity: "staff",
+    label: "Staff",
+    singular: "staff member",
+    description:
+      "Who may sign in to this admin and with which role (D-067). Deactivate instead of deleting; the last active super admin cannot be demoted. New staff sign in with Google or email, then an emailed code.",
+    minRole: "super_admin",
+    key: ["email"],
+    listColumns: ["email", "role", "display_name", "active"],
+    canDelete: false,
+    fields: [
+      { name: "email", label: "Email", type: "text", required: true, key: true, help: "Their work email (Google or Supabase sign-in)" },
+      { name: "role", label: "Role", type: "select", options: ["viewer", "content_editor", "super_admin"], required: true },
+      { name: "display_name", label: "Name", type: "text" },
+      { name: "active", label: "Active", type: "bool" },
+    ],
+  },
+  {
     entity: "keywords",
     label: "SEO keywords",
     singular: "keyword",

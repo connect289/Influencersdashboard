@@ -31,6 +31,23 @@ insert into r select public.web_admin_advisor_insights(30) ? 'thumbs_down', 'adv
 insert into r select public.web_admin_outbox(null, 10) ? 'counts', 'outbox monitor';
 insert into r select jsonb_array_length(public.web_admin_audit(null, 5)) > 0, 'audit log readable';
 
+-- web11: staff management; the last active super admin cannot be demoted or deactivated.
+create temp table st on commit drop as
+  select public.web_admin_save('staff', '{"email":"New.Editor@Eduwit.in","role":"content_editor","active":true}', null, 'connect@eduwit.in', 'super_admin') as res;
+insert into r select ((select res from st) ->> 'ok')::boolean
+  and exists (select 1 from public.web_admin_users where email = 'new.editor@eduwit.in' and role = 'content_editor'), 'super admin adds staff (email lower-cased)';
+insert into r select coalesce((public.web_admin_save('staff', '{"email":"x@eduwit.in","role":"super_admin"}', null, 'ed@eduwit.in', 'content_editor') ->> 'ok')::boolean, false) = false, 'editors cannot manage staff';
+update public.web_admin_users set active = false where role = 'super_admin' and email <> 'connect@eduwit.in';
+insert into r select not exists (select 1 from public.web_admin_users where role = 'super_admin' and active and email <> 'connect@eduwit.in')
+  and (select count(*) from public.web_admin_users where role = 'super_admin' and active) = 1, 'one active super admin left';
+do $$ begin
+  begin
+    update public.web_admin_users set role = 'viewer' where email = 'connect@eduwit.in';
+    insert into r values (false, 'last super admin demotion refused');
+  exception when others then insert into r values (sqlerrm like '%last active super admin%', 'last super admin demotion refused');
+  end;
+end $$;
+
 do $$ begin
   if exists (select 1 from r where not ok) then
     raise exception 'FAILED (%): %', (select count(*) from r where not ok), (select string_agg(name, ' | ') from r where not ok);

@@ -137,4 +137,5 @@ begin
   end if;
   return jsonb_build_object('lead_id', v_id, 'action', v_action, 'phone', v_phone, 'stage', v_row.stage,
                             'is_sales_ready', v_row.is_sales_ready, 'is_test', v_row.is_test, 'crm_owned', w2_crm_owned(v_phone));
-end $function$;
+end $function$
+;
