@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Heart, Loader2 } from "lucide-react";
 import { saved, useSaved } from "@/lib/client/saved-store";
 import type { OfferingCard } from "@/lib/search/types";
 import { setOfferingParam } from "@/lib/client/use-finder";
-import { OfferingPanel } from "./OfferingPanel";
+import { PanelHost } from "./PanelHost";
 import { OfferingResult } from "./OfferingResult";
 
 /** Anonymous shortlist from this device (spec 6.5); synced to the account after sign-in (Phase 7). */
@@ -61,7 +61,9 @@ export function ShortlistView({ advisorEnabled, whatsapp }: { advisorEnabled: bo
           <OfferingResult key={o.id} o={o} onOpen={(x) => setOfferingParam(x.id, "push")} showProgramme />
         ))}
       </ul>
-      <OfferingPanel advisorEnabled={advisorEnabled} whatsapp={whatsapp} />
+      <Suspense>
+        <PanelHost advisorEnabled={advisorEnabled} whatsapp={whatsapp} goals={[]} />
+      </Suspense>
     </div>
   );
 }

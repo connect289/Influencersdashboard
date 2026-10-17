@@ -30,7 +30,7 @@ export function ConsentBanner() {
           <p className="text-text">
             We use necessary cookies to run this site. With your permission we also use analytics (to improve the site)
             and marketing cookies (to measure our ads). See our{" "}
-            <Link href="/legal/cookie-policy" className="text-accent font-medium underline-offset-4 hover:underline">
+            <Link href="/legal/cookie-policy" className="text-accent font-medium underline underline-offset-4">
               Cookie Policy
             </Link>
             .

@@ -371,7 +371,7 @@ insert into public.web_tax_goal_tags (id, label, description, sort) values
   ('career-switch', 'Switch my career', 'Programmes that open a new field, such as management, analytics or technology', 20),
   ('promotion', 'Grow in my current job', 'Postgraduate programmes for a promotion or a bigger role', 30),
   ('upskill-while-working', 'Learn while I work', 'Flexible programmes designed around a job', 40),
-  ('government-job-eligibility', 'Meet degree requirements for government jobs', 'Degrees from UGC-entitled universities; always check the specific recruitment rules', 50),
+  ('government-job-eligibility', 'Meet degree requirements for government jobs', 'Degree programmes; check the university''s UGC-DEB status and the specific recruitment rules', 50),
   ('higher-studies', 'Prepare for higher studies', 'Degrees that lead on to a master''s or further study', 60),
   ('start-a-business', 'Start or grow a business', 'Management and entrepreneurship programmes', 70)
 on conflict (id) do nothing;

@@ -37,7 +37,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     description:
       result.total > 0
         ? `Compare ${result.total} ${heading === "Find your programme" ? "online and distance" : heading} options from ${result.facets.university.filter((u) => u.count > 0).length} universities: full fees, duration, approvals and eligibility.`
-        : "Search online and distance programmes from UGC-entitled universities by fee, duration, approvals and eligibility.",
+        : "Search online and distance programmes by full fee, duration, approvals and eligibility.",
     alternates: { canonical: canonicalQuery ? `/programmes?${canonicalQuery}` : "/programmes" },
     robots: index ? undefined : { index: false, follow: true },
   };

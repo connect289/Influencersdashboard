@@ -38,9 +38,15 @@ export function useFinderNavigation(params: FinderParams, basePath?: string) {
 
 /** Opens/closes the offering panel via `?offering=` without a server round trip (shareable, Back closes it). */
 export function setOfferingParam(id: number | null, mode: "push" | "replace" = "push") {
+  setPanelParam("offering", id === null ? null : String(id), mode);
+}
+
+/** Opens/closes a panel (`offering` or programme `group`) via the URL; only one panel is open at a time. */
+export function setPanelParam(kind: "offering" | "group", value: string | null, mode: "push" | "replace" = "push") {
   const url = new URL(window.location.href);
-  if (id === null) url.searchParams.delete("offering");
-  else url.searchParams.set("offering", String(id));
+  url.searchParams.delete("offering");
+  url.searchParams.delete("group");
+  if (value !== null) url.searchParams.set(kind, value);
   const next = url.pathname + (url.search ? url.search : "");
   if (mode === "push") window.history.pushState(null, "", next);
   else window.history.replaceState(null, "", next);

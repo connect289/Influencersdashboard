@@ -14,8 +14,14 @@ import { MIN_QUALIFICATION_LABEL } from "@/lib/finder/eligibility";
 import { formatDate, formatDuration, formatInr } from "@/lib/format";
 import { ATTRIBUTE_LABEL, FORMAT_LABEL, UGC_LABEL } from "@/lib/search/labels";
 import type { OfferingDetails } from "@/lib/search/types";
+import dynamic from "next/dynamic";
 import { AskWitty } from "./AskWitty";
 import { EligibilityBadge, ShortlistCompareButtons } from "./OfferingResult";
+
+const ApplicationForm = dynamic(() => import("@/components/forms/ApplicationForm").then((m) => m.ApplicationForm), {
+  ssr: false,
+  loading: () => <p className="text-muted text-sm">Loading the form…</p>,
+});
 
 function Fact({ label, children, note }: { label: string; children: React.ReactNode; note?: string }) {
   return (
@@ -42,7 +48,7 @@ function Explain({ title, body }: { title: string; body: string }) {
  * Offering detail panel (spec 6.6): right drawer on desktop, full-screen sheet on mobile, deep-linkable with
  * `?offering=<id>`, closes back to the same results. Shows only what the catalogue has — missing fields don't appear.
  */
-export function OfferingPanel({ qual, advisorEnabled, whatsapp }: { qual?: string; advisorEnabled: boolean; whatsapp: string }) {
+export function OfferingPanel({ qual, advisorEnabled, whatsapp, goals = [] }: { qual?: string; advisorEnabled: boolean; whatsapp: string; goals?: { value: string; label: string }[] }) {
   const sp = useSearchParams();
   const id = Number(sp.get("offering")) || null;
   const [res, setRes] = useState<{ id: number; data: OfferingDetails | null; status: "ok" | "error" | "missing" } | null>(null);
@@ -122,7 +128,9 @@ export function OfferingPanel({ qual, advisorEnabled, whatsapp }: { qual?: strin
                 <p className="text-muted mt-1 text-sm">
                   {[d.fee.yearly ? `${formatInr(d.fee.yearly)} per year` : null, d.fee.semester ? `${formatInr(d.fee.semester)} per semester` : null].filter(Boolean).join(" · ")}
                 </p>
-                <p className="text-amber-text mt-2 text-sm font-medium">Easy EMI available</p>
+                <p className="text-amber-text mt-2 text-sm font-medium">
+                  {d.fee.emi_monthly ? `Easy EMI from ${formatInr(d.fee.emi_monthly)}/month` : "Easy EMI available"}
+                </p>
                 {d.fee_registration || d.fee_exam || d.fee_lines?.length ? (
                   <details className="mt-3">
                     <summary className="text-accent cursor-pointer text-sm font-medium">Fee breakdown</summary>
@@ -254,11 +262,14 @@ export function OfferingPanel({ qual, advisorEnabled, whatsapp }: { qual?: strin
           ) : null}
 
           <section id="apply" aria-labelledby="apply-h" className="glass scroll-mt-4 rounded-[var(--radius-xl)] p-4">
-            <h3 id="apply-h" className="font-display text-text text-lg font-semibold">Apply or ask a question</h3>
-            <p className="text-muted mt-1 text-sm">A counsellor will help you check eligibility, fees and the next intake.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <AskWitty enabled={advisorEnabled} whatsapp={whatsapp} question={`${d.programme_name} ${d.spec_name} at ${d.university.name}`} variant="primary">
-                {advisorEnabled ? "Ask Witty about this programme" : "Talk to a counsellor"}
+            <h3 id="apply-h" className="font-display text-text text-lg font-semibold">Apply for this programme</h3>
+            <p className="text-muted mt-1 mb-4 text-sm">
+              A pre-application: a counsellor checks your eligibility and helps you complete the university&apos;s application.
+            </p>
+            <ApplicationForm key={d.id} target={{ kind: "offering", offering: d }} goals={goals} whatsapp={whatsapp} />
+            <div className="border-border mt-4 border-t pt-3">
+              <AskWitty enabled={advisorEnabled} whatsapp={whatsapp} question={`${d.programme_name} ${d.spec_name} at ${d.university.name}`} variant="link">
+                {advisorEnabled ? "Ask Witty about this programme" : "Prefer to talk? Message a counsellor"}
               </AskWitty>
             </div>
           </section>

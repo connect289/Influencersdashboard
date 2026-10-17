@@ -85,7 +85,7 @@ export function CompareTable({ items, advisorEnabled, whatsapp }: { items: Offer
                   <p className="text-text mt-2 font-semibold">{o.programme_name} · {o.spec_name}</p>
                   <p className="text-muted">{o.university.name}</p>
                   <Link href={`/programmes?offering=${o.id}`} className="text-accent mt-1 inline-block text-xs font-medium hover:underline">
-                    View details
+                    Details and apply
                   </Link>
                 </th>
               ))}

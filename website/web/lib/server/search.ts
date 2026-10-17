@@ -125,3 +125,30 @@ export async function logSearch(entry: { q?: string; filters: Record<string, unk
     log("warn", "search.log_failed", errorFields(err));
   }
 }
+
+export interface CuratedView {
+  slug: string;
+  title: string;
+  h1: string | null;
+  intro: string | null;
+  filters: Record<string, unknown>;
+  faqs: { q: string; a: string }[];
+  seo_description: string | null;
+  updated_at: string;
+}
+
+export async function curatedView(slug: string): Promise<CuratedView | null> {
+  "use cache";
+  cacheLife({ stale: 60, revalidate: 300, expire: 3600 });
+  cacheTag("content", `curated:${slug}`);
+  if (!dbConfigured() || !/^[a-z0-9-]{1,80}$/.test(slug)) return null;
+  return rpc<CuratedView | null>("web_curated_view", { p_slug: slug });
+}
+
+export async function curatedViews(): Promise<{ slug: string; title: string; filters: Record<string, unknown>; updated_at: string }[]> {
+  "use cache";
+  cacheLife({ stale: 60, revalidate: 300, expire: 3600 });
+  cacheTag("content");
+  if (!dbConfigured()) return [];
+  return rpc("web_curated_views_list");
+}

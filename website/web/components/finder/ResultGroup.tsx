@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { formatCount, formatDuration, formatInrRange } from "@/lib/format";
 import { toQueryString, type FinderParams } from "@/lib/search/state";
 import type { OfferingCard, ProgrammeGroup, SearchResult } from "@/lib/search/types";
+import { setPanelParam } from "@/lib/client/use-finder";
 import { cn } from "@/lib/utils";
 import { OfferingResult } from "./OfferingResult";
 import { UniversityMark } from "./UniversityMark";
@@ -20,7 +21,7 @@ function durationRange(min?: number, max?: number) {
  * best NAAC, "Easy EMI available", top three universities; expands to one row per university, loaded on demand with
  * the current filters applied.
  */
-export function ResultGroup({ g, params, onOpen }: { g: ProgrammeGroup; params: FinderParams; onOpen: (o: OfferingCard) => void }) {
+export function ResultGroup({ g, params, onOpen, singleUniversity }: { g: ProgrammeGroup; params: FinderParams; onOpen: (o: OfferingCard) => void; singleUniversity?: boolean }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<OfferingCard[] | null>(g.items ?? null);
   const [loading, setLoading] = useState(false);
@@ -67,9 +68,9 @@ export function ResultGroup({ g, params, onOpen }: { g: ProgrammeGroup; params: 
               <span className="text-muted">Fee on request</span>
             )}
             {dur ? <span className="text-muted">· {dur}</span> : null}
-            {g.best_naac ? <Badge tone="verified">Up to NAAC {g.best_naac}</Badge> : null}
+            {g.best_naac && !singleUniversity ? <Badge tone="verified">Up to NAAC {g.best_naac}</Badge> : null}
           </div>
-          <div className="text-muted mt-3 flex flex-wrap items-center gap-2 text-sm">
+          <div className={cn("text-muted mt-3 flex flex-wrap items-center gap-2 text-sm", singleUniversity && "hidden")}>
             <span className="flex -space-x-2">
               {(g.top_universities ?? []).map((u) => (
                 <UniversityMark key={u.slug} name={u.name} short={u.short} logo={u.logo} />
@@ -92,6 +93,19 @@ export function ResultGroup({ g, params, onOpen }: { g: ProgrammeGroup; params: 
         </span>
       </button>
       <div id={`${domId}-list`} hidden={!open} className="border-border border-t px-2 py-2">
+        <div className="flex justify-end px-3 pt-1">
+          <a
+            href={`?group=${encodeURIComponent(g.key)}`}
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey) return;
+              e.preventDefault();
+              setPanelParam("group", g.key);
+            }}
+            className="text-accent text-sm font-medium hover:underline"
+          >
+            Programme overview and apply
+          </a>
+        </div>
         {loading ? (
           <p className="text-muted flex items-center gap-2 px-3 py-4 text-sm" role="status">
             <Loader2 className="size-4 animate-spin" aria-hidden /> Loading universities…

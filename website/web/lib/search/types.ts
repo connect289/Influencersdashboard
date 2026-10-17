@@ -27,7 +27,7 @@ export interface OfferingCard {
   mode?: string;
   format?: string;
   attributes?: Record<string, string | boolean>;
-  fee: { total?: number; yearly?: number; semester?: number; on_request?: boolean };
+  fee: { total?: number; yearly?: number; semester?: number; emi_monthly?: number; on_request?: boolean };
   duration_months?: number;
   naac_grade?: string;
   naac_accredited?: boolean;

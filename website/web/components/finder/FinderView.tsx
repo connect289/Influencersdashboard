@@ -2,12 +2,12 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { Compass, SlidersHorizontal } from "lucide-react";
 import { Chip } from "@/components/ui/Chip";
 import { Odometer } from "@/components/ui/Odometer";
 import { setOfferingParam, useFinderNavigation } from "@/lib/client/use-finder";
+import { useMediaQuery } from "@/lib/client/use-media";
 import { formatCount } from "@/lib/format";
 import { appliedFilters, finderHeading } from "@/lib/search/labels";
 import { activeFilterCount, SORTS, type FinderParams } from "@/lib/search/state";
@@ -19,20 +19,11 @@ import { FacetPanel } from "./FacetPanel";
 import { OfferingResult } from "./OfferingResult";
 import { ResultGroup } from "./ResultGroup";
 import { SearchBox } from "./SearchBox";
+import { PanelHost } from "./PanelHost";
 import { ZeroResults } from "./ZeroResults";
 
 const MobileFilters = dynamic(() => import("./MobileFilters"), { ssr: false });
 const GuidedFinder = dynamic(() => import("./GuidedFinder").then((m) => m.GuidedFinder), { ssr: false });
-const OfferingPanel = dynamic(() => import("./OfferingPanel").then((m) => m.OfferingPanel), { ssr: false });
-
-/** Loads the panel code only when an offering is open (deep link or click). */
-function OfferingPanelHost(props: { qual?: string; advisorEnabled: boolean; whatsapp: string }) {
-  const sp = useSearchParams();
-  const [used, setUsed] = useState(false);
-  if (!used && sp.get("offering")) setUsed(true);
-  return used ? <OfferingPanel {...props} /> : null;
-}
-
 const SORT_LABEL: Record<(typeof SORTS)[number], string> = {
   relevance: "Relevance",
   fee_asc: "Fee: low to high",
@@ -53,6 +44,7 @@ export function FinderView({
   whatsapp,
   basePath = "/programmes",
   intro,
+  heading,
 }: {
   params: FinderParams;
   result: SearchResult;
@@ -60,9 +52,14 @@ export function FinderView({
   whatsapp: string;
   basePath?: string;
   intro?: React.ReactNode;
+  /** Fixed H1 (curated views); otherwise derived from the filters. */
+  heading?: string;
 }) {
   const { go, href, pending, optimistic } = useFinderNavigation(params, basePath);
   const [sheet, setSheet] = useState(false);
+  // The desktop rail is mounted only on wide screens: phones never pay for hydrating it (its column is reserved, so
+  // nothing shifts when it appears).
+  const wide = useMediaQuery("(min-width: 1024px)");
   const [guided, setGuided] = useState(false);
   const chips = appliedFilters(params, result.facets);
   const nFilters = activeFilterCount(params);
@@ -80,7 +77,7 @@ export function FinderView({
           <div>
             <p className="eyebrow">Programme finder</p>
             <h1 className="font-display text-text mt-1 text-3xl leading-tight font-semibold sm:text-4xl">
-              {finderHeading(params, result.facets)}
+              {heading ?? finderHeading(params, result.facets)}
             </h1>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -134,10 +131,15 @@ export function FinderView({
       <div className="grid gap-8 lg:grid-cols-[17.5rem_minmax(0,1fr)]">
         <aside className="hidden lg:block" aria-label="Filters">
           <div className="sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto overscroll-contain pr-2">
-            {/* Separate Suspense boundaries let React hydrate the rail, toolbar and results in separate tasks. */}
-            <Suspense>
+            {wide ? (
               <FacetPanel facets={result.facets} params={optimistic} total={result.total} onChange={(n) => go(n)} />
-            </Suspense>
+            ) : (
+              <div className="grid gap-3" aria-hidden>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div key={i} className="bg-surface h-20 animate-pulse rounded-[var(--radius-lg)]" />
+                ))}
+              </div>
+            )}
           </div>
         </aside>
 
@@ -281,7 +283,9 @@ export function FinderView({
       </div>
 
       <CompareTray />
-      <OfferingPanelHost qual={params.qual} advisorEnabled={advisorEnabled} whatsapp={whatsapp} />
+      <Suspense>
+        <PanelHost qual={params.qual} advisorEnabled={advisorEnabled} whatsapp={whatsapp} goals={result.facets.goal.map((g) => ({ value: g.value, label: g.label }))} />
+      </Suspense>
       {sheet ? (
         <MobileFilters
           open={sheet}

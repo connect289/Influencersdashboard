@@ -1,6 +1,6 @@
 # Build progress
 
-**Current phase: 5 — Detail panel and university pages. Current step: 5.1 (plan).**
+**Current phase: 6 — Content and migration. Current step: 6.1 (plan).**
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
@@ -350,3 +350,54 @@ and all layout shift.
 | Compare up to 4 with highlights, hide identical, shareable URL; Discuss with Witty / counsellor | Done |
 | Anonymous shortlist; sync after sign-up | Done locally; sync in Phase 7 |
 | Search quality suite | Done (31 cases) |
+
+---
+
+## Phase 5 — Detail panel and university pages ✅ `website-phase-5-done`
+
+### Plan
+1. Offering panel: application form inside, sticky "Apply now", EMI per month where the catalogue has it.
+2. Programme-group panel (`?group=`): universities, fee/duration ranges, form with a university picker.
+3. Multi-step application form UI (spec 9.1A) with validation, inline email code, eligibility note, review, thank-you —
+   mock transport (D-042).
+4. University directory and profiles (facts with explainers, programmes in the finder format, apply with a programme
+   picker); curated finder views (`web_curated_views`, intro + FAQs); JSON-LD; prerendering (ISR via cache tags).
+5. Tests (unit, e2e), Lighthouse on the new pages, gate.
+
+### Step log
+- 5.1 ✅ `web_offering_card` carries `fee.emi_monthly` (D-041); `OfferingPanel` embeds the form (lazy).
+- 5.2 ✅ `GroupPanel`, `PanelHost` (lazy panels for `?offering=` / `?group=`), "Programme overview and apply" on cards.
+- 5.3 ✅ `components/forms/ApplicationForm.tsx`, `lib/forms/{validate,client}.ts` (+ tests: Indian mobile, email, names
+  incl. Devanagari, step rules), `content/{consent,india}.ts`; CodeInput auto-submit fix.
+- 5.4 ✅ `/universities`, `/universities/[slug]`, `UniversityProgrammes`; `20261017100400_web5_curated_views.sql`
+  (+ three starter views: online-mba, online-bca, online-mca) and `/programmes/[slug]`; `lib/seo/jsonld.ts` (+ tests),
+  `components/seo/JsonLd.tsx` (Course, ItemList, CollegeOrUniversity, FAQPage, BreadcrumbList); copy no longer claims
+  "UGC-entitled universities" (3 catalogue universities state no UGC-DEB status — D-014).
+- 5.5 ✅ `e2e/panels.spec.ts` (form end to end incl. wrong code, group deep link, university page + JSON-LD, curated
+  view); a11y fix (underlined links inside consent text); CLS fix (no Suspense on prerendered pages); D-043.
+
+### Phase gate (17 Oct 2026)
+| Check | Result |
+|---|---|
+| `npm run check` (typecheck, lint, 101 unit tests, copy check) | ✅ |
+| `npm run db:gate` (replica: web1–5, 483+18+15+48+42 checks, shared unchanged, s03 proposal; local reset + same + 31 quality) | ✅ |
+| `npm run build` (universities and curated views prerendered) | ✅ |
+| Playwright | ✅ 56 passed |
+| Lighthouse CI mobile (applied throttling) | ✅ `/programmes` 94, MBA·Marketing 97, `/programmes/online-mba` 95–96, `/universities` 96, `/universities/nmims` 95–98; LCP ≤ 1.8 s; TBT ≤ 260 ms; CLS 0; a11y 100 |
+
+### Self-review (spec 6.6, 9.1A UI, Phase 5 row)
+| Item | Status |
+|---|---|
+| Offering panel: drawer/full-screen sheet, deep link, closes back to results and scroll | Done |
+| Only catalogue facts; missing fields don't appear; explanations of approvals; last verified; disclaimer | Done |
+| Other universities for the same programme (switches the panel); shortlist and compare | Done |
+| Sticky "Apply now" + form inside the panel; "Ask Witty about this programme" | Done (counsellor fallback while Witty is off) |
+| Programme-group panel with university picker | Done |
+| Curated finder views (admin-created, intro + FAQs) | Done (table + 3 starter views; admin editor in Phase 10) |
+| University pages with facts and offerings in the finder format opening the same panel | Done |
+| ISR / static + revalidation | Done (prerendered; `catalog`/`content` tags revalidated by the poller and admin) |
+| Structured data | Done (Course, ItemList, CollegeOrUniversity, FAQPage, BreadcrumbList; Organization helper for Phase 6) |
+| Application form UI: 5 steps, validation, inline email code, eligibility note, review, thank-you + reference | Done with mock transport (Phase 7 wires it) |
+| Form context: offering / group / university / compare | Done (compare links to "Details and apply"); advisor context in Phase 8 |
+| Admin-configurable fields | Prop-level config in place (`FormConfig`); admin UI + settings key in Phase 10 |
+| Document upload behind a setting (off) | Deferred to Phase 7 (setting `document_upload_enabled` exists, default off) |

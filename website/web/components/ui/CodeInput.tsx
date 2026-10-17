@@ -28,6 +28,7 @@ export function CodeInput({
     <Otp.Root
       value={value}
       onValueChange={onValueChange}
+      autoSubmit={!!onComplete}
       onAutoSubmit={onComplete}
       validationType="numeric"
       autoComplete="one-time-code"

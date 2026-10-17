@@ -287,3 +287,27 @@ these at the end (spec Section 0).
   slider and toast host load on demand; the view toggle is plain buttons. First page = 12 programme groups; separate
   Suspense boundaries split hydration. Result: ~222 KB gz JS on `/programmes` (≈145 KB shared framework), Lighthouse
   mobile 94–97, LCP 1.7 s, TBT ≤ 270 ms, CLS 0.
+
+## Phase 5
+
+### D-040 · Unknown university / curated-view slugs are soft 404s with noindex
+- **Why:** both routes are prerendered for known slugs and render new ones on demand (a new university or a newly
+  published curated view appears without a rebuild). Under Cache Components the shell streams first, so a not-found
+  for an unknown slug keeps status 200 and Next injects `<meta name="robots" content="noindex">` (Next docs: "Status
+  codes"; Google treats it as a soft 404). A hard 404 would need `dynamicParams = false`, which hides new slugs until
+  the next deploy. Renamed slugs get a 301 through `web_redirects` (Phase 9).
+
+### D-041 · Catalogue EMI amounts are monthly; shown as "Easy EMI from ₹X/month" (refines D-015)
+- **Why:** for the 214 offerings with `fee_other.Emi`, total fee ÷ EMI gives whole months (24, 36, 48) — the amount is a
+  monthly instalment. Spec 14: show "from ₹X/month" when the catalogue has an amount; otherwise "Easy EMI available".
+
+### D-042 · The application form ships with a mock transport until Phase 7
+- **Why:** spec 17 Phase 5 ("form UI inside the panel, with mocks; wired to leads in Phase 7"). The form talks only to
+  `ApplicationClient` (`lib/forms/client.ts`); the mock accepts any 6-digit code except `000000` and stores nothing. Phase 7
+  swaps in the server implementation (email code, `web_lead_upsert` → `lead_intake`, outbox) without UI changes.
+  Field options with no catalogue data (intakes) use neutral timing choices ("Within 3 months"…).
+
+### D-043 · The desktop facet rail mounts only on wide screens
+- **Why:** phones hid the rail with CSS but still hydrated it (~100 ms of main-thread work on a mid-range Android). The
+  rail's column is reserved and shows placeholders until hydration on desktop (no layout shift); phones use the
+  filter sheet. Finder TBT on the throttled phone profile: 160–260 ms (budget 300).

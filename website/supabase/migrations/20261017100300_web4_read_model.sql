@@ -409,7 +409,7 @@ returns jsonb language sql immutable security definer set search_path = '' as $$
                    'short', o.uni_short, 'logo', o.uni_logo, 'type', o.uni_type)),
     'mode', o.mode, 'format', o.format, 'attributes', case when o.attributes <> '{}' then o.attributes end,
     'fee', jsonb_strip_nulls(jsonb_build_object('total', o.fee_total, 'yearly', o.fee_yearly, 'semester', o.fee_semester,
-                   'on_request', case when o.fee_on_request then true end)),
+                   'emi_monthly', o.emi_amount, 'on_request', case when o.fee_on_request then true end)),
     'duration_months', o.duration_months, 'naac_grade', o.naac_grade,
     'naac_accredited', case when o.naac_accredited then true end, 'nirf_rank', o.nirf_rank, 'nirf_year', o.nirf_year,
     'ugc_deb', o.ugc_deb, 'aicte', case when o.aicte then true end, 'min_qualification', o.min_qualification,

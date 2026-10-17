@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /** University logo when the owner has permission to show it (S-41), otherwise a neutral monogram. */
 export function UniversityMark({ name, short, logo, size = 32, className }: { name: string; short?: string; logo?: string; size?: number; className?: string }) {
   const initials = (short && short.length <= 5 ? short : name.replace(/[^A-Za-z ]/g, "").split(/\s+/).filter((w) => !/^(of|and|the)$/i.test(w)).map((w) => w[0]).join(""))
-    .slice(0, size < 40 ? 3 : 4)
+    .slice(0, size < 40 ? 3 : 5)
     .toUpperCase();
   if (logo) {
     return (
