@@ -361,3 +361,22 @@ read `catalog_*` (approved R-1).
 | Guides for every role | Done | Content Reviewer guide rewritten; Influencer Manager, creator, agency, Super Admin settings and developer guides |
 | RLS on every new table, tests per role; no creator or agency path to student data | Done | pgTAP 018 (118) and 017 matrix; content never touches lead data |
 | Every screen: empty, loading, error, mobile states | Done | Shared state components; creator and agency pages mobile-first; Deliverables is a phone tab |
+
+## Phase 6: Attribution and lead pipeline
+
+Approved approach (Phase 0, SHARED_CHANGES S-3, S-6, S-7, S-8, S-9, S-12; STAGE_MAPPING §4; INTEGRATION_CONTRACTS §1):
+read-only sweeps from schema `inf`, **no trigger on `student_leads`, no new column, no change to `lead_intake()`**; the
+redirect calls Witty's own `w2_issue_code()` (the portal's only write path into another product's tables). Everything
+runs against the local copy of the shared schema; connecting the sweep to live leads is go-live work (HARD STOP 6).
+
+### Plan
+
+| Step | What | Main files | Tests |
+| --- | --- | --- | --- |
+| 6.1 | Pure modules: creator code format and generator, link building (Witty deep link with the message template, website landing page, custom URL with UTMs, short link), crawler detection, the attribution rules (window, model, duplicate with grace and re-enquiry, self-referral, one credited first touch, manual decisions are sticky), stage mapping (priority rules, never backwards, fallback alert), fraud signals | `lib/attribution/*` | exhaustive units |
+| 6.2 | Database: tracking links, clicks, lead attributions with decision history, fraud flags, stage mappings (seeded from STAGE_MAPPING.md), stage events, the creator-safe `creator_lead_feed` (masked in the database), sync state; masking and `lead_ref` (keyed hash), the sweep's gather and apply functions, manual override, backfill, `witty_resolve_code` (R-1), Realtime publication for the feed (S-6) | `20261021000100_inf_attribution.sql` | pgTAP per role and masking proofs |
+| 6.3 | Links: creator and staff link builder (deal, deliverable, programme), `/r/<code>` redirect (click log with hashed IP, bot detection, Route A access code with timeout fallback), QR PNG and SVG, public creator API for the website | `app/r/[code]/route.ts`, `app/api/public/v1/*` | units + Playwright |
+| 6.4 | Sweep job (`inf-lead-sync`, every minute): gather → pure rules → apply; stage events, domain events, creator notifications; fraud evaluation | `app/api/internal/lead-sync`, `lib/attribution/sync.ts` | units + pgTAP |
+| 6.5 | Creator lead pipeline: kanban, table with filters and saved views, lead drawer with timeline, Realtime, masked CSV export; agency view with the view grant | `app/(creator)/creator/leads/*` | Playwright |
+| 6.6 | Admin attribution console: all leads with role-based detail, attributions, manual override with reason, fraud review queue, stage mapping editor, backfill tool | `app/(admin)/admin/leads/*` | Playwright |
+| 6.7 | Guides, seed (test leads through the local `lead_intake()`), phase gate, go-live notes | | gate |
