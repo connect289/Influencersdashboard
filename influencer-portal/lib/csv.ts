@@ -62,7 +62,7 @@ export function parseCsv(text: string, opts: { maxRows?: number } = {}): ParsedC
   return { headers: head.map((h) => h.trim()), rows };
 }
 
-function cell(v: unknown): string {
+function cell(v: unknown, delimiter = ","): string {
   let s =
     typeof v === "string"
       ? v
@@ -72,9 +72,15 @@ function cell(v: unknown): string {
           ? ""
           : JSON.stringify(v);
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  return /["\r\n]/.test(s) || s.includes(delimiter) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 export function toCsv(headers: string[], rows: unknown[][]): string {
-  return [headers, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
+  return toDelimited(headers, rows, ",");
+}
+
+/** Delimited text with any single-character delimiter (bank bulk-upload formats); `headers` null omits the header. */
+export function toDelimited(headers: string[] | null, rows: unknown[][], delimiter: string): string {
+  const lines = headers ? [headers, ...rows] : rows;
+  return lines.map((r) => r.map((v) => cell(v, delimiter)).join(delimiter)).join("\r\n") + "\r\n";
 }

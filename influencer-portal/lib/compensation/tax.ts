@@ -76,7 +76,8 @@ export function componentOf(line: Pick<LedgerLine, "type">): TdsComponent {
 }
 
 export interface TaxInput {
-  lines: readonly Pick<LedgerLine, "type" | "direction" | "amount_paise">[];
+  /** `component` overrides the one derived from the type (ledger entries carry their own, e.g. penalties). */
+  lines: readonly (Pick<LedgerLine, "type" | "direction" | "amount_paise"> & { component?: TdsComponent })[];
   /** Barter value in this computation (194R base). */
   non_cash_paise?: Paise;
   sections: readonly TdsSection[];
@@ -99,6 +100,8 @@ export interface SectionTax {
 
 export interface TaxEstimate {
   gross_paise: Paise;
+  /** What GST is charged on (gross less reimbursements); zero when the creator does not charge GST. */
+  gst_base_paise: Paise;
   sections: SectionTax[];
   /** Deducted from the payout. */
   tds_paise: Paise;
@@ -113,7 +116,7 @@ export interface TaxEstimate {
 export function estimateTax(input: TaxInput): TaxEstimate {
   const byComponent = new Map<TdsComponent, Paise>();
   for (const l of input.lines) {
-    const c = componentOf(l);
+    const c = l.component ?? componentOf(l);
     byComponent.set(c, (byComponent.get(c) ?? 0) + (l.direction === "credit" ? l.amount_paise : -l.amount_paise));
   }
   if (input.non_cash_paise) byComponent.set("non_cash", input.non_cash_paise);
@@ -152,6 +155,7 @@ export function estimateTax(input: TaxInput): TaxEstimate {
   const gst = input.gst.registered ? pctOf(gstBase, input.gst.rate_bps) : 0;
   return {
     gross_paise: gross,
+    gst_base_paise: input.gst.registered ? gstBase : 0,
     sections,
     tds_paise: tds,
     eduwit_tds_paise: eduwitTds,
