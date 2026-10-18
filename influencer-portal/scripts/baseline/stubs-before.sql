@@ -2,7 +2,7 @@
 -- Shape-compatible stubs of objects owned by other products that the portal reads (or that the exact part needs to
 -- compile). Column names and types match production as read on 16 Oct 2026; bodies and data do not.
 
-create extension if not exists pg_trgm with schema extensions;
+create extension if not exists pg_trgm with schema public;  -- as on the live project
 create extension if not exists pgcrypto with schema extensions;
 create extension if not exists pg_cron;
 
