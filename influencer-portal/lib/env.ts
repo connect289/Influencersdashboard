@@ -94,13 +94,16 @@ export function urlProjectRef(url: string): string | null {
   return m?.[1] ?? null;
 }
 
+/** What is wrong with an environment object, one "NAME: reason" per problem (names and rules, never values). */
+export function envProblems(source: Record<string, string | undefined>): string[] {
+  const result = schema.safeParse(source);
+  return result.success ? [] : result.error.issues.map((i) => `${i.path.join(".") || "(env)"}: ${i.message}`);
+}
+
 /** Parses an environment object. Exported for tests; the app uses `env()`. Error messages name variables, never values. */
 export function parseEnv(source: Record<string, string | undefined>): ServerEnv {
   const result = schema.safeParse(source);
-  if (!result.success) {
-    const problems = result.error.issues.map((i) => `${i.path.join(".") || "(env)"}: ${i.message}`).join("; ");
-    throw new Error(`Invalid environment: ${problems}`);
-  }
+  if (!result.success) throw new Error(`Invalid environment: ${envProblems(source).join("; ")}`);
   return result.data;
 }
 
