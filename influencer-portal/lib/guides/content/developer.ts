@@ -1,0 +1,259 @@
+import type { Guide } from "../types";
+
+export const DEVELOPER: Guide = {
+  slug: "developer",
+  audience: "developer",
+  title: "Developer guide",
+  summary: "Architecture, local set-up, conventions, testing, background jobs, and how deployment and go-live work.",
+  sections: [
+    {
+      id: "architecture",
+      title: "Architecture",
+      blocks: [
+        {
+          list: [
+            "**Next.js 16** (App Router, React 19, TypeScript strict) with three portals: `app/(admin)`, `app/(creator)`, `app/(agency)`, plus `app/(auth)` and the public media kit `app/m`.",
+            "**Supabase Postgres** is shared with Witty and both CRMs. Every portal object lives in schema `inf`; the shared objects the portal reads are reproduced locally from a read-only baseline.",
+            "Authorisation is enforced in the database: RLS on every `inf` table, `SECURITY DEFINER` functions that check `inf.has_perm()`, the creator's identity or an agency grant. The UI hides what a role cannot use but never relies on hiding.",
+            "Student phone numbers and emails never reach creators or agencies: they read lead data only through functions that mask it in the database.",
+            "**Compensation** is a pure TypeScript engine (`lib/compensation`): a deterministic replay of a deal's versions and events that returns the ledger it should have, with stable keys. The runner (Phase 7) diffs it against posted entries; the dry-run and simulator reuse it.",
+            "Background work runs through `inf.jobs` (claimed with SKIP LOCKED by `/api/internal/jobs`, called every minute by pg_cron with an internal key).",
+          ],
+        },
+      ],
+    },
+    {
+      id: "setup",
+      title: "Local set-up",
+      blocks: [
+        {
+          steps: [
+            "Install Node 20.9 or later and Docker.",
+            "In `influencer-portal/`: `npm ci`.",
+            "Start the local database: `node scripts/db.mjs start`, then `node scripts/db.mjs reset` (shared baseline + every `inf` migration).",
+            "Copy `.env.example` to `.env.local` and fill the local URL and keys from `npx supabase status`.",
+            "Seed demo data: `npm run seed` (staff password `Local-Demo-Password-2026`; emails land in Mailpit on port 54424).",
+            "Run `npm run dev` and open http://localhost:3200. Staff sign in at /login/staff, creators at /login.",
+          ],
+        },
+        {
+          warning:
+            "Never point local tools at the live Supabase project. Scripts refuse remote targets, and `lib/env.ts` refuses a service key that does not belong to the configured project.",
+        },
+      ],
+    },
+    {
+      id: "commands",
+      title: "Commands",
+      blocks: [
+        {
+          table: {
+            head: ["Command", "What it does"],
+            rows: [
+              [
+                "`npm run typecheck` · `npm run lint` · `npm run format`",
+                "Static checks (no `any`, strict type-checked lint, Prettier)",
+              ],
+              ["`npm test`", "Vitest: engine, simulator, schemas, codegen drift, message keys, guides, contrast"],
+              ["`npm run test:db`", "pgTAP files in `supabase/tests` (RLS per role, masking, workflows)"],
+              ["`npm run e2e`", "Playwright journeys against a production build; resets and seeds the local DB first"],
+              [
+                "`npm run gen:sql`",
+                "Regenerates migrations from the permission matrix, settings registry, compensation schema and system presets",
+              ],
+              ["`node scripts/db.mjs types`", "Regenerates `lib/database.types.ts` after a schema change"],
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "conventions",
+      title: "Conventions",
+      blocks: [
+        {
+          list: [
+            "**Migrations**: new files only, never edit an applied one. Every function sets `search_path = ''`. Grants go into `inf.client_grants` and are applied with `call inf.apply_client_grants();`.",
+            "**Ownership checks** must be null-safe: `coalesce(p_creator = inf.current_creator_id(), false)`.",
+            "**Generated SQL**: permissions, settings, the compensation JSON Schema and system presets come from TypeScript via `npm run gen:sql`. A test fails if a generated migration is stale.",
+            "**Server actions**: zod schema in `lib/<domain>/schemas.ts` → one RPC → map database errors to message keys → `ActionResult`. Client components call them with `useAction()`.",
+            "**Money** is integer paise; percentages become basis points; banker's rounding once per line. Store UTC, display IST and Indian formats.",
+            "**PII**: PAN and bank numbers through `inf.pii_encrypt/decrypt` (Vault key `inf_pii_key`); only audited reveal functions return them.",
+            "**Text**: UI strings live in `messages/en.json` (a test checks every key used in code exists). Guides live in `lib/guides/content`.",
+            "**No placeholders**: a screen ships only when its feature works; mock data only in the seed.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "deals",
+      title: "Deals and the compensation engine",
+      blocks: [
+        {
+          list: [
+            "`lib/compensation/schema.ts`: the zod schema of a deal version's config (fixed fees, commission, floors, recoupment, bonuses, penalties, fees, non-cash). Stored as JSONB and checked again by `inf.comp_config_valid()`.",
+            "`engine.ts`: `computeLedger()` replays versions + events to `as_of`. Ledger keys are `<version>:<rule>:<subject>:<kind>`; `diff.ts` turns desired vs posted into new lines, confirmations and reversals.",
+            "`simulator.ts` builds a synthetic event stream from a scenario; `tax.ts` estimates TDS and GST from the section table.",
+            "Deal versions are immutable rows; a change after agreement is a new proposed version (amendment).",
+          ],
+        },
+      ],
+    },
+    {
+      id: "contracts",
+      title: "Contracts",
+      blocks: [
+        {
+          list: [
+            "Document model (`lib/contracts/doc.ts`): a whitelisted subset of the Tiptap JSON (paragraphs, headings 2–4, lists, bold/italic/underline; tables only from deal data). We render it ourselves (`html.ts`, `pdf.tsx`, `components/contracts/doc-view.tsx`); stored HTML is never trusted.",
+            "Templates (`template.ts`): `{{path}}` variables from the catalogue in `variables.ts`, block and inline `{{#if}}…{{else}}…{{/if}}` / `{{#unless}}`. `assemble.ts` builds a version's content from a template, the clause versions and the deal context; `build.ts` adds the HTML. Pure and unit-tested.",
+            "Generation (`generate.ts`): loads `inf.contract_source(deal)` and `inf.template_source`, keeps agreed overrides of negotiable clauses, and calls `inf.contract_version_add`, which hashes the HTML (SHA-256) in the database. Missing values are stored on the version and block sending.",
+            "Counter-offers (`counter.ts`): stable keys for every number in a config; `applyCounter` returns a validated new config that becomes a deal version (`origin = counter_offer`).",
+            "Signing (`lib/actions/signing.ts`): the action authenticates the person and calls `contract_sign_code_issue` / `contract_sign` as the service role with that person's id, IP and user agent. Codes are hashed with a per-code salt; 5 attempts, 10-minute expiry, resend cooldown and an hourly cap.",
+            "After the countersignature `finalize.ts` renders the PDF with a signature certificate, uploads it write-once to the `inf-contracts` bucket and records its hash (`contract.finalize` job as the safety net). `/api/contracts/[id]/pdf` re-verifies both hashes on every download and flags the contract on a mismatch.",
+            "Clause seeds: `lib/contracts/library.ts` → `npm run gen:sql` (insert-only migration).",
+          ],
+        },
+      ],
+    },
+    {
+      id: "content",
+      title: "Briefs, deliverables and compliance",
+      blocks: [
+        {
+          list: [
+            "`lib/content/workflow.ts` is the deliverable state machine (stages can be switched off). The database mirrors it in `inf.deliverable_next` / `inf.deliverable_pending`; `supabase/tests/017_workflow_matrix.sql` is generated from the TypeScript (`npm run gen:sql`) and checks every status × action × stage combination, and a unit test fails if it is stale.",
+            "Every move goes through `inf.deliverable_apply` (transition row, event, timestamps). Submissions are immutable except their decision; file paths must sit under `<deliverable id>/`.",
+            "Compliance (`compliance.ts`): banned-claim scan with safe regex checks and the disclosure check. The server records results with the service role (`inf.compliance_record` refuses anyone else) so a client cannot report a clean scan.",
+            "Uploads (`components/content/uploader.ts`): one-time signed uploads to the private `inf-deliverables` bucket; files over 6 MB use Supabase's resumable (TUS) endpoint with the signed token. Links are signed for an hour after an `inf.*_allowed` check.",
+            "Penalties: going live, cancelling or failing the disclosure check enqueues `penalties.refresh`, which runs the compensation engine (`lib/content/events.ts`) and syncs `inf.penalty_proposals`. Approval is manual; the ledger posts approved ones (Phase 7).",
+            "Nightly: `inf.content_remind()` (due, overdue, escalation and metrics reminders) runs inside `inf.nightly_prune()`.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "attribution",
+      title: "Links and attribution",
+      blocks: [
+        {
+          list: [
+            "Pure modules in `lib/attribution`: codes, links and UTMs, bot detection, the rules (`rules.ts`, `decide`), stage mapping (`stages.ts`, `mapStage`, never backwards), fraud signals and `plan.ts`, which plans one lead. All are unit-tested.",
+            "`/r/[code]` resolves a link (`inf.link_resolve`, service role), logs the click with a hashed IP (crawlers are not counted), asks Witty for an access code with a 1.5 s timeout and redirects. Inactive links go to `/link-inactive`.",
+            "The sweep: pg_cron `inf-lead-sync` calls `/api/internal/lead-sync` every minute. `inf.lead_sync_candidates` reads facts from `student_leads`, touchpoints, Witty codes and the B2C status view (read-only); `planLead` decides; `inf.lead_sync_apply` writes attributions, decisions, stage events, events and notifications and refreshes `inf.creator_lead_feed`. Then fraud facts → pure signals → `inf.fraud_apply`.",
+            "Creators and agencies read leads only from `inf.creator_lead_feed` and `SECURITY DEFINER` functions; phone and email are masked in the database (`inf.mask_phone`, `inf.mask_email`) and the lead reference is an HMAC (`inf.lead_ref`, Vault key `inf_lead_ref_key`).",
+            "Jobs `leads.rerun` and `leads.backfill` re-plan a range; manual decisions are sticky. Stage rules live in `inf.stage_mappings` (defaults generated from `stage-rules.ts`).",
+            "Public API: `GET /api/public/v1/creators/[handle]` returns public profile data only (rate limited, cacheable).",
+            "Nothing reads `student_leads` unless the server runs with `LEAD_SYNC=on` (local and CI: on; production: off until the owner approves connecting attribution to live leads). The seed attributes its test leads with `sync-core.ts` directly.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "ledger",
+      title: "Ledger and payouts",
+      blocks: [
+        {
+          list: [
+            "Pure modules in `lib/ledger`: `facts.ts` (deal facts → engine events), `plan.ts` (engine output vs posted lines → new, confirm and reverse operations), `lifecycle.ts` (`statusOf`, mirrored by `inf.ledger_status_of`; the generated test `020_ledger_status_matrix.sql` keeps them in step), `payout.ts` and `prepare.ts` (gross, TDS with FY catch-up, GST, net, skip reasons), `bank-file.ts`, `utr.ts`, `invoice.ts`, `earnings.ts` and `reconcile.ts`. All are unit-tested.",
+            "The runner (`runner-core.ts`) loads `inf.ledger_facts`, runs the compensation engine, plans and applies through `inf.ledger_apply`. Domain events enqueue `ledger.run` per deal (debounced per minute); `inf.ledger_nightly` handles dates and holds.",
+            "`inf.ledger_entries` is append-only: a guard trigger refuses changes to amounts; status, confirmed, paid and holds change only inside writer functions (`inf.ledger_writer_on()` / `inf.ledger_writer_restore()`).",
+            "Payouts: `inf.payout_batch_create`, `payout_batch_approve` (distinct second approver), `payout_bank_rows` (audited decryption; the file is streamed, never stored), `payouts_mark_paid` (settlement lines, TDS records, `payout.advice` job, notification).",
+            "Enrolment receipts come from `public.enrollments` (B2B) and `public.b2c_enrollment_money_v` (B2C) via `inf.commission_receipts_sync`, called after the lead sweep; manual overrides win unless withdrawn.",
+            "Files: GST invoices in `inf-invoices`, advice and Form 16A in `inf-documents`; downloads go through `/api/finance/file` after `inf.finance_file_allowed`.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "analytics",
+      title: "Analytics",
+      blocks: [
+        {
+          list: [
+            "Every metric is defined once in `lib/analytics/metrics.ts` (unit, polarity, formula, source) with its label and tooltip in messages (`analytics.metrics.<id>`); `npm run gen:sql` regenerates `docs/METRICS.md` and a test fails if it is stale.",
+            "Pure modules: `ranges.ts` (IST presets, comparison period, buckets), `compute.ts` (funnel, unit economics, quality, deltas, leaderboards), `breakdown.ts` (derived columns, CSV), `format.ts`.",
+            "Staff dashboards read four materialised views (`inf.an_leads`, `an_clicks_daily`, `an_spend_daily`, `an_revenue`) refreshed by pg_cron `inf-analytics` every 15 minutes through `inf.analytics_refresh()`; read functions `inf.analytics_*` need `analytics.read` (finance also `ledger.read`). The views are closed to clients.",
+            "The creator home reads live rows through `inf.creator_dashboard` (creator, agency with view, staff with creator.read), never revenue. Committed spend per deal (`inf.deals.committed_paise`) is written by the ledger runner from the engine's zero-performance simulation (`lib/ledger/committed.ts`).",
+          ],
+        },
+      ],
+    },
+    {
+      id: "communication",
+      title: "Messages, notifications and webhooks",
+      blocks: [
+        {
+          list: [
+            "The event catalogue `lib/notify/catalogue.ts` (audience, required, default channels, template variables) is generated into `inf.notification_events`; add an event there before calling `inf.notify()` with it (a unit test checks every event the migrations emit).",
+            "Threads: `inf.thread_resolve(type, entity, creator)` decides who may read and write; screens use `inf.thread_get`, `inf.thread_post`, `inf.thread_mark_read`, `inf.my_threads` and the `Thread` server component (`components/messaging/thread.tsx`), which renders nothing for someone without access.",
+            "Attachments: `threadUploadUrl` signs an upload under `inf-documents/threads/<thread>/` after `inf.thread_open`; `/api/threads/file` checks `inf.thread_file_allowed`.",
+            "Delivery: `notify.deliver` renders the active template (`inf.notification_template_for`) with `lib/notify/compose.ts`; `digest.run` builds digests with `lib/notify/digest.ts`; `webhook.deliver` signs with `lib/webhooks/sign.ts` and connects only to public addresses (`lib/webhooks/ssrf.ts`, checked at connect time).",
+            "Receivers verify `X-Eduwit-Signature: t=<unix>,v1=<hex>` as HMAC-SHA256 of `<t>.<raw body>` with their secret and reject anything older than 5 minutes (`verify()` in `lib/webhooks/sign.ts` is the reference).",
+          ],
+        },
+      ],
+    },
+    {
+      id: "insight",
+      title: "Scorecards, tiers and privacy",
+      blocks: [
+        {
+          list: [
+            "Scoring is pure: `lib/scorecards/score.ts` (sub-scores and composite from `inf.scorecard_facts`), `tiers.ts` (`decideTier`: up at once, down after `demote_after_months`, manual tier holds), `recommend.ts` (a `Recommender` interface; add an AI recommender beside `rulesRecommender`) and `uplift.ts`.",
+            "The `scorecards.run` job (queued monthly by `inf.scorecards_due`) saves through `inf.scorecard_save`, which applies the tier, writes `inf.tier_history` and notifies `tier.changed`. `scorecards` and `tier_history` are append-only.",
+            "Compliance obligations come from `inf.compliance_facts` through `lib/compliance/obligations.ts`.",
+            "Privacy: `lib/privacy/plan.ts` decides what a deletion erases and keeps; `inf.privacy_deletion_decide` does it (message text is blanked only under the `inf.privacy_erase` flag) and the action bans the auth user. Exports are built on each download by `/api/privacy/export/[requestId]` from `inf.privacy_export_data` after `inf.privacy_export_allowed`.",
+            "Retention: `inf.retention_run()` in the nightly prune; `audit_log` and `sign_in_log` deletes pass `retention_guard` only under the `inf.retention_purge` flag. Storage files of deleted creators go through `removeFiles` (`lib/jobs/storage-remove.ts`): at once from the deletion action, and by the `storage.remove` job when kept KYC is purged.",
+            "Read settings on the server with `readSetting(key)` (`lib/settings/read.ts`); `inf.setting()` is not granted to signed-in users.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "jobs",
+      title: "Background jobs and notifications",
+      blocks: [
+        {
+          list: [
+            "Enqueue with `inf.job_enqueue(kind, payload, run_at, idem_key)`; handlers are registered in `lib/jobs/registry.ts` and must be idempotent.",
+            "Notifications: `inf.notify()` writes the in-app row and queues email/WhatsApp copies. Providers are adapters (SMTP, Resend, Brevo, Meta Cloud, mock); nothing leaves the system unless `LIVE_MODE=on`.",
+            "[System status](/admin/system) shows the queue, scheduled tasks and providers.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "deploy",
+      title: "Deployment and go-live",
+      blocks: [
+        {
+          p: "Go-live is a controlled, owner-approved step. `docs/RUNBOOK.md` holds the checklist: marking the shared baseline as already applied (never running it), exposing schema `inf` to the Data API, Vault secrets (back up `inf_pii_key` immediately), auth settings, legal and CA sign-offs, then applying only the `inf` migrations, deploying, and connecting attribution.",
+        },
+        {
+          list: [
+            "Hosting: a Next.js host (Vercel planned) with the variables from `.env.example`.",
+            "Providers: email (Resend, Brevo or SMTP), WhatsApp (Meta Cloud API), Sentry, a domain. Until they are supplied the app runs on mock adapters.",
+            "Every change to production is preceded by a dry-run report and has a rollback script.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "docs",
+      title: "Where to find more",
+      blocks: [
+        {
+          list: [
+            "`CLAUDE.md` (repo root): conventions, commands and how to resume work.",
+            "`docs/PROGRESS.md`: the phase plan and requirement checklists; `docs/DECISIONS.md`: every design decision with its reason.",
+            "`docs/INFLUENCER_PORTAL_SPEC.md`: the product spec; `docs/ERD.md`, `docs/INTEGRATION_CONTRACTS.md`, `docs/SHARED_CHANGES.md`: data model and shared-database contracts.",
+            "`docs/RUNBOOK.md`: go-live checklist, deployment, rollback, backups and incidents; `docs/SECURITY_REVIEW.md`: the security review and its fixes; `docs/TESTING.md`: how the suites map to spec 20.",
+            "`docs/ADMIN_GUIDE.md` and `docs/CREATOR_GUIDE.md` are generated from these guides by `npm run gen:sql` (with `docs/METRICS.md`); a unit test fails when they are stale, so edit `lib/guides/content`, never the files.",
+            "Unhandled server errors are logged as `request.error` (route, digest, request id) by `instrumentation.ts`.",
+          ],
+        },
+      ],
+    },
+  ],
+};
