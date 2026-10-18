@@ -2,8 +2,12 @@
 
 ## Now
 
-- **Current phase:** all build phases (0–10) complete; Phase 10 tagged `phase-10-done`. **Stopped at HARD STOP 6
-  (production go-live)**: waiting for the owner's approval and the items in `docs/RUNBOOK.md` (G-1 to G-29).
+- **Current phase:** all build phases (0–10) complete; Phase 10 tagged `phase-10-done`. **Go-live in progress (owner
+  approved installing on the live project on 18 Oct 2026, without a backup).** The `inf` schema is installed on
+  `xlseqwgyjuqhktrguhyc` and matches the tested build exactly (D-190); Super Admin `connect@eduwit.in` and the Vault
+  secret `inf_app_base_url` are set. Open: the Vercel environment fails validation (`/api/health` names the variables
+  in the logs), `inf` must be ticked under Data API → Exposed schemas, `inf_internal_key` in Vault, backups of
+  `inf_pii_key` and `inf_lead_ref_key`. `LEAD_SYNC` stays off until approved separately (G-14).
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
 - **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.

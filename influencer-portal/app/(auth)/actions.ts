@@ -18,6 +18,7 @@ import {
   DEVICE_COOKIE_DAYS,
   PASSWORD_MAX,
   PASSWORD_MIN,
+  type RateScope,
   safeNext,
 } from "@/lib/security";
 import { adminClient } from "@/lib/supabase/admin";
@@ -59,6 +60,18 @@ async function ipKey(): Promise<string> {
   return (await requestContext()).ip ?? "unknown";
 }
 
+/**
+ * Runs the rate checks in order and returns the message for the first refusal, or null when all pass. A refusal
+ * because the database couldn't be reached (fail-closed) says so instead of blaming the person.
+ */
+async function rateRefusal(checks: [RateScope, string][], tooMany: string): Promise<string | null> {
+  for (const [scope, subject] of checks) {
+    const r = await rateLimit(scope, subject);
+    if (!r.ok) return r.unavailable ? (await getTranslations())("auth.errors.busy") : tooMany;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Staff: email + password, then the emailed code
 // ---------------------------------------------------------------------------------------------------------------
@@ -77,8 +90,8 @@ export async function staffSignIn(_: FormState, form: FormData): Promise<FormSta
   const { email, password } = parsed.data;
   const next = safeNext(formText(form, "next"), "/admin");
 
-  const limited = await rateLimit("staff_sign_in", await ipKey());
-  if (!limited.ok) return { error: t("auth.errors.tooManyAttempts") };
+  const limited = await rateRefusal([["staff_sign_in", await ipKey()]], t("auth.errors.tooManyAttempts"));
+  if (limited) return { error: limited };
   const locked = await adminClient().rpc("sign_in_locked", { p_email: email });
   if (locked.data === true) {
     await record(email, "staff", "password", "locked", "locked");
@@ -119,8 +132,8 @@ export async function sendStaffCode(_: FormState): Promise<FormState> {
   const userId = claims?.claims.sub;
   const sessionId = (claims?.claims as { session_id?: string } | undefined)?.session_id;
   if (!userId || !sessionId) redirect("/login/staff");
-  const limited = await rateLimit("code_send", userId);
-  if (!limited.ok) return { error: t("auth.errors.tooManyCodes") };
+  const limited = await rateRefusal([["code_send", userId]], t("auth.errors.tooManyCodes"));
+  if (limited) return { error: limited };
 
   const me = await fetchMe(supabase);
   if (me.kind !== "staff" || !me.staff) redirect("/no-access");
@@ -157,8 +170,8 @@ export async function verifyStaffCode(_: FormState, form: FormData): Promise<For
   const { data: claims } = await supabase.auth.getClaims();
   const userId = claims?.claims.sub;
   if (!userId) redirect("/login/staff");
-  const limited = await rateLimit("code_verify", userId);
-  if (!limited.ok) return { error: t("auth.errors.tooManyAttempts") };
+  const limited = await rateRefusal([["code_verify", userId]], t("auth.errors.tooManyAttempts"));
+  if (limited) return { error: limited };
 
   const ctx = await requestContext();
   const { data, error } = await supabase.rpc("mfa_verify", {
@@ -260,12 +273,14 @@ export async function creatorSendOtp(_: FormState, form: FormData): Promise<Form
   const t = await getTranslations();
   const email = formText(form, "email").trim().toLowerCase();
   if (!emailSchema.safeParse(email).success) return { error: t("auth.errors.emailFormat") };
-  if (
-    !(await rateLimit("creator_otp_send_ip", await ipKey())).ok ||
-    !(await rateLimit("creator_otp_send_email", email)).ok
-  ) {
-    return { error: t("auth.errors.tooManyCodes") };
-  }
+  const limited = await rateRefusal(
+    [
+      ["creator_otp_send_ip", await ipKey()],
+      ["creator_otp_send_email", email],
+    ],
+    t("auth.errors.tooManyCodes"),
+  );
+  if (limited) return { error: limited };
   const supabase = await createClient();
   // shouldCreateUser: false. Only invited creators (whose auth account the portal created) receive a code. The
   // response is the same for unknown emails, so the form can't be used to discover who is registered.
@@ -299,7 +314,8 @@ export async function creatorVerifyOtp(_: FormState, form: FormData): Promise<Fo
   const email = (await cookies()).get(OTP_EMAIL_COOKIE)?.value ?? "";
   if (!emailSchema.safeParse(email).success) redirect("/login?reason=expired");
   if (!/^\d{6,8}$/.test(token)) return { error: t("auth.errors.codeFormat") };
-  if (!(await rateLimit("creator_otp_verify", email)).ok) return { error: t("auth.errors.tooManyAttempts") };
+  const limited = await rateRefusal([["creator_otp_verify", email]], t("auth.errors.tooManyAttempts"));
+  if (limited) return { error: limited };
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
@@ -366,9 +382,14 @@ export async function creatorSignUp(_: FormState, form: FormData): Promise<FormS
     };
   }
   const v = parsed.data;
-  if (!(await rateLimit("signup_ip", await ipKey())).ok || !(await rateLimit("signup_email", v.email)).ok) {
-    return { error: t("auth.errors.tooManyCodes") };
-  }
+  const limited = await rateRefusal(
+    [
+      ["signup_ip", await ipKey()],
+      ["signup_email", v.email],
+    ],
+    t("auth.errors.tooManyCodes"),
+  );
+  if (limited) return { error: limited };
   const admin = adminClient();
   const { data, error } = await admin.rpc("creator_self_signup", {
     p: {

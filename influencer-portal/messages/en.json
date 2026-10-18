@@ -201,6 +201,7 @@
       "locked": "Too many failed attempts. Sign-in is locked for 15 minutes.",
       "tooManyAttempts": "Too many attempts. Wait a few minutes and try again.",
       "tooManyCodes": "Too many codes requested. Wait a few minutes and try again.",
+      "busy": "This is temporarily unavailable. Try again in a minute.",
       "notStaff": "This account can't sign in to the admin console.",
       "setup": "Sign-in worked, but the portal can't reach its data yet. In Supabase, add inf under Data API → Exposed schemas.",
       "unavailable": "Sign-in is unavailable right now. Try again in a minute.",
