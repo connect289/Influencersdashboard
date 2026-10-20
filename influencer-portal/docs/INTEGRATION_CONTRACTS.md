@@ -152,7 +152,9 @@ by `lead_ref` only).
 ## 6. Oversight system (spec 18)
 
 - `GET /api/health`: no auth, returns only `{ status, checks: { db, storage, queue }, version, time }` without detail
-  (detail would help an attacker). Detailed status needs the internal key.
+  (detail would help an attacker). Detailed status needs the internal key. Exception: when the server environment is
+  invalid it also returns `env`, the variable names and the rule each breaks (never values), so a broken deployment
+  can be diagnosed without the hosting logs (D-191).
 - `GET /api/metrics/summary`: header `Authorization: Bearer <INF_INTERNAL_API_KEY>` (constant-time compare), returns
   counts (creators by status, leads attributed today, payouts due, queue depth, failed jobs, last sweep time).
 

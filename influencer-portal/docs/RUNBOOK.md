@@ -51,7 +51,10 @@ pgTAP, Playwright) on the release commit.
    stack in CI; they never run against a hosted project.
 2. **Production database.** In a quiet window, take a manual backup, then `supabase migration repair --status applied
    00000000000000` and `supabase db push` (only the `inf` migrations run). Expose `inf` (G-2), create the Vault secrets
-   (G-3) and back up `inf_pii_key` and `inf_lead_ref_key` (G-4, G-15).
+   (G-3) and back up `inf_pii_key` and `inf_lead_ref_key` (G-4, G-15). If the CLI can't reach the database, the
+   migrations can be run from the SQL Editor, one transaction per file, in order (done this way on 18 Oct 2026, D-190);
+   afterwards compare a fingerprint of the `inf` objects with a local build. `pg_trgm` is in schema `public` on the
+   live project.
 3. **Application.** Set the production environment variables with `LIVE_MODE=off`, `LEAD_SYNC=off` and
    `PAYOUT_PROVIDER=bank_file`, deploy, and check `/api/health`, staff sign-in with the emailed code, and System status
    (all pg_cron jobs present, the job queue draining).

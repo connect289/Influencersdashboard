@@ -3,7 +3,13 @@
 -- from CSV with de-duplication. A nightly pass flags active creators dormant after N days without activity.
 
 alter table inf.creators add column last_contacted_at timestamptz;
-create index creators_search_trgm on inf.creators using gin ((display_name || ' ' || handle || ' ' || coalesce(email, '')) extensions.gin_trgm_ops);
+-- pg_trgm lives in `public` on the live project (installed by another product) and in `extensions` on fresh stacks:
+-- use whichever schema has it.
+do $$
+begin
+  execute format('create index creators_search_trgm on inf.creators using gin ((display_name || '' '' || handle || '' '' || coalesce(email, '''')) %I.gin_trgm_ops)',
+                 (select e.extnamespace::regnamespace::text from pg_extension e where e.extname = 'pg_trgm'));
+end $$;
 create index creators_tags_idx on inf.creators using gin (tags);
 create index creators_niches_idx on inf.creators using gin (niches);
 

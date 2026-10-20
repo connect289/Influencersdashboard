@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEnv } from "./env";
+import { envProblems, parseEnv } from "./env";
 
 const base = {
   NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54421",
@@ -56,5 +56,21 @@ describe("environment", () => {
     } catch (e) {
       expect(String(e)).not.toContain("short-secret");
     }
+  });
+
+  it("lists each problem by variable name and rule, without values", () => {
+    expect(envProblems(base)).toEqual([]);
+    const problems = envProblems({
+      ...base,
+      NEXT_PUBLIC_SITE_URL: "not-a-url-secret",
+      INF_INTERNAL_API_KEY: "short-secret",
+      NODE_ENV: "production",
+    });
+    expect(problems.map((p) => p.split(":")[0]).sort()).toEqual([
+      "EMAIL_PROVIDER",
+      "INF_INTERNAL_API_KEY",
+      "NEXT_PUBLIC_SITE_URL",
+    ]);
+    expect(problems.join(" ")).not.toMatch(/short-secret|not-a-url-secret/);
   });
 });
