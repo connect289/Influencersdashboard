@@ -22,12 +22,18 @@ class ConsoleSender implements EmailSender {
   }
 }
 
+/** Google shows an app password as four groups ("abcd efgh ijkl mnop"); the spaces are display only. */
+export function smtpPassword(raw: string | undefined): string {
+  const v = raw ?? "";
+  return /^[a-z]{4}( [a-z]{4}){3}$/i.test(v) ? v.replace(/ /g, "") : v;
+}
+
 class SmtpSender implements EmailSender {
   private t = nodemailer.createTransport({
     host: env().EMAIL_SMTP_HOST,
     port: env().EMAIL_SMTP_PORT,
     secure: env().EMAIL_SMTP_PORT === 465,
-    auth: env().EMAIL_SMTP_USER ? { user: env().EMAIL_SMTP_USER!, pass: env().EMAIL_SMTP_PASSWORD ?? "" } : undefined,
+    auth: env().EMAIL_SMTP_USER ? { user: env().EMAIL_SMTP_USER!, pass: smtpPassword(env().EMAIL_SMTP_PASSWORD) } : undefined,
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 10000,
