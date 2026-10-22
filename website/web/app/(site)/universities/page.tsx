@@ -9,7 +9,7 @@ import { withOverrides } from "@/lib/server/page-meta";
 
 const META: Metadata = {
   title: "Universities",
-  description: "Universities offering online and distance programmes: UGC-DEB status, NAAC grade, NIRF rank, programmes and fees.",
+  description: "Universities offering online, distance and on-campus programmes: UGC-DEB status, NAAC grade, NIRF rank, programmes and fees.",
   alternates: { canonical: "/universities" },
 };
 
@@ -26,7 +26,7 @@ export default async function UniversitiesPage() {
         <p className="eyebrow">Universities</p>
         <h1 className="font-display text-text mt-1 text-3xl font-semibold sm:text-4xl">Universities</h1>
         <p className="text-muted mt-3">
-          {list.length} universities offering online and distance programmes through Eduwit. Approvals, NAAC grades and NIRF ranks are shown only where the university states them.
+          {list.length} universities offering online, distance and on-campus programmes through Eduwit. Approvals, NAAC grades and NIRF ranks are shown only where the university states them.
         </p>
       </header>
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

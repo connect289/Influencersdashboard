@@ -13,7 +13,7 @@ import { withOverrides } from "@/lib/server/page-meta";
 
 const META: Metadata = {
   title: { absolute: "Eduwit — Choose your education wisely" },
-  description: "Compare online and distance programmes from Eduwit's partner universities: full fees, duration, approvals and eligibility, with free counselling.",
+  description: "Compare online, distance and on-campus programmes from Eduwit's partner universities: full fees, duration, approvals and eligibility, with free counselling.",
   alternates: { canonical: "/" },
 };
 

@@ -6,7 +6,7 @@ import { withOverrides } from "@/lib/server/page-meta";
 
 const META: Metadata = {
   title: "Guides",
-  description: "Guides to choosing an online or distance programme, written and reviewed by named people.",
+  description: "Guides to choosing an online, distance or on-campus programme, written and reviewed by named people.",
   alternates: { canonical: "/resources" },
 };
 
@@ -22,7 +22,7 @@ export default async function ResourcesPage() {
       <header className="max-w-3xl">
         <p className="eyebrow">Guides</p>
         <h1 className="font-display text-text mt-2 text-4xl font-semibold">Guides</h1>
-        <p className="text-muted mt-3">Plain answers to common questions about online and distance degrees, written and reviewed by named people.</p>
+        <p className="text-muted mt-3">Plain answers to common questions about online, distance and on-campus degrees, written and reviewed by named people.</p>
       </header>
       {list.length ? (
         <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

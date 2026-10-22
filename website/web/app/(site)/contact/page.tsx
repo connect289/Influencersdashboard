@@ -12,7 +12,7 @@ import { withOverrides } from "@/lib/server/page-meta";
 
 const META: Metadata = {
   title: "Contact Eduwit",
-  description: "Call, WhatsApp or email Eduwit for free counselling on online and distance programmes, or send an enquiry.",
+  description: "Call, WhatsApp or email Eduwit for free counselling on online, distance and on-campus programmes, or send an enquiry.",
   alternates: { canonical: "/contact" },
 };
 

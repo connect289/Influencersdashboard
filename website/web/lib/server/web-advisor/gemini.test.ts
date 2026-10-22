@@ -16,7 +16,10 @@ function setEnv(v: Partial<Record<(typeof KEYS)[number], string>>) {
 const deployed = { SUPABASE_SECRET_KEY: "x".repeat(40), WEB_SESSION_SECRET: "s".repeat(40), WEB_INTERNAL_KEY: "k".repeat(40) };
 
 afterEach(() => {
-  for (const k of KEYS) (saved[k] === undefined ? delete process.env[k] : (process.env[k] = saved[k]));
+  for (const k of KEYS) {
+    if (saved[k] === undefined) delete process.env[k];
+    else process.env[k] = saved[k];
+  }
   resetEnvCache();
   vi.unstubAllGlobals();
 });

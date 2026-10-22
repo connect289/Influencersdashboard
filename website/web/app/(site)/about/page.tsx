@@ -9,7 +9,7 @@ import { withOverrides } from "@/lib/server/page-meta";
 
 const META: Metadata = {
   title: "About Eduwit",
-  description: "Eduwit Learning Services helps students choose and apply to online and distance programmes from partner universities, with free counselling.",
+  description: "Eduwit Learning Services helps students choose and apply to online, distance and on-campus programmes from partner universities, with free counselling.",
   alternates: { canonical: "/about" },
 };
 
@@ -32,7 +32,7 @@ export default async function AboutPage() {
         <section aria-label="Eduwit in numbers" className="grid gap-4 sm:grid-cols-3">
           {[
             { n: stats.universities, label: "partner universities" },
-            { n: stats.offerings, label: "online and distance programmes" },
+            { n: stats.offerings, label: "programmes: online, distance and on-campus" },
             { n: stats.programmes, label: "degrees and diplomas, from BA to MBA" },
           ].map((x) => (
             <div key={x.label} className="glass rounded-[var(--radius-xl)] p-6">

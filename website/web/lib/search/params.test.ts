@@ -24,6 +24,7 @@ describe("finder URL state", () => {
     expect(parseFinderParams({ q: "  MBA   in Marketing " }).q).toBe("mba in marketing");
   });
   it("maps to the database input", () => {
+    expect(toSearchInput(parseFinderParams({ mode: "regular,online" })).mode).toEqual(["Online", "Regular"]);
     const input = toSearchInput(parseFinderParams({ mode: "odl", naac: "a-plus-plus", minq: "bachelor", uni: "nmims", all: "1" }));
     expect(input).toMatchObject({ mode: ["ODL"], naac: ["A++"], min_q: ["BACHELOR"], university: ["nmims"], show_ineligible: true });
   });

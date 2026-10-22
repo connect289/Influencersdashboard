@@ -29,3 +29,14 @@ describe("finder labels", () => {
     expect(relaxationLabel("elig", p, facets)?.without).toEqual({ all: true });
   });
 });
+
+describe("study modes", () => {
+  it("shows on-campus (Regular) programmes as On-campus", async () => {
+    const { modeDisplay, MODE_LABEL } = await import("./labels");
+    expect(modeDisplay("Regular")).toBe("On-campus");
+    expect(modeDisplay("ODL")).toBe("Distance (ODL)");
+    expect(modeDisplay("Online")).toBe("Online");
+    expect(modeDisplay(null)).toBeNull();
+    expect(MODE_LABEL.regular).toBe("On-campus");
+  });
+});

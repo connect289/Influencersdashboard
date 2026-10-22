@@ -4,7 +4,7 @@
  */
 export const ABOUT = {
   intro:
-    "Eduwit Learning Services is an education company based in Ghaziabad, Delhi NCR. We help students and working professionals choose an online or distance programme that fits them, and support them through admission.",
+    "Eduwit Learning Services is an education company based in Ghaziabad, Delhi NCR. We help students and working professionals choose an online, distance or on-campus programme that fits them, and support them through admission.",
   how:
     "We work with partner universities as an admission partner. Our programme catalogue holds each programme's published fees, duration, eligibility and the university's approvals, and every page shows when that information was last verified. Witty, our AI admissions assistant, answers questions from the same catalogue, and our counsellors take it from there.",
 };

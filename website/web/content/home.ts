@@ -6,8 +6,8 @@
  */
 export const HERO = {
   advisorHeadline: "Your next degree, found in a conversation.",
-  headline: "Find the right online degree, with every fee in plain sight.",
-  sub: "Compare online and distance programmes from Eduwit's partner universities: full fees, duration, approvals and eligibility. Free counselling when you want it.",
+  headline: "Find the right degree, with every fee in plain sight.",
+  sub: "Compare online, distance and on-campus programmes from Eduwit's partner universities: full fees, duration, approvals and eligibility. Free counselling when you want it.",
 };
 
 export const HOW_IT_WORKS = [
@@ -27,7 +27,7 @@ export const HOW_IT_WORKS = [
 
 export const BRIDGE = {
   title: "The bridge between students and universities",
-  body: "Choosing an online degree should not mean guessing. Eduwit brings programmes from its partner universities into one place, shows the facts the universities publish, and gives you a counsellor who helps you from the first question to the application.",
+  body: "Choosing a degree should not mean guessing. Eduwit brings programmes from its partner universities into one place, shows the facts the universities publish, and gives you a counsellor who helps you from the first question to the application.",
 };
 
 export const SERVICES = [

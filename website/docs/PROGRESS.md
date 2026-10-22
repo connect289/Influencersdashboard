@@ -29,6 +29,7 @@
   Data Protection Board). Open points for the owner/lawyer (S-44): Privacy Policy §5 still mentions sharing with service
   providers and advertising platforms; §8 cites the 2011 SPDI Rules rather than the DPDP Act; under-16 vs under-18
   children wording; arbitration seat Varanasi; a named Grievance Officer.
+- On-campus programmes (22 Oct, owner): shown (D-084); 29 universities, 715 programmes; mode label "On-campus".
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).

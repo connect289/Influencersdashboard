@@ -36,8 +36,8 @@ async function baseMetadata({ params }: Props): Promise<Metadata> {
   const facts = [u.facts.ugc_deb ? UGC_LABEL[u.facts.ugc_deb] : null, u.facts.naac_grade ? `NAAC ${u.facts.naac_grade}` : null].filter(Boolean).join(", ");
   return {
     // keep the title (with " · Eduwit") within ~65 characters for long university names
-    title: u.name.length > 25 ? `${u.name}: programmes and fees` : `${u.name}: online and distance programmes`,
-    description: `${u.offerings} online and distance options at ${u.name}${facts ? ` (${facts})` : ""}: full fees, duration, eligibility and how to apply.`,
+    title: u.name.length > 25 ? `${u.name}: programmes and fees` : `${u.name}: programmes and fees`,
+    description: `${u.offerings} online, distance and on-campus options at ${u.name}${facts ? ` (${facts})` : ""}: full fees, duration, eligibility and how to apply.`,
     alternates: { canonical: `/universities/${slug}` },
   };
 }

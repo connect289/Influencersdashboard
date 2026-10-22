@@ -32,11 +32,11 @@ export default async function CreatorPage({ params }: Props) {
           <Sparkles className="size-4" aria-hidden /> {creator ? `Recommended by ${creator.display_name}` : "Welcome to Eduwit"}
         </p>
         <h1 className="font-display text-text text-3xl leading-tight font-semibold sm:text-5xl">
-          Find the right online degree, with a counsellor who checks the details.
+          Find the right degree, with a counsellor who checks the details.
         </h1>
         {creator?.bio ? <p className="text-muted max-w-prose">{creator.bio}</p> : null}
         <p className="text-muted max-w-prose">
-          Compare online and distance programmes by full fee, duration, approvals and eligibility, then get free guidance from an
+          Compare online, distance and on-campus programmes by full fee, duration, approvals and eligibility, then get free guidance from an
           Eduwit counsellor. Your referral is noted automatically — there&apos;s nothing to enter.
         </p>
         {creator?.featured.length ? (

@@ -563,7 +563,7 @@ export function WittyChat({
           maxLength={1000}
           value={input}
           disabled={gate}
-          placeholder={gate ? "Verify your email to start chatting" : "Ask Witty anything about online degrees…"}
+          placeholder={gate ? "Verify your email to start chatting" : "Ask Witty anything about degrees and admissions…"}
           onChange={(e) => {
             setInput(e.target.value);
             presence.keystroke();

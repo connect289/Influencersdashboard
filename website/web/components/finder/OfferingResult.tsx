@@ -7,7 +7,7 @@ import { track } from "@/lib/client/analytics";
 import { saved, useSaved } from "@/lib/client/saved-store";
 import { ELIGIBILITY_LABEL } from "@/lib/finder/eligibility";
 import { formatDuration, formatInr } from "@/lib/format";
-import { ATTRIBUTE_LABEL, FORMAT_LABEL, UGC_LABEL } from "@/lib/search/labels";
+import { ATTRIBUTE_LABEL, FORMAT_LABEL, UGC_LABEL, modeDisplay } from "@/lib/search/labels";
 import type { OfferingCard } from "@/lib/search/types";
 import { cn } from "@/lib/utils";
 import { UniversityMark } from "./UniversityMark";
@@ -81,7 +81,7 @@ export function OfferingResult({ o, onOpen, showProgramme }: { o: OfferingCard; 
             <span className="text-subtle block truncate text-xs">Listed as “{o.spec_display}”</span>
           ) : null}
           <span className="text-muted mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-            <span>{o.mode === "ODL" ? "Distance (ODL)" : o.mode}</span>
+            <span>{modeDisplay(o.mode)}</span>
             {o.duration_months ? <span>· {formatDuration(o.duration_months)}</span> : null}
             {o.naac_grade ? <Badge tone="verified">NAAC {o.naac_grade}</Badge> : null}
             {o.ugc_deb ? <Badge tone="info">{UGC_LABEL[o.ugc_deb]}</Badge> : null}

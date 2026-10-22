@@ -112,7 +112,7 @@ these at the end (spec Section 0).
   Spec 7.3 forbids inventing different reasoning and allows launch before the agent is ready.
 - **Change:** supply the export; verify with the harness; flip the flag in the admin (no redeploy).
 
-### D-013 · "Regular" (on-campus) catalogue rows are hidden from the finder by default
+### D-013 · *(superseded by D-084)* · "Regular" (on-campus) catalogue rows are hidden from the finder by default
 - **Why:** the site markets online and ODL programmes (spec §1); 7 catalogue rows have mode `Regular`.
 - **Change:** setting `finder_include_regular_mode` (admin).
 
@@ -595,4 +595,12 @@ these at the end (spec Section 0).
   turn fails and the student is offered a counsellor (D-059's mock stays for development and CI).
 - **To change:** set `ANTHROPIC_API_KEY` and `WEB_ADVISOR_PROVIDER=claude` (or remove `GEMINI_API_KEY`), and put Claude
   model names back in `web_advisor_models`.
+
+### D-084 · On-campus (Regular) programmes are shown (owner, 22 Oct 2026; supersedes D-013)
+- **Why:** Eduwit also offers on-campus programmes (e.g. BML Munjal University). `finder_include_regular_mode` = true, so
+  the website shows every active catalogue row: 29 universities, 715 programmes (7 on-campus) on 22 Oct 2026, growing as
+  the catalogue grows. Study mode labels: Online, Distance (ODL), On-campus; URL value `mode=regular`; search understands
+  "regular", "on campus", "campus", "offline", "classroom". Site copy says "online, distance and on-campus" (UGC-DEB
+  explanations stay about online and ODL, which is what UGC-DEB regulates).
+- **To change:** set `finder_include_regular_mode` to false in Admin → Flags and settings (no redeploy).
 

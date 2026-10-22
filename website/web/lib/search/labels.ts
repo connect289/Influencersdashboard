@@ -16,7 +16,12 @@ export const DURATION_LABEL: Record<string, string> = {
 export const NAAC_LABEL: Record<string, string> = {
   "a-plus-plus": "NAAC A++", "a-plus": "NAAC A+", a: "NAAC A", "b-plus-plus": "NAAC B++", "b-plus": "NAAC B+", b: "NAAC B",
 };
-export const MODE_LABEL: Record<string, string> = { online: "Online", odl: "Distance (ODL)" };
+export const MODE_LABEL: Record<string, string> = { online: "Online", odl: "Distance (ODL)", regular: "On-campus" };
+/** Display name of a catalogue study mode ("Online" | "ODL" | "Regular"). */
+export function modeDisplay(mode: string | null | undefined): string | null {
+  if (!mode) return null;
+  return mode === "ODL" ? "Distance (ODL)" : mode === "Regular" ? "On-campus" : mode;
+}
 export const FORMAT_LABEL: Record<string, string> = {
   standard: "Standard",
   "work-integrated": "Work-integrated learning",

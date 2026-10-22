@@ -12,7 +12,7 @@ import { track } from "@/lib/client/analytics";
 import { setOfferingParam } from "@/lib/client/use-finder";
 import { MIN_QUALIFICATION_LABEL } from "@/lib/finder/eligibility";
 import { formatDate, formatDuration, formatInr } from "@/lib/format";
-import { ATTRIBUTE_LABEL, FORMAT_LABEL, UGC_LABEL } from "@/lib/search/labels";
+import { ATTRIBUTE_LABEL, FORMAT_LABEL, UGC_LABEL, modeDisplay } from "@/lib/search/labels";
 import type { OfferingDetails } from "@/lib/search/types";
 import dynamic from "next/dynamic";
 import { AskWitty } from "./AskWitty";
@@ -161,7 +161,7 @@ export function OfferingPanel({ qual, advisorEnabled, whatsapp, goals = [] }: { 
             <h3 id="facts-h" className="eyebrow mb-2">Key facts</h3>
             <dl className="grid grid-cols-2 gap-2">
               <Fact label="Level">{d.level_label}</Fact>
-              {d.mode ? <Fact label="Mode">{d.mode === "ODL" ? "Distance (ODL)" : d.mode}</Fact> : null}
+              {d.mode ? <Fact label="Mode">{modeDisplay(d.mode)}</Fact> : null}
               {d.duration_months ? (
                 <Fact label="Duration" note={d.duration_source === "fee_schedule" ? EXPLAINERS.duration_fee_schedule : EXPLAINERS.duration_eligibility_text}>
                   {formatDuration(d.duration_months)}
@@ -251,7 +251,7 @@ export function OfferingPanel({ qual, advisorEnabled, whatsapp, goals = [] }: { 
                     <button type="button" onClick={() => setOfferingParam(a.id, "replace")} className="hover:bg-surface-hover flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] px-3 py-2 text-left">
                       <span className="min-w-0">
                         <span className="text-text block truncate text-sm font-medium">{a.university.name}</span>
-                        <span className="text-subtle text-xs">{a.mode === "ODL" ? "Distance (ODL)" : a.mode}{a.naac_grade ? ` · NAAC ${a.naac_grade}` : ""}</span>
+                        <span className="text-subtle text-xs">{modeDisplay(a.mode)}{a.naac_grade ? ` · NAAC ${a.naac_grade}` : ""}</span>
                       </span>
                       <span className="tabular text-text shrink-0 text-sm">{a.fee.total ? formatInr(a.fee.total) : "On request"}</span>
                     </button>

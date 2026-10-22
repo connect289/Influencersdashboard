@@ -31,7 +31,7 @@ export function HomeHero({ stats, advisorEnabled, popular }: { stats: CatalogSta
               <label htmlFor="hero-ask" className="sr-only">
                 Ask Witty
               </label>
-              <input id="hero-ask" name="q" required maxLength={300} autoComplete="off" placeholder="Ask Witty anything about online degrees…" className="placeholder:text-subtle text-text min-w-0 flex-1 bg-transparent text-base outline-none" />
+              <input id="hero-ask" name="q" required maxLength={300} autoComplete="off" placeholder="Ask Witty anything about degrees and admissions…" className="placeholder:text-subtle text-text min-w-0 flex-1 bg-transparent text-base outline-none" />
               <button type="submit" aria-label="Ask Witty" className="bg-primary text-on-primary grid size-12 shrink-0 place-items-center rounded-full shadow-[var(--glow-amber)]">
                 <ArrowRight className="size-5 transition-transform group-hover:translate-x-0.5" aria-hidden />
               </button>

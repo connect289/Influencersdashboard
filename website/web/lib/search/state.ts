@@ -4,7 +4,7 @@
  * server side).
  */
 
-export const MODES = ["online", "odl"] as const;
+export const MODES = ["online", "odl", "regular"] as const;
 export const DURATIONS = ["le12", "13-24", "25-36", "gt36"] as const;
 export const NAAC = ["a-plus-plus", "a-plus", "a", "b-plus-plus", "b-plus", "b"] as const;
 export const MIN_Q = ["12th", "diploma", "bachelor", "master"] as const;
@@ -76,7 +76,7 @@ const NAAC_SQL: Record<(typeof NAAC)[number], string> = {
 };
 export const naacFromSql = (g: string): string =>
   (Object.entries(NAAC_SQL).find(([, v]) => v === g)?.[0] as string | undefined) ?? g.toLowerCase();
-const MODE_SQL: Record<(typeof MODES)[number], string> = { online: "Online", odl: "ODL" };
+const MODE_SQL: Record<(typeof MODES)[number], string> = { online: "Online", odl: "ODL", regular: "Regular" };
 export const modeFromSql = (m: string): string => (m === "ODL" ? "odl" : m.toLowerCase());
 
 /** Maps URL state to the web_search() input. */

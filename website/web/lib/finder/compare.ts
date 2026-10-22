@@ -5,7 +5,7 @@
 import { formatDuration, formatInr } from "@/lib/format";
 import type { OfferingDetails } from "@/lib/search/types";
 import { MIN_QUALIFICATION_LABEL } from "./eligibility";
-import { ATTRIBUTE_LABEL, FORMAT_LABEL, UGC_LABEL } from "@/lib/search/labels";
+import { ATTRIBUTE_LABEL, FORMAT_LABEL, UGC_LABEL, modeDisplay } from "@/lib/search/labels";
 
 export interface CompareRow {
   key: string;
@@ -41,7 +41,7 @@ export function compareRows(items: OfferingDetails[]): CompareRow[] {
     row("fee_exam", "Exam fee", "Fees", items, (o) => (o.fee_exam ? formatInr(o.fee_exam) : null)),
     row("emi", "EMI", "Fees", items, () => "Easy EMI available"),
     row("duration", "Duration", "Programme", items, (o) => (o.duration_months ? formatDuration(o.duration_months) : null), (o) => o.duration_months),
-    row("mode", "Mode", "Programme", items, (o) => (o.mode === "ODL" ? "Distance (ODL)" : (o.mode ?? null))),
+    row("mode", "Mode", "Programme", items, (o) => modeDisplay(o.mode)),
     row("format", "Format", "Programme", items, (o) => (o.format ? (FORMAT_LABEL[o.format] ?? o.format) : null)),
     row("highlights", "Highlights", "Programme", items, (o) => {
       const a = Object.entries(o.attributes ?? {}).map(([k, v]) => (k === "medium" ? `${v} medium` : (ATTRIBUTE_LABEL[k] ?? null))).filter(Boolean);

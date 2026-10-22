@@ -10,6 +10,7 @@ import { FEE_DISCLAIMER } from "@/content/site";
 import { track } from "@/lib/client/analytics";
 import { setPanelParam } from "@/lib/client/use-finder";
 import { formatDuration, formatInr, formatInrRange } from "@/lib/format";
+import { modeDisplay } from "@/lib/search/labels";
 import type { ProgrammeGroup, SearchResult } from "@/lib/search/types";
 
 const ApplicationForm = dynamic(() => import("@/components/forms/ApplicationForm").then((m) => m.ApplicationForm), {
@@ -81,7 +82,7 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
             <div className="mt-2 flex flex-wrap gap-2 text-sm">
               {dur ? <Badge>{dur}</Badge> : null}
               {g.best_naac ? <Badge tone="verified">Up to NAAC {g.best_naac}</Badge> : null}
-              {g.modes.map((m) => <Badge key={m}>{m === "ODL" ? "Distance (ODL)" : m}</Badge>)}
+              {g.modes.map((m) => <Badge key={m}>{modeDisplay(m)}</Badge>)}
             </div>
             <p className="text-subtle mt-2 text-xs">{FEE_DISCLAIMER}</p>
           </div>
@@ -95,7 +96,7 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
                     <span className="min-w-0">
                       <span className="text-text block truncate text-sm font-medium">{o.university.name}</span>
                       <span className="text-subtle text-xs">
-                        {o.mode === "ODL" ? "Distance (ODL)" : o.mode}
+                        {modeDisplay(o.mode)}
                         {o.duration_months ? ` · ${formatDuration(o.duration_months)}` : ""}
                         {o.naac_grade ? ` · NAAC ${o.naac_grade}` : ""}
                       </span>
@@ -116,7 +117,7 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
                 groupKey: g.key,
                 label: `${g.programme_name} ${g.spec_name}`,
                 exploreHref: `/programmes?programme=${g.programme_id}`,
-                universities: items.map((o) => ({ offeringId: o.id, name: `${o.university.name}${o.mode === "ODL" ? " (Distance)" : ""}`, feeTotal: o.fee.total, level: o.level_id, minQualification: o.min_qualification })),
+                universities: items.map((o) => ({ offeringId: o.id, name: `${o.university.name}${o.mode === "ODL" ? " (Distance)" : o.mode === "Regular" ? " (On-campus)" : ""}`, feeTotal: o.fee.total, level: o.level_id, minQualification: o.min_qualification })),
               }}
               goals={goals}
               whatsapp={whatsapp}

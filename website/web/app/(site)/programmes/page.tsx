@@ -34,13 +34,13 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const { index: filtersIndexable, canonical } = finderIndexability(params, views);
   // Offering / programme-group panel deep links are not standalone pages (spec 13.1): noindex, canonical to the view.
   const index = filtersIndexable && !sp.offering && !sp.group;
-  const title = heading === "Find your programme" ? "Find online and distance programmes" : `${heading} — compare ${result.total_groups > 1 ? "programmes" : "universities"}`;
+  const title = heading === "Find your programme" ? "Find online, distance and on-campus programmes" : `${heading} — compare ${result.total_groups > 1 ? "programmes" : "universities"}`;
   return {
     title,
     description:
       result.total > 0
-        ? `Compare ${result.total} ${heading === "Find your programme" ? "online and distance" : heading} options from ${result.facets.university.filter((u) => u.count > 0).length} universities: full fees, duration, approvals and eligibility.`
-        : "Search online and distance programmes by full fee, duration, approvals and eligibility.",
+        ? `Compare ${result.total} ${heading === "Find your programme" ? "online, distance and on-campus" : heading} options from ${result.facets.university.filter((u) => u.count > 0).length} universities: full fees, duration, approvals and eligibility.`
+        : "Search online, distance and on-campus programmes by full fee, duration, approvals and eligibility.",
     alternates: { canonical },
     robots: index ? undefined : { index: false, follow: true },
   };

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: { default: "Eduwit — Choose your education wisely", template: "%s · Eduwit" },
   description:
-    "Find the right online or distance degree. Compare programmes, fees and approvals across Eduwit's partner universities, and get free counselling.",
+    "Find the right online, distance or on-campus degree. Compare programmes, fees and approvals across Eduwit's partner universities, and get free counselling.",
   applicationName: "Eduwit",
   icons: { icon: "/brand/eduwit-mark.svg" },
   formatDetection: { telephone: false },

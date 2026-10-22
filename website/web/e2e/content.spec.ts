@@ -10,7 +10,7 @@ test.describe("content pages", () => {
   test("homepage with Witty off: search, guided finder and free counselling; live trust line; data sections", async ({ page }) => {
     await page.goto("/");
     await dismissConsent(page);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Find the right online degree");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Find the right degree");
     await expect(page.getByRole("combobox", { name: /Search programmes/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /Answer 3 quick questions/ })).toHaveAttribute("href", "/programmes?guided=1");
     await expect(page.getByRole("link", { name: /Get free counselling/ }).first()).toBeVisible();

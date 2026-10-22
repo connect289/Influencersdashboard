@@ -6,7 +6,7 @@ import { getSettings } from "@/lib/server/settings";
 
 export const metadata: Metadata = {
   title: "Chat with Witty, Eduwit's AI admissions assistant",
-  description: "Tell Witty what you'd like to study. It asks a few questions, then shows online and distance programmes you're eligible for, with full fees.",
+  description: "Tell Witty what you'd like to study. It asks a few questions, then shows online, distance and on-campus programmes you're eligible for, with full fees.",
   alternates: { canonical: "/witty" },
 };
 

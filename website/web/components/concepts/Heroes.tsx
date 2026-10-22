@@ -36,7 +36,7 @@ export function HeroA({ stats }: { stats: Stats }) {
           href="/concepts/a/chat"
           className="glass-strong hairline-lumen group flex w-full max-w-2xl items-center gap-3 rounded-[var(--radius-2xl)] p-2 pl-5 text-left transition-shadow hover:shadow-[var(--glow-amber)]"
         >
-          <span className="text-subtle flex-1 truncate text-base">Ask Witty anything about online degrees…</span>
+          <span className="text-subtle flex-1 truncate text-base">Ask Witty anything about degrees and admissions…</span>
           <span className="bg-primary text-on-primary grid size-12 place-items-center rounded-full shadow-[var(--glow-amber)]">
             <ArrowRight className="size-5 transition-transform group-hover:translate-x-0.5" aria-hidden />
           </span>
@@ -74,7 +74,7 @@ export function HeroB({ stats }: { stats: Stats }) {
           <p className="eyebrow">Eduwit Learning Services · Ghaziabad, Delhi NCR</p>
           <KineticHeadline text="Choose your education wisely." className="text-text text-[length:var(--text-6xl)]" />
           <p className="text-muted max-w-xl text-lg">
-            Compare online and distance degrees from Eduwit&apos;s partner universities — fees, approvals and
+            Compare online, distance and on-campus degrees from Eduwit&apos;s partner universities — fees, approvals and
             eligibility side by side — then apply with free support.
           </p>
           <Link
@@ -91,7 +91,7 @@ export function HeroB({ stats }: { stats: Stats }) {
               <dd className="tabular font-display text-3xl font-semibold">{stats.universities}</dd>
             </div>
             <div>
-              <dt className="text-subtle text-xs">Online &amp; ODL programmes</dt>
+              <dt className="text-subtle text-xs">Programmes</dt>
               <dd className="tabular font-display text-3xl font-semibold">{stats.programmes}</dd>
             </div>
             <div>

@@ -11,6 +11,6 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   return ogCard({
     eyebrow: "University",
     title: u ? u.name : "University",
-    footer: u ? `${u.offerings} online and distance options · full fees · eligibility` : undefined,
+    footer: u ? `${u.offerings} online, distance and on-campus options · full fees · eligibility` : undefined,
   });
 }

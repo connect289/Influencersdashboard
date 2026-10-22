@@ -171,7 +171,7 @@ export async function generateBrief(slug: string, title: string, actor: Actor): 
   const question = /^(is|are|can|how|what|which|why|does)\b/i.test(title);
   const brief: Brief = {
     intent: question ? "Informational: answer the question directly, then help the reader compare options." : "Commercial investigation: help the reader compare and shortlist.",
-    audience: "Indian students and working professionals considering an online or distance degree.",
+    audience: "Indian students and working professionals considering an online, distance or on-campus degree.",
     outline: question
       ? ["Short answer (2–3 sentences)", "What it depends on", "How to check a specific programme", "Options to compare", "FAQs"]
       : ["Who this is for", "What to compare: fees, duration, approvals, eligibility", "How the options differ", "How to apply with a counsellor", "FAQs"],

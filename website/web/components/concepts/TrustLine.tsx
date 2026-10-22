@@ -32,7 +32,7 @@ export function TrustLine({
       </span>
       <span aria-hidden>·</span>
       <span>
-        <Odometer value={programmes} className="text-text font-semibold" /> online &amp; ODL programmes
+        <Odometer value={programmes} className="text-text font-semibold" /> programmes
       </span>
       <span aria-hidden className="hidden sm:inline">
         ·
