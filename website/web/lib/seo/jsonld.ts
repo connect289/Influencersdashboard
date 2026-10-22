@@ -62,17 +62,24 @@ export function breadcrumbLd(trail: { name: string; url: string }[]): Json {
   };
 }
 
-/** Eduwit as an educational organisation and a local business (spec 13.4 local SEO); hours only when the owner set them. */
-export function organizationLd(siteUrl: string, hours?: string[] | null): Json {
-  return {
+/**
+ * Eduwit as an educational organisation. With `contact` (the contact page only, owner decision 22 Oct 2026) it is also a
+ * local business with the address, phone and hours (spec 13.4 local SEO); elsewhere it carries no address or phone.
+ */
+export function organizationLd(siteUrl: string, hours?: string[] | null, contact = false): Json {
+  const base = {
     "@context": "https://schema.org",
-    "@type": ["EducationalOrganization", "LocalBusiness"],
-    ...(hours?.length ? { openingHours: hours } : {}),
     name: COMPANY.name,
     alternateName: COMPANY.brand,
     url: siteUrl,
     logo: `${siteUrl}/brand/eduwit-logo.svg`,
     email: COMPANY.email,
+  };
+  if (!contact) return { ...base, "@type": "EducationalOrganization" };
+  return {
+    ...base,
+    "@type": ["EducationalOrganization", "LocalBusiness"],
+    ...(hours?.length ? { openingHours: hours } : {}),
     telephone: COMPANY.phoneE164,
     address: {
       "@type": "PostalAddress",

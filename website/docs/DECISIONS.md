@@ -604,3 +604,13 @@ these at the end (spec Section 0).
   explanations stay about online and ODL, which is what UGC-DEB regulates).
 - **To change:** set `finder_include_regular_mode` to false in Admin → Flags and settings (no redeploy).
 
+### D-085 · Address, phone and GST only on the contact page (owner, 22 Oct 2026)
+- **Why:** the owner asked that the address, phone number and GST appear only on the contact page and where they are
+  required. Footer and About show the company name, email and a link to the contact page; the home page's closing
+  section links to the contact page instead of showing the number; emails end with name, email and eduwit.in. The
+  contact page keeps all details and is the only page with the LocalBusiness structured data (address, phone, hours);
+  elsewhere the organisation is an EducationalOrganization without them. Legal pages keep their contact sections
+  (the owner's documents; the DPDP grievance contact). Call and WhatsApp buttons stay (they dial without showing the
+  number).
+- **To change:** `components/site/SiteFooter.tsx`, `app/(site)/about/page.tsx`, `lib/seo/jsonld.ts` (`contact` flag).
+

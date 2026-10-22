@@ -26,7 +26,7 @@ export default async function ContactPage() {
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${a.line1}, ${a.locality}, ${a.city} ${a.postalCode}`)}`;
   return (
     <main id="main" className="container-site grid gap-10 pt-10 pb-28 lg:pb-16">
-      <JsonLd data={organizationLd(siteUrl("/").replace(/\/$/, ""), settings.business_hours)} />
+      <JsonLd data={organizationLd(siteUrl("/").replace(/\/$/, ""), settings.business_hours, true)} />
       {faqs.length ? <JsonLd data={faqLd(faqs)} /> : null}
       <header className="max-w-3xl">
         <p className="eyebrow">Contact</p>

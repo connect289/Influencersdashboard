@@ -33,12 +33,14 @@ test.describe("content pages", () => {
   test("about, how it works and contact pages", async ({ page }) => {
     await page.goto("/about");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Choose your education wisely");
-    await expect(page.getByText("GST 09BXLPJ7928K1ZP").first()).toBeVisible();
+    // address, phone and GST appear only on the contact page (owner decision, D-085)
+    await expect(page.getByText("GST 09BXLPJ7928K1ZP")).toHaveCount(0);
     await page.goto("/how-it-works");
     await expect(page.getByRole("heading", { name: "What we never do" })).toBeVisible();
     await page.goto("/contact");
     await dismissConsent(page);
     await expect(page.getByRole("heading", { name: "Send an enquiry" })).toBeVisible();
+    await expect(page.getByText("GST 09BXLPJ7928K1ZP").first()).toBeVisible();
   });
 
   // The enquiry form flow (real email codes, lead assertions) lives in leads.spec.ts.

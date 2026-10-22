@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, MapPin, Phone } from "lucide-react";
+import { Mail } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { COMPANY, FEE_DISCLAIMER, LEGAL_PAGES } from "@/content/site";
 
@@ -16,7 +16,6 @@ export function SiteFooter({
   universities?: { href: string; label: string }[];
   hasResources?: boolean;
 }) {
-  const a = COMPANY.address;
   return (
     <footer className="border-border border-t pb-20 md:pb-0">
       <div className="container-site grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
@@ -24,19 +23,11 @@ export function SiteFooter({
           <Logo height={32} />
           <address className="text-muted grid gap-2 text-sm not-italic">
             <span className="text-text font-semibold">{COMPANY.name}</span>
-            <span className="flex gap-2">
-              <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
-              {a.line1}, {a.locality}, {a.city}, {a.regionCode} {a.postalCode}
-            </span>
-            <a href={`tel:${COMPANY.phoneE164}`} className="hover:text-text flex gap-2">
-              <Phone className="size-4" aria-hidden />
-              {COMPANY.phone}
-            </a>
             <a href={`mailto:${COMPANY.email}`} className="hover:text-text flex gap-2">
               <Mail className="size-4" aria-hidden />
               {COMPANY.email}
             </a>
-            <span>GST {COMPANY.gst}</span>
+            <Link href="/contact" className="hover:text-text">All contact details</Link>
           </address>
           {COMPANY.social.length ? (
             <ul className="flex gap-3 text-sm">

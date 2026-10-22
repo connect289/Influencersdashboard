@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, Building2, GraduationCap, Handshake, Mail, Phone, ShieldCheck, Users } from "lucide-react";
+import { BadgeCheck, Building2, GraduationCap, Handshake, Mail, ShieldCheck, Users } from "lucide-react";
 import { ABOUT } from "@/content/about";
 import { PRINCIPLES, SERVICES } from "@/content/home";
 import { COMPANY } from "@/content/site";
@@ -107,9 +107,8 @@ export default async function AboutPage() {
           <h2 id="company-h" className="font-display text-text text-2xl font-semibold">Talk to us</h2>
           <address className="text-muted mt-4 grid gap-2 not-italic">
             <span className="text-text flex items-center gap-2 font-semibold"><Building2 className="size-4" aria-hidden /> {COMPANY.name}</span>
-            <a href={`tel:${COMPANY.phoneE164}`} className="hover:text-text flex gap-2"><Phone className="size-4" aria-hidden /> {COMPANY.phone}</a>
             <a href={`mailto:${COMPANY.email}`} className="hover:text-text flex gap-2"><Mail className="size-4" aria-hidden /> {COMPANY.email}</a>
-            <span>GST {COMPANY.gst}</span>
+            <Link href="/contact" className="text-accent font-medium underline underline-offset-4">All contact details</Link>
           </address>
         </div>
         <div className="grid content-center gap-3">

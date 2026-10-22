@@ -50,8 +50,13 @@ test.describe("technical SEO", () => {
     await page.goto("/");
     const ld = (await page.locator('script[type="application/ld+json"]').allTextContents()).map((t) => JSON.parse(t) as { "@type": string | string[] });
     const types = ld.flatMap((x) => x["@type"]);
-    // the organisation is also a LocalBusiness (Indirapuram address and phone; spec 13.4 local SEO, D-074)
-    expect(types).toEqual(expect.arrayContaining(["EducationalOrganization", "LocalBusiness", "WebSite"]));
+    // the home page names the organisation without address or phone; the contact page adds the LocalBusiness (D-085)
+    expect(types).toEqual(expect.arrayContaining(["EducationalOrganization", "WebSite"]));
+    expect(types).not.toContain("LocalBusiness");
+    await page.goto("/contact");
+    const contactTypes = (await page.locator('script[type="application/ld+json"]').allTextContents()).flatMap((t) => (JSON.parse(t) as { "@type": string | string[] })["@type"]);
+    expect(contactTypes).toEqual(expect.arrayContaining(["EducationalOrganization", "LocalBusiness"]));
+    await page.goto("/");
     const site = ld.find((x) => x["@type"] === "WebSite") as unknown as { potentialAction: { target: { urlTemplate: string } } };
     expect(site.potentialAction.target.urlTemplate).toContain("/programmes?q={search_term_string}");
     const og = await page.locator('meta[property="og:image"]').first().getAttribute("content");

@@ -18,7 +18,7 @@ async function View() {
       <SeoNav current="/admin/seo/local" />
       <Card title="On the website">
         <p className="text-muted text-sm">
-          The home and contact pages carry <code>EducationalOrganization</code> + <code>LocalBusiness</code> structured data with {COMPANY.address.line1},{" "}
+          The contact page carries <code>EducationalOrganization</code> + <code>LocalBusiness</code> structured data with {COMPANY.address.line1},{" "}
           {COMPANY.address.locality}, {COMPANY.address.city} {COMPANY.address.postalCode} and {COMPANY.phone}. Opening hours are added once set
           (setting <code>business_hours</code>, S-51) — none are shown until then, so nothing is invented.
         </p>

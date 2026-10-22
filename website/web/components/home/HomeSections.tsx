@@ -226,9 +226,9 @@ export function FinalCta({ advisorEnabled, whatsapp }: { advisorEnabled: boolean
               Get free counselling
             </Link>
           )}
-          <a href={`tel:${COMPANY.phoneE164}`} className="border-border-strong text-text inline-flex h-12 items-center gap-2 rounded-full border px-6 font-semibold">
-            <Phone className="size-4" aria-hidden /> {COMPANY.phone}
-          </a>
+          <Link href="/contact" className="border-border-strong text-text inline-flex h-12 items-center gap-2 rounded-full border px-6 font-semibold">
+            <Phone className="size-4" aria-hidden /> Contact us
+          </Link>
           <a href={`mailto:${COMPANY.email}`} className="border-border-strong text-text inline-flex h-12 items-center gap-2 rounded-full border px-6 font-semibold">
             <Mail className="size-4" aria-hidden /> {COMPANY.email}
           </a>

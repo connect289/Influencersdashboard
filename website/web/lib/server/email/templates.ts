@@ -18,7 +18,7 @@ function layout(title: string, bodyHtml: string): string {
 <tr><td style="padding:24px 28px 8px"><span style="font-size:22px;font-weight:700;color:#062f5b">Edu</span><span style="font-size:22px;font-weight:700;color:#c48000">wit</span></td></tr>
 <tr><td style="padding:8px 28px 24px;font-size:15px;line-height:1.6">${bodyHtml}</td></tr>
 <tr><td style="padding:16px 28px 24px;border-top:1px solid #e3e8f0;font-size:12px;line-height:1.5;color:#5b6b82">
-${esc(COMPANY.name)} · ${esc(COMPANY.address.line1)}, ${esc(COMPANY.address.locality)}, ${esc(COMPANY.address.city)} ${esc(COMPANY.address.postalCode)} · ${esc(COMPANY.phone)}</td></tr>
+${esc(COMPANY.name)} · ${esc(COMPANY.email)} · eduwit.in</td></tr>
 </table></td></tr></table></body></html>`;
 }
 
