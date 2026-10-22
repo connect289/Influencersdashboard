@@ -9,8 +9,8 @@ Tick in order. Details for every step: `RUNBOOK.md` §5–§7. Nothing here has 
       partner or the B2C team). File: `s07_b2b_routing_web_leads.sql`, or the B2B admin flips the setting.
 - [ ] 🔴 **A-CONSENT-1** approved — website consent texts registered in the B2B CRM (`s05_…`), after
 - [ ] **S-44** lawyer review of the consent texts and Privacy Policy additions (`docs/legal/`).
-- [ ] **Legal pages filled** (Admin → Content → Legal pages): the six pages are empty placeholders because the old
-      site could not be crawled from the build environment (S-01). Paste the current texts (plus the S-44 additions).
+- [x] **Legal pages filled** (22 Oct 2026, from the owner's documents; Data Privacy & Opt-out drafted for the DPDP Act).
+      Lawyer review (S-44) still recommended — open points in PROGRESS.md.
 - [ ] **S-48** homepage / About / How it works copy approved (interim copy written from the spec).
 - [ ] A-LEAD-1/2/3 (`s01`) and A-AGENT-4 (`s04`) approved or deferred (the site works without them; see
       APPROVALS_NEEDED for the fallbacks).

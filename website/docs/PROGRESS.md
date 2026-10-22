@@ -23,6 +23,12 @@
   `gemini-3.6-flash`. **Waiting for the owner** to add `GEMINI_API_KEY` and the email variables (`EMAIL_PROVIDER=smtp`,
   Gmail SMTP as connect@eduwit.in with a new app password) in Vercel and redeploy; then `web_advisor_enabled` → true
   and verify a real chat (model column = gemini, lead in the CRM).
+- Legal pages (22 Oct): the five policies from the owner's documents and a Data Privacy & Opt-out page drafted for the DPDP
+  Act 2023 are live (`web_legal_pages`, saved through `web_admin_save`, audited). Owner instruction: no organisation other
+  than Eduwit is named (Google/Facebook/Microsoft/UGC etc. removed; the opt-out page keeps the statutory reference to the
+  Data Protection Board). Open points for the owner/lawyer (S-44): Privacy Policy §5 still mentions sharing with service
+  providers and advertising platforms; §8 cites the 2011 SPDI Rules rather than the DPDP Act; under-16 vs under-18
+  children wording; arbitration seat Varanasi; a named Grievance Officer.
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
