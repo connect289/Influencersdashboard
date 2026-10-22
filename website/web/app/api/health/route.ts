@@ -45,7 +45,8 @@ export async function GET(req: Request) {
     checks.kv = { ok: false };
   }
   checks.email = { ok: e.EMAIL_PROVIDER !== "console" || e.APP_ENV !== "production", provider: e.EMAIL_PROVIDER };
-  checks.ai = { ok: true, configured: !!e.ANTHROPIC_API_KEY, mode: e.ANTHROPIC_API_KEY ? "live" : "mock" };
+  const live = e.GEMINI_API_KEY ? "gemini" : e.ANTHROPIC_API_KEY ? "claude" : null;
+  checks.ai = { ok: true, configured: !!live, mode: live ? "live" : "mock", provider: live };
   checks.turnstile = { configured: !!e.TURNSTILE_SECRET_KEY };
   return Response.json(
     detail ? { ok, env: e.APP_ENV, ms: Math.round(performance.now() - started), checks } : { ok },

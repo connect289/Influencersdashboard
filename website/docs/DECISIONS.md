@@ -584,3 +584,15 @@ these at the end (spec Section 0).
   has no crons and `CRON_SECRET` is no longer needed. Supersedes D-048. A stalled worker shows on the admin dashboard and
   in `/api/health` (`checks.outbox`, oldest pending job ≥ 10 minutes). **To change:** move the jobs back to
   `vercel.json` on a Pro plan and unschedule `web_outbox_worker` / `web_seo_daily`.
+
+### D-083 · Witty on the website runs on Gemini (owner decision, 22 Oct 2026)
+- **Why:** the owner chose a Gemini API key for Witty on the website. Witty on WhatsApp already uses Gemini
+  (`gemini-3.6-flash`), so both channels now use the same model family (the "byte-identical behaviour" option of D-011).
+  `lib/server/web-advisor/gemini.ts` calls the Generative Language REST API directly (no SDK): the extractor asks for a
+  JSON response, the counsellor reply streams as server-sent events, thought parts are never shown or stored, the key
+  travels in a header (never in a URL or log). `web_settings.web_advisor_models` = `gemini-3.6-flash` for both calls.
+- **Also:** a deployed site (production or preview) never falls back to the scripted mock any more: without a key the
+  turn fails and the student is offered a counsellor (D-059's mock stays for development and CI).
+- **To change:** set `ANTHROPIC_API_KEY` and `WEB_ADVISOR_PROVIDER=claude` (or remove `GEMINI_API_KEY`), and put Claude
+  model names back in `web_advisor_models`.
+

@@ -25,7 +25,9 @@ const schema = z.object({
   TURNSTILE_SECRET_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   WEB_ANTHROPIC_BASE_URL: z.url().optional(), // never the environment's ANTHROPIC_BASE_URL (D-027)
-  WEB_ADVISOR_PROVIDER: z.enum(["auto", "claude", "mock"]).default("auto"),
+  GEMINI_API_KEY: z.string().optional(), // Google AI Studio key (D-083)
+  WEB_GEMINI_BASE_URL: z.url().optional(), // optional gateway for the Gemini API
+  WEB_ADVISOR_PROVIDER: z.enum(["auto", "gemini", "claude", "mock"]).default("auto"),
   /** Load tests only: the scripted model waits this long before its first token (a real model's time to first token). */
   WEB_ADVISOR_MOCK_TTFT_MS: z.coerce.number().int().min(0).max(10000).default(0),
   /** Max concurrent database calls per server instance (the PostgREST pool is shared with other products, D-080). */

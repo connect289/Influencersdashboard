@@ -16,7 +16,13 @@
   repo, root `website/web`, production branch `claude/inspiring-babbage-8asj1y`. Env: `APP_ENV=preview` (noindex,
   Turnstile mocked until keys exist), `NEXT_PUBLIC_SITE_URL=https://eduwit-website.vercel.app`, Supabase URL and
   publishable key; the three secrets were added by the owner. No email provider yet (verification codes not delivered).
-- After the first deploy: set `web_settings.internal_base_url` to `"https://eduwit-website.vercel.app"`, then smoke test.
+- Deployed (19 Oct): production deployment Ready; `internal_base_url` = `"https://eduwit-website.vercel.app"`; the outbox
+  worker reaches the site (HTTP 200, Vault key = Vercel key); web9 part 2 + web11 and the Vault secret applied by the owner.
+  `default_theme` set to `"dark"` (Concept A is dark-first; on light-mode devices it looked like Concept B).
+- Witty (22 Oct, owner: "Turn on Witty", with a Gemini key): Gemini provider added (D-083); `web_advisor_models` =
+  `gemini-3.6-flash`. **Waiting for the owner** to add `GEMINI_API_KEY` and the email variables (`EMAIL_PROVIDER=smtp`,
+  Gmail SMTP as connect@eduwit.in with a new app password) in Vercel and redeploy; then `web_advisor_enabled` → true
+  and verify a real chat (model column = gemini, lead in the CRM).
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).

@@ -15,7 +15,7 @@ rollback), and what to do when something breaks. Companion docs: `GO_LIVE_CHECKL
 | Email | the provider in S-12 | verification codes, confirmations (through the outbox, retried) |
 | Rate limits, breaker | Upstash Redis (S-15) | without it: Postgres limiter for rate limits (D-077); the AI breaker is then per instance |
 | Errors | Sentry (S-19) + Vercel logs | logs are JSON with `requestId`; no personal data (scrubbed) |
-| Witty on the website | `/api/witty` (internal name `web_advisor`) | **off** until A-AGENT-1 and S-14; flag `web_advisor_enabled` |
+| Witty on the website | `/api/witty` (internal name `web_advisor`) | model: Gemini `gemini-3.6-flash` via `GEMINI_API_KEY` (D-083); flag `web_advisor_enabled`; students verify their email first (needs the email provider) |
 
 ### Programme list sync (D-081)
 Witty, the CRMs and the website all use the same shared catalogue tables. The website keeps a fast copy that the

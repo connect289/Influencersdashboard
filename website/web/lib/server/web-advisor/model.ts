@@ -1,12 +1,13 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { env, isProduction } from "../env";
+import { env, isDeployed } from "../env";
+import { geminiProvider } from "./gemini";
 import { mockProvider } from "./mock";
 
 /**
- * Model providers for web_advisor (docs/AGENT_ARCHITECTURE.md §3.3). Claude with prompt caching (the system prompt is a
- * cached prefix); the scripted mock runs when no API key is configured outside production (S-14). Models come from
- * web_settings (`web_advisor_models`), never code.
+ * Model providers for web_advisor (docs/AGENT_ARCHITECTURE.md §3.3). Gemini (D-083, Witty's own model family) or Claude
+ * with prompt caching (the system prompt is a cached prefix); the scripted mock runs only on a developer machine or in
+ * CI without a key (S-14), never on a deployed site. Models come from web_settings (`web_advisor_models`), never code.
  */
 export interface ModelUsage {
   prompt_tokens: number;
@@ -15,7 +16,7 @@ export interface ModelUsage {
   cost_usd: number;
 }
 export interface ModelProvider {
-  readonly name: "claude" | "mock";
+  readonly name: "claude" | "gemini" | "mock";
   extract(o: { model: string; system: string; input: unknown; signal: AbortSignal }): Promise<{ text: string; usage: ModelUsage; model: string }>;
   counsel(o: { model: string; system: string; input: unknown; signal: AbortSignal; onText: (delta: string) => void }): Promise<{ text: string; usage: ModelUsage; model: string }>;
 }
@@ -78,10 +79,17 @@ const claudeProvider: ModelProvider = {
   },
 };
 
+/**
+ * WEB_ADVISOR_PROVIDER: "gemini" / "claude" pin a provider; "auto" prefers Gemini when its key is set, then Claude.
+ * A deployed site (production or preview) never falls back to the scripted mock: without a key the turn fails and the
+ * student is offered a counsellor.
+ */
 export function modelProvider(): ModelProvider {
   const e = env();
-  if (e.WEB_ADVISOR_PROVIDER === "mock" && !isProduction()) return mockProvider;
-  if (e.ANTHROPIC_API_KEY && e.WEB_ADVISOR_PROVIDER !== "mock") return claudeProvider;
-  if (isProduction()) throw new Error("ANTHROPIC_API_KEY is not set (S-14)");
+  const p = e.WEB_ADVISOR_PROVIDER;
+  if (p === "mock" && !isDeployed()) return mockProvider;
+  if ((p === "gemini" || p === "auto") && e.GEMINI_API_KEY) return geminiProvider;
+  if ((p === "claude" || p === "auto") && e.ANTHROPIC_API_KEY) return claudeProvider;
+  if (isDeployed()) throw new Error("No model key for web_advisor: set GEMINI_API_KEY or ANTHROPIC_API_KEY (S-14)");
   return mockProvider;
 }
