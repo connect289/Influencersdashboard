@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Mail } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { COMPANY, FEE_DISCLAIMER, LEGAL_PAGES } from "@/content/site";
 
@@ -23,10 +22,6 @@ export function SiteFooter({
           <Logo height={32} />
           <address className="text-muted grid gap-2 text-sm not-italic">
             <span className="text-text font-semibold">{COMPANY.name}</span>
-            <a href={`mailto:${COMPANY.email}`} className="hover:text-text flex gap-2">
-              <Mail className="size-4" aria-hidden />
-              {COMPANY.email}
-            </a>
             <Link href="/contact" className="hover:text-text">All contact details</Link>
           </address>
           {COMPANY.social.length ? (

@@ -9,8 +9,8 @@ test.describe("site shell", () => {
     page.on("console", (m) => m.type() === "error" && /Content Security Policy|Refused/.test(m.text()) && errors.push(m.text()));
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("contentinfo")).toContainText("09BXLPJ7928K1ZP");
-    await expect(page.getByRole("contentinfo")).toContainText("connect@eduwit.in");
+    await expect(page.getByRole("contentinfo")).not.toContainText("09BXLPJ7928K1ZP");
+    await expect(page.getByRole("contentinfo")).toContainText("All contact details");
     if (isMobile) {
       await expect(page.getByRole("navigation", { name: "Quick actions" })).toBeVisible();
       await page.getByRole("button", { name: "Open menu" }).click();

@@ -605,8 +605,8 @@ these at the end (spec Section 0).
 - **To change:** set `finder_include_regular_mode` to false in Admin → Flags and settings (no redeploy).
 
 ### D-085 · Address, phone and GST only on the contact page (owner, 22 Oct 2026)
-- **Why:** the owner asked that the address, phone number and GST appear only on the contact page and where they are
-  required. Footer and About show the company name, email and a link to the contact page; the home page's closing
+- **Why:** the owner asked that the address, phone number, GST (and, in the footer, the email) appear only on the contact page and where they are
+  required. The footer shows the company name and a link to the contact page; About shows name, email and that link; the home page's closing
   section links to the contact page instead of showing the number; emails end with name, email and eduwit.in. The
   contact page keeps all details and is the only page with the LocalBusiness structured data (address, phone, hours);
   elsewhere the organisation is an EducationalOrganization without them. Legal pages keep their contact sections
