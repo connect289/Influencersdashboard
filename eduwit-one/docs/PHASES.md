@@ -26,6 +26,16 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | `one.events` count within 1% of the sources | pending |
 | Least-privilege test passes | passes locally (`supabase/tests/local/20_events_secrets_privileges.sql` §5, and `supabase/tests/smoke.sql`, which runs the same catalogue checks on staging and production). Proven to fail on a bad grant |
 
-## Phases 2–7
+## Phase 2 — Checks and heartbeats (in progress; phase 1 blocked on owner, rule 4)
+
+| Criterion | Status |
+| --- | --- |
+| All checks in §6 seeded | done: 83 checks in `docs/CHECKS.md` (generated); a unit test lists every §6 id |
+| Every check has at least one result row | SQL checks: proven read-only on production (`docs/CHECK-TRIAL.md`) and locally; on production after the phase 1 apply. App-run checks: with the probe runner |
+| Known live findings produce the expected incident | b2c-capacity (B2C-10) and base URLs or keys (PLAT-05): incidents in the local test, failing on production in the trial. Nurture Worker inactive (WITTY-08): off until `setup:n8n_api` |
+| HTTP probes for n8n, Chatwoot, Vercel, website, Spark, WhatsApp; heartbeats written | pending (probe runner) |
+| A broken probe produces an HB incident within 3 minutes | stale-heartbeat path proven locally (`30_checks.sql`); the end-to-end probe test comes with the probe runner |
+
+## Phases 3–7
 
 Not started.

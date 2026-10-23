@@ -3,6 +3,17 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — phase 2, check catalogue
+
+- The full specification catalogue (83 checks: 73 on, 10 off until configured) is now in `supabase/checks/*.sql`.
+  `scripts/db/gen-checks.ts` generates migration 0006 and `docs/CHECKS.md` from it, with a drift test.
+- New thresholds in `config/settings.json` (D-039); migration 0007 regenerated.
+- Every SQL check was run read-only on production (`scripts/db/try-checks.ts`, `docs/CHECK-TRIAL.md`). Nothing was
+  written.
+- Local test extended with `supabase/tests/local/30_checks.sql`: the known findings open the expected incidents, a
+  stale heartbeat opens and recovers, and setup-gated checks are skipped.
+- Decisions D-033 to D-040.
+
 ## 23 Oct 2026 — phase 1, rehearsal tooling and partial staging apply
 
 - Added `scripts/db/rehearse.sh`, `apply.sh` and `dump.sh`. Also added `with-db.ts` (credentials go into PG*

@@ -1,5 +1,5 @@
 {
-  "$comment": "Operational defaults for one.settings (spec §18), seeded by migration 0007 through scripts/db/gen-seed.ts. Every value is editable from the Settings page and versioned; a seed never overwrites a person's edit. Owner decisions from the prerequisites doc override the spec defaults: email-only alerts (D-005), Gemini as the seeded provider (D-004).",
+  "$comment": "Operational defaults for one.settings (spec \u00a718), seeded by migration 0007 through scripts/db/gen-seed.ts. Every value is editable from the Settings page and versioned; a seed never overwrites a person's edit. Owner decisions from the prerequisites doc override the spec defaults: email-only alerts (D-005), Gemini as the seeded provider (D-004).",
   "app": {
     "base_url": null,
     "timezone": "Asia/Kolkata"
@@ -46,7 +46,21 @@
     "catalogue_min": 30,
     "outbox_cadence_multiple": 3,
     "job_silent_min": 15,
-    "heartbeat_multiple": 3
+    "heartbeat_multiple": 3,
+    "cron_startup_timeouts_15m": 2,
+    "cron_startup_timeouts_p1_15m": 10,
+    "b2b_intake_received_min": 5,
+    "push_fail_streak": 3,
+    "b2b_sync_lag_min": 10,
+    "partner_queue_h": 24,
+    "sla_breach_pct": 20,
+    "sla_met_late_run": 5,
+    "admin_message_attempts": 3,
+    "b2c_inbox_min": 5,
+    "b2c_outbox_urgent_min": 30,
+    "b2c_outbox_batch_min": 45,
+    "web_advisor_daily_usd": 10,
+    "ai_queue_max": 50
   },
   "fixes": {
     "observation_days": 14,
