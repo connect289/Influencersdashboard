@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { OneDb } from "@/lib/db.ts";
+import type { OneDb, SignInEntry } from "@/lib/db.ts";
 import { settingsSchema, type Report, type TickState } from "@/lib/state.ts";
 
 // A tick state built from the same config files that seed one.settings (D-015), and a fake database that records
@@ -80,5 +80,22 @@ export class FakeDb implements OneDb {
   async finishDelivery(id: number, ok: boolean, error: string | null, providerId: string | null) {
     this.finished.push({ id, ok, error, providerId });
     return ok ? "sent" : "retry";
+  }
+
+  secrets: Record<string, string> = {};
+  codes: Array<{ userId: string; sessionId: string }> = [];
+  signIns: SignInEntry[] = [];
+
+  async appSecrets() {
+    return this.secrets;
+  }
+
+  async authIssueCode(userId: string, sessionId: string) {
+    this.codes.push({ userId, sessionId });
+    return "123456";
+  }
+
+  async authRecord(entry: SignInEntry) {
+    this.signIns.push(entry);
   }
 }

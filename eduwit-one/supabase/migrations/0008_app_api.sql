@@ -10,7 +10,8 @@ language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
     'now', now(),
     'settings', (select coalesce(jsonb_object_agg(s.key, s.value), '{}') from one.settings s
-                  where s.key in ('app', 'hosts', 'health_paths', 'vendors', 'vercel', 'chatwoot', 'n8n', 'whatsapp', 'witty', 'thresholds', 'checks', 'alerts')),
+                  where s.key in ('app', 'hosts', 'health_paths', 'vendors', 'vercel', 'chatwoot', 'n8n', 'whatsapp', 'witty', 'thresholds', 'checks', 'alerts',
+                                  'access')),
     'setup', (select coalesce(jsonb_object_agg(i.key, jsonb_build_object('status', i.value ->> 'status', 'validated', coalesce((i.value ->> 'validated')::boolean, false))), '{}')
                 from one.settings s, jsonb_each(coalesce(s.value -> 'items', '{}')) i where s.key = 'setup'),
     'checks', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'enabled', c.enabled, 'disabled_reason', c.disabled_reason,

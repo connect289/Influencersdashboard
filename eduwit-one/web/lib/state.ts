@@ -40,6 +40,15 @@ export const settingsSchema = z.object({
     gemini_daily_cap: z.number().optional(),
   }),
   thresholds: z.record(z.string(), z.number()),
+  // Sign-in settings (0009); absent before that migration.
+  access: z
+    .object({
+      allowed_domain: z.string().default("eduwit.in"),
+      trusted_days: z.number().int().min(0).max(90).default(30),
+      idle_hours: z.number().int().min(1).max(72).default(12),
+      code_minutes: z.number().int().min(2).max(30).default(10),
+    })
+    .optional(),
 });
 
 export const tickStateSchema = z.object({

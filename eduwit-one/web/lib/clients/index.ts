@@ -11,6 +11,7 @@ import {
 } from "./chatwoot.ts";
 import { MockN8nClient, n8nExecutionsFixture, n8nWorkflowFixture, RealN8nClient } from "./n8n.ts";
 import { emailSentFixture, MockEmailClient, RealEmailClient } from "./email.ts";
+import type { Credentials } from "./credentials.ts";
 import type { Clients } from "./types.ts";
 import { MockVercelClient, RealVercelClient, vercelDeploymentsFixture } from "./vercel.ts";
 import { MockWhatsAppClient, RealWhatsAppClient, whatsappPhoneFixture } from "./whatsapp.ts";
@@ -21,7 +22,7 @@ import vercelLive from "./fixtures/vercel/live.json" with { type: "json" };
 import whatsappLive from "./fixtures/whatsapp/live.json" with { type: "json" };
 import emailLive from "./fixtures/email/live.json" with { type: "json" };
 
-// The factory (spec standard 1). Real when the credential is present; in production a missing credential means
+// The factory (spec standard 1). Real when the credential is present (env or Vault, credentials.ts); in production a missing credential means
 // "not_configured": the probe writes nothing, so a mock can never fake a heartbeat (D-049). Mock, from the recorded
 // fixtures, only when ONE_CLIENT_MODE=mock (tests, previews against staging). The chosen mode per client is reported
 // with every tick and shown on the Setup page.
@@ -64,13 +65,15 @@ export function mockClients(): Clients {
   };
 }
 
-export function clientsFor(settings: Settings): Clients {
+export function clientsFor(settings: Settings, credentials: Credentials): Clients {
   if (process.env.ONE_CLIENT_MODE === "mock") return mockClients();
-  const vercelToken = secretEnv("ONE_VERCEL_TOKEN", "VERCEL_TOKEN");
-  const chatwootToken = secretEnv("ONE_CHATWOOT_TOKEN", "CHATWOOT_API_TOKEN");
-  const n8nKey = secretEnv("ONE_N8N_API_KEY");
-  const whatsappToken = secretEnv("ONE_WHATSAPP_TOKEN");
-  const emailKey = secretEnv("ONE_EMAIL_KEY", "RESEND_API_KEY");
+  const {
+    vercel: vercelToken,
+    chatwoot: chatwootToken,
+    n8n: n8nKey,
+    whatsapp: whatsappToken,
+    email: emailKey,
+  } = credentials;
   return {
     appHealth: { mode: "real", client: new RealAppHealthClient() },
     vercel: vercelToken

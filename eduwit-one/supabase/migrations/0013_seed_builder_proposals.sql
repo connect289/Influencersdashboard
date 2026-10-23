@@ -1,0 +1,72 @@
+-- 0013 the builder's proposals (spec §13 "Known cleanups", D-007, D-009, D-017, review m14). Each is a change only the
+-- owning app or the owner can make: Eduwit One alters nothing of the five apps (spec §2), so it records the finding
+-- with its evidence and waits for a decision on the Proposals page. Approving one records the decision; the change is
+-- made in the app named under change.where. They do not expire (expires_at null) and carry a stable source_key, so a
+-- re-run inserts nothing twice and a decided proposal is never reopened. Evidence was measured read-only on
+-- production on 23 Oct 2026; no value of a secret or a contact field was read.
+
+insert into one.proposals (kind, app, title, rationale, evidence, change, risk, source, source_key)
+select p.kind, p.app, p.title, p.rationale, p.evidence, p.change, p.risk, 'builder', p.source_key
+from jsonb_to_recordset($json$[
+  {"source_key": "builder:d007-spark-subtick-errors", "kind": "config", "app": "b2c", "risk": "low",
+   "title": "Spark: persist each minute-tick step's error",
+   "rationale": "b2c.minute_tick() reports its steps' errors as <step>_error keys in its return value, but pg_cron keeps only \"1 row\" for a SELECT, so the errors are lost. PLAT-03 is seeded off (blocked:b2c_minute_report_not_persisted) until Spark writes them somewhere readable, for example one b2c.events row per failed step.",
+   "evidence": {"measured_at": "2026-10-23", "cron_return_message": "1 row", "check": "PLAT-03", "decision": "D-007, D-037"},
+   "change": {"where": "Spark (b2c-crm): b2c.minute_tick()", "owner_action": "Record each failed step (step name, error text, tick time) in a table Eduwit One's reader can SELECT; then enable PLAT-03 in Settings → Checks.", "touches": []}},
+  {"source_key": "builder:m14-website-job-call-ids", "kind": "config", "app": "web", "risk": "low",
+   "title": "Website: record the request id of each job call",
+   "rationale": "PLAT-04 watches pg_net job calls that answer with an error. Spark records its request ids in b2c.job_calls, so its calls can be matched in net._http_response; the website's web_job_call does not, so a 401 after a key rotation is noticed only by WEB-01's outbox backlog, about 15 minutes later.",
+   "evidence": {"measured_at": "2026-10-23", "review": "docs/reviews/phase-1-2-db.md m14", "covered": ["b2c.job_calls", "one.job_calls"], "not_covered": "web_job_call"},
+   "change": {"where": "Website: web_job_call()", "owner_action": "Store the net.http_post request id with the job name (as b2c.job_calls does); Eduwit One then adds it to PLAT-04.", "touches": []}},
+  {"source_key": "builder:d017-b2b-key-scopes", "kind": "cleanup", "app": "b2b", "risk": "medium",
+   "title": "B2B CRM: replace the \"Eduwit one\" API key with a referrals-only key",
+   "rationale": "The key holds all five scopes (referrals, intake, b2c, ai_worker, events). Eduwit One reads referrals only, and posts intake only for synthetic tests on test identities. A leaked all-scope key could write leads and events into the live CRM.",
+   "evidence": {"measured_at": "2026-10-23", "scopes": ["referrals", "intake", "b2c", "ai_worker", "events"], "used": ["referrals"], "decision": "D-017"},
+   "change": {"where": "B2B CRM admin → API keys", "owner_action": "Create a referrals-only key and, for phase 5's synthetic tests, a separate intake key; save both in Settings → Setup; then revoke the old key.", "touches": ["api_keys"]}},
+  {"source_key": "builder:d009-staging-refresh", "kind": "config", "app": "platform", "risk": "low",
+   "title": "Refresh staging's schema from production",
+   "rationale": "Staging (mplbspysxmtohnlwpbti) has no web_* tables, no inf or catalog schema, none of b2b.health_check, w2_health_alerts, web_health or inf.health, and an older b2b (85 tables against 106). Rehearsals prove each migration and rollback there, but checks whose sources are missing can only report source_missing.",
+   "evidence": {"measured_at": "2026-10-23", "staging_b2b_tables": 85, "production_b2b_tables": 106, "missing": ["web_*", "inf", "catalog", "b2b.health_check", "w2_health_alerts", "web_health", "inf.health"], "decision": "D-009"},
+   "change": {"where": "Supabase: staging project", "owner_action": "Restore a schema-only dump of production into staging (no rows), with the B2B and B2C teams' agreement, since they use staging.", "touches": ["staging"]}},
+  {"source_key": "builder:s13-w2-latency-daily-invoker", "kind": "cleanup", "app": "witty", "risk": "medium",
+   "title": "Witty: make public.w2_latency_daily a security-invoker view",
+   "rationale": "It is the one security-definer view that the API roles can read: it runs with its owner's rights, so a signed-in user reads the underlying Witty tables past their RLS. Supabase's advisor rates this ERROR (security_definer_view).",
+   "evidence": {"measured_at": "2026-10-23", "lint": "security_definer_view", "api_readable_definer_views": ["public.w2_latency_daily"]},
+   "change": {"where": "Witty (Supabase SQL)", "owner_action": "alter view public.w2_latency_daily set (security_invoker = on); then confirm Witty's dashboards still read it.", "touches": ["database_security"]}},
+  {"source_key": "builder:s13-influencer-auth-passwords", "kind": "cleanup", "app": "influencer", "risk": "high",
+   "title": "Legacy influencer logins: passwords are stored unhashed",
+   "rationale": "public.influencer_auth holds 3 rows whose secret_password is not in any password-hash format (bcrypt, argon2, scrypt, pbkdf2). RLS is on and anon cannot read the table, but authenticated holds SELECT, so a policy mistake would expose them. The influencer portal signs creators in through Supabase Auth; these are the 3 legacy accounts (D-019, D-034).",
+   "evidence": {"measured_at": "2026-10-23", "rows": 3, "hashed_shape": 0, "rls": true, "anon_select": false, "authenticated_select": true},
+   "change": {"where": "Influencer portal / Supabase", "owner_action": "Move the 3 accounts to Supabase Auth (or the portal's sign-in), reset their passwords, then drop public.influencer_auth or its secret_password column.", "touches": ["auth"]}},
+  {"source_key": "builder:s13-leaked-password-protection", "kind": "cleanup", "app": "platform", "risk": "low",
+   "title": "Supabase Auth: turn on leaked-password protection",
+   "rationale": "Supabase Auth accepts passwords known from breaches (advisor auth_leaked_password_protection, WARN). Staff sign in to Eduwit One with Google, but the apps' password sign-ins share this Auth.",
+   "evidence": {"measured_at": "2026-10-23", "lint": "auth_leaked_password_protection", "level": "WARN"},
+   "change": {"where": "Supabase dashboard → Authentication → Providers → Email", "owner_action": "Enable \"Prevent use of leaked passwords\".", "touches": ["auth_settings"]}},
+  {"source_key": "builder:s13-function-search-path", "kind": "cleanup", "app": "platform", "risk": "medium",
+   "title": "Pin search_path on 86 functions in schema public",
+   "rationale": "86 functions in public (not counting extension functions) have no search_path setting, so they resolve names through the caller's path (advisor function_search_path_mutable). None is SECURITY DEFINER, which limits the risk, but a definer caller or a shadowing object could still change what they run.",
+   "evidence": {"measured_at": "2026-10-23", "functions_without_search_path": 86, "security_definer_among_them": 0, "schema": "public"},
+   "change": {"where": "The owning apps (Witty, the legacy public functions)", "owner_action": "alter function ... set search_path = '' (with schema-qualified names inside), one app at a time with that app's tests.", "touches": ["database_security"]}},
+  {"source_key": "builder:s13-backup-tables", "kind": "cleanup", "app": "platform", "risk": "low",
+   "title": "Archive and drop the 22 backup tables",
+   "rationale": "22 *_backup_202610* tables (19 in public, 3 b2b.witty_backup_*) copy student leads, Witty conversations, messages, inbox and outbox. They hold contact data outside the apps' retention rules. None is readable by the API roles with RLS off.",
+   "evidence": {"measured_at": "2026-10-23", "count": 22, "public": 19, "b2b": 3, "api_readable_rls_off": 0},
+   "change": {"where": "Supabase (each table's owning app)", "owner_action": "Export each table to an encrypted file kept with the database dumps, confirm nothing reads them, then drop them.", "touches": ["data_retention"]}},
+  {"source_key": "builder:gap-influencer-login-attempts", "kind": "feature", "app": "influencer", "risk": "low",
+   "title": "Influencer portal: a read function for sign-in attempts",
+   "rationale": "The Apps page shows the portal's health, creators, clicks and outcomes, but nothing Eduwit One may call reports failed sign-ins and lock-outs (the legacy public.influencer_login_attempts belongs to the old login), so a credential-stuffing run is visible only inside the portal.",
+   "evidence": {"measured_at": "2026-10-23", "page": "/apps/influencer", "legacy_table": "public.influencer_login_attempts"},
+   "change": {"where": "Influencer portal (schema inf)", "owner_action": "Add inf.login_attempts_summary(p_hours) returning counts per hour and outcome (no emails), executable by eduwit_one_reader; Eduwit One adds a panel and a check.", "touches": []}},
+  {"source_key": "builder:gap-spark-tickets-campaigns", "kind": "feature", "app": "b2c", "risk": "low",
+   "title": "Spark: read functions for support tickets and campaign status",
+   "rationale": "Spark's support tickets and its campaign and journey status have no read function for Eduwit One, so the Apps page can only link to Spark for them, and B2C-08 counts tickets from the table directly.",
+   "evidence": {"measured_at": "2026-10-23", "page": "/apps/b2c", "tables": ["b2c.support_tickets", "b2c.campaigns", "b2c.campaign_sends", "b2c.journeys", "b2c.journey_runs"]},
+   "change": {"where": "Spark (schema b2c)", "owner_action": "Add b2c.support_overview() and b2c.campaigns_overview() returning counts and states (no contact fields), callable by Spark admins; Eduwit One adds panels.", "touches": []}},
+  {"source_key": "builder:gap-witty-blocks-security-log", "kind": "feature", "app": "witty", "risk": "low",
+   "title": "Witty: a read function for blocks and the security log",
+   "rationale": "Witty keeps public.w2_blocks (about 43 rows) and public.w2_security_log (about 62 rows), but no function lists them for Eduwit One, so the Apps page cannot show how many numbers were blocked, or why.",
+   "evidence": {"measured_at": "2026-10-23", "page": "/apps/witty", "tables": ["public.w2_blocks", "public.w2_security_log"]},
+   "change": {"where": "Witty (public.w2_*)", "owner_action": "Add w2_security_overview(p_days) returning counts per reason and day, with masked numbers only; Eduwit One adds a panel.", "touches": []}}
+]$json$::jsonb) as p(source_key text, kind text, app text, risk text, title text, rationale text, evidence jsonb, change jsonb)
+on conflict (source_key) do nothing;

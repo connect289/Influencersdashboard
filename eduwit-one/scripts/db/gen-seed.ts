@@ -1,5 +1,6 @@
-// Generates supabase/migrations/0007_seed_settings.sql from config/defaults.json, config/settings.json and the
-// preflight's supabase/seed/setup.json, so settings have one source (D-015).
+// Generates supabase/migrations/0007_seed_settings.sql from config/defaults.json, config/settings.json, the
+// preflight's supabase/seed/setup.json and the Setup checklist config/setup-items.json, so settings have one source
+// (D-015).
 //   node scripts/db/gen-seed.ts           write the migration
 //   node scripts/db/gen-seed.ts --check   exit 1 if the committed migration is stale (CI)
 import { readFileSync, writeFileSync } from "node:fs";
@@ -15,6 +16,7 @@ function settings(): Array<[string, unknown]> {
   const fixed = read("config/settings.json") as Json;
   const setup = read("supabase/seed/setup.json") as Json;
   const { $comment: _ignored, ...rest } = fixed;
+  const { $comment: _catalogComment, ...catalog } = read("config/setup-items.json") as Json;
   return [
     ...Object.entries(rest),
     ["hosts", defaults.hosts],
@@ -25,6 +27,7 @@ function settings(): Array<[string, unknown]> {
     ["test_identities", defaults.test_identities],
     ["supabase", defaults.supabase],
     ["setup", setup],
+    ["setup_catalog", catalog],
   ];
 }
 

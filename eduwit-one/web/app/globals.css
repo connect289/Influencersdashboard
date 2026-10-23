@@ -1,0 +1,52 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* The brand tokens (lib/brand/tokens.ts → app/tokens.css) as Tailwind colours: bg-surface, text-fg-muted, text-p1 …
+   Light and dark come from the variables, so components never need a dark: variant (D-061). */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ring: var(--ring);
+  --color-p1: var(--p1);
+  --color-p1-bg: var(--p1-bg);
+  --color-p2: var(--p2);
+  --color-p2-bg: var(--p2-bg);
+  --color-p3: var(--p3);
+  --color-p3-bg: var(--p3-bg);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-off: var(--off);
+  --color-off-bg: var(--off-bg);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  a {
+    text-underline-offset: 2px;
+  }
+}

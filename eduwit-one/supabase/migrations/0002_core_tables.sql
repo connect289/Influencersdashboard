@@ -234,6 +234,9 @@ create table one.tests (
   severity one.severity not null,
   enabled boolean not null default false,
   disabled_reason text,
+  -- "Run now" from the Tests page; the test runner (phase 5) takes it on its next tick.
+  run_requested_at timestamptz,
+  run_requested_by text,
   updated_by text not null default 'seed',
   created_at timestamptz not null default now(),
   check (enabled or disabled_reason is not null)

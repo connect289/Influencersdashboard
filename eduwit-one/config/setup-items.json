@@ -1,5 +1,5 @@
 {
-  "$comment": "The Setup checklist (spec \u00a715). One entry per deferrable item: who fills it, where the value lives, and which checks, tests, fixes and heartbeats it unblocks. scripts/preflight.ts writes a status per item into supabase/seed/setup.json; migration 0007 loads that into one.settings.setup; the Setup page (phase 4) renders this list with a validate button per item.",
+  "$comment": "The Setup checklist (spec §15). One entry per deferrable item: who fills it, where the value lives, and which checks, tests, fixes and heartbeats it unblocks. scripts/preflight.ts writes a status per item into supabase/seed/setup.json; migration 0007 loads that into one.settings.setup; the Setup page (phase 4) renders this list with a validate button per item.",
   "items": [
     {
       "id": "github",
@@ -8,7 +8,9 @@
       "stores": "connector",
       "unblocks": [
         "build"
-      ]
+      ],
+      "how": "The monorepo connector the build session uses. Nothing to fill in the app.",
+      "validate": null
     },
     {
       "id": "supabase_prod",
@@ -17,7 +19,9 @@
       "stores": "connector",
       "unblocks": [
         "all SQL checks"
-      ]
+      ],
+      "how": "The build session's read access to the production database (connector). Nothing to fill in the app.",
+      "validate": null
     },
     {
       "id": "supabase_prod_dump",
@@ -26,7 +30,9 @@
       "stores": "env:ONE_PROD_DB_URL (build session only)",
       "unblocks": [
         "phase 1 production apply"
-      ]
+      ],
+      "how": "A production connection string on a machine with pg_dump 17, for the full dump before each apply. See docs/RUNBOOK-database.md step 3.",
+      "validate": null
     },
     {
       "id": "supabase_staging",
@@ -35,7 +41,9 @@
       "stores": "connector",
       "unblocks": [
         "scripts/db/rehearse.sh"
-      ]
+      ],
+      "how": "Staging project access for the rehearsal (docs/RUNBOOK-database.md step 2).",
+      "validate": null
     },
     {
       "id": "supabase_advisors",
@@ -44,7 +52,9 @@
       "stores": "connector",
       "unblocks": [
         "PLAT-06"
-      ]
+      ],
+      "how": "Supabase security advisors. PLAT-06 computes the ERROR-level lints in SQL; the WARN ones need a Management API token later.",
+      "validate": null
     },
     {
       "id": "n8n_api",
@@ -60,7 +70,9 @@
         "HB n8n:PKPs7tXg9bej8AgX",
         "HB n8n:instance",
         "T-WITTY-QUALIFY"
-      ]
+      ],
+      "how": "n8n → Settings → n8n API → Create an API key. Save it here as one_n8n_key; the base URL is Settings → Hosts → n8n.",
+      "validate": "n8n"
     },
     {
       "id": "lightsail",
@@ -69,7 +81,9 @@
       "stores": "vercel env ONE_AWS_*",
       "unblocks": [
         "HB lightsail:n8n-chatwoot"
-      ]
+      ],
+      "how": "An AWS access key that can read the Lightsail instance running n8n and Chatwoot (read-only IAM policy), in the region of the server.",
+      "validate": null
     },
     {
       "id": "chatwoot",
@@ -81,7 +95,9 @@
         "WITTY-05",
         "HB chatwoot",
         "T-WITTY-TURN"
-      ]
+      ],
+      "how": "Chatwoot → Profile settings → Access token. Save it as one_chatwoot_token; the account id is in Settings → Chatwoot.",
+      "validate": "chatwoot"
     },
     {
       "id": "vercel",
@@ -92,7 +108,9 @@
         "WEB-07",
         "HB vercel:website",
         "HB vercel:one"
-      ]
+      ],
+      "how": "Vercel → Account settings → Tokens → Create, scoped to the eduwit team, read access. Save it as one_vercel_token.",
+      "validate": "vercel"
     },
     {
       "id": "spark_job_key",
@@ -103,7 +121,9 @@
         "PLAT-05 (b2c part)",
         "HB spark",
         "FIX-OUTBOX-B2C"
-      ]
+      ],
+      "how": "Spark's own setting, filled in Spark: select b2c.app_deploy_set('https://spark.eduwit.in', '<B2C_INTERNAL_KEY from Vercel eduwit-spark>'). Eduwit One only reads it (PLAT-05).",
+      "validate": "plat05"
     },
     {
       "id": "b2b_app",
@@ -113,7 +133,9 @@
       "unblocks": [
         "HB b2b-app",
         "Apps / B2B deep links"
-      ]
+      ],
+      "how": "The B2B CRM host (Settings → Hosts → b2b_app) and a referrals-only API key from the B2B CRM's Settings → API keys, saved as one_b2b_read_key.",
+      "validate": "health:b2b_app"
     },
     {
       "id": "website_health",
@@ -123,7 +145,9 @@
       "unblocks": [
         "WEB-02",
         "HB website"
-      ]
+      ],
+      "how": "The website's address (Settings → Hosts → website). Its /api/health must answer.",
+      "validate": "health:website"
     },
     {
       "id": "influencer_portal",
@@ -133,7 +157,9 @@
       "unblocks": [
         "INF-04",
         "HB influencer"
-      ]
+      ],
+      "how": "The influencer portal's address (Settings → Hosts → influencer). Its /api/health must answer.",
+      "validate": "health:influencer"
     },
     {
       "id": "whatsapp",
@@ -144,7 +170,9 @@
         "B2C-06 (template and quality parts)",
         "HB whatsapp:witty",
         "HB whatsapp:b2c"
-      ]
+      ],
+      "how": "Meta Business → System users → generate a token with whatsapp_business_management, saved as one_whatsapp_token; the WABA ids go in Settings → WhatsApp.",
+      "validate": "whatsapp"
     },
     {
       "id": "meta",
@@ -154,7 +182,9 @@
       "unblocks": [
         "HB meta",
         "Marketing spend tiles"
-      ]
+      ],
+      "how": "A Meta ad-account read token, saved as one_meta_token, for the spend tiles on the Marketing page.",
+      "validate": null
     },
     {
       "id": "email",
@@ -164,7 +194,9 @@
       "unblocks": [
         "alert delivery",
         "T-ALERT"
-      ]
+      ],
+      "how": "Resend → API keys → Create (sending access, domain eduwit.in), saved as one_email_key. Validate sends a test email to the P1 inbox.",
+      "validate": "email"
     },
     {
       "id": "uptimerobot",
@@ -174,7 +206,9 @@
       "unblocks": [
         "watchdog for one:tick and one:app",
         "HB from external monitors"
-      ]
+      ],
+      "how": "UptimeRobot → Integrations & API → Main API key (read-only is enough), saved as one_uptimerobot_key.",
+      "validate": "uptimerobot"
     },
     {
       "id": "ai_key",
@@ -190,14 +224,18 @@
         "brief",
         "ask",
         "test_author"
-      ]
+      ],
+      "how": "The AI provider's key: one_gemini_key (seeded provider) or one_anthropic_key. The provider per tier is in Settings → AI models.",
+      "validate": null
     },
     {
       "id": "sentry",
       "title": "Sentry",
       "who": "owner",
       "stores": "none",
-      "unblocks": []
+      "unblocks": [],
+      "how": "Not used: monitoring is UptimeRobot (owner, 23 Oct).",
+      "validate": null
     },
     {
       "id": "alerts_p1_inbox",
@@ -206,7 +244,9 @@
       "stores": "settings.alerts.p1.email",
       "unblocks": [
         "P1 delivery"
-      ]
+      ],
+      "how": "Where P1 alerts go. Settings → Alerts → P1 email (owner only). Validate sends a test email.",
+      "validate": "email"
     },
     {
       "id": "alerts_second_contact",
@@ -215,7 +255,9 @@
       "stores": "settings.alerts.escalation.second_contact",
       "unblocks": [
         "second-level escalation"
-      ]
+      ],
+      "how": "Who gets the 60-minute escalation. Settings → Alerts → second contact (owner only).",
+      "validate": null
     },
     {
       "id": "developer_contact",
@@ -225,7 +267,9 @@
       "unblocks": [
         "developer-tagged alerts",
         "GitHub issues"
-      ]
+      ],
+      "how": "Who gets developer-tagged alerts (failing function, migration drift, privilege audit, Vercel build). Settings → Alerts → developer email.",
+      "validate": null
     },
     {
       "id": "test_whatsapp_number",
@@ -235,7 +279,9 @@
       "unblocks": [
         "T-WITTY-TURN",
         "T-INFLUENCER"
-      ]
+      ],
+      "how": "A real WhatsApp number used only for tests, added to Witty's w2_trusted with is_test = true. Settings → Test identities.",
+      "validate": null
     },
     {
       "id": "test_mailbox",
@@ -245,7 +291,9 @@
       "unblocks": [
         "T-WEB-ENQUIRY",
         "T-ALERT"
-      ]
+      ],
+      "how": "A mailbox the tests can read, for enquiry and alert journeys. Settings → Test identities, key as one_test_mailbox_key.",
+      "validate": null
     },
     {
       "id": "test_preview_url",
@@ -255,7 +303,9 @@
       "unblocks": [
         "T-WEB-ENQUIRY",
         "T-WEB-ADVISOR"
-      ]
+      ],
+      "how": "A website preview deployment the tests may submit forms to. Settings → Test identities.",
+      "validate": null
     },
     {
       "id": "test_spark_user",
@@ -265,7 +315,9 @@
       "unblocks": [
         "T-HANDOFF",
         "T-B2C-NURTURE"
-      ]
+      ],
+      "how": "A Spark counsellor marked is_test_user = true, for the hand-off journeys. Settings → Test identities.",
+      "validate": null
     },
     {
       "id": "test_b2b_intake_key",
@@ -276,7 +328,9 @@
         "T-B2B-INTAKE",
         "T-B2B-PUSH",
         "T-HANDOFF"
-      ]
+      ],
+      "how": "A B2B CRM intake-only API key for test leads, saved as one_b2b_intake_key.",
+      "validate": null
     },
     {
       "id": "test_partner",
@@ -286,7 +340,9 @@
       "unblocks": [
         "T-B2B-PUSH",
         "T-HANDOFF"
-      ]
+      ],
+      "how": "A B2B partner with the sandbox adapter and a test endpoint. Settings → Test identities → partner slug.",
+      "validate": null
     },
     {
       "id": "test_creator",
@@ -295,7 +351,9 @@
       "stores": "settings.test_identities.creator_referral_code",
       "unblocks": [
         "T-INFLUENCER"
-      ]
+      ],
+      "how": "An influencer-portal creator marked as a test creator, with a referral code. Settings → Test identities.",
+      "validate": null
     },
     {
       "id": "test_rows_agreement",
@@ -304,7 +362,9 @@
       "stores": "docs/DECISIONS.md",
       "unblocks": [
         "all synthetic tests"
-      ]
+      ],
+      "how": "Agreed on 23 Oct: test rows may be created in production under the is_test conventions and purged nightly.",
+      "validate": null
     },
     {
       "id": "brand_assets",
@@ -314,29 +374,35 @@
       "unblocks": [
         "UI theme",
         "alert email wordmark"
-      ]
+      ],
+      "how": "The Eduwit logo and palette. An SVG wordmark would replace the PNGs (question Q6).",
+      "validate": null
     },
     {
       "id": "supabase_api_schema",
-      "title": "Expose schema one in the Supabase API (Project settings \u2192 Data API \u2192 Exposed schemas: add one)",
+      "title": "Expose schema one in the Supabase API (Project settings → Data API → Exposed schemas: add one)",
       "who": "owner",
       "stores": "supabase project setting",
       "unblocks": [
         "the app's reads and writes",
         "HTTP probes",
         "/api/watchdog"
-      ]
+      ],
+      "how": "Supabase → Project settings → Data API → Exposed schemas: add one, save. The app and this page read through it.",
+      "validate": "api_schema"
     },
     {
       "id": "one_app_env",
-      "title": "Eduwit One app environment: ONE_SUPABASE_URL, ONE_SUPABASE_SERVICE_KEY and ONE_INTERNAL_KEY in Vercel; the same key as Vault one_internal_key; one.settings.app.base_url",
+      "title": "Eduwit One app environment: ONE_SUPABASE_URL, ONE_SUPABASE_ANON_KEY, ONE_SUPABASE_SERVICE_KEY and ONE_INTERNAL_KEY in Vercel; the same key as Vault one_internal_key; one.settings.app.base_url; the sign-in redirect URL",
       "who": "developer",
       "stores": "vercel env + vault:one_internal_key + one.settings.app",
       "unblocks": [
         "HB one:app",
         "HTTP probes (WEB-02, WEB-07, INF-04, WITTY-05)",
         "PLAT-05 (one part)"
-      ]
+      ],
+      "how": "Vercel project eduwit-one, Production env: ONE_SUPABASE_URL, ONE_SUPABASE_ANON_KEY, ONE_SUPABASE_SERVICE_KEY, ONE_INTERNAL_KEY (the same value as Vault one_internal_key). Then Settings → App → base_url = https://one.eduwit.in, and in Supabase → Authentication → URL configuration add https://one.eduwit.in/auth/callback.",
+      "validate": "app_link"
     },
     {
       "id": "watchdog_monitor",
@@ -345,7 +411,9 @@
       "stores": "uptimerobot",
       "unblocks": [
         "notice when Supabase, pg_cron or Vercel is down"
-      ]
+      ],
+      "how": "UptimeRobot keyword monitor on https://one.eduwit.in/api/watchdog for \"ok\":true, every 5 minutes, alert contact active (docs/RUNBOOK.md).",
+      "validate": "watchdog"
     }
   ]
 }

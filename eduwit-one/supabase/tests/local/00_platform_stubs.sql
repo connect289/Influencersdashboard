@@ -12,6 +12,13 @@ grant usage on schema public to anon, authenticated, service_role;
 create extension if not exists pgcrypto;
 
 -- pg_cron: tables owned by the admin, postgres may read them with grant option (as measured on production).
+-- Supabase Auth: the two tables Eduwit One reads (who a user is; whether their session still exists).
+create schema auth;
+create table auth.users (id uuid primary key default gen_random_uuid(), email text);
+create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid references auth.users (id), created_at timestamptz default now(), not_after timestamptz);
+grant usage on schema auth to postgres;
+grant select on auth.users, auth.sessions to postgres;
+
 create schema cron;
 grant usage on schema cron to postgres with grant option;
 create table cron.job (
@@ -48,6 +55,16 @@ grant execute on function net.http_post(text, jsonb, jsonb, jsonb, int) to postg
 -- Vault: names and plain values (the local cluster has no encryption).
 create schema vault;
 grant usage on schema vault to postgres;
-create table vault.secrets (id uuid primary key default gen_random_uuid(), name text unique, secret text);
+create table vault.secrets (id uuid primary key default gen_random_uuid(), name text unique, secret text, description text);
+create function vault.create_secret(new_secret text, new_name text default null, new_description text default '', new_key_id uuid default null)
+returns uuid language sql security definer as $$
+  insert into vault.secrets (name, secret, description) values (new_name, new_secret, new_description) returning id
+$$;
+create function vault.update_secret(secret_id uuid, new_secret text default null, new_name text default null, new_description text default null,
+                                    new_key_id uuid default null)
+returns void language sql security definer as $$
+  update vault.secrets set secret = coalesce(new_secret, secret), name = coalesce(new_name, name), description = coalesce(new_description, description)
+   where id = secret_id
+$$;
 create view vault.decrypted_secrets as select id, name, secret as decrypted_secret from vault.secrets;
 grant select on vault.secrets, vault.decrypted_secrets to postgres;

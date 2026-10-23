@@ -16,7 +16,28 @@ export interface OneDb {
   watchdog(): Promise<Watchdog>;
   claimDeliveries(limit: number): Promise<unknown[]>;
   finishDelivery(id: number, ok: boolean, error: string | null, providerId: string | null): Promise<string>;
+  appSecrets(): Promise<Record<string, string>>;
+  authIssueCode(userId: string, sessionId: string): Promise<string>;
+  authRecord(entry: SignInEntry): Promise<void>;
 }
+
+/** One line of one.sign_in_log, written by the signed-out steps (0009). */
+export type SignInEntry = {
+  email: string | null;
+  user_id?: string | null;
+  method: "google" | "email_code" | "trusted_device" | "sign_out";
+  outcome:
+    | "success"
+    | "refused_domain"
+    | "refused_unknown"
+    | "code_sent"
+    | "mail_failed"
+    | "too_many_codes"
+    | "revoked"
+    | "idle";
+  ip?: string | null;
+  user_agent?: string | null;
+};
 
 export class DbError extends Error {
   readonly operation: string;
@@ -84,6 +105,21 @@ export class SupabaseOneDb implements OneDb {
 
   async claimDeliveries(limit: number) {
     return z.array(z.unknown()).parse(await this.rpc("claim_deliveries", { p_limit: limit }));
+  }
+
+  async appSecrets() {
+    return z.record(z.string(), z.string()).parse(await this.rpc("app_secrets"));
+  }
+
+  async authIssueCode(userId: string, sessionId: string) {
+    return z
+      .string()
+      .regex(/^\d{6}$/)
+      .parse(await this.rpc("auth_issue_code", { p_user: userId, p_session: sessionId }));
+  }
+
+  async authRecord(entry: SignInEntry) {
+    await this.rpc("auth_record", { p: entry });
   }
 
   async finishDelivery(id: number, ok: boolean, error: string | null, providerId: string | null) {

@@ -35,6 +35,38 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
   "killed" in its result, which opens its incident; it then runs at the end of the tick, at most every 10 minutes per
   kill. Look at the check's SQL and the table it reads (a lock or a slow plan).
 
+## Signing in
+
+- **Who.** Only `@eduwit.in` Google accounts with an active row in Settings → Users. The owner adds an engineer
+  there after the person has signed in once with Google (their Supabase user must exist). An engineer reads and
+  operates; only the owner changes users, owner-only settings, recipients, Setup secrets and sensitive proposals.
+- **The second step.** After Google, a 6-digit code goes to the person's email (valid 10 minutes, 5 tries, 5 codes an
+  hour). Ticking "Trust this browser for 30 days" skips the code on that browser. Settings → Users → "Forget trusted
+  browsers" makes the person's next sign-in ask for a code again; setting the person inactive there stops every page
+  and action at once, whatever session they hold.
+- **Idle.** 12 hours without a page load signs the person out.
+- **Locked out.** If no owner can sign in (lost mailbox, Google outage), sign in to Supabase and, as the owner,
+  check `one.sign_in_log` (newest first) for the refusal; `one.users` holds the allow-list.
+- **First deploy.** Supabase → Authentication → URL configuration: add `https://one.eduwit.in/auth/callback`; the
+  Google provider is the one Spark already uses. Vercel env: `ONE_SUPABASE_URL`, `ONE_SUPABASE_ANON_KEY`,
+  `ONE_SUPABASE_SERVICE_KEY`, `ONE_INTERNAL_KEY` (Setup item `one_app_env`).
+
+## Setup
+
+Settings → Setup lists every credential and identity Eduwit One needs, who provides it and what it unblocks. A
+secret pasted there goes straight to Vault under its `one_*` name; it is never shown again, and the audit records only
+its name. "Validate" runs that item's probe; when it passes, the checks waiting for it (`setup:<item>`) switch on. To
+rotate a key, paste the new one and validate; the app picks it up within a minute (an environment variable of the same
+purpose overrides Vault, D-059).
+
+## Proposals
+
+Every finding that needs a person is a proposal: from a check, a test, the AI (phase 6), a person, or the builder.
+Approve, reject with a note, or snooze. A proposal that touches money, allocation, live switches, partner mappings,
+prompts or versioned settings, or a fix or config proposal that does not say what it touches, needs the owner.
+Approving records the decision; the change itself is made in the app named under "where" (Eduwit One changes no app),
+or, from phase 7, by a catalogued fix. The builder's twelve proposals (D-063) wait for a decision and never expire.
+
 ## The external watchdog (UptimeRobot)
 
 It is the only thing that notices Supabase, pg_cron or Vercel being down. Set it up once the app is deployed at

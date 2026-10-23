@@ -1,6 +1,7 @@
 import { sendPending } from "@/lib/alerts/sender.ts";
 import { internalAuthorized } from "@/lib/auth.ts";
 import { runTick } from "@/lib/checks/runner.ts";
+import { credentialsFrom, vaultSecrets } from "@/lib/clients/credentials.ts";
 import { clientsFor } from "@/lib/clients/index.ts";
 import { SupabaseOneDb } from "@/lib/db.ts";
 import { log } from "@/lib/log.ts";
@@ -19,11 +20,12 @@ export async function POST(request: Request) {
   try {
     let clients: ReturnType<typeof clientsFor> | undefined;
     let settings: Parameters<typeof clientsFor>[0] | undefined;
+    const credentials = credentialsFrom(await vaultSecrets(db));
     const summary = await runTick({
       db,
       clients: (state) => {
         settings = state.settings;
-        clients = clientsFor(state.settings);
+        clients = clientsFor(state.settings, credentials);
         return clients;
       },
       requestId,

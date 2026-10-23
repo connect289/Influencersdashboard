@@ -79,6 +79,11 @@ begin
      and (r = 'anon' or not p.prosecdef
           or not exists (select 1 from one.api_grants a where to_regprocedure(a.fn) = p.oid and a.role = r));
   if v_bad is not null then raise exception 'ASSERT FAILED: an API role can execute a one.* function outside one.api_grants: %', v_bad; end if;
+  -- Every function a signed-in person can call starts with the gate, except the four of the sign-in flow (D-058).
+  select string_agg(p.oid::regprocedure::text, ', ') into v_bad from pg_proc p
+   where p.pronamespace = 'one'::regnamespace and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+     and p.prosrc !~ 'one\.ui_require\(' and p.proname not in ('me', 'auth_verify_code', 'auth_device_check', 'auth_sign_out');
+  if v_bad is not null then raise exception 'ASSERT FAILED: signed-in functions without the gate: %', v_bad; end if;
   select string_agg(r, ', ') into v_bad from unnest(array['eduwit_one_reader', 'service_role', 'anon', 'authenticated']) r
    where has_function_privilege(r, 'one.secret(text)', 'EXECUTE');
   if v_bad is not null then raise exception 'ASSERT FAILED: one.secret is executable by %', v_bad; end if;

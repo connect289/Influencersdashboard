@@ -71,6 +71,16 @@ begin
         raise exception 'setting checks: lock_timeout like "2s", transaction_timeout like "30s", a boolean source_missing_opens_incident, slow_ms 100–600000'
           using errcode = '22023';
       end if;
+    when 'access' then
+      if jsonb_typeof(p_value -> 'owners') is distinct from 'array'
+         or exists (select 1 from jsonb_array_elements_text(p_value -> 'owners') x where lower(x) !~ '^[^@\s]+@eduwit\.in$') then
+        raise exception 'setting access: owners must be a list of @eduwit.in addresses' using errcode = '22023';
+      end if;
+      if coalesce((p_value ->> 'trusted_days')::int, 30) not between 0 and 90
+         or coalesce((p_value ->> 'idle_hours')::int, 12) not between 1 and 72
+         or coalesce((p_value ->> 'code_minutes')::int, 10) not between 2 and 30 then
+        raise exception 'setting access: trusted_days 0–90, idle_hours 1–72, code_minutes 2–30' using errcode = '22023';
+      end if;
     when 'app' then
       if p_value ->> 'base_url' is not null and p_value ->> 'base_url' !~ '^https://[a-z0-9.-]+(:[0-9]+)?$' then
         raise exception 'setting app: base_url must be https://host with no path' using errcode = '22023';

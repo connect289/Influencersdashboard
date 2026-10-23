@@ -51,6 +51,19 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | An unacknowledged synthetic P1 re-sends at 30 and 60 minutes | proven locally on the stubbed path (§2); on staging after the deploy |
 | The watchdog emails when one-tick is paused for 5 minutes on staging | after the deploy and the monitor (D-053) |
 
-## Phases 4–7
+## Phase 4 — UI (built; production run waits on phase 1 and the deploy)
+
+| Criterion | Status |
+| --- | --- |
+| All pages in §12 for owner and engineer | done: Overview, Incidents, Proposals, Actions, Tests, Brief, Ask, Audit, Apps (7), Marketing, Analytics, Settings (Setup, Checks, Maintenance, Users, Privileges, Fixes, every key). Roles enforced in the database (`80_ui_api.sql`) |
+| Sign-in flow | done: Google, then code or trusted device (D-058); `70_auth.sql` covers expiry, tries, other sessions, revoked users. Live run waits on the Google provider and the redirect URL (Setup item `one_app_env`) |
+| Realtime | met by polling every 15 s (D-060) |
+| Settings versioning | done: every save writes a version with who, when and why; the editor shows history and restores (`80_ui_api.sql`) |
+| Every page renders against production data read-only | **blocked on owner**: needs the phase 1 apply and the deploy. Locally: see the click-through below |
+| Every embed RPC call is listed with its latency | done: the Apps page shows each panel's `ms` from `one.ui_embed` (D-062) |
+| No page writes outside `one.*` | by construction: the API roles execute only `one.*` functions (D-055) and every UI write is a `one.ui_*` function that audits itself; the click-through check is below |
+| Phone layout for Incidents and Proposals | built mobile-first; screenshots below |
+
+## Phases 5–7
 
 Not started.

@@ -3,6 +3,24 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — phase 4, the UI (built; production run waits on phase 1 and the deploy)
+
+- Sign-in (0009): Google restricted to `@eduwit.in`, then an emailed 6-digit code or a trusted device; every UI
+  function checks the caller with `one.ui_require()` from the signed JWT; sign-in log; idle sign-out (D-058).
+- Page reads (0010) and writes (0011): Overview, Incidents, Proposals, Actions, Tests, Brief, Ask, Audit (with CSV
+  export), Settings (versioned JSON editor, Checks, Maintenance, Users, Privileges, Fixes) and Setup (secrets to
+  Vault, validation, D-059). Each write is audited with its request id; owner-only keys and sensitive proposals need
+  the owner.
+- Apps, Marketing and Analytics (0012): app panels run the apps' own reads as the signed-in person, redacted and
+  timed (D-062); the funnel from `settings.analytics.funnel` with medians between steps; partner and counsellor
+  tables; saved views; aggregate-only CSV.
+- The builder's proposals (0013): twelve open findings with evidence measured on production (D-063).
+- Web: Tailwind v4 kit with generated brand tokens (D-061), strict CSP with a nonce, polling every 15 s instead of
+  Realtime (D-060), phone layouts, empty, loading and error states on every page.
+- Tests: `supabase/tests/local/70_auth.sql`, `80_ui_api.sql`, `90_ui_apps.sql`; smoke asserts every
+  `authenticated`-executable function calls `one.ui_require(`; web unit tests for security helpers, CSV, tokens and
+  the code email. Decisions D-058 to D-063.
+
 ## 23 Oct 2026 — second database review resolved
 
 - Cron procedure: start marks committed before each check and event copy; killed runs reaped as errors and moved

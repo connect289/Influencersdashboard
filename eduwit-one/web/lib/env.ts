@@ -6,6 +6,8 @@ import { z } from "zod";
 // another project and are never read (D-013, CLAUDE.md environment note).
 const schema = z.object({
   ONE_SUPABASE_URL: z.url().optional(),
+  // The publishable (anon) key: the signed-in person's own session reads through it, under one.ui_require() (D-058).
+  ONE_SUPABASE_ANON_KEY: z.string().min(20).optional(),
   ONE_SUPABASE_SERVICE_KEY: z.string().min(20).optional(),
   ONE_INTERNAL_KEY: z.string().min(32).optional(),
 });
@@ -17,6 +19,7 @@ let cached: BootEnv | undefined;
 export function bootEnv(): BootEnv {
   cached ??= schema.parse({
     ONE_SUPABASE_URL: process.env.ONE_SUPABASE_URL || undefined,
+    ONE_SUPABASE_ANON_KEY: process.env.ONE_SUPABASE_ANON_KEY || undefined,
     ONE_SUPABASE_SERVICE_KEY: process.env.ONE_SUPABASE_SERVICE_KEY || undefined,
     ONE_INTERNAL_KEY: process.env.ONE_INTERNAL_KEY || undefined,
   });

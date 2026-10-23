@@ -277,5 +277,119 @@
     "lock_timeout": "2s",
     "transaction_timeout": "30s",
     "slow_ms": 5000
+  },
+  "access": {
+    "owners": [
+      "connect@eduwit.in"
+    ],
+    "allowed_domain": "eduwit.in",
+    "trusted_days": 30,
+    "idle_hours": 12,
+    "code_minutes": 10
+  },
+  "analytics": {
+    "funnel": [
+      {
+        "key": "click",
+        "label": "Clicked a link or opened a form",
+        "match": [
+          {
+            "app": "web",
+            "type": "funnel.%"
+          },
+          {
+            "app": "influencer",
+            "type": "click%"
+          }
+        ]
+      },
+      {
+        "key": "turn",
+        "label": "Talked to Witty",
+        "match": [
+          {
+            "app": "witty",
+            "type": "turn"
+          }
+        ]
+      },
+      {
+        "key": "qualified",
+        "label": "Qualified",
+        "match": [
+          {
+            "type": "touch.lead.qualified"
+          }
+        ]
+      },
+      {
+        "key": "allocated",
+        "label": "Allocated",
+        "match": [
+          {
+            "app": "b2b",
+            "type": "allocation.allocated"
+          },
+          {
+            "app": "b2b",
+            "type": "allocation.pushed"
+          }
+        ]
+      },
+      {
+        "key": "contacted",
+        "label": "Contacted",
+        "match": [
+          {
+            "app": "b2b",
+            "type": "allocation.contacted"
+          },
+          {
+            "app": "b2c",
+            "type": "activity.call%"
+          }
+        ]
+      },
+      {
+        "key": "applied",
+        "label": "Applied",
+        "match": [
+          {
+            "app": "b2b",
+            "type": "allocation.applied"
+          },
+          {
+            "app": "b2c",
+            "type": "%applied%"
+          }
+        ]
+      },
+      {
+        "key": "enrolled",
+        "label": "Enrolled",
+        "match": [
+          {
+            "type": "allocation.enrolled"
+          },
+          {
+            "app": "b2c",
+            "type": "%enrolled%"
+          }
+        ]
+      },
+      {
+        "key": "verified",
+        "label": "Verified",
+        "match": [
+          {
+            "type": "allocation.verified"
+          },
+          {
+            "app": "b2c",
+            "type": "%verified%"
+          }
+        ]
+      }
+    ]
   }
 }
