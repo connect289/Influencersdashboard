@@ -129,7 +129,8 @@ begin
         select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'check_id', i.check_id, 'app', i.app, 'title', i.title, 'opened_at', i.opened_at,
                                                      'resolved', i.resolved_at is not null) order by i.opened_at), '[]')
           from one.incidents i
-         where i.severity = 'P2' and (i.opened_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date) end));
+         where i.severity = 'P2' and (i.opened_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date
+           and i.check_id <> 'ONE-SYNTH') end));
   end loop;
   return v_out;
 end $$;

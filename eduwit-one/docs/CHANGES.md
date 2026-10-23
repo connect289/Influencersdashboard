@@ -3,6 +3,16 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — phase 5, the seams and T-ALERT end to end
+
+- 0016: `one.test_fact` and `one.test_act`, each kind allowed only for a run in flight of a test that may use it,
+  every action recorded on the run (D-069). T-ALERT's kinds: a synthetic P2 incident on the new check ONE-SYNTH with a
+  test delivery, its status, and closing it. Synthetic incidents are left out of the P2 digest.
+- Web: the runner runs after the probes and alerts in each minute tick, and on its own at `/api/internal/tests/run`;
+  the T-ALERT journey; Resend's delivery status in the email client; unit tests that keep every journey equal to
+  `config/tests.json`.
+- Tests: `supabase/tests/local/97_tests_seams.sql`.
+
 ## 23 Oct 2026 — phase 5, the test runner's database side and the catalogue
 
 - 0014: runs keep their steps, timings, artefacts and state; a lease per runner; `one.tests_state`,

@@ -374,8 +374,9 @@ begin
   if extract(hour from v_local) < coalesce((v_cfg ->> 'p2_digest_hour_ist')::numeric, 18) then
     return jsonb_build_object('due', false);
   end if;
+  -- T-ALERT's synthetic incidents (check ONE-SYNTH) are not news.
   select count(*) into v_count from one.incidents
-   where severity = 'P2' and (opened_at at time zone 'Asia/Kolkata')::date = v_local::date;
+   where severity = 'P2' and (opened_at at time zone 'Asia/Kolkata')::date = v_local::date and check_id <> 'ONE-SYNTH';
   if v_count <= coalesce((v_cfg ->> 'p2_digest_min_count')::int, 5) then
     return jsonb_build_object('due', true, 'p2_today', v_count, 'queued', 0);
   end if;

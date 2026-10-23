@@ -56,3 +56,13 @@ select count(*) <= coalesce((select (s ->> 'p1_count')::int from w), 10) as ok,
        jsonb_build_object('p1_opened', count(*),
          'top_checks', (select coalesce(jsonb_agg(check_id), '[]') from (select check_id from recent group by check_id order by count(*) desc, check_id limit 3) t)) as value
   from recent
+
+-- check: ONE-SYNTH
+-- app: one
+-- kind: test
+-- severity: P2
+-- cadence_s: 3600
+-- resolve_after: 1
+-- tags: synthetic
+-- title: Synthetic incident (T-ALERT)
+-- description: Never fails on its own. T-ALERT opens an incident on it to prove that a delivery is sent and delivered, then acknowledges and resolves it. Its incidents are left out of the P2 digest and the brief, and carry "synthetic" in their evidence.

@@ -120,6 +120,7 @@ describe("sendPending", () => {
       send: async () => {
         throw new Error("connect ECONNREFUSED with secret");
       },
+      status: async () => ({ lastEvent: null }),
     };
     const s = await sendPending({ db, email: { mode: "real", client: failing }, from: "x", oneHost: "https://o" });
     expect(s.failed).toBe(1);

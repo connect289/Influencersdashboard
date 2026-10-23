@@ -1400,6 +1400,23 @@ select count(*) <= coalesce((select (s ->> 'p1_count')::int from w), 10) as ok,
 $sql$));
 
 select one.seed_check(jsonb_build_object(
+  'id', 'ONE-SYNTH',
+  'app', 'one',
+  'kind', 'test',
+  'severity', 'P2',
+  'cadence_s', 3600,
+  'open_after', 1,
+  'resolve_after', 1,
+  'title', 'Synthetic incident (T-ALERT)',
+  'description', 'Never fails on its own. T-ALERT opens an incident on it to prove that a delivery is sent and delivered, then acknowledges and resolves it. Its incidents are left out of the P2 digest and the brief, and carry "synthetic" in their evidence.',
+  'auto_fix_id', null,
+  'tags', '["synthetic"]'::jsonb,
+  'enabled', true,
+  'disabled_reason', null,
+  'search_path', '',
+  'sql', null::text));
+
+select one.seed_check(jsonb_build_object(
   'id', 'PLAT-01',
   'app', 'platform',
   'kind', 'sql',
