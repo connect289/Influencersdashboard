@@ -19,12 +19,12 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 
 | Criterion | Status |
 | --- | --- |
-| Migrations 0001–0007 with rollbacks | pending |
+| Migrations 0001–0007 with rollbacks | done locally: `scripts/db/local-test.sh` prints LOCAL TEST PASSED (D-029) |
 | `REHEARSAL PASSED` on staging | pending |
 | Full dump of production, path in `DECISIONS.md` | **blocked on owner: `ONE_PROD_DB_URL`** (D-010) |
 | Applied to production; `select one.tick()` report has no `_error` key; `cron.job` shows both jobs | blocked by the dump |
 | `one.events` count within 1% of the sources | pending |
-| Least-privilege test passes | pending |
+| Least-privilege test passes | passes locally (`supabase/tests/20_events_secrets_privileges.sql` §5); to repeat on staging |
 
 ## Phases 2–7
 
