@@ -1,0 +1,17 @@
+{
+  "name": "eduwit-one-tooling",
+  "private": true,
+  "type": "module",
+  "description": "Scripts for Eduwit One (preflight, database rehearsal). The app itself lives in web/.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "preflight": "node scripts/preflight.ts --merge docs/preflight-connector.json --setup supabase/seed/setup.json --md docs/PREFLIGHT-table.md",
+    "typecheck": "tsc -p scripts/tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.13",
+    "typescript": "5.9.3"
+  }
+}

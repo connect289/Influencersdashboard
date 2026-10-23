@@ -1,0 +1,74 @@
+{
+  "$comment": "Non-secret defaults for Eduwit One. The single source for hosts, ids and identities: migration 0007 seeds one.settings from this file and scripts/preflight.ts reads it. Secrets never go here (Vault or Vercel env only). Edit values in the Settings page after deploy; this file only seeds.",
+  "repo": "connect289/influencersdashboard",
+  "supabase": {
+    "production_ref": "xlseqwgyjuqhktrguhyc",
+    "staging_ref": "mplbspysxmtohnlwpbti"
+  },
+  "hosts": {
+    "website": "https://eduwit.in",
+    "website_internal": "https://eduwit-website.vercel.app",
+    "spark": "https://spark.eduwit.in",
+    "b2b_app": "https://crm.eduwit.in",
+    "influencer": "https://influencer.eduwit.in",
+    "chatwoot": "https://chat.eduwit.in",
+    "n8n": "https://n8n.eduwit.in",
+    "one": "https://one.eduwit.in"
+  },
+  "health_paths": {
+    "website": "/api/health",
+    "influencer": "/api/health",
+    "b2b_app": "/api/health",
+    "spark": "/",
+    "chatwoot": "/",
+    "n8n": "/"
+  },
+  "vendors": {
+    "vercel_api": "https://api.vercel.com",
+    "uptimerobot_api": "https://api.uptimerobot.com/v2",
+    "resend_api": "https://api.resend.com",
+    "graph_api": "https://graph.facebook.com/v21.0",
+    "github_api": "https://api.github.com",
+    "gemini_api": "https://generativelanguage.googleapis.com/v1beta",
+    "anthropic_api": "https://api.anthropic.com/v1"
+  },
+  "vercel": {
+    "team": "eduwit",
+    "region": "bom1",
+    "projects": {
+      "website": "eduwit-website",
+      "influencer": "influencersdashboard",
+      "spark": "eduwit-spark",
+      "b2b_app": "web",
+      "one": "eduwit-one"
+    }
+  },
+  "n8n": {
+    "witty_workflow_id": "PKPs7tXg9bej8AgX",
+    "test_harness_workflow_id": "1BGAINw5XDkSHb2q",
+    "nurture_workflow_id": "XwmALPxBduLDxUBn",
+    "learning_workflow_id": "pJSJIXCUykI0F5sj"
+  },
+  "aws": {
+    "lightsail_default_region": "ap-south-1"
+  },
+  "email": {
+    "domain": "eduwit.in",
+    "from": "Eduwit One <one@eduwit.in>"
+  },
+  "alerts": {
+    "p1_email": ["connect@eduwit.in"],
+    "second_contact": [],
+    "developer_email": null
+  },
+  "test_identities": {
+    "phone_prefix": "910000",
+    "whatsapp_number": null,
+    "mailbox": null,
+    "website_preview_url": null,
+    "spark_test_user_email": null,
+    "partner_slug": null,
+    "creator_referral_code": null
+  },
+  "required_repo_folders": ["b2b-crm", "b2c-crm", "influencer-portal", "website"]
+}

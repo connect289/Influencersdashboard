@@ -1,0 +1,285 @@
+{
+  "generated_at": "2026-10-23T18:30:57.892Z",
+  "generated_by": "scripts/preflight.ts",
+  "items": {
+    "github": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "GitHub connector: get_file_contents / on main; list_branches; git ls-tree per remote branch",
+      "detail": "main has b2b-crm, b2c-crm, docs, influencer-portal; website/ exists only on branch claude/inspiring-babbage-8asj1y (which has no influencer-portal/)",
+      "fix": "merge the website branch into main, or record that branch as the website's source of truth",
+      "source": "connector"
+    },
+    "supabase_prod": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "Supabase connector, read-only: count(student_leads)=2; b2b.health_check() ok=true; public.w2_health_alerts()=[]; public.web_health() db=true; inf.health() db and queue ok; b2c.system_health() → 42501 not allowed (expected, needs a Spark admin session)",
+      "detail": "Postgres 17.6; 58 active cron jobs; 23 'job startup timeout' failures and 1 b2c-capacity failure in 24 h",
+      "fix": null,
+      "source": "connector"
+    },
+    "supabase_prod_dump": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "looked for a production connection string (ONE_PROD_DB_URL / PROD_DB_URL); the connector cannot run pg_dump",
+      "detail": "no connection string in the build environment, so no full pg_dump can be taken; the website go-live hit the same gap (website PROGRESS.md:7-8)",
+      "fix": "add the production connection string (Supabase → Connect → session pooler) as the environment secret ONE_PROD_DB_URL for the build session only",
+      "source": "connector"
+    },
+    "supabase_staging": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "Supabase connector on mplbspysxmtohnlwpbti: version, schemas, extensions, presence of the tables and functions the checks read",
+      "detail": "Postgres 17.11; pg_cron, pg_net, vault present; 37 cron jobs; b2b 85 tables (production 106), public 70 (production 261); no web_* tables, no inf or catalog schema, and none of b2b.health_check, w2_health_alerts, web_health, inf.health. Rehearsal proves migrations and rollbacks; checks on those sources report 'source missing' on staging",
+      "fix": "optional: refresh staging from a production schema dump so rehearsals cover every check",
+      "source": "connector"
+    },
+    "supabase_advisors": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "Supabase connector get_advisors(security) and query_logs (sources)",
+      "detail": "security advisors: 1 ERROR (security_definer_view), 5 WARN, 1 INFO; logs readable across 8 sources",
+      "fix": null,
+      "source": "connector"
+    },
+    "n8n_api": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "n8n connector (build session only): search_workflows (18 workflows; Eduwit Witty PKPs7tXg9bej8AgX active) and search_executions (10,072 for Witty; 0 error or crashed since 22 Oct)",
+      "detail": "the instance is reachable and healthy through the build session's connector, but the deployed app needs its own n8n API key",
+      "fix": "n8n → Settings → n8n API → create a key; store as Vault one_n8n_key; base URL https://n8n.eduwit.in",
+      "source": "connector"
+    },
+    "lightsail": {
+      "status": "refused",
+      "validated": false,
+      "validated_at": null,
+      "ran": "Lightsail GetInstances in us-east-1 (SigV4)",
+      "detail": "key valid, but no instances in us-east-1",
+      "fix": "set ONE_AWS_REGION to the region of the n8n server, or create the key in the account that owns it",
+      "source": "script"
+    },
+    "chatwoot": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "GET https://chat.eduwit.in/api/v1/accounts/<id>/inboxes and /webhooks",
+      "detail": "inboxes: WITTY2 (Channel::Whatsapp); webhook hosts: n8n.eduwit.in",
+      "fix": null,
+      "source": "script"
+    },
+    "vercel": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "GET https://api.vercel.com/v2/teams, /v9/projects, /v6/deployments?target=production",
+      "detail": "team eduwit, 6 projects; website: READY; influencer: READY; spark: READY; b2b_app: READY; one: no project \"eduwit-one\"",
+      "fix": null,
+      "source": "script"
+    },
+    "spark_job_key": {
+      "status": "unfilled",
+      "validated": false,
+      "validated_at": null,
+      "ran": "Supabase connector: b2c.settings key app → base_url; vault.secrets names",
+      "detail": "app.base_url null; b2c_internal_key missing; all six b2c HTTP jobs are no-ops",
+      "fix": "select b2c.app_deploy_set('https://spark.eduwit.in', '<B2C_INTERNAL_KEY from Vercel eduwit-spark>')",
+      "source": "connector"
+    },
+    "b2b_app": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "GET https://crm.eduwit.in/v1/referrals/EDUWITONEPREFLIGHT/outcomes?limit=1",
+      "detail": "referrals endpoint answered ok:true",
+      "fix": null,
+      "source": "script"
+    },
+    "website_health": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "GET https://eduwit.in/api/health",
+      "detail": "HTTP 200 {\"ok\":true}",
+      "fix": null,
+      "source": "script"
+    },
+    "influencer_portal": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "GET https://influencer.eduwit.in/api/health",
+      "detail": "HTTP 200 {\"status\":\"ok\",\"checks\":{\"db\":true,\"storage\":true,\"queue\":true},\"version\":\"61b0657\",\"time\":\"2026-10-23T18:30:57.029Z\"}",
+      "fix": null,
+      "source": "script"
+    },
+    "whatsapp": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "GET https://graph.facebook.com/v21.0/<waba>/message_templates?limit=1",
+      "detail": "no WhatsApp token or WABA ids",
+      "fix": "Meta Business → System users → token with whatsapp_business_management; or approve reuse of Vault b2b_whatsapp_token",
+      "source": "script"
+    },
+    "meta": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "searched the session's tools for a Meta Ads connector; looked for ONE_META_TOKEN; vault.secrets names",
+      "detail": "no Meta connector tools, no token, and no page token in Vault (the prerequisites' meta.page_token_id does not exist)",
+      "fix": "authorise the Meta Ads connector or add an ad-account read token as Vault one_meta_token",
+      "source": "connector"
+    },
+    "email": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "GET https://api.resend.com/domains and /emails?limit=1",
+      "detail": "domain eduwit.in: verified; last email 2026-10-22 06:08:13.217000+00 delivered",
+      "fix": null,
+      "source": "script"
+    },
+    "uptimerobot": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "POST https://api.uptimerobot.com/v2/getMonitors and /getAlertContacts",
+      "detail": "6/6 monitors up (chat.eduwit.in/, crm.eduwit.in, eduwit.in/api/health, influencer.eduwit.in/api/health, n8n.eduwit.in/webhook/eduwit-one-ping, spark.eduwit.in/); alert contacts: paused",
+      "fix": "activate the alert contact in UptimeRobot, or its monitors never email",
+      "source": "script"
+    },
+    "ai_key": {
+      "status": "unfilled",
+      "validated": false,
+      "validated_at": null,
+      "ran": "Supabase connector: vault.secrets names (value not read)",
+      "detail": "Vault holds one_gemini_key (owner decision 23 Oct, prerequisites §5: Gemini only); the specification says Claude only. Provider decision recorded in DECISIONS.md D-004; the key is validated by the app's contract test, never by reading it here",
+      "fix": "confirm the provider; for Claude, add one_anthropic_key to Vault",
+      "source": "connector"
+    },
+    "sentry": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "prerequisites doc §3",
+      "detail": "not used (owner, 23 Oct); monitoring is UptimeRobot",
+      "fix": null,
+      "source": "connector"
+    },
+    "alerts_p1_inbox": {
+      "status": "unfilled",
+      "validated": false,
+      "validated_at": null,
+      "ran": "prerequisites doc §5 alert table",
+      "detail": "blank; spec §15 default applied: connect@eduwit.in, email only (owner, 23 Oct: no WhatsApp alerts)",
+      "fix": null,
+      "source": "connector"
+    },
+    "alerts_second_contact": {
+      "status": "unfilled",
+      "validated": false,
+      "validated_at": null,
+      "ran": "prerequisites doc §5 escalation rule",
+      "detail": "blank; default: escalation at 60 min re-sends to the P1 inbox",
+      "fix": null,
+      "source": "connector"
+    },
+    "developer_contact": {
+      "status": "unfilled",
+      "validated": false,
+      "validated_at": null,
+      "ran": "prerequisites doc §5 and §7",
+      "detail": "blank (developer not named); developer-tagged alerts go to the P1 inbox until set",
+      "fix": null,
+      "source": "connector"
+    },
+    "test_whatsapp_number": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "Supabase connector: w2_trusted where is_test, grouped by prefix",
+      "detail": "375 rows, all in the 910000 harness range; no real test number that can message Witty",
+      "fix": "add the real test number to w2_trusted with is_test = true",
+      "source": "connector"
+    },
+    "test_mailbox": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "read ONE_TEST_MAILBOX",
+      "detail": "missing",
+      "fix": null,
+      "source": "script"
+    },
+    "test_preview_url": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "read ONE_WEBSITE_PREVIEW_URL",
+      "detail": "missing",
+      "fix": null,
+      "source": "script"
+    },
+    "test_spark_user": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "Supabase connector: b2c.users where is_test_user",
+      "detail": "0; the only Spark user is connect@eduwit.in (admin)",
+      "fix": "create a Spark counsellor marked as a test user",
+      "source": "connector"
+    },
+    "test_b2b_intake_key": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "read ONE_B2B_INTAKE_KEY",
+      "detail": "missing",
+      "fix": null,
+      "source": "script"
+    },
+    "test_partner": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "Supabase connector: count(b2b.partners)",
+      "detail": "0 partners",
+      "fix": "add a test partner with the sandbox adapter and test_endpoint",
+      "source": "connector"
+    },
+    "test_creator": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "Supabase connector: inf.creators where is_test",
+      "detail": "1 creator (priyansh_1, onboarding), not a test creator",
+      "fix": "invite a creator marked as a test creator",
+      "source": "connector"
+    },
+    "test_rows_agreement": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "prerequisites doc §3 test access",
+      "detail": "agreed by the owner on 23 Oct: test rows may be created in production under the is_test conventions and purged nightly",
+      "fix": null,
+      "source": "connector"
+    },
+    "brand_assets": {
+      "status": "verified",
+      "validated": true,
+      "validated_at": "2026-10-23T18:30:57.892Z",
+      "ran": "logo attached to the chat on 23 Oct; colour sampling of the logo",
+      "detail": "saved as web/public/brand/eduwit-logo-source.jpg (1264 px JPEG; no SVG supplied); palette taken from the logo: navy #072E59, amber #F2A505",
+      "fix": null,
+      "source": "connector"
+    }
+  }
+}
