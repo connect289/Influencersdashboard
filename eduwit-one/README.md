@@ -18,6 +18,7 @@ screens. The specification and the prerequisites doc are binding; this folder's 
 | `docs/PREFLIGHT.md` | Access preflight findings |
 | `docs/CHANGES.md` | Change log |
 | `docs/REHEARSALS.md` | Passed rehearsals by migration-set hash; `apply.sh` requires a row |
+| `docs/RUNBOOK-database.md` | Step by step: rehearse on staging, dump and apply production, from a machine with database access |
 
 Never run anything in this folder against production except the read-only preflight, `scripts/db/dump.sh`, and
 `scripts/db/apply.sh` after a dump and a passed rehearsal (D-010). Order: `npm run db:local-test` →

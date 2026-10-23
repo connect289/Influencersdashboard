@@ -3,6 +3,12 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — database runbook
+
+- Added `docs/RUNBOOK-database.md`: rehearse, dump and apply from a machine with direct database access (D-041).
+  A retry of the staging rehearsal through the connector timed out again on the 0003 runner (no approval prompt
+  reached the owner); nothing new was applied to staging.
+
 ## 23 Oct 2026 — phase 2, check catalogue
 
 - The full specification catalogue (83 checks: 73 on, 10 off until configured) is now in `supabase/checks/*.sql`.
