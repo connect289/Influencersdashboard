@@ -9,11 +9,12 @@
   "scripts": {
     "preflight": "node scripts/preflight.ts --merge docs/preflight-connector.json --setup supabase/seed/setup.json --md docs/PREFLIGHT-table.md",
     "typecheck": "tsc -p scripts/tsconfig.json",
-    "test": "node --test scripts/db/guards.test.ts scripts/db/gen-checks.test.ts",
+    "test": "node --test scripts/db/guards.test.ts scripts/db/gen-checks.test.ts scripts/db/gen-tests.test.ts",
     "db:guards": "node scripts/db/guards.ts",
     "db:local-test": "scripts/db/local-test.sh",
     "db:seed-check": "node scripts/db/gen-seed.ts --check",
-    "db:checks": "node scripts/db/gen-checks.ts"
+    "db:checks": "node scripts/db/gen-checks.ts",
+    "db:tests": "node scripts/db/gen-tests.ts"
   },
   "devDependencies": {
     "@types/node": "22.18.13",

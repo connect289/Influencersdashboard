@@ -244,6 +244,10 @@ export const testsSchema = z.array(
     enabled: z.boolean(),
     disabled_reason: z.string().nullable(),
     steps: num,
+    seam: z.string().nullable().optional(),
+    description: z.string().nullable().optional(),
+    step_defs: z.array(z.object({ key: z.string(), title: z.string(), timeout_s: num })).default([]),
+    needs: z.array(z.object({ item: z.string(), validated: z.boolean() })).default([]),
     run_requested_at: isoN,
     runs: z.array(
       z.looseObject({
@@ -251,8 +255,20 @@ export const testsSchema = z.array(
         started_at: iso,
         finished_at: isoN,
         ok: z.boolean().nullable(),
+        trigger: z.string().optional(),
+        error: z.string().nullable().optional(),
         duration_ms: num.nullable(),
-        steps: json,
+        steps: z
+          .array(
+            z.object({
+              key: z.string(),
+              title: z.string().nullable(),
+              ok: z.boolean().nullable(),
+              ms: num.nullable(),
+              detail: z.string().nullable(),
+            }),
+          )
+          .catch([]),
       }),
     ),
   }),

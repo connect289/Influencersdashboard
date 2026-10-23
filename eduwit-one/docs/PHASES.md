@@ -65,6 +65,15 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | Phone layout for Incidents and Proposals | done: 390 px, no sideways scroll (checked by the click-through); screenshots in `docs/reviews/phase-4-screens/` |
 | Phase and security reviews | done: `docs/reviews/phase-4-ui.md`, `docs/reviews/phase-4-security.md`, all resolved |
 
-## Phases 5–7
+## Phase 5 — Synthetic tests (in progress)
+
+| Criterion | Status |
+| --- | --- |
+| All tests in §10 implemented and scheduled | catalogue seeded (0015, `docs/TESTS.md`); runner built (D-068); journeys in progress |
+| Each test passes once end to end on the test identities | blocked on the test identities (Setup items); T-ALERT needs none |
+| Purge removes every artefact after the window | in progress |
+| No test row leaks into any app's analytics | in progress |
+
+## Phases 6–7
 
 Not started.

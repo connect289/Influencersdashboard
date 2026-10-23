@@ -3,6 +3,18 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — phase 5, the test runner's database side and the catalogue
+
+- 0014: runs keep their steps, timings, artefacts and state; a lease per runner; `one.tests_state`,
+  `one.test_run_start`, `one.test_run_save`, `one.test_run_finish` (reports to the test's own check), and a reaper
+  for runs nobody reached. Tests switch on when their Setup items are validated, and their checks follow them. The
+  Tests page shows step timings against each step's timeout and what a test still waits for (D-068).
+- 0015 (generated from `config/tests.json` by `scripts/db/gen-tests.ts`): the eleven tests of spec §10 and their
+  checks; `docs/TESTS.md`. T-ALERT is on; T-WEB-CATALOG is blocked (no safe catalogue write); the rest wait for
+  their test identities.
+- Web: `lib/tests/cron.ts` (schedules) and `lib/tests/runner.ts` (the state machine), with unit tests.
+- Tests: `supabase/tests/local/96_tests_runner.sql`; `scripts/db/gen-tests.test.ts`.
+
 ## 23 Oct 2026 — phase 4 reviews resolved, and the click-through
 
 - Phase review (`docs/reviews/phase-4-ui.md`: 1 blocker, 6 majors, 14 minors) and security review
