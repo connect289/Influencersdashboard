@@ -2,7 +2,7 @@
 # Local migration test on a throwaway Postgres cluster (D-011). Never touches a Supabase project: it starts its own
 # server on a private socket, loads stubs of cron / net / vault and of the app objects schema one reads, then runs
 #   apply 0001..N → tests → rollback N..0001 (asserting schema one and both roles are gone) → apply again → tests.
-# Prints LOCAL TEST PASSED on success. Usage: scripts/db/local-test.sh
+# Prints the schema fingerprint after the first apply and LOCAL TEST PASSED on success. Usage: scripts/db/local-test.sh
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -38,12 +38,18 @@ rollback_all() {
     echo "  rolled back $(basename "${forward[$i]}")"
   done
 }
-run_tests() { for t in "$here"/supabase/tests/[0-9][0-9]_*.sql; do psql_as supabase_admin -d rehearsal -f "$t" >/dev/null; echo "  passed $(basename "$t")"; done; }
+run_tests() {
+  for t in "$here"/supabase/tests/local/[1-9][0-9]_*.sql; do psql_as supabase_admin -d rehearsal -f "$t" >/dev/null; echo "  passed $(basename "$t")"; done
+  psql_as postgres -d rehearsal -At -f "$here/supabase/tests/smoke.sql" | grep -q "^SMOKE PASSED" || { echo "smoke.sql failed"; exit 1; }
+  echo "  passed smoke.sql"
+}
 
 echo "apply"; apply_all
+# What a rehearsal target must match after its first apply (scripts/db/fingerprint.sql).
+echo "  fingerprint $(psql_as postgres -d rehearsal -At -F ' ' -f "$here/scripts/db/fingerprint.sql")"
 echo "test"; run_tests
 echo "rollback"; rollback_all
-left="$(psql_as supabase_admin -d rehearsal -At -c "select (select count(*) from pg_namespace where nspname = 'one') + (select count(*) from pg_roles where rolname like 'eduwit_one%') + (select count(*) from pg_default_acl where defaclacl::text like '%eduwit_one%')")"
+left="$(psql_as postgres -d rehearsal -At -f "$here/scripts/db/leftovers.sql")"
 [ "$left" = "0" ] || { echo "rollback left $left objects behind"; exit 1; }
 echo "  rollback left nothing behind"
 echo "re-apply"; apply_all

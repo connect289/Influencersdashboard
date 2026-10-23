@@ -8,7 +8,11 @@
   },
   "scripts": {
     "preflight": "node scripts/preflight.ts --merge docs/preflight-connector.json --setup supabase/seed/setup.json --md docs/PREFLIGHT-table.md",
-    "typecheck": "tsc -p scripts/tsconfig.json"
+    "typecheck": "tsc -p scripts/tsconfig.json",
+    "test": "node --test scripts/db/guards.test.ts",
+    "db:guards": "node scripts/db/guards.ts",
+    "db:local-test": "scripts/db/local-test.sh",
+    "db:seed-check": "node scripts/db/gen-seed.ts --check"
   },
   "devDependencies": {
     "@types/node": "22.18.13",

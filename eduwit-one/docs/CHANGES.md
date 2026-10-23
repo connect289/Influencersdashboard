@@ -3,6 +3,19 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — phase 1, rehearsal tooling and partial staging apply
+
+- Added `scripts/db/rehearse.sh`, `apply.sh` and `dump.sh`. Also added `with-db.ts` (credentials go into PG*
+  variables, never argv; a URL that reaches the wrong project is refused), `guards.ts` with its tests, `fingerprint.sql`,
+  `leftovers.sql`, `supabase/tests/smoke.sql` and `docs/REHEARSALS.md`.
+- The local fixture tests moved to `supabase/tests/local/` and now refuse to run on any database but the local test
+  cluster.
+- Staging (`mplbspysxmtohnlwpbti`), through the connector as postgres: applied 0001, 0002 and 0003 (core), each in
+  its own transaction. 0003 (runner) did not reach the database: the connector holds statements containing DELETE for
+  a person to confirm (D-031). No cron job is scheduled on staging, and nothing of the apps changed.
+- Read-only queries on production: RLS coverage of the app tables (D-030), postgres's read reach for the dump
+  (D-032), and pg_cron's RLS policies.
+
 ## 23 Oct 2026 — phase 1, database (local)
 
 - Added migrations 0001–0007, each with a rollback: schema `one` and its two roles; the core tables; settings,

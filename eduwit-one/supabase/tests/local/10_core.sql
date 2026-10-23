@@ -2,6 +2,12 @@
 -- bootstrap superuser; the code under test runs as postgres, as pg_cron runs it on Supabase. Re-runnable: it resets
 -- its fixtures first, because the cluster outlives a rollback and re-apply.
 \set ON_ERROR_STOP 1
+-- Refuses to run anywhere but the throwaway cluster of scripts/db/local-test.sh: it truncates and rewrites fixtures.
+do $$ begin
+  if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then
+    raise exception 'refused: this test rewrites fixtures and runs only on the local test cluster';
+  end if;
+end $$;
 create or replace function pg_temp.ok(p_cond boolean, p_msg text) returns void language plpgsql as $$
 begin
   if not coalesce(p_cond, false) then raise exception 'ASSERT FAILED: %', p_msg; end if;

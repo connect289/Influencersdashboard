@@ -20,11 +20,11 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | Criterion | Status |
 | --- | --- |
 | Migrations 0001–0007 with rollbacks | done locally: `scripts/db/local-test.sh` prints LOCAL TEST PASSED (D-029) |
-| `REHEARSAL PASSED` on staging | pending |
+| `REHEARSAL PASSED` on staging | **blocked on owner** (D-031): 0001–0003 (core) applied to staging; the remaining steps contain DROP or DELETE, which the connector holds for a person to confirm. Needs `ONE_STAGING_DB_URL`, or approvals during the run |
 | Full dump of production, path in `DECISIONS.md` | **blocked on owner: `ONE_PROD_DB_URL`** (D-010) |
 | Applied to production; `select one.tick()` report has no `_error` key; `cron.job` shows both jobs | blocked by the dump |
 | `one.events` count within 1% of the sources | pending |
-| Least-privilege test passes | passes locally (`supabase/tests/20_events_secrets_privileges.sql` §5); to repeat on staging |
+| Least-privilege test passes | passes locally (`supabase/tests/local/20_events_secrets_privileges.sql` §5, and `supabase/tests/smoke.sql`, which runs the same catalogue checks on staging and production). Proven to fail on a bad grant |
 
 ## Phases 2–7
 

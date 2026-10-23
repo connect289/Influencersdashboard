@@ -5,6 +5,7 @@
 // reaches psql through PGPASSWORD, never through argv.
 import { spawnSync } from "node:child_process";
 import type { Defaults, Row } from "./lib.ts";
+import { pgEnv } from "../db/pg-env.ts";
 
 const SURVEY_SQL = `
 begin transaction read only;
@@ -31,14 +32,8 @@ type Survey = {
 type Pg = { env: NodeJS.ProcessEnv };
 
 function connection(url: string): Pg | undefined {
-  try {
-    const u = new URL(url);
-    if (!u.protocol.startsWith("postgres")) return undefined;
-    return { env: { ...process.env, PGHOST: u.hostname, PGPORT: u.port || "5432", PGUSER: decodeURIComponent(u.username),
-      PGPASSWORD: decodeURIComponent(u.password), PGDATABASE: u.pathname.slice(1) || "postgres", PGSSLMODE: "require", PGCONNECT_TIMEOUT: "10" } };
-  } catch {
-    return undefined;
-  }
+  const pg = pgEnv(url);
+  return pg ? { env: { ...process.env, ...pg } } : undefined;
 }
 
 /** Maps psql's stderr to a category; the text itself is never returned. */

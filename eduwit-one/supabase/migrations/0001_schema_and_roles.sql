@@ -1,7 +1,9 @@
 -- 0001 schema one and its two roles (spec §5).
 -- Applied with: psql -X -1 -v ON_ERROR_STOP=1 (scripts/db/apply.sh sets lock_timeout 5s and statement_timeout 5min).
 -- Additive only: creates schema one, two NOLOGIN roles, and read grants for the reader. Nothing in the five apps is
--- altered. Login passwords are set outside migrations (scripts/db/set-role-passwords.sh), never committed.
+-- altered. Both roles stay NOLOGIN here; a login password is set outside migrations when the app needs one, never
+-- committed. Neither role bypasses RLS (D-030): on the app tables, which nearly all have RLS on, the reader's SELECT
+-- returns only what a policy grants it, and the checks read as the owner through one.run_check() instead.
 
 create schema if not exists one;
 revoke all on schema one from public;
@@ -39,7 +41,8 @@ begin
   end loop;
 end $$;
 
--- pg_cron's tables belong to supabase_admin; postgres holds SELECT with grant option on both.
+-- pg_cron's tables belong to supabase_admin; postgres holds SELECT with grant option on both. Their RLS policy shows a
+-- role only its own jobs, so the reader sees none; the cron checks run as the owner.
 do $$
 begin
   if to_regclass('cron.job') is not null then
