@@ -96,6 +96,8 @@ create table one.incidents (
   subjects text[] not null default '{}',
   -- Bumped each time the incident is routed (open, reopen, escalation, new subject); part of every delivery key.
   alert_seq integer not null default 0,
+  -- When it was last routed: escalation counts from here (spec §9).
+  routed_at timestamptz,
   parent_id bigint references one.incidents (id),
   tags text[] not null default '{}',
   created_at timestamptz not null default now(),
@@ -208,6 +210,8 @@ create table one.deliveries (
   status text not null default 'pending' check (status in ('pending', 'sending', 'sent', 'failed', 'suppressed', 'muted')),
   attempts integer not null default 0,
   next_attempt_at timestamptz not null default now(),
+  claimed_at timestamptz,
+  provider_id text,
   sent_at timestamptz,
   error text,
   idempotency_key text not null unique,

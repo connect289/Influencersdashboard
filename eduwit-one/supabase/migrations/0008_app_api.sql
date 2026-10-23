@@ -9,7 +9,7 @@ language sql stable set search_path = '' as $$
   select jsonb_build_object(
     'now', now(),
     'settings', (select coalesce(jsonb_object_agg(s.key, s.value), '{}') from one.settings s
-                  where s.key in ('app', 'hosts', 'health_paths', 'vendors', 'vercel', 'chatwoot', 'n8n', 'whatsapp', 'witty', 'thresholds', 'checks')),
+                  where s.key in ('app', 'hosts', 'health_paths', 'vendors', 'vercel', 'chatwoot', 'n8n', 'whatsapp', 'witty', 'thresholds', 'checks', 'alerts')),
     'setup', (select coalesce(jsonb_object_agg(i.key, jsonb_build_object('status', i.value ->> 'status', 'validated', coalesce((i.value ->> 'validated')::boolean, false))), '{}')
                 from one.settings s, jsonb_each(coalesce(s.value -> 'items', '{}')) i where s.key = 'setup'),
     'checks', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'enabled', c.enabled, 'disabled_reason', c.disabled_reason,
@@ -82,8 +82,108 @@ language sql stable set search_path = '' as $$
     'app_age_s', (select round(extract(epoch from now() - last_ok_at)) from one.heartbeats where component = 'one:app'))
 $$;
 
+-- Deliveries for the app's sender to send now (spec §9). Claims up to p_limit pending email deliveries (and any left
+-- in "sending" for more than 5 minutes by a sender that died), with what the message needs: the incident, already
+-- free of contact data, or for a digest the day's P2 list. A delivery whose reason has gone (incident resolved;
+-- acknowledged, for an escalation; muted or held by a storm) is closed instead of sent.
+create or replace function one.claim_deliveries(p_limit integer default 20) returns jsonb
+language plpgsql set search_path = '' as $$
+declare
+  v_out jsonb := '[]';
+  v_row record;
+begin
+  update one.deliveries d set status = case when i.alert_state = 'muted' then 'muted' else 'suppressed' end
+    from one.incidents i
+   where d.incident_id = i.id and d.status = 'pending' and d.channel = 'email'
+     and (i.resolved_at is not null or i.alert_state in ('muted', 'suppressed')
+          or (d.kind = 'escalation' and i.acknowledged_at is not null));
+  for v_row in
+    with c as (
+      select d.id from one.deliveries d
+       where d.channel = 'email'
+         and ((d.status = 'pending' and d.next_attempt_at <= now()) or (d.status = 'sending' and d.claimed_at < now() - interval '5 minutes'))
+       order by d.created_at limit least(greatest(p_limit, 1), 100) for update skip locked)
+    update one.deliveries d set status = 'sending', claimed_at = now() from c where d.id = c.id
+    returning d.id, d.incident_id, d.recipient, d.kind, d.escalation_level, d.attempts, d.idempotency_key
+  loop
+    v_out := v_out || jsonb_build_array(jsonb_build_object(
+      'id', v_row.id, 'recipient', v_row.recipient, 'kind', v_row.kind, 'escalation_level', v_row.escalation_level,
+      'attempts', v_row.attempts, 'idempotency_key', v_row.idempotency_key,
+      'incident', (select jsonb_build_object('id', i.id, 'check_id', i.check_id, 'app', i.app, 'severity', i.severity, 'title', i.title,
+                                             'opened_at', i.opened_at, 'occurrences', i.occurrences, 'reopened_count', i.reopened_count,
+                                             'subjects', to_jsonb(i.subjects), 'summary', i.summary, 'value', i.evidence -> 'value',
+                                             'status', i.evidence ->> 'status', 'error', i.evidence ->> 'error')
+                     from one.incidents i where i.id = v_row.incident_id),
+      'digest', case when v_row.kind = 'digest' then (
+        select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'check_id', i.check_id, 'app', i.app, 'title', i.title, 'opened_at', i.opened_at,
+                                                     'resolved', i.resolved_at is not null) order by i.opened_at), '[]')
+          from one.incidents i
+         where i.severity = 'P2' and (i.opened_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date) end));
+  end loop;
+  return v_out;
+end $$;
+
+-- The sender's verdict on one delivery. Sent: the provider's id is kept and a pending P1 becomes "sent". Failed: one
+-- retry after 2 minutes; a second failure is final, and ONE-01 reports it (spec §9: a delivery failing twice is an
+-- incident, so a dead email key does not stay silent).
+create or replace function one.finish_delivery(p_id bigint, p_ok boolean, p_error text default null, p_provider_id text default null) returns text
+language plpgsql set search_path = '' as $$
+declare
+  v_d one.deliveries;
+begin
+  select * into v_d from one.deliveries where id = p_id and status = 'sending' for update;
+  if not found then
+    return 'not_claimed';
+  end if;
+  if p_ok then
+    update one.deliveries set status = 'sent', sent_at = now(), provider_id = left(p_provider_id, 120), error = null, attempts = attempts + 1 where id = p_id;
+    update one.incidents set alert_state = 'sent' where id = v_d.incident_id and alert_state = 'pending';
+    return 'sent';
+  end if;
+  update one.deliveries
+     set attempts = attempts + 1, error = left(p_error, 500),
+         status = case when attempts + 1 >= 2 then 'failed' else 'pending' end,
+         next_attempt_at = now() + interval '2 minutes'
+   where id = p_id;
+  return case when v_d.attempts + 1 >= 2 then 'failed' else 'retry' end;
+end $$;
+
+-- Mute a check or an app, or open a maintenance window on an app (spec §9): incidents still record, deliveries are held.
+-- When the mute ends, one.escalate() routes the still-open incidents again.
+create or replace function one.mute(p_target_type text, p_target text, p_minutes integer, p_reason text, p_by text) returns bigint
+language plpgsql set search_path = '' as $$
+declare
+  v_id bigint;
+begin
+  if p_target_type = 'check' and not exists (select 1 from one.checks where id = p_target)
+     or p_target_type = 'app' and not exists (select 1 from one.apps where key = p_target) then
+    raise exception 'one.mute: unknown % %', p_target_type, p_target using errcode = '22023';
+  end if;
+  if coalesce(p_minutes, 0) not between 1 and 10080 or nullif(trim(p_reason), '') is null then
+    raise exception 'one.mute: a duration of 1 minute to 7 days and a reason are required' using errcode = '22023';
+  end if;
+  insert into one.mutes (target_type, target, ends_at, reason, created_by)
+  values (p_target_type, p_target, now() + make_interval(mins => p_minutes), left(p_reason, 300), left(p_by, 120))
+  returning id into v_id;
+  update one.incidents set alert_state = 'muted'
+   where resolved_at is null and alert_state in ('pending', 'sent', 'escalated_1', 'escalated_2', 'digest')
+     and ((p_target_type = 'check' and check_id = p_target) or (p_target_type = 'app' and app = p_target));
+  insert into one.audit (actor, action, target, after) values (left(p_by, 120), 'mute', p_target_type || ':' || p_target,
+    jsonb_build_object('mute_id', v_id, 'minutes', p_minutes, 'reason', left(p_reason, 300)));
+  return v_id;
+end $$;
+
+create or replace function one.unmute(p_id bigint, p_by text) returns void
+language plpgsql set search_path = '' as $$
+begin
+  update one.mutes set ends_at = greatest(now(), starts_at + interval '1 second') where id = p_id and ends_at > now();
+  insert into one.audit (actor, action, target, after) values (left(p_by, 120), 'unmute', 'mute:' || p_id, '{}');
+end $$;
+
 call one.apply_grants();
 grant execute on function one.app_tick_state(), one.app_report(jsonb, text, text), one.witty_escalations(integer), one.watchdog()
   to service_role;
+grant execute on function one.claim_deliveries(integer), one.finish_delivery(bigint, boolean, text, text),
+  one.mute(text, text, integer, text, text), one.unmute(bigint, text) to service_role;
 -- one.app_report runs with the caller's rights and redacts every value; redact is a pure function.
 grant execute on function one.redact(jsonb, text[]) to service_role;

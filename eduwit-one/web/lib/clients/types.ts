@@ -35,10 +35,13 @@ export interface WhatsAppClient {
   phoneNumber(phoneNumberId: string): Promise<{ quality_rating: string | null; status: string | null }>;
 }
 
+import type { EmailClient } from "./email.ts";
+
 export type Clients = {
   appHealth: { mode: ClientMode; client: AppHealthClient };
   vercel: { mode: ClientMode; client: VercelClient | null };
   chatwoot: { mode: ClientMode; client: ChatwootClient | null };
   n8n: { mode: ClientMode; client: N8nClient | null };
   whatsapp: { mode: ClientMode; client: WhatsAppClient | null };
+  email: { mode: ClientMode; client: EmailClient | null };
 };

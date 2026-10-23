@@ -3,6 +3,18 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — phase 3, alerts
+
+- Escalation, the P2 digest, storm suppression, developer copies and mute re-routing, in SQL each minute
+  (`one.alerts_step()` in both tick paths); new columns `incidents.routed_at`, `deliveries.claimed_at` and
+  `provider_id`.
+- App API: `one.claim_deliveries`, `one.finish_delivery`, `one.mute`, `one.unmute` (0008). New check ONE-STORM (84
+  checks).
+- Web: Resend email client, alert composition and the sender, run by `/api/internal/tick` after the probes.
+- `docs/RUNBOOK.md` started (what runs where, alerts, the watchdog set-up); new Setup item `watchdog_monitor`.
+- Tests: `supabase/tests/local/50_alerts.sql` and `web/lib/alerts/alerts.test.ts`.
+- Decisions D-051 to D-053.
+
 ## 23 Oct 2026 — phase 2, probe runner
 
 - Added `web/`, the Next.js 15 app (D-012). Routes: `/api/health`, `/api/watchdog` (D-018), `/api/internal/heartbeat`

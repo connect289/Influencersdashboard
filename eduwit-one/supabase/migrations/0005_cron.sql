@@ -2,7 +2,7 @@
 -- so re-running is safe. 02:30 IST = 21:00 UTC.
 
 -- What pg_cron runs every minute: the steps of one.tick(), with a commit after the heartbeat, after each check, after
--- each event source and after the app call, so no app table stays locked for the whole tick and a slow step cannot
+-- each event source, after the alert step and after the app call, so no app table stays locked for the whole tick and a slow step cannot
 -- undo the others (D-044). On Postgres 17 and later, checks.transaction_timeout bounds each of those transactions; a
 -- run it kills fails visibly in cron.job_run_details (PLAT-01), and the check it was running goes to the back of the
 -- next tick (one.due_checks orders by last start). A procedure that commits cannot carry SET clauses, so this one sets
@@ -35,6 +35,8 @@ begin
     v_report := jsonb_set(v_report, '{events}', coalesce(v_report -> 'events', '{}') || one.events_copy_safe(v_src.source, v_src.app, v_src.sql));
     commit;
   end loop;
+  v_report := v_report || one.alerts_step();
+  commit;
   v_report := v_report || one.tick_app_call();
   update one.runs set finished_at = now(), report = v_report where id = v_run;
   commit;

@@ -30,6 +30,7 @@ export function tickState(overrides: Partial<TickState> = {}): TickState {
       whatsapp: settings.whatsapp,
       witty: settings.witty,
       thresholds: settings.thresholds,
+      alerts: settings.alerts,
     }),
     setup: {},
     checks: [
@@ -65,5 +66,19 @@ export class FakeDb implements OneDb {
 
   async watchdog() {
     return { tick_age_s: 10, app_age_s: 20 };
+  }
+
+  deliveries: unknown[] = [];
+  finished: Array<{ id: number; ok: boolean; error: string | null; providerId: string | null }> = [];
+
+  async claimDeliveries() {
+    const out = this.deliveries;
+    this.deliveries = [];
+    return out;
+  }
+
+  async finishDelivery(id: number, ok: boolean, error: string | null, providerId: string | null) {
+    this.finished.push({ id, ok, error, providerId });
+    return ok ? "sent" : "retry";
   }
 }

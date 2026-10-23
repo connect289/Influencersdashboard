@@ -36,6 +36,20 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | Known live findings produce the expected incident | b2c-capacity (B2C-10) and base URLs or keys (PLAT-05): incidents in the local test and failing on production in the trial. Nurture Worker inactive (WITTY-08): off until `setup:n8n_api` |
 | A broken probe produces an HB incident within 3 minutes | stubbed path: a failing website probe writes a failed heartbeat (web unit test), and HB-website opens at 3 × 60 s (`30_checks.sql`). Staging end to end waits on the app deploy |
 
-## Phases 3–7
+## Phase 3 — Alerts (built; live run waits on phase 1 and the app deploy)
+
+| Criterion | Status |
+| --- | --- |
+| Deliveries by email | done: `one.claim_deliveries` / `one.finish_delivery` (0008), Resend client and sender (`web/lib/alerts`), retry once then final (ONE-01) |
+| WhatsApp template submitted | not applicable: email only, the owner's choice (D-052) |
+| Escalation | done: re-send at 30 min, second contact at 60, every 60 after; stops on acknowledge (`50_alerts.sql` §2) |
+| Mute | done: `one.mute` / `one.unmute`, maintenance by app; held deliveries; re-route when the mute ends (§4) |
+| Storm handling | done: ONE-STORM check, one alert, P1s suppressed under it for 15 min, deep-model triage (§5) |
+| The external watchdog configured | **blocked on owner**: after the first deploy (D-053, `docs/RUNBOOK.md`) |
+| T-ALERT passes | phase 5 (synthetic tests) |
+| An unacknowledged synthetic P1 re-sends at 30 and 60 minutes | proven locally on the stubbed path (§2); on staging after the deploy |
+| The watchdog emails when one-tick is paused for 5 minutes on staging | after the deploy and the monitor (D-053) |
+
+## Phases 4–7
 
 Not started.

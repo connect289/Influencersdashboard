@@ -10,6 +10,7 @@ import {
   RealChatwootClient,
 } from "./chatwoot.ts";
 import { MockN8nClient, n8nExecutionsFixture, n8nWorkflowFixture, RealN8nClient } from "./n8n.ts";
+import { emailSentFixture, MockEmailClient, RealEmailClient } from "./email.ts";
 import type { Clients } from "./types.ts";
 import { MockVercelClient, RealVercelClient, vercelDeploymentsFixture } from "./vercel.ts";
 import { MockWhatsAppClient, RealWhatsAppClient, whatsappPhoneFixture } from "./whatsapp.ts";
@@ -18,6 +19,7 @@ import chatwootLive from "./fixtures/chatwoot/live.json" with { type: "json" };
 import n8nLive from "./fixtures/n8n/live.json" with { type: "json" };
 import vercelLive from "./fixtures/vercel/live.json" with { type: "json" };
 import whatsappLive from "./fixtures/whatsapp/live.json" with { type: "json" };
+import emailLive from "./fixtures/email/live.json" with { type: "json" };
 
 // The factory (spec standard 1). Real when the credential is present; in production a missing credential means
 // "not_configured": the probe writes nothing, so a mock can never fake a heartbeat (D-049). Mock, from the recorded
@@ -48,6 +50,7 @@ export const fixtures = {
     })
     .parse(n8nLive),
   whatsapp: z.object({ meta, data: whatsappPhoneFixture }).parse(whatsappLive),
+  email: z.object({ meta, data: emailSentFixture }).parse(emailLive),
 };
 
 export function mockClients(): Clients {
@@ -57,6 +60,7 @@ export function mockClients(): Clients {
     chatwoot: { mode: "mock", client: new MockChatwootClient(fixtures.chatwoot.data) },
     n8n: { mode: "mock", client: new MockN8nClient(fixtures.n8n.data) },
     whatsapp: { mode: "mock", client: new MockWhatsAppClient(fixtures.whatsapp.data) },
+    email: { mode: "mock", client: new MockEmailClient(fixtures.email.data) },
   };
 }
 
@@ -66,6 +70,7 @@ export function clientsFor(settings: Settings): Clients {
   const chatwootToken = secretEnv("ONE_CHATWOOT_TOKEN", "CHATWOOT_API_TOKEN");
   const n8nKey = secretEnv("ONE_N8N_API_KEY");
   const whatsappToken = secretEnv("ONE_WHATSAPP_TOKEN");
+  const emailKey = secretEnv("ONE_EMAIL_KEY", "RESEND_API_KEY");
   return {
     appHealth: { mode: "real", client: new RealAppHealthClient() },
     vercel: vercelToken
@@ -79,6 +84,9 @@ export function clientsFor(settings: Settings): Clients {
       : { mode: "not_configured", client: null },
     whatsapp: whatsappToken
       ? { mode: "real", client: new RealWhatsAppClient(settings.vendors.graph_api, whatsappToken) }
+      : { mode: "not_configured", client: null },
+    email: emailKey
+      ? { mode: "real", client: new RealEmailClient(settings.vendors.resend_api, emailKey) }
       : { mode: "not_configured", client: null },
   };
 }

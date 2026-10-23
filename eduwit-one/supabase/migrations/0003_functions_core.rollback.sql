@@ -4,8 +4,12 @@ drop function if exists one.record_action(text, bigint, text, jsonb, boolean, te
 drop function if exists one.acknowledge_incident(bigint, text);
 drop function if exists one.resolve_incident(bigint, text, text, text);
 drop function if exists one.open_or_touch_incident(text, one.severity, jsonb, text[]);
+drop function if exists one.alerts_step();
+drop function if exists one.digest();
+drop function if exists one.escalate();
 drop function if exists one.route_incident(bigint);
 drop function if exists one.enqueue_ai(text, jsonb, text, text, bigint);
+drop function if exists one.enqueue_developer(bigint);
 drop function if exists one.enqueue_alert(bigint, integer);
 drop function if exists one.is_muted(text, text);
 drop function if exists one.job_call(text, integer);

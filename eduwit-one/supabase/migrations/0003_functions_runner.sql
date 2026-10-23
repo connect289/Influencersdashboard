@@ -172,6 +172,7 @@ begin
     v_report := v_report || jsonb_build_object('events', one.events_refresh());
   exception when others then v_report := v_report || jsonb_build_object('events_error', sqlerrm);
   end;
+  v_report := v_report || one.alerts_step();
   v_report := v_report || one.tick_app_call();
   update one.runs set finished_at = now(), report = v_report where id = v_run;
   return v_report;

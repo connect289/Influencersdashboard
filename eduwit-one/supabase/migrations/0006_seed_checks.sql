@@ -1368,6 +1368,33 @@ select tick_errors_10m = 0 and jsonb_array_length(slow_checks) = 0 and ai_pendin
 $sql$));
 
 select one.seed_check(jsonb_build_object(
+  'id', 'ONE-STORM',
+  'app', 'one',
+  'kind', 'integrity',
+  'severity', 'P1',
+  'cadence_s', 60,
+  'open_after', 1,
+  'resolve_after', 15,
+  'title', 'Alert storm: many P1 incidents opened within minutes',
+  'description', 'More than alerts.storm.p1_count (10) P1 incidents opened in alerts.storm.window_min (5) minutes. Its incident is the one storm alert, naming the count and the top three checks; while it was routed in the last storm.suppress_min (15) minutes, other P1s are suppressed and filed under it (spec §9). Resolves after 15 calm minutes.',
+  'auto_fix_id', null,
+  'tags', '[]'::jsonb,
+  'enabled', true,
+  'disabled_reason', null,
+  'search_path', '',
+  'sql', $sql$
+with w as (select coalesce(one.setting('alerts') -> 'storm', '{}') as s),
+recent as (
+  select i.check_id from one.incidents i, w
+   where i.severity = 'P1' and i.check_id <> 'ONE-STORM'
+     and i.opened_at > now() - make_interval(mins => coalesce((w.s ->> 'window_min')::int, 5)))
+select count(*) <= coalesce((select (s ->> 'p1_count')::int from w), 10) as ok,
+       jsonb_build_object('p1_opened', count(*),
+         'top_checks', (select coalesce(jsonb_agg(check_id), '[]') from (select check_id from recent group by check_id order by count(*) desc, check_id limit 3) t)) as value
+  from recent
+$sql$));
+
+select one.seed_check(jsonb_build_object(
   'id', 'PLAT-01',
   'app', 'platform',
   'kind', 'sql',

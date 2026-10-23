@@ -337,6 +337,15 @@
         "HTTP probes (WEB-02, WEB-07, INF-04, WITTY-05)",
         "PLAT-05 (one part)"
       ]
+    },
+    {
+      "id": "watchdog_monitor",
+      "title": "UptimeRobot keyword monitor on https://one.eduwit.in/api/watchdog with an active alert contact (docs/RUNBOOK.md)",
+      "who": "owner",
+      "stores": "uptimerobot",
+      "unblocks": [
+        "notice when Supabase, pg_cron or Vercel is down"
+      ]
     }
   ]
 }

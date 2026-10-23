@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "recorded": false,
+    "source": "Resend POST /emails response shape ({id}); recorded by the Setup page's validate button, which sends the test alert to the P1 inbox (D-049)"
+  },
+  "data": { "id": "00000000-0000-0000-0000-000000000000" }
+}

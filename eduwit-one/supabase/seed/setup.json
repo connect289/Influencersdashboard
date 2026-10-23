@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-23T20:32:57.882Z",
+  "generated_at": "2026-10-23T20:40:51.867Z",
   "generated_by": "scripts/preflight.ts",
   "items": {
     "github": {
@@ -68,7 +68,7 @@
     "chatwoot": {
       "status": "verified",
       "validated": true,
-      "validated_at": "2026-10-23T20:32:57.882Z",
+      "validated_at": "2026-10-23T20:40:51.867Z",
       "ran": "GET https://chat.eduwit.in/api/v1/accounts/<id>/inboxes and /webhooks",
       "detail": "inboxes: WITTY2 (Channel::Whatsapp); webhook hosts: n8n.eduwit.in",
       "fix": null,
@@ -77,7 +77,7 @@
     "vercel": {
       "status": "verified",
       "validated": true,
-      "validated_at": "2026-10-23T20:32:57.882Z",
+      "validated_at": "2026-10-23T20:40:51.867Z",
       "ran": "GET https://api.vercel.com/v2/teams, /v9/projects, /v6/deployments?target=production",
       "detail": "team eduwit, 6 projects; website: READY; influencer: READY; spark: READY; b2b_app: READY; one: no project \"eduwit-one\"; Vercel API on 23 Oct: the latest production deployments of eduwit-website come from branch claude/inspiring-babbage-8asj1y, not main",
       "fix": null,
@@ -95,7 +95,7 @@
     "b2b_app": {
       "status": "verified",
       "validated": true,
-      "validated_at": "2026-10-23T20:32:57.882Z",
+      "validated_at": "2026-10-23T20:40:51.867Z",
       "ran": "GET https://crm.eduwit.in/v1/referrals/EDUWITONEPREFLIGHT/outcomes",
       "detail": "referrals endpoint answered ok:true (the key's scopes are not visible to this call; see the annotation); scopes read through the Supabase connector from b2b.api_keys on 23 Oct: the key named 'Eduwit one' carries referrals, intake, b2c, ai_worker and events",
       "fix": "replace it with a referrals-only key, and a separate intake-only key for tests (D-017)",
@@ -104,7 +104,7 @@
     "website_health": {
       "status": "verified",
       "validated": true,
-      "validated_at": "2026-10-23T20:32:57.882Z",
+      "validated_at": "2026-10-23T20:40:51.867Z",
       "ran": "GET https://eduwit.in/api/health",
       "detail": "HTTP 200 {\"ok\":true}",
       "fix": null,
@@ -113,7 +113,7 @@
     "influencer_portal": {
       "status": "verified",
       "validated": true,
-      "validated_at": "2026-10-23T20:32:57.882Z",
+      "validated_at": "2026-10-23T20:40:51.867Z",
       "ran": "GET https://influencer.eduwit.in/api/health",
       "detail": "HTTP 200 {\"status\":\"ok\",\"checks\":{\"db\":true,\"storage\":true,\"queue\":true}}",
       "fix": null,
@@ -140,7 +140,7 @@
     "email": {
       "status": "verified",
       "validated": true,
-      "validated_at": "2026-10-23T20:32:57.882Z",
+      "validated_at": "2026-10-23T20:40:51.867Z",
       "ran": "GET https://api.resend.com/domains and /emails?limit=1",
       "detail": "domain eduwit.in: verified; last email 2026-10-22 06:08:13.217000+00 delivered",
       "fix": null,
@@ -149,7 +149,7 @@
     "uptimerobot": {
       "status": "verified",
       "validated": true,
-      "validated_at": "2026-10-23T20:32:57.882Z",
+      "validated_at": "2026-10-23T20:40:51.867Z",
       "ran": "POST https://api.uptimerobot.com/v2/getMonitors and /getAlertContacts",
       "detail": "6/6 monitors up (chat.eduwit.in/, crm.eduwit.in, eduwit.in/api/health, influencer.eduwit.in/api/health, n8n.eduwit.in/webhook/eduwit-one-ping, spark.eduwit.in/); alert contacts: paused",
       "fix": "activate the alert contact in UptimeRobot, or its monitors never email",
@@ -291,6 +291,15 @@
       "source": "none"
     },
     "one_app_env": {
+      "status": "unfilled",
+      "validated": false,
+      "validated_at": null,
+      "ran": "—",
+      "detail": "no probe and no connector evidence",
+      "fix": null,
+      "source": "none"
+    },
+    "watchdog_monitor": {
       "status": "unfilled",
       "validated": false,
       "validated_at": null,

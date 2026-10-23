@@ -17,7 +17,7 @@ describe("fixtures", () => {
       .filter(([, f]) => !f.meta.recorded)
       .map(([name]) => name)
       .sort();
-    expect(pending).toEqual(["n8n", "whatsapp"]);
+    expect(pending).toEqual(["email", "n8n", "whatsapp"]);
   });
 });
 

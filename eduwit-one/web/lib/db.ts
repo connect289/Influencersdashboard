@@ -14,6 +14,8 @@ export interface OneDb {
     limit: number,
   ): Promise<Array<{ conversation_id: number; account_id: number; escalated_at: string }>>;
   watchdog(): Promise<{ tick_age_s: number | null; app_age_s: number | null }>;
+  claimDeliveries(limit: number): Promise<unknown[]>;
+  finishDelivery(id: number, ok: boolean, error: string | null, providerId: string | null): Promise<string>;
 }
 
 export class DbError extends Error {
@@ -73,5 +75,15 @@ export class SupabaseOneDb implements OneDb {
 
   async watchdog() {
     return watchdogSchema.parse(await this.rpc("watchdog"));
+  }
+
+  async claimDeliveries(limit: number) {
+    return z.array(z.unknown()).parse(await this.rpc("claim_deliveries", { p_limit: limit }));
+  }
+
+  async finishDelivery(id: number, ok: boolean, error: string | null, providerId: string | null) {
+    return z
+      .string()
+      .parse(await this.rpc("finish_delivery", { p_id: id, p_ok: ok, p_error: error, p_provider_id: providerId }));
   }
 }

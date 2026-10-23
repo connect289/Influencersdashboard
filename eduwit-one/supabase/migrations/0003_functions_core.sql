@@ -109,25 +109,48 @@ $$;
 
 -- Alerts and AI tasks ----------------------------------------------------------------------------------------------
 
--- Queues one email per P1 recipient for an incident at an escalation level. The key carries the incident's alert_seq,
--- so a reopen, an escalation or a new subject alerts again while a retry of the same routing does not (D-043).
--- Returns the number of deliveries actually queued.
+-- Queues one email per recipient for an incident at an escalation level: the P1 inbox at every level, plus the second
+-- contact from level 2 (60 min, spec §9). The key carries the incident's alert_seq, so a reopen, an escalation or a
+-- new subject alerts again while a retry of the same routing does not (D-043). Returns the deliveries actually queued.
 create or replace function one.enqueue_alert(p_incident_id bigint, p_level integer default 0) returns integer
 language plpgsql set search_path = '' as $$
 declare
-  v_recipients jsonb := coalesce(one.setting('alerts') -> 'p1' -> 'email', '[]');
+  v_alerts jsonb := coalesce(one.setting('alerts'), '{}');
   v_seq integer := (select alert_seq from one.incidents where id = p_incident_id);
   v_count integer := 0;
   v_to text;
 begin
-  for v_to in select jsonb_array_elements_text(v_recipients) loop
+  for v_to in
+    select distinct lower(x) from (
+      select jsonb_array_elements_text(coalesce(v_alerts -> 'p1' -> 'email', '[]')) as x
+      union all
+      select jsonb_array_elements_text(coalesce(v_alerts -> 'escalation' -> 'second_contact', '[]')) where p_level >= 2) r
+     where x ~* '^[^@\s]+@[^@\s]+\.[a-z]{2,}$'
+  loop
     insert into one.deliveries (incident_id, channel, recipient, kind, escalation_level, idempotency_key)
     values (p_incident_id, 'email', v_to, case when p_level = 0 then 'alert' else 'escalation' end, p_level,
-            format('alert:%s:%s:%s:email:%s', p_incident_id, v_seq, p_level, lower(v_to)))
+            format('alert:%s:%s:%s:email:%s', p_incident_id, v_seq, p_level, v_to))
     on conflict (idempotency_key) do nothing;
     if found then v_count := v_count + 1; end if;
   end loop;
   return v_count;
+end $$;
+
+-- A copy to the developer for incidents tagged "code" (spec §9: failing function, migration drift, privilege audit,
+-- build failed), when alerts.developer_email is set.
+create or replace function one.enqueue_developer(p_incident_id bigint) returns integer
+language plpgsql set search_path = '' as $$
+declare
+  v_to text := lower(nullif(one.setting('alerts') ->> 'developer_email', ''));
+  v_seq integer := (select alert_seq from one.incidents where id = p_incident_id);
+begin
+  if v_to is null or v_to !~* '^[^@\s]+@[^@\s]+\.[a-z]{2,}$' then
+    return 0;
+  end if;
+  insert into one.deliveries (incident_id, channel, recipient, kind, idempotency_key)
+  values (p_incident_id, 'email', v_to, 'alert', format('dev:%s:%s:email:%s', p_incident_id, v_seq, v_to))
+  on conflict (idempotency_key) do nothing;
+  return case when found then 1 else 0 end;
 end $$;
 
 create or replace function one.enqueue_ai(p_kind text, p_input jsonb, p_model_hint text default null,
@@ -147,25 +170,124 @@ end $$;
 
 -- Routes an incident each time it needs a person's attention again: opened, reopened, made more severe, or joined by
 -- a new subject. P1 alerts now, P2 waits for the digest, P3 is dashboard only; a muted check or app records but does
--- not deliver. Each routing bumps alert_seq and gets one AI triage task.
+-- not deliver. While an alert storm is open (ONE-STORM, routed in the last storm.suppress_min minutes), other P1s are
+-- suppressed and filed under it; the storm itself alerts once and suppresses the P1s that opened with it (spec §9).
+-- Each routing bumps alert_seq and gets one AI triage task, on the deep model for a storm.
 create or replace function one.route_incident(p_incident_id bigint) returns void
 language plpgsql set search_path = '' as $$
 declare
   v_inc one.incidents;
+  v_storm jsonb := coalesce(one.setting('alerts') -> 'storm', '{}');
+  v_storm_id bigint;
   v_state text;
 begin
-  update one.incidents set alert_seq = alert_seq + 1 where id = p_incident_id returning * into v_inc;
+  update one.incidents set alert_seq = alert_seq + 1, routed_at = now() where id = p_incident_id returning * into v_inc;
+  select id into v_storm_id from one.incidents
+   where check_id = 'ONE-STORM' and resolved_at is null and id <> v_inc.id
+     and routed_at > now() - make_interval(mins => coalesce((v_storm ->> 'suppress_min')::int, 15));
   v_state := case
     when one.is_muted(v_inc.check_id, v_inc.app) then 'muted'
+    when v_inc.severity = 'P1' and v_storm_id is not null then 'suppressed'
     when v_inc.severity = 'P1' then 'pending'
     when v_inc.severity = 'P2' then 'digest'
     else 'none' end;
-  update one.incidents set alert_state = v_state where id = v_inc.id;
+  update one.incidents set alert_state = v_state, parent_id = coalesce(case when v_state = 'suppressed' then v_storm_id end, parent_id)
+   where id = v_inc.id;
+  if v_inc.check_id = 'ONE-STORM' then
+    update one.incidents set alert_state = 'suppressed', parent_id = v_inc.id
+     where severity = 'P1' and resolved_at is null and id <> v_inc.id and alert_state = 'pending'
+       and routed_at > now() - make_interval(mins => coalesce((v_storm ->> 'window_min')::int, 5));
+  end if;
   if v_state = 'pending' then
     perform one.enqueue_alert(v_inc.id, 0);
   end if;
+  if v_state not in ('muted', 'suppressed') and 'code' = any (v_inc.tags) then
+    perform one.enqueue_developer(v_inc.id);
+  end if;
   perform one.enqueue_ai('triage', jsonb_build_object('incident_id', v_inc.id, 'check_id', v_inc.check_id, 'subjects', to_jsonb(v_inc.subjects)),
-                         null, format('triage:%s:%s', v_inc.id, v_inc.alert_seq), v_inc.id);
+                         case when v_inc.check_id = 'ONE-STORM' then 'deep' end, format('triage:%s:%s', v_inc.id, v_inc.alert_seq), v_inc.id);
+end $$;
+
+-- Each minute (spec §9): an unacknowledged P1 is re-sent at resend_min (30), reaches the second contact at
+-- second_contact_min (60), and repeats every repeat_min (60) until acknowledged, counted from its last routing. A
+-- muted incident whose mute has ended, or one held by a storm that has passed, is routed again.
+create or replace function one.escalate() returns jsonb
+language plpgsql set search_path = '' as $$
+declare
+  v_cfg jsonb := coalesce(one.setting('alerts'), '{}');
+  v_resend integer := coalesce((v_cfg #>> '{escalation,resend_min}')::int, 30);
+  v_second integer := coalesce((v_cfg #>> '{escalation,second_contact_min}')::int, 60);
+  v_repeat integer := greatest(coalesce((v_cfg #>> '{escalation,repeat_min}')::int, 60), 5);
+  v_suppress integer := coalesce((v_cfg #>> '{storm,suppress_min}')::int, 15);
+  v_row record;
+  v_level integer;
+  v_mins numeric;
+  v_queued integer := 0;
+  v_rerouted integer := 0;
+begin
+  for v_row in
+    select i.id from one.incidents i
+     where i.resolved_at is null
+       and ((i.alert_state = 'muted' and not one.is_muted(i.check_id, i.app))
+            or (i.alert_state = 'suppressed' and not exists (
+                  select 1 from one.incidents s where s.check_id = 'ONE-STORM' and s.resolved_at is null
+                     and s.routed_at > now() - make_interval(mins => v_suppress))))
+  loop
+    perform one.route_incident(v_row.id);
+    v_rerouted := v_rerouted + 1;
+  end loop;
+  for v_row in
+    select i.id, i.routed_at, i.alert_state from one.incidents i
+     where i.resolved_at is null and i.acknowledged_at is null and i.severity = 'P1' and i.routed_at is not null
+       and i.alert_state in ('pending', 'sent', 'escalated_1', 'escalated_2')
+  loop
+    v_mins := extract(epoch from now() - v_row.routed_at) / 60;
+    v_level := case when v_mins < v_resend then 0 when v_mins < v_second then 1
+                    else 2 + floor((v_mins - v_second) / v_repeat)::int end;
+    if v_level >= 1 then
+      v_queued := v_queued + one.enqueue_alert(v_row.id, v_level);
+      update one.incidents set alert_state = case when v_level = 1 then 'escalated_1' else 'escalated_2' end
+       where id = v_row.id and alert_state is distinct from case when v_level = 1 then 'escalated_1' else 'escalated_2' end;
+    end if;
+  end loop;
+  return jsonb_build_object('queued', v_queued, 'rerouted', v_rerouted);
+end $$;
+
+-- The P2 digest (spec §9): from p2_digest_hour_ist (18:00), once a day, to the P1 inbox, when more than
+-- p2_digest_min_count P2 incidents opened that day (IST).
+create or replace function one.digest() returns jsonb
+language plpgsql set search_path = '' as $$
+declare
+  v_cfg jsonb := coalesce(one.setting('alerts'), '{}');
+  v_local timestamp := now() at time zone 'Asia/Kolkata';
+  v_count integer;
+  v_to text;
+  v_queued integer := 0;
+begin
+  if extract(hour from v_local) < coalesce((v_cfg ->> 'p2_digest_hour_ist')::numeric, 18) then
+    return jsonb_build_object('due', false);
+  end if;
+  select count(*) into v_count from one.incidents
+   where severity = 'P2' and (opened_at at time zone 'Asia/Kolkata')::date = v_local::date;
+  if v_count <= coalesce((v_cfg ->> 'p2_digest_min_count')::int, 5) then
+    return jsonb_build_object('due', true, 'p2_today', v_count, 'queued', 0);
+  end if;
+  for v_to in select distinct lower(x) from jsonb_array_elements_text(coalesce(v_cfg -> 'p1' -> 'email', '[]')) x loop
+    insert into one.deliveries (channel, recipient, kind, idempotency_key)
+    values ('email', v_to, 'digest', format('digest:%s:email:%s', v_local::date, v_to))
+    on conflict (idempotency_key) do nothing;
+    if found then v_queued := v_queued + 1; end if;
+  end loop;
+  return jsonb_build_object('due', true, 'p2_today', v_count, 'queued', v_queued);
+end $$;
+
+-- The tick's alert step, isolated like the others: escalation and the digest, or alerts_error.
+create or replace function one.alerts_step() returns jsonb
+language plpgsql set search_path = '' as $$
+begin
+  return jsonb_build_object('alerts', one.escalate() || jsonb_build_object('digest', one.digest()));
+exception when others then
+  return jsonb_build_object('alerts_error', left(sqlerrm, 200));
 end $$;
 
 -- Opens, touches or reopens the check's incident. A touch only records the occurrence, unless the severity rose or a

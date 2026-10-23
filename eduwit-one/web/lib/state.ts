@@ -20,7 +20,8 @@ export const hostsSchema = z.object({
 export const settingsSchema = z.object({
   hosts: hostsSchema,
   health_paths: z.record(z.string(), z.string().startsWith("/")),
-  vendors: z.looseObject({ vercel_api: url, graph_api: url }),
+  vendors: z.looseObject({ vercel_api: url, graph_api: url, resend_api: url }),
+  alerts: z.looseObject({ email_from: z.string().min(3) }),
   vercel: z.object({ team: z.string(), projects: z.record(z.string(), z.string()) }),
   chatwoot: z.object({ account_id: z.string() }),
   n8n: z.object({

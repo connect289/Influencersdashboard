@@ -15,6 +15,7 @@ const EMPTY: Record<string, string> = {
   runs: "select null::text as kind, null::timestamptz as started_at, null::jsonb as report",
   results: "select null::text as check_id, null::text as status, null::jsonb as value, null::timestamptz as ran_at",
   check_state: "select null::text as check_id, null::timestamptz as last_ran_at",
+  incidents: "select null::text as check_id, null::text as severity, null::timestamptz as opened_at",
   baselines: "select null::text as key, null::jsonb as value, null::timestamptz as captured_at",
   heartbeats: "select null::text as component, null::timestamptz as last_ok_at, null::text as last_error, null::jsonb as detail, null::int as expected_interval_s",
   ai_tasks: "select null::text as status",
