@@ -26,15 +26,15 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | `one.events` count within 1% of the sources | pending |
 | Least-privilege test passes | passes locally (`supabase/tests/local/20_events_secrets_privileges.sql` §5, and `supabase/tests/smoke.sql`, which runs the same catalogue checks on staging and production). Proven to fail on a bad grant |
 
-## Phase 2 — Checks and heartbeats (in progress; phase 1 blocked on owner, rule 4)
+## Phase 2 — Checks and heartbeats (built; production run waits on phase 1, rule 4)
 
 | Criterion | Status |
 | --- | --- |
-| All checks in §6 seeded | done: 83 checks in `docs/CHECKS.md` (generated); a unit test lists every §6 id |
-| Every check has at least one result row | SQL checks: proven read-only on production (`docs/CHECK-TRIAL.md`) and locally; on production after the phase 1 apply. App-run checks: with the probe runner |
-| Known live findings produce the expected incident | b2c-capacity (B2C-10) and base URLs or keys (PLAT-05): incidents in the local test, failing on production in the trial. Nurture Worker inactive (WITTY-08): off until `setup:n8n_api` |
-| HTTP probes for n8n, Chatwoot, Vercel, website, Spark, WhatsApp; heartbeats written | pending (probe runner) |
-| A broken probe produces an HB incident within 3 minutes | stale-heartbeat path proven locally (`30_checks.sql`); the end-to-end probe test comes with the probe runner |
+| All checks in §6 seeded and running | done: 83 checks (`docs/CHECKS.md`, generated); a unit test lists every §6 id. SQL checks run in `one.tick_job()`; app-run checks run in `web/lib/checks` |
+| HTTP probes for n8n, Chatwoot, Vercel, website, Spark, WhatsApp; heartbeats written | done in code (`web/lib/checks/probes/*`, migration 0008). App health, Vercel and Chatwoot proven against the real vendors (contract tests, recorded fixtures 23 Oct); n8n and WhatsApp on documented-shape fixtures until their credentials are filled (D-049) |
+| Every check has at least one result row | SQL checks: read-only trial on production (`docs/CHECK-TRIAL.md`) and locally. On production after the phase 1 apply and the app deploy (Setup items `supabase_api_schema`, `one_app_env`) |
+| Known live findings produce the expected incident | b2c-capacity (B2C-10) and base URLs or keys (PLAT-05): incidents in the local test and failing on production in the trial. Nurture Worker inactive (WITTY-08): off until `setup:n8n_api` |
+| A broken probe produces an HB incident within 3 minutes | stubbed path: a failing website probe writes a failed heartbeat (web unit test), and HB-website opens at 3 × 60 s (`30_checks.sql`). Staging end to end waits on the app deploy |
 
 ## Phases 3–7
 

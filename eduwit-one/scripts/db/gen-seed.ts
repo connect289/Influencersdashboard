@@ -18,6 +18,8 @@ function settings(): Array<[string, unknown]> {
   return [
     ...Object.entries(rest),
     ["hosts", defaults.hosts],
+    ["health_paths", defaults.health_paths],
+    ["vendors", defaults.vendors],
     ["vercel", defaults.vercel],
     ["chatwoot", defaults.chatwoot],
     ["test_identities", defaults.test_identities],

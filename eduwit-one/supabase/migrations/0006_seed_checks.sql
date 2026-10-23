@@ -742,7 +742,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'b2b-app', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'b2b-app'
 $sql$));
@@ -763,7 +763,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'chatwoot', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'chatwoot'
 $sql$));
@@ -784,7 +784,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:n8n_api',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'gemini', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'gemini'
 $sql$));
@@ -805,7 +805,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'influencer', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'influencer'
 $sql$));
@@ -826,7 +826,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:meta',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'meta', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'meta'
 $sql$));
@@ -847,7 +847,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:n8n_api',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'n8n:instance', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'n8n:instance'
 $sql$));
@@ -868,7 +868,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:n8n_api',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'n8n:PKPs7tXg9bej8AgX', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'n8n:PKPs7tXg9bej8AgX'
 $sql$));
@@ -889,7 +889,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'one:app', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'one:app'
 $sql$));
@@ -910,7 +910,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'one:tick', 'last_ok_at', h.last_ok_at, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'one:tick'
 $sql$));
@@ -931,7 +931,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'spark', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'spark'
 $sql$));
@@ -952,7 +952,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'vercel:one', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'vercel:one'
 $sql$));
@@ -973,7 +973,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'vercel:website', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'vercel:website'
 $sql$));
@@ -994,7 +994,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'website', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'website'
 $sql$));
@@ -1015,7 +1015,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:whatsapp',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'whatsapp:b2c', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'whatsapp:b2c'
 $sql$));
@@ -1036,7 +1036,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:whatsapp',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), true) as ok,
+select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
        jsonb_build_object('component', 'whatsapp:witty', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
   from (select 1) x left join one.heartbeats h on h.component = 'whatsapp:witty'
 $sql$));

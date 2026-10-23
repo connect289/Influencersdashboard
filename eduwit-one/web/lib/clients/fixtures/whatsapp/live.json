@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "recorded": false,
+    "source": "WhatsApp Cloud API phone number fields quality_rating and status; re-recorded by the Setup page's validate button once whatsapp is filled (D-049)"
+  },
+  "data": { "quality_rating": "GREEN", "status": "CONNECTED" }
+}

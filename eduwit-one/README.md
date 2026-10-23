@@ -12,7 +12,7 @@ screens. The specification and the prerequisites doc are binding; this folder's 
 | `supabase/` | Schema `one`: migrations with rollbacks, the seed, `tests/local/` fixture tests and `tests/smoke.sql` |
 | `scripts/db/` | `local-test.sh` (throwaway cluster), `rehearse.sh` (staging), `dump.sh` and `apply.sh` (production), `guards.ts` |
 | `.env.example` | Every environment variable name the scripts read, no values |
-| `web/` | The Next.js app (from phase 2; brand assets in `web/public/brand/`) |
+| `web/` | The Next.js app: internal routes, HTTP probes (`lib/checks`), vendor clients with recorded fixtures (`lib/clients`); `npm run check` |
 | `docs/DECISIONS.md` | Decision log and the database survey: the resumable state |
 | `docs/PHASES.md` | Phase acceptance criteria and their status |
 | `docs/PREFLIGHT.md` | Access preflight findings |

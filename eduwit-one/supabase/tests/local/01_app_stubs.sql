@@ -41,3 +41,7 @@ revoke execute on function b2b.health_check(), public.web_health() from public;
 -- A pre-existing anon-executable SECURITY DEFINER function, as the apps have many.
 create function public.legacy_anon_rpc() returns int language sql security definer as $$ select 1 $$;
 grant execute on function public.legacy_anon_rpc() to anon;
+
+-- Witty conversations, for one.witty_escalations() (0008).
+create table public.w2_conversations (phone text primary key, conversation_id bigint, account_id bigint, bot_paused boolean default false,
+  escalated_at timestamptz, crm_record_id text);

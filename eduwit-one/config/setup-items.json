@@ -1,5 +1,5 @@
 {
-  "$comment": "The Setup checklist (spec §15). One entry per deferrable item: who fills it, where the value lives, and which checks, tests, fixes and heartbeats it unblocks. scripts/preflight.ts writes a status per item into supabase/seed/setup.json; migration 0007 loads that into one.settings.setup; the Setup page (phase 4) renders this list with a validate button per item.",
+  "$comment": "The Setup checklist (spec \u00a715). One entry per deferrable item: who fills it, where the value lives, and which checks, tests, fixes and heartbeats it unblocks. scripts/preflight.ts writes a status per item into supabase/seed/setup.json; migration 0007 loads that into one.settings.setup; the Setup page (phase 4) renders this list with a validate button per item.",
   "items": [
     {
       "id": "github",
@@ -314,6 +314,28 @@
       "unblocks": [
         "UI theme",
         "alert email wordmark"
+      ]
+    },
+    {
+      "id": "supabase_api_schema",
+      "title": "Expose schema one in the Supabase API (Project settings \u2192 Data API \u2192 Exposed schemas: add one)",
+      "who": "owner",
+      "stores": "supabase project setting",
+      "unblocks": [
+        "the app's reads and writes",
+        "HTTP probes",
+        "/api/watchdog"
+      ]
+    },
+    {
+      "id": "one_app_env",
+      "title": "Eduwit One app environment: ONE_SUPABASE_URL, ONE_SUPABASE_SERVICE_KEY and ONE_INTERNAL_KEY in Vercel; the same key as Vault one_internal_key; one.settings.app.base_url",
+      "who": "developer",
+      "stores": "vercel env + vault:one_internal_key + one.settings.app",
+      "unblocks": [
+        "HB one:app",
+        "HTTP probes (WEB-02, WEB-07, INF-04, WITTY-05)",
+        "PLAT-05 (one part)"
       ]
     }
   ]

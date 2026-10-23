@@ -1,0 +1,24 @@
+{
+  "meta": {
+    "recorded": true,
+    "recorded_at": "2026-10-23T20:26:22.294Z",
+    "by": "scripts/record-fixtures.ts"
+  },
+  "data": {
+    "inboxes": {
+      "payload": [
+        {
+          "id": 4
+        }
+      ]
+    },
+    "summary": {
+      "incoming_messages_count": 0
+    },
+    "labels": {
+      "default": {
+        "payload": []
+      }
+    }
+  }
+}

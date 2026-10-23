@@ -3,6 +3,21 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — phase 2, probe runner
+
+- Added `web/`, the Next.js 15 app (D-012). Routes: `/api/health`, `/api/watchdog` (D-018), `/api/internal/heartbeat`
+  and `/api/internal/tick`, which runs the HTTP probes and writes heartbeats and results in one call.
+- Clients for app health, Vercel, Chatwoot, n8n and WhatsApp, each with a Real and a Mock implementation. The app
+  health, Vercel and Chatwoot fixtures were recorded from real responses (D-049).
+- Migration 0008 `app_api`: `one.app_tick_state()`, `one.app_report()`, `one.witty_escalations()`, `one.watchdog()`
+  (D-047). The seed now includes `vendors` and `health_paths`.
+- Two new Setup items: `supabase_api_schema` and `one_app_env`. The preflight was re-run (unchanged otherwise: 13
+  verified).
+- Heartbeat checks now fail for a component read but never once ok (D-050).
+- Added `.github/workflows/eduwit-one-ci.yml`: guards, drift, the local migration test, and the web app's checks and
+  build.
+- Real finding from the recording: the Eduwit One Vercel project does not exist yet (404), as expected before phase 4.
+
 ## 23 Oct 2026 — phase 1 review fixes
 
 - Fixed the phase 1 review's blocker and eight majors (`docs/reviews/phase-1.md`, D-042 to D-046): recursive PII

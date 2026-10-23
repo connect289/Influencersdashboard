@@ -1,0 +1,76 @@
+# Eduwit One: database tooling (guards, generated-file drift, the local migration test on a throwaway Postgres) and
+# the web app (typecheck, lint, format, unit tests with recorded fixtures, build). Runs only on changes under
+# eduwit-one/ (spec §4). No secrets: nothing here reaches a Supabase project or a vendor.
+name: eduwit-one CI
+
+on:
+  pull_request:
+    paths:
+      - "eduwit-one/**"
+      - ".github/workflows/eduwit-one-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "eduwit-one/**"
+      - ".github/workflows/eduwit-one-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eduwit-one-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database:
+    name: Guards, generated files, local migration test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: eduwit-one
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: eduwit-one/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Unit tests (guards, generator, generated-file drift)
+        run: npm test
+      - run: node scripts/db/guards.ts
+      - run: node scripts/db/gen-checks.ts --check
+      - run: node scripts/db/gen-seed.ts --check
+      - name: Local migration test (apply, tests, rollback, apply, tests)
+        run: scripts/db/local-test.sh
+
+  web:
+    name: Web app checks and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: eduwit-one/web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: eduwit-one/web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
