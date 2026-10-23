@@ -112,7 +112,7 @@ select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state(
 -- kind: heartbeat
 -- severity: P2
 -- cadence_s: 300
--- disabled: setup:n8n_api
+-- disabled: blocked:not_built_d049
 -- title: Heartbeat lost: Gemini (Witty's model)
 -- description: The last successful n8n execution that called Gemini, written by the app's n8n probe; expected every 900 s.
 select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('gemini') as s) x

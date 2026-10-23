@@ -1,11 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { buildCsp, DEFAULT_IDLE_SECONDS, isIdleExpired, safeNext, SEEN_COOKIE } from "./lib/security.ts";
+import {
+  buildCsp,
+  DEFAULT_IDLE_SECONDS,
+  isIdleExpired,
+  safeNext,
+  SEEN_COOKIE,
+  seenFresh,
+  seenValue,
+  signedInAt,
+} from "./lib/security.ts";
 
 /**
  * Before every page request (Spark's proxy.ts, adapted):
  *  1. refreshes the Supabase session cookie (getClaims verifies the JWT);
- *  2. signs out a session idle for 12 hours;
+ *  2. signs out a session idle for access.idle_hours (a signed, per-session cookie; a missing one counts as idle);
  *  3. sends signed-out visitors to /login;
  *  4. sets a strict Content-Security-Policy with a fresh nonce.
  * An early, cheap check only: the real gate is requireUser() on the server and one.ui_require() in the database.
@@ -15,6 +24,32 @@ import { buildCsp, DEFAULT_IDLE_SECONDS, isIdleExpired, safeNext, SEEN_COOKIE } 
 const isPublic = (path: string) => path === "/login" || path === "/pending" || path.startsWith("/auth/");
 
 type Cookie = { name: string; value: string; options?: Parameters<NextResponse["cookies"]["set"]>[2] };
+
+// access.idle_hours, read through one.me() at most once a minute per server instance (the setting is the same for
+// everyone; me() is the one function a signed-in session may call before the second step).
+const idlePolicy = { seconds: DEFAULT_IDLE_SECONDS, at: 0 };
+async function idleSeconds(url: string, key: string, token: string | undefined): Promise<number> {
+  if (!token || Date.now() - idlePolicy.at < 60_000) return idlePolicy.seconds;
+  idlePolicy.at = Date.now();
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/me`, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        authorization: `Bearer ${token}`,
+        "content-profile": "one",
+        "content-type": "application/json",
+      },
+      body: "{}",
+      cache: "no-store",
+    });
+    const hours = res.ok ? Number(((await res.json()) as { idle_hours?: unknown }).idle_hours) : NaN;
+    if (Number.isFinite(hours) && hours > 0 && hours <= 720) idlePolicy.seconds = Math.round(hours * 3600);
+  } catch {
+    // keep the last known value
+  }
+  return idlePolicy.seconds;
+}
 
 export async function middleware(request: NextRequest) {
   const url = process.env.ONE_SUPABASE_URL;
@@ -60,8 +95,20 @@ export async function middleware(request: NextRequest) {
   const userId = data?.claims?.sub ?? null;
   const now = Math.floor(Date.now() / 1000);
   const seen = request.cookies.get(SEEN_COOKIE)?.value;
+  const limit = userId
+    ? await idleSeconds(url, key, (await supabase.auth.getSession()).data.session?.access_token)
+    : DEFAULT_IDLE_SECONDS;
+  // The idle cookie is signed with the internal key and bound to the session (S5). Without the key (a local build), the
+  // plain timestamp is kept and a missing cookie is not idle, as before.
+  const signKey = process.env.ONE_INTERNAL_KEY;
+  const sessionId = typeof data?.claims?.session_id === "string" ? data.claims.session_id : "";
+  const idle = userId
+    ? signKey && sessionId
+      ? !(await seenFresh({ key: signKey, sessionId, value: seen, now, limit, signedInAt: signedInAt(data?.claims) }))
+      : isIdleExpired(seen, now, limit)
+    : false;
 
-  if (userId && isIdleExpired(seen, now, DEFAULT_IDLE_SECONDS)) {
+  if (idle) {
     await supabase.auth.signOut({ scope: "local" });
     const res = NextResponse.redirect(new URL("/login?reason=idle", request.url));
     res.cookies.delete(SEEN_COOKIE);
@@ -77,12 +124,12 @@ export async function middleware(request: NextRequest) {
 
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   if (userId) {
-    res.cookies.set(SEEN_COOKIE, String(now), {
+    res.cookies.set(SEEN_COOKIE, signKey && sessionId ? await seenValue(signKey, sessionId, now) : String(now), {
       httpOnly: true,
       secure: !isDev,
       sameSite: "lax",
       path: "/",
-      maxAge: DEFAULT_IDLE_SECONDS * 2,
+      maxAge: limit * 2,
     });
   } else if (seen) {
     res.cookies.delete(SEEN_COOKIE);

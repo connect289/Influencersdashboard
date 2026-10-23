@@ -184,7 +184,7 @@ select count(*) = 0 as ok,
 -- kind: sql
 -- severity: P2
 -- cadence_s: 300
--- tags: code
+-- tags: code, integrity
 -- title: public.lead_intake() changed since its baseline
 -- description: md5 of lead_intake's source differs from the baseline captured at install. The website runbook's own canary: every app's intake goes through it.
 select b.value ->> 'md5' is null or b.value ->> 'md5' = cur.md5 as ok,

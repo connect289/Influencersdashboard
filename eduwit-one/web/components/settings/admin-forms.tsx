@@ -83,7 +83,7 @@ export function RevokeDevicesButton({ userId }: { userId: string }) {
     <ActionForm action={revokeDevices}>
       <input type="hidden" name="user_id" value={userId} />
       <Button type="submit" variant="ghost" size="sm">
-        Forget trusted browsers
+        Sign out everywhere
       </Button>
     </ActionForm>
   );

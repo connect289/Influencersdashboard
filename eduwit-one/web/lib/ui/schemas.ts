@@ -16,6 +16,7 @@ export const shellSchema = z.object({
   open: z.object({ P1: num, P2: num, P3: num }),
   unacked_p1: num,
   proposals_open: num,
+  mutes_active: num.default(0),
   observation_until: isoN,
   setup_open: num,
   whatsapp_alerts: z.boolean(),
@@ -467,6 +468,7 @@ export const analyticsSchema = z.looseObject({
     }),
   ),
   events_by_app: z.record(z.string(), num),
+  ms: z.object({ funnel: num.optional(), partners: num.optional(), counsellors: num.optional() }).optional(),
   views: z.array(
     z.object({ id: num, name: z.string(), params: json, schedule: z.string().nullable(), created_by: z.string() }),
   ),

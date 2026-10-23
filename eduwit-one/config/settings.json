@@ -244,7 +244,17 @@
       "date_of_birth",
       "aadhaar*",
       "pan",
-      "pan_*"
+      "pan_*",
+      "student",
+      "applicant",
+      "applicant_*",
+      "customer",
+      "customer_*",
+      "mobile_*",
+      "*_mobile",
+      "whatsapp",
+      "whatsapp_*",
+      "*_whatsapp"
     ],
     "id_overlap": 1000,
     "window_hours": 48
@@ -282,7 +292,6 @@
     "owners": [
       "connect@eduwit.in"
     ],
-    "allowed_domain": "eduwit.in",
     "trusted_days": 30,
     "idle_hours": 12,
     "code_minutes": 10

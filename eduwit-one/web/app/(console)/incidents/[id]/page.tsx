@@ -45,8 +45,8 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
           </span>
         }
       />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="grid content-start gap-4 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid min-w-0 content-start gap-4 lg:col-span-2">
           <Card>
             <CardBody className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat
@@ -190,7 +190,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
             </Card>
           ) : null}
         </div>
-        <div className="grid content-start gap-4">
+        <div className="order-first grid min-w-0 content-start gap-4 lg:order-none">
           <Card>
             <CardHeader title="Act" />
             <CardBody>

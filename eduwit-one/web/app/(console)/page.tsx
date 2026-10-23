@@ -1,12 +1,14 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { IconExternal } from "@/components/icons.tsx";
+import { AckButton } from "@/components/incidents/ack-button.tsx";
 import { appName } from "@/components/ui/labels.ts";
 import { Badge, SeverityBadge, StatusBadge, type Tone } from "@/components/ui/badge.tsx";
 import { Card, CardBody, CardHeader, Stat } from "@/components/ui/card.tsx";
 import { PageError } from "@/components/ui/page-error.tsx";
 import { Empty, PageHeader } from "@/components/ui/state.tsx";
 import { ago, inr, istDate, num, usd } from "@/lib/format.ts";
+import { embeds } from "@/lib/embeds/index.ts";
 import { ui } from "@/lib/ui/api.ts";
 import { overviewSchema, type Overview } from "@/lib/ui/schemas.ts";
 
@@ -40,7 +42,7 @@ export default async function OverviewPage() {
             <Card key={a.key}>
               <CardHeader
                 title={
-                  <Link href={`/apps/${a.key}`} className="hover:underline">
+                  <Link href={embeds[a.key] ? `/apps/${a.key}` : `/incidents?app=${a.key}`} className="hover:underline">
                     {appName(a.key)}
                   </Link>
                 }
@@ -57,7 +59,7 @@ export default async function OverviewPage() {
                   </Link>
                 ))}
                 <Stat label="Last heartbeat" value={<span className="text-base">{ago(a.last_heartbeat_at)}</span>} />
-                <Link href={`/analytics?app=${a.key}`} className="rounded-md hover:bg-surface-2">
+                <Link href="/analytics" className="rounded-md hover:bg-surface-2">
                   <Stat label="Events today" value={num(a.events_today)} />
                 </Link>
                 <Link href={`/settings/checks?app=${a.key}`} className="rounded-md hover:bg-surface-2">
@@ -84,7 +86,7 @@ export default async function OverviewPage() {
           );
         })}
       </section>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader
             title="What needs attention"
@@ -97,8 +99,8 @@ export default async function OverviewPage() {
           ) : (
             <ul className="divide-y divide-border">
               {data.actions.map((x) => (
-                <li key={`${x.kind}:${x.id}`}>
-                  <Link href={x.href} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-2">
+                <li key={`${x.kind}:${x.id}`} className="flex items-center gap-2 pr-4">
+                  <Link href={x.href} className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3 hover:bg-surface-2">
                     {x.kind === "incident" ? (
                       <SeverityBadge severity={x.level} />
                     ) : (
@@ -111,6 +113,7 @@ export default async function OverviewPage() {
                       </span>
                     </span>
                   </Link>
+                  {x.kind === "incident" ? <AckButton id={x.id} /> : null}
                 </li>
               ))}
             </ul>

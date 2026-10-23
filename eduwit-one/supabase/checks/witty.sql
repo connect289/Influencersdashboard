@@ -104,6 +104,6 @@ select count(*) = 0 as ok, jsonb_build_object('count', count(*), 'ids', coalesce
 -- kind: http
 -- severity: P2
 -- cadence_s: 3600
--- disabled: setup:n8n_api
+-- disabled: blocked:not_built_d049
 -- title: Witty's Gemini spend is over cap or hitting quota
 -- description: Gemini spend today (tokens from n8n execution data priced from one.settings.ai) above one.settings.witty.gemini_daily_cap, or quota errors in the last hour's n8n executions.

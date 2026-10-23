@@ -86,7 +86,12 @@ export async function putUser(_: ActionResult | undefined, form: FormData): Prom
 export async function revokeDevices(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
   const p = z.object({ user_id: z.uuid() }).safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
-  return act("ui_devices_revoke", { p_user: p.data.user_id }, ["/settings/users"], "Trusted browsers forgotten.");
+  return act(
+    "ui_devices_revoke",
+    { p_user: p.data.user_id },
+    ["/settings/users"],
+    "Trusted browsers forgotten; other sessions must sign in again.",
+  );
 }
 
 export async function updateTest(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {

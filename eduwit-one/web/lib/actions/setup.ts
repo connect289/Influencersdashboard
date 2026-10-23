@@ -1,4 +1,5 @@
 "use server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { credentialsFrom, resetVaultCache, vaultSecrets } from "../clients/credentials.ts";
 import { SupabaseOneDb } from "../db.ts";
@@ -32,8 +33,9 @@ export async function saveSecret(_: ActionResult | undefined, form: FormData): P
 export async function validateItem(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
   const p = z.object({ id: z.string().regex(/^[a-z0-9_]+$/) }).safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
+  let me;
   try {
-    await assertUser();
+    me = await assertUser();
   } catch {
     return { ok: false, error: "Your role cannot do this." };
   }
@@ -56,11 +58,15 @@ export async function validateItem(_: ActionResult | undefined, form: FormData):
     },
   });
   log("info", "setup.validate", { item: item.id, ok: verdict.ok });
-  const r = await act("ui_setup_validated", { p_item: item.id, p_ok: verdict.ok, p_detail: verdict.detail }, [
-    "/settings/setup",
-    "/",
-  ]);
-  if (!r.ok) return r;
+  // Recorded by the app with the service role, so only a probe this server ran can mark an item verified (0011).
+  try {
+    await db.setupValidated(item.id, verdict.ok, verdict.detail, me.email, crypto.randomUUID());
+  } catch (e) {
+    log("error", "setup.record_failed", { item: item.id, error: e instanceof Error ? e.message : "error" });
+    return { ok: false, error: "The result could not be recorded. Try again." };
+  }
+  revalidatePath("/settings/setup");
+  revalidatePath("/");
   return verdict.ok
     ? { ok: true, message: `Validated: ${verdict.detail}` }
     : { ok: false, error: `Not validated: ${verdict.detail}` };

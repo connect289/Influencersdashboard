@@ -1,7 +1,7 @@
 "use client";
 import { ActionForm } from "@/components/forms/action-form.tsx";
 import { Button } from "@/components/ui/button.tsx";
-import { Field, Input } from "@/components/ui/field.tsx";
+import { Field, Input, Select } from "@/components/ui/field.tsx";
 import { runTest, updateTest } from "@/lib/actions/settings.ts";
 
 export function TestControls({ id, enabled, schedule }: { id: string; enabled: boolean; schedule: string }) {
@@ -17,7 +17,13 @@ export function TestControls({ id, enabled, schedule }: { id: string; enabled: b
         <summary className="cursor-pointer text-sm">Switch or schedule</summary>
         <ActionForm action={updateTest} className="mt-2">
           <input type="hidden" name="id" value={id} />
-          <input type="hidden" name="enabled" value={enabled ? "off" : "on"} />
+          {/* The switch and the schedule are separate fields, so a schedule can change without switching (m2). */}
+          <Field label="Switch">
+            <Select name="enabled" defaultValue={enabled ? "on" : "off"}>
+              <option value="on">On</option>
+              <option value="off">Off</option>
+            </Select>
+          </Field>
           <Field label="Schedule (cron, UTC)">
             <Input name="schedule" defaultValue={schedule} />
           </Field>
@@ -25,7 +31,7 @@ export function TestControls({ id, enabled, schedule }: { id: string; enabled: b
             <Input name="reason" required minLength={3} />
           </Field>
           <Button type="submit" variant="secondary">
-            {enabled ? "Switch off and save" : "Switch on and save"}
+            Save
           </Button>
         </ActionForm>
       </details>

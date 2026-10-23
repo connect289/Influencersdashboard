@@ -6,3 +6,4 @@ node_modules/
 *.dump
 *.dump.gz
 scripts/db/.rehearsal/
+e2e/out/

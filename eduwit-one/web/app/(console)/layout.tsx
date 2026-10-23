@@ -53,9 +53,9 @@ export default async function ConsoleLayout({ children }: { children: ReactNode 
         <div className="grid gap-2 px-4 pt-3 md:px-6">
           <Banners shell={shell} />
         </div>
-        <main className="grid gap-5 px-4 py-4 md:px-6">{children}</main>
+        <main className="grid grid-cols-1 gap-5 px-4 py-4 md:px-6">{children}</main>
         <footer className="flex justify-end px-4 pb-4 md:px-6">
-          <LiveRefresh />
+          <LiveRefresh idleSeconds={Math.round(me.idle_hours * 3600)} />
         </footer>
       </div>
     </div>
@@ -83,6 +83,15 @@ function Banners({ shell }: { shell: Shell | null }) {
           {shell.unacked_p1} P1 incident{shell.unacked_p1 === 1 ? " is" : "s are"} not acknowledged.{" "}
           <Link className="underline" href="/incidents?severity=P1">
             Open them
+          </Link>
+        </Banner>
+      ) : null}
+      {shell.mutes_active > 0 ? (
+        <Banner tone="p3">
+          {shell.mutes_active} mute{shell.mutes_active === 1 ? " is" : "s are"} in force: incidents still record,
+          nothing is sent for them.{" "}
+          <Link className="underline" href="/settings/maintenance">
+            Mutes and maintenance
           </Link>
         </Banner>
       ) : null}

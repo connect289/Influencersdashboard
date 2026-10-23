@@ -10,7 +10,7 @@ import { Filters, FilterSelect } from "@/components/ui/filters.tsx";
 import { PageError } from "@/components/ui/page-error.tsx";
 import { PageHeader } from "@/components/ui/state.tsx";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table.tsx";
-import { num } from "@/lib/format.ts";
+import { ms, num } from "@/lib/format.ts";
 import { ui } from "@/lib/ui/api.ts";
 import { analyticsSchema } from "@/lib/ui/schemas.ts";
 
@@ -22,6 +22,11 @@ const ranges: Array<[string, string]> = [
   ["90", "90 days"],
   ["365", "a year"],
 ];
+
+/** How long a section's read took in the database (phase 4: every app read is listed with its latency). */
+function Took({ value }: { value: number | undefined }) {
+  return value == null ? null : <span className="text-xs text-fg-muted tabular-nums">{ms(value)}</span>;
+}
 
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   const days = Number((await searchParams).days ?? 30);
@@ -49,6 +54,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       <Card>
         <CardHeader
           title="Funnel"
+          actions={<Took value={data.ms?.funnel} />}
           description={
             <>
               Steps and the event types behind each are in{" "}
@@ -83,9 +89,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           </Table>
         </CardBody>
       </Card>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="By partner" description="B2B allocations in the period, test leads excluded." />
+          <CardHeader
+            title="By partner"
+            description="B2B allocations in the period, test leads excluded."
+            actions={<Took value={data.ms?.partners} />}
+          />
           <CardBody>
             {typeof data.partners_error === "string" ? (
               <p className="text-sm text-fg-muted">{data.partners_error}</p>
@@ -95,7 +105,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           </CardBody>
         </Card>
         <Card>
-          <CardHeader title="By counsellor" description="Spark leads assigned in the period, test leads excluded." />
+          <CardHeader
+            title="By counsellor"
+            description="Spark leads assigned in the period, test leads excluded."
+            actions={<Took value={data.ms?.counsellors} />}
+          />
           <CardBody>
             {typeof data.counsellors_error === "string" ? (
               <p className="text-sm text-fg-muted">{data.counsellors_error}</p>

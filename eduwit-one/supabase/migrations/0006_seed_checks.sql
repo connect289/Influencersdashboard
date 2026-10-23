@@ -782,7 +782,7 @@ select one.seed_check(jsonb_build_object(
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', false,
-  'disabled_reason', 'setup:n8n_api',
+  'disabled_reason', 'blocked:not_built_d049',
   'search_path', '',
   'sql', $sql$
 select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('gemini') as s) x
@@ -1669,7 +1669,7 @@ select one.seed_check(jsonb_build_object(
   'title', 'public.lead_intake() changed since its baseline',
   'description', 'md5 of lead_intake''s source differs from the baseline captured at install. The website runbook''s own canary: every app''s intake goes through it.',
   'auto_fix_id', null,
-  'tags', '["code"]'::jsonb,
+  'tags', '["code","integrity"]'::jsonb,
   'enabled', true,
   'disabled_reason', null,
   'search_path', '',
@@ -2049,7 +2049,7 @@ select one.seed_check(jsonb_build_object(
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', false,
-  'disabled_reason', 'setup:n8n_api',
+  'disabled_reason', 'blocked:not_built_d049',
   'search_path', '',
   'sql', null::text));
 

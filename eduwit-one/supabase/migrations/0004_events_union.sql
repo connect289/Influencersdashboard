@@ -9,26 +9,28 @@
 -- Rows already copied are skipped by the unique (app, source_table, source_id). Every payload goes through one.redact()
 -- before it is stored (B1, D-046). A missing source is recorded as source_missing.
 
--- Whether a text holds an email address or a phone number anywhere in it (M5 of the second review): an Indian mobile
--- with or without +91 and one space or dash, an international number written with +, or any run of 10 to 15 digits.
--- UUIDs and long hex tokens are blanked before the digit rules, so ids are not mistaken for phones.
+-- Whether a text holds an email address or a phone number anywhere in it (M5 of the second review; security review S2
+-- of phase 4): an Indian mobile in any grouping (single spaces, dots, dashes or brackets between digits; +91, 0091, 91
+-- or 0 first, or nothing), any number written with +, or any run of 10 to 15 digits, grouped the same way. UUIDs, long
+-- hex tokens and dates with times are blanked first, so ids and timestamps are not mistaken for phones.
 create or replace function one.has_contact(p_text text) returns text
 language sql immutable set search_path = '' as $$
   select case
     when p_text ~* '[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}' then 'email'
-    when x ~ '(^|[^0-9])(\+?91[ -]?)?[6-9][0-9]{4}[ -]?[0-9]{5}([^0-9]|$)'
-      or x ~ '\+[0-9]{1,3}[ -]?[0-9][0-9 -]{7,14}[0-9]'
-      or x ~ '(^|[^0-9])[0-9]{10,15}([^0-9]|$)' then 'phone'
+    when x ~ '(^|[^0-9])((\+|00)?91[ .()-]{0,2}|0)?[6-9]([ .()-]?[0-9]){9}([^0-9]|$)'
+      or x ~ '\+[ (]?[0-9]([ .()-]{0,2}[0-9]){7,14}'
+      or x ~ '(^|[^0-9])[0-9]([ .-]?[0-9]){9,14}([^0-9]|$)' then 'phone'
     end
-  from (select regexp_replace(regexp_replace(coalesce(p_text, ''),
-          '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', ' ', 'g'), '[0-9a-fA-F]{20,}', ' ', 'g') as x) t
+  from (select regexp_replace(regexp_replace(regexp_replace(coalesce(p_text, ''),
+          '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', ' ', 'g'), '[0-9a-fA-F]{20,}', ' ', 'g'),
+          '[0-9]{4}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?([+-][0-9]{2}(:?[0-9]{2})?|Z)?)?', ' ', 'g') as x) t
 $$;
 
 -- Removes personal data from a JSON value at any depth: keys matching events.pii_columns (case-insensitive; "*" is a
 -- wildcard) are dropped with everything under them; a key that is itself an email or a phone is renamed "[email]" or
 -- "[phone]"; a string holding a JSON document is redacted as JSON; any other string holding an email or a phone
 -- anywhere becomes "[email]" or "[phone]" whole (names travel with contacts in free text, so nothing of it is kept);
--- a number shaped like an Indian mobile becomes "[phone]". Spec §2: never a raw name, phone or email outside the apps.
+-- a whole number shaped like a phone (an Indian mobile, or 11 to 15 digits) becomes "[phone]". Spec §2: never a raw name, phone or email outside the apps.
 create or replace function one.redact(p_value jsonb, p_keys text[]) returns jsonb
 language plpgsql immutable set search_path = '' as $$
 declare
@@ -63,8 +65,9 @@ begin
       end if;
       return p_value;
     when 'number' then
-      -- An Indian mobile stored as a number (10 digits from 6, optionally 91 first). Epoch times and ids do not match.
-      if p_value::text ~ '^(91)?[6-9][0-9]{9}$' then
+      -- A phone stored as a number (S2): 10 digits from 6 (an Indian mobile), or any whole number of 11 to 15 digits
+      -- (an international number with its country code). Counts, ids, amounts and epoch seconds stay.
+      if p_value::text ~ '^([6-9][0-9]{9}|[0-9]{11,15})$' then
         return '"[phone]"'::jsonb;
       end if;
       return p_value;

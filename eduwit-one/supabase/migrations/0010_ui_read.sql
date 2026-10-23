@@ -23,9 +23,14 @@ $$;
 -- what it touches. When unsure, the owner decides (writes less).
 create or replace function one.proposal_sensitive(p_kind text, p_change jsonb) returns boolean
 language sql immutable set search_path = '' as $$
-  select coalesce(p_change -> 'touches', '[]') ?| array['money', 'allocation', 'live_switches', 'partner_mappings', 'prompts', 'versioned_settings']
+  -- A proposal cannot vouch for itself (phase review M5): a fix or config proposal names an app function whose effect
+  -- the database cannot judge, so it is always the owner's; so is anything touching money, allocation, switches,
+  -- partner mappings, prompts, settings, or security (keys, auth, data, retention, staging; security review S6).
+  select p_kind in ('fix', 'config')
+      or coalesce(p_change -> 'touches', '[]') ?| array['money', 'allocation', 'live_switches', 'partner_mappings', 'prompts', 'versioned_settings',
+                                                        'api_keys', 'credentials', 'auth', 'auth_settings', 'database_security', 'data_retention',
+                                                        'staging', 'security']
       or coalesce(p_change, '{}')::text ~* '(allocat|earning|commission|payout|ledger|invoice|live_switch|partner_(map|course)|prompt|settings_put|set_setting)'
-      or (p_kind in ('fix', 'config') and not coalesce(p_change, '{}') ? 'touches')
 $$;
 
 -- The banner and counts on every page (spec §12 behaviours).
@@ -45,6 +50,9 @@ begin
     'unacked_p1', (select count(*) from one.incidents
                     where resolved_at is null and severity = 'P1' and acknowledged_at is null and alert_state not in ('suppressed', 'muted')),
     'proposals_open', (select count(*) from one.proposals where status = 'open'),
+    -- Mutes and maintenance windows in force, so a silenced check or app is visible on every page.
+    'mutes_active', (select count(*) from one.mutes m where now() between m.starts_at and m.ends_at)
+                  + (select count(*) from one.checks c where c.muted_until > now()),
     'observation_until', case when v_fixes ->> 'observation_started_at' is not null
                               then (v_fixes ->> 'observation_started_at')::timestamptz + make_interval(days => coalesce((v_fixes ->> 'observation_days')::int, 14)) end,
     'setup_open', (select count(*) from jsonb_each(coalesce(one.setting('setup') -> 'items', '{}')) i
@@ -309,9 +317,12 @@ end $$;
 -- Keys only the owner may change: fixes (the owner's rule: nothing switches on without their approval), access and
 -- users, the PII list, proposal approvers, retention. In alerts, only the recipients are the owner's (spec §12); the
 -- write function compares them (one.alert_recipients).
+-- Engineers tune how the checks and tests run; every other key is the owner's, because it decides where a credential,
+-- an alert or a sign-in code is sent (app.base_url, hosts, vendors, chatwoot, n8n, whatsapp, alerts), what is spent
+-- (ai), what is kept (events, retention) or who gets in (access) (security review S1, phase review M6).
 create or replace function one.setting_owner_only(p_key text) returns boolean
 language sql immutable set search_path = '' as $$
-  select p_key in ('fixes', 'access', 'events', 'proposals', 'retention', 'supabase')
+  select p_key not in ('thresholds', 'checks', 'tests', 'witty', 'analytics')
 $$;
 
 create or replace function one.alert_recipients(p_alerts jsonb) returns jsonb

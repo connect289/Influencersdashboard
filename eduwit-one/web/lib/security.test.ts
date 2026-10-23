@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildCsp, clientIp, isAllowedEmail, isIdleExpired, safeNext } from "./security.ts";
+import {
+  buildCsp,
+  clientIp,
+  isAllowedEmail,
+  isIdleExpired,
+  safeNext,
+  seenFresh,
+  seenValue,
+  signedInAt,
+} from "./security.ts";
 
 describe("safeNext", () => {
   it("keeps same-origin paths and refuses everything that could leave the app", () => {
@@ -49,5 +58,34 @@ describe("clientIp and the domain check", () => {
     expect(isAllowedEmail("someone@gmail.com")).toBe(false);
     expect(isAllowedEmail("x@eduwit.in.evil.test")).toBe(false);
     expect(isAllowedEmail("@eduwit.in")).toBe(false);
+  });
+});
+
+describe("the signed idle cookie (S5)", () => {
+  const key = "k".repeat(40);
+  const base = { key, sessionId: "s1", now: 10_000, limit: 3600, signedInAt: null };
+  it("is fresh only when signed for this session and within the limit", async () => {
+    const v = await seenValue(key, "s1", 9_000);
+    expect(await seenFresh({ ...base, value: v })).toBe(true);
+    expect(await seenFresh({ ...base, value: v, now: 9_000 + 3601 })).toBe(false);
+    expect(await seenFresh({ ...base, value: await seenValue(key, "s2", 9_000) })).toBe(false);
+    expect(await seenFresh({ ...base, value: "9999.forged" })).toBe(false);
+    expect(await seenFresh({ ...base, value: "9999" })).toBe(false);
+  });
+  it("counts a missing cookie as idle, except just after signing in", async () => {
+    expect(await seenFresh({ ...base, value: undefined })).toBe(false);
+    expect(await seenFresh({ ...base, value: undefined, signedInAt: 10_000 - 60 })).toBe(true);
+    expect(await seenFresh({ ...base, value: undefined, signedInAt: 10_000 - 3600 })).toBe(false);
+  });
+  it("reads the sign-in time from amr, not from a refreshable iat", () => {
+    expect(
+      signedInAt({
+        amr: [
+          { method: "oauth", timestamp: 100 },
+          { method: "otp", timestamp: 200 },
+        ],
+      }),
+    ).toBe(200);
+    expect(signedInAt({})).toBeNull();
   });
 });

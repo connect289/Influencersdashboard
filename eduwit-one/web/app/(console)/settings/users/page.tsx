@@ -42,7 +42,7 @@ export default async function UsersPage() {
                 </span>
               </span>
               <UserForm email={u.email} role={u.role} active={u.is_active} />
-              {u.devices > 0 ? <RevokeDevicesButton userId={u.user_id} /> : null}
+              <RevokeDevicesButton userId={u.user_id} />
             </li>
           ))}
         </ul>

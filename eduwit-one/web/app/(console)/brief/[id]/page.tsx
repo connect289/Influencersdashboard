@@ -27,7 +27,7 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
         title={`Brief for ${istDate(b.for_date)}`}
         description={`${b.tier ?? "regular"} tier · ${b.model ?? "model ?"} · ${usd(b.cost_usd)}`}
       />
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardBody>
             <Markdown text={b.body_md} />

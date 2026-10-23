@@ -36,7 +36,7 @@ app through `one.report_result()`; every other kind is a SQL statement run by `o
 | CAT-04 | catalogue | sql | P3 | 24 h | on | An active programme has no fee | — |
 | HB-b2b-app | b2b | heartbeat | P2 | 1 min | on | Heartbeat lost: the B2B CRM app | — |
 | HB-chatwoot | witty | heartbeat | P2 | 1 min | on | Heartbeat lost: Chatwoot | — |
-| HB-gemini | witty | heartbeat | P2 | 5 min | off: `setup:n8n_api` | Heartbeat lost: Gemini (Witty's model) | — |
+| HB-gemini | witty | heartbeat | P2 | 5 min | off: `blocked:not_built_d049` | Heartbeat lost: Gemini (Witty's model) | — |
 | HB-influencer | influencer | heartbeat | P2 | 1 min | on | Heartbeat lost: the influencer portal | — |
 | HB-meta | b2b | heartbeat | P2 | 15 min | off: `setup:meta` | Heartbeat lost: Meta lead intake | — |
 | HB-n8n:instance | witty | heartbeat | P1 | 1 min | off: `setup:n8n_api` | Heartbeat lost: the n8n instance | — |
@@ -91,7 +91,7 @@ app through `one.report_result()`; every other kind is a SQL statement run by `o
 | WITTY-06 | witty | sql | P2 | 1 h | on | Witty nurture sent outside hours or too often | — |
 | WITTY-07 | witty | sql | P2 | 1 h | on | A Witty learning was applied without a decision | — |
 | WITTY-08 | witty | http | P2 | 1 h | off: `setup:n8n_api` | Nurture Worker or Learning Loop workflow is inactive while expected | — |
-| WITTY-09 | witty | http | P2 | 1 h | off: `setup:n8n_api` | Witty's Gemini spend is over cap or hitting quota | — |
+| WITTY-09 | witty | http | P2 | 1 h | off: `blocked:not_built_d049` | Witty's Gemini spend is over cap or hitting quota | — |
 
 ## What each check reads
 

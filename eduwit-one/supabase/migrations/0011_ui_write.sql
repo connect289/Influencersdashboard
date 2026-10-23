@@ -111,8 +111,9 @@ begin
   return jsonb_build_object('ok', true, 'id', v_id);
 end $$;
 
--- Approve (the owner, when the proposal touches money, allocation, live switches, partner mappings, prompts or
--- versioned settings, or when a fix or config proposal does not say what it touches), reject with a note, or snooze.
+-- Approve (the owner, for every fix or config proposal and whatever touches money, allocation, live switches, partner
+-- mappings, prompts, settings or security: one.proposal_sensitive), reject with a note, or snooze. A snoozed proposal
+-- comes back to the queue when the snooze ends (one.nightly), with a fresh expiry; the builder's never expire.
 -- Approving with edited arguments keeps both versions in the audit. Approval records the decision; running an approved
 -- change through the owning app's own function arrives with the fixes (phase 7).
 create or replace function one.ui_proposal_decide(p_id bigint, p_decision text, p_note text default null, p_change jsonb default null,
@@ -172,6 +173,9 @@ begin
      or (p_key = 'alerts' and one.alert_recipients(v_before) is distinct from one.alert_recipients(p_value)) then
     perform one.ui_require('owner');
   end if;
+  if p_value = v_before then
+    raise exception 'nothing changed: the value is the current version' using errcode = '22023';
+  end if;
   v_version := one.settings_put(p_key, p_value, v_actor, v_reason);
   perform one.ui_audit_write(v_actor, 'settings.put', 'settings:' || p_key, v_before, p_value, p_request_id);
   return jsonb_build_object('ok', true, 'version', v_version);
@@ -192,13 +196,21 @@ begin
     raise exception 'no check %', p_id using errcode = 'P0002';
   end if;
   v_enabled := coalesce((p_patch ->> 'enabled')::boolean, v_c.enabled);
+  -- Switching off, or lowering the severity of, a check that guards the platform is the owner's (security review S7):
+  -- every P1, the integrity checks, and those tagged security, integrity, money or consent.
+  if (v_c.severity = 'P1' or v_c.app = 'integrity' or v_c.tags && array['security', 'integrity', 'money', 'consent'])
+     and ((v_c.enabled and not v_enabled)
+          or coalesce((p_patch ->> 'severity')::one.severity, v_c.severity) > v_c.severity) then
+    perform one.ui_require('owner');
+  end if;
   if v_enabled and not v_c.enabled and v_c.disabled_reason like 'blocked:%' then
     raise exception 'check % cannot run: %', p_id, v_c.disabled_reason using errcode = '22023';
   end if;
   update one.checks set
     enabled = v_enabled,
     disabled_reason = case when v_enabled then null
-                           when v_c.enabled then 'owner:' || trim(both '-' from regexp_replace(lower(left(v_reason, 40)), '[^a-z0-9_.:-]+', '-', 'g'))
+                           when v_c.enabled then 'owner:' || coalesce(nullif(trim(both '-' from regexp_replace(lower(left(v_reason, 40)), '[^a-z0-9_.:-]+', '-', 'g')), ''),
+                                                                     'switched-off')
                            else disabled_reason end,
     severity = coalesce((p_patch ->> 'severity')::one.severity, severity),
     cadence_s = coalesce((p_patch ->> 'cadence_s')::int, cadence_s),
@@ -302,8 +314,8 @@ declare
   v_uid uuid;
   v_before jsonb;
 begin
-  if v_email !~ ('^[^@\s]+@' || replace(coalesce(one.setting('access') ->> 'allowed_domain', 'eduwit.in'), '.', '\.') || '$') then
-    raise exception 'only @% addresses', coalesce(one.setting('access') ->> 'allowed_domain', 'eduwit.in') using errcode = '22023';
+  if v_email !~ '^[^@\s]+@eduwit\.in$' then
+    raise exception 'only @eduwit.in addresses' using errcode = '22023';
   end if;
   if p_role not in ('owner', 'engineer') then
     raise exception 'role must be owner or engineer' using errcode = '22023';
@@ -330,30 +342,39 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
--- Forget a person's trusted browsers: their own, or anyone's for the owner.
+-- Forget a person's trusted browsers and sign out their other sessions: their own, or anyone's for the owner.
 create or replace function one.ui_devices_revoke(p_user uuid, p_request_id text default null) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v_actor text := one.ui_require(case when p_user = one.uid() then 'read' else 'owner' end);
   v_n integer;
+  v_s integer;
 begin
   update one.trusted_devices set revoked_at = now() where user_id = p_user and revoked_at is null;
   get diagnostics v_n = row_count;
-  perform one.ui_audit_write(v_actor, 'devices.revoke', 'user:' || p_user, null, jsonb_build_object('revoked', v_n), p_request_id);
-  return jsonb_build_object('ok', true, 'revoked', v_n);
+  -- Sessions that already passed the second step lose it too (security review S4); the caller's own session stays.
+  delete from one.session_checks where user_id = p_user and session_id is distinct from one.session_id();
+  get diagnostics v_s = row_count;
+  perform one.ui_audit_write(v_actor, 'devices.revoke', 'user:' || p_user, null, jsonb_build_object('revoked', v_n, 'sessions_ended', v_s), p_request_id);
+  return jsonb_build_object('ok', true, 'revoked', v_n, 'sessions_ended', v_s);
 end $$;
 
 -- Setup (spec §15) -----------------------------------------------------------------------------------------------------
 
 -- The result of a validate button, recorded on the item. A pass switches on the checks waiting for it (their
--- disabled_reason is setup:<item>), as the specification says filling and validating does.
-create or replace function one.ui_setup_validated(p_item text, p_ok boolean, p_detail text, p_request_id text default null) returns jsonb
+-- disabled_reason is setup:<item>), as the specification says filling and validating does. Service role only: the
+-- app's server action checks the person (operate), runs the item's probe itself and passes the result, so a direct
+-- API call cannot mark an item verified (security review note, phase review m6).
+create or replace function one.setup_validated(p_item text, p_ok boolean, p_detail text, p_actor text, p_request_id text default null) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
-  v_actor text := one.ui_require('operate');
+  v_actor text := p_actor;
   v_setup jsonb := coalesce(one.setting('setup'), '{"items": {}}');
   v_on integer := 0;
 begin
+  if p_ok is null or coalesce(p_actor, '') !~ '^[^@\s]+@[^@\s]+$' then
+    raise exception 'a validation needs a result and the person who ran it' using errcode = '22023';
+  end if;
   if not exists (select 1 from jsonb_array_elements(coalesce(one.setting('setup_catalog') -> 'items', '[]')) i where i ->> 'id' = p_item) then
     raise exception 'no Setup item %', p_item using errcode = 'P0002';
   end if;
@@ -476,10 +497,12 @@ select f, 'authenticated', 'page write (0011)' from unnest(array[
   'one.ui_proposal_decide(bigint,text,text,jsonb,integer,text)', 'one.ui_settings_put(text,jsonb,text,text)',
   'one.ui_check_update(text,jsonb,text,text)', 'one.ui_test_update(text,jsonb,text,text)', 'one.ui_test_run(text,text)',
   'one.ui_privilege_ack(text,text)', 'one.ui_baseline_accept(text,text)', 'one.ui_user_put(text,text,boolean,text)',
-  'one.ui_devices_revoke(uuid,text)', 'one.ui_setup_validated(text,boolean,text,text)', 'one.ui_secret_put(text,text,text)',
+  'one.ui_devices_revoke(uuid,text)', 'one.ui_secret_put(text,text,text)',
   'one.ui_ask(text,text)', 'one.ui_ask_pin(bigint,text)', 'one.ui_brief_regenerate(date,text,text)',
   'one.ui_view_save(text,text,jsonb,text,text)']) f
 on conflict do nothing;
-insert into one.api_grants (fn, role, why) values ('one.app_secrets()', 'service_role', 'credentials saved on the Setup page, without a deploy')
+insert into one.api_grants (fn, role, why) values
+  ('one.app_secrets()', 'service_role', 'credentials saved on the Setup page, without a deploy'),
+  ('one.setup_validated(text,boolean,text,text,text)', 'service_role', 'a Setup probe result, recorded by the app after running it')
 on conflict do nothing;
 call one.apply_grants();

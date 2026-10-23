@@ -93,16 +93,17 @@ select pg_temp.as_engineer();
 select pg_temp.ok((one.ui_settings_put('thresholds', :'thr', 'cron jobs are slower on Sundays') ->> 'version')::int >= 2,
                   'the engineer changes a threshold');
 select pg_temp.ok(pg_temp.err($q$select one.ui_settings_put('thresholds', '{"job_silent_min": 25}', '')$q$) = '22023', 'a change needs a reason');
-select pg_temp.ok((one.ui_settings_put('alerts', :'al_timing', 'faster reminders') ->> 'ok')::boolean,
-                  'and the escalation timing');
+select pg_temp.ok(pg_temp.err(format('select one.ui_settings_put(%L, %L, %L)', 'alerts', :'al_timing', 'slower reminders')) = '42501',
+                  'but not the alerts, timing included (security review S7)');
 select pg_temp.ok(pg_temp.err(format('select one.ui_settings_put(%L, %L, %L)', 'alerts', :'al_p1', 'me instead')) = '42501',
-                  'but not the alert recipients');
+                  'nor the alert recipients');
 select pg_temp.ok(pg_temp.err(format('select one.ui_settings_put(%L, %L, %L)', 'fixes', :'fixes', 'no change')) = '42501', 'nor fixes');
 select pg_temp.ok(pg_temp.err($q$select one.ui_settings_put('setup', '{}', 'wipe it')$q$) = '42501' or pg_temp.err($q$select one.ui_settings_put('setup', '{}', 'wipe it')$q$) = '22023',
                   'the Setup statuses are not edited as a setting');
 select pg_temp.as_owner();
+select pg_temp.ok((one.ui_settings_put('alerts', :'al_timing', 'faster reminders') ->> 'ok')::boolean, 'the owner changes the escalation timing');
 select pg_temp.ok((one.ui_settings_put('alerts', :'al_second', 'second contact named') ->> 'ok')::boolean,
-                  'the owner changes recipients');
+                  'and recipients');
 select pg_temp.ok(pg_temp.err(format('select one.ui_settings_put(%L, %L, %L)', 'alerts', :'al_bad', 'bad shape')) = '22023',
                   'a malformed value is refused (m1)');
 reset role;
@@ -111,12 +112,12 @@ select pg_temp.ok((select count(*) >= 3 from one.settings_versions where key = '
 -- 5. Checks: switch with a reason; a blocked check stays off ------------------------------------------------------------------
 set role authenticated;
 select pg_temp.as_engineer();
-select one.ui_check_update('WEB-03', '{"enabled": false}', 'Noisy during the catalogue migration');
+select one.ui_check_update('WEB-05', '{"enabled": false}', 'Noisy during the catalogue migration');
 select pg_temp.ok(pg_temp.err($q$select one.ui_check_update('PLAT-03', '{"enabled": true}', 'try it')$q$) = '22023', 'a blocked check cannot be switched on');
 reset role;
-select pg_temp.ok((select not enabled and disabled_reason ~ '^owner:noisy' and updated_by = 'eng@eduwit.in' and version >= 2 from one.checks where id = 'WEB-03'),
+select pg_temp.ok((select not enabled and disabled_reason ~ '^owner:noisy' and updated_by = 'eng@eduwit.in' and version >= 2 from one.checks where id = 'WEB-05'),
                   'the switch records who and why');
-update one.checks set enabled = true, disabled_reason = null where id = 'WEB-03';
+update one.checks set enabled = true, disabled_reason = null where id = 'WEB-05';
 
 -- 6. Users: owner only; the Supabase user must exist; the last owner stays -----------------------------------------------------
 set role authenticated;
@@ -129,8 +130,11 @@ select pg_temp.ok(pg_temp.err($q$select one.ui_user_put('someone@gmail.com', 'en
 select pg_temp.ok((one.ui_user_put('new@eduwit.in', 'engineer', true) ->> 'ok')::boolean, 'an existing Supabase user is added');
 select pg_temp.ok(pg_temp.err($q$select one.ui_user_put('connect@eduwit.in', 'engineer', true)$q$) = '22023', 'the owner cannot demote themselves');
 
--- 7. Setup: a validate pass switches on the checks waiting for it; secrets go to Vault, never back out -----------------------
-select pg_temp.ok((one.ui_setup_validated('n8n_api', true, 'listed 18 workflows') ->> 'checks_on')::int >= 1, 'validating n8n_api switches its checks on');
+-- 7. Setup: a validate pass, recorded by the app after its probe, switches on the checks waiting for it; secrets go to
+-- Vault, never back out ------------------------------------------------------------------------------------------------------
+reset role;
+set role service_role;
+select pg_temp.ok((one.setup_validated('n8n_api', true, 'listed 18 workflows', 'connect@eduwit.in') ->> 'checks_on')::int >= 1, 'validating n8n_api switches its checks on');
 reset role;
 select pg_temp.ok((select enabled from one.checks where id = 'WITTY-02'), 'WITTY-02 is on');
 select pg_temp.ok((select (value #>> '{items,n8n_api,validated}')::boolean and value #>> '{items,n8n_api,ran}' ~ 'connect@eduwit.in' from one.settings where key = 'setup'),
@@ -175,7 +179,7 @@ select pg_temp.ok(not exists (
 
 -- Clean up ---------------------------------------------------------------------------------------------------------------
 update one.settings s set value = t.value from t_settings t where s.key = t.key;
-update one.checks set enabled = false, disabled_reason = 'setup:n8n_api' where id in ('WITTY-02', 'WITTY-08', 'WITTY-09', 'HB-n8n:PKPs7tXg9bej8AgX', 'HB-n8n:instance', 'HB-gemini');
+update one.checks set enabled = false, disabled_reason = 'setup:n8n_api' where id in ('WITTY-02', 'WITTY-08', 'HB-n8n:PKPs7tXg9bej8AgX', 'HB-n8n:instance');
 delete from vault.secrets where name = 'one_n8n_key';
 truncate one.ai_tasks, one.deliveries, one.actions, one.proposals, one.incidents, one.mutes restart identity cascade;
 delete from one.session_checks; delete from one.users; delete from auth.sessions; delete from auth.users;

@@ -17,6 +17,8 @@ export const meSchema = z.object({
   role: z.enum(["owner", "engineer"]).nullable(),
   checked: z.boolean(),
   alive: z.boolean(),
+  // access.idle_hours: the sign-out after inactivity (middleware and live refresh), from one.settings (spec standard 3).
+  idle_hours: z.number().positive().max(720).default(12),
 });
 export type Me = z.infer<typeof meSchema>;
 export type Role = "owner" | "engineer";

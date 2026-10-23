@@ -88,7 +88,9 @@ language sql stable security definer set search_path = '' as $$
     'active', coalesce(o.is_active, false),
     'role', o.role,
     'checked', one.session_checked(),
-    'alive', one.session_alive())
+    'alive', one.session_alive(),
+    -- access.idle_hours: the web app signs out a session idle this long (phase review m7).
+    'idle_hours', coalesce((one.setting('access') ->> 'idle_hours')::numeric, 12))
   from (select 1) x left join one.users o on o.user_id = one.uid()
 $$;
 

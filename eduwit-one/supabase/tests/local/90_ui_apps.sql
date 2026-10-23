@@ -59,7 +59,7 @@ select pg_temp.ok((select r ->> 'kind' = 'needs_access' from (select one.ui_embe
 select pg_temp.ok((select (r ->> 'ok')::boolean and jsonb_typeof(r -> 'data') = 'object' from (select one.ui_embed('one.health') as r) x), 'Eduwit One''s own health');
 
 -- 3. Marketing and Analytics -----------------------------------------------------------------------------------------------
-select pg_temp.ok((select (m ->> 'days')::int = 30 and m ? 'whatsapp' from (select one.ui_marketing(30) as m) x), 'Marketing answers, with what each section could read');
+select pg_temp.ok((select (m ->> 'days')::int = 30 and m ? 'numbers' from (select one.ui_marketing(30) as m) x), 'Marketing answers, with what each section could read');
 select pg_temp.ok((select (a #>> '{funnel,1,leads}')::int >= 2 and (a #>> '{funnel,2,leads}')::int = 1 and (a #>> '{funnel,3,leads}')::int = 1
                           and (a #>> '{funnel,2,median_min_from_previous}')::numeric = 60
                      from (select one.ui_analytics(30) as a) x),
@@ -77,7 +77,11 @@ delete from one.proposals where source = 'builder';
 \ir ../../migrations/0013_seed_builder_proposals.sql
 select pg_temp.ok((select count(*) = 12 and bool_and(status = 'open' and expires_at is null and source_key like 'builder:%')
                      from one.proposals where source = 'builder'), 'twelve builder proposals, open, never expiring');
-select pg_temp.ok((select bool_and(not one.proposal_sensitive(kind, change) and change ? 'where' and change ? 'owner_action')
-                     from one.proposals where source = 'builder'), 'each names where the change is made and what the owner does');
+select pg_temp.ok((select bool_and(change ? 'where' and change ? 'owner_action') from one.proposals where source = 'builder'),
+                  'each names where the change is made and what the owner does');
+select pg_temp.ok((select array_agg(source_key order by source_key) = array['builder:gap-influencer-login-attempts', 'builder:gap-spark-tickets-campaigns',
+                                                                           'builder:gap-witty-blocks-security-log']
+                     from one.proposals where source = 'builder' and not one.proposal_sensitive(kind, change)),
+                  'only the three feature requests are the engineer''s to approve; config and security cleanups are the owner''s');
 \ir ../../migrations/0013_seed_builder_proposals.sql
 select pg_temp.ok((select count(*) = 12 from one.proposals where source = 'builder'), 'running 0013 again inserts nothing');

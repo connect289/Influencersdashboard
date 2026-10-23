@@ -3,6 +3,24 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — phase 4 reviews resolved, and the click-through
+
+- Phase review (`docs/reviews/phase-4-ui.md`: 1 blocker, 6 majors, 14 minors) and security review
+  (`docs/reviews/phase-4-security.md`: 2 high, 5 medium): every finding fixed or accepted with a reason, in the
+  resolution tables; tests in `supabase/tests/local/95_review4.sql`.
+- Phone layout: cards and grids shrink to the screen, JSON wraps, and the Act and Decide cards come first on a phone.
+- Roles (D-065): engineers change thresholds, checks, tests, witty and analytics settings only; fix and config proposals
+  and anything touching security are the owner's; P1, security and integrity checks stay on unless the owner says.
+- Sign-in (D-066): a signed, per-session idle cookie; the idle limit from `access.idle_hours`; "Sign out everywhere"
+  ends other sessions; the live refresh stops when nobody uses the page.
+- Redaction (D-067): phones in any grouping and long numbers; more name keys.
+- Panels: Witty replies and learnings fixed; section times on Marketing and Analytics; STABLE reads; heavy pages refresh
+  every 5 minutes. Snoozed proposals come back. Setup validation recorded only by the app. HB-gemini and WITTY-09
+  blocked until built (D-049). Settings shapes checked for analytics, ai and fixes; an unchanged save is refused.
+- Settings index lists every key; the check runner's settings are on the Checks page; acknowledge from the Overview;
+  a banner while mutes are in force.
+- `e2e/run.sh`: the click-through on a local cluster with a Supabase stand-in (D-064).
+
 ## 23 Oct 2026 — phase 4, the UI (built; production run waits on phase 1 and the deploy)
 
 - Sign-in (0009): Google restricted to `@eduwit.in`, then an emailed 6-digit code or a trusted device; every UI

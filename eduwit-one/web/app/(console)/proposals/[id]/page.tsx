@@ -44,8 +44,8 @@ export default async function ProposalPage({ params }: { params: Promise<{ id: s
           </span>
         }
       />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="grid content-start gap-4 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid min-w-0 content-start gap-4 lg:col-span-2">
           <Card>
             <CardHeader title="Why" />
             <CardBody className="text-sm whitespace-pre-line">{p.rationale}</CardBody>
@@ -93,7 +93,7 @@ export default async function ProposalPage({ params }: { params: Promise<{ id: s
             </ul>
           </Card>
         </div>
-        <div className="grid content-start gap-4">
+        <div className="order-first grid min-w-0 content-start gap-4 lg:order-none">
           {data.incident ? (
             <Card>
               <CardHeader title="From incident" />

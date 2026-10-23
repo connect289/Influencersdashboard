@@ -98,4 +98,11 @@ export class FakeDb implements OneDb {
   async authRecord(entry: SignInEntry) {
     this.signIns.push(entry);
   }
+
+  validations: Array<{ item: string; ok: boolean; actor: string }> = [];
+
+  async setupValidated(item: string, ok: boolean, _detail: string, actor: string) {
+    this.validations.push({ item, ok, actor });
+    return 0;
+  }
 }

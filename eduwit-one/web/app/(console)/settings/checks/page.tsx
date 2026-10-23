@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { CheckForm } from "@/components/settings/check-form.tsx";
+import { SettingView } from "@/components/settings/setting-view.tsx";
 import { appName, appNames } from "@/components/ui/labels.ts";
 import { Badge, SeverityBadge, StatusBadge } from "@/components/ui/badge.tsx";
 import { Card } from "@/components/ui/card.tsx";
@@ -13,8 +14,8 @@ import { checksSchema } from "@/lib/ui/schemas.ts";
 
 export const metadata: Metadata = { title: "Checks" };
 
-export default async function ChecksPage({ searchParams }: { searchParams: Promise<{ app?: string }> }) {
-  const { app } = await searchParams;
+export default async function ChecksPage({ searchParams }: { searchParams: Promise<{ app?: string; from?: string }> }) {
+  const { app, from } = await searchParams;
   let checks;
   try {
     checks = await ui("ui_checks", checksSchema, { p_app: app || null });
@@ -86,6 +87,8 @@ export default async function ChecksPage({ searchParams }: { searchParams: Promi
           ))}
         </div>
       )}
+      {/* The check runner's own setting (key "checks"), whose generic editor this page's route shadows. */}
+      <SettingView name="checks" from={Number(from)} base="/settings/checks" id="runner" />
     </>
   );
 }

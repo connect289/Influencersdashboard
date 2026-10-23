@@ -41,10 +41,11 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
   there after the person has signed in once with Google (their Supabase user must exist). An engineer reads and
   operates; only the owner changes users, owner-only settings, recipients, Setup secrets and sensitive proposals.
 - **The second step.** After Google, a 6-digit code goes to the person's email (valid 10 minutes, 5 tries, 5 codes an
-  hour). Ticking "Trust this browser for 30 days" skips the code on that browser. Settings → Users → "Forget trusted
-  browsers" makes the person's next sign-in ask for a code again; setting the person inactive there stops every page
-  and action at once, whatever session they hold.
-- **Idle.** 12 hours without a page load signs the person out.
+  hour). Ticking "Trust this browser for 30 days" skips the code on that browser. Settings → Users → "Sign out
+  everywhere" forgets the person's trusted browsers and signs out their other sessions (a lost laptop); setting the
+  person inactive there stops every page and action at once, whatever session they hold.
+- **Idle.** `access.idle_hours` (12) without a click or a key signs the person out; an open tab stops refreshing
+  after that long, so it does not keep the session alive.
 - **Locked out.** If no owner can sign in (lost mailbox, Google outage), sign in to Supabase and, as the owner,
   check `one.sign_in_log` (newest first) for the refusal; `one.users` holds the allow-list.
 - **First deploy.** Supabase → Authentication → URL configuration: add `https://one.eduwit.in/auth/callback`; the
@@ -59,11 +60,19 @@ its name. "Validate" runs that item's probe; when it passes, the checks waiting 
 rotate a key, paste the new one and validate; the app picks it up within a minute (an environment variable of the same
 purpose overrides Vault, D-059).
 
+## Who may change what
+
+Engineers read everything, acknowledge, resolve, mute, ask, and change thresholds, the check runner, test schedules,
+Witty's expectations and the analytics funnel. The owner also: every other setting (where credentials, alerts and codes
+go, AI spend, retention, sign-in), users, Setup secrets, fix and config proposals and anything touching security,
+and switching off or downgrading a P1, security, integrity, money or consent check (D-065).
+
 ## Proposals
 
 Every finding that needs a person is a proposal: from a check, a test, the AI (phase 6), a person, or the builder.
-Approve, reject with a note, or snooze. A proposal that touches money, allocation, live switches, partner mappings,
-prompts or versioned settings, or a fix or config proposal that does not say what it touches, needs the owner.
+Approve, reject with a note, or snooze (it comes back to the queue when the snooze ends). Every fix or config proposal,
+and any that touches money, allocation, live switches, partner mappings, prompts, settings or security, needs the
+owner.
 Approving records the decision; the change itself is made in the app named under "where" (Eduwit One changes no app),
 or, from phase 7, by a catalogued fix. The builder's twelve proposals (D-063) wait for a decision and never expire.
 
@@ -78,3 +87,11 @@ It is the only thing that notices Supabase, pg_cron or Vercel being down. Set it
 4. Alert contact: `connect@eduwit.in`, and make sure the contact is **active** (on 23 Oct it was paused, D-018).
 5. Test it: pause the `one-tick` job for 6 minutes on staging (`select cron.alter_job(jobid, active := false)` as the
    owner); the monitor must email within 10 minutes. Re-activate the job.
+
+## Checking a change locally
+
+Nothing here touches a Supabase project. `scripts/db/local-test.sh` builds a throwaway cluster, applies every migration
+between catalogue fingerprints, runs every SQL test, rolls everything back and applies again (LOCAL TEST PASSED).
+`e2e/run.sh` then clicks through every page as the owner and an engineer against the production build of the app and a
+local Supabase stand-in, and checks the audit, the RPCs and the phone layout (CLICK-THROUGH PASSED; D-064). Its report
+and screenshots land in `e2e/out/`.

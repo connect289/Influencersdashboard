@@ -85,6 +85,30 @@ begin
       if p_value ->> 'base_url' is not null and p_value ->> 'base_url' !~ '^https://[a-z0-9.-]+(:[0-9]+)?$' then
         raise exception 'setting app: base_url must be https://host with no path' using errcode = '22023';
       end if;
+    -- The shapes the pages cast or parse (phase review m12): a bad edit must be refused here, not break a page.
+    when 'analytics' then
+      if jsonb_typeof(p_value -> 'funnel') is distinct from 'array' or jsonb_array_length(p_value -> 'funnel') not between 1 and 20
+         or exists (select 1 from jsonb_array_elements(p_value -> 'funnel') s
+                     where jsonb_typeof(s) <> 'object' or coalesce(s ->> 'key', '') !~ '^[a-z][a-z0-9_]{0,30}$'
+                        or jsonb_typeof(s -> 'label') is distinct from 'string' or length(s ->> 'label') not between 1 and 80
+                        or jsonb_typeof(s -> 'match') is distinct from 'array' or jsonb_array_length(s -> 'match') = 0
+                        or exists (select 1 from jsonb_array_elements(s -> 'match') m
+                                    where jsonb_typeof(m) <> 'object' or jsonb_typeof(m -> 'type') is distinct from 'string'
+                                       or (m ? 'app' and jsonb_typeof(m -> 'app') is distinct from 'string')))
+         or (select count(distinct s ->> 'key') from jsonb_array_elements(p_value -> 'funnel') s) <> jsonb_array_length(p_value -> 'funnel') then
+        raise exception 'setting analytics: funnel is 1 to 20 steps, each {key (a-z_), label, match: [{type, app?}]}, keys unique' using errcode = '22023';
+      end if;
+    when 'ai' then
+      if exists (select 1 from unnest(array['daily_cap_inr', 'per_task_cap_inr', 'queue_non_triage_at_pct', 'usd_inr']) k
+                  where p_value ? k and (jsonb_typeof(p_value -> k) <> 'number' or (p_value ->> k)::numeric < 0)) then
+        raise exception 'setting ai: daily_cap_inr, per_task_cap_inr, queue_non_triage_at_pct and usd_inr are numbers, 0 or more' using errcode = '22023';
+      end if;
+    when 'fixes' then
+      if (p_value ? 'observation_days' and (jsonb_typeof(p_value -> 'observation_days') <> 'number' or (p_value ->> 'observation_days')::numeric not between 1 and 90))
+         or (jsonb_typeof(p_value -> 'observation_started_at') not in ('null') and coalesce(p_value ->> 'observation_started_at', '')
+             !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?(Z|[+-][0-9]{2}(:?[0-9]{2})?)?)?$') then
+        raise exception 'setting fixes: observation_days 1–90, observation_started_at null or an ISO time' using errcode = '22023';
+      end if;
     else
       null;
   end case;

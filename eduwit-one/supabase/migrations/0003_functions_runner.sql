@@ -340,6 +340,13 @@ begin
   begin v_report := v_report || jsonb_build_object('retention', one.retention());
   exception when others then v_report := v_report || jsonb_build_object('retention_error', sqlerrm); end;
   begin
+    -- A snooze ends: the proposal is back in the queue with a fresh expiry (the builder's never expire). Before the
+    -- expiry step, so the snooze end it kept in expires_at does not expire it at once (phase review M2).
+    update one.proposals
+       set status = 'open',
+           expires_at = case when source = 'builder' then null
+                             else now() + make_interval(days => coalesce((one.setting('proposals') ->> 'expire_days')::int, 14)) end
+     where status = 'snoozed' and expires_at <= now();
     update one.proposals set status = 'expired' where status = 'open' and expires_at < now();
     v_report := v_report || jsonb_build_object('proposals_expired', true);
   exception when others then v_report := v_report || jsonb_build_object('proposals_error', sqlerrm); end;

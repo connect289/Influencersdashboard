@@ -19,6 +19,7 @@ export interface OneDb {
   appSecrets(): Promise<Record<string, string>>;
   authIssueCode(userId: string, sessionId: string): Promise<string>;
   authRecord(entry: SignInEntry): Promise<void>;
+  setupValidated(item: string, ok: boolean, detail: string, actor: string, requestId: string): Promise<number>;
 }
 
 /** One line of one.sign_in_log, written by the signed-out steps (0009). */
@@ -120,6 +121,23 @@ export class SupabaseOneDb implements OneDb {
 
   async authRecord(entry: SignInEntry) {
     await this.rpc("auth_record", { p: entry });
+  }
+
+  /** A Setup item's probe result, run by the app itself (0011 one.setup_validated); returns the checks switched on. */
+  async setupValidated(item: string, ok: boolean, detail: string, actor: string, requestId: string) {
+    const r = z
+      .object({ checks_on: z.number() })
+      .loose()
+      .parse(
+        await this.rpc("setup_validated", {
+          p_item: item,
+          p_ok: ok,
+          p_detail: detail,
+          p_actor: actor,
+          p_request_id: requestId,
+        }),
+      );
+    return r.checks_on;
   }
 
   async finishDelivery(id: number, ok: boolean, error: string | null, providerId: string | null) {

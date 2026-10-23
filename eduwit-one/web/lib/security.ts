@@ -28,6 +28,56 @@ export function isIdleExpired(lastSeen: string | undefined, nowSeconds: number, 
   return nowSeconds - seen > limit;
 }
 
+/** How long after signing in a request may arrive without the idle cookie (the first pages after the callback). */
+export const SIGN_IN_GRACE_SECONDS = 10 * 60;
+
+async function hmac(key: string, text: string): Promise<string> {
+  const k = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(text)));
+  return btoa(String.fromCharCode(...sig))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
+}
+
+/** The idle cookie's value: the last-seen time, signed and bound to this session, so it cannot be made up or reused. */
+export async function seenValue(key: string, sessionId: string, at: number): Promise<string> {
+  return `${at}.${await hmac(key, `one_seen|${sessionId}|${at}`)}`;
+}
+
+/**
+ * Whether a signed-in request is still within the idle limit (security review S5). The cookie must be this session's
+ * and signed; a missing or forged one counts as idle, except within SIGN_IN_GRACE_SECONDS of the sign-in itself (the
+ * JWT's amr time, which a token refresh does not move), when the cookie has not been set yet.
+ */
+export async function seenFresh(opts: {
+  key: string;
+  sessionId: string;
+  value: string | undefined;
+  now: number;
+  limit: number;
+  signedInAt: number | null;
+}): Promise<boolean> {
+  const { key, sessionId, value, now, limit, signedInAt } = opts;
+  const at = Number(value?.split(".")[0]);
+  if (value && Number.isFinite(at) && at > 0 && value === (await seenValue(key, sessionId, at)))
+    return now - at <= limit;
+  return signedInAt !== null && now - signedInAt >= 0 && now - signedInAt <= SIGN_IN_GRACE_SECONDS;
+}
+
+/** The latest authentication time in a Supabase JWT's amr claim (epoch seconds), or null. */
+export function signedInAt(claims: { amr?: unknown } | null | undefined): number | null {
+  const amr = Array.isArray(claims?.amr) ? (claims.amr as Array<{ timestamp?: unknown }>) : [];
+  const times = amr.map((a) => Number(a?.timestamp)).filter((t) => Number.isFinite(t) && t > 0);
+  return times.length ? Math.max(...times) : null;
+}
+
 /**
  * Content-Security-Policy for one request: scripts only with the per-request nonce; the browser talks to this app
  * alone (every database call is made by the server), so connect-src is 'self'. authOrigin is the Supabase project,

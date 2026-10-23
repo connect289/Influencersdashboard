@@ -88,7 +88,10 @@ export function PageHeader({
 export function Code({ children, className }: { children: string; className?: string }) {
   return (
     <pre
-      className={cn("max-h-96 overflow-auto rounded-md bg-surface-2 p-3 font-mono text-xs leading-relaxed", className)}
+      className={cn(
+        "max-h-96 max-w-full overflow-auto rounded-md bg-surface-2 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]",
+        className,
+      )}
     >
       {children}
     </pre>

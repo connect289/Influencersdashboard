@@ -50,7 +50,7 @@ export default async function AppPage({ params }: { params: Promise<{ app: strin
           </a>
         ))}
       />
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader title="Open incidents" />
           {!incidents || incidents.rows.length === 0 ? (
@@ -89,7 +89,7 @@ export default async function AppPage({ params }: { params: Promise<{ app: strin
           </Table>
         </Card>
       </div>
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {app.panels.map((p, n) => (
           <PanelCard key={p.id} panel={p} embed={panels[n] ?? null} />
         ))}
