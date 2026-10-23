@@ -1,0 +1,209 @@
+{
+  "$comment": "Operational defaults for one.settings (spec §18), seeded by migration 0007 through scripts/db/gen-seed.ts. Every value is editable from the Settings page and versioned; a seed never overwrites a person's edit. Owner decisions from the prerequisites doc override the spec defaults: email-only alerts (D-005), Gemini as the seeded provider (D-004).",
+  "app": {
+    "base_url": null,
+    "timezone": "Asia/Kolkata"
+  },
+  "alerts": {
+    "p1": {
+      "email": [
+        "connect@eduwit.in"
+      ],
+      "whatsapp": []
+    },
+    "channels": {
+      "email": true,
+      "whatsapp": false
+    },
+    "p2_digest_hour_ist": 18,
+    "p2_digest_min_count": 5,
+    "brief_hour_ist": 7.5,
+    "escalation": {
+      "resend_min": 30,
+      "second_contact_min": 60,
+      "repeat_min": 60,
+      "second_contact": []
+    },
+    "developer_email": null,
+    "storm": {
+      "p1_count": 10,
+      "window_min": 5,
+      "suppress_min": 15
+    },
+    "email_from": "Eduwit One <one@eduwit.in>"
+  },
+  "thresholds": {
+    "witty_p95_ms": 8000,
+    "witty_fallback_pct": 5,
+    "witty_silence_h": 3,
+    "lead_visible_min": 2,
+    "web_code_min": 2,
+    "web_lead_min": 5,
+    "allocation_min": 5,
+    "push_ack_min": 10,
+    "handoff_min": 5,
+    "writeback_min": 30,
+    "catalogue_min": 30,
+    "outbox_cadence_multiple": 3,
+    "job_silent_min": 15,
+    "heartbeat_multiple": 3
+  },
+  "fixes": {
+    "observation_days": 14,
+    "observation_started_at": null,
+    "FIX-OUTBOX-W2": {
+      "enabled": false,
+      "per_tick": 20,
+      "cooldown_min": 60
+    },
+    "FIX-CACHE-W2": {
+      "enabled": false,
+      "per_tick": 1,
+      "cooldown_min": 10
+    },
+    "FIX-N8N-RETRY": {
+      "enabled": false,
+      "per_tick": 5,
+      "cooldown_min": 15
+    },
+    "FIX-OUTBOX-B2B": {
+      "enabled": false,
+      "per_tick": 50,
+      "cooldown_min": 60
+    },
+    "FIX-CURSOR-B2C": {
+      "enabled": false,
+      "per_tick": 1,
+      "cooldown_min": 10
+    },
+    "FIX-WEBHOOK-REKICK": {
+      "enabled": false,
+      "per_tick": 1,
+      "cooldown_min": 5
+    },
+    "FIX-INBOX-RETRY": {
+      "enabled": false,
+      "per_tick": 1,
+      "cooldown_min": 5
+    },
+    "FIX-OUTBOX-B2C": {
+      "enabled": false,
+      "per_tick": 1,
+      "cooldown_min": 5
+    },
+    "FIX-OUTBOX-WEB": {
+      "enabled": false,
+      "per_tick": 50,
+      "cooldown_min": 5
+    },
+    "FIX-CATALOG-POLL": {
+      "enabled": false,
+      "per_tick": 1,
+      "cooldown_min": 5
+    },
+    "FIX-CACHE-B2C": {
+      "enabled": false,
+      "per_tick": 1,
+      "cooldown_min": 15
+    }
+  },
+  "ai": {
+    "provider": {
+      "quick": "gemini",
+      "regular": "gemini",
+      "deep": "gemini"
+    },
+    "models": {
+      "gemini": {
+        "quick": "gemini-3.6-flash",
+        "regular": "gemini-3.6-flash",
+        "deep": null
+      },
+      "anthropic": {
+        "quick": "claude-haiku-4-5-20251001",
+        "regular": "claude-sonnet-5-5",
+        "deep": "claude-opus-5-5"
+      }
+    },
+    "fallback_when_model_missing": "regular",
+    "routing": {
+      "classify": "quick",
+      "triage": "regular",
+      "explain": "deep",
+      "propose_fix": "regular",
+      "propose_fix_high_risk": "deep",
+      "propose_feature": "deep",
+      "brief": "regular",
+      "ask": "regular",
+      "test_author": "regular"
+    },
+    "daily_cap_inr": 500,
+    "per_task_cap_inr": 50,
+    "queue_non_triage_at_pct": 80,
+    "usd_inr": 85,
+    "allow_message_excerpts": false
+  },
+  "tests": {
+    "purge_after_days": 2,
+    "schedules": {
+      "T-WITTY-TURN": "*/30 * * * *",
+      "T-WITTY-QUALIFY": "0 * * * *",
+      "T-WEB-ENQUIRY": "*/30 * * * *",
+      "T-WEB-CATALOG": "0 * * * *",
+      "T-WEB-ADVISOR": "0 * * * *",
+      "T-B2B-INTAKE": "0 * * * *",
+      "T-B2B-PUSH": "0 * * * *",
+      "T-HANDOFF": "0 */2 * * *",
+      "T-B2C-NURTURE": "0 3 * * *",
+      "T-INFLUENCER": "0 4 * * *",
+      "T-ALERT": "0 5 * * *"
+    }
+  },
+  "events": {
+    "batch": 5000,
+    "pii_columns": [
+      "student_name",
+      "whatsapp_number",
+      "email_id",
+      "phone",
+      "email",
+      "full_name",
+      "guardian_name",
+      "guardian_phone",
+      "guardian_email",
+      "alternate_phone",
+      "ip",
+      "ip_address",
+      "content",
+      "body",
+      "raw",
+      "phone_e164",
+      "email_norm",
+      "to_address",
+      "account_email"
+    ]
+  },
+  "witty": {
+    "expect_nurture": false,
+    "expect_learning": false
+  },
+  "n8n": {
+    "witty_workflow_id": "PKPs7tXg9bej8AgX",
+    "test_harness_workflow_id": "1BGAINw5XDkSHb2q",
+    "nurture_workflow_id": "XwmALPxBduLDxUBn",
+    "learning_workflow_id": "pJSJIXCUykI0F5sj"
+  },
+  "retention": {
+    "results_days": 90,
+    "events_days": 180,
+    "ai_calls_days": 365
+  },
+  "proposals": {
+    "expire_days": 14,
+    "approvers": []
+  },
+  "whatsapp": {
+    "waba_ids": [],
+    "alert_phone_id": null
+  }
+}

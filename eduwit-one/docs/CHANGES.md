@@ -13,4 +13,7 @@ followed.
 - First run: 13 verified, 12 not provided, 1 refused (Lightsail), 5 unfilled. Results are in `docs/PREFLIGHT.md`, and
   the seed for `one.settings.setup` is in `supabase/seed/setup.json`.
 - Logo saved as `web/public/brand/eduwit-logo-source.jpg`; palette navy `#072E59`, amber `#F2A505`.
-- No database, Vault, Vercel or n8n object was created or changed. All reads were read-only.
+- No database, Vault, Vercel or n8n object was created or changed. One probe's call is counted by the B2B CRM's own
+  key-usage audit (`b2b.api_key_usage`, D-021); every other call was a read.
+- Fresh review fixes (`docs/reviews/phase-0.md`): no psql output or URL credentials can reach a report, presence-only
+  identities are "unfilled", dated connector evidence, refused rows always carry a fix, a Meta probe.

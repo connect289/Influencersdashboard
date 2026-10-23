@@ -1,36 +1,320 @@
 {
   "$comment": "The Setup checklist (spec §15). One entry per deferrable item: who fills it, where the value lives, and which checks, tests, fixes and heartbeats it unblocks. scripts/preflight.ts writes a status per item into supabase/seed/setup.json; migration 0007 loads that into one.settings.setup; the Setup page (phase 4) renders this list with a validate button per item.",
   "items": [
-    { "id": "github", "title": "Monorepo access", "who": "owner", "stores": "connector", "unblocks": ["build"] },
-    { "id": "supabase_prod", "title": "Production database read (connector)", "who": "owner", "stores": "connector", "unblocks": ["all SQL checks"] },
-    { "id": "supabase_prod_dump", "title": "Production connection string for pg_dump and psql apply", "who": "owner", "stores": "env:ONE_PROD_DB_URL (build session only)", "unblocks": ["phase 1 production apply"] },
-    { "id": "supabase_staging", "title": "Staging project for rehearsals", "who": "owner", "stores": "connector", "unblocks": ["scripts/db/rehearse.sh"] },
-    { "id": "supabase_advisors", "title": "Supabase security advisors and logs", "who": "owner", "stores": "connector", "unblocks": ["PLAT-06"] },
-    { "id": "n8n_api", "title": "n8n base URL and API key for the app", "who": "developer", "stores": "vault:one_n8n_key + settings.hosts.n8n", "unblocks": ["WITTY-02", "WITTY-08", "WITTY-09", "FIX-N8N-RETRY", "FIX-CACHE-W2", "HB n8n:PKPs7tXg9bej8AgX", "HB n8n:instance", "T-WITTY-QUALIFY"] },
-    { "id": "lightsail", "title": "AWS Lightsail read access (n8n and Chatwoot server)", "who": "developer", "stores": "vercel env ONE_AWS_*", "unblocks": ["HB lightsail:n8n-chatwoot"] },
-    { "id": "chatwoot", "title": "Chatwoot API token and account id", "who": "developer", "stores": "vault:one_chatwoot_token + settings.chatwoot.account_id", "unblocks": ["WITTY-03", "WITTY-05", "HB chatwoot", "T-WITTY-TURN"] },
-    { "id": "vercel", "title": "Vercel token for the eduwit team", "who": "developer", "stores": "vault:one_vercel_token", "unblocks": ["WEB-07", "HB vercel:website", "HB vercel:one"] },
-    { "id": "spark_job_key", "title": "Spark base URL and b2c_internal_key (b2c.app_deploy_set)", "who": "developer", "stores": "b2c.settings app.base_url + vault:b2c_internal_key", "unblocks": ["PLAT-05 (b2c part)", "HB spark", "FIX-OUTBOX-B2C"] },
-    { "id": "b2b_app", "title": "B2B CRM host and a referrals-only API key", "who": "developer", "stores": "settings.hosts.b2b_app + vault:one_b2b_read_key", "unblocks": ["HB b2b-app", "Apps / B2B deep links"] },
-    { "id": "website_health", "title": "Website public health endpoint", "who": "developer", "stores": "settings.hosts.website", "unblocks": ["WEB-02", "HB website"] },
-    { "id": "influencer_portal", "title": "Influencer portal host and health endpoint", "who": "developer", "stores": "settings.hosts.influencer", "unblocks": ["INF-04", "HB influencer"] },
-    { "id": "whatsapp", "title": "WhatsApp system-user token and WABA ids", "who": "developer", "stores": "vault:one_whatsapp_token + settings.whatsapp.waba_ids", "unblocks": ["B2C-06 (template and quality parts)", "HB whatsapp:witty", "HB whatsapp:b2c"] },
-    { "id": "meta", "title": "Meta ad-account read token", "who": "developer", "stores": "vault:one_meta_token", "unblocks": ["HB meta", "Marketing spend tiles"] },
-    { "id": "email", "title": "Email provider for alerts (Resend)", "who": "developer", "stores": "vault:one_email_key", "unblocks": ["alert delivery", "T-ALERT"] },
-    { "id": "uptimerobot", "title": "UptimeRobot read-only API key (external watchdog)", "who": "developer", "stores": "vault:one_uptimerobot_key", "unblocks": ["watchdog for one:tick and one:app", "HB from external monitors"] },
-    { "id": "ai_key", "title": "Model provider key for the AI layer", "who": "owner", "stores": "vault:one_gemini_key or vault:one_anthropic_key", "unblocks": ["classify", "triage", "explain", "propose_fix", "propose_feature", "brief", "ask", "test_author"] },
-    { "id": "sentry", "title": "Sentry", "who": "owner", "stores": "none", "unblocks": [] },
-    { "id": "alerts_p1_inbox", "title": "P1 email inbox", "who": "owner", "stores": "settings.alerts.p1.email", "unblocks": ["P1 delivery"] },
-    { "id": "alerts_second_contact", "title": "Second P1 contact (60 min unacknowledged)", "who": "owner", "stores": "settings.alerts.escalation.second_contact", "unblocks": ["second-level escalation"] },
-    { "id": "developer_contact", "title": "Developer email and GitHub handle", "who": "owner", "stores": "settings.alerts.developer_email", "unblocks": ["developer-tagged alerts", "GitHub issues"] },
-    { "id": "test_whatsapp_number", "title": "Real test WhatsApp number in w2_trusted (is_test)", "who": "developer", "stores": "settings.test_identities.whatsapp_number", "unblocks": ["T-WITTY-TURN", "T-INFLUENCER"] },
-    { "id": "test_mailbox", "title": "Test mailbox that receives website codes and alert tests", "who": "developer", "stores": "settings.test_identities.mailbox + vault:one_test_mailbox_key", "unblocks": ["T-WEB-ENQUIRY", "T-ALERT"] },
-    { "id": "test_preview_url", "title": "Website preview URL with Turnstile test keys", "who": "developer", "stores": "settings.test_identities.website_preview_url", "unblocks": ["T-WEB-ENQUIRY", "T-WEB-ADVISOR"] },
-    { "id": "test_spark_user", "title": "Spark counsellor marked is_test_user", "who": "developer", "stores": "settings.test_identities.spark_test_user_email", "unblocks": ["T-HANDOFF", "T-B2C-NURTURE"] },
-    { "id": "test_b2b_intake_key", "title": "B2B API key scoped to intake for test leads", "who": "developer", "stores": "vault:one_b2b_intake_key", "unblocks": ["T-B2B-INTAKE", "T-B2B-PUSH", "T-HANDOFF"] },
-    { "id": "test_partner", "title": "Test partner with sandbox adapter (partners.test_endpoint)", "who": "developer", "stores": "settings.test_identities.partner_slug", "unblocks": ["T-B2B-PUSH", "T-HANDOFF"] },
-    { "id": "test_creator", "title": "Test creator with a known referral code", "who": "developer", "stores": "settings.test_identities.creator_referral_code", "unblocks": ["T-INFLUENCER"] },
-    { "id": "test_rows_agreement", "title": "Owner agreement to create and purge test rows in production", "who": "owner", "stores": "docs/DECISIONS.md", "unblocks": ["all synthetic tests"] },
-    { "id": "brand_assets", "title": "Eduwit logo and colour palette", "who": "owner", "stores": "web/public/brand", "unblocks": ["UI theme", "alert email wordmark"] }
+    {
+      "id": "github",
+      "title": "Monorepo access",
+      "who": "owner",
+      "stores": "connector",
+      "unblocks": [
+        "build"
+      ]
+    },
+    {
+      "id": "supabase_prod",
+      "title": "Production database read (connector)",
+      "who": "owner",
+      "stores": "connector",
+      "unblocks": [
+        "all SQL checks"
+      ]
+    },
+    {
+      "id": "supabase_prod_dump",
+      "title": "Production connection string for pg_dump and psql apply",
+      "who": "owner",
+      "stores": "env:ONE_PROD_DB_URL (build session only)",
+      "unblocks": [
+        "phase 1 production apply"
+      ]
+    },
+    {
+      "id": "supabase_staging",
+      "title": "Staging project for rehearsals",
+      "who": "owner",
+      "stores": "connector",
+      "unblocks": [
+        "scripts/db/rehearse.sh"
+      ]
+    },
+    {
+      "id": "supabase_advisors",
+      "title": "Supabase security advisors and logs",
+      "who": "owner",
+      "stores": "connector",
+      "unblocks": [
+        "PLAT-06"
+      ]
+    },
+    {
+      "id": "n8n_api",
+      "title": "n8n base URL and API key for the app",
+      "who": "developer",
+      "stores": "vault:one_n8n_key + settings.hosts.n8n",
+      "unblocks": [
+        "WITTY-02",
+        "WITTY-08",
+        "WITTY-09",
+        "FIX-N8N-RETRY",
+        "FIX-CACHE-W2",
+        "HB n8n:PKPs7tXg9bej8AgX",
+        "HB n8n:instance",
+        "T-WITTY-QUALIFY"
+      ]
+    },
+    {
+      "id": "lightsail",
+      "title": "AWS Lightsail read access (n8n and Chatwoot server)",
+      "who": "developer",
+      "stores": "vercel env ONE_AWS_*",
+      "unblocks": [
+        "HB lightsail:n8n-chatwoot"
+      ]
+    },
+    {
+      "id": "chatwoot",
+      "title": "Chatwoot API token and account id",
+      "who": "developer",
+      "stores": "vault:one_chatwoot_token + settings.chatwoot.account_id",
+      "unblocks": [
+        "WITTY-03",
+        "WITTY-05",
+        "HB chatwoot",
+        "T-WITTY-TURN"
+      ]
+    },
+    {
+      "id": "vercel",
+      "title": "Vercel token for the eduwit team",
+      "who": "developer",
+      "stores": "vault:one_vercel_token",
+      "unblocks": [
+        "WEB-07",
+        "HB vercel:website",
+        "HB vercel:one"
+      ]
+    },
+    {
+      "id": "spark_job_key",
+      "title": "Spark base URL and b2c_internal_key (b2c.app_deploy_set)",
+      "who": "developer",
+      "stores": "b2c.settings app.base_url + vault:b2c_internal_key",
+      "unblocks": [
+        "PLAT-05 (b2c part)",
+        "HB spark",
+        "FIX-OUTBOX-B2C"
+      ]
+    },
+    {
+      "id": "b2b_app",
+      "title": "B2B CRM host and a read API key (target: referrals-only)",
+      "who": "developer",
+      "stores": "settings.hosts.b2b_app + vault:one_b2b_read_key",
+      "unblocks": [
+        "HB b2b-app",
+        "Apps / B2B deep links"
+      ]
+    },
+    {
+      "id": "website_health",
+      "title": "Website public health endpoint",
+      "who": "developer",
+      "stores": "settings.hosts.website",
+      "unblocks": [
+        "WEB-02",
+        "HB website"
+      ]
+    },
+    {
+      "id": "influencer_portal",
+      "title": "Influencer portal host and health endpoint",
+      "who": "developer",
+      "stores": "settings.hosts.influencer",
+      "unblocks": [
+        "INF-04",
+        "HB influencer"
+      ]
+    },
+    {
+      "id": "whatsapp",
+      "title": "WhatsApp system-user token and WABA ids",
+      "who": "developer",
+      "stores": "vault:one_whatsapp_token + settings.whatsapp.waba_ids",
+      "unblocks": [
+        "B2C-06 (template and quality parts)",
+        "HB whatsapp:witty",
+        "HB whatsapp:b2c"
+      ]
+    },
+    {
+      "id": "meta",
+      "title": "Meta ad-account read token",
+      "who": "developer",
+      "stores": "vault:one_meta_token",
+      "unblocks": [
+        "HB meta",
+        "Marketing spend tiles"
+      ]
+    },
+    {
+      "id": "email",
+      "title": "Email provider for alerts (Resend)",
+      "who": "developer",
+      "stores": "vault:one_email_key",
+      "unblocks": [
+        "alert delivery",
+        "T-ALERT"
+      ]
+    },
+    {
+      "id": "uptimerobot",
+      "title": "UptimeRobot read-only API key (external watchdog)",
+      "who": "developer",
+      "stores": "vault:one_uptimerobot_key",
+      "unblocks": [
+        "watchdog for one:tick and one:app",
+        "HB from external monitors"
+      ]
+    },
+    {
+      "id": "ai_key",
+      "title": "Model provider key for the AI layer",
+      "who": "owner",
+      "stores": "vault:one_gemini_key or vault:one_anthropic_key",
+      "unblocks": [
+        "classify",
+        "triage",
+        "explain",
+        "propose_fix",
+        "propose_feature",
+        "brief",
+        "ask",
+        "test_author"
+      ]
+    },
+    {
+      "id": "sentry",
+      "title": "Sentry",
+      "who": "owner",
+      "stores": "none",
+      "unblocks": []
+    },
+    {
+      "id": "alerts_p1_inbox",
+      "title": "P1 email inbox",
+      "who": "owner",
+      "stores": "settings.alerts.p1.email",
+      "unblocks": [
+        "P1 delivery"
+      ]
+    },
+    {
+      "id": "alerts_second_contact",
+      "title": "Second P1 contact (60 min unacknowledged)",
+      "who": "owner",
+      "stores": "settings.alerts.escalation.second_contact",
+      "unblocks": [
+        "second-level escalation"
+      ]
+    },
+    {
+      "id": "developer_contact",
+      "title": "Developer email and GitHub handle",
+      "who": "owner",
+      "stores": "settings.alerts.developer_email",
+      "unblocks": [
+        "developer-tagged alerts",
+        "GitHub issues"
+      ]
+    },
+    {
+      "id": "test_whatsapp_number",
+      "title": "Real test WhatsApp number in w2_trusted (is_test)",
+      "who": "developer",
+      "stores": "settings.test_identities.whatsapp_number",
+      "unblocks": [
+        "T-WITTY-TURN",
+        "T-INFLUENCER"
+      ]
+    },
+    {
+      "id": "test_mailbox",
+      "title": "Test mailbox that receives website codes and alert tests",
+      "who": "developer",
+      "stores": "settings.test_identities.mailbox + vault:one_test_mailbox_key",
+      "unblocks": [
+        "T-WEB-ENQUIRY",
+        "T-ALERT"
+      ]
+    },
+    {
+      "id": "test_preview_url",
+      "title": "Website preview URL with Turnstile test keys",
+      "who": "developer",
+      "stores": "settings.test_identities.website_preview_url",
+      "unblocks": [
+        "T-WEB-ENQUIRY",
+        "T-WEB-ADVISOR"
+      ]
+    },
+    {
+      "id": "test_spark_user",
+      "title": "Spark counsellor marked is_test_user",
+      "who": "developer",
+      "stores": "settings.test_identities.spark_test_user_email",
+      "unblocks": [
+        "T-HANDOFF",
+        "T-B2C-NURTURE"
+      ]
+    },
+    {
+      "id": "test_b2b_intake_key",
+      "title": "B2B API key scoped to intake for test leads",
+      "who": "developer",
+      "stores": "vault:one_b2b_intake_key",
+      "unblocks": [
+        "T-B2B-INTAKE",
+        "T-B2B-PUSH",
+        "T-HANDOFF"
+      ]
+    },
+    {
+      "id": "test_partner",
+      "title": "Test partner with sandbox adapter (partners.test_endpoint)",
+      "who": "developer",
+      "stores": "settings.test_identities.partner_slug",
+      "unblocks": [
+        "T-B2B-PUSH",
+        "T-HANDOFF"
+      ]
+    },
+    {
+      "id": "test_creator",
+      "title": "Test creator with a known referral code",
+      "who": "developer",
+      "stores": "settings.test_identities.creator_referral_code",
+      "unblocks": [
+        "T-INFLUENCER"
+      ]
+    },
+    {
+      "id": "test_rows_agreement",
+      "title": "Owner agreement to create and purge test rows in production",
+      "who": "owner",
+      "stores": "docs/DECISIONS.md",
+      "unblocks": [
+        "all synthetic tests"
+      ]
+    },
+    {
+      "id": "brand_assets",
+      "title": "Eduwit logo and colour palette",
+      "who": "owner",
+      "stores": "web/public/brand",
+      "unblocks": [
+        "UI theme",
+        "alert email wordmark"
+      ]
+    }
   ]
 }

@@ -30,7 +30,8 @@
     "graph_api": "https://graph.facebook.com/v21.0",
     "github_api": "https://api.github.com",
     "gemini_api": "https://generativelanguage.googleapis.com/v1beta",
-    "anthropic_api": "https://api.anthropic.com/v1"
+    "anthropic_api": "https://api.anthropic.com/v1",
+    "lightsail_api": "https://lightsail.{region}.amazonaws.com"
   },
   "vercel": {
     "team": "eduwit",
@@ -56,11 +57,6 @@
     "domain": "eduwit.in",
     "from": "Eduwit One <one@eduwit.in>"
   },
-  "alerts": {
-    "p1_email": ["connect@eduwit.in"],
-    "second_contact": [],
-    "developer_email": null
-  },
   "test_identities": {
     "phone_prefix": "910000",
     "whatsapp_number": null,
@@ -70,5 +66,17 @@
     "partner_slug": null,
     "creator_referral_code": null
   },
-  "required_repo_folders": ["b2b-crm", "b2c-crm", "influencer-portal", "website"]
+  "required_repo_folders": [
+    "b2b-crm",
+    "b2c-crm",
+    "influencer-portal",
+    "website"
+  ],
+  "chatwoot": {
+    "account_id": "1"
+  },
+  "preflight": {
+    "b2b_probe_referral_code": "EDUWITONEPREFLIGHT",
+    "connector_evidence_max_age_days": 7
+  }
 }

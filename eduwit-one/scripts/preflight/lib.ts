@@ -1,31 +1,33 @@
-// Shared helpers for the access preflight. No vendor SDKs, no dependencies: plain fetch and node:crypto,
-// so the script runs anywhere Node 22 runs. Nothing here ever prints or returns a secret value.
+// Shared helpers for the access preflight. No vendor SDKs, no dependencies: plain fetch and node:crypto, so the
+// script runs anywhere Node 22 runs. Nothing here may print or return a secret value: URLs are reduced to origin and
+// path before they reach a report, and errors are reduced to a code, never a message (a message can quote input).
 import { createHash, createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 export type Status = "verified" | "refused" | "not_provided" | "unfilled";
 
-export type Row = {
-  id: string;
-  status: Status;
-  ran: string;
-  detail: string;
-  fix?: string;
-};
+type RowBase = { id: string; ran: string; detail: string };
+/** A refused row always says how to fix it (phase 0 criterion); other statuses may. */
+export type Row =
+  | (RowBase & { status: "refused"; fix: string })
+  | (RowBase & { status: "verified" | "not_provided" | "unfilled"; fix?: string });
 
 export type HttpResult = { status: number; body: unknown; error?: string };
 
 export type HostKey = "website" | "website_internal" | "spark" | "b2b_app" | "influencer" | "chatwoot" | "n8n" | "one";
+type VendorKey = "vercel_api" | "uptimerobot_api" | "resend_api" | "graph_api" | "github_api" | "gemini_api" | "anthropic_api" | "lightsail_api";
 
 export type Defaults = {
   repo: string;
   hosts: Record<HostKey, string>;
   health_paths: Partial<Record<HostKey, string>>;
-  vendors: Record<"vercel_api" | "uptimerobot_api" | "resend_api" | "graph_api" | "github_api" | "gemini_api" | "anthropic_api", string>;
+  vendors: Record<VendorKey, string>;
   vercel: { team: string; projects: Record<string, string> };
   n8n: Record<"witty_workflow_id" | "test_harness_workflow_id" | "nurture_workflow_id" | "learning_workflow_id", string>;
   aws: { lightsail_default_region: string };
   email: { domain: string };
+  chatwoot: { account_id: string | null };
+  preflight: { b2b_probe_referral_code: string; connector_evidence_max_age_days: number };
   test_identities: Record<string, string | null>;
   required_repo_folders: string[];
 };
@@ -44,10 +46,28 @@ export function env(...names: string[]): string | undefined {
   return undefined;
 }
 
+/** Origin and path only: drops credentials, query and fragment, so a report can never carry a token from a URL. */
+export function safeUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return "(invalid URL)";
+  }
+}
+
+export function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "(invalid host)";
+  }
+}
+
 function errorCode(e: unknown): string {
-  const cause = (e as { cause?: { code?: string; message?: string } }).cause;
-  if (cause?.code) return cause.code;
-  if (e instanceof Error) return e.name === "TimeoutError" ? "timeout" : e.message.slice(0, 80);
+  const cause = (e as { cause?: { code?: unknown } }).cause;
+  if (typeof cause?.code === "string") return cause.code;
+  if (e instanceof Error) return e.name === "TimeoutError" ? "timeout" : e.name;
   return "error";
 }
 
@@ -67,26 +87,29 @@ export async function http(url: string, init: RequestInit = {}, timeoutMs = 15_0
   }
 }
 
-/** A failed connection from the build environment is usually its network policy, not the credential. */
-export function unreachable(result: HttpResult, host: string): Row["fix"] {
+/**
+ * The fix note for a refused row. A failed connection from the build environment is usually its network policy,
+ * not the credential; otherwise the caller's own fix applies.
+ */
+export function refusedFix(result: HttpResult, host: string, otherwise: string): string {
   return result.status === 0
     ? `could not connect (${result.error ?? "error"}); allow ${host} in the environment's network settings, or run the preflight from the deployed app`
-    : undefined;
+    : otherwise;
 }
 
-export function hostOf(url: string): string {
-  return new URL(url).host;
+/** "could not read X (HTTP n)" for a follow-up call that failed; such a failure never produces a fix suggestion. */
+export function unread(what: string, result: HttpResult): string | undefined {
+  return result.status >= 200 && result.status < 300 ? undefined : `could not read ${what} (HTTP ${result.status || result.error})`;
 }
 
 const sha256 = (data: string): string => createHash("sha256").update(data).digest("hex");
 const hmac = (key: Buffer | string, data: string): Buffer => createHmac("sha256", key).update(data).digest();
 
 /** SigV4-signed JSON call to the Lightsail API (X-Amz-Target protocol). */
-export async function lightsail(action: string, region: string, accessKey: string, secretKey: string): Promise<HttpResult> {
-  const host = `lightsail.${region}.amazonaws.com`;
+export async function lightsail(apiTemplate: string, action: string, region: string, accessKey: string, secretKey: string): Promise<HttpResult> {
+  const host = hostOf(apiTemplate.replace("{region}", region));
   const body = "{}";
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const amzDate = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const day = amzDate.slice(0, 8);
   const headers: Record<string, string> = {
     "content-type": "application/x-amz-json-1.1",
