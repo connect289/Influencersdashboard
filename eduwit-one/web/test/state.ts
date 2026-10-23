@@ -65,7 +65,7 @@ export class FakeDb implements OneDb {
   }
 
   async watchdog() {
-    return { tick_age_s: 10, app_age_s: 20 };
+    return { tick_age_s: 10, app_age_s: 20, delivery_wait_s: null };
   }
 
   deliveries: unknown[] = [];

@@ -62,7 +62,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'The B2B CRM raised an alert or routing error event',
-  'description', 'A b2b.events row of type alert.* or routing.error since this check last ran (2 min on the first run).',
+  'description', 'A b2b.events row of type alert.* or routing.error in the last b2b_alert_window_min minutes (15). A fixed window, not "since the last run": an event whose transaction commits after a run started, or that lands in a minute the check was skipped, is still seen (M6 of the second review). Each event id is a subject, so a new event alerts again while the incident is open.',
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', true,
@@ -70,10 +70,12 @@ select one.seed_check(jsonb_build_object(
   'search_path', '',
   'sql', $sql$
 select count(*) = 0 as ok,
-       jsonb_build_object('count', count(*), 'types', coalesce(jsonb_agg(distinct e.type), '[]'), 'ids', coalesce(to_jsonb((array_agg(e.id order by e.id) filter (where e.id is not null))[1:20]), '[]')) as value
+       jsonb_build_object('count', count(*), 'types', coalesce(jsonb_agg(distinct e.type), '[]'),
+                          'ids', coalesce(to_jsonb((array_agg(e.id order by e.id desc) filter (where e.id is not null))[1:20]), '[]'),
+                          'subjects', coalesce(to_jsonb((array_agg(e.id::text order by e.id desc) filter (where e.id is not null))[1:50]), '[]')) as value
   from b2b.events e
  where (e.type like 'alert.%' or e.type = 'routing.error')
-   and e.occurred_at > coalesce((select s.last_ran_at from one.check_state s where s.check_id = 'B2B-02'), now() - interval '2 minutes')
+   and e.occurred_at > now() - make_interval(mins => (select one.threshold('b2b_alert_window_min'))::int)
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -98,7 +100,7 @@ select count(*) = 0 as ok,
   from b2b.intake_requests
  where not coalesce(is_test, false)
    and ((status = 'error' and received_at > now() - interval '24 hours')
-        or (status = 'received' and received_at < now() - make_interval(mins => one.threshold('b2b_intake_received_min')::int)))
+        or (status = 'received' and received_at < now() - make_interval(mins => (select one.threshold('b2b_intake_received_min'))::int)))
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -120,7 +122,7 @@ select one.seed_check(jsonb_build_object(
 select count(*) = 0 as ok, jsonb_build_object('count', count(*), 'lead_ids', coalesce(to_jsonb((array_agg(id order by id) filter (where id is not null))[1:20]), '[]')) as value
   from public.student_leads
  where is_sales_ready and not coalesce(is_test, false) and deleted_at is null and merged_into_id is null and allocation_id is null
-   and coalesce(sales_ready_at, created_at) < now() - make_interval(mins => one.threshold('allocation_min')::int)
+   and coalesce(sales_ready_at, created_at) < now() - make_interval(mins => (select one.threshold('allocation_min'))::int)
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -142,14 +144,14 @@ select one.seed_check(jsonb_build_object(
 with stuck as (
   select id from b2b.allocations
    where status in ('queued', 'pushing') and not coalesce(is_test, false)
-     and updated_at < now() - make_interval(mins => one.threshold('push_ack_min')::int)),
+     and updated_at < now() - make_interval(mins => (select one.threshold('push_ack_min'))::int)),
 streaks as (
   select p.allocation_id from (
     select allocation_id, status_code, row_number() over (partition by allocation_id order by id desc) as rn
       from b2b.push_requests where sent_at > now() - interval '7 days') p
    group by p.allocation_id
-  having count(*) filter (where p.rn <= one.threshold('push_fail_streak')) = one.threshold('push_fail_streak')
-     and bool_and(p.rn > one.threshold('push_fail_streak') or coalesce(p.status_code, 0) not between 200 and 299))
+  having count(*) filter (where p.rn <= (select one.threshold('push_fail_streak'))) = (select one.threshold('push_fail_streak'))
+     and bool_and(p.rn > (select one.threshold('push_fail_streak')) or coalesce(p.status_code, 0) not between 200 and 299))
 select (select count(*) from stuck) = 0 and (select count(*) from streaks) = 0 as ok,
        jsonb_build_object('stuck', (select coalesce(jsonb_agg(id order by id), '[]') from stuck),
                           'failing_streaks', (select coalesce(jsonb_agg(allocation_id order by allocation_id), '[]') from streaks)) as value
@@ -195,7 +197,7 @@ select one.seed_check(jsonb_build_object(
   'sql', $sql$
 with lag as (
   select s.lead_id from b2b.b2c_sync s left join b2c.lead_records r on r.lead_id = s.lead_id
-   where s.in_scope and s.changed_at < now() - make_interval(mins => one.threshold('b2b_sync_lag_min')::int)
+   where s.in_scope and s.changed_at < now() - make_interval(mins => (select one.threshold('b2b_sync_lag_min'))::int)
      and s.version is distinct from r.version),
 writes as (select id from b2b.b2c_writes where http_status >= 400 and created_at > now() - interval '1 hour')
 select (select count(*) from lag) = 0 and (select count(*) from writes) = 0 as ok,
@@ -254,9 +256,9 @@ select one.seed_check(jsonb_build_object(
   'search_path', '',
   'sql', $sql$
 with v as (
-  select (select count(*) from b2b.mapping_queue where status = 'open' and first_seen < now() - make_interval(hours => one.threshold('partner_queue_h')::int)) as mapping_open,
+  select (select count(*) from b2b.mapping_queue where status = 'open' and first_seen < now() - make_interval(hours => (select one.threshold('partner_queue_h'))::int)) as mapping_open,
          (select count(*) from b2b.partner_events where status = 'error' and received_at > now() - interval '24 hours') as partner_event_errors,
-         (select count(*) from b2b.review_flags where resolved_at is null and created_at < now() - make_interval(hours => one.threshold('partner_queue_h')::int)) as review_flags_open)
+         (select count(*) from b2b.review_flags where resolved_at is null and created_at < now() - make_interval(hours => (select one.threshold('partner_queue_h'))::int)) as review_flags_open)
 select mapping_open + partner_event_errors + review_flags_open = 0 as ok, to_jsonb(v) as value from v
 $sql$));
 
@@ -284,10 +286,10 @@ runs as (
   select partner_id from (
     select partner_id, status, row_number() over (partition by partner_id order by coalesce(met_at, breached_at, updated_at) desc) as rn
       from b2b.sla_checks where not coalesce(is_test, false) and status in ('met', 'met_late', 'breached')) s
-   where rn <= one.threshold('sla_met_late_run')
-   group by partner_id having count(*) = one.threshold('sla_met_late_run') and bool_and(status = 'met_late'))
+   where rn <= (select one.threshold('sla_met_late_run'))
+   group by partner_id having count(*) = (select one.threshold('sla_met_late_run')) and bool_and(status = 'met_late'))
 select ((select count(*) from today) < 10
-         or (select count(*) filter (where status = 'breached') * 100.0 / count(*) from today) <= one.threshold('sla_breach_pct'))
+         or (select count(*) filter (where status = 'breached') * 100.0 / count(*) from today) <= (select one.threshold('sla_breach_pct')))
        and (select count(*) from runs) = 0 as ok,
        jsonb_build_object('decided_today', (select count(*) from today),
                           'breached_today', (select count(*) filter (where status = 'breached') from today),
@@ -331,7 +333,7 @@ select one.seed_check(jsonb_build_object(
   'search_path', '',
   'sql', $sql$
 with v as (
-  select (select count(*) from b2b.admin_messages where status <> 'sent' and status <> 'skipped' and attempts >= one.threshold('admin_message_attempts')
+  select (select count(*) from b2b.admin_messages where status <> 'sent' and status <> 'skipped' and attempts >= (select one.threshold('admin_message_attempts'))
             and created_at > now() - interval '7 days') as admin_messages_failing,
          (select count(*) from b2b.conversion_events c
            where c.status in ('failed', 'dead') and not coalesce(c.is_test, false) and c.created_at > now() - interval '24 hours'
@@ -395,16 +397,19 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'Spark''s timers or its answers to them are failing',
-  'description', 'Direct read of system_health''s "timers" and "app" checks: no b2c-* job at all, a b2c-* job whose latest run failed (startup timeouts excluded, see PLAT-01B; b2c-capacity left to B2C-10), or a Spark job call answered with an error status in the last hour.',
+  'description', 'Direct read of system_health''s "timers" and "app" checks: no b2c-* job at all, a b2c-* job whose latest finished run failed (a run in progress is ignored; startup timeouts excluded, see PLAT-01B; b2c-capacity left to B2C-10), or a Spark job call answered with an error status in the last hour. Reads the newest cron_scan_runs runs through the runid key (M3, M7 of the second review).',
   'auto_fix_id', null,
   'tags', '["cron"]'::jsonb,
   'enabled', true,
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-with jobs as (
-  select j.jobname, (select d.status from cron.job_run_details d where d.jobid = j.jobid and d.return_message is distinct from 'job startup timeout'
-                      order by d.start_time desc limit 1) as last_status
+with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
+jobs as (
+  select j.jobname, (select d.status from cron.job_run_details d, w
+                      where d.jobid = j.jobid and d.runid > w.from_runid and d.status in ('succeeded', 'failed')
+                        and d.return_message is distinct from 'job startup timeout'
+                      order by d.runid desc limit 1) as last_status
     from cron.job j where j.jobname like 'b2c-%' and j.jobname <> 'b2c-capacity' and j.active),
 calls as (
   select count(*) as failed from b2c.job_calls c, jsonb_array_elements(c.calls) e join net._http_response r on r.id = (e ->> 'id')::bigint
@@ -435,7 +440,7 @@ select one.seed_check(jsonb_build_object(
 select count(*) = 0 as ok,
        jsonb_build_object('error', count(*) filter (where status = 'error'), 'stuck', count(*) filter (where status = 'stored'), 'oldest_at', min(received_at)) as value
   from b2c.inbox
- where status = 'error' or (status = 'stored' and received_at < now() - make_interval(mins => one.threshold('b2c_inbox_min')::int))
+ where status = 'error' or (status = 'stored' and received_at < now() - make_interval(mins => (select one.threshold('b2c_inbox_min'))::int))
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -458,7 +463,7 @@ select count(*) = 0 as ok,
        jsonb_build_object('count', count(*), 'by_status', coalesce(jsonb_object_agg(status, n), '{}'), 'urgent', coalesce(sum(n) filter (where urgent), 0)) as value
   from (select status, urgent, count(*) as n from b2c.outbox
          where status <> 'applied' and created_at > now() - interval '7 days'
-           and created_at < now() - make_interval(mins => (case when urgent then one.threshold('b2c_outbox_urgent_min') else one.threshold('b2c_outbox_batch_min') end)::int)
+           and created_at < now() - make_interval(mins => (case when urgent then (select one.threshold('b2c_outbox_urgent_min')) else (select one.threshold('b2c_outbox_batch_min')) end)::int)
          group by status, urgent) o
 $sql$));
 
@@ -489,7 +494,7 @@ select not coalesce((select yes from open_hours), true) or count(*) = 0 as ok,
                           'lead_ids', coalesce(to_jsonb((array_agg(lead_id order by lead_id) filter (where lead_id is not null))[1:20]), '[]')) as value
   from b2c.leads_state
  where lane = 'sales' and status = 'active' and owner_id is null and deleted_at is null and not coalesce(is_test, false)
-   and coalesce(handed_off_at, created_at) < now() - make_interval(mins => one.threshold('handoff_min')::int)
+   and coalesce(handed_off_at, created_at) < now() - make_interval(mins => (select one.threshold('handoff_min'))::int)
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -657,7 +662,7 @@ select one.seed_check(jsonb_build_object(
   'search_path', '',
   'sql', $sql$
 with v as (select (select max(updated_at) from public.catalog_programs) as catalogue_at, (select max(catalog_updated_at) from b2c.programme_cache) as cache_at)
-select coalesce(cache_at >= catalogue_at - make_interval(mins => one.threshold('catalogue_min')::int), catalogue_at is null) as ok, to_jsonb(v) as value
+select coalesce(cache_at >= catalogue_at - make_interval(mins => (select one.threshold('catalogue_min'))::int), catalogue_at is null) as ok, to_jsonb(v) as value
   from v
 $sql$));
 
@@ -742,9 +747,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'b2b-app', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'b2b-app'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('b2b-app') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -763,9 +766,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'chatwoot', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'chatwoot'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('chatwoot') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -784,9 +785,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:n8n_api',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'gemini', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'gemini'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('gemini') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -805,9 +804,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'influencer', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'influencer'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('influencer') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -826,9 +823,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:meta',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'meta', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'meta'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('meta') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -847,9 +842,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:n8n_api',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'n8n:instance', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'n8n:instance'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('n8n:instance') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -868,9 +861,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:n8n_api',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'n8n:PKPs7tXg9bej8AgX', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'n8n:PKPs7tXg9bej8AgX'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('n8n:PKPs7tXg9bej8AgX') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -889,9 +880,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'one:app', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'one:app'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('one:app') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -910,9 +899,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'one:tick', 'last_ok_at', h.last_ok_at, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'one:tick'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('one:tick') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -931,9 +918,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'spark', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'spark'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('spark') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -952,9 +937,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'vercel:one', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'vercel:one'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('vercel:one') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -973,9 +956,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'vercel:website', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'vercel:website'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('vercel:website') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -994,9 +975,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'website', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'website'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('website') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -1015,9 +994,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:whatsapp',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'whatsapp:b2c', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'whatsapp:b2c'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('whatsapp:b2c') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -1036,9 +1013,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', 'setup:whatsapp',
   'search_path', '',
   'sql', $sql$
-select coalesce(h.last_ok_at > now() - make_interval(secs => (h.expected_interval_s * one.threshold('heartbeat_multiple'))::int), h.component is null) as ok,
-       jsonb_build_object('component', 'whatsapp:witty', 'last_ok_at', h.last_ok_at, 'last_error', h.last_error, 'never_seen', h.component is null) as value
-  from (select 1) x left join one.heartbeats h on h.component = 'whatsapp:witty'
+select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('whatsapp:witty') as s) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -1295,7 +1270,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'The student_leads columns changed',
-  'description', 'student_leads'' column list (name and type, in order) differs from the baseline captured at install: a rename, drop or type change breaks every app that reads it.',
+  'description', 'A column of student_leads in the baseline captured at install is gone or has a new type: a rename, drop or type change breaks every app that reads it. An added column is listed in the value but does not fail (m11 of the second review); accept a new baseline from the Settings page.',
   'auto_fix_id', null,
   'tags', '["code"]'::jsonb,
   'enabled', true,
@@ -1305,7 +1280,7 @@ select one.seed_check(jsonb_build_object(
 with cur as (
   select jsonb_agg(column_name || ':' || udt_name order by ordinal_position) as cols
     from information_schema.columns where table_schema = 'public' and table_name = 'student_leads')
-select b.value is null or b.value = cur.cols as ok,
+select b.value is null or not exists (select 1 from jsonb_array_elements_text(b.value) c where not cur.cols ? c) as ok,
        jsonb_build_object('added', (select coalesce(jsonb_agg(c), '[]') from jsonb_array_elements_text(cur.cols) c where b.value is not null and not b.value ? c),
                           'removed_or_changed', (select coalesce(jsonb_agg(c), '[]') from jsonb_array_elements_text(b.value) c where not cur.cols ? c),
                           'baseline_at', b.captured_at) as value
@@ -1347,7 +1322,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'Eduwit One itself is unwell: tick errors, AI backlog, failed deliveries or AI overspend',
-  'description', 'A tick report in the last 10 min with an _error key; a check slower than checks.slow_ms in the last 10 min (a statement timeout cannot be armed per check, D-044); more than ai_queue_max pending AI tasks; a failed delivery in the last 24 h; AI spend today (one.ai_calls.cost_inr, IST) above one.settings.ai.daily_cap_inr.',
+  'description', 'A tick report in the last 10 min with an _error key (a killed check or event copy included); a tick that started 2 to 15 min ago and never finished its alert step and app call; an event source in error, killed or missing (where missing counts, D-042; m13 of the second review); a check slower than checks.slow_ms in the last 10 min (a statement timeout cannot be armed per check, D-044); more than ai_queue_max pending AI tasks; a failed delivery in the last 24 h; AI spend today (one.ai_calls.cost_inr, IST) above one.settings.ai.daily_cap_inr.',
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', true,
@@ -1356,15 +1331,45 @@ select one.seed_check(jsonb_build_object(
   'sql', $sql$
 with v as (
   select (select count(*) from one.runs where kind = 'tick' and started_at > now() - interval '10 minutes' and report::text ~ '_error"') as tick_errors_10m,
+         (select count(*) from one.runs where kind = 'tick' and finished_at is null
+             and started_at between now() - interval '15 minutes' and now() - interval '2 minutes') as ticks_unfinished_15m,
+         (select coalesce(jsonb_agg(w.source order by w.source), '[]') from one.event_watermarks w
+           where w.last_status in ('error', 'killed')
+              or (w.last_status = 'source_missing' and coalesce(((select one.setting('checks')) ->> 'source_missing_opens_incident')::boolean, true))) as event_sources_failing,
          (select coalesce(jsonb_agg(distinct r.check_id), '[]') from one.results r
-           where r.ran_at > now() - interval '10 minutes' and r.duration_ms > coalesce((one.setting('checks') ->> 'slow_ms')::int, 5000)) as slow_checks,
+           where r.ran_at > now() - interval '10 minutes' and r.duration_ms > coalesce(((select one.setting('checks')) ->> 'slow_ms')::int, 5000)) as slow_checks,
          (select count(*) from one.ai_tasks where status = 'pending') as ai_pending,
          (select count(*) from one.deliveries where status = 'failed' and created_at > now() - interval '24 hours') as deliveries_failed_24h,
          (select coalesce(sum(cost_inr), 0) from one.ai_calls where (created_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date) as ai_spent_inr_today,
-         (one.setting('ai') ->> 'daily_cap_inr')::numeric as ai_cap_inr)
-select tick_errors_10m = 0 and jsonb_array_length(slow_checks) = 0 and ai_pending <= one.threshold('ai_queue_max') and deliveries_failed_24h = 0
+         ((select one.setting('ai')) ->> 'daily_cap_inr')::numeric as ai_cap_inr)
+select tick_errors_10m = 0 and ticks_unfinished_15m = 0 and jsonb_array_length(event_sources_failing) = 0
+       and jsonb_array_length(slow_checks) = 0 and ai_pending <= (select one.threshold('ai_queue_max')) and deliveries_failed_24h = 0
        and ai_spent_inr_today <= coalesce(ai_cap_inr, 'infinity'::numeric) as ok, to_jsonb(v) as value
   from v
+$sql$));
+
+select one.seed_check(jsonb_build_object(
+  'id', 'ONE-02',
+  'app', 'one',
+  'kind', 'sql',
+  'severity', 'P1',
+  'cadence_s', 60,
+  'open_after', 1,
+  'resolve_after', 3,
+  'title', 'Alert emails are not going out',
+  'description', 'An alert, escalation or storm email still pending or sending delivery_stuck_min (5) minutes after it was queued: the app is not answering the tick''s call, or cannot send. This incident''s own email waits in the same queue, so the external watchdog reads the same age and pages through the uptime monitor (D-018; M2 of the second review).',
+  'auto_fix_id', null,
+  'tags', '[]'::jsonb,
+  'enabled', true,
+  'disabled_reason', null,
+  'search_path', '',
+  'sql', $sql$
+select count(*) = 0 as ok,
+       jsonb_build_object('stuck', count(*), 'oldest_at', min(created_at),
+                          'ids', coalesce(to_jsonb((array_agg(id order by id) filter (where id is not null))[1:20]), '[]')) as value
+  from one.deliveries
+ where status in ('pending', 'sending') and kind in ('alert', 'escalation', 'storm')
+   and created_at < now() - make_interval(mins => (select one.threshold('delivery_stuck_min'))::int)
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -1383,7 +1388,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-with w as (select coalesce(one.setting('alerts') -> 'storm', '{}') as s),
+with w as (select coalesce((select one.setting('alerts')) -> 'storm', '{}') as s),
 recent as (
   select i.check_id from one.incidents i, w
    where i.severity = 'P1' and i.check_id <> 'ONE-STORM'
@@ -1403,21 +1408,24 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'A cron job''s latest run failed',
-  'description', 'The latest run in the last 26 h of each active cron job ended in "failed". Each job is a subject: a second job failing while the incident is open alerts again (D-043). "job startup timeout" is excluded here and grouped by PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10, so it is not raised twice.',
+  'description', 'The latest finished run in the last 26 h of each active cron job ended in "failed" (a run still in progress is ignored, so it cannot hide the failure before it). Each job is a subject: a job joining the failing set alerts again (D-043). "job startup timeout" is left to PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10. Reads only the newest cron_scan_runs runs, through the runid key (M3 and M7 of the second review); jobs that ran less than daily are PLAT-01W''s.',
   'auto_fix_id', null,
   'tags', '["cron"]'::jsonb,
   'enabled', true,
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-with last_run as (
+with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
+last_run as (
   select distinct on (d.jobid) d.jobid, d.status, d.return_message, d.start_time
-    from cron.job_run_details d where d.start_time > now() - interval '26 hours'
-   order by d.jobid, d.start_time desc),
+    from cron.job_run_details d, w
+   where d.runid > w.from_runid and d.start_time > now() - interval '26 hours'
+     and d.status in ('succeeded', 'failed') and d.return_message is distinct from 'job startup timeout'
+   order by d.jobid, d.runid desc),
 failed as (
   select j.jobname, r.start_time, left(r.return_message, 200) as message
     from cron.job j join last_run r on r.jobid = j.jobid
-   where j.active and r.status = 'failed' and r.return_message is distinct from 'job startup timeout' and j.jobname <> 'b2c-capacity')
+   where j.active and r.status = 'failed' and j.jobname <> 'b2c-capacity')
 select count(*) = 0 as ok,
        jsonb_build_object('failed_jobs', coalesce(jsonb_agg(jsonb_build_object('job', jobname, 'at', start_time, 'message', message) order by jobname), '[]'),
                           'subjects', coalesce(jsonb_agg(jobname order by jobname), '[]')) as value
@@ -1440,11 +1448,48 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select count(*) <= one.threshold('cron_startup_timeouts_15m') as ok,
+select count(*) <= (select one.threshold('cron_startup_timeouts_15m')) as ok,
        jsonb_build_object('timeouts_15m', count(*), 'jobs', coalesce(jsonb_agg(distinct j.jobname), '[]'),
-         'severity', case when count(*) >= one.threshold('cron_startup_timeouts_p1_15m') then 'P1' else 'P2' end) as value
+         'severity', case when count(*) >= (select one.threshold('cron_startup_timeouts_p1_15m')) then 'P1' else 'P2' end) as value
   from cron.job_run_details d join cron.job j on j.jobid = d.jobid
- where d.start_time > now() - interval '15 minutes' and d.return_message = 'job startup timeout'
+ where d.runid > (select coalesce(max(x.runid), 0) - 20000 from cron.job_run_details x)
+   and d.start_time > now() - interval '15 minutes' and d.return_message = 'job startup timeout'
+$sql$));
+
+select one.seed_check(jsonb_build_object(
+  'id', 'PLAT-01W',
+  'app', 'platform',
+  'kind', 'sql',
+  'severity', 'P1',
+  'cadence_s', 3600,
+  'open_after', 1,
+  'resolve_after', 3,
+  'title', 'A cron job that runs less than daily failed its latest run',
+  'description', 'PLAT-01 for the active jobs with no finished run in its 26 h window (weekly or monthly jobs): their latest finished run in the whole history ended in "failed". Hourly, because it reads the whole table (m12 of the second review). Startup timeouts and b2c-capacity are left to PLAT-01B and B2C-10.',
+  'auto_fix_id', null,
+  'tags', '["cron"]'::jsonb,
+  'enabled', true,
+  'disabled_reason', null,
+  'search_path', '',
+  'sql', $sql$
+with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
+recent as (
+  select distinct d.jobid from cron.job_run_details d, w
+   where d.runid > w.from_runid and d.start_time > now() - interval '26 hours' and d.status in ('succeeded', 'failed')),
+last_run as (
+  select distinct on (d.jobid) d.jobid, d.status, d.return_message, d.start_time
+    from cron.job_run_details d
+   where d.jobid in (select j.jobid from cron.job j where j.active and j.jobid not in (select r.jobid from recent r))
+     and d.status in ('succeeded', 'failed') and d.return_message is distinct from 'job startup timeout'
+   order by d.jobid, d.runid desc),
+failed as (
+  select j.jobname, r.start_time, left(r.return_message, 200) as message
+    from cron.job j join last_run r on r.jobid = j.jobid
+   where r.status = 'failed' and j.jobname <> 'b2c-capacity')
+select count(*) = 0 as ok,
+       jsonb_build_object('failed_jobs', coalesce(jsonb_agg(jsonb_build_object('job', jobname, 'at', start_time, 'message', message) order by jobname), '[]'),
+                          'subjects', coalesce(jsonb_agg(jobname order by jobname), '[]')) as value
+  from failed
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -1465,7 +1510,8 @@ select one.seed_check(jsonb_build_object(
   'sql', $sql$
 with recent as (
   select jobid from cron.job_run_details
-   where start_time > now() - make_interval(mins => one.threshold('job_silent_min')::int) group by jobid)
+   where runid > (select coalesce(max(x.runid), 0) - 20000 from cron.job_run_details x)
+     and start_time > now() - make_interval(mins => (select one.threshold('job_silent_min'))::int) group by jobid)
 select count(*) = 0 as ok, jsonb_build_object('silent_jobs', coalesce(jsonb_agg(j.jobname order by j.jobname), '[]'),
                                              'subjects', coalesce(jsonb_agg(j.jobname order by j.jobname), '[]')) as value
   from cron.job j left join recent r on r.jobid = j.jobid
@@ -1504,7 +1550,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'A database-to-app job call was refused or failed',
-  'description', 'In the last 15 min, a pg_net response to a job call (Spark''s ids in b2c.job_calls, Eduwit One''s in one.runs) had status 401, 403 or 500 and up. Other apps'' pg_net traffic (partner pushes, webhooks) is not job calls and is watched by their own checks.',
+  'description', 'In the last 15 min, a pg_net response to a job call (Spark''s ids in b2c.job_calls, Eduwit One''s in one.runs) had status 401, 403 or 500 and up, or no status at all (a timeout, a DNS, TLS or connection failure; M2 of the second review). Other apps'' pg_net traffic (partner pushes, webhooks) is not job calls and is watched by their own checks. The website''s web_job_call ids are not recorded anywhere (pg_cron keeps "1 row" for its SELECT, D-007), so its calls cannot be told apart; WEB-01 watches its outbox backlog instead (m14).',
   'auto_fix_id', null,
   'tags', '["http","jobs"]'::jsonb,
   'enabled', true,
@@ -1519,7 +1565,7 @@ with ids as (
 select coalesce(sum(n), 0) = 0 as ok,
        jsonb_build_object('bad_calls', coalesce(sum(n), 0), 'by_caller', coalesce(jsonb_object_agg(caller, n), '{}')) as value
   from (select ids.caller, count(*) as n from ids join net._http_response h on h.id = ids.id
-         where h.created > now() - interval '15 minutes' and (h.status_code in (401, 403) or h.status_code >= 500)
+         where h.created > now() - interval '15 minutes' and (h.status_code is null or h.status_code in (401, 403) or h.status_code >= 500)
          group by ids.caller) b
 $sql$));
 
@@ -1542,7 +1588,7 @@ select one.seed_check(jsonb_build_object(
 with v as (
   select nullif((select value ->> 'base_url' from b2c.settings where key = 'app'), '') as spark_url,
          nullif((select value #>> '{}' from public.web_settings where key = 'internal_base_url'), '') as web_url,
-         nullif(one.setting('app') ->> 'base_url', '') as one_url,
+         nullif((select one.setting('app')) ->> 'base_url', '') as one_url,
          array(select k from unnest(array['b2c_internal_key', 'web_internal_key', 'one_internal_key']) k
                 where not exists (select 1 from one.vault_names() v(name) where v.name = k)) as keys_missing)
 select spark_url is not null and web_url is not null and one_url is not null and cardinality(keys_missing) = 0 as ok,
@@ -1559,8 +1605,8 @@ select one.seed_check(jsonb_build_object(
   'cadence_s', 86400,
   'open_after', 1,
   'resolve_after', 3,
-  'title', 'A security advisor-level problem exists (an app table readable by the API roles without RLS, or policies without RLS)',
-  'description', 'The ERROR-level Supabase lints computed in SQL for the apps'' schemas (Supabase''s own schemas excluded): a table the anon or authenticated role can read with RLS off, or a table with policies while RLS is off. Also an API or Eduwit One role able to create objects in schema public, which would make WITTY-01''s search_path unsafe (D-042). New WARN lints come from the Management API once a token is configured (Setup item supabase_advisors).',
+  'title', 'A security advisor-level problem exists (an app table or view readable by the API roles past RLS, or policies without RLS)',
+  'description', 'The ERROR-level Supabase lints computed in SQL for the apps'' schemas (Supabase''s own schemas excluded): a table the anon or authenticated role can read with RLS off, a table with policies while RLS is off, or a view the API roles can read that runs with its owner''s rights (security_definer_view; the views present at install are the baseline, each tracked as a cleanup proposal; M10 of the second review). Also an API or Eduwit One role able to create objects in schema public, which would make WITTY-01''s search_path unsafe (D-042). New WARN lints come from the Management API once a token is configured (Setup item supabase_advisors).',
   'auto_fix_id', null,
   'tags', '["security"]'::jsonb,
   'enabled', true,
@@ -1580,6 +1626,9 @@ bad as (
   union all
   select c.oid::regclass::text, 'policy_exists_rls_disabled'
     from pg_class c where c.relkind in ('r', 'p') and not c.relrowsecurity and exists (select 1 from pg_policy p where p.polrelid = c.oid)
+  union all
+  select v, 'security_definer_view' from one.security_definer_views() v
+   where not coalesce((select b.value from one.baselines b where b.key = 'security_definer_views') ? v, false)
   union all
   select 'schema public: ' || r, 'create_on_public' from one.public_schema_writers() r)
 select count(*) = 0 as ok,
@@ -1725,8 +1774,8 @@ select count(*) = 0 as ok,
        jsonb_build_object('no_code', count(*) filter (where code_sent_at is null), 'no_lead', count(*) filter (where code_sent_at is not null)) as value
   from public.web_gate_attempts
  where not coalesce(is_test, false) and submitted_at > now() - interval '24 hours'
-   and ((code_sent_at is null and submitted_at < now() - make_interval(mins => one.threshold('web_code_min')::int))
-        or (verified_at is not null and lead_id is null and verified_at < now() - make_interval(mins => one.threshold('web_lead_min')::int)))
+   and ((code_sent_at is null and submitted_at < now() - make_interval(mins => (select one.threshold('web_code_min'))::int))
+        or (verified_at is not null and lead_id is null and verified_at < now() - make_interval(mins => (select one.threshold('web_lead_min'))::int)))
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -1796,7 +1845,7 @@ with v as (
          (select count(*) from public.web_advisor_sessions s
            where not coalesce(s.is_test, false) and s.escalated_at between now() - interval '7 days' and now() - interval '1 hour'
              and not exists (select 1 from public.web_callback_requests c where c.session_id = s.id)) as escalations_without_callback)
-select spent_usd_today <= one.threshold('web_advisor_daily_usd') and escalations_without_callback = 0 as ok, to_jsonb(v) as value
+select spent_usd_today <= (select one.threshold('web_advisor_daily_usd')) and escalations_without_callback = 0 as ok, to_jsonb(v) as value
   from v
 $sql$));
 
@@ -1866,7 +1915,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'Witty''s inbox is silent while Chatwoot is receiving messages',
-  'description', 'Between 09:00 and 22:00 IST, no new w2_inbox row for witty_silence_h hours while the Chatwoot probe (heartbeat chatwoot, detail.incoming_recent) saw incoming messages in that window. Without a fresh Chatwoot reading, inbox silence alone fires (spec §15 fallback).',
+  'description', 'Between 09:00 and 22:00 IST, no new w2_inbox row for witty_silence_h hours while the Chatwoot probe (heartbeat chatwoot, detail.incoming_recent) saw incoming messages in that window. Without a fresh Chatwoot reading, inbox silence alone fires (spec §15 fallback). Silence is counted from 09:00 IST at the earliest, so a quiet night does not page at 09:00 (m10 of the second review).',
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', true,
@@ -1876,8 +1925,10 @@ select one.seed_check(jsonb_build_object(
 with w as (
   select (now() at time zone 'Asia/Kolkata')::time between time '09:00' and time '22:00' as in_hours,
          (select max(received_at) from public.w2_inbox) as last_inbox,
+         greatest((select max(received_at) from public.w2_inbox),
+                  (date_trunc('day', now() at time zone 'Asia/Kolkata') + time '09:00') at time zone 'Asia/Kolkata') as quiet_since,
          (select h.detail from one.heartbeats h where h.component = 'chatwoot' and h.last_ok_at > now() - interval '20 minutes') as cw)
-select not (in_hours and coalesce(last_inbox < now() - make_interval(hours => one.threshold('witty_silence_h')::int), true)
+select not (in_hours and quiet_since < now() - make_interval(hours => (select one.threshold('witty_silence_h'))::int)
             and (cw is null or coalesce((cw ->> 'incoming_recent')::int, 0) > 0)) as ok,
        jsonb_build_object('in_hours', in_hours, 'last_inbox_at', last_inbox, 'chatwoot_incoming_recent', cw -> 'incoming_recent',
                           'chatwoot_reading', cw is not null) as value
@@ -1900,7 +1951,7 @@ select one.seed_check(jsonb_build_object(
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select count(*) < 10 or percentile_cont(0.95) within group (order by latency_ms) <= one.threshold('witty_p95_ms') as ok,
+select count(*) < 10 or percentile_cont(0.95) within group (order by latency_ms) <= (select one.threshold('witty_p95_ms')) as ok,
        jsonb_build_object('replies', count(*), 'p95_ms', round(percentile_cont(0.95) within group (order by latency_ms)::numeric)) as value
   from public.w2_messages
  where direction = 'out' and kind = 'reply' and latency_ms is not null and created_at > now() - interval '15 minutes'

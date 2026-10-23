@@ -54,6 +54,9 @@ create table one.check_state (
   last_started_at timestamptz,
   consecutive_fail integer not null default 0,
   consecutive_ok integer not null default 0,
+  -- Consecutive runs that started and never finished (killed by transaction_timeout or a cancel). The cron job runs
+  -- such a check last, after the alert step and the app call, so it cannot starve them (B1 of the second review).
+  killed_count integer not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -183,8 +186,10 @@ create table one.event_watermarks (
   source text primary key,
   last_id bigint,
   last_at timestamptz,
-  last_status text check (last_status in ('ok', 'source_missing', 'error')),
+  last_status text check (last_status in ('ok', 'source_missing', 'error', 'killed')),
   last_error text,
+  -- Committed before each copy, so a copy that is killed moves its source to the back of the next tick.
+  last_started_at timestamptz,
   rows_copied bigint not null default 0,
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
@@ -372,14 +377,27 @@ create table one.runs (
   unique (kind, bucket)
 );
 
--- Grants for every object in schema one: closed to anon and authenticated, full to the service role (the app's
--- one.* writer), SELECT to the reader. Re-run at the end of every migration that adds objects.
+-- Which roles may execute which one.* function: the API surface, declared as rows so every migration can re-apply
+-- the whole set (the influencer portal's inf.client_grants pattern). The app's service role and the signed-in staff
+-- (authenticated) reach schema one only through these functions, each SECURITY DEFINER; they hold no table privilege,
+-- so a leaked key cannot rewrite the audit, a check's state or the tick's heartbeat (m4 of the second review, D-055).
+create table one.api_grants (
+  fn text not null,
+  role text not null check (role in ('service_role', 'authenticated', 'eduwit_one_reader')),
+  why text not null,
+  created_at timestamptz not null default now(),
+  primary key (fn, role)
+);
+
+-- Grants for every object in schema one: tables closed to every API role and SELECT for the reader; functions closed
+-- to all, then opened exactly as one.api_grants lists. Re-run at the end of every migration that adds objects.
 create or replace procedure one.apply_grants()
 language plpgsql
 set search_path = ''
 as $$
 declare
   t record;
+  g record;
 begin
   for t in select c.oid::regclass as rel, c.relkind from pg_class c join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = 'one' and c.relkind in ('r', 'p', 'v', 'm')
@@ -387,17 +405,15 @@ begin
     if t.relkind in ('r', 'p') then
       execute format('alter table %s enable row level security', t.rel);
     end if;
-    execute format('revoke all on %s from public, anon, authenticated', t.rel);
-    execute format('grant all on %s to service_role', t.rel);
+    execute format('revoke all on %s from public, anon, authenticated, service_role', t.rel);
     execute format('grant select on %s to eduwit_one_reader', t.rel);
   end loop;
-  execute 'grant usage on all sequences in schema one to service_role';
-  execute 'revoke execute on all functions in schema one from public, anon, authenticated';
-  execute 'revoke execute on all procedures in schema one from public, anon, authenticated';
-  -- Only migrations write a check's rule: the service role may change operational columns, never insert a check,
-  -- change its sql or kind, or delete it (a check's sql runs as the database owner inside one.tick()).
-  execute 'revoke insert, update, delete, truncate on one.checks from service_role';
-  execute 'grant update (enabled, disabled_reason, muted_until, severity, cadence_s, threshold, open_after, resolve_after, updated_by, updated_at, version) on one.checks to service_role';
+  execute 'revoke all on all sequences in schema one from public, anon, authenticated, service_role';
+  execute 'revoke execute on all functions in schema one from public, anon, authenticated, service_role, eduwit_one_reader';
+  execute 'revoke execute on all procedures in schema one from public, anon, authenticated, service_role, eduwit_one_reader';
+  for g in select a.fn, a.role from one.api_grants a where to_regprocedure(a.fn) is not null loop
+    execute format('grant execute on function %s to %I', to_regprocedure(g.fn), g.role);
+  end loop;
 end $$;
 
 call one.apply_grants();

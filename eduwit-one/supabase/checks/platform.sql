@@ -7,15 +7,45 @@
 -- cadence_s: 60
 -- tags: cron
 -- title: A cron job's latest run failed
--- description: The latest run in the last 26 h of each active cron job ended in "failed". Each job is a subject: a second job failing while the incident is open alerts again (D-043). "job startup timeout" is excluded here and grouped by PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10, so it is not raised twice.
-with last_run as (
+-- description: The latest finished run in the last 26 h of each active cron job ended in "failed" (a run still in progress is ignored, so it cannot hide the failure before it). Each job is a subject: a job joining the failing set alerts again (D-043). "job startup timeout" is left to PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10. Reads only the newest cron_scan_runs runs, through the runid key (M3 and M7 of the second review); jobs that ran less than daily are PLAT-01W's.
+with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
+last_run as (
   select distinct on (d.jobid) d.jobid, d.status, d.return_message, d.start_time
-    from cron.job_run_details d where d.start_time > now() - interval '26 hours'
-   order by d.jobid, d.start_time desc),
+    from cron.job_run_details d, w
+   where d.runid > w.from_runid and d.start_time > now() - interval '26 hours'
+     and d.status in ('succeeded', 'failed') and d.return_message is distinct from 'job startup timeout'
+   order by d.jobid, d.runid desc),
 failed as (
   select j.jobname, r.start_time, left(r.return_message, 200) as message
     from cron.job j join last_run r on r.jobid = j.jobid
-   where j.active and r.status = 'failed' and r.return_message is distinct from 'job startup timeout' and j.jobname <> 'b2c-capacity')
+   where j.active and r.status = 'failed' and j.jobname <> 'b2c-capacity')
+select count(*) = 0 as ok,
+       jsonb_build_object('failed_jobs', coalesce(jsonb_agg(jsonb_build_object('job', jobname, 'at', start_time, 'message', message) order by jobname), '[]'),
+                          'subjects', coalesce(jsonb_agg(jobname order by jobname), '[]')) as value
+  from failed
+
+-- check: PLAT-01W
+-- app: platform
+-- kind: sql
+-- severity: P1
+-- cadence_s: 3600
+-- tags: cron
+-- title: A cron job that runs less than daily failed its latest run
+-- description: PLAT-01 for the active jobs with no finished run in its 26 h window (weekly or monthly jobs): their latest finished run in the whole history ended in "failed". Hourly, because it reads the whole table (m12 of the second review). Startup timeouts and b2c-capacity are left to PLAT-01B and B2C-10.
+with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
+recent as (
+  select distinct d.jobid from cron.job_run_details d, w
+   where d.runid > w.from_runid and d.start_time > now() - interval '26 hours' and d.status in ('succeeded', 'failed')),
+last_run as (
+  select distinct on (d.jobid) d.jobid, d.status, d.return_message, d.start_time
+    from cron.job_run_details d
+   where d.jobid in (select j.jobid from cron.job j where j.active and j.jobid not in (select r.jobid from recent r))
+     and d.status in ('succeeded', 'failed') and d.return_message is distinct from 'job startup timeout'
+   order by d.jobid, d.runid desc),
+failed as (
+  select j.jobname, r.start_time, left(r.return_message, 200) as message
+    from cron.job j join last_run r on r.jobid = j.jobid
+   where r.status = 'failed' and j.jobname <> 'b2c-capacity')
 select count(*) = 0 as ok,
        jsonb_build_object('failed_jobs', coalesce(jsonb_agg(jsonb_build_object('job', jobname, 'at', start_time, 'message', message) order by jobname), '[]'),
                           'subjects', coalesce(jsonb_agg(jobname order by jobname), '[]')) as value
@@ -29,11 +59,12 @@ select count(*) = 0 as ok,
 -- tags: cron
 -- title: pg_cron could not start jobs (startup timeouts)
 -- description: Runs ending in "job startup timeout" in the last 15 min above cron_startup_timeouts_15m; P1 from cron_startup_timeouts_p1_15m up. Usually connection-slot or worker saturation, so one incident for all jobs (D-008).
-select count(*) <= one.threshold('cron_startup_timeouts_15m') as ok,
+select count(*) <= (select one.threshold('cron_startup_timeouts_15m')) as ok,
        jsonb_build_object('timeouts_15m', count(*), 'jobs', coalesce(jsonb_agg(distinct j.jobname), '[]'),
-         'severity', case when count(*) >= one.threshold('cron_startup_timeouts_p1_15m') then 'P1' else 'P2' end) as value
+         'severity', case when count(*) >= (select one.threshold('cron_startup_timeouts_p1_15m')) then 'P1' else 'P2' end) as value
   from cron.job_run_details d join cron.job j on j.jobid = d.jobid
- where d.start_time > now() - interval '15 minutes' and d.return_message = 'job startup timeout'
+ where d.runid > (select coalesce(max(x.runid), 0) - 20000 from cron.job_run_details x)
+   and d.start_time > now() - interval '15 minutes' and d.return_message = 'job startup timeout'
 
 -- check: PLAT-02
 -- app: platform
@@ -45,7 +76,8 @@ select count(*) <= one.threshold('cron_startup_timeouts_15m') as ok,
 -- description: An active job scheduled every minute or faster (including pg_cron's "N seconds" schedules) has no run in job_silent_min minutes.
 with recent as (
   select jobid from cron.job_run_details
-   where start_time > now() - make_interval(mins => one.threshold('job_silent_min')::int) group by jobid)
+   where runid > (select coalesce(max(x.runid), 0) - 20000 from cron.job_run_details x)
+     and start_time > now() - make_interval(mins => (select one.threshold('job_silent_min'))::int) group by jobid)
 select count(*) = 0 as ok, jsonb_build_object('silent_jobs', coalesce(jsonb_agg(j.jobname order by j.jobname), '[]'),
                                              'subjects', coalesce(jsonb_agg(j.jobname order by j.jobname), '[]')) as value
   from cron.job j left join recent r on r.jobid = j.jobid
@@ -73,7 +105,7 @@ select coalesce(r.return_message !~ '_error', true) as ok,
 -- cadence_s: 60
 -- tags: http, jobs
 -- title: A database-to-app job call was refused or failed
--- description: In the last 15 min, a pg_net response to a job call (Spark's ids in b2c.job_calls, Eduwit One's in one.runs) had status 401, 403 or 500 and up. Other apps' pg_net traffic (partner pushes, webhooks) is not job calls and is watched by their own checks.
+-- description: In the last 15 min, a pg_net response to a job call (Spark's ids in b2c.job_calls, Eduwit One's in one.runs) had status 401, 403 or 500 and up, or no status at all (a timeout, a DNS, TLS or connection failure; M2 of the second review). Other apps' pg_net traffic (partner pushes, webhooks) is not job calls and is watched by their own checks. The website's web_job_call ids are not recorded anywhere (pg_cron keeps "1 row" for its SELECT, D-007), so its calls cannot be told apart; WEB-01 watches its outbox backlog instead (m14).
 with ids as (
   select (e ->> 'id')::bigint as id, 'spark' as caller from b2c.job_calls c, jsonb_array_elements(c.calls) e
   union all
@@ -82,7 +114,7 @@ with ids as (
 select coalesce(sum(n), 0) = 0 as ok,
        jsonb_build_object('bad_calls', coalesce(sum(n), 0), 'by_caller', coalesce(jsonb_object_agg(caller, n), '{}')) as value
   from (select ids.caller, count(*) as n from ids join net._http_response h on h.id = ids.id
-         where h.created > now() - interval '15 minutes' and (h.status_code in (401, 403) or h.status_code >= 500)
+         where h.created > now() - interval '15 minutes' and (h.status_code is null or h.status_code in (401, 403) or h.status_code >= 500)
          group by ids.caller) b
 
 -- check: PLAT-05
@@ -96,7 +128,7 @@ select coalesce(sum(n), 0) = 0 as ok,
 with v as (
   select nullif((select value ->> 'base_url' from b2c.settings where key = 'app'), '') as spark_url,
          nullif((select value #>> '{}' from public.web_settings where key = 'internal_base_url'), '') as web_url,
-         nullif(one.setting('app') ->> 'base_url', '') as one_url,
+         nullif((select one.setting('app')) ->> 'base_url', '') as one_url,
          array(select k from unnest(array['b2c_internal_key', 'web_internal_key', 'one_internal_key']) k
                 where not exists (select 1 from one.vault_names() v(name) where v.name = k)) as keys_missing)
 select spark_url is not null and web_url is not null and one_url is not null and cardinality(keys_missing) = 0 as ok,
@@ -110,8 +142,8 @@ select spark_url is not null and web_url is not null and one_url is not null and
 -- severity: P2
 -- cadence_s: 86400
 -- tags: security
--- title: A security advisor-level problem exists (an app table readable by the API roles without RLS, or policies without RLS)
--- description: The ERROR-level Supabase lints computed in SQL for the apps' schemas (Supabase's own schemas excluded): a table the anon or authenticated role can read with RLS off, or a table with policies while RLS is off. Also an API or Eduwit One role able to create objects in schema public, which would make WITTY-01's search_path unsafe (D-042). New WARN lints come from the Management API once a token is configured (Setup item supabase_advisors).
+-- title: A security advisor-level problem exists (an app table or view readable by the API roles past RLS, or policies without RLS)
+-- description: The ERROR-level Supabase lints computed in SQL for the apps' schemas (Supabase's own schemas excluded): a table the anon or authenticated role can read with RLS off, a table with policies while RLS is off, or a view the API roles can read that runs with its owner's rights (security_definer_view; the views present at install are the baseline, each tracked as a cleanup proposal; M10 of the second review). Also an API or Eduwit One role able to create objects in schema public, which would make WITTY-01's search_path unsafe (D-042). New WARN lints come from the Management API once a token is configured (Setup item supabase_advisors).
 with exposed as (
   select n.oid, n.nspname from pg_namespace n
    where has_schema_privilege('anon', n.oid, 'USAGE')
@@ -125,6 +157,9 @@ bad as (
   union all
   select c.oid::regclass::text, 'policy_exists_rls_disabled'
     from pg_class c where c.relkind in ('r', 'p') and not c.relrowsecurity and exists (select 1 from pg_policy p where p.polrelid = c.oid)
+  union all
+  select v, 'security_definer_view' from one.security_definer_views() v
+   where not coalesce((select b.value from one.baselines b where b.key = 'security_definer_views') ? v, false)
   union all
   select 'schema public: ' || r, 'create_on_public' from one.public_schema_writers() r)
 select count(*) = 0 as ok,

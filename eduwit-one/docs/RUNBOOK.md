@@ -7,10 +7,10 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
 
 | Piece | Where | Every | What it does |
 | --- | --- | --- | --- |
-| `one-tick` | pg_cron, `call one.tick_job()` | minute | Heartbeat `one:tick`; due SQL checks (one commit each); event copy; escalation and digest; calls the app |
+| `one-tick` | pg_cron, `call one.tick_job()` | minute | Heartbeat `one:tick`; records any check or copy killed last time as an error; due SQL checks (one commit each); escalation, digest; calls the app (the tick counts as finished here); event copy; checks killed earlier, last (D-056) |
 | `one-nightly` | pg_cron, `select one.nightly()` | 02:30 IST | Privilege audit, baselines, retention, proposal expiry, brief task |
 | `/api/internal/tick` | the app, called by `one-tick` | minute | HTTP probes (app health, Vercel, Chatwoot, n8n, WhatsApp), heartbeat `one:app`, alert sender |
-| `/api/watchdog` | the app, called by UptimeRobot | 5 min | `{"ok":true}` while the last `one-tick` is under 5 minutes old |
+| `/api/watchdog` | the app, called by UptimeRobot | 5 min | `{"ok":true}` while the last finished `one-tick` is under 5 minutes old and no alert email has waited 10 minutes |
 
 ## Alerts
 
@@ -28,6 +28,12 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
   record; nothing is sent. When the mute ends, anything still failing alerts again.
 - **A failing email.** Retried once after 2 minutes; a second failure is final and ONE-01 reports it, so a dead
   email key cannot stay silent. Email is the only channel (owner, 23 Oct); no WhatsApp alert is sent.
+- **Emails not going out (ONE-02, P1).** An alert email still waiting after 5 minutes means the database cannot reach
+  the app (check `app.base_url` and the Vercel deployment) or the app cannot send (check the Resend key). Its own
+  email waits in the same queue, so the watchdog pages through UptimeRobot after 10 minutes.
+- **A killed check.** A check that runs past `checks.transaction_timeout` (30 s) is recorded as an error with
+  "killed" in its result, which opens its incident; it then runs at the end of the tick, at most every 10 minutes per
+  kill. Look at the check's SQL and the table it reads (a lock or a slow plan).
 
 ## The external watchdog (UptimeRobot)
 

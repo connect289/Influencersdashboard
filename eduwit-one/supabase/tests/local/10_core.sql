@@ -136,7 +136,7 @@ select one.settings_put('checks', one.setting('checks') || '{"source_missing_ope
 -- 10. The cron path: one.tick_job() commits per step and records the same report (M1, D-044) -----------------------
 reset role;
 delete from one.runs where kind = 'tick';
-update one.check_state set last_ran_at = now() - interval '1 day';
+update one.check_state set last_ran_at = now() - interval '1 day', last_started_at = now() - interval '1 day';
 set role postgres;
 call one.tick_job();
 select pg_temp.ok((select report ->> 'mode' = 'job' and finished_at is not null and report ? 'checks' and report ? 'events' from one.runs where kind = 'tick'),

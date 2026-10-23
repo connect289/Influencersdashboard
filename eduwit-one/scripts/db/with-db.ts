@@ -34,5 +34,8 @@ if (target !== expected[varName]) {
   console.error(`refused: ${varName} reaches ${target}, expected ${expected[varName]}`);
   process.exit(2);
 }
-const run = spawnSync(command, args, { stdio: "inherit", env: { ...process.env, ...env, ONE_DB_TARGET: target } });
+// Every libpq variable comes from the URL alone: PGSERVICE, PGSERVICEFILE or PGHOSTADDR left in the shell would
+// otherwise send psql somewhere other than the server the guard checked (m2 of the second review).
+const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^PG[A-Z_]*$/.test(k)));
+const run = spawnSync(command, args, { stdio: "inherit", env: { ...clean, ...env, ONE_DB_TARGET: target } });
 process.exit(run.status ?? 1);

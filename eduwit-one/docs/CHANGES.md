@@ -3,6 +3,23 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — second database review resolved
+
+- Cron procedure: start marks committed before each check and event copy; killed runs reaped as errors and moved
+  after the alert step and the app call; a tick lock; the run counts as finished after the app call (D-056).
+- New checks ONE-02 (alert email pending 5 min) and PLAT-01W (a less-than-daily job's failure); PLAT-01 and B2C-01
+  read finished runs through the runid key; B2B-02 looks back 15 minutes; PLAT-04 counts calls with no status;
+  PLAT-06 adds the security-definer-view lint; INT-06 allows added columns; WITTY-03 counts from 09:00 IST (86 checks).
+- Heartbeat checks through `one.heartbeat_state()`: a never-seen component is down once expected.
+- Redaction finds contacts anywhere in text, in keys and in JSON kept as text; more name and comment keys.
+- Settings are validated on write (`one.settings_check()`); `app.base_url` must be https.
+- Grants: the API roles execute only the functions in `one.api_grants` and hold no table privilege (D-055).
+- `/api/watchdog` reads the last finished tick and the oldest pending alert email.
+- Migration guards rewritten as a statement reader; every apply wrapped in a catalogue fingerprint of everything
+  outside schema one (D-057). `0006`'s rollback refuses to discard history unless told to.
+- Tests: `supabase/tests/local/60_review2.sql`, new guard cases, local-test steps for both refusals, the watchdog
+  verdict in `web/lib/core.test.ts`. Decisions D-054 to D-057.
+
 ## 23 Oct 2026 — phase 3, alerts
 
 - Escalation, the P2 digest, storm suppression, developer copies and mute re-routing, in SQL each minute

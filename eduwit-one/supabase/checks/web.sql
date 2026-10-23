@@ -34,8 +34,8 @@ select count(*) = 0 as ok,
        jsonb_build_object('no_code', count(*) filter (where code_sent_at is null), 'no_lead', count(*) filter (where code_sent_at is not null)) as value
   from public.web_gate_attempts
  where not coalesce(is_test, false) and submitted_at > now() - interval '24 hours'
-   and ((code_sent_at is null and submitted_at < now() - make_interval(mins => one.threshold('web_code_min')::int))
-        or (verified_at is not null and lead_id is null and verified_at < now() - make_interval(mins => one.threshold('web_lead_min')::int)))
+   and ((code_sent_at is null and submitted_at < now() - make_interval(mins => (select one.threshold('web_code_min'))::int))
+        or (verified_at is not null and lead_id is null and verified_at < now() - make_interval(mins => (select one.threshold('web_lead_min'))::int)))
 
 -- check: WEB-04
 -- app: web
@@ -76,7 +76,7 @@ with v as (
          (select count(*) from public.web_advisor_sessions s
            where not coalesce(s.is_test, false) and s.escalated_at between now() - interval '7 days' and now() - interval '1 hour'
              and not exists (select 1 from public.web_callback_requests c where c.session_id = s.id)) as escalations_without_callback)
-select spent_usd_today <= one.threshold('web_advisor_daily_usd') and escalations_without_callback = 0 as ok, to_jsonb(v) as value
+select spent_usd_today <= (select one.threshold('web_advisor_daily_usd')) and escalations_without_callback = 0 as ok, to_jsonb(v) as value
   from v
 
 -- check: WEB-07

@@ -21,20 +21,24 @@ psql_as() { # role, then psql args
   local role="$1"; shift
   psql -X -q -h "$work" -p "$port" -U "$role" -v ON_ERROR_STOP=1 "$@"
 }
-apply() { # role, file: one transaction, as on production (spec §4)
+raw() { # role, file: one transaction (the stubs, which stand in for the apps)
   psql_as "$1" -d rehearsal -1 -c "set local lock_timeout = '5s'; set local statement_timeout = '5min';" -f "$2" >/dev/null
+}
+apply() { # role, file: one transaction, as on production (spec §4), refused if it changes anything outside schema one
+  psql_as "$1" -d rehearsal -1 -c "set local lock_timeout = '5s'; set local statement_timeout = '5min';" \
+    -f "$here/scripts/db/fp-before.sql" -f "$2" -f "$here/scripts/db/fp-after.sql" >/dev/null
 }
 
 psql_as supabase_admin -d postgres -c "create database rehearsal" >/dev/null
-apply supabase_admin "$here/supabase/tests/local/00_platform_stubs.sql"
-apply postgres "$here/supabase/tests/local/01_app_stubs.sql"
+raw supabase_admin "$here/supabase/tests/local/00_platform_stubs.sql"
+raw postgres "$here/supabase/tests/local/01_app_stubs.sql"
 
 mapfile -t forward < <(ls "$here"/supabase/migrations/[0-9][0-9][0-9][0-9]_*.sql | grep -v '\.rollback\.sql$' | sort)
 
 apply_all() { for f in "${forward[@]}"; do apply postgres "$f"; echo "  applied $(basename "$f")"; done; }
-rollback_all() {
+rollback_all() { # the throwaway cluster's history may be discarded (0006's rollback refuses otherwise; m8)
   for (( i=${#forward[@]}-1; i>=0; i-- )); do
-    apply postgres "${forward[$i]%.sql}.rollback.sql"
+    PGOPTIONS="-c one.rollback_discards_history=on" apply postgres "${forward[$i]%.sql}.rollback.sql"
     echo "  rolled back $(basename "${forward[$i]}")"
   done
 }
@@ -45,9 +49,29 @@ run_tests() {
 }
 
 echo "apply"; apply_all
-# What a rehearsal target must match after its first apply (scripts/db/fingerprint.sql).
-echo "  fingerprint $(psql_as postgres -d rehearsal -At -F ' ' -f "$here/scripts/db/fingerprint.sql")"
+# What a rehearsal target must match after its first apply (scripts/db/fingerprint.sql), kept in
+# supabase/tests/fingerprint.expected so rehearse.sh can compare (m16). ONE_UPDATE_FINGERPRINT=1 rewrites it.
+fp="$(psql_as postgres -d rehearsal -At -F ' ' -f "$here/scripts/db/fingerprint.sql")"
+echo "  fingerprint $fp"
+if [ "${ONE_UPDATE_FINGERPRINT:-}" = 1 ]; then
+  echo "$fp" > "$here/supabase/tests/fingerprint.expected"
+elif [ "$fp" != "$(cat "$here/supabase/tests/fingerprint.expected" 2>/dev/null)" ]; then
+  echo "the fingerprint differs from supabase/tests/fingerprint.expected; run ONE_UPDATE_FINGERPRINT=1 scripts/db/local-test.sh and commit it"; exit 1
+fi
 echo "test"; run_tests
+# m8: with history in schema one, 0006's rollback refuses unless told to discard it.
+psql_as postgres -d rehearsal -c "select one.open_or_touch_incident('PLAT-05', 'P1', '{}')" >/dev/null
+if out="$(apply postgres "$here/supabase/migrations/0006_seed_checks.rollback.sql" 2>&1)"; then
+  echo "0006's rollback discarded history without being told to"; exit 1
+fi
+echo "$out" | grep -q "0006 rollback refused" || { echo "$out"; exit 1; }
+echo "  0006's rollback refuses to discard history"
+# M8: a file that changes anything outside schema one is rolled back whole by the fingerprint wrapper.
+printf 'create table one.fp_probe (id int);\nalter table public.student_leads add column fp_probe text;\n' > "$work/bad.sql"
+if out="$(apply postgres "$work/bad.sql" 2>&1)"; then echo "the fingerprint wrapper let an app change through"; exit 1; fi
+echo "$out" | grep -q "changed an object outside schema one" || { echo "$out"; exit 1; }
+[ "$(psql_as postgres -d rehearsal -At -c "select to_regclass('one.fp_probe') is null")" = t ] || { echo "the refused file was partly applied"; exit 1; }
+echo "  the fingerprint wrapper refuses a change outside schema one"
 echo "rollback"; rollback_all
 left="$(psql_as postgres -d rehearsal -At -f "$here/scripts/db/leftovers.sql")"
 [ "$left" = "0" ] || { echo "rollback left $left objects behind"; exit 1; }

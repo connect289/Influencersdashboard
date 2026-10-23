@@ -1,11 +1,12 @@
--- 0008 the functions the app calls (spec §5 app layer, phase 2). The app reaches the database only through these and
--- the one.* tables, with the service role; it reads app data only through SECURITY DEFINER functions that return no
--- contact fields (D-030). One call reads what a tick needs, one call writes what it found.
+-- 0008 the functions the app calls (spec §5 app layer, phase 2). The app's service role reaches the database only
+-- through these, each SECURITY DEFINER and listed in one.api_grants; it holds no privilege on any table (D-055). It
+-- reads app data only through functions that return no contact fields (D-030). One call reads what a tick needs, one
+-- call writes what it found.
 
 -- Everything the app's probe runner needs for one tick: the runtime settings it reads, the app-run checks with their
 -- last run, and the heartbeat rows. Setup items are reduced to their status, without the evidence text.
 create or replace function one.app_tick_state() returns jsonb
-language sql stable set search_path = '' as $$
+language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
     'now', now(),
     'settings', (select coalesce(jsonb_object_agg(s.key, s.value), '{}') from one.settings s
@@ -24,7 +25,7 @@ $$;
 -- rest. Values are bounded and pass through one.redact(), so a probe cannot store contact data by mistake. One audit
 -- row per call (spec §13: every write through the app is audited).
 create or replace function one.app_report(p_report jsonb, p_actor text default 'app:tick', p_request_id text default null) returns jsonb
-language plpgsql set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
 declare
   v_pii text[] := coalesce(array(select jsonb_array_elements_text(one.setting('events') -> 'pii_columns')), '{}');
   v_item jsonb;
@@ -33,7 +34,10 @@ declare
 begin
   for v_item in select jsonb_array_elements(coalesce(p_report -> 'heartbeats', '[]')) loop
     begin
-      if coalesce(v_item ->> 'component', '') !~ '^[a-z0-9:._-]{1,80}$' then
+      -- The database's own heartbeats (one:tick, one:nightly) are written only by the database: the watchdog and the
+      -- HB checks must not be fed by the app (m4 of the second review).
+      if coalesce(v_item ->> 'component', '') !~ '^[a-z0-9:._-]{1,80}$'
+         or (v_item ->> 'component' like 'one:%' and v_item ->> 'component' <> 'one:app') then
         raise exception 'bad component' using errcode = '22023';
       end if;
       v_value := one.redact(coalesce(v_item -> 'detail', '{}'), v_pii);
@@ -75,11 +79,17 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- The two ages the external watchdog reads (spec §3): the last minute tick and the app's last answer to it.
+-- What the external watchdog reads (D-018): the age of the last tick that finished its alert step and app call (not the
+-- heartbeat written at its start, which stays fresh while every later step is killed; B1 of the second review), the
+-- app's last answer, and how long the oldest alert email has waited (the app can be unreachable from the database while
+-- the monitor still reaches it; M2).
 create or replace function one.watchdog() returns jsonb
-language sql stable set search_path = '' as $$
+language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
-    'tick_age_s', (select round(extract(epoch from now() - last_ok_at)) from one.heartbeats where component = 'one:tick'),
-    'app_age_s', (select round(extract(epoch from now() - last_ok_at)) from one.heartbeats where component = 'one:app'))
+    'tick_age_s', (select round(extract(epoch from now() - max(finished_at))) from one.runs where kind = 'tick'),
+    'app_age_s', (select round(extract(epoch from now() - last_ok_at)) from one.heartbeats where component = 'one:app'),
+    'delivery_wait_s', (select round(extract(epoch from now() - min(created_at))) from one.deliveries
+                         where status in ('pending', 'sending') and kind in ('alert', 'escalation', 'storm')))
 $$;
 
 -- Deliveries for the app's sender to send now (spec §9). Claims up to p_limit pending email deliveries (and any left
@@ -87,7 +97,7 @@ $$;
 -- free of contact data, or for a digest the day's P2 list. A delivery whose reason has gone (incident resolved;
 -- acknowledged, for an escalation; muted or held by a storm) is closed instead of sent.
 create or replace function one.claim_deliveries(p_limit integer default 20) returns jsonb
-language plpgsql set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
 declare
   v_out jsonb := '[]';
   v_row record;
@@ -127,7 +137,7 @@ end $$;
 -- retry after 2 minutes; a second failure is final, and ONE-01 reports it (spec §9: a delivery failing twice is an
 -- incident, so a dead email key does not stay silent).
 create or replace function one.finish_delivery(p_id bigint, p_ok boolean, p_error text default null, p_provider_id text default null) returns text
-language plpgsql set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
 declare
   v_d one.deliveries;
 begin
@@ -180,10 +190,12 @@ begin
   insert into one.audit (actor, action, target, after) values (left(p_by, 120), 'unmute', 'mute:' || p_id, '{}');
 end $$;
 
+insert into one.api_grants (fn, role, why) values
+  ('one.app_tick_state()', 'service_role', 'the probe runner reads settings, app-run checks and heartbeats'),
+  ('one.app_report(jsonb,text,text)', 'service_role', 'the probe runner writes heartbeats and app-run results'),
+  ('one.witty_escalations(integer)', 'service_role', 'WITTY-05: conversation ids only'),
+  ('one.watchdog()', 'service_role', 'the external watchdog endpoint'),
+  ('one.claim_deliveries(integer)', 'service_role', 'the alert sender claims emails'),
+  ('one.finish_delivery(bigint,boolean,text,text)', 'service_role', 'the alert sender records the verdict')
+on conflict do nothing;
 call one.apply_grants();
-grant execute on function one.app_tick_state(), one.app_report(jsonb, text, text), one.witty_escalations(integer), one.watchdog()
-  to service_role;
-grant execute on function one.claim_deliveries(integer), one.finish_delivery(bigint, boolean, text, text),
-  one.mute(text, text, integer, text, text), one.unmute(bigint, text) to service_role;
--- one.app_report runs with the caller's rights and redacts every value; redact is a pure function.
-grant execute on function one.redact(jsonb, text[]) to service_role;

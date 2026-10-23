@@ -1,11 +1,17 @@
 -- Rollback of 0003 (runner). Run after the 0004 rollback.
 
+delete from one.api_grants where fn in ('one.health()', 'one.inf_health()');
+
 drop function if exists one.inf_health();
 drop function if exists one.public_schema_writers();
+drop function if exists one.security_definer_views();
+drop function if exists one.heartbeat_state(text);
 drop function if exists one.tick_app_call();
 drop function if exists one.report_add(jsonb, jsonb);
 drop function if exists one.run_check_safe(text);
-drop function if exists one.due_checks();
+drop function if exists one.due_checks(boolean);
+drop function if exists one.reap_killed();
+drop function if exists one.mark_started(text);
 drop function if exists one.health();
 drop function if exists one.nightly();
 drop function if exists one.capture_baselines();

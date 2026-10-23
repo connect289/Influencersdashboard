@@ -78,11 +78,11 @@ select (select count(*) from public.w2_messages where created_at > now() - inter
 -- cadence_s: 3600
 -- tags: code
 -- title: The student_leads columns changed
--- description: student_leads' column list (name and type, in order) differs from the baseline captured at install: a rename, drop or type change breaks every app that reads it.
+-- description: A column of student_leads in the baseline captured at install is gone or has a new type: a rename, drop or type change breaks every app that reads it. An added column is listed in the value but does not fail (m11 of the second review); accept a new baseline from the Settings page.
 with cur as (
   select jsonb_agg(column_name || ':' || udt_name order by ordinal_position) as cols
     from information_schema.columns where table_schema = 'public' and table_name = 'student_leads')
-select b.value is null or b.value = cur.cols as ok,
+select b.value is null or not exists (select 1 from jsonb_array_elements_text(b.value) c where not cur.cols ? c) as ok,
        jsonb_build_object('added', (select coalesce(jsonb_agg(c), '[]') from jsonb_array_elements_text(cur.cols) c where b.value is not null and not b.value ? c),
                           'removed_or_changed', (select coalesce(jsonb_agg(c), '[]') from jsonb_array_elements_text(b.value) c where not cur.cols ? c),
                           'baseline_at', b.captured_at) as value

@@ -72,3 +72,15 @@ describe("internal bearer check", () => {
     expect(internalAuthorized(req("Bearer anything-at-all-here-xxxxxxxxxxxxxxx"))).toBe(false);
   });
 });
+
+describe("watchdog verdict", () => {
+  it("is down when the last finished tick is old, unknown, or an alert email has waited ten minutes", async () => {
+    const { watchdogOk } = await import("./watchdog.ts");
+    expect(watchdogOk({ tick_age_s: 30, app_age_s: 40, delivery_wait_s: null })).toBe(true);
+    expect(watchdogOk({ tick_age_s: 30, app_age_s: 40, delivery_wait_s: 599 })).toBe(true);
+    expect(watchdogOk({ tick_age_s: 30, app_age_s: 40, delivery_wait_s: 600 })).toBe(false);
+    expect(watchdogOk({ tick_age_s: 300, app_age_s: 40, delivery_wait_s: null })).toBe(false);
+    expect(watchdogOk({ tick_age_s: null, app_age_s: null, delivery_wait_s: null })).toBe(false);
+    expect(watchdogOk(undefined)).toBe(false);
+  });
+});

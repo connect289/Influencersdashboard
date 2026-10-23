@@ -1,16 +1,15 @@
 import { SupabaseOneDb } from "@/lib/db.ts";
+import { watchdogOk } from "@/lib/watchdog.ts";
 
-// Public and detail-free, for the free-plan uptime monitor (D-018): 200 {"ok":true} while the last minute tick is under
-// five minutes old, 503 {"ok":false} otherwise or when the database cannot be read.
+// Public and detail-free, for the free-plan uptime monitor (D-018): 200 {"ok":true} while the last finished minute tick
+// is under five minutes old and no alert email has waited ten minutes, 503 {"ok":false} otherwise or when the database
+// cannot be read (lib/watchdog.ts).
 export const dynamic = "force-dynamic";
-
-const MAX_TICK_AGE_S = 300;
 
 export async function GET() {
   let ok = false;
   try {
-    const ages = await SupabaseOneDb.fromEnv()?.watchdog();
-    ok = ages?.tick_age_s != null && ages.tick_age_s < MAX_TICK_AGE_S;
+    ok = watchdogOk(await SupabaseOneDb.fromEnv()?.watchdog());
   } catch {
     ok = false;
   }

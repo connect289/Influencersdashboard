@@ -1,16 +1,29 @@
--- Rehearsal smoke test: safe on staging and on production after an apply. It calls one.tick() (which writes only to
--- schema one) and otherwise reads the catalogue; it changes no app data. Run by scripts/db/rehearse.sh and
--- scripts/db/local-test.sh, as postgres. Any failed assertion raises; on success it returns one summary row.
+-- Rehearsal smoke test: safe on staging and on production after an apply. It runs the minute job once, as pg_cron
+-- does (one.tick_job(), which writes only to schema one and commits after each step, so the first event backfill never
+-- holds the app tables for its whole length; m9 of the second review), and otherwise reads the catalogue; it changes
+-- no app data. Run by scripts/db/rehearse.sh, scripts/db/apply.sh and scripts/db/local-test.sh, as postgres, never
+-- inside a transaction block. Any failed assertion raises; on success it returns one summary row.
+set lock_timeout = '2s';
+set statement_timeout = '5min';
+call one.tick_job();
+reset statement_timeout;
+
 do $$
 declare
-  v_tick jsonb := one.tick();
+  v_run one.runs;
   v_bad text;
 begin
-  -- one.tick() and the two jobs (spec §14, phase 1)
-  if v_tick::text ~ '_error"' or v_tick ? 'checks' and v_tick -> 'checks' ? 'check_errors' then
-    raise exception 'ASSERT FAILED: tick report has an error key: %', v_tick;
+  -- The minute job and the two cron jobs (spec §14, phase 1): the latest tick finished, and its report has no
+  -- "_error" key. (If pg_cron took this minute first, its run is the one read.)
+  select * into v_run from one.runs where kind = 'tick' and finished_at is not null and started_at > now() - interval '3 minutes'
+   order by id desc limit 1;
+  if v_run.id is null then
+    raise exception 'ASSERT FAILED: no tick finished in the last 3 minutes';
   end if;
-  if not (one.tick() ? 'skipped' or date_trunc('minute', clock_timestamp()) > date_trunc('minute', (v_tick ->> 'at')::timestamptz)) then
+  if v_run.report::text ~ '_error"' then
+    raise exception 'ASSERT FAILED: tick report has an error key: %', v_run.report;
+  end if;
+  if not (one.tick() ? 'skipped') then
     raise exception 'ASSERT FAILED: a second tick in the same minute ran again';
   end if;
   if (select count(*) from cron.job where (jobname, schedule, command) in
@@ -49,13 +62,23 @@ begin
      and n.nspname not like 'pg_toast%'
      and (c.relacl::text like '%eduwit_one_fixer=%');
   if v_bad is not null then raise exception 'ASSERT FAILED: the fixer has grants before any fix migration: %', v_bad; end if;
-  if has_schema_privilege('anon', 'one', 'USAGE') or has_schema_privilege('authenticated', 'one', 'USAGE') then
-    raise exception 'ASSERT FAILED: an API role can use schema one';
+  -- The API roles reach schema one only through the functions one.api_grants lists, each SECURITY DEFINER; they hold
+  -- no privilege on any table or sequence of it, and anon cannot even use the schema (D-055).
+  if has_schema_privilege('anon', 'one', 'USAGE') then
+    raise exception 'ASSERT FAILED: anon can use schema one';
   end if;
-  if has_table_privilege('service_role', 'one.checks', 'INSERT') or has_table_privilege('service_role', 'one.checks', 'DELETE')
-     or has_column_privilege('service_role', 'one.checks', 'sql', 'UPDATE') or not has_column_privilege('service_role', 'one.checks', 'enabled', 'UPDATE') then
-    raise exception 'ASSERT FAILED: service role privileges on one.checks are not the operational columns only';
-  end if;
+  select string_agg(r || ' on ' || c.oid::regclass::text, ', ') into v_bad
+    from pg_class c, unnest(array['service_role', 'authenticated', 'anon']) r
+   where c.relnamespace = 'one'::regnamespace and c.relkind in ('r', 'p', 'v', 'm', 'S')
+     and (has_table_privilege(r, c.oid, 'SELECT') or has_table_privilege(r, c.oid, 'INSERT') or has_table_privilege(r, c.oid, 'UPDATE')
+          or has_table_privilege(r, c.oid, 'DELETE') or has_table_privilege(r, c.oid, 'TRUNCATE'));
+  if v_bad is not null then raise exception 'ASSERT FAILED: an API role holds a table privilege in schema one: %', v_bad; end if;
+  select string_agg(r || ' → ' || p.oid::regprocedure::text, ', ') into v_bad
+    from pg_proc p, unnest(array['service_role', 'authenticated', 'anon']) r
+   where p.pronamespace = 'one'::regnamespace and has_function_privilege(r, p.oid, 'EXECUTE')
+     and (r = 'anon' or not p.prosecdef
+          or not exists (select 1 from one.api_grants a where to_regprocedure(a.fn) = p.oid and a.role = r));
+  if v_bad is not null then raise exception 'ASSERT FAILED: an API role can execute a one.* function outside one.api_grants: %', v_bad; end if;
   select string_agg(r, ', ') into v_bad from unnest(array['eduwit_one_reader', 'service_role', 'anon', 'authenticated']) r
    where has_function_privilege(r, 'one.secret(text)', 'EXECUTE');
   if v_bad is not null then raise exception 'ASSERT FAILED: one.secret is executable by %', v_bad; end if;

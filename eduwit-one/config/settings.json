@@ -1,5 +1,5 @@
 {
-  "$comment": "Operational defaults for one.settings (spec \u00a718), seeded by migration 0007 through scripts/db/gen-seed.ts. Every value is editable from the Settings page and versioned; a seed never overwrites a person's edit. Owner decisions from the prerequisites doc override the spec defaults: email-only alerts (D-005), Gemini as the seeded provider (D-004).",
+  "$comment": "Operational defaults for one.settings (spec §18), seeded by migration 0007 through scripts/db/gen-seed.ts. Every value is editable from the Settings page and versioned; a seed never overwrites a person's edit. Owner decisions from the prerequisites doc override the spec defaults: email-only alerts (D-005), Gemini as the seeded provider (D-004).",
   "app": {
     "base_url": null,
     "timezone": "Asia/Kolkata"
@@ -60,7 +60,11 @@
     "b2c_outbox_urgent_min": 30,
     "b2c_outbox_batch_min": 45,
     "web_advisor_daily_usd": 10,
-    "ai_queue_max": 50
+    "ai_queue_max": 50,
+    "cron_scan_runs": 100000,
+    "heartbeat_never_seen_grace_min": 15,
+    "delivery_stuck_min": 5,
+    "b2b_alert_window_min": 15
   },
   "fixes": {
     "observation_days": 14,
@@ -211,7 +215,36 @@
       "snippet",
       "subject",
       "question",
-      "raw"
+      "raw",
+      "lead_name",
+      "father_name",
+      "mother_name",
+      "parent_name",
+      "contact_name",
+      "student_*",
+      "parent_*",
+      "father_*",
+      "mother_*",
+      "contact",
+      "contact_*",
+      "*_contact",
+      "note",
+      "notes",
+      "*_note",
+      "*_notes",
+      "comment",
+      "comments",
+      "*_comment",
+      "*_comments",
+      "remark",
+      "remarks",
+      "*_remark",
+      "*_remarks",
+      "dob",
+      "date_of_birth",
+      "aadhaar*",
+      "pan",
+      "pan_*"
     ],
     "id_overlap": 1000,
     "window_hours": 48

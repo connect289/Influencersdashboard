@@ -9,7 +9,7 @@
 -- title: Spark's programme cache is behind the catalogue
 -- description: max(b2c.programme_cache.catalog_updated_at) more than catalogue_min minutes behind max(public.catalog_programs.updated_at).
 with v as (select (select max(updated_at) from public.catalog_programs) as catalogue_at, (select max(catalog_updated_at) from b2c.programme_cache) as cache_at)
-select coalesce(cache_at >= catalogue_at - make_interval(mins => one.threshold('catalogue_min')::int), catalogue_at is null) as ok, to_jsonb(v) as value
+select coalesce(cache_at >= catalogue_at - make_interval(mins => (select one.threshold('catalogue_min'))::int), catalogue_at is null) as ok, to_jsonb(v) as value
   from v
 
 -- check: CAT-02

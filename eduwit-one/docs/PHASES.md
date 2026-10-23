@@ -24,6 +24,7 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | Full dump of production, path in `DECISIONS.md` | **blocked on owner**: `scripts/db/dump.sh` from a machine with database access (runbook step 3; D-010, D-041) |
 | Applied to production; `select one.tick()` report has no `_error` key; `cron.job` shows both jobs | blocked by the dump |
 | `one.events` count within 1% of the sources | pending |
+| Second database review (security rubric) | done: `docs/reviews/phase-1-2-db.md`, 1 blocker, 10 majors, 18 minors; all resolved (D-054), tests in `supabase/tests/local/60_review2.sql` |
 | Least-privilege test passes | passes locally (`supabase/tests/local/20_events_secrets_privileges.sql` §5, and `supabase/tests/smoke.sql`, which runs the same catalogue checks on staging and production). Proven to fail on a bad grant |
 
 ## Phase 2 — Checks and heartbeats (built; production run waits on phase 1, rule 4)

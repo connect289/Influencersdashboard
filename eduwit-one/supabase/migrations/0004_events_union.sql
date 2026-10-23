@@ -9,19 +9,36 @@
 -- Rows already copied are skipped by the unique (app, source_table, source_id). Every payload goes through one.redact()
 -- before it is stored (B1, D-046). A missing source is recorded as source_missing.
 
+-- Whether a text holds an email address or a phone number anywhere in it (M5 of the second review): an Indian mobile
+-- with or without +91 and one space or dash, an international number written with +, or any run of 10 to 15 digits.
+-- UUIDs and long hex tokens are blanked before the digit rules, so ids are not mistaken for phones.
+create or replace function one.has_contact(p_text text) returns text
+language sql immutable set search_path = '' as $$
+  select case
+    when p_text ~* '[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}' then 'email'
+    when x ~ '(^|[^0-9])(\+?91[ -]?)?[6-9][0-9]{4}[ -]?[0-9]{5}([^0-9]|$)'
+      or x ~ '\+[0-9]{1,3}[ -]?[0-9][0-9 -]{7,14}[0-9]'
+      or x ~ '(^|[^0-9])[0-9]{10,15}([^0-9]|$)' then 'phone'
+    end
+  from (select regexp_replace(regexp_replace(coalesce(p_text, ''),
+          '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', ' ', 'g'), '[0-9a-fA-F]{20,}', ' ', 'g') as x) t
+$$;
+
 -- Removes personal data from a JSON value at any depth: keys matching events.pii_columns (case-insensitive; "*" is a
--- wildcard) are dropped with everything under them; any remaining string that holds an email address or is
--- phone-shaped, and any number shaped like an Indian mobile, is replaced by "[email]" or "[phone]". Spec §2: never a
--- raw name, phone or email outside the apps.
+-- wildcard) are dropped with everything under them; a key that is itself an email or a phone is renamed "[email]" or
+-- "[phone]"; a string holding a JSON document is redacted as JSON; any other string holding an email or a phone
+-- anywhere becomes "[email]" or "[phone]" whole (names travel with contacts in free text, so nothing of it is kept);
+-- a number shaped like an Indian mobile becomes "[phone]". Spec §2: never a raw name, phone or email outside the apps.
 create or replace function one.redact(p_value jsonb, p_keys text[]) returns jsonb
 language plpgsql immutable set search_path = '' as $$
 declare
   v_out jsonb;
   v_text text;
+  v_kind text;
 begin
   case jsonb_typeof(p_value)
     when 'object' then
-      select coalesce(jsonb_object_agg(e.key, one.redact(e.value, p_keys)), '{}'::jsonb) into v_out
+      select coalesce(jsonb_object_agg(coalesce('[' || one.has_contact(e.key) || ']', e.key), one.redact(e.value, p_keys)), '{}'::jsonb) into v_out
         from jsonb_each(p_value) e
        where not exists (select 1 from unnest(p_keys) k
                           where lower(e.key) like replace(replace(lower(k), '_', '\_'), '*', '%'));
@@ -32,11 +49,17 @@ begin
       return v_out;
     when 'string' then
       v_text := p_value #>> '{}';
-      if v_text ~* '[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}' then
-        return '"[email]"'::jsonb;
+      -- A JSON document kept as text (a partner reply, a webhook body): redacted as JSON, then stored as text again.
+      if v_text ~ '^\s*[\[{]' and length(v_text) <= 20000 then
+        begin
+          return to_jsonb(one.redact(v_text::jsonb, p_keys)::text);
+        exception when invalid_text_representation then
+          null;
+        end;
       end if;
-      if v_text ~ '^\+?[0-9][0-9 ().-]{8,20}$' and length(regexp_replace(v_text, '\D', '', 'g')) between 10 and 15 then
-        return '"[phone]"'::jsonb;
+      v_kind := one.has_contact(v_text);
+      if v_kind is not null then
+        return to_jsonb('[' || v_kind || ']');
       end if;
       return p_value;
     when 'number' then
@@ -63,6 +86,10 @@ declare
   v_max_id bigint;
   v_max_at timestamptz;
 begin
+  -- Nothing is copied without a PII list: an empty or missing one would store names and free text (M4).
+  if cardinality(v_pii) = 0 then
+    raise exception 'events.pii_columns is missing or empty: nothing is copied without a PII list' using errcode = '22023';
+  end if;
   perform set_config('lock_timeout', coalesce(one.setting('checks') ->> 'lock_timeout', '2s'), true);
   insert into one.event_watermarks (source) values (p_source) on conflict do nothing;
   select * into v_wm from one.event_watermarks where source = p_source for update;
@@ -71,10 +98,13 @@ begin
     ins as (
       insert into one.events (app, source_table, source_id, occurred_at, type, lead_id, actor_type, actor_id, payload)
       select %L, %L, s.source_id, s.occurred_at, s.type, s.lead_id, s.actor_type, s.actor_id, one.redact(coalesce(s.payload, '{}'), $4)
-        from src s where s.occurred_at is not null
+        from src s
+       where s.occurred_at is not null
+         -- Rows copied before are skipped before they are redacted: the overlap and the state window re-read them (M9).
+         and not exists (select 1 from one.events e where e.app = %L and e.source_table = %L and e.source_id = s.source_id)
       on conflict (app, source_table, source_id) do nothing
       returning 1)
-    select (select count(*) from ins)::int, (select max(wm_id) from src), (select max(wm_at) from src)$q$, p_sql, p_app, p_source)
+    select (select count(*) from ins)::int, (select max(wm_id) from src), (select max(wm_at) from src)$q$, p_sql, p_app, p_source, p_app, p_source)
     into v_inserted, v_max_id, v_max_at
     using greatest(coalesce(v_wm.last_id, 0) - v_overlap, 0), now() - v_window, v_batch, v_pii;
   update one.event_watermarks
@@ -168,14 +198,30 @@ exception when others then
   return jsonb_build_object(p_source || '_error', left(sqlerrm, 200));
 end $$;
 
--- Copies every source once in the caller's transaction (one.tick(); the cron job commits per source instead).
+-- The source start mark, committed by the cron job before each copy (see one.reap_killed).
+create or replace function one.mark_source_started(p_source text) returns void
+language sql set search_path = '' as $$
+  insert into one.event_watermarks (source, last_started_at) values (p_source, now())
+  on conflict (source) do update set last_started_at = now()
+$$;
+
+-- The sources in the order a tick copies them: least recently started first; a source whose last copy was killed
+-- waits 10 minutes before it is tried again, last.
+create or replace function one.events_due() returns table (source text, app text, sql text)
+language sql stable set search_path = '' as $$
+  select s.source, s.app, s.sql from one.events_sources() s left join one.event_watermarks w on w.source = s.source
+   where w.last_status is distinct from 'killed' or w.last_started_at < now() - interval '10 minutes'
+   order by w.last_status = 'killed' nulls first, w.last_started_at nulls first, s.source
+$$;
+
+-- Copies every due source once in the caller's transaction (one.tick(); the cron job commits per source instead).
 create or replace function one.events_refresh() returns jsonb
 language plpgsql set search_path = '' as $$
 declare
   v_src record;
   v_out jsonb := '{}';
 begin
-  for v_src in select * from one.events_sources() loop
+  for v_src in select * from one.events_due() loop
     v_out := v_out || one.events_copy_safe(v_src.source, v_src.app, v_src.sql);
   end loop;
   return v_out;

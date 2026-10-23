@@ -32,12 +32,14 @@ select jsonb_array_length(a) = 0 as ok,
 -- severity: P1
 -- cadence_s: 900
 -- title: Witty's inbox is silent while Chatwoot is receiving messages
--- description: Between 09:00 and 22:00 IST, no new w2_inbox row for witty_silence_h hours while the Chatwoot probe (heartbeat chatwoot, detail.incoming_recent) saw incoming messages in that window. Without a fresh Chatwoot reading, inbox silence alone fires (spec §15 fallback).
+-- description: Between 09:00 and 22:00 IST, no new w2_inbox row for witty_silence_h hours while the Chatwoot probe (heartbeat chatwoot, detail.incoming_recent) saw incoming messages in that window. Without a fresh Chatwoot reading, inbox silence alone fires (spec §15 fallback). Silence is counted from 09:00 IST at the earliest, so a quiet night does not page at 09:00 (m10 of the second review).
 with w as (
   select (now() at time zone 'Asia/Kolkata')::time between time '09:00' and time '22:00' as in_hours,
          (select max(received_at) from public.w2_inbox) as last_inbox,
+         greatest((select max(received_at) from public.w2_inbox),
+                  (date_trunc('day', now() at time zone 'Asia/Kolkata') + time '09:00') at time zone 'Asia/Kolkata') as quiet_since,
          (select h.detail from one.heartbeats h where h.component = 'chatwoot' and h.last_ok_at > now() - interval '20 minutes') as cw)
-select not (in_hours and coalesce(last_inbox < now() - make_interval(hours => one.threshold('witty_silence_h')::int), true)
+select not (in_hours and quiet_since < now() - make_interval(hours => (select one.threshold('witty_silence_h'))::int)
             and (cw is null or coalesce((cw ->> 'incoming_recent')::int, 0) > 0)) as ok,
        jsonb_build_object('in_hours', in_hours, 'last_inbox_at', last_inbox, 'chatwoot_incoming_recent', cw -> 'incoming_recent',
                           'chatwoot_reading', cw is not null) as value
@@ -50,7 +52,7 @@ select not (in_hours and coalesce(last_inbox < now() - make_interval(hours => on
 -- cadence_s: 900
 -- title: Witty's reply latency p95 is over budget
 -- description: p95 of w2_messages.latency_ms for outgoing replies in the last 15 min above witty_p95_ms, with at least 10 replies.
-select count(*) < 10 or percentile_cont(0.95) within group (order by latency_ms) <= one.threshold('witty_p95_ms') as ok,
+select count(*) < 10 or percentile_cont(0.95) within group (order by latency_ms) <= (select one.threshold('witty_p95_ms')) as ok,
        jsonb_build_object('replies', count(*), 'p95_ms', round(percentile_cont(0.95) within group (order by latency_ms)::numeric)) as value
   from public.w2_messages
  where direction = 'out' and kind = 'reply' and latency_ms is not null and created_at > now() - interval '15 minutes'

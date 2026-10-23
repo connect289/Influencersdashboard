@@ -13,12 +13,83 @@ language sql stable set search_path = '' as $$
   select (value ->> p_key)::numeric from one.settings where key = 'thresholds'
 $$;
 
+-- The shapes the database relies on, checked on every write: a malformed value would otherwise surface as an error
+-- inside a tick, where it erases the very result it should report (m1 of the second review), or, for events, copy
+-- rows with no PII list (M4). Raises 22023 with what is wrong; never returns the value.
+create or replace function one.settings_check(p_key text, p_value jsonb) returns void
+language plpgsql immutable set search_path = '' as $$
+declare
+  v_email text := '^[^@\s]+@[^@\s]+\.[a-z]{2,}$';
+  v_bad text;
+begin
+  if jsonb_typeof(p_value) is distinct from 'object' then
+    raise exception 'setting %: the value must be a JSON object', p_key using errcode = '22023';
+  end if;
+  case p_key
+    when 'events' then
+      if jsonb_typeof(p_value -> 'pii_columns') is distinct from 'array' or jsonb_array_length(p_value -> 'pii_columns') = 0
+         or exists (select 1 from jsonb_array_elements(p_value -> 'pii_columns') e where jsonb_typeof(e) <> 'string') then
+        raise exception 'setting events: pii_columns must be a non-empty list of key patterns' using errcode = '22023';
+      end if;
+      if coalesce((p_value ->> 'batch')::int, 5000) not between 100 and 50000
+         or coalesce((p_value ->> 'id_overlap')::int, 0) not between 0 and 10000
+         or coalesce((p_value ->> 'window_hours')::int, 48) not between 1 and 720 then
+        raise exception 'setting events: batch 100–50000, id_overlap 0–10000, window_hours 1–720' using errcode = '22023';
+      end if;
+    when 'alerts' then
+      if jsonb_typeof(p_value #> '{p1,email}') is distinct from 'array' or jsonb_array_length(p_value #> '{p1,email}') = 0 then
+        raise exception 'setting alerts: p1.email must be a non-empty list of addresses' using errcode = '22023';
+      end if;
+      select string_agg(x, ', ') into v_bad
+        from (select jsonb_array_elements_text(p_value #> '{p1,email}') x
+              union all select jsonb_array_elements_text(coalesce(p_value #> '{escalation,second_contact}', '[]'))
+              union all select p_value ->> 'developer_email' where p_value ->> 'developer_email' is not null) a
+       where lower(x) !~ v_email;
+      if v_bad is not null then
+        raise exception 'setting alerts: not an email address: %', left(v_bad, 200) using errcode = '22023';
+      end if;
+      if coalesce((p_value #>> '{escalation,resend_min}')::numeric, 30) not between 5 and 1440
+         or coalesce((p_value #>> '{escalation,second_contact_min}')::numeric, 60) not between 5 and 1440
+         or coalesce((p_value #>> '{escalation,repeat_min}')::numeric, 60) not between 5 and 1440
+         or coalesce((p_value ->> 'p2_digest_hour_ist')::numeric, 18) not between 0 and 23
+         or coalesce((p_value ->> 'p2_digest_min_count')::numeric, 5) not between 0 and 1000
+         or coalesce((p_value #>> '{storm,p1_count}')::numeric, 10) not between 2 and 1000
+         or coalesce((p_value #>> '{storm,window_min}')::numeric, 5) not between 1 and 120
+         or coalesce((p_value #>> '{storm,suppress_min}')::numeric, 15) not between 1 and 240 then
+        raise exception 'setting alerts: an escalation, digest or storm number is out of range' using errcode = '22023';
+      end if;
+    when 'thresholds' then
+      select string_agg(key, ', ') into v_bad from jsonb_each(p_value) where jsonb_typeof(value) <> 'number';
+      if v_bad is not null then
+        raise exception 'setting thresholds: not a number: %', left(v_bad, 200) using errcode = '22023';
+      end if;
+    when 'checks' then
+      if coalesce(p_value ->> 'lock_timeout', '2s') !~ '^[0-9]{1,5}(ms|s)$'
+         or coalesce(p_value ->> 'transaction_timeout', '30s') !~ '^[0-9]{1,5}(ms|s|min)$'
+         or jsonb_typeof(coalesce(p_value -> 'source_missing_opens_incident', 'true')) <> 'boolean'
+         or coalesce((p_value ->> 'slow_ms')::int, 5000) not between 100 and 600000 then
+        raise exception 'setting checks: lock_timeout like "2s", transaction_timeout like "30s", a boolean source_missing_opens_incident, slow_ms 100–600000'
+          using errcode = '22023';
+      end if;
+    when 'app' then
+      if p_value ->> 'base_url' is not null and p_value ->> 'base_url' !~ '^https://[a-z0-9.-]+(:[0-9]+)?$' then
+        raise exception 'setting app: base_url must be https://host with no path' using errcode = '22023';
+      end if;
+    else
+      null;
+  end case;
+exception
+  when invalid_text_representation or numeric_value_out_of_range then
+    raise exception 'setting %: a number field holds something else', p_key using errcode = '22023';
+end $$;
+
 -- Versioned write. A seed never overwrites a value a person changed (spec §16.8). Returns the version in force.
 create or replace function one.settings_put(p_key text, p_value jsonb, p_actor text, p_reason text default null) returns integer
 language plpgsql set search_path = '' as $$
 declare
   v_row one.settings;
 begin
+  perform one.settings_check(p_key, p_value);
   select * into v_row from one.settings where key = p_key for update;
   if found and p_actor = 'seed' and v_row.actor <> 'seed' then
     return v_row.version;
@@ -82,7 +153,9 @@ begin
   if p_path !~ '^/api/internal/[a-z0-9/-]+$' then
     raise exception 'one.job_call: bad path %', p_path using errcode = '22023';
   end if;
-  if v_base is null or v_base !~ '^https?://[^/\s]+$' then
+  -- https only: the bearer key must never travel in clear text (m15). A bad value is "not configured", and PLAT-05
+  -- reports it.
+  if v_base is null or v_base !~ '^https://[^/\s]+$' then
     return null;
   end if;
   v_key := one.secret('one_internal_key');
@@ -281,17 +354,36 @@ begin
   return jsonb_build_object('due', true, 'p2_today', v_count, 'queued', v_queued);
 end $$;
 
--- The tick's alert step, isolated like the others: escalation and the digest, or alerts_error.
+-- An incident whose check was switched off can never recover (the tick no longer runs the check), so it is closed as
+-- accepted, naming the reason (m6 of the second review).
+create or replace function one.close_disabled() returns integer
+language plpgsql set search_path = '' as $$
+declare
+  v_n integer;
+begin
+  update one.incidents i
+     set resolved_at = now(), resolved_by = 'one', resolution = 'accepted',
+         resolution_note = left('check switched off: ' || coalesce(c.disabled_reason, 'no reason'), 300)
+    from one.checks c
+   where c.id = i.check_id and i.resolved_at is null and not c.enabled;
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+
+-- The tick's alert step, isolated like the others: escalation, the digest and closing switched-off checks' incidents,
+-- or alerts_error.
 create or replace function one.alerts_step() returns jsonb
 language plpgsql set search_path = '' as $$
 begin
-  return jsonb_build_object('alerts', one.escalate() || jsonb_build_object('digest', one.digest()));
+  return jsonb_build_object('alerts', one.escalate() || jsonb_build_object('digest', one.digest(), 'closed_disabled', one.close_disabled()));
 exception when others then
   return jsonb_build_object('alerts_error', left(sqlerrm, 200));
 end $$;
 
 -- Opens, touches or reopens the check's incident. A touch only records the occurrence, unless the severity rose or a
--- subject appeared that the incident did not have: then the acknowledgement is cleared and it is routed again.
+-- subject entered the failing set: then the acknowledgement is cleared and it is routed again. subjects holds the
+-- current failing set, so a subject that recovered and fails again alerts again (m5 of the second review). A run
+-- that names no subjects keeps the set it had.
 create or replace function one.open_or_touch_incident(p_check_id text, p_severity one.severity, p_evidence jsonb,
                                                       p_subjects text[] default '{}') returns bigint
 language plpgsql set search_path = '' as $$
@@ -309,7 +401,7 @@ begin
     update one.incidents
        set occurrences = occurrences + 1, last_seen_at = now(), evidence = p_evidence,
            severity = least(severity, p_severity)::one.severity,
-           subjects = subjects || v_new,
+           subjects = case when cardinality(coalesce(p_subjects, '{}')) > 0 then p_subjects else subjects end,
            acknowledged_at = case when v_escalated or cardinality(v_new) > 0 then null else acknowledged_at end,
            acknowledged_by = case when v_escalated or cardinality(v_new) > 0 then null else acknowledged_by end
      where id = v_inc.id;
@@ -368,9 +460,9 @@ begin
   return v_id;
 end $$;
 
+insert into one.api_grants (fn, role, why) values
+  ('one.setting(text)', 'eduwit_one_reader', 'read settings'),
+  ('one.threshold(text)', 'eduwit_one_reader', 'read thresholds'),
+  ('one.vault_names()', 'eduwit_one_reader', 'secret names, never values')
+on conflict do nothing;
 call one.apply_grants();
-grant execute on function one.setting(text), one.threshold(text), one.vault_names() to eduwit_one_reader, service_role;
-grant execute on function one.settings_put(text, jsonb, text, text), one.heartbeat(text, boolean, jsonb, text, integer),
-  one.resolve_incident(bigint, text, text, text), one.acknowledge_incident(bigint, text),
-  one.record_action(text, bigint, text, jsonb, boolean, text, jsonb, text, text),
-  one.enqueue_ai(text, jsonb, text, text, bigint), one.is_muted(text, text) to service_role;

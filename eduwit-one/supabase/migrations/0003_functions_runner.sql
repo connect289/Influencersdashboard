@@ -22,7 +22,7 @@ begin
   insert into one.results (check_id, status, value, error, duration_ms) values (p_check_id, p_status, p_value, left(p_error, 1000), p_duration_ms);
   insert into one.check_state (check_id) values (p_check_id) on conflict do nothing;
   update one.check_state set
-    last_ran_at = now(), last_status = p_status,
+    last_ran_at = now(), last_status = p_status, killed_count = 0,
     consecutive_fail = case when v_failing then consecutive_fail + 1 when p_status = 'ok' then 0 else consecutive_fail end,
     consecutive_ok = case when p_status = 'ok' then consecutive_ok + 1 when v_failing then 0 else consecutive_ok end
    where check_id = p_check_id
@@ -87,25 +87,66 @@ begin
     'incident', one.evaluate(p_check_id, v_status, v_value, v_error, (extract(epoch from clock_timestamp() - v_started) * 1000)::int));
 end $$;
 
--- For checks the app runs (HTTP probes, synthetic tests): the app reports, the database decides.
+-- For checks the app runs (HTTP probes, synthetic tests): the app reports, the database decides. Only those kinds:
+-- an rpc or heartbeat check is run by the tick, and a second writer could resolve what the tick found (m3).
 create or replace function one.report_result(p_check_id text, p_status text, p_value jsonb, p_error text, p_duration_ms integer) returns text
 language plpgsql security definer set search_path = '' as $$
 begin
-  if not exists (select 1 from one.checks where id = p_check_id and enabled and kind in ('http', 'test', 'heartbeat', 'rpc')) then
+  if not exists (select 1 from one.checks where id = p_check_id and enabled and kind in ('http', 'test')) then
     raise exception 'one.report_result: % is not an enabled app-run check', p_check_id using errcode = '22023';
   end if;
   return one.evaluate(p_check_id, p_status, p_value, p_error, p_duration_ms);
 end $$;
 
--- Checks due now, least recently started first: a check that never finishes (its run was killed) moves to the back
--- instead of starving the rest.
-create or replace function one.due_checks() returns setof text
+-- Checks due now, least recently started first. Due-ness counts in whole minutes from the start of this minute, so a
+-- one-minute check that ran late in the last tick is still due in this one (M7). p_killed false: the checks whose
+-- last run finished; true: those whose last run was killed (one.reap_killed), due again after 10 min per consecutive
+-- kill, at most an hour, and run by the cron job only after the alert step and the app call (B1).
+create or replace function one.due_checks(p_killed boolean default false) returns setof text
 language sql stable set search_path = '' as $$
   select c.id from one.checks c left join one.check_state s on s.check_id = c.id
    where c.enabled and c.sql is not null
-     and (s.last_ran_at is null or s.last_ran_at <= now() - make_interval(secs => c.cadence_s - 5))
+     and (coalesce(s.killed_count, 0) > 0) = p_killed
+     and (s.last_ran_at is null
+          or s.last_ran_at < date_trunc('minute', now()) - make_interval(secs => c.cadence_s - 60))
+     and (not p_killed or s.last_started_at < now() - make_interval(mins => least(10 * s.killed_count, 60)))
    order by s.last_started_at nulls first, c.id
 $$;
+
+-- The check start mark, written and committed by the cron job before the check runs, so a run that is killed still
+-- leaves it (B1 of the second review: in the check's own transaction the kill rolled it back).
+create or replace function one.mark_started(p_check_id text) returns void
+language sql set search_path = '' as $$
+  insert into one.check_state (check_id, last_started_at) values (p_check_id, now())
+  on conflict (check_id) do update set last_started_at = now()
+$$;
+
+-- At the start of a tick, under the tick lock: every check that started and never finished was killed (by
+-- transaction_timeout, a cancel or a crash). Each gets an error result, which counts as a failure and opens its
+-- incident like any error (D-042), and its kill count goes up. The same for an event copy that never finished.
+create or replace function one.reap_killed() returns jsonb
+language plpgsql set search_path = '' as $$
+declare
+  v_row record;
+  v_checks text[] := '{}';
+  v_sources text[] := '{}';
+begin
+  for v_row in
+    select s.check_id, s.killed_count from one.check_state s
+     where s.last_started_at > coalesce(s.last_ran_at, '-infinity'::timestamptz)
+     order by s.check_id
+  loop
+    perform one.evaluate(v_row.check_id, 'error', null,
+      'killed: the run started and did not finish (transaction_timeout, a cancel or a crash); it now runs after the alert step', null);
+    update one.check_state set killed_count = v_row.killed_count + 1 where check_id = v_row.check_id;
+    v_checks := v_checks || v_row.check_id;
+  end loop;
+  update one.event_watermarks set last_status = 'killed', last_error = 'the copy started and did not finish', updated_at = now()
+   where last_started_at >= updated_at and last_status is distinct from 'killed';
+  select coalesce(array_agg(source order by source), '{}') into v_sources from one.event_watermarks where last_status = 'killed' and updated_at = now();
+  return case when cardinality(v_checks) + cardinality(v_sources) = 0 then '{}'::jsonb
+              else jsonb_build_object('killed_error', jsonb_build_object('checks', to_jsonb(v_checks), 'sources', to_jsonb(v_sources))) end;
+end $$;
 
 -- One check, isolated: marks the start, runs it, and turns anything unexpected into an error result. Returns the
 -- report fragment: {"status": ...} plus "<ID>_error" when the run errored, or its source is missing where that counts.
@@ -119,7 +160,11 @@ begin
   begin
     v_out := one.run_check(p_check_id);
   exception when others then
+    -- Recording or routing the result failed (run_check's own block covers the check's SQL). The rollback took the
+    -- result with it, so keep an error result here; the "<ID>_error" key below reaches ONE-01 (m1).
     v_out := jsonb_build_object('check', p_check_id, 'status', 'error', 'error', left(sqlerrm, 200));
+    insert into one.results (check_id, status, error) values (p_check_id, 'error', left('recording failed: ' || sqlerrm, 1000));
+    update one.check_state set last_ran_at = now(), last_status = 'error', killed_count = 0 where check_id = p_check_id;
   end;
   return jsonb_build_object('status', v_out ->> 'status')
          || case when v_out ->> 'status' = 'error'
@@ -159,21 +204,25 @@ declare
   v_report jsonb := jsonb_build_object('at', now());
 begin
   perform one.heartbeat('one:tick', true, jsonb_build_object('at', now()), null, 60);
+  if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtext('one.tick')) then
+    return v_report || jsonb_build_object('skipped', 'another tick is running');
+  end if;
   insert into one.runs (kind, bucket) values ('tick', date_trunc('minute', now()))
   on conflict (kind, bucket) do nothing returning id into v_run;
   if v_run is null then
     return v_report || jsonb_build_object('skipped', 'already ran this minute');
   end if;
+  v_report := v_report || one.reap_killed();
   begin
     v_report := v_report || one.run_sql_checks();
   exception when others then v_report := v_report || jsonb_build_object('checks_error', sqlerrm);
   end;
+  v_report := v_report || one.alerts_step();
+  v_report := v_report || one.tick_app_call();
   begin
     v_report := v_report || jsonb_build_object('events', one.events_refresh());
   exception when others then v_report := v_report || jsonb_build_object('events_error', sqlerrm);
   end;
-  v_report := v_report || one.alerts_step();
-  v_report := v_report || one.tick_app_call();
   update one.runs set finished_at = now(), report = v_report where id = v_run;
   return v_report;
 end $$;
@@ -206,7 +255,10 @@ begin
                              'supabase_migrations', 'pgmq', 'one'))
   insert into one.privilege_baseline (fn, schema, roles, acknowledged, acknowledged_by)
   select fn, schema, roles, v_first, case when v_first then 'baseline' end from current_set where cardinality(roles) > 0
-  on conflict (fn) do update set roles = excluded.roles, last_seen = now();
+  on conflict (fn) do update set roles = excluded.roles, last_seen = now(),
+    -- A function that gains a role (authenticated-only opened to anon) must be looked at again (m7).
+    acknowledged = one.privilege_baseline.acknowledged and excluded.roles <@ one.privilege_baseline.roles,
+    acknowledged_by = case when excluded.roles <@ one.privilege_baseline.roles then one.privilege_baseline.acknowledged_by end;
   select count(*) into v_new from one.privilege_baseline where not acknowledged and last_seen > now() - interval '1 day';
   return jsonb_build_object('baseline_created', v_first, 'unacknowledged', v_new,
                             'total', (select count(*) from one.privilege_baseline where last_seen > now() - interval '1 day'));
@@ -259,6 +311,12 @@ begin
     on conflict (key) do nothing;
     if found then v_captured := v_captured || 'student_leads_columns'::text; end if;
   end if;
+  -- Views the API roles can read that run with their owner's rights (Supabase lint security_definer_view). The ones
+  -- that exist at install are tracked as cleanup proposals (spec §13); PLAT-06 reports any view added after (M10).
+  insert into one.baselines (key, value)
+  select 'security_definer_views', coalesce(jsonb_agg(v order by v), '[]') from one.security_definer_views() v
+  on conflict (key) do nothing;
+  if found then v_captured := v_captured || 'security_definer_views'::text; end if;
   return jsonb_build_object('captured', to_jsonb(v_captured));
 end $$;
 
@@ -300,11 +358,52 @@ create or replace function one.health() returns jsonb
 language sql stable set search_path = '' as $$
   select jsonb_build_object(
     'tick_age_s', (select round(extract(epoch from now() - last_ok_at)) from one.heartbeats where component = 'one:tick'),
+    'tick_finished_age_s', (select round(extract(epoch from now() - max(finished_at))) from one.runs where kind = 'tick'),
     'open_p1', (select count(*) from one.incidents where resolved_at is null and severity = 'P1'),
     'open_total', (select count(*) from one.incidents where resolved_at is null),
     'ai_pending', (select count(*) from one.ai_tasks where status = 'pending'),
     'deliveries_pending', (select count(*) from one.deliveries where status in ('pending', 'failed')),
     'last_nightly', (select max(started_at) from one.runs where kind = 'nightly'))
+$$;
+
+-- The verdict of a heartbeat check (spec §6 HB-*): fresh within expected_interval_s × heartbeat_multiple is ok; read
+-- but stale, or read and never once ok, is down (D-050). A component never written is ok only while nothing expects
+-- it yet: one:app is expected once app.base_url is set, the app's probes once the app has answered a tick; after
+-- heartbeat_never_seen_grace_min of that it is down too, so a prober that never runs cannot hide (M2, D-056).
+create or replace function one.heartbeat_state(p_component text) returns jsonb
+language sql stable set search_path = '' as $$
+  with h as (select * from one.heartbeats where component = p_component),
+  v as (
+    select not exists (select 1 from h) as never_seen,
+           (select last_ok_at from h) as last_ok_at, (select last_error_at from h) as last_error_at,
+           (select last_error from h) as last_error, (select expected_interval_s from h) as expected_interval_s,
+           case when p_component = 'one:app'
+                  then (select s.updated_at from one.settings s where s.key = 'app' and nullif(s.value ->> 'base_url', '') is not null)
+                when p_component like 'one:%' then null
+                else (select a.created_at from one.heartbeats a where a.component = 'one:app' and a.last_ok_at is not null) end as expected_since,
+           coalesce(one.threshold('heartbeat_multiple'), 3) as multiple,
+           coalesce(one.threshold('heartbeat_never_seen_grace_min'), 15) as grace)
+  select jsonb_build_object(
+    'ok', case when never_seen then expected_since is null or expected_since > now() - make_interval(mins => grace::int)
+               else coalesce(last_ok_at > now() - make_interval(secs => (expected_interval_s * multiple)::int), false) end,
+    'component', p_component, 'last_ok_at', last_ok_at, 'last_error_at', last_error_at, 'last_error', left(last_error, 300),
+    'never_seen', never_seen, 'expected_since', expected_since)
+  from v
+$$;
+
+-- Views in a schema the API exposes (anon has USAGE) that anon or authenticated can read and that run with their
+-- owner's rights (no security_invoker): the Supabase lint security_definer_view, level ERROR (M10).
+create or replace function one.security_definer_views() returns setof text
+language sql stable set search_path = '' as $$
+  select c.oid::regclass::text
+    from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+   where c.relkind = 'v'
+     and n.nspname not in ('pg_catalog', 'information_schema', 'graphql', 'graphql_public', 'extensions', 'auth', 'storage',
+                           'realtime', 'net', 'cron', 'vault', 'pgsodium', 'supabase_functions', 'supabase_migrations', 'pgbouncer', 'pgmq', 'one')
+     and pg_catalog.has_schema_privilege('anon', n.oid, 'USAGE')
+     and not coalesce(c.reloptions::text[] && array['security_invoker=true', 'security_invoker=on', 'security_invoker=1'], false)
+     and (pg_catalog.has_table_privilege('anon', c.oid, 'SELECT') or pg_catalog.has_table_privilege('authenticated', c.oid, 'SELECT'))
+   order by 1
 $$;
 
 -- Roles other than the owners that could create objects in schema public. WITTY-01 runs with search_path public
@@ -324,6 +423,8 @@ begin
   return inf.health();
 end $$;
 
+insert into one.api_grants (fn, role, why) values
+  ('one.health()', 'eduwit_one_reader', 'Eduwit One health'),
+  ('one.inf_health()', 'eduwit_one_reader', 'the portal health without schema inf')
+on conflict do nothing;
 call one.apply_grants();
-grant execute on function one.health(), one.inf_health() to eduwit_one_reader, service_role;
-grant execute on function one.run_check(text), one.report_result(text, text, jsonb, text, integer) to service_role;

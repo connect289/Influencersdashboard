@@ -39,7 +39,7 @@ select pg_temp.ok((select (count(*) = 1) from one.events where source_table = 'p
 -- 1b. Contact data nested anywhere in a payload never reaches one.events (B1, D-046) ------------------------------------
 insert into b2b.events (type, lead_id, payload) values ('b2c.lead_updated', 1, $j${"changes": {"email": {"from": "asha.k@gmail.com", "to": "asha.kumar@yahoo.in"},
   "name": {"to": "Asha Kumar"}, "alternate_phone": {"to": "+91 98111 22334"}, "city": {"to": "Pune"}},
-  "note": "call her on +91 98111 22334 or asha.k@gmail.com", "list": [{"guardian_phone": "9811122334"}, "9811122334"], "count": 9811122334}$j$);
+  "note": "call her on +91 98111 22334 or asha.k@gmail.com", "detail": "sent to asha.k@gmail.com", "list": [{"guardian_phone": "9811122334"}, "9811122334"], "count": 9811122334}$j$);
 set role postgres;
 select one.events_refresh();
 reset role;
@@ -109,8 +109,19 @@ select pg_temp.ok(pg_temp.refused('eduwit_one_reader', 'select one.secret(''one_
 select pg_temp.ok(pg_temp.refused('eduwit_one_fixer', 'select count(*) from public.student_leads'), 'fixer has no grants at all');
 select pg_temp.ok(pg_temp.refused('service_role', $q$insert into one.checks (id, app, title, kind, sql, severity, cadence_s) values ('X-1', 'platform', 't', 'sql', 'select true as ok, null::jsonb as value', 'P3', 60)$q$), 'service role cannot add a check');
 select pg_temp.ok(pg_temp.refused('service_role', $q$update one.checks set sql = 'select true as ok, null::jsonb as value' where id = 'PLAT-01'$q$), 'service role cannot change a check''s sql');
-select pg_temp.ok(not pg_temp.refused('service_role', $q$update one.checks set enabled = true, updated_by = 'test' where id = 'PLAT-01'$q$), 'service role can change a check''s switch');
+select pg_temp.ok(pg_temp.refused('service_role', $q$update one.checks set enabled = false, disabled_reason = 'owner:x' where id = 'PLAT-01'$q$), 'service role cannot switch a check off directly (D-055)');
 select pg_temp.ok(pg_temp.refused('service_role', 'select one.secret(''one_internal_key'')'), 'service role cannot read secrets through SQL');
+-- m4 of the second review: the app's key cannot erase the audit, silence a check through its state, or feed the
+-- tick's own heartbeat; it reaches schema one only through the functions one.api_grants lists.
+select pg_temp.ok(pg_temp.refused('service_role', 'delete from one.audit'), 'service role cannot delete the audit');
+select pg_temp.ok(pg_temp.refused('service_role', 'truncate one.results'), 'service role cannot truncate results');
+select pg_temp.ok(pg_temp.refused('service_role', $q$update one.check_state set last_ran_at = now() + interval '10 years'$q$), 'service role cannot push a check''s state');
+select pg_temp.ok(pg_temp.refused('service_role', $q$select one.heartbeat('one:tick', true)$q$), 'service role cannot write a heartbeat directly');
+select pg_temp.ok(pg_temp.refused('service_role', $q$select one.settings_put('events', '{}', 'x')$q$), 'service role cannot write settings');
+set role service_role;
+select pg_temp.ok((one.app_report('{"heartbeats": [{"component": "one:tick", "ok": true, "expected_interval_s": 60}]}') #>> '{heartbeats,one:tick}') <> 'ok',
+                  'the app cannot report the database''s own one:tick heartbeat');
+reset role;
 select pg_temp.ok(pg_temp.refused('anon', 'select count(*) from one.settings'), 'anon cannot see schema one');
 select pg_temp.ok(pg_temp.refused('authenticated', 'select one.health()'), 'authenticated cannot call one.*');
 

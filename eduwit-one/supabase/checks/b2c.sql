@@ -9,10 +9,13 @@
 -- cadence_s: 60
 -- tags: cron
 -- title: Spark's timers or its answers to them are failing
--- description: Direct read of system_health's "timers" and "app" checks: no b2c-* job at all, a b2c-* job whose latest run failed (startup timeouts excluded, see PLAT-01B; b2c-capacity left to B2C-10), or a Spark job call answered with an error status in the last hour.
-with jobs as (
-  select j.jobname, (select d.status from cron.job_run_details d where d.jobid = j.jobid and d.return_message is distinct from 'job startup timeout'
-                      order by d.start_time desc limit 1) as last_status
+-- description: Direct read of system_health's "timers" and "app" checks: no b2c-* job at all, a b2c-* job whose latest finished run failed (a run in progress is ignored; startup timeouts excluded, see PLAT-01B; b2c-capacity left to B2C-10), or a Spark job call answered with an error status in the last hour. Reads the newest cron_scan_runs runs through the runid key (M3, M7 of the second review).
+with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
+jobs as (
+  select j.jobname, (select d.status from cron.job_run_details d, w
+                      where d.jobid = j.jobid and d.runid > w.from_runid and d.status in ('succeeded', 'failed')
+                        and d.return_message is distinct from 'job startup timeout'
+                      order by d.runid desc limit 1) as last_status
     from cron.job j where j.jobname like 'b2c-%' and j.jobname <> 'b2c-capacity' and j.active),
 calls as (
   select count(*) as failed from b2c.job_calls c, jsonb_array_elements(c.calls) e join net._http_response r on r.id = (e ->> 'id')::bigint
@@ -34,7 +37,7 @@ select (select count(*) from jobs) > 0 and not exists (select 1 from jobs where 
 select count(*) = 0 as ok,
        jsonb_build_object('error', count(*) filter (where status = 'error'), 'stuck', count(*) filter (where status = 'stored'), 'oldest_at', min(received_at)) as value
   from b2c.inbox
- where status = 'error' or (status = 'stored' and received_at < now() - make_interval(mins => one.threshold('b2c_inbox_min')::int))
+ where status = 'error' or (status = 'stored' and received_at < now() - make_interval(mins => (select one.threshold('b2c_inbox_min'))::int))
 
 -- check: B2C-03
 -- app: b2c
@@ -48,7 +51,7 @@ select count(*) = 0 as ok,
        jsonb_build_object('count', count(*), 'by_status', coalesce(jsonb_object_agg(status, n), '{}'), 'urgent', coalesce(sum(n) filter (where urgent), 0)) as value
   from (select status, urgent, count(*) as n from b2c.outbox
          where status <> 'applied' and created_at > now() - interval '7 days'
-           and created_at < now() - make_interval(mins => (case when urgent then one.threshold('b2c_outbox_urgent_min') else one.threshold('b2c_outbox_batch_min') end)::int)
+           and created_at < now() - make_interval(mins => (case when urgent then (select one.threshold('b2c_outbox_urgent_min')) else (select one.threshold('b2c_outbox_batch_min')) end)::int)
          group by status, urgent) o
 
 -- check: B2C-04
@@ -69,7 +72,7 @@ select not coalesce((select yes from open_hours), true) or count(*) = 0 as ok,
                           'lead_ids', coalesce(to_jsonb((array_agg(lead_id order by lead_id) filter (where lead_id is not null))[1:20]), '[]')) as value
   from b2c.leads_state
  where lane = 'sales' and status = 'active' and owner_id is null and deleted_at is null and not coalesce(is_test, false)
-   and coalesce(handed_off_at, created_at) < now() - make_interval(mins => one.threshold('handoff_min')::int)
+   and coalesce(handed_off_at, created_at) < now() - make_interval(mins => (select one.threshold('handoff_min'))::int)
 
 -- check: B2C-05
 -- app: b2c

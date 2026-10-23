@@ -28,7 +28,9 @@ for name in "$@"; do
   f="$here/supabase/migrations/$name"
   case "$name" in *.rollback.sql) echo "refused: $name is a rollback; run it by hand after reading it"; exit 2 ;; esac
   [ -f "$f" ] || { echo "no such migration: $name"; exit 2; }
-  q -1 -c "set local lock_timeout = '5s'; set local statement_timeout = '5min';" -f "$f" >/dev/null
+  # Between two catalogue fingerprints: a file that changes anything outside schema one is rolled back whole (M8).
+  q -1 -c "set local lock_timeout = '5s'; set local statement_timeout = '5min';" \
+    -f "$here/scripts/db/fp-before.sql" -f "$f" -f "$here/scripts/db/fp-after.sql" >/dev/null
   echo "  applied $name"
 done
 q -At -f "$here/supabase/tests/smoke.sql" | grep -q '^SMOKE PASSED' || { echo "smoke.sql failed after the apply"; exit 1; }

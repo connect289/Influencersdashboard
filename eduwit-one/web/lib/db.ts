@@ -13,7 +13,7 @@ export interface OneDb {
   wittyEscalations(
     limit: number,
   ): Promise<Array<{ conversation_id: number; account_id: number; escalated_at: string }>>;
-  watchdog(): Promise<{ tick_age_s: number | null; app_age_s: number | null }>;
+  watchdog(): Promise<Watchdog>;
   claimDeliveries(limit: number): Promise<unknown[]>;
   finishDelivery(id: number, ok: boolean, error: string | null, providerId: string | null): Promise<string>;
 }
@@ -32,7 +32,12 @@ export class DbError extends Error {
 const escalationsSchema = z.array(
   z.object({ conversation_id: z.number(), account_id: z.number(), escalated_at: z.string() }),
 );
-const watchdogSchema = z.object({ tick_age_s: z.number().nullable(), app_age_s: z.number().nullable() });
+const watchdogSchema = z.object({
+  tick_age_s: z.number().nullable(),
+  app_age_s: z.number().nullable(),
+  delivery_wait_s: z.number().nullable(),
+});
+export type Watchdog = z.infer<typeof watchdogSchema>;
 
 type OneClient = ReturnType<typeof createOneClient>;
 
