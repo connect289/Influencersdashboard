@@ -20,6 +20,7 @@ calls as (
 select (select count(*) from jobs) > 0 and not exists (select 1 from jobs where last_status = 'failed') and (select failed from calls) = 0 as ok,
        jsonb_build_object('timers', (select count(*) from jobs),
                           'failed_jobs', (select coalesce(jsonb_agg(jobname order by jobname), '[]') from jobs where last_status = 'failed'),
+                          'subjects', (select coalesce(jsonb_agg(jobname order by jobname), '[]') from jobs where last_status = 'failed'),
                           'failed_calls_1h', (select failed from calls)) as value
 
 -- check: B2C-02

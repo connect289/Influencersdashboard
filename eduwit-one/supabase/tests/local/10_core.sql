@@ -21,10 +21,13 @@ drop function if exists public.new_anon_rpc();
 
 -- 1. Seeds and schedule -----------------------------------------------------------------------------------------------
 set role postgres;
+-- The stubs lack most app tables by design, as staging does, so a missing source does not open incidents here (D-042).
+-- Section 9 turns it back on to prove the production behaviour.
+select one.settings_put('checks', one.setting('checks') || '{"source_missing_opens_incident": false}', 'test@eduwit.in', 'stubs lack sources');
 select pg_temp.ok((select count(*) from one.settings) >= 15, 'settings seeded');
 select pg_temp.ok((select value ? 'items' from one.settings where key = 'setup'), 'setup checklist loaded into one.settings.setup');
 select pg_temp.ok((select count(*) from one.checks) >= 9, 'checks seeded');
-select pg_temp.ok(exists (select 1 from cron.job where jobname = 'one-tick' and schedule = '* * * * *'), 'one-tick scheduled every minute');
+select pg_temp.ok(exists (select 1 from cron.job where jobname = 'one-tick' and schedule = '* * * * *' and command = 'call one.tick_job()'), 'one-tick runs the committing procedure every minute');
 select pg_temp.ok(exists (select 1 from cron.job where jobname = 'one-nightly' and schedule = '0 21 * * *'), 'one-nightly scheduled at 02:30 IST');
 
 -- 2. Tick: report without errors, idempotent within a minute -----------------------------------------------------------
@@ -69,6 +72,24 @@ select jobid, 'failed', 'ERROR: boom again', now(), now() from cron.job where jo
 set role postgres;
 select one.run_check('PLAT-01');
 select pg_temp.ok((select count(*) = 1 and bool_and(reopened_count = 1 and resolved_at is null) from one.incidents where check_id = 'PLAT-01'), 'a failure within 24 h reopens, not duplicates');
+select pg_temp.ok((select count(*) = 2 from one.deliveries d join one.incidents i on i.id = d.incident_id where i.check_id = 'PLAT-01'),
+                  'the reopen alerts again (M5): a second delivery with a new key');
+
+-- 5b. A new job failing joins the open incident and alerts again, even after an acknowledgement (M6, D-043) ----------
+select one.acknowledge_incident((select id from one.incidents where check_id = 'PLAT-01' and resolved_at is null), 'owner@eduwit.in');
+reset role;
+insert into cron.job (jobname, schedule, command) values ('t-other', '0 4 * * *', 'select 2');
+insert into cron.job_run_details (jobid, status, return_message, start_time, end_time)
+select jobid, 'failed', 'ERROR: other', now(), now() from cron.job where jobname = 't-other';
+set role postgres;
+select one.run_check('PLAT-01');
+select pg_temp.ok((select acknowledged_at is null and subjects @> array['t-daily', 't-other'] from one.incidents where check_id = 'PLAT-01' and resolved_at is null),
+                  'a new failing job clears the acknowledgement and joins the subjects');
+select pg_temp.ok((select count(*) = 3 from one.deliveries d join one.incidents i on i.id = d.incident_id where i.check_id = 'PLAT-01'),
+                  'and queues a new P1 email');
+select one.run_check('PLAT-01');
+select pg_temp.ok((select count(*) = 3 from one.deliveries d join one.incidents i on i.id = d.incident_id where i.check_id = 'PLAT-01'),
+                  'the same failing jobs again only touch it');
 
 -- 6. Startup timeouts are grouped, and escalate to P1 in bulk (D-008) ---------------------------------------------------
 reset role;
@@ -82,14 +103,17 @@ insert into cron.job_run_details (jobid, status, return_message, start_time, end
 select jobid, 'failed', 'job startup timeout', now(), now() from cron.job, generate_series(1, 10) where jobname = 't-daily';
 set role postgres;
 select one.run_check('PLAT-01B');
-select pg_temp.ok((select severity = 'P1' from one.incidents where check_id = 'PLAT-01B' and resolved_at is null), '13 startup timeouts escalate the same incident to P1');
+select pg_temp.ok((select severity = 'P1' and alert_state = 'pending' from one.incidents where check_id = 'PLAT-01B' and resolved_at is null), '13 startup timeouts escalate the same incident to P1');
+select pg_temp.ok(exists (select 1 from one.deliveries d join one.incidents i on i.id = d.incident_id where i.check_id = 'PLAT-01B'),
+                  'the escalation to P1 queues the email (M4)');
 
 -- 7. A check's value can raise its severity (WITTY-01) ------------------------------------------------------------------
 reset role;
 update public.stub_health set value = '[{"alert": "outbox_failed", "detail": "1"}]' where app = 'witty';
 set role postgres;
 select one.run_check('WITTY-01');
-select pg_temp.ok((select severity = 'P1' from one.incidents where check_id = 'WITTY-01' and resolved_at is null), 'outbox_failed makes WITTY-01 a P1');
+select pg_temp.ok((select severity = 'P1' from one.incidents where check_id = 'WITTY-01' and resolved_at is null),
+                  'outbox_failed makes WITTY-01 a P1, through a function with unqualified names (M3, D-042)');
 reset role;
 update public.stub_health set value = '[]' where app = 'witty';
 set role postgres;
@@ -99,3 +123,24 @@ select one.settings_put('proposals', '{"expire_days": 30, "approvers": []}', 'ow
 select one.settings_put('proposals', '{"expire_days": 14, "approvers": []}', 'seed', 'reseed');
 select pg_temp.ok((select (value ->> 'expire_days')::int = 30 and actor = 'owner@eduwit.in' from one.settings where key = 'proposals'), 'a person''s value survives a reseed');
 select pg_temp.ok((select max(version) from one.settings_versions where key = 'proposals') = (select version from one.settings where key = 'proposals'), 'every change is versioned');
+
+-- 9. On production a missing source is a failure: it opens the check's incident and names itself in the report (M2) --
+select one.settings_put('checks', one.setting('checks') || '{"source_missing_opens_incident": true}', 'test@eduwit.in', 'production behaviour');
+create temp table t_safe as select one.run_check_safe('INF-05') as r;
+select pg_temp.ok((select r ? 'INF-05_error' from t_safe), 'a missing source puts INF-05_error in the report');
+select pg_temp.ok(exists (select 1 from one.incidents where check_id = 'INF-05' and resolved_at is null and evidence ->> 'status' = 'source_missing'),
+                  'and opens INF-05''s own incident');
+select one.resolve_incident((select id from one.incidents where check_id = 'INF-05' and resolved_at is null), 'test', 'manual', 'test cleanup');
+select one.settings_put('checks', one.setting('checks') || '{"source_missing_opens_incident": false}', 'test@eduwit.in', 'stubs lack sources');
+
+-- 10. The cron path: one.tick_job() commits per step and records the same report (M1, D-044) -----------------------
+reset role;
+delete from one.runs where kind = 'tick';
+update one.check_state set last_ran_at = now() - interval '1 day';
+set role postgres;
+call one.tick_job();
+select pg_temp.ok((select report ->> 'mode' = 'job' and finished_at is not null and report ? 'checks' and report ? 'events' from one.runs where kind = 'tick'),
+                  'tick_job ran, committed and finished its report: ' || (select report::text from one.runs where kind = 'tick'));
+select pg_temp.ok((select report::text !~ '_error"' from one.runs where kind = 'tick'), 'tick_job report has no error keys: ' || (select report::text from one.runs where kind = 'tick'));
+select pg_temp.ok((select count(*) > 0 from one.check_state where last_started_at > now() - interval '1 minute'), 'each check records its start before it runs');
+reset role;

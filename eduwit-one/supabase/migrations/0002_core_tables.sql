@@ -33,6 +33,9 @@ create table one.checks (
   tags text[] not null default '{}',
   enabled boolean not null default true,
   disabled_reason text check (disabled_reason is null or disabled_reason ~ '^(setup|blocked|owner|builder):[a-z0-9_.:-]+$'),
+  -- Name resolution while the check runs. Empty by default; 'public, pg_temp' only for checks that call an app's
+  -- invoker-rights function written with unqualified names (D-042). No other value is accepted.
+  search_path text not null default '' check (search_path in ('', 'public, pg_temp')),
   muted_until timestamptz,
   created_by text not null default 'seed',
   updated_by text not null default 'seed',
@@ -48,6 +51,7 @@ create table one.check_state (
   check_id text primary key references one.checks (id) on delete cascade,
   last_ran_at timestamptz,
   last_status text check (last_status in ('ok', 'fail', 'error', 'source_missing', 'skipped')),
+  last_started_at timestamptz,
   consecutive_fail integer not null default 0,
   consecutive_ok integer not null default 0,
   created_at timestamptz not null default now()
@@ -88,6 +92,10 @@ create table one.incidents (
   summary text,
   root_cause text,
   alert_state text not null default 'pending' check (alert_state in ('pending', 'sent', 'escalated_1', 'escalated_2', 'muted', 'suppressed', 'digest', 'none')),
+  -- What the incident is about, for checks that cover many things (jobs, partners): a new subject alerts again (D-043).
+  subjects text[] not null default '{}',
+  -- Bumped each time the incident is routed (open, reopen, escalation, new subject); part of every delivery key.
+  alert_seq integer not null default 0,
   parent_id bigint references one.incidents (id),
   tags text[] not null default '{}',
   created_at timestamptz not null default now(),

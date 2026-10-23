@@ -7,7 +7,7 @@
 -- cadence_s: 60
 -- tags: cron
 -- title: A cron job's latest run failed
--- description: The latest run in the last 26 h of each active cron job ended in "failed". "job startup timeout" is excluded here and grouped by PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10, so it is not raised twice.
+-- description: The latest run in the last 26 h of each active cron job ended in "failed". Each job is a subject: a second job failing while the incident is open alerts again (D-043). "job startup timeout" is excluded here and grouped by PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10, so it is not raised twice.
 with last_run as (
   select distinct on (d.jobid) d.jobid, d.status, d.return_message, d.start_time
     from cron.job_run_details d where d.start_time > now() - interval '26 hours'
@@ -17,7 +17,8 @@ failed as (
     from cron.job j join last_run r on r.jobid = j.jobid
    where j.active and r.status = 'failed' and r.return_message is distinct from 'job startup timeout' and j.jobname <> 'b2c-capacity')
 select count(*) = 0 as ok,
-       jsonb_build_object('failed_jobs', coalesce(jsonb_agg(jsonb_build_object('job', jobname, 'at', start_time, 'message', message) order by jobname), '[]')) as value
+       jsonb_build_object('failed_jobs', coalesce(jsonb_agg(jsonb_build_object('job', jobname, 'at', start_time, 'message', message) order by jobname), '[]'),
+                          'subjects', coalesce(jsonb_agg(jobname order by jobname), '[]')) as value
   from failed
 
 -- check: PLAT-01B
@@ -45,7 +46,8 @@ select count(*) <= one.threshold('cron_startup_timeouts_15m') as ok,
 with recent as (
   select jobid from cron.job_run_details
    where start_time > now() - make_interval(mins => one.threshold('job_silent_min')::int) group by jobid)
-select count(*) = 0 as ok, jsonb_build_object('silent_jobs', coalesce(jsonb_agg(j.jobname order by j.jobname), '[]')) as value
+select count(*) = 0 as ok, jsonb_build_object('silent_jobs', coalesce(jsonb_agg(j.jobname order by j.jobname), '[]'),
+                                             'subjects', coalesce(jsonb_agg(j.jobname order by j.jobname), '[]')) as value
   from cron.job j left join recent r on r.jobid = j.jobid
  where j.active and (j.schedule ~ 'second' or j.schedule ~ '^\*(/1)? \* \* \* \*$') and r.jobid is null
 
@@ -109,7 +111,7 @@ select spark_url is not null and web_url is not null and one_url is not null and
 -- cadence_s: 86400
 -- tags: security
 -- title: A security advisor-level problem exists (an app table readable by the API roles without RLS, or policies without RLS)
--- description: The ERROR-level Supabase lints computed in SQL for the apps' schemas (Supabase's own schemas excluded): a table the anon or authenticated role can read with RLS off, or a table with policies while RLS is off. New WARN lints come from the Management API once a token is configured (Setup item supabase_advisors).
+-- description: The ERROR-level Supabase lints computed in SQL for the apps' schemas (Supabase's own schemas excluded): a table the anon or authenticated role can read with RLS off, or a table with policies while RLS is off. Also an API or Eduwit One role able to create objects in schema public, which would make WITTY-01's search_path unsafe (D-042). New WARN lints come from the Management API once a token is configured (Setup item supabase_advisors).
 with exposed as (
   select n.oid, n.nspname from pg_namespace n
    where has_schema_privilege('anon', n.oid, 'USAGE')
@@ -122,7 +124,9 @@ bad as (
      and (has_table_privilege('anon', c.oid, 'SELECT') or has_table_privilege('authenticated', c.oid, 'SELECT'))
   union all
   select c.oid::regclass::text, 'policy_exists_rls_disabled'
-    from pg_class c where c.relkind in ('r', 'p') and not c.relrowsecurity and exists (select 1 from pg_policy p where p.polrelid = c.oid))
+    from pg_class c where c.relkind in ('r', 'p') and not c.relrowsecurity and exists (select 1 from pg_policy p where p.polrelid = c.oid)
+  union all
+  select 'schema public: ' || r, 'create_on_public' from one.public_schema_writers() r)
 select count(*) = 0 as ok,
        jsonb_build_object('count', count(*), 'items', coalesce(jsonb_agg(jsonb_build_object('lint', lint, 'table', rel) order by rel) filter (where rel is not null), '[]')) as value
   from bad

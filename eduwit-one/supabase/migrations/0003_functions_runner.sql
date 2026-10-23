@@ -3,7 +3,9 @@
 -- <step>_error keys, and they never raise.
 
 -- Records a result, moves the counters, and opens, touches or resolves the check's incident. Single writer of
--- one.results, one.check_state and the check-driven part of one.incidents.
+-- one.results, one.check_state and the check-driven part of one.incidents. A check whose own SQL errors, or whose
+-- source has gone missing, is a failure too: a P1 check that cannot run is a P1 blind spot (D-042). Only staging, where
+-- sources are absent by design, sets checks.source_missing_opens_incident to false. A skipped run moves nothing.
 create or replace function one.evaluate(p_check_id text, p_status text, p_value jsonb, p_error text, p_duration_ms integer) returns text
 language plpgsql set search_path = '' as $$
 declare
@@ -11,20 +13,27 @@ declare
   v_state one.check_state;
   v_open bigint;
   v_severity one.severity;
+  v_failing boolean;
+  v_subjects text[];
 begin
   select * into strict v_check from one.checks where id = p_check_id;
+  v_failing := p_status in ('fail', 'error')
+               or (p_status = 'source_missing' and coalesce((one.setting('checks') ->> 'source_missing_opens_incident')::boolean, true));
   insert into one.results (check_id, status, value, error, duration_ms) values (p_check_id, p_status, p_value, left(p_error, 1000), p_duration_ms);
   insert into one.check_state (check_id) values (p_check_id) on conflict do nothing;
   update one.check_state set
     last_ran_at = now(), last_status = p_status,
-    consecutive_fail = case p_status when 'fail' then consecutive_fail + 1 when 'ok' then 0 else consecutive_fail end,
-    consecutive_ok = case p_status when 'ok' then consecutive_ok + 1 when 'fail' then 0 else consecutive_ok end
+    consecutive_fail = case when v_failing then consecutive_fail + 1 when p_status = 'ok' then 0 else consecutive_fail end,
+    consecutive_ok = case when p_status = 'ok' then consecutive_ok + 1 when v_failing then 0 else consecutive_ok end
    where check_id = p_check_id
    returning * into v_state;
   select id into v_open from one.incidents where check_id = p_check_id and resolved_at is null;
-  if p_status = 'fail' and v_state.consecutive_fail >= v_check.open_after then
-    v_severity := coalesce(nullif(p_value ->> 'severity', '')::one.severity, v_check.severity);
-    perform one.open_or_touch_incident(p_check_id, v_severity, jsonb_build_object('value', p_value, 'at', now()));
+  if v_failing and v_state.consecutive_fail >= v_check.open_after then
+    v_severity := case when p_status = 'fail' then coalesce(nullif(p_value ->> 'severity', '')::one.severity, v_check.severity) else v_check.severity end;
+    v_subjects := case when p_status = 'fail' and jsonb_typeof(p_value -> 'subjects') = 'array'
+                       then array(select jsonb_array_elements_text(p_value -> 'subjects')) else '{}' end;
+    perform one.open_or_touch_incident(p_check_id, v_severity,
+      jsonb_build_object('status', p_status, 'value', p_value, 'error', left(p_error, 300), 'at', now()), v_subjects);
     return case when v_open is null then 'opened' else 'touched' end;
   end if;
   if p_status = 'ok' and v_open is not null and v_state.consecutive_ok >= v_check.resolve_after then
@@ -34,8 +43,10 @@ begin
   return 'none';
 end $$;
 
--- Runs one SQL check. Its sql is written only by migrations (column grants in 0002); it returns one row
--- (ok boolean, value jsonb). A missing table or function is "source_missing", never a failure (D-009).
+-- Runs one SQL check. Its sql is written only by migrations (column grants in 0002); it returns one row (ok boolean,
+-- value jsonb). It runs under the check's own search_path (empty unless the check calls an invoker-rights app function,
+-- D-042) and a lock timeout, so it never queues behind an app's migration: a lock wait gives up and the run is
+-- skipped. A statement timeout cannot be armed inside a function; the cron job bounds each transaction instead (D-044).
 create or replace function one.run_check(p_check_id text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -46,30 +57,33 @@ declare
   v_status text;
   v_error text;
   v_started timestamptz := clock_timestamp();
-  v_timeout text := current_setting('statement_timeout');
+  v_lock text := current_setting('lock_timeout');
 begin
   select * into strict v_check from one.checks where id = p_check_id;
   if not v_check.enabled or v_check.sql is null then
     return jsonb_build_object('check', p_check_id, 'status', 'skipped', 'reason', coalesce(v_check.disabled_reason, 'no sql'));
   end if;
   begin
-    perform set_config('statement_timeout', '10s', true);
+    perform set_config('search_path', v_check.search_path, true);
+    perform set_config('lock_timeout', coalesce(one.setting('checks') ->> 'lock_timeout', '2s'), true);
     execute format('select count(*)::int, bool_and(ok), (array_agg(value))[1] from (%s) q', v_check.sql)
       into v_rows, v_ok, v_value;
-    perform set_config('statement_timeout', v_timeout, true);
     v_status := case when v_rows <> 1 then 'error' when v_ok then 'ok' else 'fail' end;
     v_error := case when v_rows <> 1 then format('check returned %s rows, expected 1', v_rows) end;
   exception
+    when lock_not_available then
+      v_status := 'skipped';
+      v_error := 'lock wait over lock_timeout: ' || sqlerrm;
     when undefined_table or undefined_function or undefined_column or invalid_schema_name then
-      perform set_config('statement_timeout', v_timeout, true);
       v_status := 'source_missing';
       v_error := sqlerrm;
     when others then
-      perform set_config('statement_timeout', v_timeout, true);
       v_status := 'error';
       v_error := sqlerrm;
   end;
-  return jsonb_build_object('check', p_check_id, 'status', v_status,
+  perform set_config('search_path', '', true);
+  perform set_config('lock_timeout', v_lock, true);
+  return jsonb_build_object('check', p_check_id, 'status', v_status, 'error', left(v_error, 200),
     'incident', one.evaluate(p_check_id, v_status, v_value, v_error, (extract(epoch from clock_timestamp() - v_started) * 1000)::int));
 end $$;
 
@@ -83,33 +97,61 @@ begin
   return one.evaluate(p_check_id, p_status, p_value, p_error, p_duration_ms);
 end $$;
 
--- All due SQL checks, each isolated so one broken check cannot stop the rest.
+-- Checks due now, least recently started first: a check that never finishes (its run was killed) moves to the back
+-- instead of starving the rest.
+create or replace function one.due_checks() returns setof text
+language sql stable set search_path = '' as $$
+  select c.id from one.checks c left join one.check_state s on s.check_id = c.id
+   where c.enabled and c.sql is not null
+     and (s.last_ran_at is null or s.last_ran_at <= now() - make_interval(secs => c.cadence_s - 5))
+   order by s.last_started_at nulls first, c.id
+$$;
+
+-- One check, isolated: marks the start, runs it, and turns anything unexpected into an error result. Returns the
+-- report fragment: {"status": ...} plus "<ID>_error" when the run errored, or its source is missing where that counts.
+create or replace function one.run_check_safe(p_check_id text) returns jsonb
+language plpgsql set search_path = '' as $$
+declare
+  v_out jsonb;
+begin
+  insert into one.check_state (check_id, last_started_at) values (p_check_id, now())
+  on conflict (check_id) do update set last_started_at = now();
+  begin
+    v_out := one.run_check(p_check_id);
+  exception when others then
+    v_out := jsonb_build_object('check', p_check_id, 'status', 'error', 'error', left(sqlerrm, 200));
+  end;
+  return jsonb_build_object('status', v_out ->> 'status')
+         || case when v_out ->> 'status' = 'error'
+                   or (v_out ->> 'status' = 'source_missing' and coalesce((one.setting('checks') ->> 'source_missing_opens_incident')::boolean, true))
+                 then jsonb_build_object(p_check_id || '_error', coalesce(v_out ->> 'error', v_out ->> 'status')) else '{}' end;
+end $$;
+
+-- Folds one check's fragment into a tick report: a count per status, and its "<ID>_error" key if any.
+create or replace function one.report_add(p_report jsonb, p_fragment jsonb) returns jsonb
+language sql immutable set search_path = '' as $$
+  select jsonb_set(p_report, '{checks}', coalesce(p_report -> 'checks', '{}')
+           || jsonb_build_object(p_fragment ->> 'status', coalesce((p_report #>> array['checks', p_fragment ->> 'status'])::int, 0) + 1))
+         || (p_fragment - 'status')
+$$;
+
+-- All due SQL checks in the caller's transaction (used by one.tick(); the cron job commits per check instead).
 create or replace function one.run_sql_checks() returns jsonb
 language plpgsql set search_path = '' as $$
 declare
   v_id text;
-  v_out jsonb;
-  v_counts jsonb := '{}';
-  v_errors jsonb := '{}';
+  v_report jsonb := '{}';
 begin
-  for v_id in
-    select c.id from one.checks c left join one.check_state s on s.check_id = c.id
-     where c.enabled and c.sql is not null
-       and (s.last_ran_at is null or s.last_ran_at <= now() - make_interval(secs => c.cadence_s - 5))
-     order by c.id
-  loop
-    begin
-      v_out := one.run_check(v_id);
-      v_counts := v_counts || jsonb_build_object(v_out ->> 'status', coalesce((v_counts ->> (v_out ->> 'status'))::int, 0) + 1);
-    exception when others then
-      v_errors := v_errors || jsonb_build_object(v_id, sqlerrm);
-    end;
+  for v_id in select one.due_checks() loop
+    v_report := one.report_add(v_report, one.run_check_safe(v_id));
   end loop;
-  return v_counts || case when v_errors = '{}' then '{}' else jsonb_build_object('check_errors', v_errors) end;
+  return v_report;
 end $$;
 
--- The minute tick (cron one-tick). Heartbeat first, so the watchdog sees life even if a later step fails; then the
--- run row, whose unique minute bucket makes repeated calls within a minute do nothing (spec §16.5).
+-- The minute tick by hand: everything in the caller's transaction, returning the report (spec §5: "run select
+-- one.tick() by hand and inspect the report"). Heartbeat first, so the watchdog sees life even if a later step fails;
+-- the unique minute bucket makes repeated calls within a minute do nothing (spec §16.5). pg_cron runs
+-- one.tick_job(), the same steps with a commit after each (D-044).
 create or replace function one.tick() returns jsonb
 language plpgsql set search_path = '' as $$
 declare
@@ -123,19 +165,25 @@ begin
     return v_report || jsonb_build_object('skipped', 'already ran this minute');
   end if;
   begin
-    v_report := v_report || jsonb_build_object('checks', one.run_sql_checks());
+    v_report := v_report || one.run_sql_checks();
   exception when others then v_report := v_report || jsonb_build_object('checks_error', sqlerrm);
   end;
   begin
     v_report := v_report || jsonb_build_object('events', one.events_refresh());
   exception when others then v_report := v_report || jsonb_build_object('events_error', sqlerrm);
   end;
-  begin
-    v_report := v_report || jsonb_build_object('app', coalesce(one.job_call('/api/internal/tick')::text, 'not_configured'));
-  exception when others then v_report := v_report || jsonb_build_object('app_error', sqlerrm);
-  end;
+  v_report := v_report || one.tick_app_call();
   update one.runs set finished_at = now(), report = v_report where id = v_run;
   return v_report;
+end $$;
+
+-- The app call at the end of a tick, isolated: the request id, "not_configured", or an app_error key.
+create or replace function one.tick_app_call() returns jsonb
+language plpgsql set search_path = '' as $$
+begin
+  return jsonb_build_object('app', coalesce(one.job_call('/api/internal/tick')::text, 'not_configured'));
+exception when others then
+  return jsonb_build_object('app_error', sqlerrm);
 end $$;
 
 -- Anon- or authenticated-executable SECURITY DEFINER functions outside the platform schemas. The first run is the
@@ -256,6 +304,15 @@ language sql stable set search_path = '' as $$
     'ai_pending', (select count(*) from one.ai_tasks where status = 'pending'),
     'deliveries_pending', (select count(*) from one.deliveries where status in ('pending', 'failed')),
     'last_nightly', (select max(started_at) from one.runs where kind = 'nightly'))
+$$;
+
+-- Roles other than the owners that could create objects in schema public. WITTY-01 runs with search_path public
+-- (D-042), which is safe only while this is empty; PLAT-06 reports any role it returns.
+create or replace function one.public_schema_writers() returns setof text
+language sql stable set search_path = '' as $$
+  select r from unnest(array['public', 'anon', 'authenticated', 'service_role', 'authenticator', 'eduwit_one_reader', 'eduwit_one_fixer']) r
+   where case when r = 'public' or exists (select 1 from pg_catalog.pg_roles x where x.rolname = r)
+              then pg_catalog.has_schema_privilege(r, 'public', 'CREATE') else false end
 $$;
 
 -- The portal's health without granting anything on schema inf (D-020). Where the portal is absent (staging) the

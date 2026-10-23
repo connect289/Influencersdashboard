@@ -109,20 +109,23 @@ $$;
 
 -- Alerts and AI tasks ----------------------------------------------------------------------------------------------
 
--- Queues one email per P1 recipient for an incident at an escalation level. Idempotent by key.
+-- Queues one email per P1 recipient for an incident at an escalation level. The key carries the incident's alert_seq,
+-- so a reopen, an escalation or a new subject alerts again while a retry of the same routing does not (D-043).
+-- Returns the number of deliveries actually queued.
 create or replace function one.enqueue_alert(p_incident_id bigint, p_level integer default 0) returns integer
 language plpgsql set search_path = '' as $$
 declare
   v_recipients jsonb := coalesce(one.setting('alerts') -> 'p1' -> 'email', '[]');
+  v_seq integer := (select alert_seq from one.incidents where id = p_incident_id);
   v_count integer := 0;
   v_to text;
 begin
   for v_to in select jsonb_array_elements_text(v_recipients) loop
     insert into one.deliveries (incident_id, channel, recipient, kind, escalation_level, idempotency_key)
     values (p_incident_id, 'email', v_to, case when p_level = 0 then 'alert' else 'escalation' end, p_level,
-            format('alert:%s:%s:email:%s', p_incident_id, p_level, lower(v_to)))
+            format('alert:%s:%s:%s:email:%s', p_incident_id, v_seq, p_level, lower(v_to)))
     on conflict (idempotency_key) do nothing;
-    v_count := v_count + 1;
+    if found then v_count := v_count + 1; end if;
   end loop;
   return v_count;
 end $$;
@@ -142,39 +145,55 @@ end $$;
 
 -- Incident lifecycle (spec §9) ---------------------------------------------------------------------------------------
 
--- Routes a newly opened or reopened incident: P1 alerts now, P2 waits for the brief, P3 is dashboard only;
--- a muted check or app records but does not deliver. Every opening gets an AI triage task.
-create or replace function one.route_incident(p_incident one.incidents) returns void
+-- Routes an incident each time it needs a person's attention again: opened, reopened, made more severe, or joined by
+-- a new subject. P1 alerts now, P2 waits for the digest, P3 is dashboard only; a muted check or app records but does
+-- not deliver. Each routing bumps alert_seq and gets one AI triage task.
+create or replace function one.route_incident(p_incident_id bigint) returns void
 language plpgsql set search_path = '' as $$
 declare
+  v_inc one.incidents;
   v_state text;
 begin
+  update one.incidents set alert_seq = alert_seq + 1 where id = p_incident_id returning * into v_inc;
   v_state := case
-    when one.is_muted(p_incident.check_id, p_incident.app) then 'muted'
-    when p_incident.severity = 'P1' then 'pending'
-    when p_incident.severity = 'P2' then 'digest'
+    when one.is_muted(v_inc.check_id, v_inc.app) then 'muted'
+    when v_inc.severity = 'P1' then 'pending'
+    when v_inc.severity = 'P2' then 'digest'
     else 'none' end;
-  update one.incidents set alert_state = v_state where id = p_incident.id;
+  update one.incidents set alert_state = v_state where id = v_inc.id;
   if v_state = 'pending' then
-    perform one.enqueue_alert(p_incident.id, 0);
+    perform one.enqueue_alert(v_inc.id, 0);
   end if;
-  perform one.enqueue_ai('triage', jsonb_build_object('incident_id', p_incident.id, 'check_id', p_incident.check_id),
-                         null, format('triage:%s:%s', p_incident.id, p_incident.reopened_count), p_incident.id);
+  perform one.enqueue_ai('triage', jsonb_build_object('incident_id', v_inc.id, 'check_id', v_inc.check_id, 'subjects', to_jsonb(v_inc.subjects)),
+                         null, format('triage:%s:%s', v_inc.id, v_inc.alert_seq), v_inc.id);
 end $$;
 
-create or replace function one.open_or_touch_incident(p_check_id text, p_severity one.severity, p_evidence jsonb) returns bigint
+-- Opens, touches or reopens the check's incident. A touch only records the occurrence, unless the severity rose or a
+-- subject appeared that the incident did not have: then the acknowledgement is cleared and it is routed again.
+create or replace function one.open_or_touch_incident(p_check_id text, p_severity one.severity, p_evidence jsonb,
+                                                      p_subjects text[] default '{}') returns bigint
 language plpgsql set search_path = '' as $$
 declare
   v_check one.checks;
   v_inc one.incidents;
+  v_new text[];
+  v_escalated boolean;
 begin
   select * into strict v_check from one.checks where id = p_check_id;
   select * into v_inc from one.incidents where check_id = p_check_id and resolved_at is null for update;
   if found then
+    v_new := array(select x from unnest(coalesce(p_subjects, '{}')) x where not x = any (v_inc.subjects));
+    v_escalated := p_severity < v_inc.severity;
     update one.incidents
        set occurrences = occurrences + 1, last_seen_at = now(), evidence = p_evidence,
-           severity = least(severity, p_severity)::one.severity
+           severity = least(severity, p_severity)::one.severity,
+           subjects = subjects || v_new,
+           acknowledged_at = case when v_escalated or cardinality(v_new) > 0 then null else acknowledged_at end,
+           acknowledged_by = case when v_escalated or cardinality(v_new) > 0 then null else acknowledged_by end
      where id = v_inc.id;
+    if v_escalated or cardinality(v_new) > 0 then
+      perform one.route_incident(v_inc.id);
+    end if;
     return v_inc.id;
   end if;
   -- Reopen, not duplicate, when the same check fails again within 24 h of recovering.
@@ -185,15 +204,16 @@ begin
     update one.incidents
        set resolved_at = null, resolved_by = null, resolution = null, resolution_note = null,
            reopened_count = reopened_count + 1, occurrences = occurrences + 1, last_seen_at = now(),
-           evidence = p_evidence, severity = p_severity, acknowledged_at = null, acknowledged_by = null
+           evidence = p_evidence, severity = p_severity, acknowledged_at = null, acknowledged_by = null,
+           subjects = coalesce(p_subjects, '{}')
      where id = v_inc.id
      returning * into v_inc;
   else
-    insert into one.incidents (check_id, app, severity, title, evidence, first_evidence, tags)
-    values (p_check_id, v_check.app, p_severity, v_check.title, p_evidence, p_evidence, v_check.tags)
+    insert into one.incidents (check_id, app, severity, title, evidence, first_evidence, tags, subjects)
+    values (p_check_id, v_check.app, p_severity, v_check.title, p_evidence, p_evidence, v_check.tags, coalesce(p_subjects, '{}'))
     returning * into v_inc;
   end if;
-  perform one.route_incident(v_inc);
+  perform one.route_incident(v_inc.id);
   return v_inc.id;
 end $$;
 

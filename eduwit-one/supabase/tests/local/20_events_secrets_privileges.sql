@@ -36,6 +36,39 @@ select pg_temp.ok((select (r ->> 'public.w2_events')::int = 0 from t_ev), 'a sec
 select pg_temp.ok((select last_status = 'source_missing' from one.event_watermarks where source = 'public.web_funnel_events'), 'missing source recorded as source_missing');
 select pg_temp.ok((select (count(*) = 1) from one.events where source_table = 'public.w2_events'), 'exactly one copy of the event');
 
+-- 1b. Contact data nested anywhere in a payload never reaches one.events (B1, D-046) ------------------------------------
+insert into b2b.events (type, lead_id, payload) values ('b2c.lead_updated', 1, $j${"changes": {"email": {"from": "asha.k@gmail.com", "to": "asha.kumar@yahoo.in"},
+  "name": {"to": "Asha Kumar"}, "alternate_phone": {"to": "+91 98111 22334"}, "city": {"to": "Pune"}},
+  "note": "call her on +91 98111 22334 or asha.k@gmail.com", "list": [{"guardian_phone": "9811122334"}, "9811122334"], "count": 9811122334}$j$);
+set role postgres;
+select one.events_refresh();
+reset role;
+create temp table t_b1 as select payload::text as p from one.events where source_table = 'b2b.events' and type = 'b2c.lead_updated';
+select pg_temp.ok((select p !~* '(asha|gmail|yahoo|98111)' from t_b1), 'no name, email or phone survives at any depth, as text or as a number: ' || (select p from t_b1));
+select pg_temp.ok((select p ~ 'Pune' and p ~ '\[phone\]' and p ~ '\[email\]' from t_b1), 'non-personal fields stay; embedded contacts are masked in place');
+
+-- 1c. A row that commits after a higher id was copied is still copied (M7, D-045) ---------------------------------------
+insert into b2b.events (id, type) values (500, 'late.high');
+set role postgres;
+select one.events_refresh();
+reset role;
+insert into b2b.events (id, type) values (450, 'late.low');
+set role postgres;
+select one.events_refresh();
+select pg_temp.ok(exists (select 1 from one.events where source_table = 'b2b.events' and source_id = '450'), 'an id below the watermark inside the overlap is copied');
+
+-- 1d. A state change on an older outbox row becomes its own event (M8, D-045) ------------------------------------------
+reset role;
+insert into public.w2_outbox (phone, target, event_type, status, created_at) values ('+910000000001', 'crm', 'lead', 'pending', now() - interval '30 minutes');
+set role postgres;
+select one.events_refresh();
+reset role;
+update public.w2_outbox set status = 'failed', attempts = 5 where phone = '+910000000001';
+set role postgres;
+select one.events_refresh();
+select pg_temp.ok((select count(*) = 2 from one.events where source_table = 'public.w2_outbox' and type in ('outbox.pending', 'outbox.failed')),
+                  'both the pending and the later failed state are events');
+
 -- 2. The app call is a no-op until configured, then carries the bearer key ----------------------------------------------
 select pg_temp.ok(one.job_call('/api/internal/tick') is null, 'job_call does nothing without a base URL');
 reset role;

@@ -30,6 +30,7 @@ export function forTrial(sql: string): string {
     .replace(/one\.setting\('([a-z0-9_]+)'\)/g, (_, k: string) => `('${JSON.stringify(settings[k] ?? null).replace(/'/g, "''")}'::jsonb)`)
     .replace(/one\.vault_names\(\)/g, "(select name from vault.secrets)")
     .replace(/one\.inf_health\(\)/g, "inf.health()")
+    .replace(/one\.public_schema_writers\(\)/g, "(select r from unnest(array['public', 'anon', 'authenticated', 'service_role', 'authenticator']) r where has_schema_privilege(r, 'public', 'CREATE'))")
     .replace(/\bone\.([a-z_]+)\b(\s+(?:as\s+)?([a-z_][a-z0-9_]*))?/g, (whole, table: string, aliasPart: string | undefined, alias: string | undefined) => {
       const stand = EMPTY[table];
       if (!stand) throw new Error(`try-checks: no stand-in for one.${table}`);

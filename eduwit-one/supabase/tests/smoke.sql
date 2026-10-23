@@ -14,7 +14,7 @@ begin
     raise exception 'ASSERT FAILED: a second tick in the same minute ran again';
   end if;
   if (select count(*) from cron.job where (jobname, schedule, command) in
-        (('one-tick', '* * * * *', 'select one.tick()'), ('one-nightly', '0 21 * * *', 'select one.nightly()'))) <> 2 then
+        (('one-tick', '* * * * *', 'call one.tick_job()'), ('one-nightly', '0 21 * * *', 'select one.nightly()'))) <> 2 then
     raise exception 'ASSERT FAILED: cron.job does not show both jobs';
   end if;
   if not exists (select 1 from one.heartbeats where component = 'one:tick' and last_ok_at > now() - interval '2 minutes') then
@@ -25,7 +25,7 @@ begin
   -- staging lacks some sources (D-009).
   select string_agg(c.id || '=' || coalesce(s.last_status, 'never'), ', ') into v_bad
     from one.checks c left join one.check_state s on s.check_id = c.id
-   where c.enabled and c.sql is not null and coalesce(s.last_status, 'never') not in ('ok', 'fail', 'source_missing');
+   where c.enabled and c.sql is not null and coalesce(s.last_status, 'never') not in ('ok', 'fail', 'source_missing', 'skipped');
   if v_bad is not null then raise exception 'ASSERT FAILED: checks errored or never ran: %', v_bad; end if;
 
   -- Least privilege (spec §13), by catalogue: the reader writes nothing and bypasses no RLS (D-030); the fixer holds
@@ -60,12 +60,20 @@ begin
    where has_function_privilege(r, 'one.secret(text)', 'EXECUTE');
   if v_bad is not null then raise exception 'ASSERT FAILED: one.secret is executable by %', v_bad; end if;
 
+  -- WITTY-01 runs with search_path public, safe only while no API or Eduwit One role can create objects there (D-042).
+  select string_agg(r, ', ') into v_bad from one.public_schema_writers() r;
+  if v_bad is not null then raise exception 'ASSERT FAILED: these roles can create in schema public: %', v_bad; end if;
+  if not exists (select 1 from cron.job where jobname = 'one-tick' and command = 'call one.tick_job()') then
+    raise exception 'ASSERT FAILED: one-tick does not run the committing procedure';
+  end if;
+
   -- Conventions: RLS on every table of schema one; every function pins search_path.
   select string_agg(c.relname, ', ') into v_bad from pg_class c
    where c.relnamespace = 'one'::regnamespace and c.relkind in ('r', 'p') and not c.relrowsecurity;
   if v_bad is not null then raise exception 'ASSERT FAILED: RLS off on one.%', v_bad; end if;
+  -- one.tick_job() is the exception: a procedure that commits cannot carry SET clauses; it sets search_path itself (D-044).
   select string_agg(p.oid::regprocedure::text, ', ') into v_bad from pg_proc p
-   where p.pronamespace = 'one'::regnamespace and p.prokind in ('f', 'p')
+   where p.pronamespace = 'one'::regnamespace and p.prokind in ('f', 'p') and p.oid <> 'one.tick_job()'::regprocedure
      and not coalesce(p.proconfig::text like '%search_path=%', false);
   if v_bad is not null then raise exception 'ASSERT FAILED: functions without a pinned search_path: %', v_bad; end if;
 end $$;

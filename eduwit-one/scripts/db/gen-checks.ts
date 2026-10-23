@@ -3,12 +3,14 @@
 //   node scripts/db/gen-checks.ts --check    exit 1 if either file is stale (CI and the unit test)
 // A source file holds blocks that start with "-- check: <ID>", then "-- key: value" header lines, then the SQL (none
 // for app-run kinds). The SQL rules mirror the CHECK constraint on one.checks.sql, so a bad check fails here, not at
-// apply time. Thresholds are read in SQL through one.threshold('<key>'); every key must exist in config/settings.json.
+// apply time. "-- search_path: public" runs a check that calls an app's invoker-rights function (D-042); a check whose
+// value carries a "subjects" array gets one alert per new subject (D-043). Thresholds are read in SQL through one.threshold('<key>'); every key must exist in config/settings.json.
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 
 export type Check = {
   id: string; app: string; kind: string; severity: string; cadence_s: number; title: string; description: string;
   fix: string | null; tags: string[]; open_after: number; resolve_after: number; disabled: string | null; sql: string | null; source: string;
+  search_path: "" | "public, pg_temp";
 };
 
 const root = new URL("../../", import.meta.url);
@@ -42,6 +44,7 @@ export function parseSource(name: string, text: string): Check[] {
       tags: header.tags ? header.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       open_after: Number(header.open_after ?? 1), resolve_after: Number(header.resolve_after ?? 3),
       disabled: header.disabled ?? null, sql: body === "" ? null : body, source: name,
+      search_path: header.search_path === undefined ? "" : header.search_path === "public" ? "public, pg_temp" : fail(`${id}: search_path may only be public`),
     };
     validate(check);
     return check;
@@ -96,6 +99,7 @@ function seedCall(c: Check): string {
     `'cadence_s', ${c.cadence_s}`, `'open_after', ${c.open_after}`, `'resolve_after', ${c.resolve_after}`,
     `'title', ${lit(c.title)}`, `'description', ${lit(c.description)}`, `'auto_fix_id', ${lit(c.fix)}`,
     `'tags', ${lit(JSON.stringify(c.tags))}::jsonb`, `'enabled', ${c.disabled === null}`, `'disabled_reason', ${lit(c.disabled)}`,
+    `'search_path', ${lit(c.search_path)}`,
     `'sql', ${c.sql === null ? "null::text" : `$sql$\n${c.sql}\n$sql$`}`,
   ];
   return `select one.seed_check(jsonb_build_object(\n  ${pairs.join(",\n  ")}));`;
@@ -115,16 +119,16 @@ on conflict (key) do update set name = excluded.name;
 create or replace function one.seed_check(p jsonb) returns void
 language plpgsql set search_path = '' as $$
 begin
-  insert into one.checks as c (id, app, title, description, kind, sql, severity, cadence_s, open_after,
+  insert into one.checks as c (id, app, title, description, kind, sql, search_path, severity, cadence_s, open_after,
                                resolve_after, tags, enabled, disabled_reason, auto_fix_id)
-  values (p ->> 'id', p ->> 'app', p ->> 'title', p ->> 'description', p ->> 'kind', p ->> 'sql',
+  values (p ->> 'id', p ->> 'app', p ->> 'title', p ->> 'description', p ->> 'kind', p ->> 'sql', coalesce(p ->> 'search_path', ''),
           (p ->> 'severity')::one.severity, (p ->> 'cadence_s')::int,
           coalesce((p ->> 'open_after')::int, 1), coalesce((p ->> 'resolve_after')::int, 3),
           coalesce(array(select jsonb_array_elements_text(p -> 'tags')), '{}'),
           coalesce((p ->> 'enabled')::boolean, true), p ->> 'disabled_reason', p ->> 'auto_fix_id')
   on conflict (id) do update set
     app = excluded.app, title = excluded.title, description = excluded.description, kind = excluded.kind,
-    sql = excluded.sql, auto_fix_id = excluded.auto_fix_id, tags = excluded.tags,
+    sql = excluded.sql, search_path = excluded.search_path, auto_fix_id = excluded.auto_fix_id, tags = excluded.tags,
     severity = case when c.updated_by = 'seed' then excluded.severity else c.severity end,
     cadence_s = case when c.updated_by = 'seed' then excluded.cadence_s else c.cadence_s end,
     open_after = case when c.updated_by = 'seed' then excluded.open_after else c.open_after end,
@@ -132,8 +136,8 @@ begin
     enabled = case when c.updated_by = 'seed' then excluded.enabled else c.enabled end,
     disabled_reason = case when c.updated_by = 'seed' then excluded.disabled_reason else c.disabled_reason end,
     version = c.version + 1, updated_at = now()
-  where (c.sql, c.title, c.kind, c.description, c.severity, c.cadence_s, c.enabled, c.disabled_reason, c.tags, c.auto_fix_id)
-        is distinct from (excluded.sql, excluded.title, excluded.kind, excluded.description, excluded.severity,
+  where (c.sql, c.search_path, c.title, c.kind, c.description, c.severity, c.cadence_s, c.enabled, c.disabled_reason, c.tags, c.auto_fix_id)
+        is distinct from (excluded.sql, excluded.search_path, excluded.title, excluded.kind, excluded.description, excluded.severity,
                           excluded.cadence_s, excluded.enabled, excluded.disabled_reason, excluded.tags, excluded.auto_fix_id);
 end $$;
 `;

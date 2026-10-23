@@ -7,11 +7,13 @@
 -- severity: P2
 -- cadence_s: 60
 -- fix: FIX-OUTBOX-W2
+-- search_path: public
 -- title: Witty's own health alerts are firing
--- description: public.w2_health_alerts() returned rows; P1 when outbox_failed or send_failed_last_hour is among them, P2 otherwise. The second fix, FIX-CACHE-W2, attaches to cache_expired.
+-- description: public.w2_health_alerts() returned rows; P1 when outbox_failed or send_failed_last_hour is among them, P2 otherwise. The function names its tables without a schema, so this check runs with search_path public (D-042). Each alert kind is a subject. The second fix, FIX-CACHE-W2, attaches to cache_expired.
 select jsonb_array_length(a) = 0 as ok,
        jsonb_build_object('alerts', a, 'severity', case when exists (select 1 from jsonb_array_elements(a) e
-                           where e ->> 'alert' in ('outbox_failed', 'send_failed_last_hour')) then 'P1' else 'P2' end) as value
+                           where e ->> 'alert' in ('outbox_failed', 'send_failed_last_hour')) then 'P1' else 'P2' end,
+                          'subjects', (select coalesce(jsonb_agg(distinct e ->> 'alert'), '[]') from jsonb_array_elements(a) e)) as value
   from (select coalesce(public.w2_health_alerts(), '[]'::jsonb) as a) x
 
 -- check: WITTY-02

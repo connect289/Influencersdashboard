@@ -122,7 +122,8 @@ select count(*) filter (where adapter_error or drift or auto_paused or switched_
        jsonb_build_object('partners', count(*),
          'problems', coalesce(jsonb_agg(jsonb_build_object('partner', slug, 'adapter_error', adapter_error, 'drift', drift, 'auto_paused', auto_paused, 'switched_off', switched_off))
                               filter (where adapter_error or drift or auto_paused or switched_off), '[]'),
-         'severity', case when bool_or(auto_paused) then 'P1' else 'P2' end) as value
+         'severity', case when bool_or(auto_paused) then 'P1' else 'P2' end,
+         'subjects', coalesce(jsonb_agg(slug order by slug) filter (where adapter_error or drift or auto_paused or switched_off), '[]')) as value
   from p
 
 -- check: B2B-09

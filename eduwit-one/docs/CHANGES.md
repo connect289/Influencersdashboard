@@ -3,6 +3,19 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 23 Oct 2026 — phase 1 review fixes
+
+- Fixed the phase 1 review's blocker and eight majors (`docs/reviews/phase-1.md`, D-042 to D-046): recursive PII
+  redaction of event payloads; failing-to-run checks open incidents; per-check search path; re-alerting on reopen,
+  escalation and new subjects; a committing cron procedure with lock and transaction timeouts; event overlap and
+  state windows.
+- New objects in schema `one` only: columns `checks.search_path`, `check_state.last_started_at`,
+  `incidents.subjects`, `incidents.alert_seq`; functions `due_checks`, `run_check_safe`, `report_add`,
+  `tick_app_call`, `public_schema_writers`, `redact`, `events_copy_safe`; procedure `tick_job`. `one-tick` now runs
+  `call one.tick_job()`.
+- Local test passes; the changed checks were re-run read-only on production. Staging is unchanged (0001 to 0003 core
+  from before; the connector still holds DROP and DELETE).
+
 ## 23 Oct 2026 — database runbook
 
 - Added `docs/RUNBOOK-database.md`: rehearse, dump and apply from a machine with direct database access (D-041).

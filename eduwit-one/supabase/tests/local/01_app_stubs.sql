@@ -32,7 +32,8 @@ insert into b2c.settings values ('app', '{"base_url": null}');
 -- Health RPCs, controllable from tests through a stub table.
 create table public.stub_health (app text primary key, value jsonb);
 insert into public.stub_health values ('witty', '[]'), ('b2b', '{"ok": true}'), ('web', '{"db": true, "outbox_dead": 0, "catalog_checked_seconds_ago": 30, "outbox_oldest_pending_seconds": 0}');
-create function public.w2_health_alerts() returns jsonb language sql as $$ select value from public.stub_health where app = 'witty' $$;
+-- Like production (D-042): invoker rights, no search_path, unqualified table name.
+create function public.w2_health_alerts() returns jsonb language sql stable as $$ select value from stub_health where app = 'witty' $$;
 create function b2b.health_check() returns jsonb language sql security definer as $$ select value from public.stub_health where app = 'b2b' $$;
 create function public.web_health() returns jsonb language sql security definer as $$ select value from public.stub_health where app = 'web' $$;
 revoke execute on function b2b.health_check(), public.web_health() from public;

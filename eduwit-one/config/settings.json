@@ -177,25 +177,44 @@
     "batch": 5000,
     "pii_columns": [
       "student_name",
-      "whatsapp_number",
-      "email_id",
-      "phone",
-      "email",
+      "name",
+      "first_name",
+      "last_name",
       "full_name",
-      "guardian_name",
-      "guardian_phone",
-      "guardian_email",
+      "display_name",
+      "whatsapp_number",
+      "phone",
+      "phone_*",
+      "*_phone",
+      "mobile",
       "alternate_phone",
-      "ip",
-      "ip_address",
-      "content",
-      "body",
-      "raw",
       "phone_e164",
+      "email",
+      "email_*",
+      "*_email",
+      "email_id",
       "email_norm",
       "to_address",
-      "account_email"
-    ]
+      "from_address",
+      "account_email",
+      "guardian_*",
+      "ip",
+      "ip_*",
+      "*_ip",
+      "ip_address",
+      "address",
+      "content",
+      "body",
+      "body_*",
+      "text",
+      "message",
+      "snippet",
+      "subject",
+      "question",
+      "raw"
+    ],
+    "id_overlap": 1000,
+    "window_hours": 48
   },
   "witty": {
     "expect_nurture": false,
@@ -219,5 +238,11 @@
   "whatsapp": {
     "waba_ids": [],
     "alert_phone_id": null
+  },
+  "checks": {
+    "source_missing_opens_incident": true,
+    "lock_timeout": "2s",
+    "transaction_timeout": "30s",
+    "slow_ms": 5000
   }
 }
