@@ -48,3 +48,73 @@ create table public.w2_trusted (phone text primary key, note text, is_test boole
 -- Witty conversations, for one.witty_escalations() (0008).
 create table public.w2_conversations (phone text primary key, conversation_id bigint, account_id bigint, bot_paused boolean default false,
   escalated_at timestamptz, crm_record_id text);
+
+-- The app functions the fixes call (0019), with production's signatures and rights: SECURITY DEFINER, owned by
+-- postgres, executable by the service role only (b2b.outbox_retry also by authenticated, and only for a B2B admin).
+-- They exist before the migrations so that 0019 grants them to the fixer as it would on production; the tables they
+-- touch are created by 99_fixes.sql for its run. Each records its call in public.stub_calls.
+create function b2b.is_admin() returns boolean language plpgsql stable security definer set search_path = '' as $$
+begin
+  return exists (select 1 from b2b.app_users u
+                  where u.user_id = nullif(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub', '')::uuid
+                    and u.is_active and u.role = 'admin');
+end $$;
+create function b2b.outbox_retry(p_id bigint) returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not b2b.is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
+  update b2b.integration_outbox set status = 'pending', attempts = 0, next_attempt_at = now(), last_error = null where id = p_id and status in ('dead', 'failed');
+  if not found then raise exception 'only a failed or dead delivery can be sent again' using errcode = '22023'; end if;
+  insert into public.stub_calls (fn, arg) values ('b2b.outbox_retry', to_jsonb(p_id));
+end $$;
+create function b2b.outbox_kick() returns jsonb language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.stub_calls (fn) values ('b2b.outbox_kick');
+  return '{"answers": 0, "sent": 0}';
+end $$;
+create function b2b.b2c_sync_tick(p_limit integer) returns jsonb language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.stub_calls (fn, arg) values ('b2b.b2c_sync_tick', to_jsonb(p_limit));
+  return jsonb_build_object('scanned', 0, 'changed', 0);
+end $$;
+create function b2c.inbox_retry(p_limit integer) returns integer language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.stub_calls (fn, arg) values ('b2c.inbox_retry', to_jsonb(p_limit));
+  return 0;
+end $$;
+create function b2c.outbox_unstick() returns integer language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.stub_calls (fn) values ('b2c.outbox_unstick');
+  return 0;
+end $$;
+create function b2c.job_call(p_path text) returns bigint language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.stub_calls (fn, arg) values ('b2c.job_call', to_jsonb(p_path));
+  return null;
+end $$;
+create function b2c.programme_cache_refresh(p_force boolean) returns integer language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.stub_calls (fn, arg) values ('b2c.programme_cache_refresh', to_jsonb(p_force));
+  return 0;
+end $$;
+create function public.web_outbox_retry(p_id bigint, p_actor uuid) returns void language plpgsql security definer set search_path = '' as $$
+begin
+  update public.web_outbox set status = 'pending', attempts = 0, next_attempt_at = now(), last_error = null where id = p_id and status = 'dead';
+  insert into public.stub_calls (fn, arg) values ('public.web_outbox_retry', to_jsonb(p_id));
+end $$;
+create function public.web_job_call(p_path text, p_timeout_ms integer) returns bigint language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.stub_calls (fn, arg) values ('public.web_job_call', to_jsonb(p_path));
+  return null;
+end $$;
+create function public.web_catalog_poll() returns jsonb language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.stub_calls (fn) values ('public.web_catalog_poll');
+  return '{"changed": false}';
+end $$;
+revoke execute on function b2b.is_admin(), b2b.outbox_retry(bigint), b2b.outbox_kick(), b2b.b2c_sync_tick(integer), b2c.inbox_retry(integer),
+  b2c.outbox_unstick(), b2c.job_call(text), b2c.programme_cache_refresh(boolean), public.web_outbox_retry(bigint, uuid),
+  public.web_job_call(text, integer), public.web_catalog_poll() from public;
+grant execute on function b2b.outbox_kick(), b2b.b2c_sync_tick(integer), b2c.inbox_retry(integer), b2c.outbox_unstick(),
+  b2c.programme_cache_refresh(boolean), public.web_outbox_retry(bigint, uuid), public.web_job_call(text, integer), public.web_catalog_poll()
+  to service_role;
+grant execute on function b2b.is_admin(), b2b.outbox_retry(bigint) to authenticated, service_role;

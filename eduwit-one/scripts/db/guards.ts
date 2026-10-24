@@ -3,7 +3,7 @@
 //   node scripts/db/guards.ts --hash    print the sha256 of the migration set (names and contents)
 // The guards read SQL statement by statement, with a small lexer (strings, dollar quotes, comments), and allow rather
 // than deny: a statement that changes anything must name an object in schema one, or be one of the few forms the
-// build needs outside it (the reader's read grants, the fixer's column grants, Eduwit One's two roles and cron jobs).
+// build needs outside it (the reader's read grants, the fixer's catalogue grants, Eduwit One's two roles and cron jobs).
 // Function bodies and DO blocks are read the same way, and so is dynamic SQL built from a literal template; a template
 // that hides its target behind %s or %I must be on the reviewed list below (M8 of the second review, D-057). The rehearsal
 // and the apply add a catalogue check after every file (scripts/db/app-fingerprint.sql). A false refusal costs a
@@ -14,6 +14,24 @@ import { readdirSync, readFileSync } from "node:fs";
 /** Objects the fixer may never be granted anything on (spec §8): leads, allocation, money, switches, partners, mappings, prompts, settings. */
 const FIXER_FORBIDDEN =
   /\b(student_leads|allocations?|allocation_\w+|\w*(payout|ledger|invoice|commission|payment|wallet|refund|billing|price|pricing|fee|earning)s?\w*|live_switches|partners?|partner_\w*|\w*(_mapping|_mappings|_map|_maps)|w2_prompts|\w*settings)\b/i;
+/**
+ * The app functions a fix may call (spec §8's catalogue, as built in 0019; D-079). EXECUTE on anything else is refused,
+ * whatever its name: lead_intake(), Witty's outbox functions, allocation and money functions never reach the fixer.
+ */
+const FIXER_FUNCTIONS = new Set([
+  "b2b.b2c_sync_tick",
+  "b2b.outbox_kick",
+  "b2b.outbox_retry",
+  "b2c.inbox_retry",
+  "b2c.outbox_unstick",
+  "b2c.job_call",
+  "b2c.programme_cache_refresh",
+  "public.web_outbox_retry",
+  "public.web_job_call",
+  "public.web_catalog_poll",
+]);
+/** The schemas whose functions the fixer calls. */
+const FIXER_SCHEMAS = new Set(["public", "b2b", "b2c"]);
 const APP_SCHEMAS = "(public|b2b|b2c|catalog|inf|auth|storage|cron|net|vault|realtime|extensions|graphql|graphql_public|pgsodium|supabase_functions)";
 const OUR_ROLES = /^eduwit_one_(reader|fixer)$/;
 const DYN = "__dyn__";
@@ -173,8 +191,16 @@ function command(cmd: string, dynamic: string | null): Finding[] {
       : [`default privileges other than the reader's SELECT: ${short(cmd)}`];
   }
   if ((m = s.match(/^alter (?:policy|trigger) [\w$"]+ on (.*)$/))) return target(name(m[1] as string).name, "alter policy or trigger");
-  if ((m = s.match(/^alter (table|view|materialized view|function|procedure|routine|type|domain|sequence|index|aggregate) (?:if exists )?(?:only )?(.*)$/)))
-    return target(name(m[2] as string).name, `alter ${m[1]}`);
+  if ((m = s.match(/^alter (table|view|materialized view|function|procedure|routine|type|domain|sequence|index|aggregate) (?:if exists )?(?:only )?(.*)$/))) {
+    const n = name(m[2] as string).name;
+    // A new owner only for the fixer's own functions, and only the fixer (0019): no object of schema one is handed to
+    // another role.
+    if (/\bowner to\b/.test(s)) {
+      const ok = m[1] === "function" && /\bowner to eduwit_one_fixer$/.test(s) && /^one\.fixer_\w+$/.test(n);
+      if (!ok) return [`an owner change other than a one.fixer_* function to eduwit_one_fixer: ${short(cmd)}`];
+    }
+    return target(n, `alter ${m[1]}`);
+  }
   if ((m = s.match(/^alter schema (.*)$/))) return name(m[1] as string).name === "one" ? [] : [`alter schema other than one: ${short(cmd)}`];
   if (/^alter /.test(s)) return [`alter of a kind migrations may not alter: ${short(cmd)}`];
 
@@ -233,8 +259,17 @@ function privilege(cmd: string, reviewed: boolean): Finding[] {
   const toFixer = grantees.some((g) => g === "eduwit_one_fixer");
 
   if (toFixer && grant) {
-    const ok = /^update\s*\([\w\s,"]+\)$/.test(privs) && objects.length === 1 && !hidden(objects[0] as string) && !FIXER_FORBIDDEN.test(on);
-    return ok ? [] : [`a grant to eduwit_one_fixer must be one column-level UPDATE on one table, never on a forbidden object: ${short(cmd)}`];
+    // Only to the fixer, and only one of: a column-level UPDATE on one table; EXECUTE on functions of the catalogue;
+    // USAGE on the schemas they live in; CREATE on schema one, which the same file must take back (scan()). Never on a
+    // forbidden object (spec §8).
+    const only = grantees.length === 1 && !objects.some(hidden) && !FIXER_FORBIDDEN.test(on);
+    const column = /^update\s*\([\w\s,"]+\)$/.test(privs) && objects.length === 1 && !/^(schema|function|all) /.test(on);
+    const execute = privs === "execute" && /^function /.test(on) && objects.length > 0 && objects.every((o) => FIXER_FUNCTIONS.has(o));
+    const usage = privs === "usage" && /^schema /.test(on) && objects.every((o) => FIXER_SCHEMAS.has(o));
+    const create = privs === "create" && on === "schema one";
+    return only && (column || execute || usage || create)
+      ? []
+      : [`a grant to eduwit_one_fixer must be a column-level UPDATE on one table, EXECUTE on a catalogue function, USAGE on public, b2b or b2c, or CREATE on schema one, never on a forbidden object: ${short(cmd)}`];
   }
   if (grant && toReader) return readOnly ? [] : [`eduwit_one_reader gets no write privilege anywhere: ${short(cmd)}`];
   if (isDyn) return [`grant or revoke with a target or role hidden in dynamic SQL (not a reviewed template): ${short(cmd)}`];
@@ -325,7 +360,16 @@ const other: Array<{ why: string; re: RegExp }> = [
 export function scan(text: string): string[] {
   const sql = text.replace(/--[^\n]*/g, "");
   const textual = other.flatMap(({ why, re }) => [...sql.matchAll(re)].map((m) => `${why}: ${m[0].replace(/\s+/g, " ").slice(0, 160)}`));
-  return [...new Set([...analyse(text), ...literalWrites(text), ...textual])];
+  return [...new Set([...analyse(text), ...literalWrites(text), ...textual, ...createTakenBack(text)])];
+}
+
+/** CREATE on schema one reaches the fixer only for handing it its functions: the same file revokes it after the grant. */
+function createTakenBack(text: string): Finding[] {
+  const statements = lex(text).map((st) => norm(st.text));
+  const grant = statements.findIndex((s) => /^grant create on schema one to eduwit_one_fixer$/.test(s));
+  if (grant < 0) return [];
+  const revoke = statements.findIndex((s, i) => i > grant && /^revoke create on schema one from eduwit_one_fixer$/.test(s));
+  return revoke < 0 ? ["CREATE on schema one granted to eduwit_one_fixer and not revoked later in the same file"] : [];
 }
 
 const dir = new URL("../../supabase/migrations/", import.meta.url);

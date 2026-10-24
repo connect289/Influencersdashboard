@@ -8,8 +8,11 @@
 -- cadence_s: 60
 -- fix: FIX-OUTBOX-B2B
 -- title: The B2B CRM's own health check is not ok
--- description: b2b.health_check(): a stale or failed b2b-* job, a dead or waiting delivery, or the B2C sync cursor over 600 s. FIX-CURSOR-B2C attaches to the cursor case.
-select coalesce((h ->> 'ok')::boolean, false) as ok, h as value from (select b2b.health_check() as h) x
+-- description: b2b.health_check(): a stale or failed b2b-* job, a dead or waiting delivery, or the B2C sync cursor over 600 s. Its own ok leaves deliveries out (read on production 24 Oct), so dead_7d and waiting_over_1h are added here. FIX-CURSOR-B2C attaches to the cursor case.
+select coalesce((h ->> 'ok')::boolean, false)
+       and coalesce((h #>> '{deliveries,dead_7d}')::int, 0) = 0
+       and coalesce((h #>> '{deliveries,waiting_over_1h}')::int, 0) = 0 as ok, h as value
+  from (select b2b.health_check() as h) x
 
 -- check: B2B-02
 -- app: b2b

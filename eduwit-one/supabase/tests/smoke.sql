@@ -41,8 +41,9 @@ begin
    where c.enabled and c.sql is not null and coalesce(s.last_status, 'never') not in ('ok', 'fail', 'source_missing', 'skipped');
   if v_bad is not null then raise exception 'ASSERT FAILED: checks errored or never ran: %', v_bad; end if;
 
-  -- Least privilege (spec §13), by catalogue: the reader writes nothing and bypasses no RLS (D-030); the fixer holds
-  -- nothing until a fix migration; the API roles cannot reach schema one; the service role cannot write a check's SQL.
+  -- Least privilege (spec §13), by catalogue: the reader writes nothing and bypasses no RLS (D-030); the fixer holds no
+  -- table privilege, executes only the catalogue's app functions and owns only its one.fixer_* functions (0019, D-079);
+  -- the API roles cannot reach schema one; the service role cannot write a check's SQL.
   if (select rolbypassrls or rolsuper or rolcreaterole or rolcreatedb from pg_roles where rolname = 'eduwit_one_reader') then
     raise exception 'ASSERT FAILED: eduwit_one_reader has a role attribute it must not have';
   end if;
@@ -61,7 +62,21 @@ begin
    where c.relkind in ('r', 'p', 'v', 'm', 'f') and n.nspname not in ('pg_catalog', 'information_schema', 'net', 'cron')
      and n.nspname not like 'pg_toast%'
      and (c.relacl::text like '%eduwit_one_fixer=%');
-  if v_bad is not null then raise exception 'ASSERT FAILED: the fixer has grants before any fix migration: %', v_bad; end if;
+  if v_bad is not null then raise exception 'ASSERT FAILED: the fixer holds a table privilege: %', v_bad; end if;
+  select string_agg(p.oid::regprocedure::text, ', ') into v_bad
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname <> 'one' and p.proacl::text like '%eduwit_one_fixer=%'
+     and p.oid::regprocedure::text not in ('b2b.b2c_sync_tick(integer)', 'b2b.outbox_kick()', 'b2b.outbox_retry(bigint)', 'b2c.inbox_retry(integer)',
+                                           'b2c.outbox_unstick()', 'b2c.job_call(text)', 'b2c.programme_cache_refresh(boolean)',
+                                           'web_outbox_retry(bigint,uuid)', 'web_job_call(text,integer)', 'web_catalog_poll()',
+                                           'public.web_outbox_retry(bigint,uuid)', 'public.web_job_call(text,integer)', 'public.web_catalog_poll()');
+  if v_bad is not null then raise exception 'ASSERT FAILED: the fixer may execute an app function outside the catalogue: %', v_bad; end if;
+  select string_agg(p.oid::regprocedure::text, ', ') into v_bad
+    from pg_proc p where p.proowner = 'eduwit_one_fixer'::regrole and (p.pronamespace <> 'one'::regnamespace or p.proname !~ '^fixer_');
+  if v_bad is not null then raise exception 'ASSERT FAILED: the fixer owns a function that is not one of its one.fixer_*: %', v_bad; end if;
+  if has_schema_privilege('eduwit_one_fixer', 'one', 'CREATE') or has_schema_privilege('eduwit_one_fixer', 'one', 'USAGE') then
+    raise exception 'ASSERT FAILED: the fixer can use or create in schema one';
+  end if;
   -- The API roles reach schema one only through the functions one.api_grants lists, each SECURITY DEFINER; they hold
   -- no privilege on any table or sequence of it, and anon cannot even use the schema (D-055).
   if has_schema_privilege('anon', 'one', 'USAGE') then

@@ -43,14 +43,17 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'The B2B CRM''s own health check is not ok',
-  'description', 'b2b.health_check(): a stale or failed b2b-* job, a dead or waiting delivery, or the B2C sync cursor over 600 s. FIX-CURSOR-B2C attaches to the cursor case.',
+  'description', 'b2b.health_check(): a stale or failed b2b-* job, a dead or waiting delivery, or the B2C sync cursor over 600 s. Its own ok leaves deliveries out (read on production 24 Oct), so dead_7d and waiting_over_1h are added here. FIX-CURSOR-B2C attaches to the cursor case.',
   'auto_fix_id', 'FIX-OUTBOX-B2B',
   'tags', '[]'::jsonb,
   'enabled', true,
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select coalesce((h ->> 'ok')::boolean, false) as ok, h as value from (select b2b.health_check() as h) x
+select coalesce((h ->> 'ok')::boolean, false)
+       and coalesce((h #>> '{deliveries,dead_7d}')::int, 0) = 0
+       and coalesce((h #>> '{deliveries,waiting_over_1h}')::int, 0) = 0 as ok, h as value
+  from (select b2b.health_check() as h) x
 $sql$));
 
 select one.seed_check(jsonb_build_object(

@@ -146,6 +146,29 @@ begin
              !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?(Z|[+-][0-9]{2}(:?[0-9]{2})?)?)?$') then
         raise exception 'setting fixes: observation_days 1–90, observation_started_at null or an ISO time' using errcode = '22023';
       end if;
+      -- Each fix: {enabled, per_tick 1–500, cooldown_min 1–1440}. A fix is switched on only on evidence (spec §8):
+      -- after the observation window, and once it has at least one dry run.
+      if exists (select 1 from jsonb_each(p_value) f
+                  where f.key not in ('observation_days', 'observation_started_at')
+                    and (f.key !~ '^FIX-[A-Z0-9]+(-[A-Z0-9]+)*$' or jsonb_typeof(f.value) <> 'object'
+                         or exists (select 1 from jsonb_object_keys(f.value) k where k not in ('enabled', 'per_tick', 'cooldown_min'))
+                         or jsonb_typeof(f.value -> 'enabled') <> 'boolean'
+                         or jsonb_typeof(f.value -> 'per_tick') <> 'number' or (f.value ->> 'per_tick')::numeric not between 1 and 500
+                         or (f.value ->> 'per_tick')::numeric <> trunc((f.value ->> 'per_tick')::numeric)
+                         or jsonb_typeof(f.value -> 'cooldown_min') <> 'number' or (f.value ->> 'cooldown_min')::numeric not between 1 and 1440
+                         or (f.value ->> 'cooldown_min')::numeric <> trunc((f.value ->> 'cooldown_min')::numeric))) then
+        raise exception 'setting fixes: each FIX-… is {enabled: boolean, per_tick: 1–500, cooldown_min: 1–1440}' using errcode = '22023';
+      end if;
+      if exists (select 1 from jsonb_each(p_value) f where f.key ~ '^FIX-' and (f.value ->> 'enabled')::boolean)
+         and (p_value ->> 'observation_started_at' is null
+              or (p_value ->> 'observation_started_at')::timestamptz + make_interval(days => coalesce((p_value ->> 'observation_days')::int, 14)) > now()) then
+        raise exception 'setting fixes: a fix is switched on only after the observation window ends' using errcode = '22023';
+      end if;
+      if exists (select 1 from jsonb_each(p_value) f
+                  where f.key ~ '^FIX-' and (f.value ->> 'enabled')::boolean
+                    and not exists (select 1 from one.actions a where a.fix_id = f.key and a.dry_run)) then
+        raise exception 'setting fixes: a fix is switched on only once it has a dry run to judge it by' using errcode = '22023';
+      end if;
     else
       null;
   end case;

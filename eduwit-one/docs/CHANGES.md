@@ -3,6 +3,29 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 7: the fixes in the database (0019; D-079, D-080)
+
+- Migration 0019 (with its rollback): the catalogue `one.fixes` (11 fixes of spec §8), `one.fix_<id>(incident,
+  dry_run)` for each over one shell (`one.fix_run`: the switch, the observation window, the cooldown, the rate limit
+  that opens a proposal instead, test rows left out, an action row before and after), the plans (ids and counts
+  only), the fixer's eight `one.fixer_*` functions and its grants: USAGE on `public`, `b2b`, `b2c` and EXECUTE on ten
+  app functions, nothing else. Verification 2 minutes after a run; a second failure within the cooldown moves the
+  incident up one level instead of a retry.
+- The minute tick runs the fixes first in its app call (each isolated) and starts the two-week observation window on
+  its first run. The app's side of its two fixes: `one.app_fixes_claim()`, `one.app_fix_report()` (service role).
+- Approving a proposal a fix opened runs it once under the approver's session (FIX-OUTBOX-B2B: B2B's own
+  `b2b.outbox_retry`, for a B2B admin), applied and verified 10 minutes on (`check_result`).
+- The Fixes page's reads and writes: `one.ui_fixes()`, `one.ui_fix_set()` (owner), `one.ui_fix_dry_run()`. The morning
+  brief's numbers include what each fix did.
+- `one.settings_check('fixes')`: each fix is `{enabled, per_tick 1–500, cooldown_min 1–1440}`; switched on only after
+  the window and with a dry run of its own.
+- Three fixes cannot act without changing an app and propose instead or wait for the owner (D-080). B2B-01 now fails
+  on dead and waiting deliveries (0006 regenerated).
+- Guards: the fixer may get EXECUTE only on the catalogue's functions, USAGE on the three schemas, CREATE on schema one
+  only while it is handed its functions; tests, including `rehearse.sh` refusing a migration that grants the fixer
+  anything on `student_leads`. Local test `99_fixes.sql`: a dry-run row for every fix from a staged incident, real runs
+  through the fixer, approvals, verification; the smoke test checks the fixer's rights by catalogue.
+
 ## 24 Oct 2026 — phase 6: the owner's answers (D-078)
 
 - Claude only: Gemini removed from the AI layer (settings, router, client, Setup validator, worker route, eval,

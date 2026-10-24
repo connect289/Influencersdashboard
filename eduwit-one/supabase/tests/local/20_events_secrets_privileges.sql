@@ -106,7 +106,7 @@ select pg_temp.ok(pg_temp.refused('eduwit_one_reader', 'update public.student_le
 select pg_temp.ok(pg_temp.refused('eduwit_one_reader', 'delete from b2b.events'), 'reader cannot delete from an app table');
 select pg_temp.ok(pg_temp.refused('eduwit_one_reader', 'insert into one.settings (key, value) values (''x'', ''{}'')'), 'reader cannot write schema one');
 select pg_temp.ok(pg_temp.refused('eduwit_one_reader', 'select one.secret(''one_internal_key'')'), 'reader cannot read secrets');
-select pg_temp.ok(pg_temp.refused('eduwit_one_fixer', 'select count(*) from public.student_leads'), 'fixer has no grants at all');
+select pg_temp.ok(pg_temp.refused('eduwit_one_fixer', 'select count(*) from public.student_leads'), 'the fixer cannot read student_leads');
 select pg_temp.ok(pg_temp.refused('service_role', $q$insert into one.checks (id, app, title, kind, sql, severity, cadence_s) values ('X-1', 'platform', 't', 'sql', 'select true as ok, null::jsonb as value', 'P3', 60)$q$), 'service role cannot add a check');
 select pg_temp.ok(pg_temp.refused('service_role', $q$update one.checks set sql = 'select true as ok, null::jsonb as value' where id = 'PLAT-01'$q$), 'service role cannot change a check''s sql');
 select pg_temp.ok(pg_temp.refused('service_role', $q$update one.checks set enabled = false, disabled_reason = 'owner:x' where id = 'PLAT-01'$q$), 'service role cannot switch a check off directly (D-055)');

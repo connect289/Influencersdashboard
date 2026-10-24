@@ -1,7 +1,11 @@
 // node --test scripts/db/guards.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { migrationFiles, scan } from "./guards.ts";
 import { pgEnv, targetOf } from "./pg-env.ts";
 
@@ -27,6 +31,56 @@ test("the fixer gets one column-level UPDATE, never a forbidden object (spec §8
   refused("grant update on public.w2_outbox to eduwit_one_fixer;");
   refused("grant all on all tables in schema public to eduwit_one_fixer;");
   refused("GRANT\n  UPDATE (status)\n  ON public.student_leads\n  TO eduwit_one_fixer;");
+});
+
+test("the fixer gets EXECUTE on catalogue functions and USAGE on their schemas, nothing else (spec §8, D-079)", () => {
+  allowed("grant execute on function b2b.outbox_kick() to eduwit_one_fixer;");
+  allowed("grant execute on function public.web_outbox_retry(bigint, uuid) to eduwit_one_fixer;");
+  allowed("do $$ begin if to_regprocedure('b2c.inbox_retry(integer)') is not null then grant execute on function b2c.inbox_retry(integer) to eduwit_one_fixer; end if; end $$;");
+  allowed("grant usage on schema b2b to eduwit_one_fixer;");
+  refused("grant execute on function public.lead_intake(jsonb) to eduwit_one_fixer;");
+  refused("grant execute on function public.w2_outbox_retry(integer) to eduwit_one_fixer;");
+  refused("grant execute on function b2b.allocate_lead(bigint) to eduwit_one_fixer;");
+  refused("grant execute on function b2b.outbox_kick() to eduwit_one_fixer, authenticated;");
+  refused("grant execute on all functions in schema b2b to eduwit_one_fixer;");
+  refused("grant usage on schema inf to eduwit_one_fixer;");
+  refused("grant create on schema b2b to eduwit_one_fixer;");
+  refused("grant select on public.student_leads to eduwit_one_fixer;");
+  refused("grant insert on public.student_leads to eduwit_one_fixer;");
+  refused("grant all on table public.student_leads to eduwit_one_fixer;");
+  refused("grant references (id) on public.student_leads to eduwit_one_fixer;");
+});
+
+test("the fixer owns only its one.fixer_* functions, and CREATE on schema one only while it receives them", () => {
+  allowed("grant create on schema one to eduwit_one_fixer; alter function one.fixer_kick() owner to eduwit_one_fixer; revoke create on schema one from eduwit_one_fixer;");
+  refused("grant create on schema one to eduwit_one_fixer; alter function one.fixer_kick() owner to eduwit_one_fixer;");
+  refused("alter function one.ui_shell() owner to eduwit_one_fixer;");
+  refused("alter function one.fixer_kick() owner to postgres;");
+  refused("alter table one.incidents owner to authenticated;");
+  refused("grant eduwit_one_fixer to authenticated;");
+});
+
+test("rehearse.sh refuses a migration that grants the fixer anything on student_leads, before it connects (phase 7 criterion)", () => {
+  const root = mkdtempSync(join(tmpdir(), "one-rehearse-"));
+  try {
+    cpSync(fileURLToPath(new URL("../../scripts", import.meta.url)), join(root, "scripts"), { recursive: true });
+    cpSync(fileURLToPath(new URL("../../supabase/migrations", import.meta.url)), join(root, "supabase/migrations"), { recursive: true });
+    for (const bad of [
+      "grant update (is_sales_ready) on public.student_leads to eduwit_one_fixer;",
+      "grant select on public.student_leads to eduwit_one_fixer;",
+      "do $$ begin grant execute on function public.lead_intake(jsonb) to eduwit_one_fixer; end $$;",
+    ]) {
+      writeFileSync(join(root, "supabase/migrations/0099_fixer_grants_test.sql"), `${bad}\n`);
+      writeFileSync(join(root, "supabase/migrations/0099_fixer_grants_test.rollback.sql"), "select 1;\n");
+      const r = spawnSync("bash", [join(root, "scripts/db/rehearse.sh")], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" } });
+      assert.notEqual(r.status, 0, bad);
+      assert.match(r.stderr, /0099_fixer_grants_test\.sql: a grant to eduwit_one_fixer/, bad);
+      assert.match(r.stdout, /GUARDS FAILED/, bad);
+      assert.doesNotMatch(r.stdout + r.stderr, /ONE_STAGING_DB_URL|applied 0001/, bad);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("the reader may read, never write", () => {

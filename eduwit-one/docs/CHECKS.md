@@ -97,7 +97,7 @@ app through `one.report_result()`; every other kind is a SQL statement run by `o
 
 ## What each check reads
 
-- **B2B-01**: b2b.health_check(): a stale or failed b2b-* job, a dead or waiting delivery, or the B2C sync cursor over 600 s. FIX-CURSOR-B2C attaches to the cursor case. (source `supabase/checks/b2b.sql`)
+- **B2B-01**: b2b.health_check(): a stale or failed b2b-* job, a dead or waiting delivery, or the B2C sync cursor over 600 s. Its own ok leaves deliveries out (read on production 24 Oct), so dead_7d and waiting_over_1h are added here. FIX-CURSOR-B2C attaches to the cursor case. (source `supabase/checks/b2b.sql`)
 - **B2B-02**: A b2b.events row of type alert.* or routing.error in the last b2b_alert_window_min minutes (15). A fixed window, not "since the last run": an event whose transaction commits after a run started, or that lands in a minute the check was skipped, is still seen (M6 of the second review). Each event id is a subject, so a new event alerts again while the incident is open. (source `supabase/checks/b2b.sql`)
 - **B2B-03**: b2b.intake_requests in status error (last 24 h), or still received after b2b_intake_received_min minutes. Test requests excluded. (source `supabase/checks/b2b.sql`)
 - **B2B-04**: student_leads with is_sales_ready, not a test, not deleted or merged, and no allocation_id allocation_min minutes after sales_ready_at. (source `supabase/checks/b2b.sql`)
