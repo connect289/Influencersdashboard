@@ -3,6 +3,12 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — live refresh no longer cuts into a form's action
+
+- The 15 s live refresh skips its tick while a form's action is pending or within 5 s of a click or key. The
+  click-through twice saw a write recorded in the audit whose answer never reached the form (a refresh landing during
+  the server action); `components/shell/live-refresh.tsx`.
+
 ## 24 Oct 2026 — phase 5, the journeys, the test runner login and the purge
 
 - 0014: a run's artefacts are only added to, and `phones` is written only by the database.
