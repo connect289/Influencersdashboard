@@ -110,7 +110,7 @@ followed.
 ## 24 Oct 2026 — phase 7: the fixes in the database (0019; D-079, D-080)
 
 - Migration 0019 (with its rollback): the catalogue `one.fixes` (11 fixes of spec §8), `one.fix_<id>(incident,
-  dry_run)` for each over one shell (`one.fix_run`: the switch, the observation window, the cooldown, the rate limit
+dry_run)` for each over one shell (`one.fix_run`: the switch, the observation window, the cooldown, the rate limit
   that opens a proposal instead, test rows left out, an action row before and after), the plans (ids and counts
   only), the fixer's eight `one.fixer_*` functions and its grants: USAGE on `public`, `b2b`, `b2c` and EXECUTE on ten
   app functions, nothing else. Verification 2 minutes after a run; a second failure within the cooldown moves the
@@ -393,7 +393,7 @@ followed.
 
 ## 23 Oct 2026 — phase 1, rehearsal tooling and partial staging apply
 
-- Added `scripts/db/rehearse.sh`, `apply.sh` and `dump.sh`. Also added `with-db.ts` (credentials go into PG*
+- Added `scripts/db/rehearse.sh`, `apply.sh` and `dump.sh`. Also added `with-db.ts` (credentials go into PG\*
   variables, never argv; a URL that reaches the wrong project is refused), `guards.ts` with its tests, `fingerprint.sql`,
   `leftovers.sql`, `supabase/tests/smoke.sql` and `docs/REHEARSALS.md`.
 - The local fixture tests moved to `supabase/tests/local/` and now refuse to run on any database but the local test
