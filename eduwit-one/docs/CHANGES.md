@@ -3,6 +3,22 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 6 (AI): the worker, its prompts and the pages
+
+- `POST /api/internal/ai/run` (internal key; 300 s, Fluid compute): claims tasks for up to four minutes, routes each
+  to its model, masks the data again, checks the call's worst case against the per-task cap and what is left today,
+  validates the answer against the kind's schema (one repair attempt) and files it. A task with no key, no model or no
+  price waits as deferred and says why; refusals and cut-off answers fail without a retry; every call's tokens and
+  cost are recorded whatever the outcome. Ask runs up to three rounds of the fixed tools, plus n8n's executions.
+- Prompts as markdown in `web/lib/ai/prompts` (shared rules and one per kind), stamped `kind@hash` into each call's
+  `prompt_version` through `scripts/gen-prompts.ts` (a unit test fails while the generated module is stale).
+- Setup item `ai_key` has a validator (`ai`): every tier's provider, model, price and key, proven with the provider's
+  free model lookup. Credentials `ONE_ANTHROPIC_API_KEY` / `one_anthropic_key` and `ONE_GEMINI_API_KEY` /
+  `one_gemini_key`.
+- The brief email (plain text, escaped, with a link to the brief and the saved views marked "email it").
+- Pages: the incident's AI card shows the summary, likely cause, kind of problem, next steps and explanation, or why
+  triage is waiting; Ask lists the tools each answer used; deferred tasks show their reason.
+
 ## 24 Oct 2026 — phase 6 (AI): the model layer and the worker's database side (D-075, D-076)
 
 - `web/lib/ai`: the PII mask (`pii.ts`: names to initials, phones to their last 4 digits, emails to their domain,

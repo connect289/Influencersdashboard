@@ -83,6 +83,9 @@ const statusTones: Record<string, Tone> = {
   refused: "p2",
   muted: "off",
   suppressed: "off",
+  claimed: "p3",
+  deferred: "off",
+  cancelled: "off",
 };
 
 /** A status word in its tone; unknown words are neutral. Underscores read as spaces. */

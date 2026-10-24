@@ -224,8 +224,8 @@
         "ask",
         "test_author"
       ],
-      "how": "The AI provider's key: one_gemini_key (seeded provider) or one_anthropic_key. The provider per tier is in Settings → AI models.",
-      "validate": null
+      "how": "The AI provider's key: one_gemini_key (seeded provider) or one_anthropic_key. The provider and model per tier, and each model's price, are in Settings → AI; a model without a price is never called. Validate checks every tier's key and model with a free call to the provider.",
+      "validate": "ai"
     },
     {
       "id": "sentry",

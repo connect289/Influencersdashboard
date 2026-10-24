@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { AnthropicModelClient, GEMINI_API, GeminiModelClient, type ModelClient } from "../ai/client.ts";
+import { aiSettingsSchema, route, TIERS } from "../ai/models.ts";
 import { RealAppHealthClient } from "../clients/app-health.ts";
 import { RealChatwootClient } from "../clients/chatwoot.ts";
 import type { Credentials } from "../clients/credentials.ts";
@@ -22,6 +24,8 @@ export type ValidateDeps = {
     checkStatus(id: string): Promise<string | null>;
     heartbeatOk(component: string): Promise<boolean>;
     testFacts(): Promise<TestFacts | null>;
+    /** one.settings.ai, for the ai_key validator (0018). */
+    aiSettings(): Promise<unknown>;
   };
   /** Where the test runner login signs in (the shared Supabase project's API). */
   supabase?: { url?: string; anonKey?: string };
@@ -243,6 +247,41 @@ export async function validate(kind: string, deps: ValidateDeps): Promise<Verdic
             ? "the database called the app and it answered (heartbeat one:app)"
             : "no recent answer from the app to the minute tick",
         };
+      }
+      case "ai": {
+        // Each tier's provider, model, price and key, and a free call that proves the key and the model (D-075).
+        const ai = aiSettingsSchema.safeParse(await deps.facts.aiSettings());
+        if (!ai.success) return { ok: false, detail: "Settings → AI cannot be read" };
+        const base = (settings.vendors as Record<string, string>).gemini_api ?? GEMINI_API;
+        const proved = new Map<string, { ok: boolean; detail: string }>();
+        const lines: string[] = [];
+        let ok = true;
+        for (const tier of TIERS) {
+          const r = route(ai.data, "triage", tier);
+          if ("error" in r) {
+            ok = false;
+            lines.push(`${tier}: ${r.detail}`);
+            continue;
+          }
+          const key = credentials[r.provider];
+          if (!key) {
+            ok = false;
+            lines.push(`${tier}: no ${r.provider} key (Vault one_${r.provider}_key)`);
+            continue;
+          }
+          const id = `${r.provider}:${r.model}`;
+          if (!proved.has(id)) {
+            const client: ModelClient =
+              r.provider === "anthropic" ? new AnthropicModelClient(key) : new GeminiModelClient(key, base);
+            proved.set(id, await client.check(r.model));
+          }
+          const v = proved.get(id) ?? { ok: false, detail: "not checked" };
+          ok &&= v.ok;
+          lines.push(
+            `${tier}${r.tier !== tier ? ` (falls back to ${r.tier})` : ""}: ${v.ok ? `${r.provider} ${r.model}` : v.detail}`,
+          );
+        }
+        return { ok, detail: lines.join("; ") };
       }
       default:
         return { ok: false, detail: `nothing to validate for ${kind}` };

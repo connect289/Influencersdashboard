@@ -6,7 +6,9 @@
   },
   "alerts": {
     "p1": {
-      "email": ["connect@eduwit.in"],
+      "email": [
+        "connect@eduwit.in"
+      ],
       "whatsapp": []
     },
     "channels": {
@@ -324,7 +326,9 @@
     "slow_ms": 5000
   },
   "access": {
-    "owners": ["connect@eduwit.in"],
+    "owners": [
+      "connect@eduwit.in"
+    ],
     "trusted_days": 30,
     "idle_hours": 12,
     "code_minutes": 10

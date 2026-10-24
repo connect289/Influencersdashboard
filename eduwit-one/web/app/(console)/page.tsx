@@ -140,7 +140,8 @@ export default async function OverviewPage() {
                 </>
               ) : (
                 <p className="text-sm text-fg-muted">
-                  No brief yet: the AI worker writes the first one after its setup (phase 6).
+                  No brief yet: the AI worker writes one each night at 02:30 IST once its key and model prices are set
+                  (Setup item ai_key).
                 </p>
               )}
             </CardBody>

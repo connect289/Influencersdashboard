@@ -44,7 +44,12 @@ describe("Setup validators", () => {
     const v = await validate(kind, {
       settings,
       credentials: {},
-      facts: { checkStatus: async () => null, heartbeatOk: async () => false, testFacts: async () => null },
+      facts: {
+        checkStatus: async () => null,
+        heartbeatOk: async () => false,
+        testFacts: async () => null,
+        aiSettings: async () => null,
+      },
     });
     expect(v.detail).not.toMatch(/nothing to validate/);
     if (!["api_schema"].includes(kind)) expect(v.ok).toBe(false);
@@ -58,6 +63,7 @@ describe("Setup validators", () => {
       "test_whatsapp_number",
       "test_runner_user",
       "test_spark_journey",
+      "ai_key",
     ]) {
       expect(byId.get(id), id).toBeTruthy();
     }

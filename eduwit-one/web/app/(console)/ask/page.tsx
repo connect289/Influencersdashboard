@@ -3,14 +3,15 @@ import { AskForm, PinButton } from "@/components/brief/brief-forms.tsx";
 import { StatusBadge } from "@/components/ui/badge.tsx";
 import { Card, CardBody, CardHeader } from "@/components/ui/card.tsx";
 import { PageError } from "@/components/ui/page-error.tsx";
-import { Code, Empty, PageHeader } from "@/components/ui/state.tsx";
+import { Empty, PageHeader } from "@/components/ui/state.tsx";
 import { ago, json } from "@/lib/format.ts";
 import { ui } from "@/lib/ui/api.ts";
 import { asksSchema } from "@/lib/ui/schemas.ts";
 
 export const metadata: Metadata = { title: "Ask" };
 
-type Answer = { answer?: string; queries?: Array<{ sql?: string; rows?: number }> };
+type Query = { tool?: string; args?: Record<string, unknown>; rows?: number; ok?: boolean; error?: string };
+type Answer = { answer?: string; queries?: Query[] };
 
 export default async function AskPage() {
   let asks;
@@ -23,7 +24,7 @@ export default async function AskPage() {
     <>
       <PageHeader
         title="Ask"
-        description="A question to the AI worker, answered from read-only queries it shows you. The AI reads masked data only."
+        description="A question to the AI worker, answered with fixed read-only tools it lists for you (it never writes SQL). The AI reads masked data only."
       />
       <Card>
         <CardBody>
@@ -47,14 +48,25 @@ export default async function AskPage() {
                 />
                 <CardBody className="grid gap-2 text-sm">
                   {a.status === "done" && r.answer ? <p className="whitespace-pre-line">{r.answer}</p> : null}
-                  {a.status === "pending" ? (
-                    <p className="text-fg-muted">Waiting for the AI worker (phase 6).</p>
+                  {a.status === "pending" || a.status === "claimed" ? (
+                    <p className="text-fg-muted">The AI worker is on it; an answer usually takes a minute or two.</p>
                   ) : null}
-                  {a.error ? <p className="text-p1">{a.error}</p> : null}
+                  {a.status === "deferred" ? (
+                    <p className="text-fg-muted">Waiting: {a.error ?? "deferred"}</p>
+                  ) : a.error && a.status !== "done" ? (
+                    <p className="text-p1">{a.error}</p>
+                  ) : null}
                   {r.queries?.length ? (
                     <details>
-                      <summary className="cursor-pointer">The queries it ran ({r.queries.length})</summary>
-                      <Code className="mt-2">{json(r.queries)}</Code>
+                      <summary className="cursor-pointer">The tools it used ({r.queries.length})</summary>
+                      <ul className="mt-2 grid gap-1 text-xs">
+                        {r.queries.map((q, n) => (
+                          <li key={n}>
+                            <code>{q.tool ?? "?"}</code> <code className="text-fg-muted">{json(q.args ?? {})}</code>{" "}
+                            {q.ok ? `${q.rows ?? 0} rows` : (q.error ?? "failed")}
+                          </li>
+                        ))}
+                      </ul>
                     </details>
                   ) : null}
                   {a.status === "done" && !a.pinned ? <PinButton id={a.id} /> : null}

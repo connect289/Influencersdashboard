@@ -1,4 +1,5 @@
 "use server";
+import { SupabaseAiDb } from "../ai/db.ts";
 import { z } from "zod";
 import { credentialsFrom, resetVaultCache, vaultSecrets } from "../clients/credentials.ts";
 import { SupabaseOneDb } from "../db.ts";
@@ -59,6 +60,7 @@ export async function validateItem(_: ActionResult | undefined, form: FormData):
         const tests = SupabaseTestsDb.fromEnv();
         return tests ? parseTestFacts(await tests.setupFacts()) : null;
       },
+      aiSettings: async () => (await SupabaseAiDb.fromEnv()?.aiSettings()) ?? null,
     },
     supabase: { url: bootEnv().ONE_SUPABASE_URL, anonKey: bootEnv().ONE_SUPABASE_ANON_KEY },
   });

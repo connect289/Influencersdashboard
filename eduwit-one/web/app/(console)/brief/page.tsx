@@ -36,7 +36,7 @@ export default async function BriefsPage() {
       <Card>
         {briefs.length === 0 ? (
           <Empty title="No briefs yet">
-            The AI worker writes the first one once its key is set (Setup item ai_key, phase 6).
+            The AI worker writes one each night at 02:30 IST once its key and model prices are set (Setup item ai_key).
           </Empty>
         ) : (
           <ul className="divide-y divide-border">

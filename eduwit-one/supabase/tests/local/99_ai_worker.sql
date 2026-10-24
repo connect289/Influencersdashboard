@@ -21,6 +21,7 @@ grant execute on function pg_temp.ok(boolean, text), pg_temp.err(text) to servic
 
 truncate one.ai_calls, one.brief_pins, one.briefs, one.ai_tasks, one.deliveries, one.actions, one.proposals, one.incidents, one.mutes
   restart identity cascade;
+delete from one.saved_views;
 select value as ai_before from one.settings where key = 'ai' \gset
 select value as alerts_before from one.settings where key = 'alerts' \gset
 
@@ -151,8 +152,8 @@ select pg_temp.ok((select status from one.ai_tasks where idempotency_key = 'ask:
 set role service_role;
 select pg_temp.ok(one.ai_defer(:t4, 'worker-b', 'setup: no key for anthropic', 30) = 'deferred', 'a task without a key waits');
 reset role;
-select pg_temp.ok((select status = 'deferred' and attempts = 1 and not_before > now() + interval '29 minutes' from one.ai_tasks where id = :t4),
-                  'deferral is not an attempt');
+select pg_temp.ok((select status = 'deferred' and attempts = 1 and not_before > now() + interval '29 minutes' and error = 'setup: no key for anthropic'
+                      from one.ai_tasks where id = :t4), 'deferral is not an attempt, and the pages see why it waits');
 update one.ai_tasks set not_before = now() - interval '1 second' where status = 'deferred';
 update one.ai_tasks set status = 'cancelled' where status in ('pending', 'deferred') and kind in ('classify', 'triage');
 
@@ -228,10 +229,16 @@ select pg_temp.ok((select count(*) from one.deliveries where kind = 'brief') = 1
                          from one.deliveries where kind = 'brief'), 'one email to each P1 address, at 08:00 IST or now if later');
 delete from one.deliveries where kind <> 'brief';
 update one.deliveries set next_attempt_at = now() where kind = 'brief';
+delete from one.saved_views;
+insert into one.saved_views (page, name, params, schedule, created_by) values
+  ('analytics', 'Daily funnel', '{"days": 7}', 'daily', 'a@eduwit.in'),
+  ('marketing', 'Not mailed', '{"days": 30}', null, 'a@eduwit.in');
 set role service_role;
 select one.claim_deliveries(5) as d \gset
 reset role;
-select pg_temp.ok((:'d'::jsonb #>> '{0,kind}') = 'brief' and (:'d'::jsonb #>> '{0,brief,body_md}') like '# Brief%', 'the sender gets the brief''s text');
+select pg_temp.ok((:'d'::jsonb #>> '{0,kind}') = 'brief' and (:'d'::jsonb #>> '{0,brief,body_md}') like '# Brief%'
+                  and (:'d'::jsonb #>> '{0,brief,views,0,name}') = 'Daily funnel' and jsonb_array_length(:'d'::jsonb #> '{0,brief,views}') = 1,
+                  'the sender gets the brief''s text and the daily saved views: ' || left(:'d', 400));
 set role service_role;
 select one.finish_delivery((:'d'::jsonb #>> '{0,id}')::bigint, true, null, 'resend-1');
 reset role;
@@ -309,3 +316,4 @@ select one.settings_put('ai', :'ai_before', 'test');
 select one.settings_put('alerts', :'alerts_before', 'test');
 truncate one.ai_calls, one.brief_pins, one.briefs, one.ai_tasks, one.deliveries, one.actions, one.proposals, one.incidents, one.mutes
   restart identity cascade;
+delete from one.saved_views;

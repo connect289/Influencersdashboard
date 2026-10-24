@@ -12,7 +12,7 @@ export function SaveViewForm({ page, params }: { page: "analytics" | "marketing"
       <Field label="Name this view">
         <Input name="name" required maxLength={80} />
       </Field>
-      <Field label="Email it" hint="Scheduled emails go out with the brief (phase 6).">
+      <Field label="Email it" hint="Listed, with its link, in the morning brief email: daily, or on Mondays.">
         <Select name="schedule" defaultValue="">
           <option value="">No</option>
           <option value="daily">Daily</option>

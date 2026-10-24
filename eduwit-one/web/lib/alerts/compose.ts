@@ -39,6 +39,18 @@ export const deliverySchema = z.object({
       }),
     )
     .nullable(),
+  // The morning brief (0018): the text the AI wrote from the day's numbers.
+  brief: z
+    .object({
+      id: z.number(),
+      for_date: z.string(),
+      body_md: z.string(),
+      model: z.string().nullable(),
+      views: z
+        .array(z.object({ name: z.string(), page: z.enum(["analytics", "marketing"]), days: z.number().nullable() }))
+        .default([]),
+    })
+    .nullish(),
 });
 
 export type Delivery = z.infer<typeof deliverySchema>;
@@ -62,7 +74,39 @@ function page(lines: string[], link: string, linkText: string): string {
   return `<div style="font-family:system-ui,sans-serif;font-size:14px;color:#072E59">${body}<p><a href="${esc(link)}" style="color:#072E59;font-weight:600">${esc(linkText)}</a></p></div>`;
 }
 
+/** Markdown as plain lines: headings and emphasis marks dropped, runs of blank lines folded (the email is plain text). */
+function plainLines(md: string, max = 120): string[] {
+  const lines = md
+    .split("\n")
+    .map((l) =>
+      l
+        .replace(/^#{1,6}\s+/, "")
+        .replace(/\*\*|__|`/g, "")
+        .trimEnd(),
+    )
+    .filter((l, i, all) => l !== "" || (i > 0 && all[i - 1] !== ""));
+  return lines.slice(0, max);
+}
+
 export function compose(d: Delivery, oneHost: string): Composed {
+  if (d.kind === "brief") {
+    const b = d.brief;
+    if (!b) throw new Error(`delivery ${d.id} has no brief`);
+    const link = `${oneHost}/brief/${b.id}`;
+    const day = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium" }).format(
+      new Date(`${b.for_date}T12:00:00+05:30`),
+    );
+    const lines = plainLines(b.body_md).filter(Boolean);
+    const note = "Written by the AI from the numbers on the brief's page; what is broken is decided by the checks.";
+    // Saved views people asked to have emailed, as links (their numbers stay on the page).
+    const views = b.views.map((v) => `${v.name}: ${oneHost}/${v.page}?days=${v.days ?? 30}`);
+    const viewLines = views.length ? ["", "Your saved views:", ...views.map((v) => `- ${v}`)] : [];
+    return {
+      subject: `[Eduwit One] Morning brief, ${day}`,
+      text: [...plainLines(b.body_md), ...viewLines, "", `Open the brief: ${link}`, note].join("\n"),
+      html: page([...lines, ...(views.length ? ["Your saved views:", ...views] : []), note], link, "Open the brief"),
+    };
+  }
   if (d.kind === "digest") {
     const items = d.digest ?? [];
     const lines = items.map((i) => `${i.check_id} (${i.app}): ${i.title}${i.resolved ? " (recovered)" : ""}`);

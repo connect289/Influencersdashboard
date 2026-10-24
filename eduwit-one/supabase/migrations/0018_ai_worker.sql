@@ -516,6 +516,7 @@ begin
   v_allowed := case when v_cap <= 0 or v_spent >= v_cap then '{}'::text[]
                     when v_spent >= v_cap * v_pct / 100 then array['classify', 'triage']
                     else v_all end;
+  -- The reason is also the task's error, which the incident and Ask pages show.
   update one.ai_tasks
      set status = 'deferred', not_before = now() + interval '15 minutes',
          deferred_reason = case when cardinality(v_allowed) = 0
@@ -524,6 +525,7 @@ begin
                                             round(v_spent, 2), round(v_spent / v_cap * 100), v_cap) end
    where (status = 'pending' or (status = 'deferred' and coalesce(not_before, '-infinity') <= now()))
      and not (kind = any (v_allowed));
+  update one.ai_tasks set error = deferred_reason where status = 'deferred' and deferred_reason like 'budget:%' and error is distinct from deferred_reason;
   for i in 1..5 loop
     select * into v_task from one.ai_tasks
      where (status = 'pending' or (status = 'deferred' and coalesce(not_before, '-infinity') <= now()))
@@ -728,7 +730,8 @@ declare
   v_t one.ai_tasks := one.ai_held(p_task, p_holder);
 begin
   update one.ai_tasks
-     set status = 'deferred', deferred_reason = left(coalesce(p_reason, 'deferred'), 300), claimed_by = null,
+     set status = 'deferred', deferred_reason = left(coalesce(p_reason, 'deferred'), 300), error = left(coalesce(p_reason, 'deferred'), 300),
+         claimed_by = null,
          attempts = greatest(v_t.attempts - 1, 0),
          not_before = now() + make_interval(mins => least(greatest(coalesce(p_minutes, 30), 1), 1440))
    where id = p_task;
@@ -925,8 +928,15 @@ begin
           from one.incidents i
          where i.severity = 'P2' and (i.opened_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date
            and i.check_id <> 'ONE-SYNTH') end,
+      -- With the saved views people asked to have emailed: daily ones every day, weekly ones on Mondays (links only;
+      -- their numbers stay on the page).
       'brief', case when v_row.kind = 'brief' then (
-        select jsonb_build_object('id', b.id, 'for_date', b.for_date, 'body_md', b.body_md, 'model', b.model) from one.briefs b where b.id = v_row.brief_id) end));
+        select jsonb_build_object('id', b.id, 'for_date', b.for_date, 'body_md', b.body_md, 'model', b.model,
+                                  'views', (select coalesce(jsonb_agg(jsonb_build_object('name', v.name, 'page', v.page, 'days', v.params -> 'days')
+                                                                      order by v.page, v.name), '[]')
+                                              from one.saved_views v
+                                             where v.schedule = 'daily' or (v.schedule = 'weekly' and extract(isodow from b.for_date) = 1)))
+          from one.briefs b where b.id = v_row.brief_id) end));
   end loop;
   return v_out;
 end $$;

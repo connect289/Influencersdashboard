@@ -89,6 +89,48 @@ describe("compose", () => {
     expect(m.subject).toBe("[Eduwit One] 2 P2 incidents today");
     expect(m.text).toContain("WEB-04 (web): Catalogue review (recovered)");
   });
+
+  it("mails the morning brief as plain text, escaped, with a link to its page", () => {
+    const m = compose(
+      delivery({
+        kind: "brief",
+        incident: null,
+        brief: {
+          id: 9,
+          for_date: "2026-10-24",
+          body_md: "# Brief\n\n**Quiet day.**\n\n\n- WITTY-02 <b>open</b>",
+          model: "claude-sonnet-5-5",
+          views: [],
+        },
+      }),
+      "https://o",
+    );
+    expect(m.subject).toBe("[Eduwit One] Morning brief, 24 Oct 2026");
+    expect(m.text).toBe(
+      "Brief\n\nQuiet day.\n\n- WITTY-02 <b>open</b>\n\nOpen the brief: https://o/brief/9\nWritten by the AI from the numbers on the brief's page; what is broken is decided by the checks.",
+    );
+    expect(m.html).toContain("&#60;b&#62;open&#60;/b&#62;");
+    expect(m.html).not.toContain("<b>open");
+    expect(m.html).toContain('href="https://o/brief/9"');
+  });
+
+  it("lists the saved views asked for by email, as links", () => {
+    const m = compose(
+      delivery({
+        kind: "brief",
+        incident: null,
+        brief: {
+          id: 9,
+          for_date: "2026-10-26",
+          body_md: "All quiet.",
+          model: null,
+          views: [{ name: "Daily funnel", page: "analytics", days: 7 }],
+        },
+      }),
+      "https://o",
+    );
+    expect(m.text).toContain("Your saved views:\n- Daily funnel: https://o/analytics?days=7");
+  });
 });
 
 describe("sendPending", () => {

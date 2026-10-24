@@ -11,6 +11,7 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table.tsx";
 import { ago, duration, ist, istTime, json, ms, num } from "@/lib/format.ts";
 import { ui } from "@/lib/ui/api.ts";
 import { incidentSchema, type IncidentPage } from "@/lib/ui/schemas.ts";
+import { z } from "zod";
 
 export const metadata: Metadata = { title: "Incident" };
 
@@ -79,25 +80,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
               </CardBody>
             ) : null}
           </Card>
-          <Card>
-            <CardHeader
-              title="What the AI says"
-              description="Triage by the model router; detection itself is the check's SQL, never the AI."
-            />
-            <CardBody className="grid gap-2 text-sm">
-              {i.summary ? (
-                <p>{i.summary}</p>
-              ) : (
-                <p className="text-fg-muted">No summary yet: triage is queued for the AI worker (phase 6).</p>
-              )}
-              {i.root_cause ? (
-                <p>
-                  <span className="font-medium">Likely cause: </span>
-                  {i.root_cause}
-                </p>
-              ) : null}
-            </CardBody>
-          </Card>
+          <AiNotes summary={i.summary} rootCause={i.root_cause ?? null} tasks={data.ai_tasks} />
           <Card>
             <CardHeader
               title="Evidence"
@@ -290,6 +273,82 @@ function Linked({ title, items }: { title: string; items: Array<{ href: string; 
           ))}
         </ul>
       )}
+    </Card>
+  );
+}
+
+const classified = z.object({ category: z.string(), confidence: z.string(), note: z.string() });
+const triaged = z.object({ next_steps: z.array(z.string()), confidence: z.string() });
+const explained = z.object({ explanation: z.string(), confidence: z.string() });
+const meta = z.object({ meta: z.object({ model: z.string().optional(), tier: z.string().optional() }) });
+
+/** The AI's notes on the incident: advisory, from masked data; the check decides what is broken (D-075). */
+function AiNotes({
+  summary,
+  rootCause,
+  tasks,
+}: {
+  summary: string | null;
+  rootCause: string | null;
+  tasks: IncidentPage["ai_tasks"];
+}) {
+  const done = (kind: string) => tasks.find((t) => t.kind === kind && t.status === "done")?.result;
+  const cls = classified.safeParse(done("classify"));
+  const tri = triaged.safeParse(done("triage"));
+  const exp = explained.safeParse(done("explain"));
+  const waiting = tasks.find((t) => t.kind === "triage" && t.status !== "done");
+  const by = meta.safeParse(done("triage") ?? done("explain"));
+  return (
+    <Card>
+      <CardHeader
+        title="What the AI says"
+        description="Advice written from masked data. What is broken is decided by the check's SQL, never by the AI."
+      />
+      <CardBody className="grid gap-2 text-sm">
+        {summary ? (
+          <p>{summary}</p>
+        ) : waiting?.status === "deferred" ? (
+          <p className="text-fg-muted">No summary yet: triage is waiting ({waiting.error ?? "deferred"}).</p>
+        ) : waiting?.status === "failed" ? (
+          <p className="text-fg-muted">No summary: triage failed ({waiting.error ?? "error"}).</p>
+        ) : (
+          <p className="text-fg-muted">No summary yet: triage is queued for the AI worker.</p>
+        )}
+        {rootCause ? (
+          <p>
+            <span className="font-medium">Likely cause: </span>
+            {rootCause}
+          </p>
+        ) : null}
+        {cls.success ? (
+          <p>
+            <span className="font-medium">Kind of problem: </span>
+            {cls.data.category.replaceAll("_", " ")} ({cls.data.confidence} confidence). {cls.data.note}
+          </p>
+        ) : null}
+        {tri.success && tri.data.next_steps.length ? (
+          <div>
+            <p className="font-medium">Next steps</p>
+            <ol className="ml-5 list-decimal">
+              {tri.data.next_steps.map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
+        {exp.success ? (
+          <details>
+            <summary className="cursor-pointer font-medium">Explanation ({exp.data.confidence} confidence)</summary>
+            <p className="mt-2 whitespace-pre-line">{exp.data.explanation}</p>
+          </details>
+        ) : null}
+        {by.success && by.data.meta.model ? (
+          <p className="text-xs text-fg-muted">
+            Written by {by.data.meta.model}
+            {by.data.meta.tier ? ` (${by.data.meta.tier} tier)` : ""}.
+          </p>
+        ) : null}
+      </CardBody>
     </Card>
   );
 }
