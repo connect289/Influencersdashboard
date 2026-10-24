@@ -10,6 +10,7 @@ followed.
   state instead of a form action with useActionState, clears the form on success, and refreshes the page's data after
   the answer. Server actions no longer revalidate (every console page is dynamic); the mute form's `back` field, which
   only fed the revalidation, is gone.
+- Verified: CLICK-THROUGH PASSED twice running (18/18 writes); each of the 13 runs before it had lost two to four.
 
 ## 24 Oct 2026 — correction: the live refresh was not why answers went missing
 
