@@ -61,13 +61,19 @@ class TaskCalls {
   readonly calls: CallRecord[] = [];
   spentInr = 0;
 
-  constructor(
-    private readonly claim: Claim,
-    private readonly ai: AiSettings,
-    private readonly r: Route,
-    private readonly client: ModelClient,
-    private readonly deps: WorkerDeps,
-  ) {}
+  private readonly claim: Claim;
+  private readonly ai: AiSettings;
+  private readonly r: Route;
+  private readonly client: ModelClient;
+  private readonly deps: WorkerDeps;
+
+  constructor(claim: Claim, ai: AiSettings, r: Route, client: ModelClient, deps: WorkerDeps) {
+    this.claim = claim;
+    this.ai = ai;
+    this.r = r;
+    this.client = client;
+    this.deps = deps;
+  }
 
   private now() {
     return (this.deps.now ?? Date.now)();

@@ -3,6 +3,16 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 6 (AI): the eval set
+
+- `web/lib/ai/eval`: 30 incidents across the apps (classify and triage) and 10 Ask questions with their tool data,
+  shaped like what the database hands the worker, with contacts planted to prove the mask. Graded deterministically
+  (category, facts each answer must state, the tools used, no contact in any request or answer), with cost and p50
+  latency per tier. Runs through the real worker with a fake database.
+- `npm run ai:eval` runs offline with a reference answerer (proves the harness and the mask; spends nothing); with
+  `--live --yes` it calls each tier's model (keys `ONE_ANTHROPIC_API_KEY` / `ONE_GEMINI_API_KEY` only) after printing
+  the worst-case cost. A unit test keeps the offline run at 100% with no leak.
+
 ## 24 Oct 2026 — phase 6 (AI): the worker, its prompts and the pages
 
 - `POST /api/internal/ai/run` (internal key; 300 s, Fluid compute): claims tasks for up to four minutes, routes each
