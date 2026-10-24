@@ -165,7 +165,8 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
   // check below confirms the write itself.
   let ok = false;
   let message = "no answer";
-  for (const deadline = Date.now() + 30_000; Date.now() < deadline;) {
+  const clicked = Date.now();
+  for (const deadline = Date.now() + 120_000; Date.now() < deadline;) {
     await page.waitForTimeout(250);
     const connected = await handle?.evaluate((el) => el.isConnected).catch(() => false);
     if (!connected) {
@@ -185,6 +186,13 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
     await page.screenshot({ path: shot, fullPage: true }).catch(() => undefined);
     message += ` (${shot}; form now: ${((await f.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").slice(0, 160)})`;
   }
+  // Waits up to 120 s so a slow answer is told apart from none; an answer after 30 s still fails.
+  const took = (Date.now() - clicked) / 1000;
+  if (ok && took > 30) {
+    ok = false;
+    message = `slow answer: ${message}`;
+  }
+  message += ` [${took.toFixed(1)} s]`;
   writes.push({ who, what, ok, message });
   if (!ok) failures.push(`${who} ${what}: ${message}`);
 }
