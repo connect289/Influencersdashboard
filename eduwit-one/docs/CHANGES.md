@@ -3,6 +3,14 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — the Vercel side (D-093)
+
+- Vercel project `eduwit-one`: all four Production values set (none shown anywhere), a dedicated Supabase secret key
+  `eduwit_one`, the redirect URL `https://one.eduwit.in/**` in Supabase Auth, `app.base_url` on production, the domain
+  `one.eduwit.in` attached and verified. The middleware uses a string matcher (Vercel's build rejects the object form).
+- Not yet: the first deploy (Vercel's free-deployments-per-day limit on the Hobby team; retry after the reset or on
+  Pro), the Vault copy of the internal key and the exposed schema `one` (both await the owner's approval, D-093).
+
 ## 24 Oct 2026 — phase 1 applied to production (D-092; no dump, D-090)
 
 - Production database change: migrations 0001 to 0020 applied 15:45 to 15:48 UTC through the Management API
@@ -21,8 +29,8 @@ followed.
   the production apply follows D-090 (no dump) and was refused by the cloud session's permission layer on the first try.
 - The rehearsal found and the scripts fixed (no migration changed): the `one-*` jobs now pause while files run and
   resume after the smoke test (a tick deadlocked with `apply_grants()`); the lock wait is 60 s; `fingerprint.sql` sorts
-  with `collate "C"` (en_US.UTF-8 ordered `_` and `:` unlike the local cluster); `smoke.sql`'s same-minute tick
-  assertion applies only while still in the run's minute. `fingerprint.expected` unchanged; `local-test.sh` passes.
+  with `collate "C"` (en*US.UTF-8 ordered `*`and`:`unlike the local cluster);`smoke.sql`'s same-minute tick
+assertion applies only while still in the run's minute. `fingerprint.expected`unchanged;`local-test.sh` passes.
 - Staging's stale partial apply of 23 Oct was dropped by its actual signatures, one wrapped transaction per file.
 
 ## 24 Oct 2026 — the dump waived; the Management API route (D-090)
