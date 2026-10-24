@@ -20,9 +20,9 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | Criterion | Status |
 | --- | --- |
 | Migrations 0001–0007 with rollbacks | done locally: `scripts/db/local-test.sh` prints LOCAL TEST PASSED (D-029) |
-| `REHEARSAL PASSED` on staging | **blocked on owner** (D-041, D-090): the connector cannot run the rollbacks (its confirmation reaches nobody); needs either the runbook's machine (`docs/RUNBOOK-database.md` §2) or a cloud session with `api.supabase.com` allowed and `SUPABASE_ACCESS_TOKEN` set, then `scripts/db/api-rehearse.sh` (§5) |
-| Full dump of production, path in `DECISIONS.md` | **waived by the owner** on 24 Oct 2026 for this apply (D-090): `ONE_APPLY_WITHOUT_DUMP=owner-accepted`; no dump path exists from a cloud session |
-| Applied to production; `select one.tick()` report has no `_error` key; `cron.job` shows both jobs | blocked by the rehearsal (D-090) |
+| `REHEARSAL PASSED` on staging | **done 24 Oct 2026**, 15:41 UTC, through the Management API (`scripts/db/api-rehearse.sh`, D-091): apply, fingerprint equal to the local test's, smoke, one-tick under pg_cron, rollback leaving nothing, apply, smoke |
+| Full dump of production, path in `DECISIONS.md` | **waived by the owner** on 24 Oct 2026 for this apply (D-090): `ONE_APPLY_WITHOUT_DUMP=owner-accepted`; no dump was taken (none is possible from a cloud session) |
+| Applied to production; `select one.tick()` report has no `_error` key; `cron.job` shows both jobs | **waits on the owner**: the rehearsal passed (D-091); the apply command (`docs/RUNBOOK-database.md` §5 step 4) was refused by the cloud session's permission layer on 24 Oct and needs the owner's approval of that command |
 | `one.events` count within 1% of the sources | pending |
 | Second database review (security rubric) | done: `docs/reviews/phase-1-2-db.md`, 1 blocker, 10 majors, 18 minors; all resolved (D-054), tests in `supabase/tests/local/60_review2.sql` |
 | Least-privilege test passes | passes locally (`supabase/tests/local/20_events_secrets_privileges.sql` §5, and `supabase/tests/smoke.sql`, which runs the same catalogue checks on staging and production). Proven to fail on a bad grant |
