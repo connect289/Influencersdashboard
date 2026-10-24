@@ -42,6 +42,9 @@ revoke execute on function b2b.health_check(), public.web_health() from public;
 create function public.legacy_anon_rpc() returns int language sql security definer as $$ select 1 $$;
 grant execute on function public.legacy_anon_rpc() to anon;
 
+-- Witty's trusted numbers (a test number is is_test), left out of Eduwit One's metrics (0012).
+create table public.w2_trusted (phone text primary key, note text, is_test boolean default true);
+
 -- Witty conversations, for one.witty_escalations() (0008).
 create table public.w2_conversations (phone text primary key, conversation_id bigint, account_id bigint, bot_paused boolean default false,
   escalated_at timestamptz, crm_record_id text);

@@ -3,6 +3,13 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 5, test rows out of Eduwit One's own metrics
+
+- 0012: Witty's replies panel and the Marketing page's leads by campaign and touchpoints leave out harness phones,
+  Witty's trusted test numbers and test leads (spec §10). Asserted in `98_tests_journeys.sql`; the local stubs gain
+  `public.w2_trusted`.
+- D-073 records where each journey differs from spec §10's steps and why.
+
 ## 24 Oct 2026 — live refresh no longer cuts into a form's action
 
 - The 15 s live refresh skips its tick while a form's action is pending or within 5 s of a click or key. The

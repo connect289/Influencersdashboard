@@ -29,7 +29,6 @@ alter table public.w2_messages add column sent boolean;
 alter table b2b.allocations add column destination_type text, add column partner_id bigint, add column is_test boolean, add column origin text,
   add column reference text, add column b2c_lane text;
 create table public.w2_test_runs (id bigserial primary key, run_tag text, summary jsonb, results jsonb, created_at timestamptz default now());
-create table public.w2_trusted (phone text primary key, note text, is_test boolean default true);
 create table public.w2_inbox (message_id text primary key, phone text, content text, received_at timestamptz default now());
 create table b2b.partners (id bigserial primary key, slug text, status text, test_endpoint text);
 create table b2b.engine_decisions (id bigserial primary key, lead_id bigint);
@@ -219,6 +218,43 @@ select one.test_run_finish(:prun, 'r', false, 'phone in use', '[]', null);
 reset role;
 select pg_temp.ok(exists (select 1 from public.student_leads where id = :plead), 'and its lead is still there');
 
+-- 9. Eduwit One's own metrics leave test rows out (spec §10) --------------------------------------------------------------------
+set role postgres;
+create table b2b.lead_campaigns (lead_id bigint, platform text, campaign_name text, utm_campaign text, touched_at timestamptz default now());
+reset role;
+delete from public.w2_messages; delete from public.touchpoints;
+insert into public.w2_trusted (phone, is_test) values ('15550002222', true) on conflict do nothing;
+insert into public.w2_messages (phone, direction, reply_source, latency_ms) values
+  ('919811122334', 'out', 'counselor', 1000), ('910000900001', 'out', 'counselor', 9000), ('15550002222', 'out', 'counselor', 9000);
+insert into public.student_leads (whatsapp_number, is_test) values ('919812349999', false) returning id as mreal \gset
+insert into public.student_leads (whatsapp_number, is_test) values ('910000900002', true) returning id as mtest \gset
+insert into b2b.lead_campaigns (lead_id, campaign_name) values (:mreal, 'mba_oct'), (:mtest, 'eduwit_one_tests');
+insert into public.touchpoints (lead_id, phone, source_system, event_type) values
+  (:mreal, '919812349999', 'b2b', 'intake'), (:mtest, '910000900002', 'b2b', 'intake'), (null, '+910000900003', 'witty', 'click');
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-000000000098', 'owner98@eduwit.in') on conflict do nothing;
+insert into auth.sessions (id, user_id) values ('00000000-0000-0000-0000-000000000981', '00000000-0000-0000-0000-000000000098') on conflict do nothing;
+insert into one.users (user_id, email, role) values ('00000000-0000-0000-0000-000000000098', 'owner98@eduwit.in', 'owner') on conflict do nothing;
+insert into one.session_checks (session_id, user_id, method) values ('00000000-0000-0000-0000-000000000981', '00000000-0000-0000-0000-000000000098', 'email_code')
+on conflict do nothing;
+grant execute on function pg_temp.ok(boolean, text) to authenticated;
+set role authenticated;
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-000000000098", "session_id": "00000000-0000-0000-0000-000000000981"}', false);
+select pg_temp.ok((select (r #>> '{data,0,replies}')::int = 1 and (r #>> '{data,0,p95_ms}')::int = 1000 from (select one.ui_embed('witty.replies') as r) x),
+                  'Witty''s replies count no harness phone and no trusted test number: ' || one.ui_embed('witty.replies')::text);
+select pg_temp.ok((select jsonb_array_length(m -> 'leads') = 1 and m #>> '{leads,0,campaign}' = 'mba_oct'
+                          and jsonb_array_length(m -> 'touchpoints') = 1 from (select one.ui_marketing(7) as m) x),
+                  'Marketing counts no test lead and no harness phone: ' || (one.ui_marketing(7) - 'ms')::text);
+reset role;
+select set_config('request.jwt.claims', '', false);
+delete from one.session_checks where user_id = '00000000-0000-0000-0000-000000000098';
+delete from one.users where user_id = '00000000-0000-0000-0000-000000000098';
+delete from auth.sessions where user_id = '00000000-0000-0000-0000-000000000098';
+delete from auth.users where id = '00000000-0000-0000-0000-000000000098';
+delete from public.w2_messages; delete from public.touchpoints;
+set role postgres;
+drop table b2b.lead_campaigns;
+reset role;
+
 -- 9. The Setup validators' facts: the Spark journey named in the test identities ---------------------------------------------
 set role postgres;
 create table b2c.journeys (id bigserial primary key, name text, test_mode boolean, status text, current_version int);
@@ -264,10 +300,11 @@ delete from public.w2_messages where id > :msg_max;
 delete from public.w2_outbox where id > :ob_max;
 delete from b2b.allocations where id > :al_max;
 delete from public.w2_conversations where phone not in (select phone from t_conv);
+delete from public.w2_trusted;
 set role postgres;
 drop function public.w2_test_reset(text);
 drop function b2b.is_test_phone(text);
-drop table public.w2_test_runs, public.w2_trusted, public.w2_inbox, b2b.partners, b2b.engine_decisions, b2b.push_requests, b2b.partner_activities,
+drop table public.w2_test_runs, public.w2_inbox, b2b.partners, b2b.engine_decisions, b2b.push_requests, b2b.partner_activities,
   b2b.integration_outbox, b2b.b2c_writes, b2c.lead_records, b2c.leads_state, b2c.outbox, b2c.fact_leads, b2c.journey_runs, b2c.send_queue;
 alter table public.student_leads drop column lead_source, drop column lead_status, drop column destination_type, drop column deleted_at,
   drop column first_contacted_at, drop column contact_attempts, drop column merged_into_id;

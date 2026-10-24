@@ -32,8 +32,12 @@ begin
     when 'witty.outbox' then
       select coalesce(jsonb_object_agg(status, n), '{}') into v from (select status, count(*) as n from public.w2_outbox group by status) s;
     when 'witty.replies' then
-      with m as (select (created_at at time zone 'Asia/Kolkata')::date as d, coalesce(reply_source, '?') as src, latency_ms
-                   from public.w2_messages where direction = 'out' and created_at > now() - interval '7 days'),
+      -- Test traffic (harness phones, Witty's trusted test numbers) is not a metric (spec §10, D-073).
+      with m as (select (w.created_at at time zone 'Asia/Kolkata')::date as d, coalesce(w.reply_source, '?') as src, w.latency_ms
+                   from public.w2_messages w
+                  where w.direction = 'out' and w.created_at > now() - interval '7 days'
+                    and regexp_replace(coalesce(w.phone, ''), '\D', '', 'g') !~ '^910000[0-9]{6}$'
+                    and not exists (select 1 from public.w2_trusted t where t.phone = w.phone and t.is_test)),
            by_day as (select d, count(*) as n, round(percentile_cont(0.5) within group (order by latency_ms)) as p50,
                              round(percentile_cont(0.95) within group (order by latency_ms)) as p95 from m group by d),
            by_src as (select d, jsonb_object_agg(src, c) as src from (select d, src, count(*) as c from m group by 1, 2) x group by d)
@@ -189,7 +193,10 @@ begin
   begin
     v_out := v_out || jsonb_build_object('leads', (select coalesce(jsonb_agg(jsonb_build_object('day', d, 'platform', p, 'campaign', c, 'leads', n) order by d desc, n desc), '[]')
       from (select (touched_at at time zone 'Asia/Kolkata')::date as d, coalesce(platform, 'organic') as p, coalesce(campaign_name, utm_campaign, '—') as c, count(*) as n
-              from b2b.lead_campaigns where touched_at > v_from group by 1, 2, 3) s));
+              from b2b.lead_campaigns lc
+             where lc.touched_at > v_from
+               and not exists (select 1 from public.student_leads l where l.id = lc.lead_id and coalesce(l.is_test, false))
+             group by 1, 2, 3) s));
   exception when others then v_out := v_out || jsonb_build_object('leads_error', left(sqlerrm, 160));
   end;
   v_ms := v_ms || jsonb_build_object('leads', round(extract(epoch from clock_timestamp() - v_t) * 1000));
@@ -197,7 +204,10 @@ begin
   begin
     v_out := v_out || jsonb_build_object('touchpoints', (select coalesce(jsonb_agg(jsonb_build_object('day', d, 'source', s, 'event', e, 'n', n) order by d desc), '[]')
       from (select (occurred_at at time zone 'Asia/Kolkata')::date as d, coalesce(source_system, '?') as s, event_type as e, count(*) as n
-              from public.touchpoints where occurred_at > v_from group by 1, 2, 3) t));
+              from public.touchpoints tp
+             where tp.occurred_at > v_from and regexp_replace(coalesce(tp.phone, ''), '\D', '', 'g') !~ '^910000[0-9]{6}$'
+               and not exists (select 1 from public.student_leads l where l.id = tp.lead_id and coalesce(l.is_test, false))
+             group by 1, 2, 3) t));
   exception when others then v_out := v_out || jsonb_build_object('touchpoints_error', left(sqlerrm, 160));
   end;
   v_ms := v_ms || jsonb_build_object('touchpoints', round(extract(epoch from clock_timestamp() - v_t) * 1000));
