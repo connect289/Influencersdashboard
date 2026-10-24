@@ -7,7 +7,7 @@
 //   5. every RPC the pages made was a one.* function (from the shim's log), with its latency;
 //   6. Incidents and Proposals at phone width (390 × 844): screenshots, and no sideways scroll.
 import { readFileSync, writeFileSync } from "node:fs";
-import { chromium, type BrowserContext, type Page } from "playwright-core";
+import { chromium, type BrowserContext, type Page, type Request, type Response } from "playwright-core";
 import pg from "pg";
 import { sign } from "./jwt.ts";
 
@@ -165,12 +165,19 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
     if (m.type() === "error" || m.type() === "warning") seen.push(`console ${m.type()}: ${m.text().slice(0, 160)}`);
   };
   const onError = (e: Error) => seen.push(`pageerror: ${e.message.slice(0, 160)}`);
-  const onResponse = (r: { request(): { method(): string; headers(): Record<string, string> }; status(): number }) => {
-    if (r.request().method() === "POST" && r.request().headers()["next-action"])
-      seen.push(`action answered ${r.status()}`);
+  const t0 = Date.now();
+  const at = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
+  const onResponse = (r: Response) => {
+    const req = r.request();
+    const kind = req.headers()["next-action"] ? "action" : `${req.method()} ${new URL(r.url()).pathname}`;
+    seen.push(`${at()} ${kind} answered ${r.status()}`);
+    // Whether the streamed body ever completes: the action's result arrives at its end.
+    r.finished()
+      .then((err) => seen.push(`${at()} ${kind} body ${err ? `failed: ${err}` : "done"}`))
+      .catch(() => undefined);
   };
-  const onFailed = (r: { method(): string; failure(): { errorText: string } | null }) => {
-    if (r.method() === "POST") seen.push(`POST failed: ${r.failure()?.errorText ?? "?"}`);
+  const onFailed = (r: Request) => {
+    seen.push(`${at()} ${r.method()} ${new URL(r.url()).pathname} failed: ${r.failure()?.errorText ?? "?"}`);
   };
   page.on("console", onConsole);
   page.on("pageerror", onError);

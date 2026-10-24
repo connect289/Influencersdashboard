@@ -3,6 +3,13 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — correction: the live refresh was not why answers went missing
+
+- The earlier entry blamed the 15 s live refresh for the click-through's lost answers. A run with the live refresh
+  switched off still lost two: the action's request answers 200, its write is audited, and the form never shows the
+  result. The guard stays (a refresh during an action is still pointless); the cause is being traced. The click-through
+  now records, for a failed write, every request during the wait and whether each response body completed.
+
 ## 24 Oct 2026 — phase 5 review resolved
 
 - Review: `docs/reviews/phase-5.md` (1 blocker, 5 majors, 9 minors), all resolved.
