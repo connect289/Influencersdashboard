@@ -12,6 +12,9 @@ followed.
   live at https://one.eduwit.in (19:22 UTC; the project's framework had to be set to Next.js first). The database's
   calls to the app answer 200 and the `one:app` heartbeat is written. The watchdog turns ok once the email provider is
   configured on Settings → Setup.
+- The Vercel project is connected to GitHub (production branch `claude/festive-babbage-7yhhx8`, root directory
+  `eduwit-one/web`, builds skipped when the app folder is untouched): a push deploys. The alert sender is Resend's test
+  address until eduwit.in is verified in Resend (D-093).
 
 ## 24 Oct 2026 — phase 1 applied to production (D-092; no dump, D-090)
 
