@@ -6,9 +6,7 @@
   },
   "alerts": {
     "p1": {
-      "email": [
-        "connect@eduwit.in"
-      ],
+      "email": ["connect@eduwit.in"],
       "whatsapp": []
     },
     "channels": {
@@ -143,6 +141,32 @@
         "deep": "claude-opus-5-5"
       }
     },
+    "effort": {
+      "quick": null,
+      "regular": "medium",
+      "deep": "high"
+    },
+    "prices": {
+      "claude-haiku-4-5-20251001": {
+        "input": 1,
+        "output": 5,
+        "cache_read": 0.1,
+        "cache_write": 1.25
+      },
+      "claude-sonnet-5-5": {
+        "input": 2,
+        "output": 10,
+        "cache_read": 0.2,
+        "cache_write": 2.5
+      },
+      "claude-opus-5-5": {
+        "input": 4,
+        "output": 20,
+        "cache_read": 0.2,
+        "cache_write": 5
+      },
+      "gemini-3.6-flash": null
+    },
     "fallback_when_model_missing": "regular",
     "routing": {
       "classify": "quick",
@@ -159,7 +183,16 @@
     "per_task_cap_inr": 50,
     "queue_non_triage_at_pct": 80,
     "usd_inr": 85,
-    "allow_message_excerpts": false
+    "allow_message_excerpts": false,
+    "task_max_age_h": 48,
+    "schedule": {
+      "explain_after_min": 15,
+      "propose_fix_after_min": 60,
+      "propose_feature_weekday": 1,
+      "test_author_on_fixed": true,
+      "brief_mail_at_ist": "08:00"
+    },
+    "max_parallel": 2
   },
   "tests": {
     "purge_after_days": 2,
@@ -291,9 +324,7 @@
     "slow_ms": 5000
   },
   "access": {
-    "owners": [
-      "connect@eduwit.in"
-    ],
+    "owners": ["connect@eduwit.in"],
     "trusted_days": 30,
     "idle_hours": 12,
     "code_minutes": 10

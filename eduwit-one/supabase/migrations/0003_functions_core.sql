@@ -103,6 +103,32 @@ begin
                   where p_value ? k and (jsonb_typeof(p_value -> k) <> 'number' or (p_value ->> k)::numeric < 0)) then
         raise exception 'setting ai: daily_cap_inr, per_task_cap_inr, queue_non_triage_at_pct and usd_inr are numbers, 0 or more' using errcode = '22023';
       end if;
+      -- The worker reads these on every task (phase 6, D-075): a bad edit is refused here, not found by a failing task.
+      if (p_value ? 'provider' and (jsonb_typeof(p_value -> 'provider') <> 'object'
+            or exists (select 1 from jsonb_each(p_value -> 'provider') e where e.key not in ('quick', 'regular', 'deep')
+                                                                           or e.value not in ('"gemini"', '"anthropic"'))))
+         or (p_value ? 'effort' and (jsonb_typeof(p_value -> 'effort') <> 'object'
+            or exists (select 1 from jsonb_each(p_value -> 'effort') e where e.key not in ('quick', 'regular', 'deep')
+                                                                         or e.value not in ('null', '"low"', '"medium"', '"high"', '"xhigh"', '"max"'))))
+         or (p_value ? 'prices' and (jsonb_typeof(p_value -> 'prices') <> 'object'
+            or exists (select 1 from jsonb_each(p_value -> 'prices') e
+                        where jsonb_typeof(e.value) not in ('null', 'object')
+                           or (jsonb_typeof(e.value) = 'object'
+                               and (not (e.value ? 'input' and e.value ? 'output')
+                                    or exists (select 1 from jsonb_each(e.value) f
+                                                where f.key not in ('input', 'output', 'cache_read', 'cache_write')
+                                                   or jsonb_typeof(f.value) <> 'number' or (f.value #>> '{}')::numeric < 0))))))
+         or (p_value ? 'queue_non_triage_at_pct' and (p_value ->> 'queue_non_triage_at_pct')::numeric > 100)
+         or (p_value ? 'allow_message_excerpts' and jsonb_typeof(p_value -> 'allow_message_excerpts') <> 'boolean')
+         or coalesce((p_value ->> 'max_parallel')::numeric, 2) not between 1 and 5
+         or coalesce((p_value ->> 'task_max_age_h')::numeric, 48) not between 1 and 720
+         or coalesce(p_value #>> '{schedule,brief_mail_at_ist}', '08:00') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+         or coalesce((p_value #>> '{schedule,propose_feature_weekday}')::numeric, 1) not between 1 and 7
+         or coalesce((p_value #>> '{schedule,explain_after_min}')::numeric, 15) not between 1 and 1440
+         or coalesce((p_value #>> '{schedule,propose_fix_after_min}')::numeric, 60) not between 1 and 10080 then
+        raise exception 'setting ai: provider per tier gemini or anthropic; effort per tier null, low, medium, high, xhigh or max; prices per model null or {input, output, cache_read?, cache_write?} in USD per million tokens, 0 or more; queue_non_triage_at_pct at most 100; allow_message_excerpts a boolean; max_parallel 1–5; task_max_age_h 1–720; schedule: brief_mail_at_ist HH:MM, propose_feature_weekday 1–7, explain_after_min 1–1440, propose_fix_after_min 1–10080'
+          using errcode = '22023';
+      end if;
     when 'fixes' then
       if (p_value ? 'observation_days' and (jsonb_typeof(p_value -> 'observation_days') <> 'number' or (p_value ->> 'observation_days')::numeric not between 1 and 90))
          or (jsonb_typeof(p_value -> 'observation_started_at') not in ('null') and coalesce(p_value ->> 'observation_started_at', '')

@@ -3,6 +3,19 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 6 (AI): the model layer and the worker's database side (D-075, D-076)
+
+- `web/lib/ai`: the PII mask (`pii.ts`: names to initials, phones to their last 4 digits, emails to their domain,
+  message bodies left out unless allowed, secrets and identity documents always left out), tier routing and costs
+  (`models.ts`), and the Claude (Anthropic SDK, pinned 0.133.0) and Gemini clients (`client.ts`). Unit tests for each.
+- Settings `ai`: `prices` (Claude seeded, Gemini null until confirmed), `effort` per tier, `max_parallel`,
+  `task_max_age_h` and `schedule`; `one.settings_check` refuses a malformed price, provider, effort or schedule (0003).
+- Migration 0018: the schedule and `one.ai_step()` (run by the tick's app call), the claim with its budget gate, the
+  masked context per kind, `ai_finish` / `ai_fail` / `ai_defer` with the calls they made, Ask's fixed tools, the brief
+  email (`deliveries.brief_id`, `briefs.sent_at` once mailed), and the Marketing and Analytics reads split from their
+  pages so Ask can use them. PLAT-04 also watches the AI worker's job calls. Local test `99_ai_worker.sql`.
+- Found by that test: `least()` skips nulls, so a call recorded without a cost would have counted as ₹99,999,999.
+
 ## 24 Oct 2026 — forms call their action from a submit handler (D-074)
 
 - In the click-through, two to four of 18 writes per run lost their answer although the write was audited and the

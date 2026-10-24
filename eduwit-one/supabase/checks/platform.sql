@@ -105,12 +105,15 @@ select coalesce(r.return_message !~ '_error', true) as ok,
 -- cadence_s: 60
 -- tags: http, jobs
 -- title: A database-to-app job call was refused or failed
--- description: In the last 15 min, a pg_net response to a job call (Spark's ids in b2c.job_calls, Eduwit One's in one.runs) had status 401, 403 or 500 and up, or no status at all (a timeout, a DNS, TLS or connection failure; M2 of the second review). Other apps' pg_net traffic (partner pushes, webhooks) is not job calls and is watched by their own checks. The website's web_job_call ids are not recorded anywhere (pg_cron keeps "1 row" for its SELECT, D-007), so its calls cannot be told apart; WEB-01 watches its outbox backlog instead (m14).
+-- description: In the last 15 min, a pg_net response to a job call (Spark's ids in b2c.job_calls, Eduwit One's tick and AI worker calls in one.runs) had status 401, 403 or 500 and up, or no status at all (a timeout, a DNS, TLS or connection failure; M2 of the second review). Other apps' pg_net traffic (partner pushes, webhooks) is not job calls and is watched by their own checks. The website's web_job_call ids are not recorded anywhere (pg_cron keeps "1 row" for its SELECT, D-007), so its calls cannot be told apart; WEB-01 watches its outbox backlog instead (m14).
 with ids as (
   select (e ->> 'id')::bigint as id, 'spark' as caller from b2c.job_calls c, jsonb_array_elements(c.calls) e
   union all
   select (r.report ->> 'app')::bigint, 'one' from one.runs r
-   where r.kind = 'tick' and r.started_at > now() - interval '20 minutes' and r.report ->> 'app' ~ '^[0-9]+$')
+   where r.kind = 'tick' and r.started_at > now() - interval '20 minutes' and r.report ->> 'app' ~ '^[0-9]+$'
+  union all
+  select (r.report #>> '{ai,request}')::bigint, 'one-ai' from one.runs r
+   where r.kind = 'tick' and r.started_at > now() - interval '20 minutes' and r.report #>> '{ai,request}' ~ '^[0-9]+$')
 select coalesce(sum(n), 0) = 0 as ok,
        jsonb_build_object('bad_calls', coalesce(sum(n), 0), 'by_caller', coalesce(jsonb_object_agg(caller, n), '{}')) as value
   from (select ids.caller, count(*) as n from ids join net._http_response h on h.id = ids.id
