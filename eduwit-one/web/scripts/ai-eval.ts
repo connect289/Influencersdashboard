@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- a command-line report: the table and the misses go to stdout. */
 // The AI eval (spec §11): 30 incidents (classify and triage) and 10 Ask questions through the real worker, graded
 // deterministically, with cost and latency per tier.
 //   npm run ai:eval                          offline: the reference answerer, proves the harness (spends nothing)
