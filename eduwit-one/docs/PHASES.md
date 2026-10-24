@@ -20,9 +20,9 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | Criterion | Status |
 | --- | --- |
 | Migrations 0001–0007 with rollbacks | done locally: `scripts/db/local-test.sh` prints LOCAL TEST PASSED (D-029) |
-| `REHEARSAL PASSED` on staging | **blocked on owner** (D-031, D-041): 0001–0003 (core) applied to staging through the connector; the rest needs `scripts/db/rehearse.sh` run from a machine with database access (`docs/RUNBOOK-database.md` step 2) |
-| Full dump of production, path in `DECISIONS.md` | **blocked on owner**: `scripts/db/dump.sh` from a machine with database access (runbook step 3; D-010, D-041) |
-| Applied to production; `select one.tick()` report has no `_error` key; `cron.job` shows both jobs | blocked by the dump |
+| `REHEARSAL PASSED` on staging | **blocked on owner** (D-041, D-090): the connector cannot run the rollbacks (its confirmation reaches nobody); needs either the runbook's machine (`docs/RUNBOOK-database.md` §2) or a cloud session with `api.supabase.com` allowed and `SUPABASE_ACCESS_TOKEN` set, then `scripts/db/api-rehearse.sh` (§5) |
+| Full dump of production, path in `DECISIONS.md` | **waived by the owner** on 24 Oct 2026 for this apply (D-090): `ONE_APPLY_WITHOUT_DUMP=owner-accepted`; no dump path exists from a cloud session |
+| Applied to production; `select one.tick()` report has no `_error` key; `cron.job` shows both jobs | blocked by the rehearsal (D-090) |
 | `one.events` count within 1% of the sources | pending |
 | Second database review (security rubric) | done: `docs/reviews/phase-1-2-db.md`, 1 blocker, 10 majors, 18 minors; all resolved (D-054), tests in `supabase/tests/local/60_review2.sql` |
 | Least-privilege test passes | passes locally (`supabase/tests/local/20_events_secrets_privileges.sql` §5, and `supabase/tests/smoke.sql`, which runs the same catalogue checks on staging and production). Proven to fail on a bad grant |

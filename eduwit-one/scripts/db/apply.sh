@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Applies migrations to production one file at a time, in the order of spec §5:
 #   guards → the current migration set has a REHEARSAL PASSED row in docs/REHEARSALS.md → a dump from the last 24 h
-#   exists and matches its .sha256 (scripts/db/dump.sh) → each named file in its own transaction (lock_timeout 5s,
+#   exists and matches its .sha256 (scripts/db/dump.sh), unless ONE_APPLY_WITHOUT_DUMP=owner-accepted (D-090) → each named file in its own transaction (lock_timeout 5s,
 #   statement_timeout 5min), stopping at the first failure → smoke test → prints the tick report to inspect by hand.
 # Target: ONE_PROD_DB_URL, never printed. Usage: scripts/db/apply.sh 0001_schema_and_roles.sql [0002_... ...]
 set -euo pipefail
@@ -17,11 +17,16 @@ fi
 prod_ref="$(node -p "require('$here/config/defaults.json').supabase.production_ref")"
 case "${PGHOST:-} ${PGUSER:-}" in *"$prod_ref"*) ;; *) echo "refused: the connection is not the production project"; exit 2 ;; esac
 
-dir="${ONE_DUMP_DIR:-$HOME/eduwit-one-dumps}"
-dump="$(find "$dir" -maxdepth 1 -name 'production-*.dump' -mmin -1440 2>/dev/null | sort | tail -1)"
-[ -n "$dump" ] || { echo "refused: no production dump from the last 24 h in $dir; run scripts/db/dump.sh"; exit 1; }
-(cd "$dir" && sha256sum -c --quiet "$(basename "$dump").sha256") || { echo "refused: $dump does not match its sha256"; exit 1; }
-echo "dump $dump"
+if [ "${ONE_APPLY_WITHOUT_DUMP:-}" = owner-accepted ]; then
+  # The owner waived the dump for this apply on 24 Oct 2026 (D-090); the variable must be set on purpose, every run.
+  echo "no dump: applying without a production dump, as the owner accepted on 24 Oct 2026 (D-090)"
+else
+  dir="${ONE_DUMP_DIR:-$HOME/eduwit-one-dumps}"
+  dump="$(find "$dir" -maxdepth 1 -name 'production-*.dump' -mmin -1440 2>/dev/null | sort | tail -1)"
+  [ -n "$dump" ] || { echo "refused: no production dump from the last 24 h in $dir; run scripts/db/dump.sh, or ONE_APPLY_WITHOUT_DUMP=owner-accepted if the owner waived it (D-090)"; exit 1; }
+  (cd "$dir" && sha256sum -c --quiet "$(basename "$dump").sha256") || { echo "refused: $dump does not match its sha256"; exit 1; }
+  echo "dump $dump"
+fi
 
 q() { psql -X -q -v ON_ERROR_STOP=1 "$@"; }
 for name in "$@"; do
