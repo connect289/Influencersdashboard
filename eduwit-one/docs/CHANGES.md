@@ -3,6 +3,22 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 5, the journeys, the test runner login and the purge
+
+- 0014: a run's artefacts are only added to, and `phones` is written only by the database.
+- 0016: the seams of every journey (Witty's turn and harness run, the B2B lead, its routing, push and partner activity,
+  the hand-off to Spark, Spark's record, write-back and journey sends, and both leak counts), each answering only for a
+  test lead on the run's own phones and returning no contact field; phone allocation from `9100009` after Witty's own
+  reset; the purge (`one.test_purge_due`, `one.test_run_purge`); `one.setup_test_facts` for the Setup page (D-071).
+- 0017: six proposals for what the blocked tests need from the website, the catalogue, Witty and B2B (D-071).
+- Web: the test runner login with two-factor (`lib/tests/totp.ts`, `lib/tests/apps.ts`, D-070); B2B's intake and
+  signed partner events, n8n's harness (D-072), the test WhatsApp sender and Chatwoot's message list; journeys for
+  T-WITTY-TURN, T-WITTY-QUALIFY, T-B2B-INTAKE, T-B2B-PUSH, T-HANDOFF and T-B2C-NURTURE; the purge pass after the
+  tests in each tick; Setup validators `test_runner` and `spark_journey`. New Setup items `test_runner_user` and
+  `test_spark_journey`; T-WEB-ENQUIRY, T-WEB-ADVISOR and T-INFLUENCER are blocked with their reasons.
+- Tests: `supabase/tests/local/98_tests_journeys.sql`; unit tests for every journey's path and refusals, the purge, the
+  sign-in and the signature.
+
 ## 23 Oct 2026 — phase 5, the seams and T-ALERT end to end
 
 - 0016: `one.test_fact` and `one.test_act`, each kind allowed only for a run in flight of a test that may use it,

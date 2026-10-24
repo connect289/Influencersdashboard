@@ -46,10 +46,10 @@ select pg_temp.ok((one.tests_state('runner-a', 90) #>> '{identities,phone_prefix
 select pg_temp.ok(pg_temp.err(format('select one.test_run_save(%s, ''runner-b'', 90, ''[]'', ''{}'', ''{}'')', :r1)) = '55000', 'only the holder saves');
 select one.test_run_save(:r1, 'runner-a', 90,
   '[{"key": "a", "title": "Step A", "ok": true, "ms": 1200, "detail": "reply to +91 98111 22334 seen", "at": "2026-10-23T10:00:00Z"}]',
-  '{"phones": ["910000000001"]}', '{"step": 1, "stepStartedAt": "2026-10-23T10:00:01Z", "acted": false}');
+  '{"phones": ["910000000001"], "lead_id": 7}', '{"step": 1, "stepStartedAt": "2026-10-23T10:00:01Z", "acted": false}');
 reset role;
-select pg_temp.ok((select step_results -> 0 ->> 'detail' = '[phone]' and artefacts -> 'phones' ->> 0 = '910000000001' and (state ->> 'step')::int = 1
-                     from one.test_runs where id = :r1), 'step details are redacted; artefacts keep the test identities for the purge');
+select pg_temp.ok((select step_results -> 0 ->> 'detail' = '[phone]' and artefacts ->> 'lead_id' = '7' and not artefacts ? 'phones' and (state ->> 'step')::int = 1
+                     from one.test_runs where id = :r1), 'step details are redacted; artefacts are kept, but the runner cannot set the phones the purge acts on');
 
 -- 4. Finish: a failure opens the test's incident; the next pass resolves it ------------------------------------------------
 set role service_role;
@@ -108,7 +108,7 @@ select pg_temp.ok((select disabled_reason = 'blocked:no-safe-catalogue-write' fr
 set role service_role;
 select one.setup_validated('test_b2b_intake_key', true, 'intake-only key saved', 'connect@eduwit.in');
 reset role;
-select pg_temp.ok((select disabled_reason = 'setup:test_partner' from one.tests where id = 'T-HANDOFF'), 'validating one item moves a test to the next it needs');
+select pg_temp.ok((select disabled_reason = 'setup:test_runner_user' from one.tests where id = 'T-HANDOFF'), 'validating one item moves a test to the next it needs');
 set role service_role;
 select one.setup_validated('chatwoot', true, 'account and inbox read', 'connect@eduwit.in');
 select one.setup_validated('test_whatsapp_number', true, 'in w2_trusted with is_test', 'connect@eduwit.in');

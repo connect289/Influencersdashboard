@@ -12,16 +12,16 @@ configured. Schedules are cron, UTC, editable on the Tests page.
 | T-WEB-ENQUIRY | web | website form → email code → verification → lead_intake | P1 | `*/30 * * * *` | test_rows_agreement, test_mailbox, test_preview_url |
 | T-WEB-CATALOG | web | catalogue → website search | P2 | `0 * * * *` | test_rows_agreement |
 | T-WEB-ADVISOR | web | website → web advisor | P2 | `0 * * * *` | test_rows_agreement, test_preview_url |
-| T-B2B-INTAKE | b2b | API → lead_intake → routing | P1 | `0 * * * *` | test_rows_agreement, test_b2b_intake_key |
-| T-B2B-PUSH | b2b | allocation → partner sandbox → partner event back | P1 | `0 * * * *` | test_rows_agreement, test_b2b_intake_key, test_partner |
-| T-HANDOFF | b2b | B2B → Spark → B2B | P1 | `0 */2 * * *` | test_rows_agreement, test_b2b_intake_key, test_partner, test_spark_user |
-| T-B2C-NURTURE | b2c | Spark journeys | P2 | `0 3 * * *` | test_rows_agreement, test_spark_user, test_whatsapp_number |
+| T-B2B-INTAKE | b2b | API → lead_intake → routing | P1 | `0 * * * *` | test_rows_agreement, test_b2b_intake_key, test_runner_user |
+| T-B2B-PUSH | b2b | allocation → partner sandbox → partner event back | P1 | `30 22 * * *` | test_rows_agreement, test_b2b_intake_key, test_partner, test_runner_user |
+| T-HANDOFF | b2b | B2B → Spark → B2B | P1 | `0 */2 * * *` | test_rows_agreement, test_b2b_intake_key, test_runner_user |
+| T-B2C-NURTURE | b2c | Spark journeys | P2 | `0 3 * * *` | test_rows_agreement, test_b2b_intake_key, test_runner_user, test_spark_journey |
 | T-INFLUENCER | influencer | creator link → Witty → lead → outcomes | P2 | `0 4 * * *` | test_rows_agreement, test_creator, n8n_api |
 | T-ALERT | one | Eduwit One itself | P2 | `0 5 * * *` | email |
 
 ## T-WITTY-TURN: Witty answers a WhatsApp message
 
-A scripted message from the real test number reaches Witty through WhatsApp and Chatwoot, and Witty answers it.
+A scripted message from the real test number, sent through WhatsApp from its own sender, reaches Witty through Chatwoot and n8n, and Witty answers it.
 
 Run limit 600 s.
 
@@ -33,32 +33,33 @@ Run limit 600 s.
 | The reply has no verify_errors | 5 s |
 | Chatwoot shows the outgoing message | 60 s |
 
-**Safety.** Sends only from the test number in settings.test_identities, which must be in w2_trusted with is_test; the runner refuses otherwise.
+**Safety.** Sends only from the test number in settings.test_identities to Witty's own number; the run refuses unless the test number is in w2_trusted with is_test, so its lead is a test lead. Witty answers it on WhatsApp, which is the point.
 
-**Purge.** w2_test_reset(test number) removes the conversation, messages and inbox rows.
+**Purge.** w2_test_reset refuses numbers outside the harness range, so the test number's Witty rows stay (it is a trusted test number); its lead is is_test and is soft-deleted in B2B with reason test.
 
 ## T-WITTY-QUALIFY: Witty qualifies a test student to HOT and creates the lead
 
-Witty's own test harness plays the scenario "qualify to HOT" on a reserved harness phone; the outbox delivers the lead to lead_intake, which creates a student_leads row marked is_test.
+Witty's own n8n test harness (workflow 1BGAINw5XDkSHb2q) plays the scenario in settings n8n.test_harness_scenario on harness phones; one is classified HOT, its outbox row is sent, and lead_intake creates a student_leads row marked is_test. The harness is switched off again after every run, passed or failed.
 
-Run limit 900 s.
+Run limit 1800 s.
 
 | Step | Within |
 | --- | --- |
-| Run the harness scenario "qualify to HOT" on a reserved phone | 120 s |
-| The conversation is classified HOT | 300 s |
-| The w2_outbox row is sent | 120 s |
-| A student_leads row with lead_source, lead_status and is_test | 120 s |
+| Switch the harness on and start the scenario | 60 s |
+| The harness run is recorded (w2_test_runs) | 1200 s |
+| A harness phone is classified HOT | 60 s |
+| Its w2_outbox row is sent | 120 s |
+| A student_leads row from the harness, with lead_status and is_test | 120 s |
 
-**Safety.** Uses a phone from the harness range (settings.test_identities.phone_prefix) that w2_is_test() confirms; nothing is sent to WhatsApp.
+**Safety.** Harness phones are 910000… and never live: nothing is sent on WhatsApp. The harness is switched off after the run whatever happened (its own rule).
 
-**Purge.** w2_test_reset(phone) for Witty's rows; the lead through b2b.leads_soft_delete with reason test.
+**Purge.** w2_test_reset on each harness phone of the run.
 
 ## T-WEB-ENQUIRY: A website enquiry is verified by email and becomes a lead
 
 The enquiry form on the preview deployment, with the test mailbox, sends a code; the test reads it from the mailbox and verifies it; the website hands the lead to lead_intake.
 
-Run limit 900 s.
+Run limit 900 s. Off: `blocked:website-test-endpoint`.
 
 | Step | Within |
 | --- | --- |
@@ -69,9 +70,9 @@ Run limit 900 s.
 | verified_at and lead_id are set | 120 s |
 | The lead has lead_source website_form and is_test | 60 s |
 
-**Safety.** Only the preview URL (never eduwit.in) and only the test mailbox; the attempt must be is_test before the code is verified.
+**Safety.** The enquiry form posts through Next server actions behind Turnstile, which no outside runner can call reliably; off until the website offers a test endpoint (a builder proposal).
 
-**Purge.** The lead through b2b.leads_soft_delete with reason test; the website's is_test attempts go with its own retention.
+**Purge.** Nothing runs.
 
 ## T-WEB-CATALOG: A catalogue change reaches website search
 
@@ -93,7 +94,7 @@ Run limit 600 s. Off: `blocked:no-safe-catalogue-write`.
 
 A session for the test student on the preview deployment gets one answer within 8 s, and its cost is recorded.
 
-Run limit 300 s.
+Run limit 300 s. Off: `blocked:website-test-endpoint`.
 
 | Step | Within |
 | --- | --- |
@@ -101,85 +102,90 @@ Run limit 300 s.
 | One message is answered within 8 s | 8 s |
 | turns = 1 and cost_usd is recorded | 30 s |
 
-**Safety.** Only on the preview URL, with a session opened as is_test.
+**Safety.** The advisor needs a verified student session from the gate; off until the website offers a test endpoint (a builder proposal).
 
-**Purge.** The website's is_test advisor sessions go with its own retention.
+**Purge.** Nothing runs.
 
-## T-B2B-INTAKE: A lead posted to the B2B API is routed
+## T-B2B-INTAKE: A lead posted to the B2B API is held as a test lead
 
-A test lead posted through the B2B intake API with is_test is created and gets a routing decision.
+A lead on a fresh harness phone posted through the B2B intake API is stored with is_test, B2B routes nothing for it (its rule for test leads), and B2B's own command centre leaves it out of its lead counts.
 
 Run limit 600 s.
 
 | Step | Within |
 | --- | --- |
 | Post a test lead through the intake API | 30 s |
-| The student_leads row exists, is_test | 60 s |
-| A b2b.engine_decisions row exists | 120 s |
-| Routed to the test partner or in-house | 30 s |
+| The lead is stored with is_test | 60 s |
+| B2B routes nothing for it | 60 s |
+| B2B's command centre does not count it | 60 s |
 
-**Safety.** The lead's phone is in the test range (b2b.is_test_phone) and the request is marked is_test; a decision for any partner other than the test partner fails the run.
+**Safety.** The phone is a fresh 9100009… harness number (is_test in every app); the API's answer must say is_test or the run stops.
 
-**Purge.** b2b.leads_soft_delete with reason test.
+**Purge.** b2b.leads_soft_delete with reason test (as the test runner), then w2_test_reset on the phone.
 
-## T-B2B-PUSH: A lead is pushed to the test partner and its event comes back
+## T-B2B-PUSH: A test lead is pushed to the test partner's sandbox and its event comes back
 
-A test lead allocated to the test partner is pushed to its sandbox endpoint; a signed contact_attempted event for it is applied.
+The test runner routes a test lead to the partner sandbox with B2B's own route_test_lead; it is pushed to the test partner's test endpoint, and a signed contacted event for it is applied.
 
 Run limit 900 s.
 
 | Step | Within |
 | --- | --- |
 | Post a test lead through the intake API | 30 s |
-| Pushed to the test partner's sandbox (2xx) | 300 s |
-| Post a signed contact_attempted event for it | 30 s |
-| partner_activities row and first_contact_at set | 120 s |
+| Route it to the partner sandbox, as the test runner | 30 s |
+| Pushed to the test partner's sandbox endpoint (2xx) | 300 s |
+| Post a signed contacted event for it | 30 s |
+| A partner_activities call and the lead's first contact are recorded | 120 s |
 
-**Safety.** Only to the test partner in settings.test_identities, whose push goes to its sandbox endpoint; a push to any other URL fails the run.
+**Safety.** Runs only while the test partner is the only partner with a test endpoint (a sandbox push goes to whichever partner wins); the allocation must be the test partner's and the push a sandbox push, or the run stops.
 
-**Purge.** b2b.leads_soft_delete with reason test.
+**Purge.** B2B allows only junk, spam or student request for a lead with a partner, so the B2B soft delete is skipped (a builder proposal asks for test); w2_test_reset removes the lead row.
 
 ## T-HANDOFF: A lead falls to Spark and Spark's work comes back to B2B
 
-The test partner marks a test lead duplicate twice so it falls to in-house; Spark holds it; a call logged by the Spark test user flows back to B2B.
+B2B's own test hand-off (route_test_lead b2c_test) sends a test lead to Spark; Spark holds it; the test runner logs a call on it in Spark; Spark's outbox writes the activity back and B2B records the write; Spark's analytics keep it out of the real hand-offs.
 
 Run limit 3600 s.
 
 | Step | Within |
 | --- | --- |
 | Post a test lead through the intake API | 30 s |
-| The test partner marks it duplicate twice | 300 s |
+| Hand it to Spark with B2B's test hand-off | 30 s |
 | integration_outbox delivers it to Spark | 300 s |
-| b2c.lead_records holds it (held_by_b2c) | 300 s |
-| The Spark test user logs a call on it | 60 s |
-| b2c.outbox done and b2b.b2c_writes 2xx | 1800 s |
+| Spark holds it (held_by_b2c, is_test) | 300 s |
+| Log a call on it in Spark, as the test runner | 60 s |
+| Spark's outbox applies it and B2B records the write (2xx) | 1800 s |
+| Spark's analytics keep it out of real hand-offs | 1800 s |
 
-**Safety.** Only the test lead, the test partner and the Spark test user (is_test_user).
+**Safety.** Only a test lead on a fresh harness phone, handed off by B2B's own test path; Spark gives test leads only to test users or admins.
 
-**Purge.** Spark's b2c.lead_delete with reason test, then b2b.leads_soft_delete with reason test.
+**Purge.** Spark's b2c.lead_delete with reason test, B2B's soft delete with reason test (both as the test runner), then w2_test_reset.
 
 ## T-B2C-NURTURE: A Spark journey sends only to the test number
 
-The test lead is run through a journey in Spark's test mode; it advances a step and queues a send only to the test number.
+A test lead handed to Spark is run through the test journey with Spark's journey_test; the run advances a step and queues a send for the lead's own test phone, which Spark keeps as a dry run.
 
-Run limit 1800 s.
+Run limit 3600 s.
 
 | Step | Within |
 | --- | --- |
-| Run the test journey for the test lead | 60 s |
-| journey_runs advances one step | 900 s |
-| A send_queue row for the test number | 900 s |
-| Nothing queued for any other number | 30 s |
+| Post a test lead through the intake API | 30 s |
+| Hand it to Spark with B2B's test hand-off | 30 s |
+| Spark holds it | 600 s |
+| Run the test journey for it, as the test runner | 30 s |
+| The journey run advances a step | 900 s |
+| A send to its test phone is queued (a dry run) | 900 s |
+| Nothing is queued for any other address | 30 s |
 
-**Safety.** The lead must be is_test and its phone the test number (b2c.is_test_phone); a queued send to any other address fails the run.
+**Safety.** Spark sends nothing live for a test lead (dry run); a queued send to any address but the run's phone stops the run.
 
-**Purge.** Spark's b2c.lead_delete with reason test.
+**Purge.** Spark's b2c.lead_delete and B2B's soft delete with reason test, then w2_test_reset.
 
 ## T-INFLUENCER: A creator's link leads to an attributed lead
 
 The test creator's witty2-go link records a click and an access code; the qualify scenario on that code creates a lead with the referral code, which shows in the creator's outcomes.
 
-Run limit 1800 s.
+Run limit 1800 s. Off: `blocked:witty-referral-code-not-built`.
 
 | Step | Within |
 | --- | --- |
@@ -189,9 +195,9 @@ Run limit 1800 s.
 | student_leads.referral_code is set | 120 s |
 | b2b_referral_outcomes shows it | 900 s |
 
-**Safety.** Only the test creator's code and a harness phone.
+**Safety.** Witty does not write student_leads.referral_code (Route B is not built) and b2b_referral_outcomes counts test leads, so the journey cannot pass and a test lead would show in a creator's outcomes; off until both are fixed (builder proposals).
 
-**Purge.** w2_test_reset(phone) and b2b.leads_soft_delete with reason test.
+**Purge.** Nothing runs.
 
 ## T-ALERT: An alert email goes out and is acknowledged
 

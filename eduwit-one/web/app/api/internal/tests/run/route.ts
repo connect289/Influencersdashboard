@@ -18,8 +18,9 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   const started = Date.now();
   const state = await db.tickState();
-  const clients = clientsFor(state.settings, credentialsFrom(await vaultSecrets(db)));
-  const tests = await runTestsPass(clients, requestId, started + 45_000);
+  const credentials = credentialsFrom(await vaultSecrets(db));
+  const clients = clientsFor(state.settings, credentials);
+  const tests = await runTestsPass({ clients, settings: state.settings, credentials }, requestId, started + 45_000);
   log("info", "tests.done", { requestId, tests });
   return Response.json({ requestId, tests });
 }

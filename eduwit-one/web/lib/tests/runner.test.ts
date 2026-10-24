@@ -10,6 +10,11 @@ const identities: Identities = {
   spark_test_user_email: null,
   partner_slug: null,
   creator_referral_code: null,
+  run_phone_prefix: "9100009",
+  runner_email: null,
+  spark_test_journey_id: null,
+  whatsapp_phone_number_id: null,
+  witty_number: null,
 };
 
 class FakeDb implements TestsDb {

@@ -13,6 +13,12 @@ export type Credentials = {
   email?: string;
   uptimerobot?: string;
   meta?: string;
+  /** The synthetic tests' own (D-070): B2B intake-only key, test partner secret, test runner login, test sender. */
+  b2bIntake?: string;
+  testPartnerSecret?: string;
+  testRunnerPassword?: string;
+  testRunnerTotp?: string;
+  testWhatsapp?: string;
 };
 
 export function credentialsFrom(vault: Record<string, string>): Credentials {
@@ -24,6 +30,11 @@ export function credentialsFrom(vault: Record<string, string>): Credentials {
     email: secretEnv("ONE_EMAIL_KEY", "RESEND_API_KEY") ?? vault.one_email_key,
     uptimerobot: secretEnv("ONE_UPTIMEROBOT_KEY", "UPTIMEROBOT_API_KEY") ?? vault.one_uptimerobot_key,
     meta: secretEnv("ONE_META_TOKEN") ?? vault.one_meta_token,
+    b2bIntake: secretEnv("ONE_B2B_INTAKE_KEY", "B2B_INTAKE_TEST_KEY") ?? vault.one_b2b_intake_key,
+    testPartnerSecret: secretEnv("ONE_TEST_PARTNER_SECRET") ?? vault.one_test_partner_secret,
+    testRunnerPassword: secretEnv("ONE_TEST_RUNNER_PASSWORD") ?? vault.one_test_runner_password,
+    testRunnerTotp: secretEnv("ONE_TEST_RUNNER_TOTP") ?? vault.one_test_runner_totp,
+    testWhatsapp: secretEnv("ONE_TEST_WA_TOKEN") ?? vault.one_test_wa_token,
   };
 }
 

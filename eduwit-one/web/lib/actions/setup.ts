@@ -5,7 +5,9 @@ import { credentialsFrom, resetVaultCache, vaultSecrets } from "../clients/crede
 import { SupabaseOneDb } from "../db.ts";
 import { log } from "../log.ts";
 import { assertUser } from "../session.ts";
-import { validate } from "../setup/validate.ts";
+import { bootEnv } from "../env.ts";
+import { parseTestFacts, validate } from "../setup/validate.ts";
+import { SupabaseTestsDb } from "../tests/db.ts";
 import { ui } from "../ui/api.ts";
 import { checksSchema, heartbeatsSchema, setupSchema } from "../ui/schemas.ts";
 import { act, fields, invalid, type ActionResult } from "./act.ts";
@@ -55,7 +57,12 @@ export async function validateItem(_: ActionResult | undefined, form: FormData):
         const h = (await ui("ui_heartbeats", heartbeatsSchema)).find((x) => x.component === component);
         return Boolean(h?.ok && !h.never_seen);
       },
+      testFacts: async () => {
+        const tests = SupabaseTestsDb.fromEnv();
+        return tests ? parseTestFacts(await tests.setupFacts()) : null;
+      },
     },
+    supabase: { url: bootEnv().ONE_SUPABASE_URL, anonKey: bootEnv().ONE_SUPABASE_ANON_KEY },
   });
   log("info", "setup.validate", { item: item.id, ok: verdict.ok });
   // Recorded by the app with the service role, so only a probe this server ran can mark an item verified (0011).

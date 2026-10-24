@@ -170,7 +170,7 @@
       "T-WEB-CATALOG": "0 * * * *",
       "T-WEB-ADVISOR": "0 * * * *",
       "T-B2B-INTAKE": "0 * * * *",
-      "T-B2B-PUSH": "0 * * * *",
+      "T-B2B-PUSH": "30 22 * * *",
       "T-HANDOFF": "0 */2 * * *",
       "T-B2C-NURTURE": "0 3 * * *",
       "T-INFLUENCER": "0 4 * * *",
@@ -267,7 +267,9 @@
     "witty_workflow_id": "PKPs7tXg9bej8AgX",
     "test_harness_workflow_id": "1BGAINw5XDkSHb2q",
     "nurture_workflow_id": "XwmALPxBduLDxUBn",
-    "learning_workflow_id": "pJSJIXCUykI0F5sj"
+    "learning_workflow_id": "pJSJIXCUykI0F5sj",
+    "test_harness_webhook_path": "/webhook/witty2-test-harness-dev",
+    "test_harness_scenario": "happy_path_mba"
   },
   "retention": {
     "results_days": 90,

@@ -307,6 +307,24 @@
       "detail": "no probe and no connector evidence",
       "fix": null,
       "source": "none"
+    },
+    "test_runner_user": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "phase 5: new item",
+      "detail": "not set up yet",
+      "fix": null,
+      "source": "builder"
+    },
+    "test_spark_journey": {
+      "status": "not_provided",
+      "validated": false,
+      "validated_at": null,
+      "ran": "phase 5: new item",
+      "detail": "not set up yet",
+      "fix": null,
+      "source": "builder"
     }
   }
 }

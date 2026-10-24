@@ -37,7 +37,8 @@ export async function POST(request: Request) {
       clients && settings
         ? await sendPending({ db, email: clients.email, from: settings.alerts.email_from, oneHost: settings.hosts.one })
         : null;
-    const tests = clients ? await runTestsPass(clients, requestId, started + 45_000) : null;
+    const tests =
+      clients && settings ? await runTestsPass({ clients, settings, credentials }, requestId, started + 45_000) : null;
     log("info", "tick.done", { requestId, probes: summary.probes, alerts, tests });
     return Response.json({ requestId, ...summary, alerts, tests });
   } catch (e) {

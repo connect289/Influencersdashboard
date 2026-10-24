@@ -90,7 +90,11 @@ export async function advanceRun<Io>(
 ): Promise<{ status: "finished"; ok: boolean } | { status: "waiting" }> {
   const { db, holder, deadline, sleep, pollMs } = opts;
   const finish = async (ok: boolean, error: string | null) => {
-    await db.runFinish(run, ok, error, holder);
+    try {
+      await db.runFinish(run, ok, error, holder);
+    } finally {
+      await def.cleanup?.(ctx).catch(() => undefined);
+    }
     return { status: "finished" as const, ok };
   };
   const record = (ok: boolean, detail: string | null) => {

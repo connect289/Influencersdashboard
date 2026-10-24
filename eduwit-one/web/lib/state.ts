@@ -28,6 +28,10 @@ export const settingsSchema = z.object({
     witty_workflow_id: z.string(),
     nurture_workflow_id: z.string().optional(),
     learning_workflow_id: z.string().optional(),
+    // Only the synthetic tests read these; a bad value leaves T-WITTY-QUALIFY unconfigured, never the tick (D-072).
+    test_harness_workflow_id: z.string().optional().catch(undefined),
+    test_harness_webhook_path: z.string().startsWith("/").optional().catch(undefined),
+    test_harness_scenario: z.string().optional().catch(undefined),
   }),
   whatsapp: z.object({
     waba_ids: z.array(z.string()),

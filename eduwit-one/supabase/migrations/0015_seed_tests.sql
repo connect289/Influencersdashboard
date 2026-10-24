@@ -7,7 +7,7 @@ select one.seed_test('{
   "app": "witty",
   "title": "Witty answers a WhatsApp message",
   "seam": "WhatsApp → Chatwoot → n8n → Gemini → reply",
-  "description": "A scripted message from the real test number reaches Witty through WhatsApp and Chatwoot, and Witty answers it.",
+  "description": "A scripted message from the real test number, sent through WhatsApp from its own sender, reaches Witty through Chatwoot and n8n, and Witty answers it.",
   "severity": "P1",
   "timeout_s": 600,
   "needs": [
@@ -50,32 +50,37 @@ select one.seed_test('{
   "app": "witty",
   "title": "Witty qualifies a test student to HOT and creates the lead",
   "seam": "Witty → w2_outbox → lead_intake → student_leads",
-  "description": "Witty''s own test harness plays the scenario \"qualify to HOT\" on a reserved harness phone; the outbox delivers the lead to lead_intake, which creates a student_leads row marked is_test.",
+  "description": "Witty''s own n8n test harness (workflow 1BGAINw5XDkSHb2q) plays the scenario in settings n8n.test_harness_scenario on harness phones; one is classified HOT, its outbox row is sent, and lead_intake creates a student_leads row marked is_test. The harness is switched off again after every run, passed or failed.",
   "severity": "P1",
-  "timeout_s": 900,
+  "timeout_s": 1800,
   "needs": [
     "test_rows_agreement",
     "n8n_api"
   ],
   "steps": [
     {
-      "key": "harness",
-      "title": "Run the harness scenario \"qualify to HOT\" on a reserved phone",
-      "timeout_s": 120
+      "key": "start",
+      "title": "Switch the harness on and start the scenario",
+      "timeout_s": 60
+    },
+    {
+      "key": "finished",
+      "title": "The harness run is recorded (w2_test_runs)",
+      "timeout_s": 1200
     },
     {
       "key": "hot",
-      "title": "The conversation is classified HOT",
-      "timeout_s": 300
+      "title": "A harness phone is classified HOT",
+      "timeout_s": 60
     },
     {
       "key": "outbox",
-      "title": "The w2_outbox row is sent",
+      "title": "Its w2_outbox row is sent",
       "timeout_s": 120
     },
     {
       "key": "lead",
-      "title": "A student_leads row with lead_source, lead_status and is_test",
+      "title": "A student_leads row from the harness, with lead_status and is_test",
       "timeout_s": 120
     }
   ],
@@ -127,6 +132,7 @@ select one.seed_test('{
       "timeout_s": 60
     }
   ],
+  "disabled": "blocked:website-test-endpoint",
   "schedule": "*/30 * * * *"
 }'::jsonb);
 
@@ -191,20 +197,22 @@ select one.seed_test('{
       "timeout_s": 30
     }
   ],
+  "disabled": "blocked:website-test-endpoint",
   "schedule": "0 * * * *"
 }'::jsonb);
 
 select one.seed_test('{
   "id": "T-B2B-INTAKE",
   "app": "b2b",
-  "title": "A lead posted to the B2B API is routed",
+  "title": "A lead posted to the B2B API is held as a test lead",
   "seam": "API → lead_intake → routing",
-  "description": "A test lead posted through the B2B intake API with is_test is created and gets a routing decision.",
+  "description": "A lead on a fresh harness phone posted through the B2B intake API is stored with is_test, B2B routes nothing for it (its rule for test leads), and B2B''s own command centre leaves it out of its lead counts.",
   "severity": "P1",
   "timeout_s": 600,
   "needs": [
     "test_rows_agreement",
-    "test_b2b_intake_key"
+    "test_b2b_intake_key",
+    "test_runner_user"
   ],
   "steps": [
     {
@@ -214,18 +222,18 @@ select one.seed_test('{
     },
     {
       "key": "lead",
-      "title": "The student_leads row exists, is_test",
+      "title": "The lead is stored with is_test",
       "timeout_s": 60
     },
     {
-      "key": "decision",
-      "title": "A b2b.engine_decisions row exists",
-      "timeout_s": 120
+      "key": "held",
+      "title": "B2B routes nothing for it",
+      "timeout_s": 60
     },
     {
-      "key": "destination",
-      "title": "Routed to the test partner or in-house",
-      "timeout_s": 30
+      "key": "no_leak",
+      "title": "B2B''s command centre does not count it",
+      "timeout_s": 60
     }
   ],
   "schedule": "0 * * * *"
@@ -234,15 +242,16 @@ select one.seed_test('{
 select one.seed_test('{
   "id": "T-B2B-PUSH",
   "app": "b2b",
-  "title": "A lead is pushed to the test partner and its event comes back",
+  "title": "A test lead is pushed to the test partner''s sandbox and its event comes back",
   "seam": "allocation → partner sandbox → partner event back",
-  "description": "A test lead allocated to the test partner is pushed to its sandbox endpoint; a signed contact_attempted event for it is applied.",
+  "description": "The test runner routes a test lead to the partner sandbox with B2B''s own route_test_lead; it is pushed to the test partner''s test endpoint, and a signed contacted event for it is applied.",
   "severity": "P1",
   "timeout_s": 900,
   "needs": [
     "test_rows_agreement",
     "test_b2b_intake_key",
-    "test_partner"
+    "test_partner",
+    "test_runner_user"
   ],
   "steps": [
     {
@@ -251,22 +260,27 @@ select one.seed_test('{
       "timeout_s": 30
     },
     {
+      "key": "route",
+      "title": "Route it to the partner sandbox, as the test runner",
+      "timeout_s": 30
+    },
+    {
       "key": "pushed",
-      "title": "Pushed to the test partner''s sandbox (2xx)",
+      "title": "Pushed to the test partner''s sandbox endpoint (2xx)",
       "timeout_s": 300
     },
     {
       "key": "event",
-      "title": "Post a signed contact_attempted event for it",
+      "title": "Post a signed contacted event for it",
       "timeout_s": 30
     },
     {
       "key": "activity",
-      "title": "partner_activities row and first_contact_at set",
+      "title": "A partner_activities call and the lead''s first contact are recorded",
       "timeout_s": 120
     }
   ],
-  "schedule": "0 * * * *"
+  "schedule": "30 22 * * *"
 }'::jsonb);
 
 select one.seed_test('{
@@ -274,14 +288,13 @@ select one.seed_test('{
   "app": "b2b",
   "title": "A lead falls to Spark and Spark''s work comes back to B2B",
   "seam": "B2B → Spark → B2B",
-  "description": "The test partner marks a test lead duplicate twice so it falls to in-house; Spark holds it; a call logged by the Spark test user flows back to B2B.",
+  "description": "B2B''s own test hand-off (route_test_lead b2c_test) sends a test lead to Spark; Spark holds it; the test runner logs a call on it in Spark; Spark''s outbox writes the activity back and B2B records the write; Spark''s analytics keep it out of the real hand-offs.",
   "severity": "P1",
   "timeout_s": 3600,
   "needs": [
     "test_rows_agreement",
     "test_b2b_intake_key",
-    "test_partner",
-    "test_spark_user"
+    "test_runner_user"
   ],
   "steps": [
     {
@@ -290,28 +303,33 @@ select one.seed_test('{
       "timeout_s": 30
     },
     {
-      "key": "duplicate",
-      "title": "The test partner marks it duplicate twice",
-      "timeout_s": 300
+      "key": "handoff",
+      "title": "Hand it to Spark with B2B''s test hand-off",
+      "timeout_s": 30
     },
     {
-      "key": "outbox",
+      "key": "delivered",
       "title": "integration_outbox delivers it to Spark",
       "timeout_s": 300
     },
     {
       "key": "held",
-      "title": "b2c.lead_records holds it (held_by_b2c)",
+      "title": "Spark holds it (held_by_b2c, is_test)",
       "timeout_s": 300
     },
     {
       "key": "call",
-      "title": "The Spark test user logs a call on it",
+      "title": "Log a call on it in Spark, as the test runner",
       "timeout_s": 60
     },
     {
       "key": "writeback",
-      "title": "b2c.outbox done and b2b.b2c_writes 2xx",
+      "title": "Spark''s outbox applies it and B2B records the write (2xx)",
+      "timeout_s": 1800
+    },
+    {
+      "key": "no_leak",
+      "title": "Spark''s analytics keep it out of real hand-offs",
       "timeout_s": 1800
     }
   ],
@@ -323,33 +341,49 @@ select one.seed_test('{
   "app": "b2c",
   "title": "A Spark journey sends only to the test number",
   "seam": "Spark journeys",
-  "description": "The test lead is run through a journey in Spark''s test mode; it advances a step and queues a send only to the test number.",
+  "description": "A test lead handed to Spark is run through the test journey with Spark''s journey_test; the run advances a step and queues a send for the lead''s own test phone, which Spark keeps as a dry run.",
   "severity": "P2",
-  "timeout_s": 1800,
+  "timeout_s": 3600,
   "needs": [
     "test_rows_agreement",
-    "test_spark_user",
-    "test_whatsapp_number"
+    "test_b2b_intake_key",
+    "test_runner_user",
+    "test_spark_journey"
   ],
   "steps": [
     {
+      "key": "post",
+      "title": "Post a test lead through the intake API",
+      "timeout_s": 30
+    },
+    {
+      "key": "handoff",
+      "title": "Hand it to Spark with B2B''s test hand-off",
+      "timeout_s": 30
+    },
+    {
+      "key": "held",
+      "title": "Spark holds it",
+      "timeout_s": 600
+    },
+    {
       "key": "enrol",
-      "title": "Run the test journey for the test lead",
-      "timeout_s": 60
+      "title": "Run the test journey for it, as the test runner",
+      "timeout_s": 30
     },
     {
       "key": "advanced",
-      "title": "journey_runs advances one step",
+      "title": "The journey run advances a step",
       "timeout_s": 900
     },
     {
       "key": "queued",
-      "title": "A send_queue row for the test number",
+      "title": "A send to its test phone is queued (a dry run)",
       "timeout_s": 900
     },
     {
       "key": "only_test",
-      "title": "Nothing queued for any other number",
+      "title": "Nothing is queued for any other address",
       "timeout_s": 30
     }
   ],
@@ -396,6 +430,7 @@ select one.seed_test('{
       "timeout_s": 900
     }
   ],
+  "disabled": "blocked:witty-referral-code-not-built",
   "schedule": "0 4 * * *"
 }'::jsonb);
 

@@ -89,13 +89,15 @@ begin
   return one.test_run_json(v_run);
 end $$;
 
--- Saves a run in flight; only its holder can, and the lease is renewed.
+-- Saves a run in flight; only its holder can, and the lease is renewed. The runner adds artefacts and never removes
+-- one, and `phones` is written only by the database (0016's phone.allocate), so the purge acts on the phones the
+-- database handed out, whatever the runner sends.
 create or replace function one.test_run_save(p_run bigint, p_holder text, p_lease_s integer, p_steps jsonb, p_artefacts jsonb, p_state jsonb) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
   update one.test_runs
      set step_results = one.test_steps_clean(p_steps),
-         artefacts = case when jsonb_typeof(p_artefacts) = 'object' then p_artefacts else artefacts end,
+         artefacts = artefacts || case when jsonb_typeof(p_artefacts) = 'object' then p_artefacts - 'phones' else '{}' end,
          state = case when jsonb_typeof(p_state) = 'object' then p_state else state end,
          lease_until = now() + make_interval(secs => least(greatest(p_lease_s, 30), 600))
    where id = p_run and finished_at is null and holder = p_holder;
@@ -116,7 +118,7 @@ begin
   update one.test_runs
      set finished_at = now(), ok = coalesce(p_ok, false), error = left(p_error, 300),
          step_results = one.test_steps_clean(p_steps),
-         artefacts = case when jsonb_typeof(p_artefacts) = 'object' then p_artefacts else artefacts end,
+         artefacts = artefacts || case when jsonb_typeof(p_artefacts) = 'object' then p_artefacts - 'phones' else '{}' end,
          holder = null, lease_until = null
    where id = p_run and finished_at is null and holder = p_holder
   returning * into v_run;

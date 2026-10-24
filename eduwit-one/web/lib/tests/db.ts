@@ -3,11 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { DbError } from "../db.ts";
 import { bootEnv } from "../env.ts";
+import { type DueRun, parseDue, type PurgeDb } from "./purge.ts";
 import type { TestRow, TestsDb, TestsState } from "./runner.ts";
 import type { Run } from "./types.ts";
 
 // The test runner's door to schema one (migrations 0014 and 0016), with the service role like lib/db.ts: the run
-// bookkeeping, and the seams (one.test_fact, one.test_act) through which a journey reads and acts on the apps.
+// bookkeeping, the seams (one.test_fact, one.test_act) through which a journey reads and acts on the apps, and the purge.
 
 const identitiesSchema = z.object({
   phone_prefix: z.string().default("910000"),
@@ -17,6 +18,11 @@ const identitiesSchema = z.object({
   spark_test_user_email: z.string().nullable().default(null),
   partner_slug: z.string().nullable().default(null),
   creator_referral_code: z.string().nullable().default(null),
+  run_phone_prefix: z.string().default("9100009"),
+  runner_email: z.string().nullable().default(null),
+  spark_test_journey_id: z.union([z.string(), z.number()]).transform(String).nullable().default(null),
+  whatsapp_phone_number_id: z.string().nullable().default(null),
+  witty_number: z.string().nullable().default(null),
 });
 
 const stepSchema = z.object({
@@ -66,7 +72,7 @@ function createTestsClient(url: string, key: string) {
   return createClient(url, key, { db: { schema: "one" }, auth: { persistSession: false, autoRefreshToken: false } });
 }
 
-export class SupabaseTestsDb implements TestsDb, TestSeams {
+export class SupabaseTestsDb implements TestsDb, TestSeams, PurgeDb {
   private readonly client: ReturnType<typeof createTestsClient>;
 
   private constructor(client: ReturnType<typeof createTestsClient>) {
@@ -135,5 +141,18 @@ export class SupabaseTestsDb implements TestsDb, TestSeams {
 
   async act(run: number, kind: string, args: Record<string, unknown> = {}) {
     return record.parse((await this.rpc("test_act", { p_run: run, p_kind: kind, p_args: args })) ?? {});
+  }
+
+  async purgeDue(limit: number): Promise<DueRun[]> {
+    return parseDue(await this.rpc("test_purge_due", { p_limit: limit }));
+  }
+
+  async runPurge(run: number, report: Record<string, unknown>): Promise<void> {
+    await this.rpc("test_run_purge", { p_run: run, p_report: report });
+  }
+
+  /** What the Setup validators of the test items read (0016): the identities and the named Spark journey. */
+  async setupFacts(): Promise<unknown> {
+    return await this.rpc("setup_test_facts", {});
   }
 }

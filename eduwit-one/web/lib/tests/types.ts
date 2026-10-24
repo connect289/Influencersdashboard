@@ -57,6 +57,11 @@ export type TestDef<Io> = {
    */
   guard: (ctx: TestContext<Io>) => Promise<string | null>;
   steps: Array<Step<Io>>;
+  /**
+   * After a runner finishes the run, whatever the outcome (switch a harness back off). Its errors are ignored. A run the
+   * reaper closes (its runner died) gets no cleanup.
+   */
+  cleanup?: (ctx: TestContext<Io>) => Promise<void>;
 };
 
 /** settings.test_identities: the only identities a test may use (spec §17.9). */
@@ -68,6 +73,12 @@ export type Identities = {
   spark_test_user_email: string | null;
   partner_slug: string | null;
   creator_referral_code: string | null;
+  /** Eduwit One's slice of the harness range: 9100009 and five digits from the run id (0016 phone.allocate). */
+  run_phone_prefix: string;
+  runner_email: string | null;
+  spark_test_journey_id: string | null;
+  whatsapp_phone_number_id: string | null;
+  witty_number: string | null;
 };
 
 /** Thrown by a step for a refusal that must stop the run (a non-test identity, an unsafe target). */

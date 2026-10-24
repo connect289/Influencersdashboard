@@ -74,7 +74,37 @@ Approve, reject with a note, or snooze (it comes back to the queue when the snoo
 and any that touches money, allocation, live switches, partner mappings, prompts, settings or security, needs the
 owner.
 Approving records the decision; the change itself is made in the app named under "where" (Eduwit One changes no app),
-or, from phase 7, by a catalogued fix. The builder's twelve proposals (D-063) wait for a decision and never expire.
+or, from phase 7, by a catalogued fix. The builder's twelve proposals (D-063) and the six for the blocked tests (0017,
+D-071) wait for a decision and never expire.
+
+## Synthetic tests
+
+The Tests page lists the eleven tests of spec §10 (`docs/TESTS.md`), each with its schedule, the Setup items it still
+waits for, its last runs and its step timings. A test switches on by itself when every item it needs is validated;
+"Run now" queues it for the next minute. A failing run opens the test's own incident (its id is the test's).
+
+To bring the tests up, in this order (Settings → Setup):
+
+1. `test_b2b_intake_key`: an intake-only B2B API key, saved as `one_b2b_intake_key`.
+2. `test_runner_user` (owner): a Supabase user only for the tests, for example tests@eduwit.in. In the B2B CRM make it
+   an admin with two-factor and enrol a TOTP factor; in Spark make it an admin with `is_test_user`. Put its email in
+   Settings → test_identities.runner_email, save its password as `one_test_runner_password` and the TOTP secret
+   (base32, from the enrolment) as `one_test_runner_totp`. Validate signs in with both and asks each CRM for its role
+   (D-070). That switches on T-B2B-INTAKE and T-HANDOFF.
+3. `test_partner`: a B2B partner used only for tests, the **only** partner with a `test_endpoint`, with an inbound
+   secret saved as `one_test_partner_secret` (T-B2B-PUSH refuses to start while another partner has a test endpoint).
+4. `test_spark_journey`: a Spark journey in test mode whose first step queues a WhatsApp message (T-B2C-NURTURE).
+5. `test_whatsapp_number` and `chatwoot`: the test number in `w2_trusted` with `is_test`, its sender id and token, and
+   Witty's number (T-WITTY-TURN). WhatsApp's 24-hour window applies: if the test has not run for a day, send one
+   message to the test number from Witty's side first.
+6. `n8n_api`: T-WITTY-QUALIFY switches Witty's harness workflow on for its run and off after it (D-072). If a run is cut
+   short, check in n8n that the harness is off.
+
+Every lead a test creates has a phone `9100009` + five digits that the database hands out, so every app marks it a
+test lead. Two days after a run (`tests.purge_after_days`) the minute tick deletes its leads in Spark and B2B as the test
+runner and resets its phones in Witty. Partner-routed test leads are kept until B2B accepts "test" for them (proposal
+`p5-b2b-delete-sandbox-test-leads`); the rows the purge leaves are listed in D-071. The website and influencer tests
+are blocked until the apps add what their proposals ask for (D-071).
 
 ## The external watchdog (UptimeRobot)
 

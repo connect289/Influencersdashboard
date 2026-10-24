@@ -272,14 +272,13 @@
     },
     {
       "id": "test_whatsapp_number",
-      "title": "Real test WhatsApp number in w2_trusted (is_test)",
+      "title": "Real test WhatsApp number in w2_trusted (is_test), with its own sender",
       "who": "developer",
-      "stores": "settings.test_identities.whatsapp_number",
+      "stores": "settings.test_identities.whatsapp_number + settings.test_identities.whatsapp_phone_number_id + settings.test_identities.witty_number + vault:one_test_wa_token",
       "unblocks": [
-        "T-WITTY-TURN",
-        "T-INFLUENCER"
+        "T-WITTY-TURN"
       ],
-      "how": "A real WhatsApp number used only for tests, added to Witty's w2_trusted with is_test = true. Settings → Test identities.",
+      "how": "Add the test number to w2_trusted with is_test = true (Witty's admin). Register it on a WhatsApp Business account Eduwit One may send from: Settings → test_identities: whatsapp_number (digits), whatsapp_phone_number_id (the sender's Graph id), witty_number (Witty's number, digits); paste the sender's token here. WhatsApp lets a business number send free text only within 24 hours of the other side's last message: Witty's replies keep that window open while T-WITTY-TURN runs; after a longer pause, send one message to the test number from Witty's side, or the send step fails.",
       "validate": null
     },
     {
@@ -308,14 +307,14 @@
     },
     {
       "id": "test_spark_user",
-      "title": "Spark counsellor marked is_test_user",
+      "title": "Spark user marked is_test_user (the test runner login can be it)",
       "who": "developer",
       "stores": "settings.test_identities.spark_test_user_email",
       "unblocks": [
         "T-HANDOFF",
         "T-B2C-NURTURE"
       ],
-      "how": "A Spark counsellor marked is_test_user = true, for the hand-off journeys. Settings → Test identities.",
+      "how": "The test runner login (test_runner_user) covers this when it is a Spark admin with is_test_user; Spark gives test leads only to test users or admins.",
       "validate": null
     },
     {
@@ -333,14 +332,13 @@
     },
     {
       "id": "test_partner",
-      "title": "Test partner with sandbox adapter (partners.test_endpoint)",
+      "title": "Test partner with a sandbox endpoint and an inbound secret",
       "who": "developer",
-      "stores": "settings.test_identities.partner_slug",
+      "stores": "settings.test_identities.partner_slug + vault:one_test_partner_secret",
       "unblocks": [
-        "T-B2B-PUSH",
-        "T-HANDOFF"
+        "T-B2B-PUSH"
       ],
-      "how": "A B2B partner with the sandbox adapter and a test endpoint. Settings → Test identities → partner slug.",
+      "how": "In the B2B CRM add a partner used only for tests, with test_endpoint set to a sandbox you control (https) and an inbound secret; it must be the only partner with a test_endpoint, or the push test refuses to run. Settings → test_identities.partner_slug; paste the inbound secret here.",
       "validate": null
     },
     {
@@ -413,6 +411,32 @@
       ],
       "how": "UptimeRobot keyword monitor on https://one.eduwit.in/api/watchdog for \"ok\":true, every 5 minutes, alert contact active (docs/RUNBOOK.md).",
       "validate": "watchdog"
+    },
+    {
+      "id": "test_runner_user",
+      "title": "Test runner login: a B2B admin with two-factor and a Spark admin, used only by the synthetic tests",
+      "who": "owner",
+      "stores": "settings.test_identities.runner_email + vault:one_test_runner_password + vault:one_test_runner_totp",
+      "unblocks": [
+        "T-B2B-INTAKE",
+        "T-B2B-PUSH",
+        "T-HANDOFF",
+        "T-B2C-NURTURE",
+        "the purge of B2B and Spark test leads"
+      ],
+      "how": "Create a Supabase user for the tests (for example tests@eduwit.in, agreed with the CRM owner, S-21). In the B2B CRM make it an admin with two-factor required and enrol a TOTP factor; in Spark make it an admin with is_test_user. Settings → test_identities.runner_email; paste its password and the TOTP secret (base32) here. Eduwit One signs in as it, with the one-time code, only to route, log and delete test leads (D-070).",
+      "validate": "test_runner"
+    },
+    {
+      "id": "test_spark_journey",
+      "title": "A Spark journey in test mode for the nurture test",
+      "who": "owner",
+      "stores": "settings.test_identities.spark_test_journey_id",
+      "unblocks": [
+        "T-B2C-NURTURE"
+      ],
+      "how": "In Spark, create a journey in test mode whose first step queues a WhatsApp message; Settings → test_identities.spark_test_journey_id.",
+      "validate": "spark_journey"
     }
   ]
 }
