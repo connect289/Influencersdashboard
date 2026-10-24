@@ -8,8 +8,8 @@ followed.
 - Vercel project `eduwit-one`: all four Production values set (none shown anywhere), a dedicated Supabase secret key
   `eduwit_one`, the redirect URL `https://one.eduwit.in/**` in Supabase Auth, `app.base_url` on production, the domain
   `one.eduwit.in` attached and verified. The middleware uses a string matcher (Vercel's build rejects the object form).
-- Not yet: the first deploy (Vercel's free-deployments-per-day limit on the Hobby team; retry after the reset or on
-  Pro), the Vault copy of the internal key and the exposed schema `one` (both await the owner's approval, D-093).
+- Then: the owner added `one` to the exposed schemas; the internal key (fresh) is in Vercel and in Vault. Not yet: the
+  first deploy (Vercel's free-deployments-per-day limit on the Hobby team; retry after the reset or on Pro).
 
 ## 24 Oct 2026 — phase 1 applied to production (D-092; no dump, D-090)
 
