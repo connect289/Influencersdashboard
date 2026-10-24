@@ -43,8 +43,8 @@ The scripts need `ONE_STAGING_DB_URL` (project `mplbspysxmtohnlwpbti`) and `ONE_
 
 > Status 24 Oct, 16:30 UTC (D-093): steps 8, 9 (the Vercel half), 10 (the redirect URL), 11 (the domain, verified) and
 > the `base_url` of step 12 are done from the build session; so are the Vault copy of the internal key and the exposed
-> schema `one` (16:50 UTC). Left: `npx vercel --prod` once Vercel's daily deployment limit resets or the team is on
-> Pro, then step 12's first sign-in and Setup.
+> schema `one` (16:50 UTC), and the deploy (19:22 UTC): https://one.eduwit.in is live. Left: step 12's first sign-in
+> and Setup, by the owner.
 
 The Vercel project **eduwit-one** already exists in the Eduwit team (region `bom1`, created 24 Oct from the build
 session), with `ONE_SUPABASE_URL` and `ONE_SUPABASE_ANON_KEY` set for Production (both public values). It needs two
