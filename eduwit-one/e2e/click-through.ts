@@ -250,7 +250,23 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
   page.off("requestfailed", onFailed);
   // Waits up to 120 s so a slow answer is told apart from none; an answer after 30 s still fails.
   const took = (Date.now() - clicked) / 1000;
-  if (!ok) message += ` {${seen.join("; ") || "no action request seen"}; still in flight: ${pendingRequests(page)}}`;
+  if (!ok) {
+    // What React may be waiting for before it commits: resources loaded since the click (cache hits included, which
+    // the network events miss) and stylesheets whose sheet never loaded.
+    const browserSide = await page
+      .evaluate((since) => {
+        const loaded = performance
+          .getEntriesByType("resource")
+          .filter((e) => performance.timeOrigin + e.startTime >= since)
+          .map((e) => `${new URL(e.name).pathname.split("/").pop()} ${Math.round(e.duration)}ms`);
+        const unloaded = [...document.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")]
+          .filter((l) => !l.sheet)
+          .map((l) => new URL(l.href).pathname.split("/").pop());
+        return `loaded since the click: ${loaded.join(", ") || "nothing"}; stylesheets not loaded: ${unloaded.join(", ") || "none"}`;
+      }, clicked)
+      .catch((e: unknown) => `could not read the page: ${String(e)}`);
+    message += ` {${seen.join("; ") || "no action request seen"}; still in flight: ${pendingRequests(page)}; ${browserSide}}`;
+  }
   if (ok && took > 30) {
     ok = false;
     message = `slow answer: ${message}`;
