@@ -58,7 +58,7 @@ Within 24 hours of the dump, one file at a time:
 scripts/db/apply.sh $(cd supabase/migrations && ls 0*.sql | grep -v '\.rollback\.sql$' | sort)
 ```
 
-That is every migration in order, 0001 to 0019 today; the rehearsal vouches for the same set.
+That is every migration in order, 0001 to 0020 today; the rehearsal vouches for the same set.
 
 Each file runs in one transaction between two fingerprints of everything outside schema one; if a file changed any
 app object, it is rolled back whole and the run stops with "refused: this migration changed an object outside schema
