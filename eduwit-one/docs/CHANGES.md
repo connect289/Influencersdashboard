@@ -3,6 +3,21 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — the dump waived; the Management API route (D-090)
+
+- The owner waived the production dump for the phase 1 apply. `scripts/db/apply.sh` takes
+  `ONE_APPLY_WITHOUT_DUMP=owner-accepted`, set on purpose for every run, in place of the dump check; without it, it
+  refuses as before. `GO-LIVE-SESSION.md` steps 4 to 6 follow.
+- The connector cannot run the rollbacks: its confirmation of DROP and DELETE reaches nobody (D-031 again). The one
+  statement it held changed nothing on staging (checked read-only: 6 leftovers, 24 tables, 16 functions).
+- For a machine with HTTPS to `api.supabase.com` and no Postgres connection: `scripts/db/with-api.ts` (the Management
+  API's query endpoint, as postgres; projects by target name; the token never printed), `scripts/db/wrap.ts` (one file
+  as one transaction between the two catalogue fingerprints, byte-identical to what psql runs), `scripts/db/api-rehearse.sh`
+  and `scripts/db/api-apply.sh` (the sequences of `rehearse.sh` and `apply.sh`). Runbook §3 and §5. Type-checked and
+  tested for their refusals; not yet run against a database.
+- The six checks D-088 rewrote were re-run read-only on production through the connector: all ok, same values as on
+  23 Oct, each under 5 ms planned and 0.5 ms run (`docs/CHECK-TRIAL.md`, D-089).
+
 ## 24 Oct 2026 — go-live instructions for the owner's computer
 
 - `docs/GO-LIVE-SESSION.md`: the staging rehearsal, production dump and production apply as a self-contained brief for

@@ -3,7 +3,7 @@
 
 import type { DocSection } from "./docs-source.ts";
 
-export const DOCS_VERSION = "9ec0bd1dd4";
+export const DOCS_VERSION = "0e8b855c0f";
 export const DOCS: DocSection[] = [
   {
     "file": "RUNBOOK",
@@ -98,7 +98,7 @@ export const DOCS: DocSection[] = [
   {
     "file": "RUNBOOK-database",
     "title": "About",
-    "text": "The database scripts need a direct Postgres connection. The Claude build environment cannot open one (it only\nreaches the internet over HTTPS), and the Supabase connector holds every DROP or DELETE for an approval this app\ncannot show (D-031, D-041). Run these steps from a machine that can reach Supabase on port 5432: your laptop, or the\nLightsail server that runs n8n (same region as the database).\n\nNothing here is run by the build automatically. Each step prints what it did; stop at the first error and send the\nlast 20 lines (they never contain the password)."
+    "text": "The database scripts need a direct Postgres connection. The Claude build environment cannot open one (it only\nreaches the internet over HTTPS), and the Supabase connector holds every DROP or DELETE for an approval this app\ncannot show (D-031, D-041). Run these steps from a machine that can reach Supabase on port 5432: your laptop, or the\nLightsail server that runs n8n (same region as the database), or follow §5 from a cloud session whose environment\nallows `api.supabase.com` (D-090).\n\nNothing here is run by the build automatically. Each step prints what it did; stop at the first error and send the\nlast 20 lines (they never contain the password)."
   },
   {
     "file": "RUNBOOK-database",
@@ -113,12 +113,17 @@ export const DOCS: DocSection[] = [
   {
     "file": "RUNBOOK-database",
     "title": "3. Dump production",
-    "text": "```sh\nscripts/db/dump.sh\n```\n\nIt must print `DUMP OK <path> (...)`. The file stays on this machine (default `~/eduwit-one-dumps`, outside the\nrepository); it holds personal data, so never upload it anywhere. Write the path and the date in `docs/DECISIONS.md`\nunder D-010."
+    "text": "```sh\nscripts/db/dump.sh\n```\n\nIt must print `DUMP OK <path> (...)`. The file stays on this machine (default `~/eduwit-one-dumps`, outside the\nrepository); it holds personal data, so never upload it anywhere. Write the path and the date in `docs/DECISIONS.md`\nunder D-010.\n\n**Without a dump.** On 24 Oct 2026 the owner waived the dump for the phase 1 apply (D-090). `apply.sh` and `api-apply.sh`\nthen need `ONE_APPLY_WITHOUT_DUMP=owner-accepted` in front of the command, set on purpose for every run; without it they\nrefuse as before. What stands in for the dump: every file runs in one transaction between two catalogue fingerprints,\nso nothing outside schema `one` can change; every file has a rollback; the staging rehearsal ran the same set; and\nSupabase's own backups, which the owner checks in the dashboard (Database → Backups) before the apply."
   },
   {
     "file": "RUNBOOK-database",
     "title": "4. Apply to production",
     "text": "Within 24 hours of the dump, one file at a time:\n\n```sh\nscripts/db/apply.sh $(cd supabase/migrations && ls 0*.sql | grep -v '\\.rollback\\.sql$' | sort)\n```\n\nThat is every migration in order, 0001 to 0020 today; the rehearsal vouches for the same set.\n\nEach file runs in one transaction between two fingerprints of everything outside schema one; if a file changed any\napp object, it is rolled back whole and the run stops with \"refused: this migration changed an object outside schema\none\" (D-057). It stops at the first failure, runs the smoke test, and prints the first tick report and the two cron\njobs. The report must have no key ending in `_error`, and `cron` must list `one-tick` and `one-nightly`."
+  },
+  {
+    "file": "RUNBOOK-database",
+    "title": "5. From a cloud session, through the Management API",
+    "text": "For a machine that has HTTPS to `api.supabase.com` but no Postgres connection (D-090). The scripts here post each\nfile to the Management API's query endpoint, the same executor the Supabase connector uses, as `postgres`, without the\nconnector's confirmation gate; every guard of §2 to §4 stays (the target rule, the fingerprint wrapper around each file,\nthe rehearsal row, the smoke test).\n\n1. In the Supabase dashboard, create a personal access token (Account → Access tokens). Store it as the secret\n   `SUPABASE_ACCESS_TOKEN` of the cloud environment (cloud environment menu → Edit → Network secrets, or an\n   environment variable), add `api.supabase.com` under Network access → Allowed domains, and start a new session.\n   Never paste the token into a chat or a file in the repository; revoke it when the apply is done.\n2. Clean staging (its partial apply of 23 Oct), each stale file as one wrapped transaction:\n   ```sh\n   for f in 0003_functions_core 0002_core_tables 0001_schema_and_roles; do\n     node scripts/db/wrap.ts supabase/migrations/$f.rollback.sql > /tmp/payload.sql && node scripts/db/with-api.ts staging /tmp/payload.sql\n   done\n   node scripts/db/with-api.ts staging scripts/db/leftovers.sql   # must print 0\n   ```\n   The stale functions have older signatures than today's rollbacks name; what the count still shows, drop by its actual\n   signature (`pg_proc`, `pg_class`, `pg_roles`, `pg_default_acl`, `cron.job`), through `with-api.ts --sql`, nothing else.\n3. Rehearse: `scripts/db/api-rehearse.sh` (the sequence of §2; ends with `REHEARSAL PASSED (<hash>)` and adds the row).\n   Commit and push `docs/REHEARSALS.md`.\n4. Apply: `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh $(cd supabase/migrations && ls 0*.sql | grep -v '\\.rollback\\.sql$' | sort)`.\n   Same checks as §4; no dump is taken on this route.\n\n`with-api.ts` never prints the token (it reaches curl through a config on stdin) and names projects by target only.\nSession settings do not carry between calls, so `smoke.sql`'s `call one.tick_job()` runs as its own top-level call and its\n`set`/`reset` lines are left out; the API's own request timeout applies to each file."
   },
   {
     "file": "RUNBOOK-database",
