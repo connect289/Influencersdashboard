@@ -3,3 +3,7 @@ node_modules
 .env.local
 next-env.d.ts
 *.tsbuildinfo
+
+# Vercel CLI link (project id of the eduwit team)
+.vercel
+.env*

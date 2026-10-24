@@ -20,6 +20,9 @@ followed.
 
 ## 24 Oct 2026 — go-live instructions for the owner's computer
 
+- Vercel project `eduwit-one` created in the Eduwit team (region `bom1`) with the two public values set for Production;
+  the brief below carries the deploy steps (service key, internal key in Vercel and Vault, exposed schema, redirect URL,
+  `vercel --prod`, the domain, first sign-in).
 - `docs/GO-LIVE-SESSION.md`: the staging rehearsal, production dump and production apply as a self-contained brief for
   a Claude session on the owner's computer, with the connection strings entered in a text editor, never a chat. The
   cloud sessions cannot run these steps (D-089), and the connector's confirmation prompts did not reach the owner.

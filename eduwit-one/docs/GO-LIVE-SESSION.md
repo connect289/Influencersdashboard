@@ -39,6 +39,34 @@ The scripts need `ONE_STAGING_DB_URL` (project `mplbspysxmtohnlwpbti`) and `ONE_
 
 6. **Record it**: a new decision in `docs/DECISIONS.md` (after D-090) with the rehearsal row, the dump path and time or that none was taken (D-090), the apply time and the tick report's `checks` counts; a top entry in `docs/CHANGES.md` naming the dump or its absence; the matching rows in `docs/PHASES.md`. Commit and push.
 
+## After the apply: deploy the app (WALKTHROUGH steps 3 to 6)
+
+The Vercel project **eduwit-one** already exists in the Eduwit team (region `bom1`, created 24 Oct from the build
+session), with `ONE_SUPABASE_URL` and `ONE_SUPABASE_ANON_KEY` set for Production (both public values). It needs two
+secrets, two dashboard settings and a deploy. On this computer, in `eduwit-one/web`, after `npx vercel login` (the
+developer's own Vercel account, a member of the Eduwit team) and `npx vercel link --project eduwit-one --scope eduwit`:
+
+8. **The service key.** In the Supabase dashboard, production project → Project settings → API keys → create a new
+   _secret_ key named `eduwit-one`. Then `npx vercel env add ONE_SUPABASE_SERVICE_KEY production` and paste the key at
+   the prompt (nothing is shown). Never the project's generic `service_role` key, and never in this chat.
+9. **The internal key**, the same value in two places, generated here and never displayed:
+   `openssl rand -hex 32 > ~/.config/eduwit-one/internal.key && chmod 600 ~/.config/eduwit-one/internal.key`, then
+   `npx vercel env add ONE_INTERNAL_KEY production < ~/.config/eduwit-one/internal.key`, then into Vault on production:
+   `set -a; . ~/.config/eduwit-one/env; set +a; node scripts/db/with-db.ts ONE_PROD_DB_URL psql -X -q -v ON_ERROR_STOP=1 -v k="$(cat ~/.config/eduwit-one/internal.key)" -c "select vault.create_secret(:'k', 'one_internal_key')"`
+   (if a secret of that name already exists, `vault.update_secret(id, :'k')` for its id). Then delete the key file.
+10. **Two dashboard settings** (owner or developer): Supabase → Project settings → Data API → Exposed schemas: add `one`
+    (Setup item `supabase_api_schema`); Supabase → Authentication → URL configuration → Redirect URLs: add
+    `https://one.eduwit.in/auth/callback` (Setup item `one_app_env`). Keep sign-ups disabled or the Google provider
+    limited to the eduwit.in domain (RUNBOOK.md, "Signing in").
+11. **Deploy**: in `eduwit-one/web`, `npx vercel --prod`. Then the domain: `npx vercel domains add one.eduwit.in` and the
+    DNS record it asks for (a CNAME at the DNS provider of eduwit.in). The team is on the Hobby plan: its 300-second
+    function limit fits the AI route, but Hobby is for non-commercial use, so the owner should move the team to Pro.
+    If the project is later connected to GitHub for automatic deploys, its Root Directory must be `eduwit-one/web` and
+    its production branch `claude/festive-babbage-7yhhx8` until the work is merged.
+12. **First sign-in and Setup**: the owner signs in at https://one.eduwit.in with their eduwit.in Google account, enters
+    the emailed code, then Settings → App → `base_url` = `https://one.eduwit.in`, and fills Settings → Setup starting
+    with `email` (alerts) and `ai_key` (RUNBOOK.md, "Setup"). Settings → Setup shows what each remaining item unblocks.
+
 ## Done looks like
 
-A `REHEARSAL PASSED` row for the current hash; production has schema `one`, the two roles and the two cron jobs; the smoke test passed there and the tick report had no `_error` key; the dump, if one was taken, exists on this computer with its `.sha256`; the docs are updated and pushed. Tell the owner in plain words what happened at each step, and that the next step is deploying the app (RUNBOOK.md, "Setup").
+A `REHEARSAL PASSED` row for the current hash; production has schema `one`, the two roles and the two cron jobs; the smoke test passed there and the tick report had no `_error` key; the dump, if one was taken, exists on this computer with its `.sha256`; the docs are updated and pushed; https://one.eduwit.in answers and the owner can sign in. Tell the owner in plain words what happened at each step.
