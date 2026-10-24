@@ -3,6 +3,14 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 7: the owner's answers (D-082)
+
+- Every default taken: only fix proposals run when approved; the count-one fixes stay as they are; FIX-OUTBOX-W2
+  and FIX-CACHE-W2 stay proposal-only; B2B approvals need the owner's OAuth or aal2 session; FIX-N8N-RETRY waits for
+  n8n 2.25.7 or 2.26.2 (runbook); B2B-01 stays P1.
+- Staging rehearsal attempted from the build session: no route to Postgres, and the connector's confirmation got no
+  answer. It runs from the owner's machine (`RUNBOOK-database.md` §2).
+
 ## 24 Oct 2026 — phase 7: review resolved (1 blocker, 12 majors, 12 minors; D-081)
 
 - Guards and fingerprint: dynamic `execute(...)` forms, default privileges other than the reader's, `reassign owned`

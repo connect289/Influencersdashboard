@@ -169,6 +169,9 @@ How they behave:
   would do; it changes nothing and does not hold back the tick's own runs.
 - **Turning one off** takes effect at the next tick. To stop all of them at once, switch each off (owner); a dry run
   still records what they would do.
+- **Before switching on FIX-N8N-RETRY**, check the n8n version (n8n → Settings → About, or the Help menu): 2.25.7 or
+  later, or 2.26.2 or later on 2.26.x. Older versions checked the wrong permission on the retry endpoint
+  (CVE-2026-56778; D-080, D-082).
 - **Reading the evidence before switching one on.** On Settings → Fixes, each fix's dry runs list the incident, the
   rows (ids only) and what it would have done. Switch on a fix whose dry runs you would have agreed with every time;
   leave off one that would have acted where a person should have looked first.
