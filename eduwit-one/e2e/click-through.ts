@@ -81,6 +81,32 @@ function sessionCookie(who: Who) {
   };
 }
 
+/** Requests each page has started and not yet seen finish, so a failed write can name what was still in flight. */
+const inFlight = new WeakMap<Page, Map<Request, number>>();
+
+function track(page: Page) {
+  const open = new Map<Request, number>();
+  inFlight.set(page, open);
+  page.on("request", (r) => open.set(r, Date.now()));
+  page.on("requestfinished", (r) => open.delete(r));
+  page.on("requestfailed", (r) => open.delete(r));
+}
+
+function pendingRequests(page: Page): string {
+  const open = inFlight.get(page);
+  if (!open?.size) return "none";
+  return [...open.entries()]
+    .map(([r, t]) => {
+      const kind = r.headers()["next-router-prefetch"]
+        ? "prefetch"
+        : r.headers()["next-action"]
+          ? "action"
+          : r.method();
+      return `${kind} ${new URL(r.url()).pathname} for ${((Date.now() - t) / 1000).toFixed(0)}s`;
+    })
+    .join(", ");
+}
+
 function watch(page: Page, problems: string[]) {
   page.on("console", (m) => {
     if (m.type() === "error") problems.push(`console: ${m.text().slice(0, 200)}`);
@@ -94,6 +120,7 @@ async function visit(ctx: BrowserContext, who: Who, path: string): Promise<Page>
   const page = await ctx.newPage();
   const problems: string[] = [];
   watch(page, problems);
+  track(page);
   const t = performance.now();
   const res = await page.goto(base + path, { waitUntil: "networkidle" });
   const ms = Math.round(performance.now() - t);
@@ -216,7 +243,7 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
   page.off("requestfailed", onFailed);
   // Waits up to 120 s so a slow answer is told apart from none; an answer after 30 s still fails.
   const took = (Date.now() - clicked) / 1000;
-  if (!ok) message += ` {${seen.join("; ") || "no action request seen"}}`;
+  if (!ok) message += ` {${seen.join("; ") || "no action request seen"}; still in flight: ${pendingRequests(page)}}`;
   if (ok && took > 30) {
     ok = false;
     message = `slow answer: ${message}`;
