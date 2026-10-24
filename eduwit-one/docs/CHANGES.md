@@ -3,6 +3,12 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — go-live instructions for the owner's computer
+
+- `docs/GO-LIVE-SESSION.md`: the staging rehearsal, production dump and production apply as a self-contained brief for
+  a Claude session on the owner's computer, with the connection strings entered in a text editor, never a chat. The
+  cloud sessions cannot run these steps (D-089), and the connector's confirmation prompts did not reach the owner.
+
 ## 24 Oct 2026 — efficiency leftovers (0020; D-088)
 
 - Redaction compiled: the PII key list is one anchored pattern per call and the contact detector runs only on text
