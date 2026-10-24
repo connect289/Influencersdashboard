@@ -137,7 +137,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'A partner allocation is stuck in the push queue or keeps failing',
-  'description', 'b2b.allocations queued or pushing for more than push_ack_min minutes, or an allocation whose last push_fail_streak push requests all failed (no 2xx).',
+  'description', 'b2b.allocations queued or pushing for more than push_ack_min minutes, or an allocation being pushed (or failed in the last 7 days) whose last push_fail_streak push requests of the last 7 days all failed (no 2xx).',
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', true,
@@ -148,13 +148,16 @@ with stuck as (
   select id from b2b.allocations
    where status in ('queued', 'pushing') and not coalesce(is_test, false)
      and updated_at < now() - make_interval(mins => (select one.threshold('push_ack_min'))::int)),
+candidates as (
+  select id from b2b.allocations where status in ('queued', 'pushing') and not coalesce(is_test, false)
+  union
+  select id from b2b.allocations where status = 'failed' and not coalesce(is_test, false) and updated_at > now() - interval '7 days'),
 streaks as (
-  select p.allocation_id from (
-    select allocation_id, status_code, row_number() over (partition by allocation_id order by id desc) as rn
-      from b2b.push_requests where sent_at > now() - interval '7 days') p
-   group by p.allocation_id
-  having count(*) filter (where p.rn <= (select one.threshold('push_fail_streak'))) = (select one.threshold('push_fail_streak'))
-     and bool_and(p.rn > (select one.threshold('push_fail_streak')) or coalesce(p.status_code, 0) not between 200 and 299))
+  select c.id as allocation_id from candidates c
+   where (select count(*) = (select one.threshold('push_fail_streak')) and bool_and(coalesce(p.status_code, 0) not between 200 and 299)
+            from (select q.status_code from b2b.push_requests q
+                   where q.allocation_id = c.id and q.sent_at > now() - interval '7 days'
+                   order by q.sent_at desc, q.id desc limit (select one.threshold('push_fail_streak'))::int) p))
 select (select count(*) from stuck) = 0 and (select count(*) from streaks) = 0 as ok,
        jsonb_build_object('stuck', (select coalesce(jsonb_agg(id order by id), '[]') from stuck),
                           'failing_streaks', (select coalesce(jsonb_agg(allocation_id order by allocation_id), '[]') from streaks)) as value
@@ -274,7 +277,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'Partner SLAs are being breached',
-  'description', 'Today''s (IST) decided b2b.sla_checks breached above sla_breach_pct percent (at least 10 decided), or a partner whose last sla_met_late_run decided checks were all met_late.',
+  'description', 'Today''s (IST) decided b2b.sla_checks breached above sla_breach_pct percent (at least 10 decided), or a partner whose last sla_met_late_run decided checks (by due date) were all met_late.',
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', true,
@@ -284,13 +287,14 @@ select one.seed_check(jsonb_build_object(
 with today as (
   select status from b2b.sla_checks
    where not coalesce(is_test, false) and status in ('met', 'met_late', 'breached')
-     and (coalesce(breached_at, met_at, updated_at) at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date),
+     and coalesce(breached_at, met_at, updated_at) >= (((now() at time zone 'Asia/Kolkata')::date)::timestamp at time zone 'Asia/Kolkata')
+     and coalesce(breached_at, met_at, updated_at) < ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp) at time zone 'Asia/Kolkata')),
 runs as (
-  select partner_id from (
-    select partner_id, status, row_number() over (partition by partner_id order by coalesce(met_at, breached_at, updated_at) desc) as rn
-      from b2b.sla_checks where not coalesce(is_test, false) and status in ('met', 'met_late', 'breached')) s
-   where rn <= (select one.threshold('sla_met_late_run'))
-   group by partner_id having count(*) = (select one.threshold('sla_met_late_run')) and bool_and(status = 'met_late'))
+  select p.id as partner_id from b2b.partners p
+   where (select count(*) = (select one.threshold('sla_met_late_run')) and bool_and(s.status = 'met_late')
+            from (select q.status from b2b.sla_checks q
+                   where q.partner_id = p.id and not coalesce(q.is_test, false) and q.status in ('met', 'met_late', 'breached')
+                   order by q.due_at desc limit (select one.threshold('sla_met_late_run'))::int) s))
 select ((select count(*) from today) < 10
          or (select count(*) filter (where status = 'breached') * 100.0 / count(*) from today) <= (select one.threshold('sla_breach_pct')))
        and (select count(*) from runs) = 0 as ok,
@@ -519,7 +523,7 @@ select one.seed_check(jsonb_build_object(
 select count(*) = 0 as ok, jsonb_build_object('count', count(*), 'lead_ids', coalesce(to_jsonb((array_agg(lead_id order by lead_id) filter (where lead_id is not null))[1:20]), '[]')) as value
   from b2c.leads_state
  where not coalesce(is_test, false) and deleted_at is null
-   and (sla_breached_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date
+   and sla_breached_at >= (((now() at time zone 'Asia/Kolkata')::date)::timestamp at time zone 'Asia/Kolkata') and sla_breached_at < ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp) at time zone 'Asia/Kolkata')
    and (coalesce(hot, false) or coalesce(cause, '') ~* 'duplicate' or coalesce(handoff_reason, '') ~* 'duplicate')
 $sql$));
 
@@ -623,7 +627,7 @@ select one.seed_check(jsonb_build_object(
   'sql', $sql$
 select coalesce(sum(c.cost_inr), 0) <= coalesce((select (value ->> 'daily_cap_inr')::numeric from b2c.settings where key = 'ai'), 'infinity'::numeric) as ok,
        jsonb_build_object('spent_inr', round(coalesce(sum(c.cost_inr), 0), 2), 'cap_inr', (select value -> 'daily_cap_inr' from b2c.settings where key = 'ai')) as value
-  from b2c.ai_calls c where (c.at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date
+  from b2c.ai_calls c where c.at >= (((now() at time zone 'Asia/Kolkata')::date)::timestamp at time zone 'Asia/Kolkata') and c.at < ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp) at time zone 'Asia/Kolkata')
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -1310,11 +1314,12 @@ select one.seed_check(jsonb_build_object(
   'search_path', '',
   'sql', $sql$
 with v as (
-  select (select count(*) from public.student_leads l where not coalesce(l.is_test, false) and l.consent_partner_share_at is null
-            and exists (select 1 from b2b.allocations a where a.lead_id = l.id and a.destination_type = 'partner' and a.status in ('queued', 'pushing', 'pushed', 'accepted'))) as shared_without_consent,
+  select (select count(distinct a.lead_id) from b2b.allocations a join public.student_leads l on l.id = a.lead_id
+           where a.destination_type = 'partner' and a.status in ('queued', 'pushing', 'pushed', 'accepted')
+             and l.consent_partner_share_at is null and not coalesce(l.is_test, false)) as shared_without_consent,
          (select count(distinct m.lead_id) from b2c.wa_messages m join public.student_leads l on l.id = m.lead_id
            where m.direction = 'out' and (m.campaign_id is not null or m.journey_run_id is not null or coalesce(m.purpose, '') ~* 'market|campaign')
-             and m.status in ('sent', 'delivered', 'read') and (m.created_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date
+             and m.status in ('sent', 'delivered', 'read') and m.created_at >= (((now() at time zone 'Asia/Kolkata')::date)::timestamp at time zone 'Asia/Kolkata') and m.created_at < ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp) at time zone 'Asia/Kolkata')
              and l.consent_marketing_at is null and not coalesce(l.is_test, false)) as marketed_without_consent)
 select shared_without_consent + marketed_without_consent = 0 as ok, to_jsonb(v) as value from v
 $sql$));
@@ -1974,7 +1979,7 @@ select one.seed_check(jsonb_build_object(
   'sql', $sql$
 with v as (
   select (select coalesce(sum(cost_usd), 0) from public.web_advisor_sessions
-           where not coalesce(is_test, false) and (created_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date) as spent_usd_today,
+           where not coalesce(is_test, false) and created_at >= (((now() at time zone 'Asia/Kolkata')::date)::timestamp at time zone 'Asia/Kolkata') and created_at < ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp) at time zone 'Asia/Kolkata')) as spent_usd_today,
          (select count(*) from public.web_advisor_sessions s
            where not coalesce(s.is_test, false) and s.escalated_at between now() - interval '7 days' and now() - interval '1 hour'
              and not exists (select 1 from public.web_callback_requests c where c.session_id = s.id)) as escalations_without_callback)

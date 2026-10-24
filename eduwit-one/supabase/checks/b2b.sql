@@ -62,18 +62,21 @@ select count(*) = 0 as ok, jsonb_build_object('count', count(*), 'lead_ids', coa
 -- severity: P1
 -- cadence_s: 60
 -- title: A partner allocation is stuck in the push queue or keeps failing
--- description: b2b.allocations queued or pushing for more than push_ack_min minutes, or an allocation whose last push_fail_streak push requests all failed (no 2xx).
+-- description: b2b.allocations queued or pushing for more than push_ack_min minutes, or an allocation being pushed (or failed in the last 7 days) whose last push_fail_streak push requests of the last 7 days all failed (no 2xx).
 with stuck as (
   select id from b2b.allocations
    where status in ('queued', 'pushing') and not coalesce(is_test, false)
      and updated_at < now() - make_interval(mins => (select one.threshold('push_ack_min'))::int)),
+candidates as (
+  select id from b2b.allocations where status in ('queued', 'pushing') and not coalesce(is_test, false)
+  union
+  select id from b2b.allocations where status = 'failed' and not coalesce(is_test, false) and updated_at > now() - interval '7 days'),
 streaks as (
-  select p.allocation_id from (
-    select allocation_id, status_code, row_number() over (partition by allocation_id order by id desc) as rn
-      from b2b.push_requests where sent_at > now() - interval '7 days') p
-   group by p.allocation_id
-  having count(*) filter (where p.rn <= (select one.threshold('push_fail_streak'))) = (select one.threshold('push_fail_streak'))
-     and bool_and(p.rn > (select one.threshold('push_fail_streak')) or coalesce(p.status_code, 0) not between 200 and 299))
+  select c.id as allocation_id from candidates c
+   where (select count(*) = (select one.threshold('push_fail_streak')) and bool_and(coalesce(p.status_code, 0) not between 200 and 299)
+            from (select q.status_code from b2b.push_requests q
+                   where q.allocation_id = c.id and q.sent_at > now() - interval '7 days'
+                   order by q.sent_at desc, q.id desc limit (select one.threshold('push_fail_streak'))::int) p))
 select (select count(*) from stuck) = 0 and (select count(*) from streaks) = 0 as ok,
        jsonb_build_object('stuck', (select coalesce(jsonb_agg(id order by id), '[]') from stuck),
                           'failing_streaks', (select coalesce(jsonb_agg(allocation_id order by allocation_id), '[]') from streaks)) as value
@@ -150,17 +153,18 @@ select mapping_open + partner_event_errors + review_flags_open = 0 as ok, to_jso
 -- severity: P2
 -- cadence_s: 900
 -- title: Partner SLAs are being breached
--- description: Today's (IST) decided b2b.sla_checks breached above sla_breach_pct percent (at least 10 decided), or a partner whose last sla_met_late_run decided checks were all met_late.
+-- description: Today's (IST) decided b2b.sla_checks breached above sla_breach_pct percent (at least 10 decided), or a partner whose last sla_met_late_run decided checks (by due date) were all met_late.
 with today as (
   select status from b2b.sla_checks
    where not coalesce(is_test, false) and status in ('met', 'met_late', 'breached')
-     and (coalesce(breached_at, met_at, updated_at) at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date),
+     and coalesce(breached_at, met_at, updated_at) >= (((now() at time zone 'Asia/Kolkata')::date)::timestamp at time zone 'Asia/Kolkata')
+     and coalesce(breached_at, met_at, updated_at) < ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp) at time zone 'Asia/Kolkata')),
 runs as (
-  select partner_id from (
-    select partner_id, status, row_number() over (partition by partner_id order by coalesce(met_at, breached_at, updated_at) desc) as rn
-      from b2b.sla_checks where not coalesce(is_test, false) and status in ('met', 'met_late', 'breached')) s
-   where rn <= (select one.threshold('sla_met_late_run'))
-   group by partner_id having count(*) = (select one.threshold('sla_met_late_run')) and bool_and(status = 'met_late'))
+  select p.id as partner_id from b2b.partners p
+   where (select count(*) = (select one.threshold('sla_met_late_run')) and bool_and(s.status = 'met_late')
+            from (select q.status from b2b.sla_checks q
+                   where q.partner_id = p.id and not coalesce(q.is_test, false) and q.status in ('met', 'met_late', 'breached')
+                   order by q.due_at desc limit (select one.threshold('sla_met_late_run'))::int) s))
 select ((select count(*) from today) < 10
          or (select count(*) filter (where status = 'breached') * 100.0 / count(*) from today) <= (select one.threshold('sla_breach_pct')))
        and (select count(*) from runs) = 0 as ok,

@@ -246,7 +246,8 @@ class TaskCalls {
 }
 
 function userMessage(claim: Claim, data: unknown): string {
-  const json = JSON.stringify(data, null, 1);
+  // Compact: pretty-printing cost 10 to 15 % more input tokens on every call (efficiency review 13, D-088).
+  const json = JSON.stringify(data);
   if (json.length > CONTEXT_MAX_CHARS)
     throw new Stop("fail", `the task's data is too large (${json.length} characters)`);
   const t = claim.task;

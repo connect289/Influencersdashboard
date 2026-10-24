@@ -9,7 +9,7 @@ import { Empty, PageHeader } from "@/components/ui/state.tsx";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table.tsx";
 import { ago, ms } from "@/lib/format.ts";
 import { embeds } from "@/lib/embeds/index.ts";
-import { ui } from "@/lib/ui/api.ts";
+import { ui, UiError } from "@/lib/ui/api.ts";
 import { checksSchema, embedSchema, incidentRowSchema, pageOf, settingsSchema, type Embed } from "@/lib/ui/schemas.ts";
 
 export const metadata: Metadata = { title: "App" };
@@ -20,7 +20,18 @@ export default async function AppPage({ params }: { params: Promise<{ app: strin
   if (!app) notFound();
   // Panels are read in parallel; one that fails shows its own error and the rest still render.
   const [panels, settings, checks, incidents] = await Promise.all([
-    Promise.all(app.panels.map((p) => ui("ui_embed", embedSchema, { p_panel: p.id }).catch((): Embed | null => null))),
+    Promise.all(
+      app.panels.map((p) =>
+        ui("ui_embed", embedSchema, { p_panel: p.id }).catch((e: unknown): Embed => ({
+          panel: p.id,
+          ok: false,
+          kind: null,
+          error: e instanceof UiError ? e.message : "This panel could not be loaded.",
+          ms: 0,
+          data: null,
+        })),
+      ),
+    ),
     ui("ui_settings", settingsSchema).catch(() => null),
     ui("ui_checks", checksSchema, { p_app: key }).catch(() => null),
     ui("ui_incidents", pageOf(incidentRowSchema), { p_status: "open", p_app: key, p_limit: 20 }).catch(() => null),

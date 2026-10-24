@@ -118,4 +118,5 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | Uses Claude to the best extent within the rules | Ask reads the Setup state, each app's status, the fix catalogue, the audit and the runbook itself; filled-in questions on every open Setup item and Operate page; two eval questions (D-083). The AI still decides and executes nothing |
 | Helps set up and run the five apps from Eduwit One | an Operate page per app and for Eduwit One itself: needs, first-time steps, live state, what the fixes can do, tests, every-day checks, where to look per check, secrets, what stays in the app (D-083) |
 | Applies fixes to the apps only when tested and sure | proof before power: a trial of one row until a run holds, one run per verdict, the breaker that pauses a fix after two runs that did not hold until the owner clears it (D-084) |
+| Finish the efficiency review's leftovers | redaction compiled, one commit per check and per source, the app checks rewritten for the apps' indexes, the Witty sources' lookups only for new rows, compact AI context (D-088) |
 

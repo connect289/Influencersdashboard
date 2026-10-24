@@ -72,7 +72,7 @@ select (s.n < 20 or s.z * 100.0 / s.n <= 20) and f.n = 0 as ok,
 -- description: Sum of non-test web_advisor_sessions.cost_usd today (IST) above web_advisor_daily_usd, or a session escalated more than 1 h ago in the last 7 days with no web_callback_requests row.
 with v as (
   select (select coalesce(sum(cost_usd), 0) from public.web_advisor_sessions
-           where not coalesce(is_test, false) and (created_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date) as spent_usd_today,
+           where not coalesce(is_test, false) and created_at >= (((now() at time zone 'Asia/Kolkata')::date)::timestamp at time zone 'Asia/Kolkata') and created_at < ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp) at time zone 'Asia/Kolkata')) as spent_usd_today,
          (select count(*) from public.web_advisor_sessions s
            where not coalesce(s.is_test, false) and s.escalated_at between now() - interval '7 days' and now() - interval '1 hour'
              and not exists (select 1 from public.web_callback_requests c where c.session_id = s.id)) as escalations_without_callback)

@@ -567,7 +567,7 @@ create trigger forbid_mutation before update or delete on one.results for each r
 -- so a diagnostic stays readable (security review M1). one.redact() masks whole strings; this keeps the words around.
 create or replace function one.mask_text(p text) returns text
 language sql immutable set search_path = '' as $$
-  select case when p is null then null else
+  select case when p is null then null when p !~ '[0-9@]' then p else
     regexp_replace(
       regexp_replace(
         regexp_replace(p, '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', '[email]', 'g'),
@@ -1163,7 +1163,18 @@ begin
   return jsonb_build_object('ok', true, 'mute_id', v_id);
 end $$;
 
-create or replace function one.redact(p_value jsonb, p_keys text[]) returns jsonb
+-- Redaction compiled (efficiency review 8, D-088). The PII key list becomes one anchored pattern per call ("*" a
+-- wildcard, everything else literal), tested once per key instead of a like per key per node, and one.has_contact runs
+-- only on text that holds a digit or an @ (nothing else can be a phone or an email). one.redact(jsonb, text[]) keeps
+-- its signature as a thin wrapper, so every caller and test is unchanged.
+create or replace function one.redact_pattern(p_keys text[]) returns text
+language sql immutable set search_path = '' as $$
+  select case when p_keys is null or cardinality(p_keys) = 0 then null
+              else '^(' || (select string_agg(replace(regexp_replace(lower(k), '([.+?^$(){}|\[\]\\])', '\\\1', 'g'), '*', '.*'), '|')
+                              from unnest(p_keys) k) || ')$' end
+$$;
+
+create or replace function one.redact_with(p_value jsonb, p_pattern text) returns jsonb
 language plpgsql immutable set search_path = '' as $$
 declare
   v_out jsonb;
@@ -1172,13 +1183,13 @@ declare
 begin
   case jsonb_typeof(p_value)
     when 'object' then
-      select coalesce(jsonb_object_agg(coalesce('[' || one.has_contact(e.key) || ']', e.key), one.redact(e.value, p_keys)), '{}'::jsonb) into v_out
+      select coalesce(jsonb_object_agg(coalesce(case when e.key ~ '[0-9@]' then '[' || one.has_contact(e.key) || ']' end, e.key),
+                                       one.redact_with(e.value, p_pattern)), '{}'::jsonb) into v_out
         from jsonb_each(p_value) e
-       where not exists (select 1 from unnest(p_keys) k
-                          where lower(e.key) like replace(replace(lower(k), '_', '\_'), '*', '%'));
+       where p_pattern is null or lower(e.key) !~ p_pattern;
       return v_out;
     when 'array' then
-      select coalesce(jsonb_agg(one.redact(a.value, p_keys) order by a.ord), '[]'::jsonb) into v_out
+      select coalesce(jsonb_agg(one.redact_with(a.value, p_pattern) order by a.ord), '[]'::jsonb) into v_out
         from jsonb_array_elements(p_value) with ordinality a(value, ord);
       return v_out;
     when 'string' then
@@ -1186,14 +1197,16 @@ begin
       -- A JSON document kept as text (a partner reply, a webhook body): redacted as JSON, then stored as text again.
       if v_text ~ '^\s*[\[{]' and length(v_text) <= 20000 then
         begin
-          return to_jsonb(one.redact(v_text::jsonb, p_keys)::text);
+          return to_jsonb(one.redact_with(v_text::jsonb, p_pattern)::text);
         exception when invalid_text_representation then
           null;
         end;
       end if;
-      v_kind := one.has_contact(v_text);
-      if v_kind is not null then
-        return to_jsonb('[' || v_kind || ']');
+      if v_text ~ '[0-9@]' then
+        v_kind := one.has_contact(v_text);
+        if v_kind is not null then
+          return to_jsonb('[' || v_kind || ']');
+        end if;
       end if;
       return p_value;
     when 'number' then
@@ -1208,6 +1221,11 @@ begin
       return p_value;
   end case;
 end $$;
+
+create or replace function one.redact(p_value jsonb, p_keys text[]) returns jsonb
+language sql immutable set search_path = '' as $$
+  select one.redact_with(p_value, one.redact_pattern(p_keys))
+$$;
 
 -- A plan with no row list is kept whole (security review m10: jsonb_typeof(null) fell through to "applies false").
 create or replace function one.fix_plan_within(p_plan jsonb, p_rows jsonb) returns jsonb
@@ -1303,6 +1321,8 @@ language sql stable set search_path = '' as $$
   select s.source, s.app, s.sql from one.events_sources() s left join one.event_watermarks w on w.source = s.source
    where coalesce(w.killed_count, 0) < 3
      and (w.last_status is distinct from 'killed' or w.last_started_at < now() - interval '10 minutes')
+     -- A source whose table or function is missing is tried again after 10 minutes, not every minute (D-088).
+     and (w.last_status is distinct from 'source_missing' or w.updated_at < now() - interval '10 minutes')
    order by w.last_status = 'killed' nulls first, w.last_started_at nulls first, s.source
 $$;
 
@@ -1545,13 +1565,17 @@ begin
   v_report := v_report || one.reap_killed();
   update one.runs set report = v_report where id = v_run;
   commit;
+  -- One commit per check (efficiency review 12, D-088): this check's start mark leaves with the previous check's results
+  -- and the report in one transaction, so the mark is still committed before the run (B1) and a kill still takes only
+  -- the run it hit; the phase ends with its own commit.
   for v_id in select one.due_checks(false) loop
     perform one.mark_started(v_id);
-    commit;
-    v_report := one.report_add(v_report, one.run_check_safe(v_id));
     update one.runs set report = v_report where id = v_run;
     commit;
+    v_report := one.report_add(v_report, one.run_check_safe(v_id));
   end loop;
+  update one.runs set report = v_report where id = v_run;
+  commit;
   v_report := v_report || one.alerts_step();
   update one.runs set report = v_report where id = v_run;
   commit;
@@ -1562,20 +1586,24 @@ begin
   v_report := v_report || coalesce(v_fixes, '{}');
   update one.runs set report = v_report where id = v_run;
   commit;
+  -- One commit per source, as for the checks (D-088); the report always carries an events key.
+  v_report := jsonb_set(v_report, '{events}', coalesce(v_report -> 'events', '{}'));
   for v_src in select * from one.events_due() loop
     perform one.mark_source_started(v_src.source);
-    commit;
-    v_report := jsonb_set(v_report, '{events}', coalesce(v_report -> 'events', '{}') || one.events_copy_safe(v_src.source, v_src.app, v_src.sql));
     update one.runs set report = v_report where id = v_run;
     commit;
+    v_report := jsonb_set(v_report, '{events}', (v_report -> 'events') || one.events_copy_safe(v_src.source, v_src.app, v_src.sql));
   end loop;
+  update one.runs set report = v_report where id = v_run;
+  commit;
   for v_id in select one.due_checks(true) loop
     perform one.mark_started(v_id);
-    commit;
-    v_report := one.report_add(v_report, one.run_check_safe(v_id));
     update one.runs set report = v_report where id = v_run;
     commit;
+    v_report := one.report_add(v_report, one.run_check_safe(v_id));
   end loop;
+  update one.runs set report = v_report where id = v_run;
+  commit;
   -- Self-repair (D-085): Eduwit One's own two cron jobs are re-created when one is gone (review F5). A job a person
   -- set inactive is left alone: that is a choice, not a loss.
   for v_job in select * from (values ('one-tick', '* * * * *', 'call one.tick_job()'),
@@ -1875,4 +1903,167 @@ begin
     timeout_milliseconds := greatest(1000, least(p_timeout_ms, 300000)));
 end $$;
 -- <<< hardening batch 2
+-- >>> efficiency leftovers (D-088)
+-- The Witty sources look a lead up by phone for each row they return; rows the overlap re-reads are skipped first now,
+-- so the lookup runs only for rows not copied yet (efficiency review 17). Everything else is 0004's text.
+create or replace function one.events_sources() returns table (source text, app text, sql text)
+language sql immutable set search_path = '' as $src$
+  values
+  ('public.w2_events', 'witty', $$select r.id::text as source_id, r.created_at as occurred_at, r.type,
+      (select sl.id from public.student_leads sl where sl.whatsapp_number = public.crm_norm_phone(r.phone) limit 1) as lead_id,
+      'run'::text as actor_type, r.run_id as actor_id, to_jsonb(r) as payload, r.id as wm_id, null::timestamptz as wm_at
+    from public.w2_events r where r.id > $1
+     and not exists (select 1 from one.events e where e.app = 'witty' and e.source_table = 'public.w2_events' and e.source_id = r.id::text)
+    order by r.id limit $3$$),
+  ('public.w2_messages', 'witty', $$select r.id::text, r.created_at, 'msg.' || coalesce(r.direction, '?') || '.' || coalesce(r.kind, '?'),
+      (select sl.id from public.student_leads sl where sl.whatsapp_number = public.crm_norm_phone(r.phone) limit 1),
+      'model'::text, r.model,
+      jsonb_build_object('direction', r.direction, 'kind', r.kind, 'reply_source', r.reply_source, 'latency_ms', r.latency_ms,
+                         'prompt_tokens', r.prompt_tokens, 'output_tokens', r.output_tokens, 'verify_errors', r.verify_errors),
+      r.id, null::timestamptz
+    from public.w2_messages r where r.id > $1
+     and not exists (select 1 from one.events e where e.app = 'witty' and e.source_table = 'public.w2_messages' and e.source_id = r.id::text)
+    order by r.id limit $3$$),
+  ('public.w2_outbox', 'witty', $$select r.id || ':' || r.status, coalesce(r.sent_at, r.created_at), 'outbox.' || r.status,
+      case when r.crm_record_id ~ '^[0-9]+$' then r.crm_record_id::bigint end, 'outbox'::text, r.target,
+      jsonb_build_object('status', r.status, 'attempts', r.attempts, 'target', r.target, 'event_type', r.event_type, 'last_error', left(r.last_error, 300)),
+      null::bigint, coalesce(r.sent_at, r.created_at)
+    from public.w2_outbox r where r.created_at > $2 order by r.id desc limit $3$$),
+  ('b2b.events', 'b2b', $$select r.id::text, r.occurred_at, r.type, r.lead_id, r.actor_type, r.actor_id, to_jsonb(r), r.id, null::timestamptz
+    from b2b.events r where r.id > $1 order by r.id limit $3$$),
+  ('b2b.allocation_transitions', 'b2b', $$select r.id::text, r.at, 'allocation.' || r.to_status,
+      (select a.lead_id from b2b.allocations a where a.id = r.allocation_id), r.actor_type, r.actor_id, to_jsonb(r), r.id, null::timestamptz
+    from b2b.allocation_transitions r where r.id > $1 order by r.id limit $3$$),
+  ('b2b.partner_events', 'b2b', $$select r.id::text, r.received_at, 'partner.' || coalesce(r.event_type, '?'), r.lead_id, 'partner'::text, r.partner_id::text,
+      jsonb_build_object('status', r.status, 'result', left(r.result, 300), 'allocation_id', r.allocation_id, 'record_id', r.record_id), r.id, null::timestamptz
+    from b2b.partner_events r where r.id > $1 order by r.id limit $3$$),
+  ('b2c.events', 'b2c', $$select r.id::text, r.at, r.type, r.lead_id, r.actor_type, r.actor_id::text, to_jsonb(r), r.id, null::timestamptz
+    from b2c.events r where r.id > $1 order by r.id limit $3$$),
+  ('b2c.activities', 'b2c', $$select r.id::text, r.at, 'activity.' || coalesce(r.kind, '?'), r.lead_id, 'user'::text, r.actor_id::text,
+      to_jsonb(r) - 'body' - 'meta', r.id, null::timestamptz
+    from b2c.activities r where r.id > $1 order by r.id limit $3$$),
+  ('b2c.audit_log', 'b2c', $$select r.id::text, r.at, 'audit.' || r.action, r.lead_id, 'user'::text, r.actor_id::text, to_jsonb(r) - 'detail', r.id, null::timestamptz
+    from b2c.audit_log r where r.id > $1 order by r.id limit $3$$),
+  ('public.web_funnel_events', 'web', $$select r.id::text, r.at, 'funnel.' || r.funnel || '.' || r.step, null::bigint, 'anon'::text, r.anon_id,
+      to_jsonb(r), r.id, null::timestamptz
+    from public.web_funnel_events r where r.id > $1 order by r.id limit $3$$),
+  ('public.web_audit_log', 'web', $$select r.id::text, r.at, 'audit.' || r.action, null::bigint, 'staff'::text, r.actor_email,
+      jsonb_build_object('entity', r.entity, 'entity_id', r.entity_id, 'request_id', r.request_id), r.id, null::timestamptz
+    from public.web_audit_log r where r.id > $1 order by r.id limit $3$$),
+  ('public.web_advisor_sessions', 'web', $$select x.source_id, x.at, x.type, x.lead_id, 'session'::text, x.session, x.payload, null::bigint, x.at from (
+      select r.id || ':open' as source_id, r.created_at as at, 'advisor.open' as type, r.lead_id, r.id::text as session,
+             jsonb_build_object('phase', r.phase, 'is_test', r.is_test) as payload from public.web_advisor_sessions r
+      union all select r.id || ':escalate', r.escalated_at, 'advisor.escalate', r.lead_id, r.id::text, jsonb_build_object('classification', r.classification)
+        from public.web_advisor_sessions r where r.escalated_at is not null
+      union all select r.id || ':end', r.ended_at, 'advisor.end', r.lead_id, r.id::text,
+             jsonb_build_object('turns', r.turns, 'cost_usd', r.cost_usd, 'readiness', r.readiness) from public.web_advisor_sessions r where r.ended_at is not null) x
+    where x.at > $2 order by x.at desc limit $3$$),
+  ('public.touchpoints', 'integrity', $$select r.id::text, r.occurred_at, 'touch.' || coalesce(r.event_type, '?'), r.lead_id, 'system'::text, r.source_system,
+      to_jsonb(r) - 'payload', r.id, null::timestamptz
+    from public.touchpoints r where r.id > $1 order by r.id limit $3$$),
+  ('cron.job_run_details', 'platform', $$select d.runid::text, d.start_time, 'cron.failed', null::bigint, 'job'::text, j.jobname,
+      jsonb_build_object('jobid', d.jobid, 'message', left(d.return_message, 300)), null::bigint, d.end_time
+    from cron.job_run_details d join cron.job j on j.jobid = d.jobid
+    where d.status = 'failed' and d.runid > (select max(x.runid) from cron.job_run_details x) - 20000 and d.start_time > $2
+    order by d.runid desc limit $3$$),
+  ('inf.domain_events', 'influencer', $$select r.id::text, r.occurred_at, r.type, null::bigint, 'user'::text, r.actor_id::text,
+      jsonb_build_object('subject_type', r.subject_type, 'subject_id', r.subject_id), r.id, null::timestamptz
+    from inf.domain_events r where r.id > $1 order by r.id limit $3$$),
+  ('one.incidents', 'one', $$select r.id::text, r.opened_at, 'one.incident.' || lower(r.severity), null::bigint, 'one'::text, r.check_id,
+      jsonb_build_object('check_id', r.check_id, 'app', r.app, 'severity', r.severity), r.id, null::timestamptz
+    from one.incidents r where r.id > $1 order by r.id limit $3$$),
+  ('one.actions', 'one', $$select r.id::text, r.ran_at, 'one.action.' || r.status, null::bigint, 'one'::text, r.fix_id,
+      jsonb_build_object('fix_id', r.fix_id, 'dry_run', r.dry_run, 'incident_id', r.incident_id), r.id, null::timestamptz
+    from one.actions r where r.id > $1 order by r.id limit $3$$)
+$src$;
+
+-- A JSON value cut down for a model's context (D-088): arrays keep their first p_items elements and say how many were
+-- left out, strings their first p_chars characters; objects and scalars are kept, recursively.
+create or replace function one.jsonb_compact(p jsonb, p_items integer default 5, p_chars integer default 200) returns jsonb
+language plpgsql immutable set search_path = '' as $$
+declare
+  v jsonb;
+  n integer;
+begin
+  case jsonb_typeof(p)
+    when 'object' then
+      select coalesce(jsonb_object_agg(e.key, one.jsonb_compact(e.value, p_items, p_chars)), '{}'::jsonb) into v from jsonb_each(p) e;
+      return v;
+    when 'array' then
+      n := jsonb_array_length(p);
+      select coalesce(jsonb_agg(one.jsonb_compact(a.value, p_items, p_chars) order by a.ord), '[]'::jsonb) into v
+        from jsonb_array_elements(p) with ordinality a(value, ord) where a.ord <= p_items;
+      return case when n > p_items then v || to_jsonb(format('… %s more', n - p_items)) else v end;
+    when 'string' then
+      return case when length(p #>> '{}') > p_chars then to_jsonb(left(p #>> '{}', p_chars) || '…') else p end;
+    else
+      return p;
+  end case;
+end $$;
+
+create or replace function one.ai_incident_context(p_id bigint, p_kind text) returns jsonb
+language plpgsql stable set search_path = '' as $$
+declare
+  v_i one.incidents;
+  v_c one.checks;
+  v jsonb;
+begin
+  select * into v_i from one.incidents where id = p_id;
+  if not found then
+    raise exception 'no incident %', p_id using errcode = 'P0002';
+  end if;
+  select * into v_c from one.checks where id = v_i.check_id;
+  v := jsonb_build_object(
+    'incident', jsonb_build_object('id', v_i.id, 'check_id', v_i.check_id, 'app', v_i.app, 'severity', v_i.severity, 'title', v_i.title,
+                                   'opened_at', v_i.opened_at, 'last_seen_at', v_i.last_seen_at, 'occurrences', v_i.occurrences,
+                                   'reopened_count', v_i.reopened_count, 'acknowledged', v_i.acknowledged_at is not null,
+                                   'resolved_at', v_i.resolved_at, 'resolution', v_i.resolution, 'subjects', to_jsonb(v_i.subjects),
+                                   'tags', to_jsonb(v_i.tags), 'alert_state', v_i.alert_state, 'evidence', v_i.evidence,
+                                   'first_evidence', v_i.first_evidence, 'summary', v_i.summary, 'root_cause', v_i.root_cause,
+                                   'parent_id', v_i.parent_id,
+                                   'minutes_open', round(extract(epoch from coalesce(v_i.resolved_at, now()) - v_i.opened_at) / 60)),
+    'check', jsonb_build_object('id', v_c.id, 'app', v_c.app, 'title', v_c.title, 'description', v_c.description, 'kind', v_c.kind,
+                                'severity', v_c.severity, 'cadence_s', v_c.cadence_s, 'tags', to_jsonb(v_c.tags), 'auto_fix_id', v_c.auto_fix_id,
+                                'open_after', v_c.open_after, 'resolve_after', v_c.resolve_after,
+                                'rule_sql', case when p_kind in ('explain', 'propose_fix', 'test_author') then left(v_c.sql, 4000) end),
+    -- The newest result whole; the older ones compacted (arrays to 5 items, strings to 120 characters): they are the bulk
+    -- of the context and the prompts cite their status, time and counts (efficiency review 13, D-088).
+    'recent_results', (select coalesce(jsonb_agg(jsonb_build_object('at', r.ran_at, 'status', r.status,
+                                                                    'value', case when r.rn = 1 then r.value else one.jsonb_compact(r.value, 5, 120) end,
+                                                                    'error', left(r.error, 300), 'ms', r.duration_ms) order by r.ran_at desc), '[]')
+                         from (select x.*, row_number() over (order by x.ran_at desc, x.id desc) as rn
+                                 from one.results x where x.check_id = v_i.check_id order by x.ran_at desc, x.id desc
+                                limit case when p_kind = 'classify' then 5 else 20 end) r),
+    'history', (select coalesce(jsonb_agg(jsonb_build_object('id', h.id, 'opened_at', h.opened_at, 'resolved_at', h.resolved_at, 'resolution', h.resolution,
+                                                             'occurrences', h.occurrences,
+                                                             'minutes_open', round(extract(epoch from coalesce(h.resolved_at, now()) - h.opened_at) / 60))
+                                          order by h.opened_at desc), '[]')
+                  from (select * from one.incidents where check_id = v_i.check_id and id <> v_i.id order by opened_at desc limit 10) h),
+    'open_same_app', (select coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'check_id', o.check_id, 'severity', o.severity, 'title', o.title,
+                                                                   'opened_at', o.opened_at) order by o.opened_at desc), '[]')
+                        from (select * from one.incidents where app = v_i.app and resolved_at is null and id <> v_i.id and check_id <> 'ONE-SYNTH'
+                               order by opened_at desc limit 15) o),
+    'children', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'check_id', c.check_id, 'app', c.app, 'severity', c.severity, 'title', c.title)
+                                           order by c.id), '[]')
+                   from (select * from one.incidents where parent_id = v_i.id order by id limit 30) c),
+    'heartbeats_down', (select coalesce(jsonb_agg(jsonb_build_object('component', h.component, 'last_ok_at', h.last_ok_at, 'last_error_at', h.last_error_at,
+                                                                     'last_error', left(h.last_error, 200)) order by h.component), '[]')
+                          from one.heartbeats h where h.last_error_at is not null and h.last_error_at > coalesce(h.last_ok_at, '-infinity')),
+    'fixes_run', (select coalesce(jsonb_agg(jsonb_build_object('fix_id', a.fix_id, 'status', a.status, 'dry_run', a.dry_run, 'at', a.ran_at) order by a.ran_at desc), '[]')
+                    from (select * from one.actions where incident_id = v_i.id order by ran_at desc limit 10) a),
+    'ai_notes', (select coalesce(jsonb_agg(jsonb_build_object('kind', t.kind, 'result', t.result - 'meta', 'at', t.created_at) order by t.id desc), '[]')
+                   from (select * from one.ai_tasks where incident_id = v_i.id and status = 'done' and kind in ('classify', 'triage', 'explain')
+                          order by id desc limit 5) t));
+  if p_kind = 'test_author' then
+    v := v || jsonb_build_object('tests', (select coalesce(jsonb_agg(jsonb_build_object('id', t.id, 'app', t.app, 'title', t.title, 'enabled', t.enabled,
+                                                                                       'description', t.description) order by t.id), '[]')
+                                             from one.tests t));
+  end if;
+  v := one.redact(v, one.pii_keys());
+  if p_kind = 'explain' and v_i.app = 'witty' and coalesce((one.setting('ai') ->> 'allow_message_excerpts')::boolean, false) then
+    v := v || jsonb_build_object('messages', one.ai_witty_excerpts(v_i.opened_at));
+  end if;
+  return v;
+end $$;
+-- <<< efficiency leftovers
 call one.apply_grants();

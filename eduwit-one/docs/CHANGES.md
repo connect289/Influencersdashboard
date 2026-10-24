@@ -3,6 +3,21 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — efficiency leftovers (0020; D-088)
+
+- Redaction compiled: the PII key list is one anchored pattern per call and the contact detector runs only on text
+  that can hold a contact; `one.redact` keeps its signature and results. `one.mask_text` takes the same short path.
+- The tick commits once per check and once per event source (the start mark still committed before the run); a source
+  whose table is missing waits 10 minutes before the next try; the report always carries its events key.
+- B2B-05, B2B-10 and INT-07 rewritten for the apps' indexes; B2B-10, INT-07, B2C-05, B2C-09 and WEB-06 use a sargable
+  IST day. B2B-10's "last decided checks" are by due date now. To re-run read-only on production before go-live.
+- The Witty event sources skip rows already copied before the per-row lead lookup.
+- The model's per-task data is compact JSON; the incident context sends the newest result whole and compacts the older
+  ones (`one.jsonb_compact`).
+- A failed Vault read is logged with its cause; a failed app panel shows its error on the card.
+- Tests: `99_hardening.sql` section 8 (pattern equivalence, the tick's transaction count, the back-off, the Witty
+  sources, the compacted context). The hardening review's table says what was done per item.
+
 ## 24 Oct 2026 — hardening: proof before power, self-healing, security, efficiency (0020; D-084 to D-087)
 
 - Fixes (D-084): a switched-on fix acts on one row until a run of it has held (a proposal, whatever opens it, still

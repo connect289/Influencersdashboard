@@ -77,12 +77,12 @@ every key-rotation path ending at the watchdog, IST without DST, API roles witho
 | 5 M | ONE-01's spend used a non-sargable date cast and duplicated `ai_spent_today()` | Uses the function |
 | 6 M | `one.audit` had no target index and grew without bound | `(target, id)`; app-report rows pruned after 30 days; mute writes once |
 | 7 M | `fix_verify_due` and `app_fixes_claim` scanned every historical run | Bounded to 7 and 2 days; partial index on before rows |
-| 8 M | `one.redact` cost 0.85 ms per payload | Left for later (listed in D-087) |
+| 8 M | `one.redact` cost 0.85 ms per payload | Done (D-088): the key list compiled once per call (`one.redact_pattern`), `has_contact` only on text with a digit or `@` (`one.redact_with`); same signature and results; tested §8a |
 | 9 M | Deliveries died after two tries; watchdog blind (= F1) | Done with F1 |
 | 10 M | 97 % of results are ok rows kept 90 days | Two-tier retention (`ok_results_days` 14) |
 | 11 M | `ui_overview` evaluated heartbeats 18 times and scanned events per app | One pass each; index `events (app, occurred_at)` |
-| 12 M | Two commits per check per tick | Left for later |
-| 13–21 L | AI context pretty-printed; app checks' own scans; incidents index; `ui_actions` day cast; events overlap; sender deadline; middleware claims; four rpc wrappers; swallowed causes | Done: incidents index, `ui_actions` window, sender deadline (F8). Left for later: the rest, listed in D-087 |
+| 12 M | Two commits per check per tick | Done (D-088): one commit per check and per source (the start mark still committed before the run); a missing source waits 10 minutes; tested §8b, §8c |
+| 13–21 L | AI context pretty-printed; app checks' own scans; incidents index; `ui_actions` day cast; events overlap; sender deadline; middleware claims; four rpc wrappers; swallowed causes | Done: incidents index, `ui_actions` window, sender deadline (F8); then (D-088) compact AI context with the older results compacted (13, tested §8e), B2B-05, B2B-10, INT-07 rewritten for the apps' indexes and five checks on a sargable IST day (14; B2B-07 stays, no index to use), the Witty sources skip copied rows before the lookup (17, tested §8d), a logged Vault failure and a panel that shows its error (21). Left: a runbook line asks the owner to confirm asymmetric JWT signing keys (19); the four client wrappers stay (20) |
 | dead | `one.record_action` never called | Dropped |
 
 ## After the fixes
@@ -95,4 +95,6 @@ the click-through passes (152 pages, 20 of 20 writes, 41 RPC functions). Along t
 corrected where they encoded the old behaviour: a run by hand on an incident just acted on now waits for the verdict,
 not the cooldown; an unproven fix hands the app one execution; the storm check's state row is made before it is
 killed; the flap test marks deliveries by id, not by time; and `one.tick_lock_holder` now reads the lock the way
-pg_locks shows a bigint advisory key (objsubid 1, classid by sign), which the first version did not.
+pg_locks shows a bigint advisory key (objsubid 1, classid by sign), which the first version did not. The same day the
+efficiency review's leftovers were done too (D-088): the local database test, tooling tests, guards, generators, web
+check and click-through pass again on that tree.

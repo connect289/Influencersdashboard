@@ -29,6 +29,12 @@ them. App-run checks (http) are not SQL and are not in this table.
 
 ## Re-run, 24 Oct 2026
 
+Before go-live, re-run read-only (`scripts/db/try-checks.ts`) the checks D-088 rewrote for the apps' indexes without a
+production timing: B2B-05 (candidate allocations and their last pushes), B2B-10 (per-partner last decided SLA checks by
+due date), INT-07 (from the open partner allocations), and the five on a sargable IST day (B2B-10, INT-07, B2C-05,
+B2C-09, WEB-06). Compare each value with the previous trial's.
+
+
 B2B-01's new SQL (it now also fails on dead deliveries and deliveries waiting over an hour, D-080) was run on production
 at 06:49 UTC, read only: **ok**. `health_check()` ok, 0 dead deliveries in 7 days, 0 waiting over an hour, B2C sync
 cursor 2 s old.

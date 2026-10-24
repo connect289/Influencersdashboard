@@ -97,10 +97,11 @@ select b.value is null or not exists (select 1 from jsonb_array_elements_text(b.
 -- title: A lead was shared or marketed to without consent
 -- description: A non-test lead with an open partner allocation and no consent_partner_share_at, or a marketing WhatsApp (campaign or journey) sent today (IST) to a lead with no consent_marketing_at.
 with v as (
-  select (select count(*) from public.student_leads l where not coalesce(l.is_test, false) and l.consent_partner_share_at is null
-            and exists (select 1 from b2b.allocations a where a.lead_id = l.id and a.destination_type = 'partner' and a.status in ('queued', 'pushing', 'pushed', 'accepted'))) as shared_without_consent,
+  select (select count(distinct a.lead_id) from b2b.allocations a join public.student_leads l on l.id = a.lead_id
+           where a.destination_type = 'partner' and a.status in ('queued', 'pushing', 'pushed', 'accepted')
+             and l.consent_partner_share_at is null and not coalesce(l.is_test, false)) as shared_without_consent,
          (select count(distinct m.lead_id) from b2c.wa_messages m join public.student_leads l on l.id = m.lead_id
            where m.direction = 'out' and (m.campaign_id is not null or m.journey_run_id is not null or coalesce(m.purpose, '') ~* 'market|campaign')
-             and m.status in ('sent', 'delivered', 'read') and (m.created_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date
+             and m.status in ('sent', 'delivered', 'read') and m.created_at >= (((now() at time zone 'Asia/Kolkata')::date)::timestamp at time zone 'Asia/Kolkata') and m.created_at < ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp) at time zone 'Asia/Kolkata')
              and l.consent_marketing_at is null and not coalesce(l.is_test, false)) as marketed_without_consent)
 select shared_without_consent + marketed_without_consent = 0 as ok, to_jsonb(v) as value from v

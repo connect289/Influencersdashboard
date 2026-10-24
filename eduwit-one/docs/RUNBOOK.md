@@ -64,7 +64,8 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
   Google provider is the one Spark already uses. Any Google account can complete the provider's flow and leave an
   `auth.users` row in the shared project (the callback signs it out, but the row stays and the CRMs' new-user
   trigger fires): keep Supabase's sign-ups disabled for the project, or the Google provider limited to the domain. Vercel env: `ONE_SUPABASE_URL`, `ONE_SUPABASE_ANON_KEY`,
-  `ONE_SUPABASE_SERVICE_KEY`, `ONE_INTERNAL_KEY` (Setup item `one_app_env`).
+  `ONE_SUPABASE_SERVICE_KEY`, `ONE_INTERNAL_KEY` (Setup item `one_app_env`). Use Supabase's asymmetric JWT signing keys
+  (Project settings → JWT keys): the app then verifies a session on its own on every page instead of asking Supabase.
 
 ## Setup
 

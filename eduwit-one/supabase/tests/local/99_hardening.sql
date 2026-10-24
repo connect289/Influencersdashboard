@@ -373,4 +373,53 @@ select pg_temp.ok((:'ret'::jsonb ->> 'ok_results')::int >= 1 and (:'ret'::jsonb 
 select pg_temp.ok((select count(*) = 1 from one.results where check_id = 'B2C-05' and ran_at < now() - interval '19 days'), 'the failure of the same age stays');
 select pg_temp.ok((select count(*) = 1 from one.audit where target = 'settings:x' and at < now() - interval '39 days'), 'a person''s audit row stays');
 select pg_temp.ok(current_setting('one.history_writer', true) is distinct from 'on' or true, 'retention leaves the writer flag local');
+
+-- 8. Efficiency leftovers (D-088) -------------------------------------------------------------------------------------
+-- 8a. The compiled key pattern does what the like-per-key did; redact's results are unchanged (sections above).
+select pg_temp.ok(one.redact_pattern('{guardian_*,*_phone,name,email_*}') = '^(guardian_.*|.*_phone|name|email_.*)$',
+                  'the key list becomes one anchored pattern: ' || one.redact_pattern('{guardian_*,*_phone,name,email_*}'));
+select pg_temp.ok(lower('Guardian_Name') ~ one.redact_pattern('{guardian_*}') and lower('mobile_phone') ~ one.redact_pattern('{*_phone}')
+                  and lower('names') !~ one.redact_pattern('{name}') and lower('phone_type') !~ one.redact_pattern('{*_phone}'),
+                  'wildcards match as the like did; a bare key matches whole');
+select pg_temp.ok(one.redact_pattern('{a.b,x(y)}') = '^(a\.b|x\(y\))$', 'regex characters in a key are literal: ' || one.redact_pattern('{a.b,x(y)}'));
+select pg_temp.ok(one.redact_pattern('{}') is null and one.redact('{"name": "Asha", "n": 1}', '{}') = '{"name": "Asha", "n": 1}', 'no keys: nothing dropped');
+select pg_temp.ok(one.redact('{"Guardian_Name": "R", "note": "no contact here", "mobile_phone": "x", "t": "ring 9811122334"}', '{guardian_*,*_phone}')
+                  = '{"note": "no contact here", "t": "[phone]"}', 'keys dropped by the pattern; text without a digit or @ kept as is; a phone masked');
+select pg_temp.ok(one.mask_text('no digits here') = 'no digits here' and one.mask_text('ring 9811122334 now') = 'ring [phone] now',
+                  'mask_text: the short path for text without a digit or @');
+-- 8b. One commit per check and per source: a tick with every check due uses far fewer write transactions than two per check.
+update one.check_state set last_ran_at = now() - interval '1 day', last_started_at = now() - interval '1 day' where killed_count = 0;
+delete from one.runs where kind = 'tick' and bucket = date_trunc('minute', now());
+-- (The database's own commit counter, flushed on demand: transaction ids would also count the subtransactions each check runs in.)
+select pg_stat_force_next_flush();
+select xact_commit as x0 from pg_stat_database where datname = current_database() \gset
+call one.tick_job();
+select pg_stat_force_next_flush();
+select xact_commit as x1 from pg_stat_database where datname = current_database() \gset
+select pg_temp.ok((:x1 - :x0) <= (select count(*) from one.checks where enabled) + (select count(*) from one.events_sources()) + 40,
+                  format('a tick with every check due committed %s times (checks %s, sources %s); two per check would be over the bound', :x1 - :x0,
+                         (select count(*) from one.checks where enabled), (select count(*) from one.events_sources())));
+select pg_temp.ok((select report ? 'events' and finished_at is not null from one.runs where kind = 'tick' order by id desc limit 1), 'the tick finished with its events key');
+-- 8c. A source whose table is missing waits 10 minutes before the next try.
+insert into one.event_watermarks (source, last_status, updated_at) values ('b2c.audit_log', 'source_missing', now())
+on conflict (source) do update set last_status = 'source_missing', updated_at = now();
+select pg_temp.ok(not exists (select 1 from one.events_due() d where d.source = 'b2c.audit_log'), 'a source found missing a minute ago is not due');
+update one.event_watermarks set updated_at = now() - interval '11 minutes' where source = 'b2c.audit_log';
+select pg_temp.ok(exists (select 1 from one.events_due() d where d.source = 'b2c.audit_log'), 'and is due again after 10 minutes');
+-- 8d. The Witty sources skip rows already copied before the lead lookup.
+select pg_temp.ok((select count(*) = 2 from one.events_sources() s where s.app = 'witty' and s.sql ~ 'not exists \(select 1 from one\.events e'),
+                  'the two Witty sources skip rows already copied before looking the lead up');
+-- 8e. The model's context: the newest result whole, the older ones compacted.
+select pg_temp.ok(one.jsonb_compact('{"ids": [1, 2, 3, 4, 5, 6, 7], "s": "abcdefghij", "n": 5, "o": {"k": [1]}}', 5, 4)
+                  = '{"ids": [1, 2, 3, 4, 5, "… 2 more"], "s": "abcd…", "n": 5, "o": {"k": [1]}}',
+                  'jsonb_compact caps arrays and strings and keeps the rest: ' || one.jsonb_compact('{"ids": [1, 2, 3, 4, 5, 6, 7], "s": "abcdefghij", "n": 5, "o": {"k": [1]}}', 5, 4)::text);
+select one.open_or_touch_incident('B2C-05', 'P2', '{"status": "fail", "value": {"count": 1}}') as i_ctx \gset
+-- (Timed just ahead of the tick's own run of the check above, so these two are the newest.)
+insert into one.results (check_id, ran_at, status, value) values
+  ('B2C-05', now() + interval '1 second', 'fail', '{"count": 10, "ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}'),
+  ('B2C-05', now() + interval '2 seconds', 'fail', '{"count": 1}');
+select one.ai_incident_context(:i_ctx, 'classify') -> 'recent_results' as rr \gset
+select pg_temp.ok(:'rr'::jsonb -> 0 -> 'value' = '{"count": 1}' and jsonb_array_length(:'rr'::jsonb -> 1 -> 'value' -> 'ids') = 6
+                  and :'rr'::jsonb -> 1 -> 'value' -> 'ids' -> 5 = '"… 5 more"', 'the newest result is whole, the older ones compacted: ' || left(:'rr', 300));
+update one.incidents set resolved_at = now(), resolution = 'fixed', resolution_note = 'test' where id = :i_ctx;
 \echo passed 99_hardening.sql

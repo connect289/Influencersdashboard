@@ -1,5 +1,6 @@
 import type { OneDb } from "../db.ts";
 import { secretEnv } from "../env.ts";
+import { log } from "../log.ts";
 
 // Where each vendor credential comes from (spec standard 3, D-059): the Vercel env when set there, else the Vault
 // secret the Setup page saved (one.app_secrets), read at most once a minute. A secret saved on the Setup page takes
@@ -48,7 +49,13 @@ export async function vaultSecrets(db: Pick<OneDb, "appSecrets">, now = Date.now
   if (cached && now - cached.at < 60_000) return cached.value;
   try {
     cached = { at: now, value: await db.appSecrets() };
-  } catch {
+  } catch (e) {
+    // Said once per minute at most (the cache window), with the cause and never a value: every vendor client is
+    // "not configured" until the next read succeeds (efficiency review 21).
+    log("warn", "vault.read_failed", {
+      error: e instanceof Error ? e.message.slice(0, 200) : "error",
+      stale: Boolean(cached),
+    });
     return cached?.value ?? {};
   }
   return cached.value;

@@ -84,7 +84,7 @@ select not coalesce((select yes from open_hours), true) or count(*) = 0 as ok,
 select count(*) = 0 as ok, jsonb_build_object('count', count(*), 'lead_ids', coalesce(to_jsonb((array_agg(lead_id order by lead_id) filter (where lead_id is not null))[1:20]), '[]')) as value
   from b2c.leads_state
  where not coalesce(is_test, false) and deleted_at is null
-   and (sla_breached_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date
+   and sla_breached_at >= (((now() at time zone 'Asia/Kolkata')::date)::timestamp at time zone 'Asia/Kolkata') and sla_breached_at < ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp) at time zone 'Asia/Kolkata')
    and (coalesce(hot, false) or coalesce(cause, '') ~* 'duplicate' or coalesce(handoff_reason, '') ~* 'duplicate')
 
 -- check: B2C-06
@@ -148,7 +148,7 @@ select replies_waiting + developer_tickets_waiting = 0 as ok, to_jsonb(v) as val
 -- description: Sum of b2c.ai_calls.cost_inr today (IST) above b2c.settings.ai.daily_cap_inr.
 select coalesce(sum(c.cost_inr), 0) <= coalesce((select (value ->> 'daily_cap_inr')::numeric from b2c.settings where key = 'ai'), 'infinity'::numeric) as ok,
        jsonb_build_object('spent_inr', round(coalesce(sum(c.cost_inr), 0), 2), 'cap_inr', (select value -> 'daily_cap_inr' from b2c.settings where key = 'ai')) as value
-  from b2c.ai_calls c where (c.at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date
+  from b2c.ai_calls c where c.at >= (((now() at time zone 'Asia/Kolkata')::date)::timestamp at time zone 'Asia/Kolkata') and c.at < ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp) at time zone 'Asia/Kolkata')
 
 -- check: B2C-10
 -- app: b2c
