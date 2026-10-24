@@ -86,11 +86,12 @@ export function costOf(p: Price, u: Usage, usdInr: number): { usd: number; inr: 
 }
 
 /**
- * The most a call can cost: every input token at its dearest rate (about 3 characters a token, rounded up) and the whole output
- * allowance spent. The worker refuses a call whose worst case is above the per-task cap or what is left today.
+ * The most a call can cost: every input token at its dearest rate (2 characters a token, rounded up) and the whole
+ * output allowance spent. The worker refuses a call whose worst case is above the per-task cap or what is left today.
  */
 export function worstCaseInr(p: Price, inputChars: number, maxTokens: number, usdInr: number): number {
-  const input = Math.ceil(inputChars / 3);
+  // JSON full of digits, ids and timestamps runs near 2 characters a token, so 2 is the bound (review M6).
+  const input = Math.ceil(inputChars / 2);
   // An input written to the cache costs more than a plain one; count whichever is dearer.
   const asWrite = p.cache_write > p.input;
   return costOf(

@@ -57,8 +57,8 @@ describe("cost", () => {
   });
 
   it("bounds a call by its whole output allowance and its input at the dearest rate", () => {
-    // 30,000 characters ≈ 10,000 tokens at the cache-write rate (5) + 16,000 output tokens (20) = $0.37
-    expect(worstCaseInr(p, 30_000, 16_000, 85)).toBe(31.45);
+    // 30,000 characters → 15,000 tokens at the cache-write rate (5) + 16,000 output tokens (20) = $0.395
+    expect(worstCaseInr(p, 30_000, 16_000, 85)).toBe(33.58);
   });
 });
 

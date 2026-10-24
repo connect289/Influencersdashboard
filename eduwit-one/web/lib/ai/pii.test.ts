@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emailDomain, initials, lastFour, maskForAi, maskText, phoneDigits } from "./pii.ts";
+import { emailDomain, initials, lastFour, maskForAi, maskText, normaliseDigits } from "./pii.ts";
 
 // The mask is the promise that a model never sees a contact (spec §11). Each rule has a case, and the cases that
 // must pass through untouched (dates, counts, ids, the database's own placeholders) have one too.
@@ -24,15 +24,11 @@ describe("pieces", () => {
     expect(emailDomain("not an email")).toBe("@?");
   });
 
-  it("knows a phone from a date, a time or a short id", () => {
-    expect(phoneDigits("9876543210")).toBe("9876543210");
-    expect(phoneDigits("+91-98765-43210")).toBe("919876543210");
-    expect(phoneDigits("098765 43210")).toBe("09876543210");
-    expect(phoneDigits("+44 20 7946 0958")).toBe("442079460958");
-    expect(phoneDigits("2026-10-24")).toBeNull();
-    expect(phoneDigits("2026-10-24 02")).toBeNull();
-    expect(phoneDigits("1729741234")).toBeNull();
-    expect(phoneDigits("123456")).toBeNull();
+  it("reads other scripts' digits and unusual spaces as plain ones", () => {
+    expect(normaliseDigits("९८७६५४३२१०")).toBe("9876543210");
+    expect(normaliseDigits("９８７６５")).toBe("98765");
+    expect(normaliseDigits("98765\u00a043210")).toBe("98765 43210");
+    expect(normaliseDigits("৯৮৭")).toBe("987");
   });
 });
 
@@ -40,6 +36,30 @@ describe("free text", () => {
   it("masks emails and phones inside a sentence", () => {
     expect(maskText("Call 98765 43210 or mail priya@example.org today")).toBe("Call …3210 or mail @example.org today");
     expect(maskText("lead +919876543210 (whatsapp)")).toBe("lead …3210 (whatsapp)");
+  });
+
+  it("finds a phone inside a longer run of digits and in every separator people use (review M2)", () => {
+    for (const [input, out] of [
+      ["lead 12 9876543210", "lead 12 …3210"],
+      ["count 3 (9876543210)", "count 3 (…3210)"],
+      ["9876543210 9123456780", "…3210 …6780"],
+      ["at 10:00 9876543210", "at 10:00 …3210"],
+      ["98765/43210", "…3210"],
+      ["98765_43210", "…3210"],
+      ["98765\u00a043210", "…3210"],
+      ["９８７６５４３２１０", "…3210"],
+      ["फ़ोन ९८७६५४३२१० है", "फ़ोन …3210 है"],
+      ["0091 98765 43210", "…3210"],
+      ["+44 (20) 7946-0958", "…0958"],
+      ["id 123456789012", "id …9012"],
+    ]) {
+      expect(maskText(input as string), input).toBe(out);
+    }
+  });
+
+  it("leaves dates, times, UUIDs and short numbers alone", () => {
+    const s = "2026-10-24T02:31:00Z 2026-10-24 06:31 24/10/2026 10:30 0c3e4a1b-1f2d-4c5e-9a7b-112233445566 12345678";
+    expect(maskText(s)).toBe(s);
   });
 
   it("leaves timestamps, counts and the database's placeholders alone", () => {
@@ -85,6 +105,20 @@ describe("maskForAi", () => {
       wa: "…3210",
       by_phone: { "…3210": 3 },
     });
+  });
+
+  it("masks every string under a name key, nested or listed, and keys of a map of people (review M2)", () => {
+    expect(
+      maskForAi({
+        name: { first: "Priya", last: "Sharma" },
+        names: ["Rahul Verma", "Anil Rao"],
+        by_counsellor: { "Meena Iyer": 4 },
+      }),
+    ).toEqual({ name: { first: "P.", last: "S." }, names: ["R.V.", "A.R."], by_counsellor: { "M.I.": 4 } });
+  });
+
+  it("keeps apart two keys that mask alike (review m3)", () => {
+    expect(maskForAi({ "9876543210": 1, "+91 98765 43210": 2 })).toEqual({ "…3210": 1, "…3210#2": 2 });
   });
 
   it("leaves message bodies out", () => {

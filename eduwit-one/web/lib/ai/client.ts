@@ -57,13 +57,24 @@ function statusError(provider: Provider, status: number | undefined): ModelError
   return new ModelError(`${provider}: no answer (network or timeout)`, true);
 }
 
+/**
+ * Older Claude models reject the effort setting with a 400 (Haiku 4.5, Sonnet 4.5, the 4.0 and 4.1 models and Claude 3,
+ * dated ids included), so it is left out for them (phase 6 review m2).
+ */
+export function acceptsEffort(model: string): boolean {
+  return !/^claude-(3|haiku-4|sonnet-4-5|sonnet-4-0|sonnet-4-2|opus-4-0|opus-4-1|opus-4-2)/.test(model);
+}
+
 export class AnthropicModelClient implements ModelClient {
   readonly provider = "anthropic" as const;
   private readonly client: Anthropic;
 
-  /** `fetch` is for the unit tests, which check the request without a network. */
+  /**
+   * No retry in the SDK: the task queue retries with a backoff, and an SDK retry would run a timed-out call twice past
+   * the worker's deadline (phase 6 review M4). `fetch` is for the unit tests, which check the request offline.
+   */
   constructor(apiKey: string, opts: { fetch?: typeof fetch } = {}) {
-    this.client = new Anthropic({ apiKey, maxRetries: 1, ...(opts.fetch ? { fetch: opts.fetch } : {}) });
+    this.client = new Anthropic({ apiKey, maxRetries: 0, ...(opts.fetch ? { fetch: opts.fetch } : {}) });
   }
 
   async complete(req: ModelRequest): Promise<ModelAnswer> {
@@ -78,7 +89,10 @@ export class AnthropicModelClient implements ModelClient {
           // enough to be, and the per-task data follows it in the user message.
           system: [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }],
           messages: [{ role: "user", content: req.user }],
-          output_config: { format: zodOutputFormat(req.schema), ...(req.effort ? { effort: req.effort } : {}) },
+          output_config: {
+            format: zodOutputFormat(req.schema),
+            ...(req.effort && acceptsEffort(req.model) ? { effort: req.effort } : {}),
+          },
         },
         { timeout: req.timeoutMs },
       );

@@ -76,20 +76,21 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | Click-through still passes (phase 4's criterion) | CLICK-THROUGH PASSED twice running (133 pages, 18/18 writes, only `vault.secrets` changed outside schema one), after `ActionForm` moved off form actions (D-074); the 13 runs before it each lost two to four answers |
 | No test row leaks into any app's analytics | each lead test checks B2B's command centre or Spark's analytics against a direct count of real rows; Witty's harness leads are checked as is_test; Eduwit One's own metrics leave test rows out (D-073). Witty has no lead count of its own to check; the website's waits with its tests |
 
-## Phase 6 — AI (built; review in progress; live runs wait on phase 1, the AI key and a price for each model)
+## Phase 6 — AI (built and reviewed; live runs wait on phase 1, the deploy, the AI key and a price for each model)
 
 | Criterion | Status |
 | --- | --- |
 | Worker claims `one.ai_tasks`, routes by settings, validates outputs against schemas, writes only to `one.*` | done: `/api/internal/ai/run`, called by the tick's app call while a task is due (no new cron job); routing per tier from `ai.provider` / `ai.models` with the fallback tier; zod schemas per kind sent as Claude's structured output and checked for both providers; `one.ai_finish` files by kind into schema one only (D-075) |
 | Task kinds | all eight: classify, triage, explain, propose_fix, propose_feature, test_author, brief, ask; queued by fixed rules (`one.ai_schedule`), never by the AI |
-| Budgets | done: from 80% of `daily_cap_inr` only classify and triage run, at the cap nothing (ONE-01 reports it); a call whose worst case passes the per-task cap or what is left today is not made; at most `max_parallel` (2) tasks at once (`99_ai_worker.sql`, `worker.test.ts`) |
+| Budgets | done: from 80% of `daily_cap_inr` only classify and triage run, at the cap nothing, and ONE-01 fires; a call whose worst case passes the per-task cap (over all attempts) or what is left today is not made; calls are recorded as they end; at most `max_parallel` (2) tasks at once (`99_ai_worker.sql`, `worker.test.ts`) |
 | PII mask, unit-tested | done: `pii.test.ts` (14 cases), the worker's tests, and the eval's leak check over 70 items on each tier: no planted contact reaches a request or an answer. Ask runs fixed tools, never model-written SQL (D-076) |
 | Prompts as markdown, stamped into `prompt_version` | done: `web/lib/ai/prompts/*.md`, `kind@hash`, a unit test fails while the generated module is stale |
 | Eval: 30 incidents, 10 questions, `npm run ai:eval` prints scores and cost per tier | harness done and passing offline (100% with the reference answerer, 0 leaks); a scored run on a real model waits for the AI key (`--live --yes`) |
 | First brief delivered | not yet: built, filed and mailed on the local cluster (`99_ai_worker.sql`, `alerts.test.ts`); the first real one waits for the phase 1 apply, the key and the prices |
 | A proposal of each kind from real data | not yet: each kind is filed on the local cluster from the worker's answers; real ones need production data and the key |
 | Spend under cap for 3 days | not yet: needs three days of live runs |
-| Phase review | in progress |
+| Phase review | done: `docs/reviews/phase-6.md` (1 blocker, 6 majors, 6 minors), all resolved; every AI proposal is the owner's (D-077) |
+| Click-through still passes (phase 4's criterion) | CLICK-THROUGH PASSED after the review's fixes (133 pages, 18/18 writes, only `vault.secrets` changed outside schema one) |
 
 ## Phase 7
 

@@ -33,6 +33,10 @@ select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"provider": {
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"effort": {"deep": "huge"}}')$q$) = '22023', 'an effort is a known level');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"schedule": {"brief_mail_at_ist": "8am"}}')$q$) = '22023', 'the mail time is HH:MM');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"max_parallel": 50}')$q$) = '22023', 'parallel workers are bounded');
+select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"routing": {"propose_fix_high_risk": "opus"}}')$q$) = '22023', 'a route names a tier (review m1)');
+select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"usd_inr": 0}')$q$) = '22023', 'the exchange rate is above 0');
+select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"models": {"anthropic": {"deep": "drop table x;"}}}')$q$) = '22023', 'a model is a model name');
+select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"fallback_when_model_missing": "best"}')$q$) = '22023', 'the fallback is a tier');
 select pg_temp.ok(pg_temp.err(format('select one.settings_check(%L, %L)', 'ai', :'ai_before')) = 'ok', 'the seeded AI settings pass');
 
 select one.settings_put('ai', (:'ai_before')::jsonb || '{"daily_cap_inr": 100, "queue_non_triage_at_pct": 80, "max_parallel": 2}'::jsonb, 'test');
@@ -113,6 +117,9 @@ set role service_role;
 select pg_temp.ok(one.ai_fail(:t2, 'worker-b', 'anthropic: rate limited (429)', '[{"provider": "anthropic", "model": "claude-sonnet-5-5", "ok": false, "error": "429"}]', true) = 'pending',
                   'a retryable failure goes back to the queue');
 reset role;
+select pg_temp.ok((select status = 'deferred' and not_before between now() + interval '110 seconds' and now() + interval '130 seconds'
+                          and deferred_reason like 'retry: %429%' from one.ai_tasks where id = :t2),
+                  'after a 2-minute wait, not at once (review M5)');
 update one.ai_tasks set attempts = 3, status = 'claimed', claimed_by = 'worker-b' where id = :t2;
 set role service_role;
 select pg_temp.ok(one.ai_fail(:t2, 'worker-b', 'still rate limited', null, true) = 'failed', 'the third attempt is final');
@@ -125,7 +132,7 @@ set role service_role;
 select one.ai_claim('worker-a') as c3 \gset
 reset role;
 select pg_temp.ok((:'c3'::jsonb #>> '{task,kind}') in ('classify', 'triage'), 'at 85% of the cap a classify or triage still runs: ' || (:'c3'::jsonb #>> '{task,kind}'));
-select pg_temp.ok((select count(*) from one.ai_tasks where status = 'deferred' and deferred_reason like 'budget:%only classify and triage run'
+select pg_temp.ok((select count(*) from one.ai_tasks where status = 'deferred' and deferred_reason like 'budget (over 80%%only classify and triage run'
                      and kind in ('explain', 'propose_fix') and not_before > now()) = 4, 'explanations and fix proposals wait, saying why');
 update one.ai_tasks set status = 'done', claimed_by = null where id = (:'c3'::jsonb #>> '{task,id}')::bigint;
 insert into one.ai_calls (provider, model, purpose, cost_inr, ok) values ('anthropic', 'claude-opus-5-5', 'test', 20, true);
@@ -133,8 +140,30 @@ set role service_role;
 select pg_temp.ok(one.ai_claim('worker-a') is null, 'at the cap nothing runs');
 reset role;
 select pg_temp.ok((select count(*) from one.ai_tasks where status = 'pending') = 0
-                  and exists (select 1 from one.ai_tasks where deferred_reason like 'budget:%reached the cap%'), 'everything waits at the cap');
+                  and exists (select 1 from one.ai_tasks where deferred_reason like 'budget (cap reached)%'), 'everything waits at the cap');
+-- ONE-01 fires at the cap (spec §11), and while work is held back because the cap is reached (review M1).
+do $$
+declare
+  v_ok boolean;
+  v_value jsonb;
+begin
+  execute (select sql from one.checks where id = 'ONE-01') into v_ok, v_value;
+  if v_ok or (v_value ->> 'ai_held_at_cap')::int < 1 or (v_value ->> 'ai_spent_inr_today')::numeric < 100 then
+    raise exception 'ASSERT FAILED: ONE-01 fires at the cap: %', v_value;
+  end if;
+end $$;
+
 delete from one.ai_calls where purpose = 'test';
+do $$
+declare
+  v_ok boolean;
+  v_value jsonb;
+begin
+  execute (select sql from one.checks where id = 'ONE-01') into v_ok, v_value;
+  if v_ok or (v_value ->> 'ai_spent_inr_today')::numeric >= 100 or (v_value ->> 'ai_held_at_cap')::int < 1 then
+    raise exception 'ASSERT FAILED: below the cap, held-back work still fires ONE-01: %', v_value;
+  end if;
+end $$;
 update one.ai_tasks set not_before = now() - interval '1 second' where status = 'deferred';
 
 -- 8. A worker that died: its task is taken back; a stale task expires -------------------------------------------------
@@ -142,12 +171,18 @@ set role service_role;
 select one.ai_claim('worker-a') as c4 \gset
 reset role;
 select (:'c4'::jsonb #>> '{task,id}')::bigint as t4 \gset
+set role service_role;
+select one.ai_calls_add(:t4, 'worker-a', '[{"provider": "anthropic", "model": "claude-haiku-4-5-20251001", "cost_inr": 3, "ok": true}]') as added \gset
+select pg_temp.ok(pg_temp.err(format('select one.ai_calls_add(%s, %L, %L)', :t4, 'worker-b', '[]')) = '55000', 'only the holder records calls');
+reset role;
+select pg_temp.ok((:'added'::jsonb ->> 'remaining_inr')::numeric = 100 - 0.46 - 3, 'recording a call answers with today''s budget: ' || :'added');
 update one.ai_tasks set claimed_at = now() - interval '11 minutes' where id = :t4;
 insert into one.ai_tasks (kind, input, created_at, idempotency_key) values ('ask', '{"question": "old"}', now() - interval '3 days', 'ask:old');
 set role service_role;
 select one.ai_claim('worker-b') as c5 \gset
 reset role;
 select pg_temp.ok((:'c5'::jsonb #>> '{task,id}')::bigint = :t4 and (:'c5'::jsonb #>> '{task,attempts}')::int = 2, 'an abandoned task is claimed again');
+select pg_temp.ok((:'c5'::jsonb #>> '{budget,task_spent_inr}')::numeric = 3, 'with what its earlier attempt spent (review M6)');
 select pg_temp.ok((select status from one.ai_tasks where idempotency_key = 'ask:old') = 'cancelled', 'a task older than task_max_age_h is cancelled');
 set role service_role;
 select pg_temp.ok(one.ai_defer(:t4, 'worker-b', 'setup: no key for anthropic', 30) = 'deferred', 'a task without a key waits');
@@ -193,6 +228,9 @@ select one.ai_finish(:tf, 'worker-a', jsonb_build_object('proposals', (select js
   'rationale', 'Witty timed out on twelve replies this week.', 'risk', 'low')) from generate_series(1, 5) g)), '[]');
 reset role;
 select pg_temp.ok((select count(*) from one.proposals where source = 'ai' and kind = 'feature' and source_key like 'ai:' || :tf || ':%') = 3, 'three proposals at most');
+select pg_temp.ok((select bool_and(one.proposal_sensitive(kind, change)) and bool_and(change -> 'touches' ? 'ai_written')
+                     from one.proposals where source = 'ai'), 'every AI proposal is the owner''s to approve, whatever it says it touches (review B1)');
+select pg_temp.ok(one.ai_touches('["app_settings", "BAD; drop", 3]') = '["ai_written", "app_settings"]'::jsonb, 'a model''s touches are filtered and marked');
 
 update one.incidents set resolved_at = now(), resolution = 'fixed', resolved_by = 'test' where id = :p2;
 select one.ai_schedule() ->> 'test_author' as ta \gset
@@ -301,6 +339,7 @@ set role service_role;
 select one.ai_claim('worker-a') as c13 \gset
 select one.ai_fail(:tw, 'worker-a', 'test', null, true);
 reset role;
+update one.ai_tasks set not_before = now() - interval '1 second' where id = :tw;
 select pg_temp.ok(not ((:'c13'::jsonb -> 'context') ? 'messages'), 'no excerpts while ai.allow_message_excerpts is off');
 select one.settings_put('ai', (select value from one.settings where key = 'ai') || '{"allow_message_excerpts": true}'::jsonb, 'test');
 set role service_role;

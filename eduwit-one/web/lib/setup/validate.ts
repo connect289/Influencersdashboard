@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AnthropicModelClient, GEMINI_API, GeminiModelClient, type ModelClient } from "../ai/client.ts";
+import { acceptsEffort, AnthropicModelClient, GEMINI_API, GeminiModelClient, type ModelClient } from "../ai/client.ts";
 import { aiSettingsSchema, route, TIERS } from "../ai/models.ts";
 import { RealAppHealthClient } from "../clients/app-health.ts";
 import { RealChatwootClient } from "../clients/chatwoot.ts";
@@ -277,8 +277,10 @@ export async function validate(kind: string, deps: ValidateDeps): Promise<Verdic
           }
           const v = proved.get(id) ?? { ok: false, detail: "not checked" };
           ok &&= v.ok;
+          const effort =
+            r.effort && r.provider === "anthropic" && !acceptsEffort(r.model) ? ", effort not sent to this model" : "";
           lines.push(
-            `${tier}${r.tier !== tier ? ` (falls back to ${r.tier})` : ""}: ${v.ok ? `${r.provider} ${r.model}` : v.detail}`,
+            `${tier}${r.tier !== tier ? ` (falls back to ${r.tier})` : ""}: ${v.ok ? `${r.provider} ${r.model}${effort}` : v.detail}`,
           );
         }
         return { ok, detail: lines.join("; ") };

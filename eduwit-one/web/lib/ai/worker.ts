@@ -56,10 +56,17 @@ class Stop extends Error {
 
 const inr = (n: number) => `₹${n.toFixed(2)}`;
 
-/** One task's calls: the route, the spend so far, and the call with its checks. */
+/**
+ * One task's calls: the route, the spend so far, and the call with its checks. The task's spend starts from what its
+ * earlier attempts spent, and each call is recorded as soon as it ends, which also brings back today's budget as it now
+ * stands (other tasks may be spending too); a call that could not be recorded travels with the verdict (review M6).
+ */
 class TaskCalls {
   readonly calls: CallRecord[] = [];
-  spentInr = 0;
+  /** Calls the database has not recorded yet (their recording failed): sent with the task's verdict. */
+  readonly unrecorded: CallRecord[] = [];
+  taskSpentInr: number;
+  remainingInr: number;
 
   private readonly claim: Claim;
   private readonly ai: AiSettings;
@@ -73,6 +80,19 @@ class TaskCalls {
     this.r = r;
     this.client = client;
     this.deps = deps;
+    this.taskSpentInr = claim.budget.task_spent_inr;
+    this.remainingInr = claim.budget.remaining_inr;
+  }
+
+  private async record(c: CallRecord) {
+    this.calls.push(c);
+    this.taskSpentInr += c.cost_inr ?? 0;
+    try {
+      this.remainingInr = (await this.deps.db.recordCalls(this.claim.task.id, this.deps.holder, [c])).remaining_inr;
+    } catch {
+      this.unrecorded.push(c);
+      this.remainingInr -= c.cost_inr ?? 0;
+    }
   }
 
   private now() {
@@ -123,17 +143,18 @@ class TaskCalls {
     const { ai, r } = this;
     const schemaChars = r.provider === "gemini" ? JSON.stringify(z.toJSONSchema(schema)).length : 0;
     const worst = worstCaseInr(r.price, system.length + user.length + schemaChars, maxTokens, ai.usd_inr);
-    if (this.spentInr + worst > ai.per_task_cap_inr) {
+    if (this.taskSpentInr + worst > ai.per_task_cap_inr) {
       throw new Stop(
         "fail",
         `this call could cost up to ${inr(worst)}, which would take the task past the per-task cap ${inr(ai.per_task_cap_inr)} (Settings → AI)`,
       );
     }
-    const left = this.claim.budget.remaining_inr - this.spentInr;
+    const left = this.remainingInr;
     if (worst > left) {
+      // The prefix is what ONE-01 reads: work held back because the day's cap is (as good as) reached.
       throw new Stop(
         "defer",
-        `budget: this call could cost up to ${inr(worst)} and ${inr(Math.max(left, 0))} is left today`,
+        `budget (cap reached): this call could cost up to ${inr(worst)} and ${inr(Math.max(left, 0))} is left today`,
         15,
       );
     }
@@ -153,18 +174,25 @@ class TaskCalls {
       });
     } catch (e) {
       const err = e instanceof ModelError ? e : new ModelError("the model call failed", true);
-      this.calls.push({ ...base, ok: false, error: err.message });
+      // No answer at all (a timeout or a lost connection): the provider may still have run and billed the call, so it
+      // counts at its worst case. A refusal with a status (401, 429, 5xx) is not billed.
+      const unknown = err.status === undefined;
+      await this.record({
+        ...base,
+        ok: false,
+        error: unknown ? `${err.message}; counted at its worst case` : err.message,
+        ...(unknown ? { cost_inr: worst, cost_usd: Math.round((worst / ai.usd_inr) * 1e5) / 1e5 } : {}),
+      });
       throw new Stop(err.retry ? "retry" : "fail", err.message);
     }
     const cost = costOf(r.price, answer.usage, ai.usd_inr);
-    this.spentInr += cost.inr;
     const stopError =
       answer.stop === "refusal"
         ? "the model declined to answer"
         : answer.stop === "max_tokens"
           ? `the answer was cut off at the ${maxTokens}-token allowance`
           : null;
-    this.calls.push({
+    await this.record({
       ...base,
       model: answer.model,
       input_tokens: answer.usage.input,
@@ -224,8 +252,11 @@ async function runTool(
         result = { ok: false, error: "n8n is not configured (Setup item n8n_api)" };
       } else {
         const status = typeof args.status === "string" ? args.status : null;
-        const rows = await deps.n8n.executions(clamp(args.limit, 1, 20, 10));
-        result = { ok: true, data: rows.filter((r) => !status || r.status === status) };
+        const rows = await deps.n8n.executions(20);
+        result = {
+          ok: true,
+          data: rows.filter((r) => !status || r.status === status).slice(0, clamp(args.limit, 1, 20, 10)),
+        };
       }
     } else {
       result = z
@@ -237,8 +268,16 @@ async function runTool(
   }
   const data = maskForAi(result.data ?? null);
   const rows = Array.isArray(data) ? data.length : data && typeof data === "object" ? 1 : 0;
-  const q: Query = { tool, args, ok: result.ok, rows, ...(result.error ? { error: result.error } : {}) };
-  let text = JSON.stringify(result.ok ? data : { error: result.error });
+  // A database error's text can quote a value; it is masked like everything else (review M2).
+  const error = result.error ? maskText(result.error).slice(0, 300) : undefined;
+  const q: Query = {
+    tool,
+    args: maskForAi(args) as Record<string, unknown>,
+    ok: result.ok,
+    rows,
+    ...(error ? { error } : {}),
+  };
+  let text = JSON.stringify(result.ok ? data : { error });
   if (text.length > TOOL_RESULT_CHARS) text = `${text.slice(0, TOOL_RESULT_CHARS)}… [cut: ask for a smaller range]`;
   return { q, text };
 }
@@ -266,6 +305,12 @@ async function ask(claim: Claim, deps: WorkerDeps, tc: TaskCalls): Promise<Recor
     if (out.calls.length === 0 && out.answer) return { answer: out.answer, queries };
     for (const c of out.calls) {
       if (queries.length >= ASK_CALLS_MAX) break;
+      // Each tool call is a database read; none starts that would leave too little time for the answer (review M3).
+      if (deps.deadline - (deps.now ?? Date.now)() - 5_000 < CALL_MIN_MS * 2) {
+        queries.push({ tool: c.tool, args: {}, ok: false, rows: 0, error: "skipped: the worker ran out of time" });
+        results.push(`### ${c.tool}\n(skipped: the worker ran out of time)`);
+        continue;
+      }
       const { q, text } = await runTool(claim, deps, c.tool, c.args_json);
       queries.push(q);
       results.push(`### ${c.tool} ${JSON.stringify(q.args)}\n${text}`);
@@ -314,12 +359,13 @@ export async function runTask(claim: Claim, deps: WorkerDeps): Promise<Outcome> 
     }
   } catch (e) {
     const stop = e instanceof Stop ? e : new Stop("retry", "the task failed");
-    // Spend already made is recorded with the verdict: a deferral after a call becomes a retry, which records it.
-    if (stop.how === "defer" && tc.calls.length === 0) {
+    // Calls are recorded as they end; one whose recording failed travels with the verdict, so a deferral (which takes
+    // no calls) becomes a retry then.
+    if (stop.how === "defer" && tc.unrecorded.length === 0) {
       await db.defer(t.id, holder, stop.message, stop.minutes);
       return "deferred";
     }
-    const status = await db.fail(t.id, holder, stop.message, tc.calls, stop.how !== "fail");
+    const status = await db.fail(t.id, holder, stop.message, tc.unrecorded, stop.how !== "fail");
     return status === "pending" ? "retry" : "failed";
   }
   const filed = {
@@ -327,11 +373,11 @@ export async function runTask(claim: Claim, deps: WorkerDeps): Promise<Outcome> 
     meta: { provider: r.provider, model: tc.calls.at(-1)?.model ?? r.model, tier: r.tier, prompt_version: version },
   };
   try {
-    await db.finish(t.id, holder, filed, tc.calls);
+    await db.finish(t.id, holder, filed, tc.unrecorded);
     return "done";
   } catch (e) {
     const code = e instanceof DbError ? (e.code ?? "error") : "error";
-    await db.fail(t.id, holder, `the answer could not be filed (${code})`, tc.calls, false);
+    await db.fail(t.id, holder, `the answer could not be filed (${code})`, tc.unrecorded, false);
     return "failed";
   }
 }

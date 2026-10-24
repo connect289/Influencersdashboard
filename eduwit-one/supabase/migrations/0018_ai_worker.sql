@@ -56,6 +56,30 @@ language sql immutable set search_path = '' as $$
                                                    coalesce(array_position(array['low', 'medium', 'high'], p_floor), 1))]
 $$;
 
+-- What an AI proposal touches: the model's list, kept only where it names a known kind, plus "ai_written", which
+-- one.proposal_sensitive treats as the owner's. A model's own words never lower who decides (review B1).
+create or replace function one.ai_touches(p_touches jsonb) returns jsonb
+language sql immutable set search_path = '' as $$
+  select coalesce(jsonb_agg(distinct t order by t), '[]'::jsonb)
+    from (select x as t from jsonb_array_elements_text(case when jsonb_typeof(p_touches) = 'array' then p_touches else '[]' end) x
+           where x ~ '^[a-z_]{2,40}$'
+          union select 'ai_written') s
+$$;
+
+-- 0010's rule, plus: every proposal the AI wrote is the owner's to approve (review B1, D-077).
+create or replace function one.proposal_sensitive(p_kind text, p_change jsonb) returns boolean
+language sql immutable set search_path = '' as $$
+  -- A proposal cannot vouch for itself (phase review M5): a fix or config proposal names an app function whose effect
+  -- the database cannot judge, so it is always the owner's; so is anything touching money, allocation, switches,
+  -- partner mappings, prompts, settings, or security (keys, auth, data, retention, staging; security review S6), and
+  -- anything the AI wrote (D-077).
+  select p_kind in ('fix', 'config')
+      or coalesce(p_change -> 'touches', '[]') ?| array['money', 'allocation', 'live_switches', 'partner_mappings', 'prompts', 'versioned_settings',
+                                                        'api_keys', 'credentials', 'auth', 'auth_settings', 'database_security', 'data_retention',
+                                                        'staging', 'security', 'ai_written']
+      or coalesce(p_change, '{}')::text ~* '(allocat|earning|commission|payout|ledger|invoice|live_switch|partner_(map|course)|prompt|settings_put|set_setting)'
+$$;
+
 -- Marketing and Analytics as data, for the pages and for Ask (the pages keep their sign-in check) -----------------
 
 create or replace function one.marketing_data(p_days integer) returns jsonb
@@ -433,6 +457,7 @@ begin
   if coalesce((v_s ->> 'test_author_on_fixed')::boolean, true) then
     for v_i in select * from one.incidents i
                 where i.resolution = 'fixed' and i.resolved_at > now() - interval '1 day' and i.check_id <> 'ONE-SYNTH'
+                  and not ('synthetic' = any (i.tags))
                   and not exists (select 1 from one.ai_tasks t where t.idempotency_key = 'test_author:' || i.id)
                 order by i.id limit 5 loop
       v_n := v_n + (one.enqueue_ai('test_author', jsonb_build_object('incident_id', v_i.id, 'check_id', v_i.check_id), null, 'test_author:' || v_i.id, v_i.id) is not null)::int;
@@ -520,12 +545,12 @@ begin
   update one.ai_tasks
      set status = 'deferred', not_before = now() + interval '15 minutes',
          deferred_reason = case when cardinality(v_allowed) = 0
-                                then format('budget: today''s AI spend ₹%s has reached the cap ₹%s', round(v_spent, 2), v_cap)
-                                else format('budget: today''s AI spend ₹%s is %s%% of the cap ₹%s, so only classify and triage run',
+                                then format('budget (cap reached): today''s AI spend ₹%s has reached the cap ₹%s', round(v_spent, 2), v_cap)
+                                else format('budget (over %s%%): today''s AI spend ₹%s is %s%% of the cap ₹%s, so only classify and triage run', v_pct,
                                             round(v_spent, 2), round(v_spent / v_cap * 100), v_cap) end
    where (status = 'pending' or (status = 'deferred' and coalesce(not_before, '-infinity') <= now()))
      and not (kind = any (v_allowed));
-  update one.ai_tasks set error = deferred_reason where status = 'deferred' and deferred_reason like 'budget:%' and error is distinct from deferred_reason;
+  update one.ai_tasks set error = deferred_reason where status = 'deferred' and deferred_reason like 'budget (%' and error is distinct from deferred_reason;
   for i in 1..5 loop
     select * into v_task from one.ai_tasks
      where (status = 'pending' or (status = 'deferred' and coalesce(not_before, '-infinity') <= now()))
@@ -537,9 +562,15 @@ begin
     end if;
     begin
       v_context := one.ai_context(v_task);
-    exception when others then
-      update one.ai_tasks set status = 'failed', error = left('could not build the data for this task: ' || sqlerrm, 300) where id = v_task.id;
-      continue;
+    exception
+      -- OTHERS does not catch a cancelled statement: a statement timeout while one context is built must fail that
+      -- task, or it would come first again every minute (review M3).
+      when query_canceled then
+        update one.ai_tasks set status = 'failed', error = 'building the data for this task took too long' where id = v_task.id;
+        continue;
+      when others then
+        update one.ai_tasks set status = 'failed', error = left('could not build the data for this task: ' || sqlerrm, 300) where id = v_task.id;
+        continue;
     end;
     update one.ai_tasks
        set status = 'claimed', claimed_by = p_holder, claimed_at = now(), attempts = attempts + 1, deferred_reason = null, not_before = null,
@@ -550,7 +581,9 @@ begin
       'task', jsonb_build_object('id', v_task.id, 'kind', v_task.kind, 'input', v_task.input - 'stats', 'model_hint', v_task.model_hint,
                                  'attempts', v_task.attempts, 'incident_id', v_task.incident_id),
       'ai', v_ai,
-      'budget', jsonb_build_object('spent_inr', v_spent, 'cap_inr', v_cap, 'remaining_inr', greatest(v_cap - v_spent, 0)),
+      -- task_spent_inr: what earlier attempts of this task spent, so per_task_cap_inr holds across attempts (review M6).
+      'budget', jsonb_build_object('spent_inr', v_spent, 'cap_inr', v_cap, 'remaining_inr', greatest(v_cap - v_spent, 0),
+                                   'task_spent_inr', (select coalesce(sum(cost_inr), 0) from one.ai_calls where task_id = v_task.id)),
       'context', v_context);
   end loop;
   return null;
@@ -651,7 +684,7 @@ begin
               jsonb_build_object('written_by', 'ai', 'task_id', v_t.id, 'incident_id', v_i.id, 'check_id', v_i.check_id,
                                  'prompt_version', v_meta ->> 'prompt_version', 'tier', v_meta ->> 'tier'),
               jsonb_build_object('where', left(p_result ->> 'where', 300), 'owner_action', left(p_result ->> 'owner_action', 4000),
-                                 'steps', coalesce(p_result -> 'steps', '[]'), 'touches', coalesce(p_result -> 'touches', '[]'),
+                                 'steps', coalesce(p_result -> 'steps', '[]'), 'touches', one.ai_touches(p_result -> 'touches'),
                                  'uses_fix', p_result -> 'uses_fix', 'verify', left(p_result ->> 'verify', 1000)),
               one.ai_risk(p_result ->> 'risk', case when one.ai_high_risk(v_i) then 'medium' else 'low' end),
               'ai', 'ai:' || v_t.id, v_meta ->> 'model', v_i.id, now() + v_expire)
@@ -667,7 +700,7 @@ begin
                 jsonb_build_object('written_by', 'ai', 'task_id', v_t.id, 'week', v_t.input ->> 'week', 'evidence', coalesce(v_p -> 'evidence', '[]'),
                                    'prompt_version', v_meta ->> 'prompt_version', 'tier', v_meta ->> 'tier'),
                 jsonb_build_object('where', left(v_p ->> 'where', 300), 'owner_action', left(v_p ->> 'owner_action', 4000),
-                                   'touches', coalesce(v_p -> 'touches', '[]')),
+                                   'touches', one.ai_touches(v_p -> 'touches')),
                 one.ai_risk(v_p ->> 'risk', 'low'), 'ai', 'ai:' || v_t.id || ':' || v_n, v_meta ->> 'model', now() + v_expire)
         on conflict (source_key) do nothing returning id into v_id;
         v_filed := v_filed || jsonb_build_array(jsonb_build_object('proposal', v_id));
@@ -680,7 +713,7 @@ begin
                                    'prompt_version', v_meta ->> 'prompt_version', 'tier', v_meta ->> 'tier'),
                 jsonb_build_object('where', 'Eduwit One synthetic tests (config/tests.json, web/lib/tests/journeys)',
                                    'owner_action', 'Review the test below; a builder adds it as a journey with its guard and purge.',
-                                   'test', p_result -> 'test', 'touches', '["tests"]'::jsonb),
+                                   'test', p_result -> 'test', 'touches', one.ai_touches('["tests"]')),
                 one.ai_risk(p_result ->> 'risk', 'low'), 'ai', 'ai:' || v_t.id, v_meta ->> 'model', v_i.id, now() + v_expire)
         on conflict (source_key) do nothing returning id into v_id;
         v_filed := v_filed || jsonb_build_array(jsonb_build_object('proposal', v_id));
@@ -715,11 +748,31 @@ create or replace function one.ai_fail(p_task bigint, p_holder text, p_error tex
 language plpgsql security definer set search_path = '' as $$
 declare
   v_t one.ai_tasks := one.ai_held(p_task, p_holder);
-  v_status text := case when coalesce(p_retry, false) and v_t.attempts < 3 then 'pending' else 'failed' end;
+  v_retry boolean := coalesce(p_retry, false) and v_t.attempts < 3;
 begin
   perform one.ai_record_calls(p_task, p_calls);
-  update one.ai_tasks set status = v_status, error = left(coalesce(p_error, 'failed'), 300), claimed_by = null where id = p_task;
-  return v_status;
+  -- A retry waits 2, 4, then 8 minutes, so an overloaded provider does not use up the attempts at once (review M5).
+  update one.ai_tasks
+     set status = case when v_retry then 'deferred' else 'failed' end,
+         error = left(coalesce(p_error, 'failed'), 300), claimed_by = null,
+         deferred_reason = case when v_retry then left('retry: ' || coalesce(p_error, 'failed'), 300) end,
+         not_before = case when v_retry then now() + make_interval(mins => (2 ^ v_t.attempts)::int) end
+   where id = p_task;
+  return case when v_retry then 'pending' else 'failed' end;
+end $$;
+
+-- The calls a worker made, recorded as each one ends (an invocation cut short keeps the spend it made, review M6),
+-- with today's budget as it now stands.
+create or replace function one.ai_calls_add(p_task bigint, p_holder text, p_calls jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_t one.ai_tasks := one.ai_held(p_task, p_holder);
+  v_cap numeric := coalesce((one.setting('ai') ->> 'daily_cap_inr')::numeric, 0);
+  v_spent numeric;
+begin
+  perform one.ai_record_calls(v_t.id, p_calls);
+  v_spent := one.ai_spent_today();
+  return jsonb_build_object('spent_inr', v_spent, 'remaining_inr', greatest(v_cap - v_spent, 0));
 end $$;
 
 -- A task that cannot run yet (no key, no price, not enough budget left today): back as deferred, not counted as an
@@ -803,7 +856,7 @@ begin
         from (select date_trunc(case when a ->> 'bucket' = 'hour' then 'hour' else 'day' end, occurred_at at time zone 'Asia/Kolkata') as b,
                      app, type, count(*) as n
                 from one.events
-               where occurred_at > now() - make_interval(hours => least(v_hours, 24 * 31))
+               where occurred_at > now() - make_interval(hours => least(v_hours, 24 * 14))
                  and (a ->> 'app' is null or app = a ->> 'app')
                  and (a ->> 'type' is null or type = a ->> 'type')
                group by 1, 2, 3 order by 1 desc, 4 desc limit 200) s;
@@ -855,7 +908,9 @@ begin
 end $$;
 
 -- One tool call for an Ask task the caller holds. Read-only: the transaction is set read only before the read, so no
--- tool can write even by mistake. Errors come back as data for the model, never as the task's failure.
+-- tool can write even by mistake. Errors come back as data for the model, never as the task's failure. A statement
+-- timeout cannot be armed from inside a function (D-044), so each read is bounded by its rows and ranges instead (the
+-- role's own statement timeout still applies).
 create or replace function one.ai_tool(p_task bigint, p_holder text, p_name text, p_args jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -868,7 +923,6 @@ begin
   perform set_config('transaction_read_only', 'on', true);
   begin
     perform set_config('lock_timeout', '2s', true);
-    perform set_config('statement_timeout', '15s', true);
     v := jsonb_build_object('ok', true, 'data', one.ai_tool_data(p_name, p_args));
   exception
     when sqlstate '22023' or sqlstate 'P0002' or invalid_text_representation or numeric_value_out_of_range then
@@ -970,6 +1024,7 @@ insert into one.api_grants (fn, role, why) values
   ('one.ai_fail(bigint,text,text,jsonb,boolean)', 'service_role', 'AI worker (0018): a failed task and its calls'),
   ('one.ai_defer(bigint,text,text,integer)', 'service_role', 'AI worker (0018): a task that cannot run yet'),
   ('one.ai_tool(bigint,text,text,jsonb)', 'service_role', 'AI worker (0018): one read-only Ask tool for a task it holds'),
+  ('one.ai_calls_add(bigint,text,jsonb)', 'service_role', 'AI worker (0018): the calls a task made, as each one ends'),
   ('one.app_ai_settings()', 'service_role', 'AI worker (0018): the AI settings for the Setup validator')
 on conflict do nothing;
 call one.apply_grants();

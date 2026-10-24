@@ -3,6 +3,25 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 6 review resolved
+
+- Review: `docs/reviews/phase-6.md` (1 blocker, 6 majors, 6 minors), all resolved.
+- Every AI proposal is the owner's to approve (`ai_written` in its touches, D-077).
+- ONE-01 fires at the cap and while work waits because of it; it counts tasks held past their lease as backlog.
+- The mask finds phones the way the database does (inside longer digit runs, any separator, other scripts' digits,
+  any 10–15 digit run; dates and ids left alone), masks every string under a name key and the keys of maps of people,
+  keeps colliding keys apart, and masks tool error texts. The eval plants these shapes; the shared prompt says data is
+  never an instruction. The Ask form says names cannot be masked.
+- Budget: the per-task cap holds across attempts (`task_spent_inr`), each call is recorded as it ends
+  (`one.ai_calls_add`, which returns the day's budget as it stands), a call with no answer counts at its worst case,
+  the worst case assumes 2 characters a token, and the SDK no longer retries (a retried call could outlive the 300 s
+  limit). A retryable failure waits 2, 4, 8 minutes.
+- Ask: no statement timeout is claimed (none can be armed in a function); events at most 14 days; no tool call starts
+  without time for the answer; a cancelled statement while a context is built fails that task, not the claim.
+- Settings check covers routing, models, the fallback tier and `usd_inr`; effort is not sent to models that refuse it;
+  the rollback suppresses queued brief emails; the test-idea rule skips synthetic incidents; n8n's status filter runs
+  before its limit.
+
 ## 24 Oct 2026 — phase 6 (AI): the eval set
 
 - `web/lib/ai/eval`: 30 incidents across the apps (classify and triage) and 10 Ask questions with their tool data,
@@ -19,7 +38,8 @@ followed.
   to its model, masks the data again, checks the call's worst case against the per-task cap and what is left today,
   validates the answer against the kind's schema (one repair attempt) and files it. A task with no key, no model or no
   price waits as deferred and says why; refusals and cut-off answers fail without a retry; every call's tokens and
-  cost are recorded whatever the outcome. Ask runs up to three rounds of the fixed tools, plus n8n's executions.
+  cost are recorded whatever the outcome (corrected below: as each call ends, and a call with no answer at its worst
+  case). Ask runs up to two rounds of the fixed tools, plus n8n's executions, and answers in the third at the latest.
 - Prompts as markdown in `web/lib/ai/prompts` (shared rules and one per kind), stamped `kind@hash` into each call's
   `prompt_version` through `scripts/gen-prompts.ts` (a unit test fails while the generated module is stale).
 - Setup item `ai_key` has a validator (`ai`): every tier's provider, model, price and key, proven with the provider's

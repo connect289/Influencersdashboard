@@ -18,7 +18,13 @@ export const claimSchema = z.object({
     incident_id: z.number().nullable(),
   }),
   ai: z.unknown(),
-  budget: z.object({ spent_inr: z.number(), cap_inr: z.number(), remaining_inr: z.number() }),
+  budget: z.object({
+    spent_inr: z.number(),
+    cap_inr: z.number(),
+    remaining_inr: z.number(),
+    /** What earlier attempts of this task spent (per_task_cap_inr holds across attempts). */
+    task_spent_inr: z.number().default(0),
+  }),
   context: z.unknown(),
 });
 export type Claim = z.infer<typeof claimSchema>;
@@ -41,6 +47,8 @@ export type CallRecord = {
 
 export interface AiDb {
   claim(holder: string): Promise<Claim | null>;
+  /** Records calls as they end, and answers with today's budget as it now stands. */
+  recordCalls(task: number, holder: string, calls: CallRecord[]): Promise<{ remaining_inr: number }>;
   finish(task: number, holder: string, result: Record<string, unknown>, calls: CallRecord[]): Promise<void>;
   fail(task: number, holder: string, error: string, calls: CallRecord[], retry: boolean): Promise<string>;
   defer(task: number, holder: string, reason: string, minutes: number): Promise<void>;
@@ -74,6 +82,12 @@ export class SupabaseAiDb implements AiDb {
   async claim(holder: string) {
     const data = await this.rpc("ai_claim", { p_holder: holder });
     return data === null ? null : claimSchema.parse(data);
+  }
+
+  async recordCalls(task: number, holder: string, calls: CallRecord[]) {
+    return z
+      .object({ remaining_inr: z.number() })
+      .parse(await this.rpc("ai_calls_add", { p_task: task, p_holder: holder, p_calls: calls }));
   }
 
   async finish(task: number, holder: string, result: Record<string, unknown>, calls: CallRecord[]) {

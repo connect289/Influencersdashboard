@@ -129,15 +129,20 @@ To switch it on (Settings → Setup → `ai_key`, owner):
    with no model of its own reports that it falls back to the regular tier.
 
 Spend: `daily_cap_inr` (500) and `per_task_cap_inr` (50). From `queue_non_triage_at_pct` (80%) of the day's cap only
-classify and triage run; at the cap nothing runs and ONE-01 reports it. A call is not made when its worst case (whole
-output allowance) would pass the per-task cap or what is left today. Held-back tasks show "deferred" with the reason on
-the incident and Ask pages and are offered again every 15 minutes; tasks older than `task_max_age_h` (48) are
-cancelled. To stop all AI work at once, set `daily_cap_inr` to 0. Every call is in Audit → AI calls with its tokens,
-cost and prompt version.
+classify and triage run; at the cap nothing runs, and ONE-01 fires at the cap or while work waits because of it. A call
+is not made when its worst case (the whole output allowance) would pass the per-task cap, counted over the task's
+attempts, or what is left today. Held-back tasks show "deferred" with the reason on the incident and Ask pages and are
+offered again every 15 minutes; a failed call that can be retried waits 2, 4, then 8 minutes; tasks older than
+`task_max_age_h` (48) are cancelled. To stop all AI work at once, set `daily_cap_inr` to 0 (ONE-01 then stays quiet).
+Every call is in Audit → AI calls with its tokens, cost and prompt version, recorded as it ends; a call that got no
+answer (a timeout) is counted at its worst case, because the provider may have billed it.
 
-Contact data: the database redacts what it sends, and the worker masks it again (`web/lib/ai/pii.ts`: names become
-initials, phones their last four digits, emails their domain; message texts are left out). Witty message excerpts reach
-the model only for an explanation of a Witty incident, and only while `ai.allow_message_excerpts` is on (off).
+Contact data: the database redacts what it sends, and the worker masks it again (`web/lib/ai/pii.ts`: names under a
+name key become initials, phones their last four digits wherever they appear, emails their domain; message texts, notes
+and comments are left out). A name inside free text cannot be recognised, which is why those are left out; it is also
+why the Ask form asks people not to type a student's name. Witty message excerpts reach the model only for an
+explanation of a Witty incident, and only while `ai.allow_message_excerpts` is on (off): excerpts can carry names. Every
+proposal the AI writes is the owner's to approve (D-077).
 
 Ask uses fixed read-only tools, never SQL written by the model (D-076); each answer lists the tools it used. The morning
 brief covers the day before, is built at 02:30 IST and mailed to the P1 inbox at `ai.schedule.brief_mail_at_ist`

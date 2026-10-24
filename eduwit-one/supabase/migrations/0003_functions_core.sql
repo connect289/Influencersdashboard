@@ -125,8 +125,20 @@ begin
          or coalesce(p_value #>> '{schedule,brief_mail_at_ist}', '08:00') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
          or coalesce((p_value #>> '{schedule,propose_feature_weekday}')::numeric, 1) not between 1 and 7
          or coalesce((p_value #>> '{schedule,explain_after_min}')::numeric, 15) not between 1 and 1440
-         or coalesce((p_value #>> '{schedule,propose_fix_after_min}')::numeric, 60) not between 1 and 10080 then
-        raise exception 'setting ai: provider per tier gemini or anthropic; effort per tier null, low, medium, high, xhigh or max; prices per model null or {input, output, cache_read?, cache_write?} in USD per million tokens, 0 or more; queue_non_triage_at_pct at most 100; allow_message_excerpts a boolean; max_parallel 1–5; task_max_age_h 1–720; schedule: brief_mail_at_ist HH:MM, propose_feature_weekday 1–7, explain_after_min 1–1440, propose_fix_after_min 1–10080'
+         or coalesce((p_value #>> '{schedule,propose_fix_after_min}')::numeric, 60) not between 1 and 10080
+         -- Routing and models are read by the schedule and every claim (phase 6 review m1).
+         or (p_value ? 'usd_inr' and (p_value ->> 'usd_inr')::numeric <= 0)
+         or (p_value ? 'routing' and (jsonb_typeof(p_value -> 'routing') <> 'object'
+             or exists (select 1 from jsonb_each(p_value -> 'routing') e where e.value not in ('"quick"', '"regular"', '"deep"'))))
+         or (p_value ? 'fallback_when_model_missing' and p_value -> 'fallback_when_model_missing' not in ('null', '"quick"', '"regular"', '"deep"'))
+         or (p_value ? 'models' and (jsonb_typeof(p_value -> 'models') <> 'object'
+             or exists (select 1 from jsonb_each(p_value -> 'models') pr
+                         where pr.key not in ('gemini', 'anthropic') or jsonb_typeof(pr.value) <> 'object'
+                            or exists (select 1 from jsonb_each(pr.value) m
+                                        where m.key not in ('quick', 'regular', 'deep')
+                                           or (jsonb_typeof(m.value) <> 'null'
+                                               and (jsonb_typeof(m.value) <> 'string' or (m.value #>> '{}') !~ '^[A-Za-z0-9._:/-]{1,100}$')))))) then
+        raise exception 'setting ai: provider per tier gemini or anthropic; effort per tier null, low, medium, high, xhigh or max; prices per model null or {input, output, cache_read?, cache_write?} in USD per million tokens, 0 or more; queue_non_triage_at_pct at most 100; allow_message_excerpts a boolean; max_parallel 1–5; task_max_age_h 1–720; schedule: brief_mail_at_ist HH:MM, propose_feature_weekday 1–7, explain_after_min 1–1440, propose_fix_after_min 1–10080; usd_inr above 0; routing values quick, regular or deep; fallback_when_model_missing null or a tier; models {gemini|anthropic: {tier: model name or null}}'
           using errcode = '22023';
       end if;
     when 'fixes' then

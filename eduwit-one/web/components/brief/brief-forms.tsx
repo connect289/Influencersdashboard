@@ -29,7 +29,7 @@ export function AskForm() {
     <ActionForm action={ask}>
       <Field
         label="Your question"
-        hint="About the five apps' data and Eduwit One's own records. Answers never include a student's name, phone or email."
+        hint="About the five apps' data and Eduwit One's own records. The AI sees contact data masked. Do not type a student's name: phones and emails in a question are masked, names cannot be."
       >
         <Textarea
           name="question"

@@ -27,6 +27,8 @@ type Verdict =
 
 class FakeAiDb implements AiDb {
   verdicts: Verdict[] = [];
+  recorded: CallRecord[] = [];
+  remaining = 500;
   tools: Array<{ name: string; args: Record<string, unknown> }> = [];
   claims: Claim[];
   finishError: Error | null = null;
@@ -38,6 +40,11 @@ class FakeAiDb implements AiDb {
 
   async claim() {
     return this.claims.shift() ?? null;
+  }
+  async recordCalls(_t: number, _h: string, calls: CallRecord[]) {
+    this.recorded.push(...calls);
+    this.remaining -= calls.reduce((n, c) => n + (c.cost_inr ?? 0), 0);
+    return { remaining_inr: this.remaining };
   }
   async finish(_t: number, _h: string, result: Record<string, unknown>, calls: CallRecord[]) {
     if (this.finishError) throw this.finishError;
@@ -76,7 +83,7 @@ const incidentContext = {
 const claim = (over: Partial<Claim["task"]> = {}, rest: Partial<Omit<Claim, "task">> = {}): Claim => ({
   task: { id: 1, kind: "triage", input: {}, model_hint: null, attempts: 1, incident_id: 5, ...over },
   ai: claudeAi,
-  budget: { spent_inr: 0, cap_inr: 500, remaining_inr: 500 },
+  budget: { spent_inr: 0, cap_inr: 500, remaining_inr: 500, task_spent_inr: 0 },
   context: incidentContext,
   ...rest,
 });
@@ -127,8 +134,9 @@ describe("a task that succeeds", () => {
         prompt_version: PROMPTS.triage.version,
       },
     });
-    // 3,000 in at $2 + 400 out at $10 = $0.01 → ₹0.85
-    expect(v.calls).toEqual([
+    // 3,000 in at $2 + 400 out at $10 = $0.01 → ₹0.85; recorded as the call ended, so the verdict carries none.
+    expect(v.calls).toEqual([]);
+    expect(db.recorded).toEqual([
       expect.objectContaining({
         ok: true,
         input_tokens: 3000,
@@ -145,7 +153,7 @@ describe("a task that succeeds", () => {
     const model = new ScriptedModelClient("anthropic", [{ json: { summary: "x" } }, { json: triage }]);
     expect(await runTask(claim(), deps(db, model))).toBe("done");
     expect(model.requests[1]?.user).toContain("did not match the required JSON");
-    expect(db.verdicts[0]?.kind === "finish" && db.verdicts[0].calls).toHaveLength(2);
+    expect(db.recorded).toHaveLength(2);
   });
 
   it("quotes Witty's messages only for explain with excerpts allowed, and masks them", async () => {
@@ -189,11 +197,11 @@ describe("a task that cannot run yet", () => {
   it("waits when the call's worst case is more than what is left today", async () => {
     const db = new FakeAiDb();
     const model = new ScriptedModelClient("anthropic", [{ json: triage }]);
-    const c = claim({}, { budget: { spent_inr: 499.5, cap_inr: 500, remaining_inr: 0.5 } });
+    const c = claim({}, { budget: { spent_inr: 499.5, cap_inr: 500, remaining_inr: 0.5, task_spent_inr: 0 } });
     expect(await runTask(c, deps(db, model))).toBe("deferred");
     expect(db.verdicts[0]).toMatchObject({
       kind: "defer",
-      reason: expect.stringMatching(/^budget: .*₹0\.50 is left today$/),
+      reason: expect.stringMatching(/^budget \(cap reached\): .*₹0\.50 is left today$/),
       minutes: 15,
     });
     expect(model.requests).toHaveLength(0);
@@ -218,11 +226,9 @@ describe("a task that fails", () => {
     const db = new FakeAiDb();
     const model = new ScriptedModelClient("anthropic", [new ModelError("anthropic: rate limited (429)", true, 429)]);
     expect(await runTask(claim(), deps(db, model))).toBe("retry");
-    expect(db.verdicts[0]).toMatchObject({
-      kind: "fail",
-      retry: true,
-      calls: [expect.objectContaining({ ok: false })],
-    });
+    expect(db.verdicts[0]).toMatchObject({ kind: "fail", retry: true });
+    expect(db.recorded).toEqual([expect.objectContaining({ ok: false, error: "anthropic: rate limited (429)" })]);
+    expect(db.recorded[0]?.cost_inr).toBeUndefined();
   });
 
   it("does not retry a refused key, a refusal or a cut-off answer, and keeps their cost", async () => {
@@ -235,6 +241,37 @@ describe("a task that fails", () => {
       expect(await runTask(claim(), deps(db, new ScriptedModelClient("anthropic", [answer])))).toBe("failed");
       expect(db.verdicts[0]).toMatchObject({ kind: "fail", retry: false, error: expect.stringContaining(error) });
     }
+  });
+
+  it("counts a call that got no answer (a timeout) at its worst case", async () => {
+    const db = new FakeAiDb();
+    const model = new ScriptedModelClient("anthropic", [
+      new ModelError("anthropic: no answer (network or timeout)", true),
+    ]);
+    expect(await runTask(claim(), deps(db, model))).toBe("retry");
+    expect(db.recorded[0]).toMatchObject({ ok: false, error: expect.stringContaining("counted at its worst case") });
+    expect(db.recorded[0]?.cost_inr ?? 0).toBeGreaterThan(0);
+  });
+
+  it("holds the per-task cap across attempts (review M6)", async () => {
+    const db = new FakeAiDb();
+    const model = new ScriptedModelClient("anthropic", [{ json: triage }]);
+    const c = claim(
+      { attempts: 3 },
+      { budget: { spent_inr: 60, cap_inr: 500, remaining_inr: 440, task_spent_inr: 49.5 } },
+    );
+    expect(await runTask(c, deps(db, model))).toBe("failed");
+    expect(db.verdicts[0]).toMatchObject({ kind: "fail", error: expect.stringContaining("per-task cap ₹50.00") });
+    expect(model.requests).toHaveLength(0);
+  });
+
+  it("uses the budget the database reports after each call, not the claim's", async () => {
+    const db = new FakeAiDb();
+    db.remaining = 0.2; // another task spent the rest of the day while this one ran
+    const model = new ScriptedModelClient("anthropic", [{ json: { summary: "x" } }, { json: triage }]);
+    expect(await runTask(claim(), deps(db, model))).toBe("deferred");
+    expect(model.requests).toHaveLength(1);
+    expect(db.verdicts[0]).toMatchObject({ kind: "defer", reason: expect.stringContaining("budget (cap reached)") });
   });
 
   it("retries after two answers that do not match", async () => {
@@ -257,7 +294,7 @@ describe("a task that fails", () => {
       retry: false,
       error: "the answer could not be filed (23503)",
     });
-    expect(db.verdicts[0]?.kind === "fail" && db.verdicts[0].calls).toHaveLength(1);
+    expect(db.recorded).toHaveLength(1);
   });
 });
 
@@ -304,13 +341,42 @@ describe("Ask", () => {
     });
   });
 
+  it("masks a tool's error text, and skips tools when time runs short", async () => {
+    const db = new FakeAiDb();
+    db.toolAnswer = () => ({ ok: false, error: 'invalid input syntax for type bigint: "9876543210"' });
+    const model = new ScriptedModelClient("anthropic", [
+      { json: { calls: [{ tool: "incident", args_json: '{"id": "9876543210"}' }], answer: null } },
+      { json: { calls: [], answer: "No such incident." } },
+    ]);
+    expect(await runTask(askClaim, deps(db, model))).toBe("done");
+    const second = model.requests[1]?.user ?? "";
+    expect(second).toContain("…3210");
+    expect(second).not.toContain("9876543210");
+    const v = db.verdicts[0];
+    expect(JSON.stringify(v?.kind === "finish" && v.result)).not.toContain("9876543210");
+
+    const late = new FakeAiDb();
+    const model2 = new ScriptedModelClient("anthropic", [
+      { json: { calls: [{ tool: "health", args_json: "{}" }], answer: null } },
+      { json: { calls: [], answer: "Could not check." } },
+    ]);
+    // The clock jumps once the first round has answered: the tool call is skipped, the answer still comes.
+    const t = Date.now();
+    const clock = () => (model2.requests.length >= 1 ? t + 200_000 : t);
+    expect(await runTask(askClaim, deps(late, model2, { now: clock, deadline: t + 240_000 }))).toBe("done");
+    expect(late.tools).toHaveLength(0);
+    expect(late.verdicts[0]?.kind === "finish" && late.verdicts[0].result).toMatchObject({
+      queries: [{ tool: "health", ok: false, error: "skipped: the worker ran out of time" }],
+    });
+  });
+
   it("must answer in the third round", async () => {
     const db = new FakeAiDb();
     const more = { json: { calls: [{ tool: "health", args_json: "{}" }], answer: null } };
     const model = new ScriptedModelClient("anthropic", [more, more, { json: { answer: "Everything is up." } }]);
     expect(await runTask(askClaim, deps(db, model))).toBe("done");
     expect(model.requests[2]?.user).toContain("This is the last round");
-    expect(db.verdicts[0]?.kind === "finish" && db.verdicts[0].calls).toHaveLength(3);
+    expect(db.recorded).toHaveLength(3);
   });
 });
 

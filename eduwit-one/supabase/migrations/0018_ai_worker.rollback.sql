@@ -1,8 +1,23 @@
 -- Rollback of 0018: the AI worker's API, schedule, context builders and Ask tools. The tick's app call, the delivery
--- claim and verdict, and the Marketing and Analytics reads go back to their earlier versions (copied verbatim from
--- 0003, 0008 and 0012). Tasks, calls, briefs and proposals stay; the three new columns go.
+-- claim and verdict, proposal_sensitive, and the Marketing and Analytics reads go back to their earlier versions
+-- (copied verbatim from 0003, 0008, 0010 and 0012). Tasks, calls, briefs and proposals stay; the three new columns go.
 
 delete from one.api_grants where why like 'AI worker (0018):%';
+
+-- The brief emails still queued would reach a sender that no longer knows briefs (review m4).
+update one.deliveries set status = 'suppressed', error = 'rolled back: 0018' where kind = 'brief' and status in ('pending', 'sending');
+
+create or replace function one.proposal_sensitive(p_kind text, p_change jsonb) returns boolean
+language sql immutable set search_path = '' as $$
+  -- A proposal cannot vouch for itself (phase review M5): a fix or config proposal names an app function whose effect
+  -- the database cannot judge, so it is always the owner's; so is anything touching money, allocation, switches,
+  -- partner mappings, prompts, settings, or security (keys, auth, data, retention, staging; security review S6).
+  select p_kind in ('fix', 'config')
+      or coalesce(p_change -> 'touches', '[]') ?| array['money', 'allocation', 'live_switches', 'partner_mappings', 'prompts', 'versioned_settings',
+                                                        'api_keys', 'credentials', 'auth', 'auth_settings', 'database_security', 'data_retention',
+                                                        'staging', 'security']
+      or coalesce(p_change, '{}')::text ~* '(allocat|earning|commission|payout|ledger|invoice|live_switch|partner_(map|course)|prompt|settings_put|set_setting)'
+$$;
 
 create or replace function one.tick_app_call() returns jsonb
 language plpgsql set search_path = '' as $$
@@ -186,6 +201,7 @@ begin
 end $$;
 
 drop function if exists one.app_ai_settings();
+drop function if exists one.ai_calls_add(bigint, text, jsonb);
 drop function if exists one.ai_tool(bigint, text, text, jsonb);
 drop function if exists one.ai_tool_data(text, jsonb);
 drop function if exists one.ai_defer(bigint, text, text, integer);
@@ -203,6 +219,7 @@ drop function if exists one.ai_incident_context(bigint, text);
 drop function if exists one.ai_witty_excerpts(timestamptz);
 drop function if exists one.analytics_data(integer);
 drop function if exists one.marketing_data(integer);
+drop function if exists one.ai_touches(jsonb);
 drop function if exists one.ai_risk(text, text);
 drop function if exists one.ai_high_risk(one.incidents);
 drop function if exists one.ai_priority(text);
