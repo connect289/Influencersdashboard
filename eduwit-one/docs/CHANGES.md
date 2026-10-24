@@ -3,6 +3,17 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 1 applied to production (D-092; no dump, D-090)
+
+- Production database change: migrations 0001 to 0020 applied 15:45 to 15:48 UTC through the Management API
+  (`scripts/db/api-apply.sh`), each file one transaction between the two catalogue fingerprints, none refused. The dump
+  this change followed: **none**, waived by the owner (D-090); the staging rehearsal of the same set (15:41 UTC, D-091)
+  stood in. Schema `one`, the roles `eduwit_one_reader` and `eduwit_one_fixer` and the cron jobs `one-tick` and
+  `one-nightly` now exist on production; nothing else changed.
+- Smoke test passed; first tick report: checks ok 67, fail 9, no `_error` key; events copied from 17 sources; the fixes
+  observation window started 15:47:51 UTC. App call and AI are `not_configured` until the deploy (`docs/RUNBOOK.md`,
+  "Setup").
+
 ## 24 Oct 2026 — staging rehearsal passed through the Management API (D-091)
 
 - `docs/REHEARSALS.md`: `REHEARSAL PASSED` on staging at 15:41 UTC for migration set `60b7dbb4…cac6c0`, by
