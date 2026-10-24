@@ -3,7 +3,7 @@
 
 import type { DocSection } from "./docs-source.ts";
 
-export const DOCS_VERSION = "95639fdf7e";
+export const DOCS_VERSION = "9ec0bd1dd4";
 export const DOCS: DocSection[] = [
   {
     "file": "RUNBOOK",
@@ -118,7 +118,7 @@ export const DOCS: DocSection[] = [
   {
     "file": "RUNBOOK-database",
     "title": "4. Apply to production",
-    "text": "Within 24 hours of the dump, one file at a time:\n\n```sh\nscripts/db/apply.sh $(cd supabase/migrations && ls 0*.sql | grep -v '\\.rollback\\.sql$' | sort)\n```\n\nThat is every migration in order, 0001 to 0019 today; the rehearsal vouches for the same set.\n\nEach file runs in one transaction between two fingerprints of everything outside schema one; if a file changed any\napp object, it is rolled back whole and the run stops with \"refused: this migration changed an object outside schema\none\" (D-057). It stops at the first failure, runs the smoke test, and prints the first tick report and the two cron\njobs. The report must have no key ending in `_error`, and `cron` must list `one-tick` and `one-nightly`."
+    "text": "Within 24 hours of the dump, one file at a time:\n\n```sh\nscripts/db/apply.sh $(cd supabase/migrations && ls 0*.sql | grep -v '\\.rollback\\.sql$' | sort)\n```\n\nThat is every migration in order, 0001 to 0020 today; the rehearsal vouches for the same set.\n\nEach file runs in one transaction between two fingerprints of everything outside schema one; if a file changed any\napp object, it is rolled back whole and the run stops with \"refused: this migration changed an object outside schema\none\" (D-057). It stops at the first failure, runs the smoke test, and prints the first tick report and the two cron\njobs. The report must have no key ending in `_error`, and `cron` must list `one-tick` and `one-nightly`."
   },
   {
     "file": "RUNBOOK-database",
