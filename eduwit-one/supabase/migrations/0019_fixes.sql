@@ -304,11 +304,13 @@ end $$;
 -- The plan ----------------------------------------------------------------------------------------------------------
 
 -- What a fix would touch on this incident: {applies, why_not, would, rows (ids, at most 500), count, test_rows,
--- target}. Read with Eduwit One's own rights, as the checks read the same tables; ids and counts only.
+-- target}. Read with Eduwit One's own rights, as the checks read the same tables; ids and counts only. It works from
+-- what the check last observed (the incident's evidence: {status, value, error}); a check that could not run (error,
+-- source_missing) observed nothing to fix.
 create or replace function one.fix_plan(p_fix text, p_inc one.incidents) returns jsonb
 language plpgsql set search_path = '' as $$
 declare
-  e jsonb := coalesce(p_inc.evidence, '{}');
+  e jsonb := coalesce(p_inc.evidence -> 'value', '{}');
   v_rows jsonb := '[]';
   v_n integer := 0;
   v_test integer := 0;
@@ -318,6 +320,10 @@ declare
 begin
   if not exists (select 1 from one.fixes f where f.id = p_fix and p_inc.check_id = any (f.checks)) then
     return jsonb_build_object('applies', false, 'why_not', 'not one of this fix''s checks');
+  end if;
+  if coalesce(p_inc.evidence ->> 'status', '') <> 'fail' then
+    return jsonb_build_object('applies', false,
+                              'why_not', format('%s could not run (%s): it observed nothing to fix', p_inc.check_id, coalesce(p_inc.evidence ->> 'status', 'no reading')));
   end if;
   case p_fix
     when 'FIX-OUTBOX-W2' then

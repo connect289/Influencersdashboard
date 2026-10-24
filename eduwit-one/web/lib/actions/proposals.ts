@@ -32,6 +32,7 @@ export async function decide(_: ActionResult | undefined, form: FormData): Promi
   const done = { approve: "Approved.", reject: "Rejected.", snooze: `Snoozed for ${d.snooze_days ?? 0} days.` }[
     d.decision
   ];
+  const message = d.decision === "approve" ? (data: Record<string, unknown>) => approvedMessage(data.executed) : done;
   return act(
     "ui_proposal_decide",
     {
@@ -41,8 +42,29 @@ export async function decide(_: ActionResult | undefined, form: FormData): Promi
       p_change: d.change ?? null,
       p_snooze_days: d.snooze_days ?? null,
     },
-    done,
+    message,
   );
+}
+
+const executedSchema = z.looseObject({
+  executed: z.boolean().optional(),
+  why: z.string().optional(),
+  status: z.string().optional(),
+  skipped: z.string().optional(),
+  why_not: z.string().nullable().optional(),
+  queued_for_app: z.number().optional(),
+  result: z.looseObject({ refused: z.array(z.looseObject({ error: z.string().optional() })).optional() }).optional(),
+});
+
+/** What an approved fix proposal did when it ran under the approver's session (0019), in one sentence. */
+function approvedMessage(executed: unknown): string {
+  const x = executedSchema.safeParse(executed);
+  if (!x.success || !x.data.executed) return "Approved.";
+  if (x.data.status === "done") return "Approved and run. Eduwit One checks the result in 10 minutes.";
+  if (x.data.queued_for_app) return "Approved; the app runs it within a minute.";
+  if (x.data.skipped || x.data.why_not) return `Approved, but nothing ran: ${x.data.skipped ?? x.data.why_not}.`;
+  const refused = x.data.result?.refused?.[0]?.error;
+  return `Approved, but the run failed${refused ? `: ${refused}` : ""}. It stays approved and can be proposed again.`;
 }
 
 export async function create(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {

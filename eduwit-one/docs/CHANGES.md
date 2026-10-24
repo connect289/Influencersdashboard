@@ -3,6 +3,23 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 7: the fixes in the app and on the pages
+
+- The minute tick carries out the runs the database queues for the app (`lib/fixes`): FIX-N8N-RETRY retries each
+  failed Witty execution once (`POST /api/v1/executions/{id}/retry`, never retried by the HTTP layer), and
+  FIX-WEBHOOK-REKICK checks that Spark's handoff endpoint answers (HEAD, then GET; below 500 within 10 s) before the
+  database kicks B2B's outbox. Reports go back through `one.app_fix_report`.
+- Settings → Fixes: each fix with what triggers it, what it does, its mode (acts, from the app, owner approves,
+  proposes only), its rights and whether they are granted, its rollback, counts (dry runs, real runs, held,
+  escalated), its open incidents with a "Dry run now" button, and its latest rows; the owner's switch and limits with a
+  reason (refused before the window ends). The window's state is a banner.
+- Actions: each row's step (dry run, about to act, acted, did nothing, verified) and a one-line summary. Incidents
+  list the fixes tried on their check, with a dry-run button. A fix proposal says what approving runs, and its check
+  result after.
+- The morning brief's prompt asks for what each fix did. The click-through covers the Fixes page (desktop and phone)
+  and two writes on it.
+- Fix: plans read the check's value from the incident's evidence, and skip an incident whose check could not run.
+
 ## 24 Oct 2026 — phase 7: the fixes in the database (0019; D-079, D-080)
 
 - Migration 0019 (with its rollback): the catalogue `one.fixes` (11 fixes of spec §8), `one.fix_<id>(incident,

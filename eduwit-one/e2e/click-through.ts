@@ -296,6 +296,8 @@ const auditOf: Record<string, string> = {
   "run a test now": "test.run_now",
   "regenerate a brief": "brief.regenerate",
   "save an analytics view": "view.save",
+  "run a fix dry run": "fix.dry_run",
+  "save a fix": "fix.set",
 };
 
 async function dataSums(): Promise<Map<string, string>> {
@@ -394,6 +396,14 @@ async function main() {
         question: "How many incidents opened today, by app?",
       });
       await p.close();
+      p = await visit(ctx, who, "/settings/fixes");
+      await write(
+        p,
+        who,
+        "run a fix dry run",
+        "form:has(input[name=fix][value=FIX-INBOX-RETRY]):has(input[name=incident])",
+      );
+      await p.close();
     } else {
       let p = await visit(ctx, who, `/incidents/${inc[0]!.id}`);
       await write(p, who, "acknowledge an incident", "form:has(button:text-is('Acknowledge'))");
@@ -457,6 +467,13 @@ async function main() {
         value: "e2e-not-a-real-secret-0001",
       });
       await p.close();
+      p = await visit(ctx, who, "/settings/fixes");
+      await p.locator("#FIX-INBOX-RETRY summary", { hasText: "Switch and limits" }).click();
+      await write(p, who, "save a fix", "form:has(input[name=fix][value=FIX-INBOX-RETRY]):has([name=per_tick])", {
+        cooldown_min: "6",
+        reason: "click-through fix",
+      });
+      await p.close();
       p = await visit(ctx, who, "/tests");
       await write(
         p,
@@ -494,6 +511,7 @@ async function main() {
     [`/incidents/${inc2[0]!.id}`, "phone-incident"],
     ["/proposals", "phone-proposals"],
     [`/proposals/${props[2]!.id}`, "phone-proposal"],
+    ["/settings/fixes", "phone-fixes"],
   ] as const) {
     const p = await visit(phone, "owner", path);
     // Against the device width, not innerWidth: a phone browser zooms out to fit a page that is too wide.
@@ -511,6 +529,8 @@ async function main() {
     ["/", "overview"],
     ["/apps/b2b", "apps-b2b"],
     ["/analytics", "analytics"],
+    ["/settings/fixes", "fixes"],
+    ["/actions", "actions"],
   ] as const) {
     const p = await visit(desk, "owner", path);
     await p.screenshot({ path: `${out}/${file}.png`, fullPage: true });

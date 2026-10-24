@@ -12,17 +12,23 @@ import { okSchema } from "../ui/schemas.ts";
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
 export type Action = (prev: ActionResult | undefined, form: FormData) => Promise<ActionResult>;
 
-export async function act(fn: string, args: Record<string, unknown>, message?: string): Promise<ActionResult> {
+/** The message may be built from the function's answer (what an approval ran, what a dry run would do). */
+export async function act(
+  fn: string,
+  args: Record<string, unknown>,
+  message?: string | ((data: Record<string, unknown>) => string),
+): Promise<ActionResult> {
   const requestId = crypto.randomUUID();
+  let data: Record<string, unknown>;
   try {
     await assertUser();
-    await ui(fn, okSchema, { ...args, p_request_id: requestId });
+    data = await ui(fn, okSchema, { ...args, p_request_id: requestId });
   } catch (e) {
     if (e instanceof UiError) return { ok: false, error: e.message };
     log("error", "action.failed", { fn, requestId, error: e instanceof Error ? e.message : "error" });
     return { ok: false, error: "That did not work. Try again." };
   }
-  return { ok: true, message };
+  return { ok: true, message: typeof message === "function" ? message(data) : message };
 }
 
 /** The first problem zod found, as a sentence. */

@@ -12,6 +12,10 @@ export type AppHealthFixture = z.infer<typeof appHealthFixture>;
 const healthBody = z.looseObject({ ok: z.boolean().optional(), status: z.string().optional() });
 
 export class RealAppHealthClient implements AppHealthClient {
+  answers(url: string) {
+    return answersAt(url);
+  }
+
   async health(url: string, expect: "json_ok" | "reachable") {
     const started = Date.now();
     if (expect === "reachable") {
@@ -47,6 +51,35 @@ export class RealAppHealthClient implements AppHealthClient {
   }
 }
 
+async function probe(url: string, method: "HEAD" | "GET"): Promise<number> {
+  try {
+    const res = await fetch(url, {
+      method,
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+      redirect: "manual",
+    });
+    await res.body?.cancel();
+    return res.status;
+  } catch (e) {
+    return e instanceof Error && e.name === "TimeoutError" ? 0 : -1;
+  }
+}
+
+/** HEAD, then GET when HEAD got no answer or a 5xx; answered is a status from 1 to 499. */
+export async function answersAt(
+  url: string,
+): Promise<{ answered: boolean; status: number; method: "HEAD" | "GET"; ms: number }> {
+  const started = Date.now();
+  let method: "HEAD" | "GET" = "HEAD";
+  let status = await probe(url, method);
+  if (status <= 0 || status >= 500) {
+    method = "GET";
+    status = await probe(url, method);
+  }
+  return { answered: status > 0 && status < 500, status, method, ms: Date.now() - started };
+}
+
 /** Answers from recorded fixtures, keyed by host; an unknown host answers like a timeout. */
 export class MockAppHealthClient implements AppHealthClient {
   private readonly byHost: Record<string, AppHealthFixture>;
@@ -58,5 +91,11 @@ export class MockAppHealthClient implements AppHealthClient {
   async health(url: string) {
     const f = this.byHost[new URL(url).host];
     return f ? { ...f, ms: 1 } : { ok: false, status: 0, ms: 5000 };
+  }
+
+  async answers(url: string) {
+    const f = this.byHost[new URL(url).host];
+    const status = f?.status ?? 0;
+    return { answered: status > 0 && status < 500, status, method: "HEAD" as const, ms: f ? 1 : 10_000 };
   }
 }

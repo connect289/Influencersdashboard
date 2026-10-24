@@ -6,7 +6,7 @@ import { appName, riskTone } from "@/components/ui/labels.ts";
 import { Badge, SeverityBadge, StatusBadge } from "@/components/ui/badge.tsx";
 import { Card, CardBody, CardHeader } from "@/components/ui/card.tsx";
 import { PageError } from "@/components/ui/page-error.tsx";
-import { Code, PageHeader } from "@/components/ui/state.tsx";
+import { Banner, Code, PageHeader } from "@/components/ui/state.tsx";
 import { ist, json } from "@/lib/format.ts";
 import { requireUser } from "@/lib/session.ts";
 import { ui } from "@/lib/ui/api.ts";
@@ -27,6 +27,9 @@ export default async function ProposalPage({ params }: { params: Promise<{ id: s
   if (!data) notFound();
   const p = data.proposal;
   const decidable = p.status === "open" || p.status === "snoozed";
+  // A proposal a fix opened that runs when approved (0019): what runs, and that it runs under the approver's session.
+  const change = (p.change ?? {}) as { execute?: { fix?: string; rows?: unknown[] } };
+  const runs = p.source === "check" && change.execute?.fix ? change.execute : null;
   return (
     <>
       <PageHeader
@@ -44,6 +47,21 @@ export default async function ProposalPage({ params }: { params: Promise<{ id: s
           </span>
         }
       />
+      {runs && decidable ? (
+        <Banner tone="p2">
+          Approving runs {runs.fix} once, now, under your session, on the{" "}
+          {Array.isArray(runs.rows) ? runs.rows.length : 0} rows listed that still qualify then (an edit cannot add
+          rows). The result is checked 10 minutes later and shown here.
+        </Banner>
+      ) : null}
+      {runs && p.check_result ? (
+        <Banner tone={(p.check_result as { ok?: boolean }).ok ? "p3" : "p1"}>
+          Checked after the run:{" "}
+          {(p.check_result as { ok?: boolean }).ok
+            ? "none of its rows is still failing."
+            : "some rows still fail; see the result below."}
+        </Banner>
+      ) : null}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="grid min-w-0 content-start gap-4 lg:col-span-2">
           <Card>

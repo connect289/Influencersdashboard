@@ -149,6 +149,7 @@ export const incidentSchema = z.object({
       ran_at: iso,
       ran_by: z.string(),
       result: json,
+      step: z.string().default("after"),
     }),
   ),
   ai_tasks: z.array(
@@ -193,8 +194,52 @@ export const actionRowSchema = z.looseObject({
   result: json,
   ran_at: iso,
   ran_by: z.string(),
+  // 0019: the row's place in a run (dry_run, before, after, skip, verify) and what ties a run's rows together.
+  step: z.enum(["dry_run", "before", "after", "skip", "verify"]).default("after"),
+  run_key: z.string().nullable().optional(),
+  proposal_id: num.nullable().optional(),
+  verify_at: isoN.optional(),
 });
+export type ActionRow = z.infer<typeof actionRowSchema>;
 export const actionsSchema = pageOf(actionRowSchema).extend({ fixes: z.record(z.string(), json) });
+
+// The Fixes page (0019): each fix's catalogue entry, switch, grants, evidence and open incidents, and the window.
+const fixSettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+  per_tick: num.default(1),
+  cooldown_min: num.default(60),
+});
+export const fixSchema = z.object({
+  id: z.string(),
+  app: z.string(),
+  title: z.string(),
+  checks: z.array(z.string()),
+  trigger: z.string(),
+  mode: z.enum(["act", "app", "approve", "propose"]),
+  what: z.string(),
+  grants: z.string(),
+  rollback: z.string(),
+  app_functions: z.array(z.string()),
+  settings: fixSettingsSchema,
+  grants_state: z.object({ ok: z.boolean(), missing: z.array(z.string()) }),
+  counts: z.object({
+    dry_runs: num,
+    runs: num,
+    failed: num,
+    skipped: num,
+    held: num,
+    escalated: num,
+    last_at: isoN,
+  }),
+  recent: z.array(actionRowSchema),
+  open_incidents: z.array(z.object({ id: num, check_id: z.string(), severity: z.string(), title: z.string() })),
+  can_enable: z.boolean(),
+});
+export type Fix = z.infer<typeof fixSchema>;
+export const fixesSchema = z.object({
+  window: z.object({ started_at: isoN, days: num, until: isoN, running: z.boolean() }),
+  fixes: z.array(fixSchema),
+});
 
 export const proposalRowSchema = z.looseObject({
   id: num,

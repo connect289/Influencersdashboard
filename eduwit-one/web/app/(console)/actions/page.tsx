@@ -1,15 +1,13 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { appName, appNames } from "@/components/ui/labels.ts";
-import { Badge, StatusBadge } from "@/components/ui/badge.tsx";
+import { ActionRows } from "@/components/fixes/action-rows.tsx";
+import { appNames } from "@/components/ui/labels.ts";
 import { buttonClass } from "@/components/ui/button.tsx";
 import { Card } from "@/components/ui/card.tsx";
 import { Filters, FilterSelect } from "@/components/ui/filters.tsx";
 import { Input } from "@/components/ui/field.tsx";
 import { PageError } from "@/components/ui/page-error.tsx";
-import { Code, Empty, PageHeader } from "@/components/ui/state.tsx";
-import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table.tsx";
-import { ist, json } from "@/lib/format.ts";
+import { Empty, PageHeader } from "@/components/ui/state.tsx";
 import { ui } from "@/lib/ui/api.ts";
 import { actionsSchema } from "@/lib/ui/schemas.ts";
 
@@ -39,7 +37,7 @@ export default async function ActionsPage({
     <>
       <PageHeader
         title="Actions"
-        description="Every auto-fix attempt and every approved execution, dry runs marked. All fixes ship switched off and run as dry runs during the observation window."
+        description="Every auto-fix run and every approved execution, as it happens: dry runs, the row before and after each act, what was skipped and why, and whether it held. All fixes ship switched off and run as dry runs during the observation window."
       />
       <Filters reset="/actions">
         <FilterSelect
@@ -60,45 +58,7 @@ export default async function ActionsPage({
             No fix has run{p.fix ? ` for ${p.fix}` : ""}. Fixes are off until switched on under Settings → Fixes.
           </Empty>
         ) : (
-          <Table>
-            <THead>
-              <TR>
-                <TH>When</TH>
-                <TH>Fix</TH>
-                <TH>App</TH>
-                <TH>Result</TH>
-                <TH>By</TH>
-                <TH>Detail</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {data.rows.map((a) => (
-                <TR key={a.id}>
-                  <TD className="whitespace-nowrap">{ist(a.ran_at)}</TD>
-                  <TD>
-                    <span className="font-medium">{a.fix_id}</span>{" "}
-                    {a.dry_run ? <Badge tone="p3">dry run</Badge> : null}
-                    {a.incident_id ? (
-                      <Link href={`/incidents/${a.incident_id}`} className="block text-xs underline">
-                        incident #{a.incident_id}
-                      </Link>
-                    ) : null}
-                  </TD>
-                  <TD>{appName(a.app)}</TD>
-                  <TD>
-                    <StatusBadge status={a.status} />
-                  </TD>
-                  <TD className="text-xs">{a.ran_by}</TD>
-                  <TD>
-                    <details>
-                      <summary className="cursor-pointer text-xs">target and result</summary>
-                      <Code className="mt-1">{json({ target: a.target, result: a.result })}</Code>
-                    </details>
-                  </TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
+          <ActionRows rows={data.rows} showFix />
         )}
       </Card>
       {data.next_before ? (

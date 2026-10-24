@@ -51,5 +51,11 @@ values (current_date, 'regular', e'# Morning brief\n\n- **2 P1** open: PLAT-05 a
 -- A P1 and a P2 the way checks open them, then two real ticks (checks against the stubs, the event copy).
 select one.open_or_touch_incident('PLAT-05', 'P1', '{"value": {"spark_base_url": false}}');
 select one.open_or_touch_incident('B2C-10', 'P2', '{"value": {"job": "b2c-capacity", "failures_24h": 1}}');
+-- Spark's inbox with a row in error, so B2C-02 fails for real and FIX-INBOX-RETRY records a dry run on it; the ticks
+-- also start the observation window.
+set role postgres;
+create table b2c.inbox (envelope_id text primary key, status text, attempts int default 0, received_at timestamptz default now());
+insert into b2c.inbox (envelope_id, status, attempts) values ('e2e-1', 'error', 1);
+reset role;
 call one.tick_job();
 call one.tick_job();

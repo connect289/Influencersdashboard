@@ -78,17 +78,16 @@ insert into b2b.integration_outbox (event_type, status, endpoint_id, payload, cr
 reset role;
 select id as w2_retryable from public.w2_outbox where phone = '919876500001' and status = 'failed' \gset
 
--- The staged incidents: one per trigger, with the evidence each check reports.
-set role postgres;
-select one.open_or_touch_incident('WITTY-01', 'P1', '{"alerts": [{"alert": "outbox_failed"}, {"alert": "cache_expired"}]}', '{outbox_failed,cache_expired}');
-select one.open_or_touch_incident('WITTY-02', 'P1', '{"active": true, "failed_15m": ["9001", "9002"]}');
-select one.open_or_touch_incident('B2B-01', 'P1', '{"ok": false, "deliveries": {"dead_7d": 2, "waiting_over_1h": 1}, "b2c_sync": {"cursor_age_seconds": 900}}');
-select one.open_or_touch_incident('B2B-06', 'P1', '{"endpoints": [{"id": 1}]}');
-select one.open_or_touch_incident('B2C-02', 'P1', '{"error": 2, "stuck": 1}');
-select one.open_or_touch_incident('B2C-03', 'P2', '{"count": 3, "by_status": {"failed": 3}}');
-select one.open_or_touch_incident('WEB-01', 'P1', '{"db": true, "outbox_dead": 3, "catalog_checked_seconds_ago": 900, "outbox_oldest_pending_seconds": 0}');
-select one.open_or_touch_incident('CAT-01', 'P2', '{"cache_at": "2026-10-01T00:00:00Z", "catalogue_at": "2026-10-24T00:00:00Z"}');
-select one.open_or_touch_incident('CAT-02', 'P2', '{"changed_at": "2026-10-24T00:00:00Z", "refreshed_at": null}');
+-- The staged incidents: one per trigger, with the evidence each check reports (as one.evaluate records it).
+select one.open_or_touch_incident('WITTY-01', 'P1', '{"status": "fail", "value": {"alerts": [{"alert": "outbox_failed"}, {"alert": "cache_expired"}]}}', '{outbox_failed,cache_expired}');
+select one.open_or_touch_incident('WITTY-02', 'P1', '{"status": "fail", "value": {"active": true, "failed_15m": ["9001", "9002"]}}');
+select one.open_or_touch_incident('B2B-01', 'P1', '{"status": "fail", "value": {"ok": false, "deliveries": {"dead_7d": 2, "waiting_over_1h": 1}, "b2c_sync": {"cursor_age_seconds": 900}}}');
+select one.open_or_touch_incident('B2B-06', 'P1', '{"status": "fail", "value": {"endpoints": [{"id": 1}]}}');
+select one.open_or_touch_incident('B2C-02', 'P1', '{"status": "fail", "value": {"error": 2, "stuck": 1}}');
+select one.open_or_touch_incident('B2C-03', 'P2', '{"status": "fail", "value": {"count": 3, "by_status": {"failed": 3}}}');
+select one.open_or_touch_incident('WEB-01', 'P1', '{"status": "fail", "value": {"db": true, "outbox_dead": 3, "catalog_checked_seconds_ago": 900, "outbox_oldest_pending_seconds": 0}}');
+select one.open_or_touch_incident('CAT-01', 'P2', '{"status": "fail", "value": {"cache_at": "2026-10-01T00:00:00Z", "catalogue_at": "2026-10-24T00:00:00Z"}}');
+select one.open_or_touch_incident('CAT-02', 'P2', '{"status": "fail", "value": {"changed_at": "2026-10-24T00:00:00Z", "refreshed_at": null}}');
 reset role;
 select id as i_witty1 from one.incidents where check_id = 'WITTY-01' \gset
 select id as i_witty2 from one.incidents where check_id = 'WITTY-02' \gset
@@ -162,6 +161,9 @@ select pg_temp.ok((one.fix_run('FIX-CACHE-B2C', :i_cat1, true, 'eng@eduwit.in') 
 select pg_temp.ok((select count(*) = 12 from one.actions), 'a person''s dry run is not held by the cooldown');
 select pg_temp.ok((one.fix_cache_b2c(:i_cat1, false) ->> 'dry_run')::boolean, 'one.fix_<id>() by hand acts only when switched on');
 select pg_temp.ok(one.fix_run('FIX-CACHE-B2C', :i_web1, true, 'sql:test') ->> 'why_not' = 'not one of this fix''s checks', 'a fix is tried only on its own checks');
+update one.incidents set evidence = '{"status": "source_missing", "value": null}' where id = :i_cat1;
+select pg_temp.ok(one.fix_run('FIX-CACHE-B2C', :i_cat1, true, 'sql:test') ->> 'why_not' ~ 'could not run', 'nor on an incident whose check could not run');
+update one.incidents set evidence = '{"status": "fail", "value": {}}' where id = :i_cat1;
 
 -- 4. Switched on after the window: real runs, each through the fixer, with a row before and after ------------------------
 update one.settings set value = value || jsonb_build_object('observation_started_at', now() - interval '30 days') where key = 'fixes';

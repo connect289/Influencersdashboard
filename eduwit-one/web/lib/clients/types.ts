@@ -10,6 +10,11 @@ export interface AppHealthClient {
    * app without one ("reachable", for example Spark's "/"), ok means any 2xx answer.
    */
   health(url: string, expect: "json_ok" | "reachable"): Promise<{ ok: boolean; status: number; ms: number }>;
+  /**
+   * Whether anything answers at the URL: HEAD, then GET when HEAD gets no answer or a 5xx (FIX-WEBHOOK-REKICK).
+   * Answered means a status below 500 within 10 s; the body is never read.
+   */
+  answers(url: string): Promise<{ answered: boolean; status: number; method: "HEAD" | "GET"; ms: number }>;
 }
 
 export type VercelDeployment = { uid: string; state: string; createdAt: number; url: string | null };
@@ -29,6 +34,8 @@ export type N8nExecution = { id: string; status: string; startedAt: string | nul
 export interface N8nClient {
   workflow(id: string): Promise<{ id: string; active: boolean; name: string }>;
   executions(workflowId: string, limit: number): Promise<N8nExecution[]>;
+  /** Retries a failed execution once (POST /executions/{id}/retry, FIX-N8N-RETRY): the new execution's id and status. */
+  retry(executionId: string): Promise<{ id: string | null; status: string | null }>;
 }
 
 export interface WhatsAppClient {
