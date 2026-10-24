@@ -13,7 +13,10 @@ export const metadata: Metadata = { title: "Ask" };
 type Query = { tool?: string; args?: Record<string, unknown>; rows?: number; ok?: boolean; error?: string };
 type Answer = { answer?: string; queries?: Query[] };
 
-export default async function AskPage() {
+export default async function AskPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  // A question an Operate page suggests (?q=…), offered in the form and never sent by itself.
+  const q = (await searchParams).q;
+  const defaultQuestion = typeof q === "string" ? q.slice(0, 2000) : undefined;
   let asks;
   try {
     asks = await ui("ui_asks", asksSchema, { p_limit: 50 });
@@ -28,7 +31,7 @@ export default async function AskPage() {
       />
       <Card>
         <CardBody>
-          <AskForm />
+          <AskForm defaultQuestion={defaultQuestion} />
         </CardBody>
       </Card>
       {asks.length === 0 ? (

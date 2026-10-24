@@ -4,6 +4,9 @@ import { ModelError, type ModelClient } from "./client.ts";
 import type { AiDb, CallRecord, Claim } from "./db.ts";
 import { aiSettingsSchema, costOf, fallbackRoute, route, worstCaseInr, type AiSettings, type Route } from "./models.ts";
 import { maskForAi, maskText } from "./pii.ts";
+import { DOCS } from "./docs.generated.ts";
+import { findSections } from "./docs-source.ts";
+import { OPERATE } from "../operate/index.ts";
 import { PROMPTS, SYSTEM_PROMPT } from "./prompts.generated.ts";
 import { askFinalSchema, askRoundSchema, MAX_TOKENS, SCHEMAS } from "./schemas.ts";
 
@@ -280,7 +283,35 @@ async function runTool(
   }
   let result: { ok: boolean; data?: unknown; error?: string };
   try {
-    if (tool === "n8n_executions") {
+    if (tool === "runbook") {
+      // The hand-over documents, from the generated module (D-083): the sections a question's words point at.
+      const query = typeof args.query === "string" ? args.query : "";
+      const found = findSections(DOCS, query, 3);
+      result = {
+        ok: true,
+        data: found.length
+          ? found.map((d) => ({ file: `${d.file}.md`, section: d.title, text: d.text.slice(0, 3000) }))
+          : { sections: DOCS.map((d) => `${d.file}: ${d.title}`), note: "no section matches; pick one by name" },
+      };
+    } else if (tool === "operate") {
+      // What each app needs and where to look, as the Operate pages say it (lib/operate; static, no data).
+      const app = typeof args.app === "string" ? OPERATE[args.app] : undefined;
+      result = app
+        ? {
+            ok: true,
+            data: {
+              app: app.key,
+              needs: app.needs,
+              first_time: app.firstTime,
+              daily: app.daily,
+              when_fires: app.whenFires,
+              in_the_app: app.inTheApp,
+              fixes: app.fixes,
+              tests: app.tests,
+            },
+          }
+        : { ok: false, error: `app is one of ${Object.keys(OPERATE).join(", ")}` };
+    } else if (tool === "n8n_executions") {
       if (!deps.n8n) {
         result = { ok: false, error: "n8n is not configured (Setup item n8n_api)" };
       } else {

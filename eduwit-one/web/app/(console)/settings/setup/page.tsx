@@ -42,6 +42,14 @@ export default async function SetupPage() {
                 <>
                   <StatusBadge status={status(i)} />
                   {i.validate ? <ValidateButton id={i.id} /> : null}
+                  {!i.state.validated ? (
+                    <Link
+                      href={`/ask?q=${encodeURIComponent(`How do I fill Setup item ${i.id}, step by step, and what does it unblock?`)}`}
+                      className="text-sm underline"
+                    >
+                      Ask the AI how
+                    </Link>
+                  ) : null}
                 </>
               }
             />

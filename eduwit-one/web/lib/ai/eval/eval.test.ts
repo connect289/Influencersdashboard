@@ -13,10 +13,10 @@ const seeded = (
 const ai = aiSettingsSchema.parse(seeded);
 
 describe("the eval set", () => {
-  it("has 30 incidents and 10 questions, with unique ids", () => {
+  it("has 30 incidents and 12 questions, with unique ids", () => {
     expect(INCIDENTS).toHaveLength(30);
-    expect(QUESTIONS).toHaveLength(10);
-    expect(new Set([...INCIDENTS, ...QUESTIONS].map((x) => x.id)).size).toBe(40);
+    expect(QUESTIONS).toHaveLength(12);
+    expect(new Set([...INCIDENTS, ...QUESTIONS].map((x) => x.id)).size).toBe(42);
   });
 
   it("scores the reference answers 100% with no leak, on every tier", async () => {
@@ -25,7 +25,7 @@ describe("the eval set", () => {
       const s = summarise(report);
       const misses = report.items.filter((i) => i.score < 1 || i.leaks.length);
       expect(misses, JSON.stringify(misses.slice(0, 3))).toEqual([]);
-      expect(s).toMatchObject({ items: 70, filed: 70, overall: 1, leaks: 0 });
+      expect(s).toMatchObject({ items: 72, filed: 72, overall: 1, leaks: 0 });
     }
   });
 

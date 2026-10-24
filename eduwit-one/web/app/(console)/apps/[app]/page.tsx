@@ -38,17 +38,27 @@ export default async function AppPage({ params }: { params: Promise<{ app: strin
       <PageHeader
         title={app.title}
         description={app.about}
-        actions={links.map((l) => (
-          <a
-            key={l.label}
-            href={l.href}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-surface px-3 text-sm hover:bg-surface-2"
-          >
-            {l.label} <IconExternal size={14} />
-          </a>
-        ))}
+        actions={
+          <>
+            <Link
+              href={`/apps/${key}/operate`}
+              className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-surface px-3 text-sm hover:bg-surface-2"
+            >
+              Operate: set up and run
+            </Link>
+            {links.map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-surface px-3 text-sm hover:bg-surface-2"
+              >
+                {l.label} <IconExternal size={14} />
+              </a>
+            ))}
+          </>
+        }
       />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

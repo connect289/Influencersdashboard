@@ -3,3 +3,4 @@ node_modules
 lib/clients/fixtures
 app/tokens.css
 lib/ai/prompts.generated.ts
+lib/ai/docs.generated.ts

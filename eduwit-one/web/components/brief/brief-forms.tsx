@@ -24,7 +24,7 @@ export function RegenerateForm({ date }: { date: string }) {
   );
 }
 
-export function AskForm() {
+export function AskForm({ defaultQuestion }: { defaultQuestion?: string }) {
   return (
     <ActionForm action={ask}>
       <Field
@@ -36,6 +36,7 @@ export function AskForm() {
           required
           minLength={3}
           maxLength={2000}
+          defaultValue={defaultQuestion}
           placeholder="How many Witty leads were allocated yesterday, by partner?"
         />
       </Field>

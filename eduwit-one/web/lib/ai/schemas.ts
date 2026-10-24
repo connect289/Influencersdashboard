@@ -139,6 +139,15 @@ export const ASK_TOOLS = [
   "proposals",
   "deliveries",
   "n8n_executions",
+  // Set-up and running (0020, D-083): the database's setup, app_status, fixes, actions and audit; the app's operate
+  // and runbook.
+  "setup",
+  "app_status",
+  "operate",
+  "fixes",
+  "actions",
+  "audit",
+  "runbook",
 ] as const;
 export type AskTool = (typeof ASK_TOOLS)[number];
 

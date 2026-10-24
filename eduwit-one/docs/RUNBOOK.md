@@ -176,6 +176,26 @@ How they behave:
   rows (ids only) and what it would have done. Switch on a fix whose dry runs you would have agreed with every time;
   leave off one that would have acted where a person should have looked first.
 
+## Operating each app from Eduwit One
+
+Each app has an Operate page (Apps → the app → "Operate: set up and run"; Eduwit One's own is `/apps/one/operate`):
+
+- **What it needs**: the Setup items this app depends on, in the order to fill them, each with its state and a link to
+  Settings → Setup. A check, test or fix waiting for an item shows as not configured, never as failing.
+- **First time, in order**: what has to exist once (the app's own timers, its API key for Eduwit One, the test
+  identities), with the "to fix" text of each open item.
+- **Right now**: open incidents, heartbeats, checks on and failing, the app's own pg_cron jobs with their last run.
+- **What Eduwit One can do for it**: the fixes of spec §8 that act on this app, their switch and counts, and "Dry run
+  now" on each open incident.
+- **When a check fires**: the first place to look for each of the app's checks, with its current status.
+- **Synthetic tests**, **every day**, **its secrets** (present or not; rotation is in "Rotating a secret") and **what
+  stays in the app**.
+- **Ask the AI**: three questions with the text filled in; nothing is sent until you press Ask.
+
+Everything on these pages is a read or a deep link: Eduwit One never changes an app's settings, deploys it or runs its
+jobs outside the fix catalogue (D-079, D-083). The same content answers Ask's `operate` tool, and the runbook itself
+answers its `runbook` tool (below).
+
 ## Rolling back a migration
 
 Every migration in `supabase/migrations/` has a `.rollback.sql`. Roll back newest first: a migration's rollback
@@ -336,14 +356,22 @@ why the Ask form asks people not to type a student's name. Witty message excerpt
 explanation of a Witty incident, and only while `ai.allow_message_excerpts` is on (off): excerpts can carry names. Every
 proposal the AI writes is the owner's to approve (D-077).
 
-Ask uses fixed read-only tools, never SQL written by the model (D-076); each answer lists the tools it used. The morning
-brief covers the day before, is built at 02:30 IST and mailed to the P1 inbox at `ai.schedule.brief_mail_at_ist`
-(08:00), with links to the saved views marked "email it".
+Ask uses fixed read-only tools, never SQL written by the model (D-076); each answer lists the tools it used. Besides
+the incident, check, test, event, analytics, marketing, Witty, health, cron, spend, proposal and delivery tools, Ask
+can read how Eduwit One and the apps are set up and run (D-083): `setup` (the Setup catalogue with each item's state and
+the checks waiting for it), `app_status` (one app's heartbeats, checks, open incidents, cron jobs, fixes and tests),
+`operate` (the Operate page's text), `fixes` and `actions` (the fix catalogue, counts and rows), `audit` (who changed
+what, never the values) and `runbook` (the sections of this runbook, `RUNBOOK-database.md` and `WALKTHROUGH.md` that
+match a question). So "how do I rotate the n8n key" or "what does Spark still need" are answered from the documents and
+the live state, with the steps in order. The runbook the AI reads is generated from these files (`node
+scripts/gen-docs.ts`; a unit test fails while it is stale): edit the documents, not the module. The morning brief
+covers the day before, is built at 02:30 IST and mailed to the P1 inbox at `ai.schedule.brief_mail_at_ist` (08:00),
+with links to the saved views marked "email it".
 
 To run the worker by hand: `curl -X POST -H "Authorization: Bearer $ONE_INTERNAL_KEY" https://one.eduwit.in/api/internal/ai/run`.
 The route's 300-second limit runs on Vercel Pro with Fluid compute (owner, 24 Oct).
 
-The eval: `cd web && npm run ai:eval` runs the 30 incidents and 10 questions offline (it proves the harness and the
+The eval: `cd web && npm run ai:eval` runs the 30 incidents and 12 questions offline (it proves the harness and the
 mask, and spends nothing). `npm run ai:eval -- --live` prints the regular tier's model and worst-case cost; add `--yes`
 to run it, with `ONE_ANTHROPIC_API_KEY` set (`--tier quick|deep|all` for the others). It prints scores, leaks (must be
 0), cost and latency.

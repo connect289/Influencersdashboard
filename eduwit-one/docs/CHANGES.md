@@ -3,6 +3,18 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — hardening: operate the five apps, and Ask knows how (0020; D-083)
+
+- Operate pages (`/apps/<app>/operate`, linked from each app's page): what the app needs (Setup items in order,
+  with their state), first-time steps, heartbeats, checks, open incidents, its pg_cron jobs, the fixes that act on it
+  (switch, counts, dry run), its tests, every-day checks, the first place to look per check, its secrets and what
+  stays in the app. One for Eduwit One itself. Reads only (`web/lib/operate`, ids checked by a unit test).
+- Ask: seven more read-only tools: `setup`, `app_status`, `fixes`, `actions`, `audit` (migration 0020 redefines
+  `one.ai_tool_data`), `operate` and `runbook` (the app; the runbook from `docs/*.md` through a generated module with
+  a drift test). The Ask prompt says to start from them for "how do I" questions. Two eval questions cover them. Each
+  open Setup item and each Operate page offers a filled-in question to Ask (`/ask?q=…`).
+- Local test `99_hardening.sql`: each tool through `one.ai_tool`, held task only, read-only, no secret value.
+
 ## 24 Oct 2026 — phase 7: the owner's answers (D-082)
 
 - Every default taken: only fix proposals run when approved; the count-one fixes stay as they are; FIX-OUTBOX-W2

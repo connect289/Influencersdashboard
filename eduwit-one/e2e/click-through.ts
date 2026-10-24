@@ -7,7 +7,13 @@
 //   5. every RPC the pages made was a one.* function (from the shim's log), with its latency;
 //   6. Incidents and Proposals at phone width (390 × 844): screenshots, and no sideways scroll.
 import { readFileSync, writeFileSync } from "node:fs";
-import { chromium, type BrowserContext, type Page, type Request, type Response } from "playwright-core";
+import {
+  chromium,
+  type BrowserContext,
+  type Page,
+  type Request,
+  type Response,
+} from "playwright-core";
 import pg from "pg";
 import { sign } from "./jwt.ts";
 
@@ -38,7 +44,8 @@ type PageResult = {
   refused: boolean;
 };
 const pages: PageResult[] = [];
-const writes: Array<{ who: Who; what: string; ok: boolean; message: string }> = [];
+const writes: Array<{ who: Who; what: string; ok: boolean; message: string }> =
+  [];
 const failures: string[] = [];
 
 // The Supabase session cookie @supabase/ssr reads: sb-<first label of the URL host>-auth-token, base64url JSON.
@@ -69,7 +76,9 @@ function sessionCookie(who: Who) {
       user_metadata: {},
     },
   };
-  const host = new URL(process.env.ONE_SUPABASE_URL ?? "http://127.0.0.1").hostname.split(".")[0];
+  const host = new URL(
+    process.env.ONE_SUPABASE_URL ?? "http://127.0.0.1",
+  ).hostname.split(".")[0];
   return {
     name: `sb-${host}-auth-token`,
     value: `base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}`,
@@ -109,14 +118,21 @@ function pendingRequests(page: Page): string {
 
 function watch(page: Page, problems: string[]) {
   page.on("console", (m) => {
-    if (m.type() === "error") problems.push(`console: ${m.text().slice(0, 200)}`);
+    if (m.type() === "error")
+      problems.push(`console: ${m.text().slice(0, 200)}`);
   });
-  page.on("pageerror", (e) => problems.push(`pageerror: ${e.message.slice(0, 200)}`));
+  page.on("pageerror", (e) =>
+    problems.push(`pageerror: ${e.message.slice(0, 200)}`),
+  );
 }
 
 const ownerOnly = new Set(["/settings/users"]);
 
-async function visit(ctx: BrowserContext, who: Who, path: string): Promise<Page> {
+async function visit(
+  ctx: BrowserContext,
+  who: Who,
+  path: string,
+): Promise<Page> {
   const page = await ctx.newPage();
   const problems: string[] = [];
   watch(page, problems);
@@ -126,15 +142,20 @@ async function visit(ctx: BrowserContext, who: Who, path: string): Promise<Page>
   const ms = Math.round(performance.now() - t);
   const status = res?.status() ?? 0;
   const alert = page.locator("main [role=alert]").first();
-  const alertText = (await alert.count()) ? ((await alert.textContent()) ?? "") : "";
+  const alertText = (await alert.count())
+    ? ((await alert.textContent()) ?? "")
+    : "";
   const refused = /Your role cannot/.test(alertText);
   if (status !== 200) problems.push(`status ${status}`);
   const html = await page.content();
-  if (/Application error|Internal Server Error/.test(html)) problems.push("Next error page");
-  if (html.includes("The status bar could not be loaded")) problems.push("the shell (one.ui_shell) failed");
+  if (/Application error|Internal Server Error/.test(html))
+    problems.push("Next error page");
+  if (html.includes("The status bar could not be loaded"))
+    problems.push("the shell (one.ui_shell) failed");
   if (alertText && !(refused && who === "engineer" && ownerOnly.has(path)))
     problems.push(`page error: ${alertText.slice(0, 200)}`);
-  if (new URL(page.url()).pathname !== path.split("?")[0]) problems.push(`redirected to ${page.url()}`);
+  if (new URL(page.url()).pathname !== path.split("?")[0])
+    problems.push(`redirected to ${page.url()}`);
   pages.push({ who, path, status, ms, problems: [...problems], refused });
   for (const p of problems) failures.push(`${who} ${path}: ${p}`);
   return page;
@@ -153,7 +174,9 @@ async function write(
     await writeIn(page, who, what, form, fill, open);
   } catch (e) {
     const shot = `${out}/failed-${what.replaceAll(" ", "-")}.png`;
-    await page.screenshot({ path: shot, fullPage: true }).catch(() => undefined);
+    await page
+      .screenshot({ path: shot, fullPage: true })
+      .catch(() => undefined);
     const text = (
       (await page
         .locator("main")
@@ -168,12 +191,25 @@ async function write(
       ok: false,
       message: String(e).split("\n")[0] ?? "",
     });
-    failures.push(`${who} ${what}: ${String(e).split("\n")[0]} (at ${page.url()}; page says: ${text}; ${shot})`);
+    failures.push(
+      `${who} ${what}: ${String(e).split("\n")[0]} (at ${page.url()}; page says: ${text}; ${shot})`,
+    );
   }
 }
 
-async function writeIn(page: Page, who: Who, what: string, form: string, fill: Record<string, string>, open?: string) {
-  if (open) await page.locator("summary", { hasText: open }).first().click({ timeout: 5000 });
+async function writeIn(
+  page: Page,
+  who: Who,
+  what: string,
+  form: string,
+  fill: Record<string, string>,
+  open?: string,
+) {
+  if (open)
+    await page
+      .locator("summary", { hasText: open })
+      .first()
+      .click({ timeout: 5000 });
   const f = page.locator(form).first();
   if (!(await f.count())) {
     writes.push({ who, what, ok: false, message: `no form ${form}` });
@@ -182,29 +218,38 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
   }
   for (const [name, value] of Object.entries(fill)) {
     const field = f.locator(`[name="${name}"]`).first();
-    if ((await field.evaluate((e) => e.tagName)) === "SELECT") await field.selectOption(value);
+    if ((await field.evaluate((e) => e.tagName)) === "SELECT")
+      await field.selectOption(value);
     else await field.fill(value);
   }
   const handle = await f.elementHandle();
   // What the browser saw during this write, reported when it fails: errors, and the server action's own answer.
   const seen: string[] = [];
   const onConsole = (m: { type(): string; text(): string }) => {
-    if (m.type() === "error" || m.type() === "warning") seen.push(`console ${m.type()}: ${m.text().slice(0, 160)}`);
+    if (m.type() === "error" || m.type() === "warning")
+      seen.push(`console ${m.type()}: ${m.text().slice(0, 160)}`);
   };
-  const onError = (e: Error) => seen.push(`pageerror: ${e.message.slice(0, 160)}`);
+  const onError = (e: Error) =>
+    seen.push(`pageerror: ${e.message.slice(0, 160)}`);
   const t0 = Date.now();
   const at = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
   const onResponse = (r: Response) => {
     const req = r.request();
-    const kind = req.headers()["next-action"] ? "action" : `${req.method()} ${new URL(r.url()).pathname}`;
+    const kind = req.headers()["next-action"]
+      ? "action"
+      : `${req.method()} ${new URL(r.url()).pathname}`;
     seen.push(`${at()} ${kind} answered ${r.status()}`);
     // Whether the streamed body ever completes: the action's result arrives at its end.
     r.finished()
-      .then((err) => seen.push(`${at()} ${kind} body ${err ? `failed: ${err}` : "done"}`))
+      .then((err) =>
+        seen.push(`${at()} ${kind} body ${err ? `failed: ${err}` : "done"}`),
+      )
       .catch(() => undefined);
   };
   const onFailed = (r: Request) => {
-    seen.push(`${at()} ${r.method()} ${new URL(r.url()).pathname} failed: ${r.failure()?.errorText ?? "?"}`);
+    seen.push(
+      `${at()} ${r.method()} ${new URL(r.url()).pathname} failed: ${r.failure()?.errorText ?? "?"}`,
+    );
   };
   page.on("console", onConsole);
   page.on("pageerror", onError);
@@ -224,9 +269,11 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
   let ok = false;
   let message = "no answer";
   const clicked = Date.now();
-  for (const deadline = Date.now() + 120_000; Date.now() < deadline;) {
+  for (const deadline = Date.now() + 120_000; Date.now() < deadline; ) {
     await page.waitForTimeout(250);
-    const connected = await handle?.evaluate((el) => el.isConnected).catch(() => false);
+    const connected = await handle
+      ?.evaluate((el) => el.isConnected)
+      .catch(() => false);
     if (!connected) {
       ok = true;
       message = "done (the form left the page)";
@@ -241,7 +288,9 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
   }
   if (!ok) {
     const shot = `${out}/failed-${what.replaceAll(" ", "-")}.png`;
-    await page.screenshot({ path: shot, fullPage: true }).catch(() => undefined);
+    await page
+      .screenshot({ path: shot, fullPage: true })
+      .catch(() => undefined);
     message += ` (${shot}; form now: ${((await f.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").slice(0, 160)})`;
   }
   page.off("console", onConsole);
@@ -258,8 +307,13 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
         const loaded = performance
           .getEntriesByType("resource")
           .filter((e) => performance.timeOrigin + e.startTime >= since)
-          .map((e) => `${new URL(e.name).pathname.split("/").pop()} ${Math.round(e.duration)}ms`);
-        const unloaded = [...document.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")]
+          .map(
+            (e) =>
+              `${new URL(e.name).pathname.split("/").pop()} ${Math.round(e.duration)}ms`,
+          );
+        const unloaded = [
+          ...document.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]"),
+        ]
           .filter((l) => !l.sheet)
           .map((l) => new URL(l.href).pathname.split("/").pop());
         return `loaded since the click: ${loaded.join(", ") || "nothing"}; stylesheets not loaded: ${unloaded.join(", ") || "none"}`;
@@ -311,7 +365,9 @@ async function dataSums(): Promise<Map<string, string>> {
         return next;
       end loop;
     end $$`);
-  const { rows } = await db.query<{ rel: string; n: string; sum: string }>("select * from pg_temp.data_sums()");
+  const { rows } = await db.query<{ rel: string; n: string; sum: string }>(
+    "select * from pg_temp.data_sums()",
+  );
   return new Map(rows.map((r) => [r.rel, `${r.n}:${r.sum}`]));
 }
 
@@ -332,8 +388,12 @@ async function main() {
   const { rows: props } = await db.query<{ id: string }>(
     "select id from one.proposals where source = 'builder' order by id limit 3",
   );
-  const { rows: briefs } = await db.query<{ id: string }>("select id from one.briefs order by id limit 1");
-  const { rows: keys } = await db.query<{ key: string }>("select key from one.settings order by key");
+  const { rows: briefs } = await db.query<{ id: string }>(
+    "select id from one.briefs order by id limit 1",
+  );
+  const { rows: keys } = await db.query<{ key: string }>(
+    "select key from one.settings order by key",
+  );
   const apps = ["witty", "b2b", "b2c", "web", "influencer", "one", "platform"];
   const routes = [
     "/",
@@ -352,6 +412,7 @@ async function main() {
     "/analytics",
     "/analytics?days=7",
     ...apps.map((a) => `/apps/${a}`),
+    ...apps.filter((a) => a !== "platform").map((a) => `/apps/${a}/operate`),
     "/settings",
     "/settings/setup",
     "/settings/checks",
@@ -372,7 +433,9 @@ async function main() {
       const res = await ctx.request.get(base + r);
       const body = await res.text();
       const problems =
-        res.status() === 200 && /^"?[a-z_]+"?,/.test(body) ? [] : [`export ${res.status()}: ${body.slice(0, 120)}`];
+        res.status() === 200 && /^"?[a-z_]+"?,/.test(body)
+          ? []
+          : [`export ${res.status()}: ${body.slice(0, 120)}`];
       pages.push({
         who,
         path: r,
@@ -386,10 +449,20 @@ async function main() {
 
     if (who === "engineer") {
       let p = await visit(ctx, who, `/incidents/${inc2[0]!.id}`);
-      await write(p, who, "acknowledge an incident", "form:has(button:text-is('Acknowledge'))");
+      await write(
+        p,
+        who,
+        "acknowledge an incident",
+        "form:has(button:text-is('Acknowledge'))",
+      );
       await p.close();
       p = await visit(ctx, who, `/proposals/${props[2]!.id}`);
-      await write(p, who, "snooze a proposal", "form:has(input[name=decision][value=snooze])");
+      await write(
+        p,
+        who,
+        "snooze a proposal",
+        "form:has(input[name=decision][value=snooze])",
+      );
       await p.close();
       p = await visit(ctx, who, "/ask");
       await write(p, who, "ask a question", "form:has([name=question])", {
@@ -406,9 +479,21 @@ async function main() {
       await p.close();
     } else {
       let p = await visit(ctx, who, `/incidents/${inc[0]!.id}`);
-      await write(p, who, "acknowledge an incident", "form:has(button:text-is('Acknowledge'))");
+      await write(
+        p,
+        who,
+        "acknowledge an incident",
+        "form:has(button:text-is('Acknowledge'))",
+      );
       await p.reload({ waitUntil: "networkidle" });
-      await write(p, who, "mute a check", "form:has([name=minutes])", { reason: "click-through mute" }, "Mute");
+      await write(
+        p,
+        who,
+        "mute a check",
+        "form:has([name=minutes])",
+        { reason: "click-through mute" },
+        "Mute",
+      );
       await p.reload({ waitUntil: "networkidle" });
       await write(
         p,
@@ -420,24 +505,48 @@ async function main() {
       );
       await p.close();
       p = await visit(ctx, who, `/proposals/${props[0]!.id}`);
-      await write(p, who, "reject a proposal", "form:has(input[name=decision][value=reject])", {
-        note: "click-through reject",
-      });
+      await write(
+        p,
+        who,
+        "reject a proposal",
+        "form:has(input[name=decision][value=reject])",
+        {
+          note: "click-through reject",
+        },
+      );
       await p.close();
       p = await visit(ctx, who, `/proposals/${props[1]!.id}`);
-      await write(p, who, "approve a proposal", "form:has(input[name=decision][value=approve])", {
-        note: "click-through approve",
-      });
+      await write(
+        p,
+        who,
+        "approve a proposal",
+        "form:has(input[name=decision][value=approve])",
+        {
+          note: "click-through approve",
+        },
+      );
       await p.close();
       p = await visit(ctx, who, "/settings/thresholds");
-      const value = JSON.parse(await p.locator("textarea[name=value]").inputValue()) as Record<string, number>;
+      const value = JSON.parse(
+        await p.locator("textarea[name=value]").inputValue(),
+      ) as Record<string, number>;
       await write(p, who, "save a setting", "form:has([name=reason])", {
-        value: JSON.stringify({ ...value, job_silent_min: (value.job_silent_min ?? 15) + 1 }, null, 2),
+        value: JSON.stringify(
+          { ...value, job_silent_min: (value.job_silent_min ?? 15) + 1 },
+          null,
+          2,
+        ),
         reason: "click-through save",
       });
       await p.close();
       p = await visit(ctx, who, "/settings/thresholds?from=1");
-      await write(p, who, "restore a setting version", "form:has([name=reason])", { reason: "click-through restore" });
+      await write(
+        p,
+        who,
+        "restore a setting version",
+        "form:has([name=reason])",
+        { reason: "click-through restore" },
+      );
       await p.close();
       p = await visit(ctx, who, "/settings/checks");
       await p.locator("details > summary").first().click();
@@ -463,16 +572,30 @@ async function main() {
         await write(p, who, "acknowledge a privilege", "form:has([name=fn])");
       await p.close();
       p = await visit(ctx, who, "/settings/setup");
-      await write(p, who, "save a Setup secret", "form:has(input[type=password][name=value])", {
-        value: "e2e-not-a-real-secret-0001",
-      });
+      await write(
+        p,
+        who,
+        "save a Setup secret",
+        "form:has(input[type=password][name=value])",
+        {
+          value: "e2e-not-a-real-secret-0001",
+        },
+      );
       await p.close();
       p = await visit(ctx, who, "/settings/fixes");
-      await p.locator("#FIX-INBOX-RETRY summary", { hasText: "Switch and limits" }).click();
-      await write(p, who, "save a fix", "form:has(input[name=fix][value=FIX-INBOX-RETRY]):has([name=per_tick])", {
-        cooldown_min: "6",
-        reason: "click-through fix",
-      });
+      await p
+        .locator("#FIX-INBOX-RETRY summary", { hasText: "Switch and limits" })
+        .click();
+      await write(
+        p,
+        who,
+        "save a fix",
+        "form:has(input[name=fix][value=FIX-INBOX-RETRY]):has([name=per_tick])",
+        {
+          cooldown_min: "6",
+          reason: "click-through fix",
+        },
+      );
       await p.close();
       p = await visit(ctx, who, "/tests");
       await write(
@@ -484,15 +607,26 @@ async function main() {
         "Switch or schedule",
       );
       await p.reload({ waitUntil: "networkidle" });
-      await write(p, who, "run a test now", "form:has(input[name=id]):not(:has([name=schedule]))");
+      await write(
+        p,
+        who,
+        "run a test now",
+        "form:has(input[name=id]):not(:has([name=schedule]))",
+      );
       await p.close();
       p = await visit(ctx, who, "/brief");
       await write(p, who, "regenerate a brief", "form:has([name=for_date])");
       await p.close();
       p = await visit(ctx, who, "/analytics");
-      await write(p, who, "save an analytics view", "form:has(input[name=page][value=analytics])", {
-        name: "Click-through view",
-      });
+      await write(
+        p,
+        who,
+        "save an analytics view",
+        "form:has(input[name=page][value=analytics])",
+        {
+          name: "Click-through view",
+        },
+      );
       await p.close();
     }
     await ctx.close();
@@ -512,10 +646,13 @@ async function main() {
     ["/proposals", "phone-proposals"],
     [`/proposals/${props[2]!.id}`, "phone-proposal"],
     ["/settings/fixes", "phone-fixes"],
+    ["/apps/one/operate", "phone-operate"],
   ] as const) {
     const p = await visit(phone, "owner", path);
     // Against the device width, not innerWidth: a phone browser zooms out to fit a page that is too wide.
-    const wide = await p.evaluate(() => document.documentElement.scrollWidth - 390);
+    const wide = await p.evaluate(
+      () => document.documentElement.scrollWidth - 390,
+    );
     if (wide > 1) failures.push(`phone ${path}: scrolls sideways by ${wide}px`);
     await p.screenshot({ path: `${out}/${file}.png`, fullPage: true });
     await p.close();
@@ -528,6 +665,7 @@ async function main() {
   for (const [path, file] of [
     ["/", "overview"],
     ["/apps/b2b", "apps-b2b"],
+    ["/apps/b2c/operate", "operate-b2c"],
     ["/analytics", "analytics"],
     ["/settings/fixes", "fixes"],
     ["/actions", "actions"],
@@ -544,20 +682,31 @@ async function main() {
     actor: string;
     action: string;
     request_id: string | null;
-  }>("select actor, action, request_id from one.audit where at >= $1 order by id", [started]);
+  }>(
+    "select actor, action, request_id from one.audit where at >= $1 order by id",
+    [started],
+  );
   const okWrites = writes.filter((w) => w.ok).length;
   const pool = audit.map((a) => ({ ...a, used: false }));
   for (const w of writes.filter((w) => w.ok)) {
     const want = `${users[w.who].email} ${auditOf[w.what] ?? "?"}`;
-    const row = pool.find((a) => !a.used && `${a.actor} ${a.action}` === want && a.request_id);
+    const row = pool.find(
+      (a) => !a.used && `${a.actor} ${a.action}` === want && a.request_id,
+    );
     if (row) row.used = true;
-    else failures.push(`audit: no "${want}" row with a request id for "${w.what}"`);
+    else
+      failures.push(
+        `audit: no "${want}" row with a request id for "${w.what}"`,
+      );
   }
   // 4. Nothing outside schema one changed, except Vault by the Setup form.
   const after = await dataSums();
-  const changed = [...new Set([...before.keys(), ...after.keys()])].filter((k) => before.get(k) !== after.get(k));
+  const changed = [...new Set([...before.keys(), ...after.keys()])].filter(
+    (k) => before.get(k) !== after.get(k),
+  );
   const allowed = new Set(["vault.secrets"]);
-  for (const c of changed.filter((c) => !allowed.has(c))) failures.push(`a row changed outside schema one: ${c}`);
+  for (const c of changed.filter((c) => !allowed.has(c)))
+    failures.push(`a row changed outside schema one: ${c}`);
   // 5. Every RPC was a one.* function.
   const rpc = readFileSync(process.env.E2E_RPC_LOG ?? "", "utf8")
     .trim()
@@ -573,24 +722,33 @@ async function main() {
           code?: string;
         },
     );
-  const byFn = new Map<string, { calls: number; maxMs: number; errors: string[] }>();
+  const byFn = new Map<
+    string,
+    { calls: number; maxMs: number; errors: string[] }
+  >();
   for (const r of rpc) {
     const e = byFn.get(r.fn) ?? { calls: 0, maxMs: 0, errors: [] };
     e.calls++;
     e.maxMs = Math.max(e.maxMs, r.ms ?? 0);
-    if (r.status !== 200 && r.code && !e.errors.includes(r.code)) e.errors.push(r.code);
+    if (r.status !== 200 && r.code && !e.errors.includes(r.code))
+      e.errors.push(r.code);
     byFn.set(r.fn, e);
   }
-  for (const fn of byFn.keys()) if (!fn.startsWith("one.")) failures.push(`an RPC outside schema one: ${fn}`);
+  for (const fn of byFn.keys())
+    if (!fn.startsWith("one."))
+      failures.push(`an RPC outside schema one: ${fn}`);
   for (const [fn, e] of byFn)
-    if (e.errors.includes("PGRST202")) failures.push(`${fn}: called with arguments it does not take`);
+    if (e.errors.includes("PGRST202"))
+      failures.push(`${fn}: called with arguments it does not take`);
 
   const report = {
     at: new Date().toISOString(),
     pages: pages.length,
     page_failures: pages.filter((p) => p.problems.length),
     writes,
-    audit: audit.map((a) => `${a.actor} ${a.action}${a.request_id ? "" : " (no request id)"}`),
+    audit: audit.map(
+      (a) => `${a.actor} ${a.action}${a.request_id ? "" : " (no request id)"}`,
+    ),
     changed_outside_one: changed,
     rpc: Object.fromEntries([...byFn].sort()),
     slowest_pages: [...pages]

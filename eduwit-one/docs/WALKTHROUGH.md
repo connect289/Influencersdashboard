@@ -17,6 +17,8 @@ approve (step 6).
 - [ ] Read the banners at the top of every page. Each says what needs you now: open P1s, unacknowledged incidents,
       maintenance in force, the fixes' observation window.
 - [ ] One tile per app: green, amber or red, with its open incidents. Click a red one: it lists that app's incidents.
+- [ ] On an app's page press **Operate: set up and run**: what the app still needs (Setup items in order), its
+      heartbeats, timers and checks right now, what the fixes can do for it, and where to look when a check fires.
 - [ ] No red banner saying "The minute tick last finished … ago". If there is one, checks and alerts are not running:
       `RUNBOOK.md` → Alerts, ONE-02, and "The external watchdog".
 
@@ -65,8 +67,8 @@ approve (step 6).
 - [ ] Tests: the eleven synthetic tests, what each waits for (Setup items), last runs and step timings.
 - [ ] Brief: yesterday's morning brief (also emailed at 08:00 IST) and the numbers it was written from, fixes
       included.
-- [ ] Ask: type a question such as "Which checks failed most this week?". The answer lists the tools it used. Never
-      type a student's name or phone.
+- [ ] Ask: type a question such as "Which checks failed most this week?" or "How do I rotate the n8n key?". The answer
+      lists the tools it used (the runbook and the Setup state among them). Never type a student's name or phone.
 
 ## 8. Settings that matter (3 minutes)
 
