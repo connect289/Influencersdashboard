@@ -87,7 +87,14 @@ export default async function FixesPage() {
                       <Stat
                         label="Real runs"
                         value={f.counts.runs}
-                        hint={f.counts.failed ? `${f.counts.failed} failed` : undefined}
+                        hint={
+                          [
+                            f.counts.failed ? `${f.counts.failed} failed` : null,
+                            f.counts.proposals ? `${f.counts.proposals} proposals` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || undefined
+                        }
                       />
                       <Stat
                         label="Held / escalated"
@@ -104,6 +111,7 @@ export default async function FixesPage() {
                             <Link href={`/incidents/${i.id}`} className="underline">
                               #{i.id} {i.check_id}
                             </Link>
+                            {i.stopped ? <Badge tone="p2">stopped: a run did not hold</Badge> : null}
                             <DryRunForm fix={f.id} incident={i.id} label="Dry run now" />
                           </div>
                         ))}

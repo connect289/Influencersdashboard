@@ -110,19 +110,19 @@ catalogue's change log; PLAT — Supabase's logs and `cron.job_run_details`; ONE
 ## Fixes
 
 Eleven auto-fixes (spec §8, `one.fixes`; Settings → Fixes shows each one with its rights, history and switch). Each is
-`one.fix_<id>(incident, dry_run)` over one shell (D-079): the switch in Settings → Fixes, the two-week observation
-window, a cooldown, a rate limit, an action row before and after, and a check 2 minutes later.
+`one.fix_<id>(incident, dry_run)` over one shell (D-079, D-081): the switch in Settings → Fixes, the two-week
+observation window, a cooldown, a rate limit, an action row before and after, and a check from 2 minutes later.
 
 | Fix | Tried on | What it does | Rights it needs | Rollback |
 | --- | --- | --- | --- | --- |
 | FIX-OUTBOX-W2 | WITTY-01 `outbox_failed` | Lists failed Witty outbox rows that could be sent again and **proposes** a Witty change: Witty has no function that sends a failed row again (D-080) | none | none |
 | FIX-CACHE-W2 | WITTY-01 `cache_expired` | Lists expired prompt caches and **proposes** a look at the Witty workflow: n8n's API cannot start its Cache Manager (D-080) | none | none |
-| FIX-N8N-RETRY | WITTY-02 executions in error | The app retries each failed execution once through the n8n API | n8n API key | none; Witty is idempotent by message id |
-| FIX-OUTBOX-B2B | B2B-01 dead or waiting deliveries | Lists dead and failed deliveries of 7 days (not test ones) and opens a proposal; **your approval** runs B2B's `b2b.outbox_retry` for each, under your session (you must be a B2B admin) | EXECUTE on `b2b.outbox_retry` | an admin sets them back to dead in the B2B CRM |
-| FIX-CURSOR-B2C | B2B-01 sync cursor over 600 s | `b2b.b2c_sync_tick(200)` once; if B2B-01 still fails 2 minutes later, the incident is alerted again and the fix stops for it | EXECUTE on `b2b.b2c_sync_tick` | none |
-| FIX-WEBHOOK-REKICK | B2B-06 | The app checks that Spark's `/v1/handoffs` answers, then `b2b.outbox_kick()`; if Spark does not answer, nothing, and the P1 stays | EXECUTE on `b2b.outbox_kick` | none |
-| FIX-INBOX-RETRY | B2C-02 | `b2c.inbox_retry(50)` | EXECUTE on it | none |
-| FIX-OUTBOX-B2C | B2C-03 | `b2c.outbox_unstick()`, then Spark's urgent sync | EXECUTE on both | none |
+| FIX-N8N-RETRY | WITTY-02 executions in error | The app retries each failed execution once through the n8n API, after reading it: never one of another workflow, one no longer in error, or one that is itself a retry. An execution is retried at most once, whatever the answer | n8n API key | none; Witty is idempotent by message id |
+| FIX-OUTBOX-B2B | B2B-01 dead or waiting deliveries | Lists dead deliveries, and failed ones older than an hour, of 7 days (not test ones, not ones sent again already) and opens a proposal; **your approval** runs B2B's `b2b.outbox_retry` for each, under your session (you must be a B2B admin) | EXECUTE on `b2b.outbox_retry` | an admin sets them back to dead in the B2B CRM |
+| FIX-CURSOR-B2C | B2B-01 sync cursor over 600 s | `b2b.b2c_sync_tick(200)` once | EXECUTE on `b2b.b2c_sync_tick` | none |
+| FIX-WEBHOOK-REKICK | B2B-06 | The app checks that Spark's `/v1/handoffs` route answers (a 2xx, or 400, 401, 403, 405, 415 or 422; a redirect, 404 or 5xx is not an answer), then `b2b.outbox_kick()`; if not, nothing, and the P1 stays | EXECUTE on `b2b.outbox_kick` | none |
+| FIX-INBOX-RETRY | B2C-02 | `b2c.inbox_retry(50)`: up to 50 envelopes, test ones included (the function takes no filter) | EXECUTE on it | none |
+| FIX-OUTBOX-B2C | B2C-03 | `b2c.outbox_unstick()` (every row stuck sending, test ones included), then Spark's urgent sync | EXECUTE on both | none |
 | FIX-OUTBOX-WEB | WEB-01 dead or old outbox rows | `public.web_outbox_retry` for dead rows with attempts left (not test ones), then the website's outbox worker | EXECUTE on both | none |
 | FIX-CATALOG-POLL | WEB-01 poll older than 600 s, CAT-02 | `public.web_catalog_poll()` | EXECUTE on it | none |
 | FIX-CACHE-B2C | CAT-01 | `b2c.programme_cache_refresh(true)` | EXECUTE on it | none |
@@ -136,14 +136,35 @@ How they behave:
   runs them (on production, the first after the apply; the banner on Settings → Fixes shows the dates), and whenever
   a fix is off, it only records a **dry run**: what it would have done, on which rows. A fix can be switched on only
   after the window and only once it has a dry run of its own; the owner does it on Settings → Fixes with a reason.
-- **Limits.** One run per fix per `cooldown_min`. More rows than `per_tick`: it does nothing and opens a (high-risk)
-  proposal; approving runs it once on those rows. Test rows (Witty's test phones, a test flag in a B2B or website
-  payload) are never picked. A fix works only from what its check observed: none runs on an incident whose check
-  could not run.
-- **Held or not.** 2 minutes after a real run (at most its cooldown) the run is verified. If its check fails again
-  within the cooldown while the fix's condition still holds, the incident goes up one level (P3 to P2, P2 to P1; a P1
-  is alerted again), the tag `fix_failed` is added, and the fix does not retry within the cooldown. Actions shows
-  "verified: held" or "did not hold".
+- **Limits.** One real run per fix per `cooldown_min`, whoever ran it (the tick, an approval, or a person calling
+  `one.fix_<id>(incident, false)`); the tick's dry runs once per fix and incident per cooldown. More rows than
+  `per_tick`: it does nothing and opens a (high-risk) proposal. Test rows (Witty's test phones, a test flag in a B2B
+  or website payload) are never picked by the fixes that pick rows; the fixes that run an app's own job
+  (`inbox_retry`, `outbox_unstick`, the polls, the sync) touch what that job would, test rows included, and count as
+  one call each (D-081). A fix works only from what its check observed: none runs on an incident whose check could
+  not run, and the propose-only fixes never go over their limit.
+- **Held or not.** From 2 minutes after a real run (at most its cooldown), the first run of its check judges it:
+  - passed, or the incident resolved: **held**;
+  - failed while the fix's condition still holds on what that run saw: **did not hold**. The incident goes up one
+    level (P3 to P2, P2 to P1; a P1 is alerted again) once per failing check run, however many fixes ran, and the tag
+    `fix_failed` is added. That fix then **stops on that incident**: the tick never runs it there again, only your
+    approval does, and "Dry run now" still works. Settings → Fixes marks the incident "stopped";
+  - failed for another reason: held (the fix's part is done);
+  - the check could not run (error, missing source), or did not run within the cooldown plus two of its cadences:
+    **unverified**. Nothing is escalated; nothing counts as held.
+
+  Actions shows "verified: held", "did not hold" or "unverified" with the check run that judged it.
+- **App runs.** FIX-N8N-RETRY and FIX-WEBHOOK-REKICK are queued for the app, which claims each once within a minute
+  and reports. A run claimed but never reported is closed as unknown at the next claim and never handed out again,
+  and its executions count as retried; one whose fix was switched off before the app claimed it is closed as skipped.
+- **Approvals.** A proposal a fix opened shows what approving does: FIX-OUTBOX-B2B runs B2B's own function under
+  your session; an act fix runs once with the fixer's rights; an app fix is queued for the app. It runs only on rows
+  that were proposed, are still in the change you submit, and still qualify then: remove rows from the change to
+  narrow it, an edit cannot add any, and a tick refreshing the proposal while you read it cannot widen what you
+  approve. If it ran, the rows' own state is read 10 minutes later (B2B delivered, website done, n8n retried) and
+  shown on the proposal: done, still failing, or could not check. If nothing ran, the proposal says why and stays
+  approved; the fix proposes again if its check still fails. Proposals from people or the AI record your decision and
+  run nothing (the change is made in the app named).
 - **Dry run now.** Any engineer can press "Dry run now" on Settings → Fixes or on the incident page to see what a fix
   would do; it changes nothing and does not hold back the tick's own runs.
 - **Turning one off** takes effect at the next tick. To stop all of them at once, switch each off (owner); a dry run

@@ -1,25 +1,28 @@
 -- 0019 the auto-fixes (spec §8, phase 7). Every fix is a function one.fix_<id>(incident, dry_run) over one engine:
 --
 --   one.fix_run()       the safety shell every fix goes through: the switch in one.settings.fixes (off, or the
---                       observation window running, means a dry run that only records what it would do), at most one
---                       run per fix per cooldown, the rate limit (more rows than per_tick: nothing is done and a
---                       proposal is opened), test rows left out, an action row before and after;
---   one.fix_plan()      what a fix would touch, read with Eduwit One's own rights as the checks read (ids and counts,
---                       never a phone or a name);
+--                       observation window running, means a dry run that only records what it would do); a cooldown
+--                       (a real run once per fix per cooldown, whoever ran it; a dry run once per fix and incident);
+--                       the rate limit (more rows than per_tick: nothing is done and a proposal is opened); test rows
+--                       left out; an action row before and after; no more runs on an incident where one did not hold;
+--   one.fix_plan()      what a fix would touch, from what its check last observed, read with Eduwit One's own rights
+--                       as the checks read (ids and counts, never a phone or a name);
 --   one.fix_act()       the act itself, only through the one.fixer_* functions below;
 --   one.fixer_*()       owned by eduwit_one_fixer and SECURITY DEFINER, so every write a fix makes runs with the
---                       fixer's rights: USAGE on the app schemas and EXECUTE on the catalogue's app functions, granted
---                       here and nothing else (no table privilege, no RLS bypass: D-030);
---   one.fixes_step()    the minute tick's fix step: starts the observation window, verifies what ran, then runs each
---                       fix on each open incident of its checks;
---   one.fix_verify_due() a fix that ran is verified 2 minutes later: if its check fails again within the cooldown while
---                       its condition still holds, the incident goes up one severity level instead of a retry;
---   one.app_fixes_claim(), one.app_fix_report()   the app's side of its two fixes (n8n retries; the Spark reachability
---                       check before a kick), service role;
---   one.proposal_execute()   an approved fix proposal, run under the owner's session (spec §8 "Everything else is a
---                       proposal"), verified at check_due_at.
+--                       fixer's rights: USAGE on three app schemas and EXECUTE on the ten catalogue functions, granted
+--                       here and nothing else (no table or column privilege, no RLS bypass: D-030);
+--   one.fixes_job()     the minute tick's fix step, after the app call, one transaction per fix (one.fixes_step() for
+--                       the tick by hand): starts the observation window, verifies earlier runs and approvals, then
+--                       tries each fix on each open incident of its checks;
+--   one.fix_verify_due() each real run is judged by the first run of its check from 2 minutes on: ok, it held; failing
+--                       while the fix's condition still holds, the second failure: the incident goes up one severity
+--                       level (once per failing run) and the fix stops on it; no run to judge by, unverified;
+--   one.app_fixes_claim(), one.app_fix_report()   the app's side of its two fixes (n8n retries; the Spark check
+--                       before a kick), service role;
+--   one.proposal_execute()   an approved proposal a fix opened, run once under the approver's session on the rows the
+--                       approver saw that still qualify, checked at check_due_at.
 --
--- Three catalogue fixes cannot act from Eduwit One without changing an app (D-079): FIX-OUTBOX-W2 and FIX-CACHE-W2
+-- Three catalogue fixes cannot act from Eduwit One without changing an app (D-080): FIX-OUTBOX-W2 and FIX-CACHE-W2
 -- open a proposal describing the change Witty would need; FIX-OUTBOX-B2B opens a proposal whose approval runs B2B's own
 -- admin function under the owner's session. Everything ships switched off (seed) and dry-run for the window.
 -- App tables are read from PL/pgSQL bodies, so a missing one fails that fix, not this migration; each grant to the
@@ -43,63 +46,62 @@ create table one.fixes (
   rollback text not null,
   -- The app functions the fix calls (regprocedure text): the Fixes page shows whether each exists and is granted.
   app_functions text[] not null default '{}',
-  -- After a failed verification, never again on that incident (FIX-CURSOR-B2C: "open P1 and stop").
-  stop_after_failed boolean not null default false,
   created_at timestamptz not null default now()
 );
 
-insert into one.fixes (id, app, title, checks, trigger, mode, what, grants, rollback, app_functions, stop_after_failed) values
+insert into one.fixes (id, app, title, checks, trigger, mode, what, grants, rollback, app_functions) values
   ('FIX-OUTBOX-W2', 'witty', 'Send failed Witty outbox rows to the CRM again', '{WITTY-01}',
    'WITTY-01 names outbox_failed',
    'propose',
-   'Lists Witty outbox rows in failed with fewer than 8 attempts and no permanent error (INVALID_DATA, MANDATORY_NOT_FOUND, DUPLICATE_DATA), test phones left out, and opens a proposal. It cannot send them itself: Witty has no function that sends a failed row again (public.w2_outbox_retry takes a limit, picks only pending rows and runs lead_intake() with its caller''s rights), and w2_outbox admits only its owner and the service role (D-079).',
-   'none: it cannot act', 'none: nothing in Witty changes', '{}', false),
+   'Lists Witty outbox rows in failed with fewer than 8 attempts and no permanent error (INVALID_DATA, MANDATORY_NOT_FOUND, DUPLICATE_DATA), test phones left out, and opens a proposal. It cannot send them itself: Witty has no function that sends a failed row again (public.w2_outbox_retry takes a limit, picks only pending rows and runs lead_intake() with its caller''s rights), and w2_outbox admits only its owner and the service role (D-080).',
+   'none: it cannot act', 'none: nothing in Witty changes', '{}'),
   ('FIX-CACHE-W2', 'witty', 'Renew Witty''s expired prompt caches', '{WITTY-01}',
    'WITTY-01 names cache_expired',
    'propose',
-   'Lists Witty''s expired prompt caches (names only) and opens a proposal. The n8n API cannot start Witty''s Cache Manager: it has only schedule triggers (every 10 and 15 minutes, which renew the caches themselves) and a sub-workflow trigger (D-079).',
-   'none: it cannot act', 'none: nothing in Witty changes', '{}', false),
+   'Lists Witty''s expired prompt caches (names only) and opens a proposal. The n8n API cannot start Witty''s Cache Manager: it has only schedule triggers (every 10 and 15 minutes, which renew the caches themselves) and a sub-workflow trigger (D-080).',
+   'none: it cannot act', 'none: nothing in Witty changes', '{}'),
   ('FIX-N8N-RETRY', 'witty', 'Retry a failed execution of the Witty workflow', '{WITTY-02}',
-   'WITTY-02 lists executions in error or crashed (failed_15m)',
+   'WITTY-02 lists executions in error or crashed (failed_15m) that are not themselves retries',
    'app',
-   'The app retries each failed execution of the Witty workflow once through the n8n API (POST /api/v1/executions/{id}/retry), never the same execution twice. Witty is idempotent by message_id.',
-   'the n8n API key (Setup item n8n_api); nothing in the database', 'none needed', '{}', false),
+   'The app retries each failed execution of the Witty workflow once through the n8n API (POST /api/v1/executions/{id}/retry), after checking it belongs to that workflow and is still in error; an execution is never retried twice, and a retry that fails is not retried. Witty is idempotent by message_id.',
+   'the n8n API key (Setup item n8n_api); nothing in the database', 'none needed', '{}'),
   ('FIX-OUTBOX-B2B', 'b2b', 'Send dead or failed B2B deliveries to Spark again', '{B2B-01}',
    'B2B-01 counts dead deliveries or deliveries waiting over an hour',
    'approve',
-   'Lists dead and failed deliveries of the last 7 days (test payloads left out) and opens a proposal; the owner''s approval runs B2B''s own b2b.outbox_retry(id) for each, under the owner''s session and with the fixer''s rights. B2B lets only an admin send a delivery again, and the outbox''s row security admits no other role, so the fixer could not change a row itself (D-079).',
+   'Lists dead deliveries, and failed ones older than an hour, of the last 7 days (test payloads and deliveries already sent again left out) and opens a proposal; the owner''s approval runs B2B''s own b2b.outbox_retry(id) for each, under the owner''s session and with the fixer''s rights. B2B lets only an admin send a delivery again, and the outbox''s row security admits no other role, so the fixer could not change a row itself (D-080).',
    'EXECUTE on b2b.outbox_retry(bigint), used only under the owner''s session (B2B checks that the caller is an admin)',
-   'an admin sets the rows back to dead in the B2B CRM', '{b2b.outbox_retry(bigint)}', false),
+   'an admin sets the rows back to dead in the B2B CRM', '{b2b.outbox_retry(bigint)}'),
   ('FIX-CURSOR-B2C', 'b2b', 'Run the B2B to Spark sync once', '{B2B-01}',
    'B2B-01 reports the B2C sync cursor over 600 s and the job b2b-b2c-sync-tick did not fail on its last run',
    'act',
-   'select b2b.b2c_sync_tick(200) once. If B2B-01 still fails 2 minutes later, the incident is alerted again and this fix stops for it.',
-   'EXECUTE on b2b.b2c_sync_tick(integer)', 'none needed', '{b2b.b2c_sync_tick(integer)}', true),
+   'select b2b.b2c_sync_tick(200) once.',
+   'EXECUTE on b2b.b2c_sync_tick(integer)', 'none needed', '{b2b.b2c_sync_tick(integer)}'),
   ('FIX-WEBHOOK-REKICK', 'b2b', 'Kick the B2B outbox once Spark answers', '{B2B-06}',
    'B2B-06 fails',
    'app',
-   'The app checks that <hosts.spark>/v1/handoffs answers (HEAD, then GET; any status below 500 within 10 s). If it does, select b2b.outbox_kick() runs with the fixer''s rights; if not, nothing is done and the P1 stays.',
-   'EXECUTE on b2b.outbox_kick()', 'none needed', '{b2b.outbox_kick()}', false),
+   'The app checks that <hosts.spark>/v1/handoffs answers (HEAD, then GET, within 10 s, with a status that shows the route is there: 2xx, 400, 401, 403, 405, 415 or 422). If it does, select b2b.outbox_kick() runs with the fixer''s rights; if not, nothing is done and the P1 stays.',
+   'EXECUTE on b2b.outbox_kick()', 'none needed', '{b2b.outbox_kick()}'),
   ('FIX-INBOX-RETRY', 'b2c', 'Apply Spark''s stuck inbox rows again', '{B2C-02}',
    'B2C-02 fails',
-   'act', 'select b2c.inbox_retry(50).', 'EXECUTE on b2c.inbox_retry(integer)', 'none needed', '{b2c.inbox_retry(integer)}', false),
+   'act', 'select b2c.inbox_retry(50): Spark applies up to 50 stored or failed envelopes again, as its own retry would, test ones included (the function takes no filter).',
+   'EXECUTE on b2c.inbox_retry(integer)', 'none needed', '{b2c.inbox_retry(integer)}'),
   ('FIX-OUTBOX-B2C', 'b2c', 'Unstick Spark''s outbox and run its urgent sync', '{B2C-03}',
    'B2C-03 fails',
-   'act', 'select b2c.outbox_unstick(), then b2c.job_call(''/api/internal/sync?mode=urgent'').',
-   'EXECUTE on b2c.outbox_unstick() and b2c.job_call(text)', 'none needed', array['b2c.outbox_unstick()', 'b2c.job_call(text)'], false),
+   'act', 'select b2c.outbox_unstick() (rows stuck sending over 10 minutes back to queued, test ones included: the function takes no filter), then b2c.job_call(''/api/internal/sync?mode=urgent'').',
+   'EXECUTE on b2c.outbox_unstick() and b2c.job_call(text)', 'none needed', array['b2c.outbox_unstick()', 'b2c.job_call(text)']),
   ('FIX-OUTBOX-WEB', 'web', 'Send the website''s dead outbox rows again and run its worker', '{WEB-01}',
    'WEB-01 reports dead outbox rows or the oldest pending row over 900 s',
    'act',
-   'public.web_outbox_retry(id, null) for each dead row with attempts below max_attempts (test payloads left out), then public.web_job_call(''/api/internal/outbox'', 55000).',
+   'public.web_outbox_retry(id, actor) for each dead row with attempts below max_attempts (test payloads, and rows an earlier run already sent again, left out), then public.web_job_call(''/api/internal/outbox'', 55000).',
    'EXECUTE on public.web_outbox_retry(bigint, uuid) and public.web_job_call(text, integer)', 'none needed',
-   array['public.web_outbox_retry(bigint,uuid)', 'public.web_job_call(text,integer)'], false),
+   array['public.web_outbox_retry(bigint,uuid)', 'public.web_job_call(text,integer)']),
   ('FIX-CATALOG-POLL', 'web', 'Run the website''s catalogue poll', '{WEB-01,CAT-02}',
    'WEB-01 reports the catalogue poll older than 600 s, or CAT-02 fails',
-   'act', 'select public.web_catalog_poll().', 'EXECUTE on public.web_catalog_poll()', 'none needed', '{public.web_catalog_poll()}', false),
+   'act', 'select public.web_catalog_poll().', 'EXECUTE on public.web_catalog_poll()', 'none needed', '{public.web_catalog_poll()}'),
   ('FIX-CACHE-B2C', 'b2c', 'Refresh Spark''s programme cache', '{CAT-01}',
    'CAT-01 fails',
    'act', 'select b2c.programme_cache_refresh(true).', 'EXECUTE on b2c.programme_cache_refresh(boolean)', 'none needed',
-   '{b2c.programme_cache_refresh(boolean)}', false);
+   '{b2c.programme_cache_refresh(boolean)}');
 
 -- An action row's place in a run: dry_run (what it would do), before and after (a real act), skip (nothing done, and
 -- why), verify (whether it held). run_key ties the rows of one run together.
@@ -159,10 +161,12 @@ begin
   end if;
 end $$;
 
--- The fixer's functions: each calls exactly the app functions its fix needs, nothing else. They are created here, then
--- handed to eduwit_one_fixer, which needs CREATE on schema one only for that hand-over (revoked below, in the same
--- transaction) and the migrating user's membership to give it (Postgres 16+). EXECUTE stays with the owner, so only
--- Eduwit One's own functions reach them.
+-- The fixer's functions: each calls exactly the app functions its fix needs, nothing else (the guards check each body).
+-- They are created here, then handed to eduwit_one_fixer, which needs CREATE on schema one only for that hand-over
+-- (revoked below, in the same transaction) and the migrating user's membership to give it (Postgres 16+). That
+-- membership stays (INHERIT, SET): it is how the migrating user, which owns every other function of schema one, may
+-- execute them, since their ACL names only the fixer (one.apply_grants revokes PUBLIC). No API role reaches them. Like
+-- every role, the fixer also holds what PUBLIC holds; only these bodies ever run as it, and they call nothing else.
 
 create or replace function one.fixer_b2c_sync() returns jsonb
 language plpgsql security definer set search_path = '' as $$
@@ -200,7 +204,8 @@ begin
   return jsonb_build_object('unstuck', v_n, 'sync_request', v_request);
 end $$;
 
-create or replace function one.fixer_web_outbox(p_ids bigint[]) returns jsonb
+-- p_actor: the approver's user id when an approval runs it (the website's audit records them), null for the tick.
+create or replace function one.fixer_web_outbox(p_ids bigint[], p_actor uuid) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v_id bigint;
@@ -211,7 +216,7 @@ begin
     raise exception 'at most 500 rows in one run' using errcode = '22023';
   end if;
   foreach v_id in array coalesce(p_ids, '{}') loop
-    perform public.web_outbox_retry(v_id, null);
+    perform public.web_outbox_retry(v_id, p_actor);
     v_n := v_n + 1;
   end loop;
   v_request := public.web_job_call('/api/internal/outbox', 55000);
@@ -237,7 +242,7 @@ alter function one.fixer_outbox_kick() owner to eduwit_one_fixer;
 alter function one.fixer_b2b_outbox_retry(bigint) owner to eduwit_one_fixer;
 alter function one.fixer_inbox_retry() owner to eduwit_one_fixer;
 alter function one.fixer_b2c_outbox() owner to eduwit_one_fixer;
-alter function one.fixer_web_outbox(bigint[]) owner to eduwit_one_fixer;
+alter function one.fixer_web_outbox(bigint[], uuid) owner to eduwit_one_fixer;
 alter function one.fixer_catalog_poll() owner to eduwit_one_fixer;
 alter function one.fixer_programme_cache() owner to eduwit_one_fixer;
 revoke create on schema one from eduwit_one_fixer;
@@ -255,13 +260,13 @@ language sql stable set search_path = '' as $$
                  coalesce((one.setting('fixes') ->> 'observation_days')::int, 14) as days) s
 $$;
 
--- Whether each app function a fix calls exists and is granted to the fixer, and the fixer's own functions are its.
+-- Whether each app function a fix calls exists and is granted to the fixer.
 create or replace function one.fix_grants(p_fix text) returns jsonb
 language sql stable set search_path = '' as $$
   select jsonb_build_object(
            'ok', coalesce(bool_and(x.ok), true),
            'missing', coalesce(jsonb_agg(x.fn) filter (where not x.ok), '[]'))
-    from (select fn, to_regprocedure(fn) is not null and has_function_privilege('eduwit_one_fixer', to_regprocedure(fn), 'EXECUTE') as ok
+    from (select fn, coalesce(to_regprocedure(fn) is not null and has_function_privilege('eduwit_one_fixer', to_regprocedure(fn), 'EXECUTE'), false) as ok
             from one.fixes f, unnest(f.app_functions) fn where f.id = p_fix) x
 $$;
 
@@ -306,7 +311,8 @@ end $$;
 -- What a fix would touch on this incident: {applies, why_not, would, rows (ids, at most 500), count, test_rows,
 -- target}. Read with Eduwit One's own rights, as the checks read the same tables; ids and counts only. It works from
 -- what the check last observed (the incident's evidence: {status, value, error}); a check that could not run (error,
--- source_missing) observed nothing to fix.
+-- source_missing) observed nothing to fix. Rows an earlier run already sent again are left out: a row that fails again
+-- after that is a person's to look at (phase 7 review M10).
 create or replace function one.fix_plan(p_fix text, p_inc one.incidents) returns jsonb
 language plpgsql set search_path = '' as $$
 declare
@@ -353,12 +359,19 @@ begin
                                 'count', v_n, 'target', jsonb_build_object('caches', v_rows),
                                 'would', 'open a proposal: the n8n API cannot start Witty''s Cache Manager');
     when 'FIX-N8N-RETRY' then
-      -- Each execution once: one retried before (a real run's before row) is left out.
+      -- Each execution once, never a retry of a retry: left out are the probe's retries_15m and any id an earlier run
+      -- named, unless that run's report says the app never sent it (skipped: out of time, not configured, not this
+      -- workflow's, no longer in error). An unreported run counts as sent (phase 7 review M9, M10).
       select coalesce(jsonb_agg(x.id order by x.id) filter (where x.n <= 500), '[]'), count(*) into v_rows, v_n
         from (select x.id, row_number() over (order by x.id) as n
                 from jsonb_array_elements_text(coalesce(e -> 'failed_15m', '[]')) as x(id)
-               where not exists (select 1 from one.actions a where a.fix_id = 'FIX-N8N-RETRY' and a.step = 'before' and not a.dry_run
-                                    and coalesce(a.target -> 'rows', '[]') ? x.id)) x;
+               where not coalesce(e -> 'retries_15m', '[]') ? x.id
+                 and not exists (
+                   select 1 from one.actions b
+                    where b.fix_id = 'FIX-N8N-RETRY' and b.step = 'before' and not b.dry_run and coalesce(b.target -> 'rows', '[]') ? x.id
+                      and not exists (select 1 from one.actions a2
+                                       where a2.run_key = b.run_key and a2.step = 'after'
+                                         and exists (select 1 from jsonb_array_elements(coalesce(a2.result -> 'skipped', '[]')) k where k ->> 'id' = x.id)))) x;
       return jsonb_build_object('applies', v_n > 0, 'why_not', case when v_n = 0 then 'no failed execution that was not retried already' end,
                                 'rows', v_rows, 'count', v_n,
                                 'target', jsonb_build_object('workflow_id', one.setting('n8n') ->> 'witty_workflow_id'),
@@ -367,15 +380,19 @@ begin
       if coalesce((e #>> '{deliveries,dead_7d}')::int, 0) + coalesce((e #>> '{deliveries,waiting_over_1h}')::int, 0) = 0 then
         return jsonb_build_object('applies', false, 'why_not', 'B2B-01 reports no dead or waiting delivery');
       end if;
-      -- A test lead's handoff carries test true at the top of its payload or in its data (as Spark reads it).
+      -- As B2B-01 counts them: dead, or failed and waiting over an hour (a younger failed one is still in B2B's own
+      -- backoff). A test lead's handoff carries test true at the top of its payload or in its data (as Spark reads it).
       select coalesce(jsonb_agg(x.id order by x.id) filter (where not x.t and x.n <= 500), '[]'), count(*) filter (where not x.t),
              count(*) filter (where x.t)
         into v_rows, v_n, v_test
         from (select o.id, row_number() over (order by o.id) as n,
                      coalesce(o.payload @> '{"test": true}' or o.payload -> 'data' @> '{"test": true}', false) as t
                 from b2b.integration_outbox o
-               where o.status in ('dead', 'failed') and o.created_at > now() - interval '7 days' and o.endpoint_id is not null) x;
-      return jsonb_build_object('applies', v_n > 0, 'why_not', case when v_n = 0 then 'no dead or failed delivery of the last 7 days' end,
+               where (o.status = 'dead' or (o.status = 'failed' and o.created_at < now() - interval '1 hour'))
+                 and o.created_at > now() - interval '7 days' and o.endpoint_id is not null
+                 and not exists (select 1 from one.actions a where a.fix_id = 'FIX-OUTBOX-B2B' and a.step = 'after' and not a.dry_run
+                                    and coalesce(a.result -> 'done', '[]') @> to_jsonb(o.id))) x;
+      return jsonb_build_object('applies', v_n > 0, 'why_not', case when v_n = 0 then 'no dead or long-failed delivery that was not sent again already' end,
                                 'rows', v_rows, 'count', v_n, 'test_rows', v_test,
                                 'would', 'open a proposal; approving it runs b2b.outbox_retry(id) for each under the owner''s session');
     when 'FIX-CURSOR-B2C' then
@@ -415,9 +432,13 @@ begin
         into v_rows, v_n, v_test
         from (select o.id, row_number() over (order by o.id) as n,
                      coalesce(o.payload @> '{"is_test": true}' or o.payload @> '{"test": true}', false) as t
-                from public.web_outbox o where o.status = 'dead' and o.attempts < o.max_attempts) x;
+                from public.web_outbox o
+               where o.status = 'dead' and o.attempts < o.max_attempts
+                 and not exists (select 1 from one.actions b join one.actions a on a.run_key = b.run_key and a.step = 'after' and a.status = 'done'
+                                  where b.fix_id = 'FIX-OUTBOX-WEB' and b.step = 'before' and not b.dry_run
+                                    and coalesce(b.target -> 'rows', '[]') @> to_jsonb(o.id))) x;
       return jsonb_build_object('applies', v_n > 0 or v_old,
-                                'why_not', case when v_n = 0 and not v_old then 'every dead row has used its attempts: a person decides' end,
+                                'why_not', case when v_n = 0 and not v_old then 'no dead row with attempts left that was not sent again already: a person decides' end,
                                 'rows', v_rows, 'count', v_n, 'test_rows', v_test, 'target', jsonb_build_object('oldest_pending_old', v_old),
                                 'would', format('send %s dead rows again (public.web_outbox_retry), then run the website''s outbox worker', v_n));
     when 'FIX-CATALOG-POLL' then
@@ -437,14 +458,15 @@ end $$;
 create or replace function one.fix_plan_within(p_plan jsonb, p_rows jsonb) returns jsonb
 language sql immutable set search_path = '' as $$
   select case when p_rows is null or jsonb_typeof(p_plan -> 'rows') <> 'array' then p_plan
-         else p_plan || jsonb_build_object('rows', r.rows, 'count', jsonb_array_length(r.rows), 'applies', jsonb_array_length(r.rows) > 0)
+         else p_plan || jsonb_build_object('rows', r.rows, 'count', jsonb_array_length(r.rows),
+                                           'applies', jsonb_array_length(r.rows) > 0 or coalesce((p_plan #>> '{target,oldest_pending_old}')::boolean, false))
          end
     from (select coalesce(jsonb_agg(x order by x::text), '[]') as rows from jsonb_array_elements(coalesce(p_plan -> 'rows', '[]')) x
            where coalesce(p_rows, '[]') @> jsonb_build_array(x)) r
 $$;
 
 -- The act: only through the fixer's functions, so it runs with the fixer's rights.
-create or replace function one.fix_act(p_fix text, p_plan jsonb) returns jsonb
+create or replace function one.fix_act(p_fix text, p_plan jsonb, p_actor uuid default null) returns jsonb
 language plpgsql set search_path = '' as $$
 begin
   case p_fix
@@ -453,7 +475,7 @@ begin
     when 'FIX-INBOX-RETRY' then return jsonb_build_object('applied', one.fixer_inbox_retry());
     when 'FIX-OUTBOX-B2C' then return one.fixer_b2c_outbox();
     when 'FIX-OUTBOX-WEB' then
-      return one.fixer_web_outbox(array(select x::bigint from jsonb_array_elements_text(coalesce(p_plan -> 'rows', '[]')) x));
+      return one.fixer_web_outbox(array(select x::bigint from jsonb_array_elements_text(coalesce(p_plan -> 'rows', '[]')) x), p_actor);
     when 'FIX-CATALOG-POLL' then return jsonb_build_object('poll', one.fixer_catalog_poll());
     when 'FIX-CACHE-B2C' then return jsonb_build_object('refreshed', one.fixer_programme_cache());
     else raise exception '% does not act in the database', p_fix using errcode = '22023';
@@ -461,6 +483,7 @@ begin
 end $$;
 
 -- A fix's proposal: one open proposal per fix and incident, refreshed while it waits (source check, owner's decision).
+-- Only a fix that acts (act, app, approve) gets an execute part; a proposing fix's proposal only describes a change.
 create or replace function one.fix_propose(p_fix one.fixes, p_inc one.incidents, p_plan jsonb, p_why text) returns bigint
 language plpgsql set search_path = '' as $$
 declare
@@ -473,24 +496,25 @@ declare
 begin
   if p_why = 'over_limit' then
     v_title := format('%s: %s rows is over its limit of %s', p_fix.id, v_n, v_limit);
-    v_rationale := format('%s would touch %s rows on incident %s (%s), more than its rate limit of %s a run, so it did nothing (spec §8). Approving runs it once on the rows listed, those that still qualify then, with the fixer''s rights.',
+    v_rationale := format('%s would touch %s rows on incident %s (%s), more than its rate limit of %s a run, so it did nothing (spec §8). Approving runs it once on the rows listed that still qualify then, with the fixer''s rights; remove rows from the change to leave them out.',
                           p_fix.id, v_n, p_inc.id, p_inc.check_id, v_limit);
   elsif p_fix.id = 'FIX-OUTBOX-B2B' then
     v_title := format('B2B: send %s dead or failed deliveries to Spark again', v_n);
-    v_rationale := 'B2B lets only an admin send a delivery again (b2b.outbox_retry), and its outbox admits no other role, so FIX-OUTBOX-B2B cannot act on its own (D-079). Approving runs b2b.outbox_retry for each listed delivery that is still dead or failed, under your session: B2B refuses unless you are a B2B admin. Ten minutes later Eduwit One checks which were delivered.';
+    v_rationale := 'B2B lets only an admin send a delivery again (b2b.outbox_retry), and its outbox admits no other role, so FIX-OUTBOX-B2B cannot act on its own (D-080). Approving runs b2b.outbox_retry for each listed delivery that is still dead or failed, under your session: B2B refuses unless you are a B2B admin. Ten minutes later Eduwit One checks which were delivered. Remove rows from the change to leave them out.';
   elsif p_fix.id = 'FIX-OUTBOX-W2' then
     v_title := format('Witty: %s failed outbox rows cannot be sent again from Eduwit One', v_n);
-    v_rationale := 'Witty has no function that sends a failed outbox row again: public.w2_outbox_retry(p_limit) picks only pending rows and runs lead_intake() with its caller''s rights, and w2_outbox admits only its owner and the service role. Witty''s maintainer could add a SECURITY DEFINER public.w2_outbox_requeue(p_id bigint) that sets a failed row with a retryable error back to pending, and grant EXECUTE on it to eduwit_one_fixer; FIX-OUTBOX-W2 would then use it (D-079). Approving records your decision; nothing runs.';
+    v_rationale := 'Witty has no function that sends a failed outbox row again: public.w2_outbox_retry(p_limit) picks only pending rows and runs lead_intake() with its caller''s rights, and w2_outbox admits only its owner and the service role. Witty''s maintainer could add a SECURITY DEFINER public.w2_outbox_requeue(p_id bigint) that sets a failed row with a retryable error back to pending, and grant EXECUTE on it to eduwit_one_fixer; FIX-OUTBOX-W2 would then use it (D-080). Approving records your decision; nothing runs.';
   elsif p_fix.id = 'FIX-CACHE-W2' then
     v_title := format('Witty: %s prompt caches expired and were not renewed', v_n);
-    v_rationale := 'Witty renews its prompt caches itself every 10 and 15 minutes; caches still expired mean that renewal is failing (Gemini, or the workflow). The n8n API cannot start the Cache Manager, which has only schedule and sub-workflow triggers, so FIX-CACHE-W2 cannot act. Look at the Witty workflow''s recent executions in n8n. A webhook trigger on the Cache Manager would let Eduwit One start it (D-079). Approving records your decision; nothing runs.';
+    v_rationale := 'Witty renews its prompt caches itself every 10 and 15 minutes; caches still expired mean that renewal is failing (Gemini, or the workflow). The n8n API cannot start the Cache Manager, which has only schedule and sub-workflow triggers, so FIX-CACHE-W2 cannot act. Look at the Witty workflow''s recent executions in n8n. A webhook trigger on the Cache Manager would let Eduwit One start it (D-080). Approving records your decision; nothing runs.';
   else
     v_title := format('%s on incident %s', p_fix.id, p_inc.id);
     v_rationale := p_fix.what;
   end if;
   v_change := jsonb_build_object('fix', p_fix.id, 'incident', p_inc.id, 'rows', coalesce(p_plan -> 'rows', '[]'), 'target', p_plan -> 'target');
-  if p_why = 'over_limit' or p_fix.mode = 'approve' then
-    v_change := v_change || jsonb_build_object('execute', jsonb_build_object('fix', p_fix.id, 'incident', p_inc.id, 'rows', coalesce(p_plan -> 'rows', '[]')));
+  if p_fix.mode <> 'propose' then
+    v_change := v_change || jsonb_build_object('execute', jsonb_build_object('fix', p_fix.id, 'mode', p_fix.mode, 'incident', p_inc.id,
+                                                                             'rows', coalesce(p_plan -> 'rows', '[]')));
   end if;
   select id into v_id from one.proposals
    where source = 'check' and source_key like format('fix:%s:%s:%%', p_fix.id, p_inc.id) and status in ('open', 'snoozed')
@@ -513,10 +537,12 @@ end $$;
 -- The safety shell ----------------------------------------------------------------------------------------------------
 
 -- One fix on one incident (spec §8). p_dry_run true only records; false acts when the fix is switched on and the
--- observation window has ended. p_by is 'one' for the minute tick (the only runs the cooldown counts), else who ran
--- it. p_approval is the approved proposal this run carries out: the owner's consent for one run on the rows it named.
+-- observation window has ended. p_by is 'one' for the minute tick, else who ran it. p_approval is the approved proposal
+-- this run carries out: the owner's consent for one run, on p_rows (the rows the approver saw) where they still qualify;
+-- p_actor is the approver's user id. The cooldown: a dry run of the tick's once per fix and incident; a real run once
+-- per fix, whoever ran it (the tick, by hand, an approval), approvals themselves not held (phase 7 review M11).
 create or replace function one.fix_run(p_fix text, p_incident bigint, p_dry_run boolean default true, p_by text default 'one',
-                                       p_approval bigint default null, p_rows jsonb default null) returns jsonb
+                                       p_approval bigint default null, p_rows jsonb default null, p_actor uuid default null) returns jsonb
 language plpgsql set search_path = '' as $$
 declare
   v_f one.fixes;
@@ -549,14 +575,22 @@ begin
   end if;
   v_dry := p_approval is null
            and (p_dry_run or not coalesce((v_cfg ->> 'enabled')::boolean, false) or (one.fix_window() ->> 'running')::boolean);
-  -- At most once per cooldown: the tick's own runs count, whatever the incident (a person's dry run does not).
-  if p_by = 'one' and exists (select 1 from one.actions a where a.fix_id = p_fix and a.ran_by = 'one' and a.step <> 'verify'
-                                 and a.ran_at > now() - make_interval(mins => v_cool)) then
-    return jsonb_build_object('fix', p_fix, 'skipped', 'cooldown');
-  end if;
-  if v_f.stop_after_failed and p_approval is null
+  -- A run on this incident did not hold: the incident went up a level instead of a retry (spec §8), and the fix stays
+  -- off it; only an approval runs it again, and a person may still ask for a dry run (phase 7 review M10).
+  if p_approval is null and not (v_dry and p_by <> 'one')
      and exists (select 1 from one.actions a where a.fix_id = p_fix and a.incident_id = p_incident and a.step = 'verify' and a.status = 'failed') then
-    return jsonb_build_object('fix', p_fix, 'skipped', 'stopped: it did not hold on this incident');
+    return jsonb_build_object('fix', p_fix, 'skipped', 'stopped: a run on this incident did not hold');
+  end if;
+  if p_approval is null then
+    if v_dry then
+      if p_by = 'one' and exists (select 1 from one.actions a where a.fix_id = p_fix and a.incident_id = p_incident and a.dry_run and a.ran_by = 'one'
+                                     and a.ran_at > now() - make_interval(mins => v_cool)) then
+        return jsonb_build_object('fix', p_fix, 'skipped', 'cooldown');
+      end if;
+    elsif exists (select 1 from one.actions a where a.fix_id = p_fix and not a.dry_run and a.step in ('before', 'after', 'skip')
+                     and a.ran_at > now() - make_interval(mins => v_cool)) then
+      return jsonb_build_object('fix', p_fix, 'skipped', 'cooldown');
+    end if;
   end if;
   v_plan := one.fix_plan(p_fix, v_inc);
   if p_approval is not null then
@@ -568,8 +602,9 @@ begin
   v_key := format('%s:%s:%s', p_fix, p_incident, to_char(clock_timestamp(), 'YYYYMMDDHH24MISSUS'));
   v_target := coalesce(v_plan -> 'target', '{}') || jsonb_build_object('rows', coalesce(v_plan -> 'rows', '[]'), 'count', v_plan -> 'count',
                                                                          'test_rows_left_out', coalesce(v_plan -> 'test_rows', '0'));
-  -- More rows than the rate limit: nothing is done, a proposal is opened instead (spec §8).
-  if p_approval is null and coalesce((v_plan ->> 'count')::int, 0) > v_limit then
+  -- More rows than the rate limit: nothing is done, a proposal is opened instead (spec §8). A proposing fix's act is the
+  -- proposal itself, so it has no row limit (phase 7 review M3).
+  if p_approval is null and v_f.mode <> 'propose' and coalesce((v_plan ->> 'count')::int, 0) > v_limit then
     if v_dry then
       v_id := one.fix_record(p_fix, p_incident, 'dry_run', 'planned', true, v_target,
                              jsonb_build_object('would', format('open a proposal: %s rows is over the limit of %s', v_plan ->> 'count', v_limit),
@@ -578,7 +613,7 @@ begin
     end if;
     v_prop := one.fix_propose(v_f, v_inc, v_plan, 'over_limit');
     v_id := one.fix_record(p_fix, p_incident, 'skip', 'skipped', false, v_target,
-                           jsonb_build_object('reason', 'over_limit', 'limit', v_limit), p_by, v_key, null, v_prop);
+                           jsonb_build_object('reason', 'over_limit', 'limit', v_limit, 'proposal', v_prop), p_by, v_key, null, v_prop);
     return jsonb_build_object('fix', p_fix, 'skipped', 'over_limit', 'proposal', v_prop, 'action', v_id);
   end if;
   if v_dry then
@@ -609,6 +644,8 @@ begin
       end;
     end loop;
     v_status := case when jsonb_array_length(v_res -> 'done') > 0 then 'done' else 'failed' end;
+    v_res := one.redact(v_res || jsonb_build_object('partial', jsonb_array_length(v_res -> 'done') > 0 and jsonb_array_length(v_res -> 'refused') > 0),
+                        one.pii_keys());
     v_id := one.fix_record(p_fix, p_incident, 'after', v_status, false, v_target, v_res, p_by, v_key, null, p_approval);
     return jsonb_build_object('fix', p_fix, 'status', v_status, 'action', v_id, 'result', v_res);
   end if;
@@ -618,8 +655,11 @@ begin
     return jsonb_build_object('fix', p_fix, 'queued_for_app', v_id);
   end if;
   perform one.fix_record(p_fix, p_incident, 'before', 'planned', false, v_target, jsonb_build_object('approval', p_approval), p_by, v_key, null, p_approval);
+  -- An app row held by another session makes the act give up after the checks' lock timeout instead of waiting
+  -- (phase 7 review M8).
+  perform set_config('lock_timeout', coalesce(one.setting('checks') ->> 'lock_timeout', '2s'), true);
   begin
-    v_res := one.fix_act(p_fix, v_plan);
+    v_res := one.fix_act(p_fix, v_plan, p_actor);
     v_status := 'done';
   exception when others then
     v_res := jsonb_build_object('error', left(sqlerrm, 300), 'sqlstate', sqlstate);
@@ -630,7 +670,8 @@ begin
   return jsonb_build_object('fix', p_fix, 'status', v_status, 'action', v_id);
 end $$;
 
--- The spec's one function per fix (spec §8): one.fix_<id>(incident, dry_run). By hand they default to a dry run.
+-- The spec's one function per fix (spec §8): one.fix_<id>(incident, dry_run). By hand they default to a dry run; a real
+-- one acts only when switched on after the window, and is held by the cooldown like any other.
 create or replace function one.fix_outbox_w2(p_incident bigint, p_dry_run boolean default true) returns jsonb
 language sql set search_path = '' as $$ select one.fix_run('FIX-OUTBOX-W2', p_incident, p_dry_run, 'sql:' || session_user) $$;
 create or replace function one.fix_cache_w2(p_incident bigint, p_dry_run boolean default true) returns jsonb
@@ -656,18 +697,81 @@ language sql set search_path = '' as $$ select one.fix_run('FIX-CACHE-B2C', p_in
 
 -- Verification --------------------------------------------------------------------------------------------------------
 
--- A real run is checked from verify_at (2 minutes after it, at most its cooldown): a failing run of the incident's check
--- from then, within the cooldown, while the fix's condition still holds, is the second failure (spec §8) and moves the
--- incident up one severity level; no failure by the end of the cooldown, or the incident resolved, means it held.
+-- Judges one real run by the first run of its check from verify_at (2 minutes on, at most the cooldown): ok, it held;
+-- failing while the fix's condition still holds on what that run saw, the second failure (spec §8): the incident goes
+-- up one level, once per failing run however many fixes ran (phase 7 review M6), and the fix stops on it; the check
+-- could not run, or never ran by the cooldown plus two of its cadences, unverified (review M5). Null while it waits.
+create or replace function one.fix_verify_one(p_run one.actions) returns text
+language plpgsql set search_path = '' as $$
+declare
+  v_inc one.incidents;
+  v_seen one.incidents;
+  v_next one.results;
+  v_cool integer := coalesce((one.setting('fixes') -> p_run.fix_id ->> 'cooldown_min')::int, 60);
+  v_cadence integer;
+  v_applies boolean;
+  v_esc jsonb;
+begin
+  select * into v_inc from one.incidents where id = p_run.incident_id;
+  if v_inc.resolved_at is not null then
+    perform one.fix_record(p_run.fix_id, p_run.incident_id, 'verify', 'done', false, p_run.target,
+                           jsonb_build_object('held', true, 'why', 'the incident resolved (' || v_inc.resolution || ')'), 'one', p_run.run_key);
+    return 'held';
+  end if;
+  select cadence_s into v_cadence from one.checks where id = v_inc.check_id;
+  select * into v_next from one.results x where x.check_id = v_inc.check_id and x.ran_at >= p_run.verify_at order by x.ran_at, x.id limit 1;
+  if not found then
+    if now() > p_run.ran_at + make_interval(mins => v_cool) + make_interval(secs => 2 * coalesce(v_cadence, 60)) then
+      perform one.fix_record(p_run.fix_id, p_run.incident_id, 'verify', 'skipped', false, p_run.target,
+                             jsonb_build_object('held', null, 'why', format('no run of %s to judge it by', v_inc.check_id)), 'one', p_run.run_key);
+      return 'unverified';
+    end if;
+    return null;
+  end if;
+  if v_next.status = 'ok' then
+    perform one.fix_record(p_run.fix_id, p_run.incident_id, 'verify', 'done', false, p_run.target,
+                           jsonb_build_object('held', true, 'judged_by', v_next.id, 'why', format('%s passed at %s', v_inc.check_id, v_next.ran_at)),
+                           'one', p_run.run_key);
+    return 'held';
+  end if;
+  if v_next.status <> 'fail' then
+    perform one.fix_record(p_run.fix_id, p_run.incident_id, 'verify', 'skipped', false, p_run.target,
+                           jsonb_build_object('held', null, 'judged_by', v_next.id, 'why', format('%s could not run (%s)', v_inc.check_id, v_next.status)),
+                           'one', p_run.run_key);
+    return 'unverified';
+  end if;
+  -- What that failing run saw, as the plan reads it. A retried execution that failed again shows as a retry.
+  v_seen := v_inc;
+  v_seen.evidence := jsonb_build_object('status', 'fail', 'value', v_next.value);
+  v_seen.subjects := coalesce(case when jsonb_typeof(v_next.value -> 'subjects') = 'array'
+                                   then array(select jsonb_array_elements_text(v_next.value -> 'subjects')) end, v_inc.subjects);
+  v_applies := coalesce((one.fix_plan(p_run.fix_id, v_seen) ->> 'applies')::boolean, false)
+               or (p_run.fix_id = 'FIX-N8N-RETRY' and jsonb_array_length(coalesce(v_next.value -> 'retries_15m', '[]')) > 0);
+  if not v_applies then
+    perform one.fix_record(p_run.fix_id, p_run.incident_id, 'verify', 'done', false, p_run.target,
+                           jsonb_build_object('held', true, 'judged_by', v_next.id, 'why', format('%s still fails, for another reason', v_inc.check_id)),
+                           'one', p_run.run_key);
+    return 'held';
+  end if;
+  if exists (select 1 from one.actions a where a.step = 'verify' and a.incident_id = p_run.incident_id
+                and a.result ->> 'judged_by' = v_next.id::text and coalesce((a.result ->> 'escalated')::boolean, false)) then
+    v_esc := jsonb_build_object('escalated', false, 'why', 'already escalated on this failing run');
+  else
+    v_esc := one.incident_escalate(v_inc.id, format('%s ran at %s and %s failed again', p_run.fix_id, p_run.ran_at, v_inc.check_id));
+  end if;
+  perform one.fix_record(p_run.fix_id, p_run.incident_id, 'verify', 'failed', false, p_run.target,
+                         jsonb_build_object('held', false, 'judged_by', v_next.id, 'failed_again_at', v_next.ran_at) || v_esc, 'one', p_run.run_key);
+  return 'did not hold';
+end $$;
+
+-- Every run due, each in its own block: a run that cannot be judged gets a verify row saying why, so it never blocks
+-- the others (phase 7 review M7).
 create or replace function one.fix_verify_due() returns jsonb
 language plpgsql set search_path = '' as $$
 declare
-  r record;
-  v_inc one.incidents;
-  v_fail one.results;
-  v_cool integer;
+  r one.actions;
+  v text;
   v_n integer := 0;
-  v_esc jsonb;
 begin
   for r in
     select a.* from one.actions a
@@ -675,42 +779,73 @@ begin
        and not exists (select 1 from one.actions v where v.run_key = a.run_key and v.step = 'verify')
      order by a.id limit 50
   loop
-    v_cool := coalesce((one.setting('fixes') -> r.fix_id ->> 'cooldown_min')::int, 60);
-    select * into v_inc from one.incidents where id = r.incident_id;
-    if v_inc.resolved_at is not null then
-      perform one.fix_record(r.fix_id, r.incident_id, 'verify', 'done', false, r.target,
-                             jsonb_build_object('held', true, 'incident', 'resolved ' || v_inc.resolution), 'one', r.run_key);
-      v_n := v_n + 1;
-      continue;
-    end if;
-    select * into v_fail from one.results x
-     where x.check_id = v_inc.check_id and x.ran_at >= r.verify_at and x.ran_at <= r.ran_at + make_interval(mins => v_cool)
-       and x.status in ('fail', 'error')
-     order by x.ran_at limit 1;
-    if found and coalesce((one.fix_plan(r.fix_id, v_inc) ->> 'applies')::boolean, false) then
-      v_esc := one.incident_escalate(v_inc.id, format('%s ran at %s and %s failed again', r.fix_id, r.ran_at, v_inc.check_id));
-      perform one.fix_record(r.fix_id, r.incident_id, 'verify', 'failed', false, r.target,
-                             jsonb_build_object('held', false, 'failed_again_at', v_fail.ran_at) || v_esc, 'one', r.run_key);
-      v_n := v_n + 1;
-    elsif now() > r.ran_at + make_interval(mins => v_cool) then
-      perform one.fix_record(r.fix_id, r.incident_id, 'verify', 'done', false, r.target,
-                             jsonb_build_object('held', true, 'why', 'no second failure within the cooldown'), 'one', r.run_key);
+    begin
+      v := one.fix_verify_one(r);
+    exception when others then
+      perform one.fix_record(r.fix_id, r.incident_id, 'verify', 'skipped', false, r.target,
+                             jsonb_build_object('held', null, 'error', left(sqlerrm, 200)), 'one', r.run_key);
+      v := 'error';
+    end;
+    if v is not null then
       v_n := v_n + 1;
     end if;
   end loop;
   return jsonb_build_object('verified', v_n);
 end $$;
 
--- An executed approval, checked at its check_due_at: which of its rows the fix would still pick (spec §8: "the result is
--- written back to check_result").
+-- The state of the rows an approved run acted on, read from each app's own table: delivered (B2B), done (website), or
+-- the app's report on its retries (n8n). ok is null when nothing can be read yet or at all (phase 7 review M4).
+create or replace function one.fix_rows_state(p_fix text, p_proposal bigint) returns jsonb
+language plpgsql set search_path = '' as $$
+declare
+  v_before one.actions;
+  v_after one.actions;
+  v_rows bigint[];
+  v jsonb;
+begin
+  select * into v_before from one.actions where proposal_id = p_proposal and step = 'before' order by id desc limit 1;
+  select * into v_after from one.actions where proposal_id = p_proposal and step = 'after' order by id desc limit 1;
+  if v_after.id is null then
+    return jsonb_build_object('ok', null, 'why', 'no report of the run yet', 'wait', true);
+  end if;
+  case p_fix
+    when 'FIX-OUTBOX-B2B' then
+      v_rows := array(select x::bigint from jsonb_array_elements_text(coalesce(v_after.result -> 'done', '[]')) x);
+      select jsonb_build_object('rows', cardinality(v_rows),
+                                'delivered', count(*) filter (where o.status = 'delivered'),
+                                'still_sending', count(*) filter (where o.status in ('pending', 'sending', 'failed')),
+                                'dead_again', count(*) filter (where o.status = 'dead'),
+                                'ok', cardinality(v_rows) > 0 and count(*) filter (where o.status = 'delivered') = cardinality(v_rows),
+                                'refused', coalesce(jsonb_array_length(v_after.result -> 'refused'), 0))
+        into v from b2b.integration_outbox o where o.id = any (v_rows);
+    when 'FIX-OUTBOX-WEB' then
+      v_rows := array(select x::bigint from jsonb_array_elements_text(coalesce(v_before.target -> 'rows', '[]')) x);
+      select jsonb_build_object('rows', cardinality(v_rows),
+                                'done', count(*) filter (where o.status = 'done'),
+                                'pending', count(*) filter (where o.status in ('pending', 'processing')),
+                                'dead_again', count(*) filter (where o.status = 'dead'),
+                                'ok', v_after.status = 'done' and count(*) filter (where o.status = 'done') = cardinality(v_rows))
+        into v from public.web_outbox o where o.id = any (v_rows);
+    when 'FIX-N8N-RETRY' then
+      v := jsonb_build_object('retried', coalesce(jsonb_array_length(v_after.result -> 'retried'), 0),
+                              'failed', coalesce(jsonb_array_length(v_after.result -> 'failed'), 0),
+                              'skipped', coalesce(jsonb_array_length(v_after.result -> 'skipped'), 0),
+                              'ok', v_after.status = 'done' and coalesce(jsonb_array_length(v_after.result -> 'failed'), 0) = 0
+                                    and coalesce(jsonb_array_length(v_after.result -> 'skipped'), 0) = 0,
+                              'note', 'whether each new execution succeeded shows in WITTY-02');
+    else
+      v := jsonb_build_object('ok', null, 'why', 'no row state to read for this fix', 'status', v_after.status);
+  end case;
+  return v;
+end $$;
+
+-- An executed approval, checked at its check_due_at (spec §8: "the result is written back to check_result"); one with
+-- no report yet waits up to an hour more.
 create or replace function one.proposals_verify_due() returns jsonb
 language plpgsql set search_path = '' as $$
 declare
   p one.proposals;
-  v_inc one.incidents;
-  v_plan jsonb;
-  v_rows jsonb;
-  v_left jsonb;
+  v jsonb;
   v_n integer := 0;
 begin
   for p in
@@ -718,17 +853,14 @@ begin
      where status = 'applied' and source = 'check' and change ? 'execute' and check_result is null and check_due_at <= now()
      order by id limit 20 for update skip locked
   loop
-    v_rows := coalesce(p.change #> '{execute,rows}', '[]');
-    select * into v_inc from one.incidents where id = (p.change #>> '{execute,incident}')::bigint;
     begin
-      v_plan := one.fix_plan(p.change #>> '{execute,fix}', v_inc);
-      v_left := coalesce(one.fix_plan_within(v_plan, v_rows) -> 'rows', '[]');
-      update one.proposals
-         set check_result = jsonb_build_object('checked_at', now(), 'rows', jsonb_array_length(v_rows), 'still_failing', v_left,
-                                               'ok', jsonb_array_length(v_left) = 0, 'incident_resolved', v_inc.resolved_at is not null)
-       where id = p.id;
+      v := one.fix_rows_state(p.change #>> '{execute,fix}', p.id);
+      if coalesce((v ->> 'wait')::boolean, false) and now() < p.check_due_at + interval '1 hour' then
+        continue;
+      end if;
+      update one.proposals set check_result = (v - 'wait') || jsonb_build_object('checked_at', now()) where id = p.id;
     exception when others then
-      update one.proposals set check_result = jsonb_build_object('checked_at', now(), 'error', left(sqlerrm, 200), 'ok', false) where id = p.id;
+      update one.proposals set check_result = jsonb_build_object('checked_at', now(), 'ok', null, 'error', left(sqlerrm, 200)) where id = p.id;
     end;
     v_n := v_n + 1;
   end loop;
@@ -737,72 +869,226 @@ end $$;
 
 -- The tick's step ---------------------------------------------------------------------------------------------------
 
--- Starts the observation window on the first tick that reaches it (so it starts with production, D-079), verifies what
--- ran, then tries each fix on each open incident of its checks (synthetic ones aside), each in its own block.
-create or replace function one.fixes_step() returns jsonb
+-- The observation window starts on the first tick that reaches the fixes (so it starts with production, D-079).
+create or replace function one.fixes_start_window() returns jsonb
 language plpgsql set search_path = '' as $$
 declare
   v_fixes jsonb := coalesce(one.setting('fixes'), '{}');
-  v_out jsonb := '{}';
-  r record;
-  v jsonb;
 begin
-  if v_fixes ->> 'observation_started_at' is null then
-    perform one.settings_put('fixes', v_fixes || jsonb_build_object('observation_started_at', now()), 'one',
-                             'the observation window starts with the first tick that runs the fixes (D-079)');
-    v_out := v_out || jsonb_build_object('observation_started', now());
+  if v_fixes ->> 'observation_started_at' is not null then
+    return '{}';
   end if;
-  begin
-    v_out := v_out || one.fix_verify_due() || one.proposals_verify_due();
-  exception when others then
-    v_out := v_out || jsonb_build_object('verify_error', left(sqlerrm, 200));
-  end;
-  for r in
-    select f.id as fix, i.id as incident from one.fixes f join one.incidents i on i.check_id = any (f.checks)
-     where i.resolved_at is null and not 'synthetic' = any (i.tags)
-     order by i.severity, f.id, i.id
-  loop
-    begin
-      v := one.fix_run(r.fix, r.incident, false, 'one');
-      if v ? 'action' or v ? 'queued_for_app' or v ? 'proposal' then
-        v_out := v_out || jsonb_build_object(r.fix, coalesce(v ->> 'status', case when (v ->> 'dry_run')::boolean then 'dry_run' end, v ->> 'skipped', 'queued'));
-      end if;
-    exception when others then
-      v_out := v_out || jsonb_build_object(r.fix, 'error: ' || left(sqlerrm, 160));
-    end;
-  end loop;
-  return jsonb_build_object('fixes', v_out);
+  perform one.settings_put('fixes', v_fixes || jsonb_build_object('observation_started_at', now()), 'one',
+                           'the observation window starts with the first tick that runs the fixes (D-079)');
+  return jsonb_build_object('observation_started', now());
 end $$;
 
--- The fixes run first, each isolated; then the app call and the AI step as in 0018. A failure of one never undoes the
--- others (each has its own block).
-create or replace function one.tick_app_call() returns jsonb
+-- Each fix and each open incident of its checks (synthetic ones aside), the most severe first.
+create or replace function one.fixes_pairs() returns table (fix text, incident bigint)
+language sql stable set search_path = '' as $$
+  select f.id, i.id from one.fixes f join one.incidents i on i.check_id = any (f.checks)
+   where i.resolved_at is null and not 'synthetic' = any (i.tags)
+   order by i.severity, f.id, i.id
+$$;
+
+-- Verification of earlier runs and approvals, each in its own block.
+create or replace function one.fixes_verify_safe() returns jsonb
 language plpgsql set search_path = '' as $$
 declare
   v jsonb := '{}';
 begin
   begin
-    v := v || one.fixes_step();
+    v := v || one.fix_verify_due();
   exception when others then
-    v := v || jsonb_build_object('fixes_error', left(sqlerrm, 200));
+    v := v || jsonb_build_object('verify_error', left(sqlerrm, 200));
   end;
   begin
-    v := v || jsonb_build_object('app', coalesce(one.job_call('/api/internal/tick')::text, 'not_configured'));
+    v := v || one.proposals_verify_due();
   exception when others then
-    return v || jsonb_build_object('app_error', sqlerrm);
-  end;
-  begin
-    v := v || one.ai_step();
-  exception when others then
-    v := v || jsonb_build_object('ai_error', sqlerrm);
+    v := v || jsonb_build_object('proposals_verify_error', left(sqlerrm, 200));
   end;
   return v;
 end $$;
 
+-- One fix on one incident for the tick, never raising: the outcome in a word, or "error: …". A lock wait gives up
+-- after the checks' lock timeout, and a cancelled statement is caught as well (phase 7 review M8).
+create or replace function one.fix_run_safe(p_fix text, p_incident bigint) returns text
+language plpgsql set search_path = '' as $$
+declare
+  v jsonb;
+begin
+  perform set_config('lock_timeout', coalesce(one.setting('checks') ->> 'lock_timeout', '2s'), true);
+  v := one.fix_run(p_fix, p_incident, false, 'one');
+  return coalesce(v ->> 'status', case when (v ->> 'dry_run')::boolean then 'dry_run' end, v ->> 'skipped',
+                  case when v ? 'queued_for_app' then 'queued' end, case when v ? 'proposal' then 'proposal' end,
+                  case when v ? 'applies' then 'not applicable' end, 'ran');
+exception
+  when query_canceled then
+    return 'error: cancelled (' || left(sqlerrm, 120) || ')';
+  when others then
+    return 'error: ' || left(sqlerrm, 160);
+end $$;
+
+-- The fix step's report: what each fix did this tick (the quiet outcomes left out), and fixes_error when one failed,
+-- so a tick report with an error key shows it (phase 7 review: smoke reads top-level keys).
+create or replace function one.fixes_report(p_out jsonb) returns jsonb
+language sql immutable set search_path = '' as $$
+  select jsonb_build_object('fixes', p_out)
+         || coalesce((select jsonb_build_object('fixes_error', string_agg(key || ' ' || value, '; ' order by key))
+                        from jsonb_each_text(p_out) where value like 'error:%' or key like '%verify_error'
+                      having count(*) > 0), '{}')
+$$;
+
+-- The fix step in one transaction, for one.tick() by hand.
+create or replace function one.fixes_step() returns jsonb
+language plpgsql set search_path = '' as $$
+declare
+  v_out jsonb;
+  r record;
+  v text;
+begin
+  v_out := one.fixes_start_window() || one.fixes_verify_safe();
+  for r in select * from one.fixes_pairs() loop
+    begin
+      v := one.fix_run_safe(r.fix, r.incident);
+    exception when others then
+      v := 'error: ' || left(sqlerrm, 160);
+    end;
+    if v not in ('cooldown', 'not applicable') then
+      v_out := v_out || jsonb_build_object(r.fix || '#' || r.incident, v);
+    end if;
+  end loop;
+  return one.fixes_report(v_out);
+end $$;
+
+-- The fix step pg_cron runs, after the app call: one transaction for the window and verification, then one per fix
+-- and incident, so a slow or failing fix never costs the app call, the others or their action rows (phase 7 review M8).
+create or replace procedure one.fixes_job(inout p_report jsonb default null)
+language plpgsql as $$
+declare
+  v_out jsonb;
+  r record;
+  v text;
+begin
+  perform pg_catalog.set_config('search_path', '', false);
+  v_out := one.fixes_start_window() || one.fixes_verify_safe();
+  commit;
+  for r in select * from one.fixes_pairs() loop
+    v := one.fix_run_safe(r.fix, r.incident);
+    if v not in ('cooldown', 'not applicable') then
+      v_out := v_out || jsonb_build_object(r.fix || '#' || r.incident, v);
+    end if;
+    commit;
+  end loop;
+  p_report := one.fixes_report(v_out);
+end $$;
+
+-- 0003's tick by hand, with the fix step after the app call.
+create or replace function one.tick() returns jsonb
+language plpgsql set search_path = '' as $$
+declare
+  v_run bigint;
+  v_report jsonb := jsonb_build_object('at', now());
+begin
+  perform one.heartbeat('one:tick', true, jsonb_build_object('at', now()), null, 60);
+  if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtext('one.tick')) then
+    return v_report || jsonb_build_object('skipped', 'another tick is running');
+  end if;
+  insert into one.runs (kind, bucket) values ('tick', date_trunc('minute', now()))
+  on conflict (kind, bucket) do nothing returning id into v_run;
+  if v_run is null then
+    return v_report || jsonb_build_object('skipped', 'already ran this minute');
+  end if;
+  v_report := v_report || one.reap_killed();
+  begin
+    v_report := v_report || one.run_sql_checks();
+  exception when others then v_report := v_report || jsonb_build_object('checks_error', sqlerrm);
+  end;
+  v_report := v_report || one.alerts_step();
+  v_report := v_report || one.tick_app_call();
+  begin
+    v_report := v_report || one.fixes_step();
+  exception when others then v_report := v_report || jsonb_build_object('fixes_error', sqlerrm);
+  end;
+  begin
+    v_report := v_report || jsonb_build_object('events', one.events_refresh());
+  exception when others then v_report := v_report || jsonb_build_object('events_error', sqlerrm);
+  end;
+  update one.runs set finished_at = now(), report = v_report where id = v_run;
+  return v_report;
+end $$;
+
+-- 0005's minute job, with the fix step after the app call (step 4b): its own transactions, so the app call and the
+-- run's finish time are committed first.
+create or replace procedure one.tick_job()
+language plpgsql as $$
+declare
+  v_run bigint;
+  v_report jsonb := jsonb_build_object('at', now(), 'mode', 'job');
+  v_id text;
+  v_src record;
+  v_fixes jsonb;
+begin
+  perform pg_catalog.set_config('search_path', '', false);
+  if pg_catalog.current_setting('server_version_num')::int >= 170000 then
+    perform pg_catalog.set_config('transaction_timeout', coalesce(one.setting('checks') ->> 'transaction_timeout', '30s'), false);
+  end if;
+  perform one.heartbeat('one:tick', true, jsonb_build_object('at', now()), null, 60);
+  commit;
+  if not pg_catalog.pg_try_advisory_lock(pg_catalog.hashtext('one.tick')) then
+    return;
+  end if;
+  insert into one.runs (kind, bucket) values ('tick', date_trunc('minute', now()))
+  on conflict (kind, bucket) do nothing returning id into v_run;
+  if v_run is null then
+    perform pg_catalog.pg_advisory_unlock(pg_catalog.hashtext('one.tick'));
+    commit;
+    return;
+  end if;
+  v_report := v_report || one.reap_killed();
+  update one.runs set report = v_report where id = v_run;
+  commit;
+  for v_id in select one.due_checks(false) loop
+    perform one.mark_started(v_id);
+    commit;
+    v_report := one.report_add(v_report, one.run_check_safe(v_id));
+    update one.runs set report = v_report where id = v_run;
+    commit;
+  end loop;
+  v_report := v_report || one.alerts_step();
+  update one.runs set report = v_report where id = v_run;
+  commit;
+  v_report := v_report || one.tick_app_call();
+  update one.runs set finished_at = now(), report = v_report where id = v_run;
+  commit;
+  call one.fixes_job(v_fixes);
+  v_report := v_report || coalesce(v_fixes, '{}');
+  update one.runs set report = v_report where id = v_run;
+  commit;
+  for v_src in select * from one.events_due() loop
+    perform one.mark_source_started(v_src.source);
+    commit;
+    v_report := jsonb_set(v_report, '{events}', coalesce(v_report -> 'events', '{}') || one.events_copy_safe(v_src.source, v_src.app, v_src.sql));
+    update one.runs set report = v_report where id = v_run;
+    commit;
+  end loop;
+  for v_id in select one.due_checks(true) loop
+    perform one.mark_started(v_id);
+    commit;
+    v_report := one.report_add(v_report, one.run_check_safe(v_id));
+    update one.runs set report = v_report where id = v_run;
+    commit;
+  end loop;
+  perform pg_catalog.pg_advisory_unlock(pg_catalog.hashtext('one.tick'));
+  commit;
+end $$;
+
 -- The app's side (service role) ---------------------------------------------------------------------------------------
 
--- Up to 10 real runs of the app's fixes (FIX-N8N-RETRY, FIX-WEBHOOK-REKICK) for the app to carry out, each held 5
--- minutes; a run the app never reports within 15 minutes is closed as failed.
+-- Up to 10 waiting runs of the app's fixes (FIX-N8N-RETRY, FIX-WEBHOOK-REKICK), each handed out once: a run the app
+-- claimed and never reported is closed after 15 minutes as unknown and never handed out again, so no execution is
+-- retried twice (phase 7 review M9). A tick's run of a fix switched off since is closed as skipped (review m5);
+-- an approved one still runs.
 create or replace function one.app_fixes_claim(p_holder text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -811,17 +1097,26 @@ declare
 begin
   for r in
     select a.* from one.actions a join one.fixes f on f.id = a.fix_id
-     where f.mode = 'app' and a.step = 'before' and not a.dry_run and a.ran_at <= now() - interval '15 minutes'
+     where f.mode = 'app' and a.step = 'before' and not a.dry_run
        and not exists (select 1 from one.actions b where b.run_key = a.run_key and b.step in ('after', 'skip'))
+       and (a.ran_at <= now() - interval '15 minutes'
+            or (a.claimed_at is null and a.proposal_id is null and not coalesce((one.setting('fixes') -> a.fix_id ->> 'enabled')::boolean, false)))
      order by a.id limit 50 for update of a skip locked
   loop
-    perform one.fix_record(r.fix_id, r.incident_id, 'after', 'failed', false, r.target,
-                           jsonb_build_object('error', 'the app did not report within 15 minutes'), 'one', r.run_key, null, r.proposal_id);
+    if r.ran_at > now() - interval '15 minutes' then
+      perform one.fix_record(r.fix_id, r.incident_id, 'skip', 'skipped', false, r.target,
+                             jsonb_build_object('reason', 'switched off before the app ran it'), 'one', r.run_key);
+    else
+      perform one.fix_record(r.fix_id, r.incident_id, 'after', 'failed', false, r.target,
+                             jsonb_build_object('error', case when r.claimed_at is null then 'the app did not run it within 15 minutes'
+                                                              else 'the app claimed it and did not report within 15 minutes: outcome unknown' end,
+                                                'unknown', r.claimed_at is not null),
+                             'one', r.run_key, null, r.proposal_id);
+    end if;
   end loop;
   with c as (
     select a.id from one.actions a join one.fixes f on f.id = a.fix_id
-     where f.mode = 'app' and a.step = 'before' and not a.dry_run and a.ran_at > now() - interval '15 minutes'
-       and (a.claimed_at is null or a.claimed_at < now() - interval '5 minutes')
+     where f.mode = 'app' and a.step = 'before' and not a.dry_run and a.ran_at > now() - interval '15 minutes' and a.claimed_at is null
        and not exists (select 1 from one.actions b where b.run_key = a.run_key and b.step in ('after', 'skip'))
      order by a.id limit 10 for update of a skip locked),
   u as (
@@ -832,8 +1127,9 @@ begin
   return jsonb_build_object('runs', v);
 end $$;
 
--- The app's report on one run it claimed. FIX-N8N-RETRY: the retries, done if any succeeded. FIX-WEBHOOK-REKICK: p_ok
--- says whether Spark answered; then the kick runs here with the fixer's rights, else nothing is done and the P1 stays.
+-- The app's report on one run it claimed. FIX-N8N-RETRY: {retried, failed, skipped}, done if any was retried.
+-- FIX-WEBHOOK-REKICK: p_ok says whether Spark answered; then the kick runs here with the fixer's rights, else nothing
+-- is done and the P1 stays.
 create or replace function one.app_fix_report(p_action bigint, p_ok boolean, p_result jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -844,8 +1140,8 @@ declare
   v_id bigint;
 begin
   select * into a from one.actions where id = p_action for update;
-  if not found or a.step <> 'before' or a.dry_run or a.fix_id not in ('FIX-N8N-RETRY', 'FIX-WEBHOOK-REKICK') then
-    raise exception 'action % is not an app fix waiting for its report', p_action using errcode = '22023';
+  if not found or a.step <> 'before' or a.dry_run or a.claimed_at is null or a.fix_id not in ('FIX-N8N-RETRY', 'FIX-WEBHOOK-REKICK') then
+    raise exception 'action % is not an app fix the app claimed', p_action using errcode = '22023';
   end if;
   if exists (select 1 from one.actions b where b.run_key = a.run_key and b.step in ('after', 'skip')) then
     raise exception 'action % has its report already', p_action using errcode = '22023';
@@ -853,10 +1149,12 @@ begin
   v_cool := coalesce((one.setting('fixes') -> a.fix_id ->> 'cooldown_min')::int, 60);
   if a.fix_id = 'FIX-WEBHOOK-REKICK' and not coalesce(p_ok, false) then
     v_id := one.fix_record(a.fix_id, a.incident_id, 'skip', 'skipped', false, a.target,
-                           jsonb_build_object('reason', 'Spark did not answer: nothing done, the P1 stays', 'reachability', v_res), 'one', a.run_key);
+                           jsonb_build_object('reason', 'Spark did not answer: nothing done, the P1 stays', 'reachability', v_res), 'one', a.run_key,
+                           null, a.proposal_id);
     return jsonb_build_object('status', 'skipped', 'action', v_id);
   end if;
   if a.fix_id = 'FIX-WEBHOOK-REKICK' then
+    perform set_config('lock_timeout', coalesce(one.setting('checks') ->> 'lock_timeout', '2s'), true);
     begin
       v_res := jsonb_build_object('reachability', v_res, 'kick', one.fix_act('FIX-WEBHOOK-REKICK', '{}'));
       v_status := 'done';
@@ -874,10 +1172,10 @@ end $$;
 
 -- Approvals (the owner's session) ---------------------------------------------------------------------------------------
 
--- Runs an approved fix proposal once: FIX-OUTBOX-B2B's B2B admin action under the approver's session, or an over-limit
--- fix on the rows it named, each with the fixer's rights. Only proposals a fix opened itself execute (source check,
--- source_key fix:…), and only on rows that still qualify. Applied, with check_due_at 10 minutes on.
-create or replace function one.proposal_execute(p_id bigint, p_actor text) returns jsonb
+-- Runs an approved proposal a fix opened, once: FIX-OUTBOX-B2B's B2B admin action under the approver's session, or an
+-- over-limit fix, each with the fixer's rights, on p_rows (what the approver saw) where they still qualify. Applied,
+-- with check_due_at 10 minutes on; a run that did nothing leaves it approved, with check_result saying why.
+create or replace function one.proposal_execute(p_id bigint, p_actor text, p_rows jsonb, p_actor_id uuid) returns jsonb
 language plpgsql set search_path = '' as $$
 declare
   p one.proposals;
@@ -890,14 +1188,22 @@ begin
      or p.source_key not like format('fix:%s:%s:%%', v_x ->> 'fix', v_x ->> 'incident') then
     return jsonb_build_object('executed', false, 'why', 'nothing to run: this proposal records a decision');
   end if;
-  v_res := one.fix_run(v_x ->> 'fix', (v_x ->> 'incident')::bigint, false, p_actor, p_id, coalesce(v_x -> 'rows', '[]'));
+  v_res := one.fix_run(v_x ->> 'fix', (v_x ->> 'incident')::bigint, false, p_actor, p_id, coalesce(p_rows, '[]'), p_actor_id);
   if coalesce(v_res ->> 'status', '') = 'done' or v_res ? 'queued_for_app' then
     update one.proposals set status = 'applied', applied_at = now(), check_due_at = now() + interval '10 minutes', check_result = null where id = p_id;
+  else
+    update one.proposals set check_result = jsonb_build_object('ran', false, 'ok', false, 'checked_at', now(),
+                                                               'why', coalesce(v_res ->> 'why_not', v_res ->> 'skipped', 'the run failed'),
+                                                               'result', v_res -> 'result')
+     where id = p_id;
   end if;
   return jsonb_build_object('executed', true) || v_res;
 end $$;
 
--- 0011's decision, and an approved fix proposal runs at once under the approver's session (spec §8).
+-- 0011's decision. An approved proposal a fix opened runs at once under the approver's session (spec §8), on the rows
+-- that were both proposed and shown to the approver: an edit can remove rows, and a refresh after the page was shown
+-- cannot add any (phase 7 review M2). Only that run is checked later; other approvals record the decision and the
+-- change is made in the app, so nothing sets a check_due_at for them (review M12; D-079).
 create or replace function one.ui_proposal_decide(p_id bigint, p_decision text, p_note text default null, p_change jsonb default null,
                                                   p_snooze_days integer default null, p_request_id text default null) returns jsonb
 language plpgsql security definer set search_path = '' as $$
@@ -905,6 +1211,7 @@ declare
   v_actor text := one.ui_require('operate');
   v_p one.proposals;
   v_change jsonb;
+  v_rows jsonb;
   v_exec jsonb;
 begin
   select * into v_p from one.proposals where id = p_id for update;
@@ -917,14 +1224,20 @@ begin
       if one.proposal_sensitive(v_p.kind, v_p.change) or one.proposal_sensitive(v_p.kind, v_change) then
         perform one.ui_require('owner');
       end if;
-      update one.proposals set status = 'approved', decided_by = v_actor, decided_at = now(), decision_note = left(p_note, 1000),
-                               change = v_change, check_due_at = now() + interval '1 day'
-       where id = p_id;
-      -- What runs is what the fix proposed (the stored change), on rows that still qualify: an edited change is kept
-      -- in the audit and cannot widen it.
       if v_p.source = 'check' and v_p.change ? 'execute' then
-        update one.proposals set change = v_p.change || jsonb_build_object('edited', v_change) where id = p_id and v_change is distinct from v_p.change;
-        v_exec := one.proposal_execute(p_id, v_actor);
+        select coalesce(jsonb_agg(x order by x::text), '[]') into v_rows
+          from jsonb_array_elements(coalesce(v_p.change #> '{execute,rows}', '[]')) x
+         where jsonb_typeof(v_change #> '{execute,rows}') <> 'array' or (v_change #> '{execute,rows}') @> jsonb_build_array(x);
+        update one.proposals
+           set status = 'approved', decided_by = v_actor, decided_at = now(), decision_note = left(p_note, 1000), check_due_at = null,
+               change = v_p.change || jsonb_build_object('approved_rows', v_rows)
+                        || case when v_change is distinct from v_p.change then jsonb_build_object('approved_change', v_change) else '{}' end
+         where id = p_id;
+        v_exec := one.proposal_execute(p_id, v_actor, v_rows, one.uid());
+      else
+        update one.proposals set status = 'approved', decided_by = v_actor, decided_at = now(), decision_note = left(p_note, 1000),
+                                 change = v_change, check_due_at = null
+         where id = p_id;
       end if;
     when 'reject' then
       update one.proposals set status = 'rejected', decided_by = v_actor, decided_at = now(), decision_note = one.ui_reason(p_note) where id = p_id;
@@ -945,8 +1258,9 @@ end $$;
 
 -- The Fixes page ------------------------------------------------------------------------------------------------------
 
--- Every fix with its catalogue entry, settings, grants, evidence (counts and the latest rows) and open incidents, and
--- the observation window. can_enable: the window has ended and the fix has at least one dry run (enable on evidence).
+-- Every fix with its catalogue entry, settings, grants, evidence and open incidents, and the observation window.
+-- "runs" counts only runs that acted (a before row and its after row); proposals a fix opened are counted apart
+-- (phase 7 review m3). can_enable: the window has ended and the fix has at least one dry run (enable on evidence).
 create or replace function one.ui_fixes() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -961,16 +1275,21 @@ begin
         'settings', coalesce(one.setting('fixes') -> f.id, '{}'),
         'grants_state', one.fix_grants(f.id),
         'counts', (select jsonb_build_object('dry_runs', count(*) filter (where a.step = 'dry_run'),
-                                             'runs', count(*) filter (where a.step = 'after'),
-                                             'failed', count(*) filter (where a.step = 'after' and a.status = 'failed'),
+                                             'runs', count(*) filter (where a.step = 'after' and b.id is not null),
+                                             'failed', count(*) filter (where a.step = 'after' and b.id is not null and a.status = 'failed'),
+                                             'proposals', count(distinct a.proposal_id) filter (where a.step in ('after', 'skip') and b.id is null),
                                              'skipped', count(*) filter (where a.step = 'skip'),
                                              'held', count(*) filter (where a.step = 'verify' and a.status = 'done'),
                                              'escalated', count(*) filter (where a.step = 'verify' and a.status = 'failed'),
                                              'last_at', max(a.ran_at))
-                     from one.actions a where a.fix_id = f.id),
+                     from one.actions a
+                     left join lateral (select x.id from one.actions x where x.run_key = a.run_key and x.step = 'before' limit 1) b on true
+                    where a.fix_id = f.id),
         'recent', (select coalesce(jsonb_agg(to_jsonb(a) order by a.id desc), '[]')
                      from (select * from one.actions where fix_id = f.id order by id desc limit 10) a),
-        'open_incidents', (select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'check_id', i.check_id, 'severity', i.severity, 'title', i.title)
+        'open_incidents', (select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'check_id', i.check_id, 'severity', i.severity, 'title', i.title,
+                                                                        'stopped', exists (select 1 from one.actions a where a.fix_id = f.id and a.incident_id = i.id
+                                                                                              and a.step = 'verify' and a.status = 'failed'))
                                                      order by i.id), '[]')
                              from one.incidents i where i.check_id = any (f.checks) and i.resolved_at is null),
         'can_enable', not (v_win ->> 'running')::boolean and exists (select 1 from one.actions a where a.fix_id = f.id and a.dry_run))
@@ -1073,11 +1392,18 @@ begin
                          where h.last_error_at is not null and h.last_error_at > coalesce(h.last_ok_at, '-infinity')),
     'fixes', jsonb_build_object(
        'window', one.fix_window(),
-       'by_fix', (select coalesce(jsonb_agg(jsonb_build_object('fix', fix_id, 'dry_runs', d, 'runs', n, 'failed', bad, 'skipped', sk, 'escalated', esc) order by fix_id), '[]')
-                    from (select fix_id, count(*) filter (where step = 'dry_run') as d, count(*) filter (where step = 'after') as n,
-                                 count(*) filter (where step = 'after' and status = 'failed') as bad, count(*) filter (where step = 'skip') as sk,
-                                 count(*) filter (where step = 'verify' and status = 'failed') as esc
-                            from one.actions where ran_at >= v_from and ran_at < v_to group by 1) s)));
+       'by_fix', (select coalesce(jsonb_agg(jsonb_build_object('fix', fix_id, 'dry_runs', d, 'runs', n, 'failed', bad, 'proposals', pr, 'skipped', sk,
+                                                               'held', held, 'escalated', esc) order by fix_id), '[]')
+                    from (select a.fix_id, count(*) filter (where a.step = 'dry_run') as d,
+                                 count(*) filter (where a.step = 'after' and b.id is not null) as n,
+                                 count(*) filter (where a.step = 'after' and b.id is not null and a.status = 'failed') as bad,
+                                 count(distinct a.proposal_id) filter (where a.step in ('after', 'skip') and b.id is null) as pr,
+                                 count(*) filter (where a.step = 'skip') as sk,
+                                 count(*) filter (where a.step = 'verify' and a.status = 'done') as held,
+                                 count(*) filter (where a.step = 'verify' and a.status = 'failed') as esc
+                            from one.actions a
+                            left join lateral (select x.id from one.actions x where x.run_key = a.run_key and x.step = 'before' limit 1) b on true
+                           where a.ran_at >= v_from and a.ran_at < v_to group by 1) s)));
   begin
     perform set_config('lock_timeout', '2s', true);
     select e into v_witty from jsonb_array_elements(one.embed_data('witty.replies')) e where e ->> 'day' = (p_for_date - 1)::text;

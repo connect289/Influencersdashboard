@@ -66,18 +66,22 @@ async function probe(url: string, method: "HEAD" | "GET"): Promise<number> {
   }
 }
 
-/** HEAD, then GET when HEAD got no answer or a 5xx; answered is a status from 1 to 499. */
+/** Statuses that show the route is there: a success, or a refusal of this method or of an empty request. */
+export const routeAnswers = (status: number) =>
+  (status >= 200 && status < 300) || [400, 401, 403, 405, 415, 422].includes(status);
+
+/** HEAD, then GET when HEAD got no such answer: a redirect, a 404 or a 5xx is not an answer (phase 7 review m7). */
 export async function answersAt(
   url: string,
 ): Promise<{ answered: boolean; status: number; method: "HEAD" | "GET"; ms: number }> {
   const started = Date.now();
   let method: "HEAD" | "GET" = "HEAD";
   let status = await probe(url, method);
-  if (status <= 0 || status >= 500) {
+  if (!routeAnswers(status)) {
     method = "GET";
     status = await probe(url, method);
   }
-  return { answered: status > 0 && status < 500, status, method, ms: Date.now() - started };
+  return { answered: routeAnswers(status), status, method, ms: Date.now() - started };
 }
 
 /** Answers from recorded fixtures, keyed by host; an unknown host answers like a timeout. */
@@ -96,6 +100,6 @@ export class MockAppHealthClient implements AppHealthClient {
   async answers(url: string) {
     const f = this.byHost[new URL(url).host];
     const status = f?.status ?? 0;
-    return { answered: status > 0 && status < 500, status, method: "HEAD" as const, ms: f ? 1 : 10_000 };
+    return { answered: routeAnswers(status), status, method: "HEAD" as const, ms: f ? 1 : 10_000 };
   }
 }

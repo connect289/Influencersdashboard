@@ -15,21 +15,34 @@ import { readdirSync, readFileSync } from "node:fs";
 const FIXER_FORBIDDEN =
   /\b(student_leads|allocations?|allocation_\w+|\w*(payout|ledger|invoice|commission|payment|wallet|refund|billing|price|pricing|fee|earning)s?\w*|live_switches|partners?|partner_\w*|\w*(_mapping|_mappings|_map|_maps)|w2_prompts|\w*settings)\b/i;
 /**
- * The app functions a fix may call (spec §8's catalogue, as built in 0019; D-079). EXECUTE on anything else is refused,
- * whatever its name: lead_intake(), Witty's outbox functions, allocation and money functions never reach the fixer.
+ * The app functions a fix may call, with their exact argument types (spec §8's catalogue, as built in 0019; D-079).
+ * EXECUTE on anything else is refused, another overload included: lead_intake(), Witty's outbox functions, allocation
+ * and money functions never reach the fixer.
  */
-const FIXER_FUNCTIONS = new Set([
-  "b2b.b2c_sync_tick",
-  "b2b.outbox_kick",
-  "b2b.outbox_retry",
-  "b2c.inbox_retry",
-  "b2c.outbox_unstick",
-  "b2c.job_call",
-  "b2c.programme_cache_refresh",
-  "public.web_outbox_retry",
-  "public.web_job_call",
-  "public.web_catalog_poll",
+const FIXER_FUNCTIONS = new Map([
+  ["b2b.b2c_sync_tick", "integer"],
+  ["b2b.outbox_kick", ""],
+  ["b2b.outbox_retry", "bigint"],
+  ["b2c.inbox_retry", "integer"],
+  ["b2c.outbox_unstick", ""],
+  ["b2c.job_call", "text"],
+  ["b2c.programme_cache_refresh", "boolean"],
+  ["public.web_outbox_retry", "bigint,uuid"],
+  ["public.web_job_call", "text,integer"],
+  ["public.web_catalog_poll", ""],
 ]);
+const TYPE_ALIASES: Record<string, string> = { int: "integer", int4: "integer", int8: "bigint", bool: "boolean" };
+/** "function b2b.x(int, text)" → ["b2b.x", "integer,text"], or null for anything but one function with its types. */
+function functionSignature(on: string): [string, string] | null {
+  const m = on.match(/^function ([\w$]+\.[\w$]+)\s*\(([^()]*)\)$/);
+  if (!m) return null;
+  const args = (m[2] as string)
+    .split(",")
+    .map((a) => a.trim().replace(/\s+/g, " "))
+    .filter(Boolean)
+    .map((a) => TYPE_ALIASES[a] ?? a);
+  return [m[1] as string, args.join(",")];
+}
 /** The schemas whose functions the fixer calls. */
 const FIXER_SCHEMAS = new Set(["public", "b2b", "b2c"]);
 const APP_SCHEMAS = "(public|b2b|b2c|catalog|inf|auth|storage|cron|net|vault|realtime|extensions|graphql|graphql_public|pgsodium|supabase_functions)";
@@ -184,11 +197,11 @@ function command(cmd: string, dynamic: string | null): Finding[] {
     return /\b(bypassrls|superuser|createdb|createrole|replication)\b/.test(m[2] as string) ? [`role attribute that bypasses RLS or grants powers (D-030): ${short(cmd)}`] : [];
   }
   if ((m = s.match(/^alter default privileges (.*)$/))) {
-    const body = m[1] as string;
-    if (/ in schema (one|«\d+»|__dyn__)\b/.test(body) && / in schema one\b/.test(body)) return [];
-    return /^(for (role|user) [\w$"]+ )?in schema [\w$"_]+ grant select on tables to eduwit_one_reader$/.test(body)
+    // Only the reader's SELECT, in one schema at a time (0001); never for another role, and nothing in schema one.
+    return /^(for (role|user) [\w$"]+ )?in schema [\w$"]+ grant select on tables to eduwit_one_reader$/.test(m[1] as string) &&
+      !/ in schema "?one"? /.test(` ${m[1] as string}`)
       ? []
-      : [`default privileges other than the reader's SELECT: ${short(cmd)}`];
+      : [`default privileges other than the reader's SELECT in one schema: ${short(cmd)}`];
   }
   if ((m = s.match(/^alter (?:policy|trigger) [\w$"]+ on (.*)$/))) return target(name(m[1] as string).name, "alter policy or trigger");
   if ((m = s.match(/^alter (table|view|materialized view|function|procedure|routine|type|domain|sequence|index|aggregate) (?:if exists )?(?:only )?(.*)$/))) {
@@ -201,12 +214,16 @@ function command(cmd: string, dynamic: string | null): Finding[] {
     }
     return target(n, `alter ${m[1]}`);
   }
-  if ((m = s.match(/^alter schema (.*)$/))) return name(m[1] as string).name === "one" ? [] : [`alter schema other than one: ${short(cmd)}`];
+  if ((m = s.match(/^alter schema (.*)$/))) {
+    if (name(m[1] as string).name !== "one") return [`alter schema other than one: ${short(cmd)}`];
+    return /\b(owner to|rename to)\b/.test(s) ? [`schema one keeps its name and owner: ${short(cmd)}`] : [];
+  }
   if (/^alter /.test(s)) return [`alter of a kind migrations may not alter: ${short(cmd)}`];
 
   // drop
   if ((m = s.match(/^drop schema (?:if exists )?(.*)$/))) return name(m[1] as string).name === "one" ? [] : [`drop schema other than one: ${short(cmd)}`];
   if ((m = s.match(/^drop role (?:if exists )?(.*)$/))) return names(m[1] as string, /$^/).every((r) => OUR_ROLES.test(r)) ? [] : [`drop role other than Eduwit One's two: ${short(cmd)}`];
+  if (/^reassign owned by /.test(s)) return [`reassign owned is not allowed in a migration: ${short(cmd)}`];
   if ((m = s.match(/^drop owned by (.*)$/))) return names(m[1] as string, /$^/).every((r) => OUR_ROLES.test(r)) ? [] : [`drop owned by a role other than Eduwit One's two: ${short(cmd)}`];
   if ((m = s.match(/^drop (?:policy|trigger|rule) (?:if exists )?[\w$"]+ on (.*)$/))) return target(name(m[1] as string).name, "drop policy, trigger or rule");
   if ((m = s.match(/^drop (table|view|materialized view|function|procedure|routine|type|domain|sequence|index|aggregate) (?:if exists )?(.*)$/)))
@@ -259,17 +276,17 @@ function privilege(cmd: string, reviewed: boolean): Finding[] {
   const toFixer = grantees.some((g) => g === "eduwit_one_fixer");
 
   if (toFixer && grant) {
-    // Only to the fixer, and only one of: a column-level UPDATE on one table; EXECUTE on functions of the catalogue;
-    // USAGE on the schemas they live in; CREATE on schema one, which the same file must take back (scan()). Never on a
-    // forbidden object (spec §8).
+    // Only to the fixer, and only one of: EXECUTE on one function of the catalogue, with its exact types; USAGE on the
+    // schemas they live in; CREATE on schema one, which the same file must take back (scan()). No table or column
+    // privilege of any kind, and never a forbidden object (spec §8).
     const only = grantees.length === 1 && !objects.some(hidden) && !FIXER_FORBIDDEN.test(on);
-    const column = /^update\s*\([\w\s,"]+\)$/.test(privs) && objects.length === 1 && !/^(schema|function|all) /.test(on);
-    const execute = privs === "execute" && /^function /.test(on) && objects.length > 0 && objects.every((o) => FIXER_FUNCTIONS.has(o));
+    const sig = privs === "execute" ? functionSignature(on) : null;
+    const execute = sig !== null && FIXER_FUNCTIONS.get(sig[0]) === sig[1];
     const usage = privs === "usage" && /^schema /.test(on) && objects.every((o) => FIXER_SCHEMAS.has(o));
     const create = privs === "create" && on === "schema one";
-    return only && (column || execute || usage || create)
+    return only && (execute || usage || create)
       ? []
-      : [`a grant to eduwit_one_fixer must be a column-level UPDATE on one table, EXECUTE on a catalogue function, USAGE on public, b2b or b2c, or CREATE on schema one, never on a forbidden object: ${short(cmd)}`];
+      : [`a grant to eduwit_one_fixer must be EXECUTE on one catalogue function with its exact types, USAGE on public, b2b or b2c, or CREATE on schema one: ${short(cmd)}`];
   }
   if (grant && toReader) return readOnly ? [] : [`eduwit_one_reader gets no write privilege anywhere: ${short(cmd)}`];
   if (isDyn) return [`grant or revoke with a target or role hidden in dynamic SQL (not a reviewed template): ${short(cmd)}`];
@@ -286,7 +303,7 @@ function privilege(cmd: string, reviewed: boolean): Finding[] {
 
 // --------------------------------------------------------------------------------------- statements and bodies
 
-const KEYWORDS = /\b(create|alter|drop|truncate|insert|update|delete|comment|grant|revoke|lock|refresh|reindex|cluster|vacuum|security|copy|load|import)\b/g;
+const KEYWORDS = /\b(create|alter|drop|truncate|insert|update|delete|comment|grant|revoke|lock|refresh|reindex|cluster|vacuum|security|copy|load|import|reassign)\b/g;
 const BOUNDARY = /(^|\b(begin|then|else|loop|do)|\(|,|«\d+»)\s*$/;
 
 /** Every command in a statement or a plpgsql body: at its start, or after begin, then, else, loop or an open bracket. */
@@ -304,16 +321,26 @@ function commandsIn(text: string, literals: string[], dynamic: string | null): F
   return found;
 }
 
-/** The literal template of each EXECUTE in a body, or a finding when it is built from something else. */
+/**
+ * The literal template of each EXECUTE in a body, or a finding when it is built from something else. Brackets and
+ * format() around the literal are read through ("execute('…')", "execute (format('…', x))"); a literal followed by ||
+ * hides its tail, which counts as a hidden target (B1 of the phase 7 review).
+ */
 function dynamicTemplates(text: string, literals: string[]): { templates: string[]; findings: Finding[] } {
   const templates: string[] = [];
   const findings: Finding[] = [];
   const s = text.replace(/\s+/g, " ");
-  for (const m of s.matchAll(/\bexecute\s+(format\s*\(\s*)?(«(\d+)»|[\w$.]+)/gi)) {
+  for (const m of s.matchAll(/\bexecute\b/gi)) {
     // EXECUTE as a plpgsql statement only, not "grant execute on", "execute function" (a trigger) and the like.
-    if (!BOUNDARY.test(s.slice(0, m.index)) || /^(on|function|procedure)$/i.test(m[2] ?? "")) continue;
-    if (m[3] !== undefined) templates.push(literals[Number(m[3])] ?? "");
-    else findings.push(`dynamic SQL from a variable, not a literal template: ${short(m[0])}`);
+    if (!BOUNDARY.test(s.slice(0, m.index))) continue;
+    const after = s.slice((m.index ?? 0) + m[0].length);
+    if (/^\s*(on|function|procedure)\b/i.test(after)) continue;
+    const lit = after.replace(/^[\s(]*(format\s*\(\s*)?/i, "").match(/^«(\d+)»\s*(\|\|)?/);
+    if (!lit) {
+      findings.push(`dynamic SQL not built from a literal template: ${short(`execute${after}`)}`);
+      continue;
+    }
+    templates.push((literals[Number(lit[1])] ?? "") + (lit[2] ? " %s" : ""));
   }
   return { templates, findings };
 }
@@ -360,16 +387,47 @@ const other: Array<{ why: string; re: RegExp }> = [
 export function scan(text: string): string[] {
   const sql = text.replace(/--[^\n]*/g, "");
   const textual = other.flatMap(({ why, re }) => [...sql.matchAll(re)].map((m) => `${why}: ${m[0].replace(/\s+/g, " ").slice(0, 160)}`));
-  return [...new Set([...analyse(text), ...literalWrites(text), ...textual, ...createTakenBack(text)])];
+  return [...new Set([...analyse(text), ...literalWrites(text), ...textual, ...createTakenBack(text), ...fixerBodies(text)])];
 }
 
-/** CREATE on schema one reaches the fixer only for handing it its functions: the same file revokes it after the grant. */
+/**
+ * CREATE on schema one reaches the fixer only for handing it its functions: wherever the file grants it (a DO block
+ * included), the same file revokes it afterwards.
+ */
 function createTakenBack(text: string): Finding[] {
-  const statements = lex(text).map((st) => norm(st.text));
-  const grant = statements.findIndex((s) => /^grant create on schema one to eduwit_one_fixer$/.test(s));
-  if (grant < 0) return [];
-  const revoke = statements.findIndex((s, i) => i > grant && /^revoke create on schema one from eduwit_one_fixer$/.test(s));
-  return revoke < 0 ? ["CREATE on schema one granted to eduwit_one_fixer and not revoked later in the same file"] : [];
+  const s = norm(text.replace(/--[^\n]*/g, " "));
+  const grants = [...s.matchAll(/grant create on schema "?one"? to "?eduwit_one_fixer"?/g)].map((m) => m.index ?? 0);
+  if (grants.length === 0) return [];
+  const lastGrant = Math.max(...grants);
+  const revoked = [...s.matchAll(/revoke create on schema "?one"? from "?eduwit_one_fixer"?/g)].some((m) => (m.index ?? 0) > lastGrant);
+  return revoked ? [] : ["CREATE on schema one granted to eduwit_one_fixer and not revoked later in the same file"];
+}
+
+/**
+ * A function handed to the fixer runs with its rights, so its body is held to the catalogue: it must be created in the
+ * same file, call no schema-qualified function but the catalogue's (or pg_catalog's), and run no dynamic SQL.
+ */
+function fixerBodies(text: string): Finding[] {
+  const findings: Finding[] = [];
+  const statements = lex(text);
+  const s = norm(text.replace(/--[^\n]*/g, " "));
+  for (const m of s.matchAll(/alter function one\.(fixer_\w+)\s*\([^)]*\) owner to eduwit_one_fixer/g)) {
+    const fn = m[1] as string;
+    const create = statements.find((st) => new RegExp(`^create (or replace )?function one\\.${fn}\\s*\\(`).test(norm(st.text)));
+    const body = create ? create.literals[Number(norm(create.text).match(/\bas\s*«(\d+)»/)?.[1] ?? -1)] : undefined;
+    if (body === undefined) {
+      findings.push(`one.${fn} is handed to the fixer but not created in the same file, so its body cannot be checked`);
+      continue;
+    }
+    const code = body.replace(/--[^\n]*/g, " ").replace(/'(?:[^']|'')*'/g, "''");
+    for (const c of code.matchAll(/\b([a-z_][a-z0-9_$]*)\s*\.\s*([a-z_][a-z0-9_$]*)\s*\(/gi)) {
+      const called = `${(c[1] as string).toLowerCase()}.${(c[2] as string).toLowerCase()}`;
+      if (!FIXER_FUNCTIONS.has(called) && (c[1] as string).toLowerCase() !== "pg_catalog")
+        findings.push(`one.${fn} runs with the fixer's rights and calls ${called}, which is not in the catalogue`);
+    }
+    if (/\bexecute\b/i.test(code)) findings.push(`one.${fn} runs with the fixer's rights and must not run dynamic SQL`);
+  }
+  return findings;
 }
 
 const dir = new URL("../../supabase/migrations/", import.meta.url);

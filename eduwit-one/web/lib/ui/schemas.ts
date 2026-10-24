@@ -226,13 +226,23 @@ export const fixSchema = z.object({
     dry_runs: num,
     runs: num,
     failed: num,
+    proposals: num.default(0),
     skipped: num,
     held: num,
     escalated: num,
     last_at: isoN,
   }),
   recent: z.array(actionRowSchema),
-  open_incidents: z.array(z.object({ id: num, check_id: z.string(), severity: z.string(), title: z.string() })),
+  open_incidents: z.array(
+    z.object({
+      id: num,
+      check_id: z.string(),
+      severity: z.string(),
+      title: z.string(),
+      /** A run on this incident did not hold: the fix stays off it (approvals and a person's dry runs still run). */
+      stopped: z.boolean().default(false),
+    }),
+  ),
   can_enable: z.boolean(),
 });
 export type Fix = z.infer<typeof fixSchema>;

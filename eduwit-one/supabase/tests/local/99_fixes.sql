@@ -42,6 +42,8 @@ insert into one.users (user_id, email, role) values ('00000000-0000-0000-0000-00
 insert into one.session_checks (session_id, user_id, method) values ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000001', 'email_code'),
   ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-000000000002', 'email_code');
 create temp table t_fixes as select value from one.settings where key = 'fixes';
+-- Verification reads the checks' own results: earlier tests' runs of these checks would judge this test's fixes.
+delete from one.results where check_id in ('WITTY-01', 'WITTY-02', 'B2B-01', 'B2B-06', 'B2C-02', 'B2C-03', 'WEB-01', 'CAT-01', 'CAT-02');
 
 -- The app tables the fixes read and touch, with production's columns (measured 24 Oct), owned by postgres.
 set role postgres;
@@ -113,6 +115,13 @@ select pg_temp.ok(not exists (select 1 from pg_class c join pg_namespace n on n.
                                  and (has_table_privilege('eduwit_one_fixer', c.oid, 'SELECT') or has_table_privilege('eduwit_one_fixer', c.oid, 'INSERT')
                                       or has_table_privilege('eduwit_one_fixer', c.oid, 'UPDATE') or has_table_privilege('eduwit_one_fixer', c.oid, 'DELETE'))),
                   'the fixer holds no table privilege anywhere');
+select pg_temp.ok(not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                               where n.nspname in ('public', 'b2b', 'b2c', 'one') and c.relkind in ('r', 'v', 'm', 'p')
+                                 and (has_any_column_privilege('eduwit_one_fixer', c.oid, 'SELECT') or has_any_column_privilege('eduwit_one_fixer', c.oid, 'INSERT')
+                                      or has_any_column_privilege('eduwit_one_fixer', c.oid, 'UPDATE') or has_any_column_privilege('eduwit_one_fixer', c.oid, 'REFERENCES'))),
+                  'nor any column privilege (phase 7 review B1)');
+select pg_temp.ok((select array_agg(distinct m.member::regrole::text) from pg_auth_members m where m.roleid = 'eduwit_one_fixer'::regrole) = array['postgres'],
+                  'only the migrating user is a member of the fixer: that is how Eduwit One''s functions call the fixer''s (review m11)');
 select pg_temp.ok(not has_schema_privilege('eduwit_one_fixer', 'one', 'CREATE'), 'the fixer kept no CREATE on schema one');
 select pg_temp.ok((select not (rolbypassrls or rolsuper or rolcanlogin) from pg_roles where rolname = 'eduwit_one_fixer'), 'the fixer bypasses nothing and cannot log in');
 select pg_temp.ok(not exists (select 1 from pg_auth_members where member = 'eduwit_one_fixer'::regrole), 'the fixer is a member of no role');
@@ -133,6 +142,7 @@ select pg_temp.ok(pg_temp.err(format($q$select one.settings_check('fixes', %L)$q
                     'FIX-CACHE-B2C', jsonb_build_object('enabled', true, 'per_tick', 1, 'cooldown_min', 15)))) = '22023', 'no switch-on without a dry run');
 select pg_temp.ok(pg_temp.err(format($q$select one.settings_check('fixes', %L)$q$, jsonb_build_object('observation_started_at', now() - interval '3 days',
                     'FIX-CACHE-B2C', jsonb_build_object('enabled', true, 'per_tick', 1, 'cooldown_min', 15)))) = '22023', 'no switch-on during the window');
+select pg_temp.ok(pg_temp.err($q$select one.settings_check('fixes', '{"observation_days": 1}')$q$) = '22023', 'the window is two weeks at least (review m8)');
 select pg_temp.ok((one.fix_window() ->> 'running')::boolean, 'a window not yet started counts as running');
 
 -- 3. A dry run of every fix from its staged incident; nothing changes (acceptance: every fix has a dry-run row) ------------
@@ -144,6 +154,9 @@ select pg_temp.ok((select count(distinct fix_id) = 11 from one.actions where ste
 select pg_temp.ok((select count(*) = 0 from public.stub_calls), 'a dry run calls no app function');
 select pg_temp.ok((select count(*) = 0 from one.proposals), 'a dry run opens no proposal');
 select pg_temp.ok((select count(*) = 0 from one.actions where not dry_run), 'every row of the window is a dry run');
+select pg_temp.ok((select count(*) = 2 from one.actions where fix_id = 'FIX-CATALOG-POLL'), 'a fix tried on two checks records a dry run on each incident (review M11)');
+select pg_temp.ok(pg_temp.err(format($q$select one.settings_check('fixes', %L)$q$, (select value from one.settings where key = 'fixes') || '{"observation_started_at": "2026-01-01T00:00:00Z"}')) = '22023',
+                  'once started, the window cannot be moved (review m8)');
 select pg_temp.ok((select result ->> 'why_dry' = 'switched off' from one.actions where fix_id = 'FIX-CACHE-B2C'), 'the row says why it was dry');
 select pg_temp.ok((select target -> 'rows' = jsonb_build_array(:w2_retryable) and (target ->> 'test_rows_left_out')::int = 1 from one.actions where fix_id = 'FIX-OUTBOX-W2'),
                   'FIX-OUTBOX-W2 would take the retryable row only: the test phone and the permanent error are left out');
@@ -156,9 +169,9 @@ select pg_temp.ok((select target -> 'caches' = '["counselor"]' from one.actions 
 select pg_temp.ok((select target ->> 'url' = 'https://spark.eduwit.in/v1/handoffs' from one.actions where fix_id = 'FIX-WEBHOOK-REKICK'), 'the Spark URL comes from hosts');
 select pg_temp.ok(not exists (select 1 from one.actions where target::text ~ '9198765' or result::text ~ '9198765'), 'no phone in any action row');
 select one.fixes_step() as step2 \gset
-select pg_temp.ok((select count(*) = 11 from one.actions), 'the cooldown holds each fix to one run');
+select pg_temp.ok((select count(*) = 12 from one.actions), 'the cooldown holds each fix to one dry run per incident');
 select pg_temp.ok((one.fix_run('FIX-CACHE-B2C', :i_cat1, true, 'eng@eduwit.in') ->> 'dry_run')::boolean, 'a person''s dry run runs');
-select pg_temp.ok((select count(*) = 12 from one.actions), 'a person''s dry run is not held by the cooldown');
+select pg_temp.ok((select count(*) = 13 from one.actions), 'a person''s dry run is not held by the cooldown');
 select pg_temp.ok((one.fix_cache_b2c(:i_cat1, false) ->> 'dry_run')::boolean, 'one.fix_<id>() by hand acts only when switched on');
 select pg_temp.ok(one.fix_run('FIX-CACHE-B2C', :i_web1, true, 'sql:test') ->> 'why_not' = 'not one of this fix''s checks', 'a fix is tried only on its own checks');
 update one.incidents set evidence = '{"status": "source_missing", "value": null}' where id = :i_cat1;
@@ -182,7 +195,7 @@ select pg_temp.ok((select count(*) = 1 from public.stub_calls where fn = 'public
                   and exists (select 1 from public.stub_calls where fn = 'public.web_job_call' and arg = '"/api/internal/outbox"')
                   and (select status from public.web_outbox where id = 1) = 'pending' and (select status from public.web_outbox where id = 3) = 'dead',
                   'FIX-OUTBOX-WEB sent the one qualifying row again (the test row stays) and ran the worker');
-select pg_temp.ok((select count(*) = 1 from public.stub_calls where fn = 'public.web_catalog_poll'), 'FIX-CATALOG-POLL ran once for its two incidents (cooldown per fix)');
+select pg_temp.ok((select count(*) = 1 from public.stub_calls where fn = 'public.web_catalog_poll'), 'FIX-CATALOG-POLL ran once for its two incidents (a real run once per fix per cooldown)');
 select pg_temp.ok((select count(*) = 1 from public.stub_calls where fn = 'b2c.programme_cache_refresh' and arg = 'true'), 'FIX-CACHE-B2C refreshed with force');
 select pg_temp.ok((select count(*) = 0 from public.stub_calls where fn in ('b2b.outbox_kick', 'b2b.outbox_retry')), 'neither the app fixes nor the approvals ran in the tick');
 select pg_temp.ok((select bool_and(b.n = 2 and b.statuses = array['planned', 'done'])
@@ -195,6 +208,8 @@ select pg_temp.ok((select count(*) = 3 from one.proposals where source = 'check'
 select pg_temp.ok((select change ? 'execute' from one.proposals where app = 'b2b') and not (select bool_or(change ? 'execute') from one.proposals where app = 'witty'),
                   'only FIX-OUTBOX-B2B''s proposal runs on approval; Witty''s describe a change');
 select pg_temp.ok((select count(*) = 2 from one.actions where step = 'before' and fix_id in ('FIX-N8N-RETRY', 'FIX-WEBHOOK-REKICK') and not dry_run), 'the app''s two fixes wait for the app');
+select pg_temp.ok((select count(*) = 1 from public.stub_calls where fn = 'lock_timeout' and arg = '"2s"'), 'a fix acts under the checks'' lock timeout (review M8)');
+select pg_temp.ok(one.fix_inbox_retry(:i_b2c2, false) ->> 'skipped' = 'cooldown', 'a run by hand is held by the cooldown too (review M11)');
 select pg_temp.cool();
 select one.fix_run('FIX-OUTBOX-B2B', :i_b2b1, false, 'one') as again_b2b \gset
 select one.fix_run('FIX-OUTBOX-W2', :i_witty1, false, 'one') as again_w2 \gset
@@ -217,6 +232,9 @@ reset role;
 select pg_temp.ok((select count(*) = 0 from public.stub_calls where fn = 'b2b.outbox_kick'), 'no kick while Spark does not answer');
 select pg_temp.ok((select result::text !~ '98765' from one.actions where fix_id = 'FIX-N8N-RETRY' and step = 'after'), 'the app''s report is redacted');
 select pg_temp.ok(one.fix_plan('FIX-N8N-RETRY', (select i from one.incidents i where id = :i_witty2)) ->> 'applies' = 'false', 'an execution is retried once, never twice');
+update one.incidents set evidence = '{"status": "fail", "value": {"failed_15m": ["9001", "9002", "9003", "9004"], "retries_15m": ["9004"]}}' where id = :i_witty2;
+select pg_temp.ok(one.fix_plan('FIX-N8N-RETRY', (select i from one.incidents i where id = :i_witty2)) -> 'rows' = '["9003"]', 'nor a retry of a retry (review M10)');
+update one.actions set ran_at = ran_at - interval '1 day' where fix_id = 'FIX-WEBHOOK-REKICK';
 select one.fix_run('FIX-WEBHOOK-REKICK', :i_b2b6, false, 'sql:test') as rekick \gset
 set role service_role;
 select (one.app_fixes_claim('test-app') -> 'runs' -> 0 ->> 'action_id')::bigint as a_rekick2 \gset
@@ -228,27 +246,65 @@ values ('FIX-N8N-RETRY', :i_witty2, 'witty', false, 'planned', 'one', 'before', 
 set role service_role;
 select one.app_fixes_claim('test-app') as claim2 \gset
 reset role;
-select pg_temp.ok((select status = 'failed' and result ->> 'error' ~ 'did not report' from one.actions where run_key = 'stale-run' and step = 'after'),
-                  'a run the app never reported is closed as failed');
+select pg_temp.ok((select status = 'failed' and result ->> 'error' ~ 'did not run it' from one.actions where run_key = 'stale-run' and step = 'after'),
+                  'a run the app never ran is closed as failed');
+-- A claimed run is handed out once: unreported, it is closed as unknown, never claimed again (review M9).
+update one.actions set ran_at = ran_at - interval '1 day' where fix_id = 'FIX-WEBHOOK-REKICK';
+select one.fix_run('FIX-WEBHOOK-REKICK', :i_b2b6, false, 'sql:test') as rekick3 \gset
+set role service_role;
+select (one.app_fixes_claim('test-app') -> 'runs' -> 0 ->> 'action_id')::bigint as a_rekick3 \gset
+reset role;
+update one.actions set claimed_at = now() - interval '6 minutes' where id = :a_rekick3;
+set role service_role;
+select pg_temp.ok(jsonb_array_length(one.app_fixes_claim('test-app') -> 'runs') = 0, 'a claimed run is never handed out again');
+reset role;
+update one.actions set ran_at = now() - interval '16 minutes' where id = :a_rekick3;
+set role service_role;
+select one.app_fixes_claim('test-app') as claim3 \gset
+reset role;
+select pg_temp.ok((select (result ->> 'unknown')::boolean from one.actions where run_key = (select run_key from one.actions where id = :a_rekick3) and step = 'after'),
+                  'and closed as unknown after 15 minutes');
+-- A tick's run of a fix switched off before the app ran it is closed as skipped (review m5).
+update one.actions set ran_at = ran_at - interval '1 day' where fix_id = 'FIX-WEBHOOK-REKICK';
+select one.fix_run('FIX-WEBHOOK-REKICK', :i_b2b6, false, 'one') as rekick4 \gset
+update one.settings set value = jsonb_set(value, '{FIX-WEBHOOK-REKICK,enabled}', 'false') where key = 'fixes';
+set role service_role;
+select pg_temp.ok(jsonb_array_length(one.app_fixes_claim('test-app') -> 'runs') = 0, 'a run of a fix switched off is not handed out');
+reset role;
+select pg_temp.ok((select result ->> 'reason' ~ 'switched off' from one.actions where run_key = (select run_key from one.actions where id = (:'rekick4'::jsonb ->> 'queued_for_app')::bigint) and step = 'skip'),
+                  'but closed as skipped');
+update one.settings set value = jsonb_set(value, '{FIX-WEBHOOK-REKICK,enabled}', 'true') where key = 'fixes';
 
 -- 6. Verification: held, or a second failure that escalates instead of a retry -------------------------------------------
 update one.actions set verify_at = now() - interval '1 minute' where step = 'after' and fix_id in ('FIX-CURSOR-B2C', 'FIX-CACHE-B2C', 'FIX-INBOX-RETRY') and verify_at is not null;
 update one.actions set ran_at = now() - interval '3 minutes' where step = 'after' and fix_id in ('FIX-CURSOR-B2C', 'FIX-CACHE-B2C') and verify_at is not null;
 update one.actions set ran_at = now() - interval '10 minutes' where step = 'after' and fix_id = 'FIX-INBOX-RETRY' and verify_at is not null;
 select alert_seq as b2b_seq from one.incidents where id = :i_b2b1 \gset
-insert into one.results (check_id, ran_at, status, value) values ('B2B-01', now(), 'fail', '{}'), ('CAT-01', now(), 'fail', '{}');
+insert into one.results (check_id, ran_at, status, value) values
+  ('B2B-01', now(), 'fail', '{"b2c_sync": {"cursor_age_seconds": 900}, "deliveries": {"dead_7d": 0}}'), ('CAT-01', now(), 'fail', '{}'), ('B2C-02', now(), 'ok', '{}');
 select one.fix_verify_due() as verified \gset
 select pg_temp.ok((select status = 'failed' and (result ->> 'escalated')::boolean from one.actions where fix_id = 'FIX-CACHE-B2C' and step = 'verify'),
                   'FIX-CACHE-B2C did not hold: verified as failed');
 select pg_temp.ok((select severity = 'P1' and 'fix_failed' = any (tags) from one.incidents where id = :i_cat1), 'its P2 incident went up one level to P1');
 select pg_temp.ok((select alert_seq > :b2b_seq and severity = 'P1' from one.incidents where id = :i_b2b1), 'a P1 whose fix did not hold is routed again');
-select pg_temp.ok((select status = 'done' and (result ->> 'held')::boolean from one.actions where fix_id = 'FIX-INBOX-RETRY' and step = 'verify'),
-                  'no second failure within the cooldown: it held');
+select pg_temp.ok((select status = 'done' and (result ->> 'held')::boolean and result ? 'judged_by' from one.actions where fix_id = 'FIX-INBOX-RETRY' and step = 'verify'),
+                  'its check passed afterwards: it held, judged by that run (review M5)');
 select pg_temp.cool();
 select pg_temp.ok(one.fix_run('FIX-CURSOR-B2C', :i_b2b1, false, 'one') ->> 'skipped' ~ '^stopped', 'FIX-CURSOR-B2C stops on an incident it did not fix');
 select pg_temp.ok((select count(*) from one.actions where step = 'verify') = 3, 'each run due is verified once');
 select one.fix_verify_due() as verified_again \gset
 select pg_temp.ok((select count(*) from one.actions where step = 'verify') = 3, 'and never twice');
+-- No run of the check to judge by: unverified, not held (review M5).
+insert into one.actions (fix_id, incident_id, app, dry_run, status, ran_by, step, run_key, ran_at, verify_at)
+values ('FIX-OUTBOX-B2C', (select id from one.incidents where check_id = 'B2C-03'), 'b2c', false, 'done', 'one', 'after', 'quiet-run', now() - interval '2 hours', now() - interval '2 hours');
+-- A run that cannot be judged gets a row saying why and holds nobody up (review M7).
+insert into one.actions (fix_id, incident_id, app, dry_run, status, ran_by, step, run_key, ran_at, verify_at)
+values ('FIX-CURSOR-B2C', :i_b2b1, 'b2b', false, 'done', 'one', 'after', 'bad-run', now() - interval '1 minute', now() - interval '30 seconds');
+insert into one.results (check_id, ran_at, status, value) values ('B2B-01', now() - interval '10 seconds', 'fail', '{"b2c_sync": {"cursor_age_seconds": "n/a"}}');
+select one.fix_verify_due() as verified_odd \gset
+select pg_temp.ok((select status = 'skipped' and result -> 'held' = 'null'::jsonb and result ->> 'why' ~ 'no run' from one.actions where run_key = 'quiet-run' and step = 'verify'),
+                  'no run to judge by: unverified');
+select pg_temp.ok((select status = 'skipped' and result ? 'error' from one.actions where run_key = 'bad-run' and step = 'verify'), 'a run that cannot be judged says why');
 
 -- 7. The rate limit: more rows than per_tick opens a proposal; approving runs it once ------------------------------------
 insert into public.web_outbox (kind, status, attempts, max_attempts) values ('lead', 'dead', 1, 5), ('lead', 'dead', 1, 5);
@@ -259,17 +315,25 @@ select pg_temp.ok(:'over'::jsonb ->> 'skipped' = 'over_limit', 'two rows over a 
 select pg_temp.ok((select count(*) = 1 from public.stub_calls where fn = 'public.web_outbox_retry'), 'no row was sent again');
 select (:'over'::jsonb ->> 'proposal')::bigint as p_over \gset
 select pg_temp.ok((select risk = 'high' and change -> 'execute' -> 'rows' = '[5, 6]' from one.proposals where id = :p_over), 'the proposal names the rows');
+-- What the approver sees is the proposal now; the tick then refreshes it with two more rows before they approve.
+select change as shown from one.proposals where id = :p_over \gset
+insert into public.web_outbox (kind, status, attempts, max_attempts) values ('lead', 'dead', 1, 5), ('lead', 'dead', 1, 5);
+select pg_temp.cool();
+select one.fix_run('FIX-OUTBOX-WEB', :i_web1, false, 'one') as over2 \gset
+select pg_temp.ok((select change -> 'execute' -> 'rows' = '[5, 6, 7, 8]' from one.proposals where id = :p_over), 'the waiting proposal was refreshed with the new rows');
 set role authenticated;
 select pg_temp.as_engineer();
 select pg_temp.ok(pg_temp.err(format($q$select one.ui_proposal_decide(%s, 'approve')$q$, :p_over)) = '42501', 'a fix proposal is the owner''s');
 select pg_temp.as_owner();
-select one.ui_proposal_decide(:p_over, 'approve', 'go', '{"execute": {"fix": "FIX-OUTBOX-WEB", "incident": 1, "rows": [2, 3, 5, 6]}}') as dec_over \gset
+-- The owner approves the change as shown, with row 6 removed and rows 2 and 3 added by hand.
+select one.ui_proposal_decide(:p_over, 'approve', 'go', jsonb_set(:'shown'::jsonb, '{execute,rows}', '[2, 3, 5]')) as dec_over \gset
 reset role;
 select pg_temp.ok((:'dec_over'::jsonb -> 'executed' ->> 'status') = 'done', 'approving ran it');
-select pg_temp.ok((select array_agg(arg::text::bigint order by arg::text::bigint) from public.stub_calls where fn = 'public.web_outbox_retry') = array[1, 5, 6]::bigint[],
-                  'on the rows the fix proposed only: an edited change cannot widen it');
-select pg_temp.ok((select status = 'applied' and check_due_at between now() + interval '9 minutes' and now() + interval '11 minutes' and change ? 'edited'
-                     from one.proposals where id = :p_over), 'applied, verified in 10 minutes, the edit kept');
+select pg_temp.ok((select array_agg(arg::text::bigint order by arg::text::bigint) from public.stub_calls where fn = 'public.web_outbox_retry') = array[1, 5]::bigint[],
+                  'on the rows both proposed and approved: a removed row stays out, an added one or a refresh cannot widen it (review M2)');
+select pg_temp.ok((select status = 'applied' and check_due_at between now() + interval '9 minutes' and now() + interval '11 minutes'
+                          and change -> 'approved_rows' = '[5]' and change ? 'approved_change'
+                     from one.proposals where id = :p_over), 'applied, checked in 10 minutes, what was approved kept');
 select pg_temp.ok((select ran_by = 'owner@eduwit.in' and proposal_id = :p_over from one.actions where fix_id = 'FIX-OUTBOX-WEB' and step = 'after' order by id desc limit 1),
                   'the run is the owner''s, tied to the proposal');
 
@@ -282,7 +346,8 @@ reset role;
 select pg_temp.ok((:'dec_b2b'::jsonb -> 'executed' ->> 'status') = 'failed'
                   and (select jsonb_array_length(result -> 'refused') = 2 from one.actions where fix_id = 'FIX-OUTBOX-B2B' and step = 'after' and not dry_run order by id desc limit 1),
                   'B2B refuses an owner who is not a B2B admin: nothing sent');
-select pg_temp.ok((select status = 'approved' from one.proposals where id = :p_b2b), 'a refused approval is not marked applied');
+select pg_temp.ok((select status = 'approved' and check_due_at is null and check_result ->> 'ran' = 'false' from one.proposals where id = :p_b2b),
+                  'a refused approval is not marked applied, and says it did not run (review M12)');
 insert into b2b.app_users (user_id, role) values ('00000000-0000-0000-0000-000000000001', 'admin');
 select pg_temp.cool();
 select one.fix_run('FIX-OUTBOX-B2B', :i_b2b1, false, 'one') as again \gset
@@ -295,18 +360,38 @@ select pg_temp.ok((select array_agg(arg::text::bigint order by arg::text::bigint
                   and (select array_agg(status order by id) from b2b.integration_outbox where id in (1, 2, 3)) = array['pending', 'pending', 'dead'],
                   'a B2B admin''s approval sent the two deliveries again (not the test one), with the fixer''s rights');
 select pg_temp.ok((select status = 'applied' from one.proposals where id = :p_b2b2), 'applied');
-update b2b.integration_outbox set status = 'delivered' where id in (1, 2);
 update one.proposals set check_due_at = now() - interval '1 minute' where id = :p_b2b2;
 select one.proposals_verify_due() as pv \gset
-select pg_temp.ok((select (check_result ->> 'ok')::boolean and check_result -> 'still_failing' = '[]' from one.proposals where id = :p_b2b2),
-                  'verified at check_due_at: none of its rows still failing');
+select pg_temp.ok((select not (check_result ->> 'ok')::boolean and (check_result ->> 'delivered')::int = 0 and (check_result ->> 'still_sending')::int = 2
+                     from one.proposals where id = :p_b2b2), 'checked at check_due_at: sent again is not yet delivered (review M4)');
+update b2b.integration_outbox set status = 'delivered' where id in (1, 2);
+update one.proposals set check_result = null where id = :p_b2b2;
+select one.proposals_verify_due() as pv2 \gset
+select pg_temp.ok((select (check_result ->> 'ok')::boolean and (check_result ->> 'delivered')::int = 2 from one.proposals where id = :p_b2b2),
+                  'delivered: ok');
 set role authenticated;
 select pg_temp.as_owner();
 select (one.ui_proposal_create('fix', 'b2b', 'Run the B2B retry by hand', 'a person''s own proposal, with an execute key in it',
                                '{"execute": {"fix": "FIX-OUTBOX-B2B", "incident": 1, "rows": [4]}}', 'low') ->> 'id')::bigint as p_person \gset
 select pg_temp.ok((one.ui_proposal_decide(:p_person, 'approve', 'ok') -> 'executed') = 'null'::jsonb, 'a person''s proposal never runs anything');
 reset role;
+select pg_temp.ok((select check_due_at is null from one.proposals where id = :p_person), 'and is not waiting for a check that never comes');
+set role authenticated;
+select pg_temp.as_owner();
+reset role;
 select pg_temp.ok((select count(*) = 2 from public.stub_calls where fn = 'b2b.outbox_retry'), 'nothing more was sent');
+
+-- Two fixes on one check and one failing run: the incident goes up one level, not two (review M6).
+update one.incidents set severity = 'P3' where id = :i_web1;
+update one.actions set verify_at = now() - interval '1 minute', ran_at = now() - interval '3 minutes'
+ where step = 'after' and fix_id in ('FIX-OUTBOX-WEB', 'FIX-CATALOG-POLL') and verify_at is not null;
+insert into one.results (check_id, ran_at, status, value)
+values ('WEB-01', now(), 'fail', '{"outbox_dead": 3, "outbox_oldest_pending_seconds": 1000, "catalog_checked_seconds_ago": 900}');
+select one.fix_verify_due() as verified_web \gset
+select pg_temp.ok((select severity = 'P2' from one.incidents where id = :i_web1)
+                  and (select count(*) >= 2 from one.actions where step = 'verify' and status = 'failed' and incident_id = :i_web1)
+                  and (select count(*) = 1 from one.actions where step = 'verify' and incident_id = :i_web1 and (result ->> 'escalated')::boolean),
+                  'two fixes did not hold on one failing run: one level up');
 
 -- 9. The Fixes page ----------------------------------------------------------------------------------------------------
 set role authenticated;
@@ -316,7 +401,11 @@ select pg_temp.ok(jsonb_array_length(:'fixes'::jsonb -> 'fixes') = 11 and not (:
 select pg_temp.ok((select bool_and((f -> 'grants_state' ->> 'ok')::boolean) from jsonb_array_elements(:'fixes'::jsonb -> 'fixes') f),
                   'every grant is in place: ' || (select string_agg((f ->> 'id') || '=' || (f ->> 'grants_state'), '; ') from jsonb_array_elements(:'fixes'::jsonb -> 'fixes') f));
 select pg_temp.ok((select (f -> 'counts' ->> 'dry_runs')::int >= 1 and jsonb_array_length(f -> 'recent') > 0
-                     from jsonb_array_elements(:'fixes'::jsonb -> 'fixes') f where f ->> 'id' = 'FIX-OUTBOX-W2'), 'with its dry-run history');
+                            and (f -> 'counts' ->> 'runs')::int = 0 and (f -> 'counts' ->> 'proposals')::int = 1
+                     from jsonb_array_elements(:'fixes'::jsonb -> 'fixes') f where f ->> 'id' = 'FIX-OUTBOX-W2'),
+                  'with its dry-run history; a proposing fix counts proposals, not runs (review m3)');
+select pg_temp.ok((select (i -> 'stopped')::boolean from jsonb_array_elements(:'fixes'::jsonb -> 'fixes') f, jsonb_array_elements(f -> 'open_incidents') i
+                    where f ->> 'id' = 'FIX-CURSOR-B2C'), 'and the incidents it stopped on');
 select pg_temp.ok(pg_temp.err($q$select one.ui_fix_set('FIX-CACHE-B2C', '{"enabled": false}', 'off for now')$q$) = '42501', 'switching a fix is the owner''s');
 select pg_temp.ok(pg_temp.err($q$select one.ui_fix_dry_run('FIX-CACHE-B2C', 999999)$q$) = 'P0002', 'a dry run needs a real incident');
 select pg_temp.ok((one.ui_fix_dry_run('FIX-CACHE-B2C', :i_cat1) ->> 'dry_run')::boolean, 'an engineer may run a dry run');
@@ -331,7 +420,11 @@ select pg_temp.ok((select (value #>> '{FIX-CACHE-B2C,cooldown_min}')::int = 30 f
 -- 10. The brief and the tick ---------------------------------------------------------------------------------------------
 select pg_temp.ok(jsonb_array_length(one.ai_brief_stats(((now() at time zone 'Asia/Kolkata')::date + 1)) #> '{fixes,by_fix}') >= 1
                   and (one.ai_brief_stats(((now() at time zone 'Asia/Kolkata')::date + 1)) #> '{fixes,window}') is not null, 'the next brief counts what each fix did');
-select pg_temp.ok(one.tick_app_call() ? 'fixes', 'the tick''s app call runs the fixes first');
+select pg_temp.ok(one.fixes_step() ? 'fixes', 'the fix step reports what each fix did');
+select pg_temp.ok(not (one.tick_app_call() ? 'fixes'), 'the app call no longer runs the fixes');
+call one.fixes_job(null) \gset job_
+select pg_temp.ok(:'job_p_report'::jsonb ? 'fixes', 'the minute job''s fix step runs, committing as it goes');
+select pg_temp.ok(pg_get_functiondef('one.tick_job()'::regprocedure) ~ 'call one\.fixes_job\(v_fixes\)', 'the minute job runs them after the app call, in their own transactions (review M8)');
 select pg_temp.ok(not exists (select 1 from one.actions where target::text ~ '9198765|910000' or result::text ~ '9198765|910000'), 'still no phone anywhere in the history');
 
 -- Tidy up --------------------------------------------------------------------------------------------------------------

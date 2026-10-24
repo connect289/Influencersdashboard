@@ -72,6 +72,23 @@ if out="$(apply postgres "$work/bad.sql" 2>&1)"; then echo "the fingerprint wrap
 echo "$out" | grep -q "changed an object outside schema one" || { echo "$out"; exit 1; }
 [ "$(psql_as postgres -d rehearsal -At -c "select to_regclass('one.fp_probe') is null")" = t ] || { echo "the refused file was partly applied"; exit 1; }
 echo "  the fingerprint wrapper refuses a change outside schema one"
+# Phase 7 review B1: grants to anyone, Eduwit One's roles included, that the migrations do not make are refused too.
+for bad in \
+  "grant select (student_name) on public.student_leads to anon;" \
+  "grant select (id), update (id) on public.student_leads to eduwit_one_fixer;" \
+  "grant update on public.w2_outbox to eduwit_one_fixer;" \
+  "grant execute on function public.lead_intake(jsonb) to eduwit_one_fixer;" \
+  "grant create on schema public to eduwit_one_fixer;" \
+  "alter default privileges for role postgres in schema public grant select on tables to eduwit_one_fixer;" \
+  "grant eduwit_one_fixer to authenticated;" \
+  "grant eduwit_one_reader to eduwit_one_fixer;" \
+  "alter role eduwit_one_fixer bypassrls;" \
+  "do \$\$ begin execute('grant select (email_id) on public.student_leads to eduwit_one_reader'); end \$\$;"; do
+  printf 'create table one.fp_probe (id int);\n%s\n' "$bad" > "$work/bad.sql"
+  if out="$(apply postgres "$work/bad.sql" 2>&1)"; then echo "the fingerprint wrapper let this through: $bad"; exit 1; fi
+  echo "$out" | grep -q "changed an object outside schema one" || { echo "$bad: $out"; exit 1; }
+done
+echo "  the fingerprint wrapper refuses grants the migrations do not make, Eduwit One's roles included"
 echo "rollback"; rollback_all
 left="$(psql_as postgres -d rehearsal -At -f "$here/scripts/db/leftovers.sql")"
 [ "$left" = "0" ] || { echo "rollback left $left objects behind"; exit 1; }

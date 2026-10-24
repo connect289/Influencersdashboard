@@ -1,22 +1,112 @@
--- Rollback of 0019: the earlier versions of the three functions 0019 replaced (0018's tick_app_call and ai_brief_stats,
--- 0011's ui_proposal_decide), copied verbatim, then everything 0019 added: its functions (the fixer's among them), the
--- fixer's grants on the apps, the action columns and the catalogue. Action rows and the proposals the fixes opened stay
--- (they are history); the step and run columns go with the rest.
+-- Rollback of 0019: the earlier versions of the functions 0019 replaced, copied verbatim (0003's tick, 0005's minute
+-- job, 0018's ai_brief_stats, 0011's ui_proposal_decide), then everything 0019 added: its functions (the fixer's among
+-- them) and the fix step's procedure, the fixer's grants on the apps, the action columns and the catalogue, and the
+-- migrating user's membership in the fixer. Action rows and the proposals the fixes opened stay (they are history);
+-- the step and run columns go with the rest.
 
-create or replace function one.tick_app_call() returns jsonb
+-- The minute tick by hand: everything in the caller's transaction, returning the report (spec §5: "run select
+-- one.tick() by hand and inspect the report"). Heartbeat first, so the watchdog sees life even if a later step fails;
+-- the unique minute bucket makes repeated calls within a minute do nothing (spec §16.5). pg_cron runs
+-- one.tick_job(), the same steps with a commit after each (D-044).
+create or replace function one.tick() returns jsonb
 language plpgsql set search_path = '' as $$
 declare
-  v jsonb;
+  v_run bigint;
+  v_report jsonb := jsonb_build_object('at', now());
 begin
-  v := jsonb_build_object('app', coalesce(one.job_call('/api/internal/tick')::text, 'not_configured'));
+  perform one.heartbeat('one:tick', true, jsonb_build_object('at', now()), null, 60);
+  if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtext('one.tick')) then
+    return v_report || jsonb_build_object('skipped', 'another tick is running');
+  end if;
+  insert into one.runs (kind, bucket) values ('tick', date_trunc('minute', now()))
+  on conflict (kind, bucket) do nothing returning id into v_run;
+  if v_run is null then
+    return v_report || jsonb_build_object('skipped', 'already ran this minute');
+  end if;
+  v_report := v_report || one.reap_killed();
   begin
-    v := v || one.ai_step();
-  exception when others then
-    v := v || jsonb_build_object('ai_error', sqlerrm);
+    v_report := v_report || one.run_sql_checks();
+  exception when others then v_report := v_report || jsonb_build_object('checks_error', sqlerrm);
   end;
-  return v;
-exception when others then
-  return jsonb_build_object('app_error', sqlerrm);
+  v_report := v_report || one.alerts_step();
+  v_report := v_report || one.tick_app_call();
+  begin
+    v_report := v_report || jsonb_build_object('events', one.events_refresh());
+  exception when others then v_report := v_report || jsonb_build_object('events_error', sqlerrm);
+  end;
+  update one.runs set finished_at = now(), report = v_report where id = v_run;
+  return v_report;
+end $$;
+
+-- What pg_cron runs every minute: the steps of one.tick(), each in its own transaction, so no app table stays locked
+-- for the whole tick and a slow step cannot undo the others (D-044). On Postgres 17 and later,
+-- checks.transaction_timeout bounds each transaction. Order (B1 of the second review, D-056):
+--   1. the one:tick heartbeat; the tick lock (one tick at a time; a session lock, released when pg_cron's session
+--      ends, also when a kill ends it); the minute's run row;
+--   2. one.reap_killed(): a check or an event copy that started in an earlier tick and never finished gets an error
+--      result (so its incident opens) and is moved out of the way;
+--   3. the due checks, each with its start mark committed first, so a kill cannot roll the mark back;
+--   4. the alert step, then the app call (the alert sender); the run is "finished" here, and the external watchdog
+--      reads this time, not the heartbeat;
+--   5. the event copies, then the checks whose last run was killed, each with its start mark committed first.
+-- A procedure that commits cannot carry SET clauses, so this one sets its search_path at the start of the session
+-- pg_cron opens for it; every name inside is schema-qualified anyway.
+create or replace procedure one.tick_job()
+language plpgsql as $$
+declare
+  v_run bigint;
+  v_report jsonb := jsonb_build_object('at', now(), 'mode', 'job');
+  v_id text;
+  v_src record;
+begin
+  perform pg_catalog.set_config('search_path', '', false);
+  if pg_catalog.current_setting('server_version_num')::int >= 170000 then
+    perform pg_catalog.set_config('transaction_timeout', coalesce(one.setting('checks') ->> 'transaction_timeout', '30s'), false);
+  end if;
+  perform one.heartbeat('one:tick', true, jsonb_build_object('at', now()), null, 60);
+  commit;
+  if not pg_catalog.pg_try_advisory_lock(pg_catalog.hashtext('one.tick')) then
+    return;
+  end if;
+  insert into one.runs (kind, bucket) values ('tick', date_trunc('minute', now()))
+  on conflict (kind, bucket) do nothing returning id into v_run;
+  if v_run is null then
+    perform pg_catalog.pg_advisory_unlock(pg_catalog.hashtext('one.tick'));
+    commit;
+    return;
+  end if;
+  v_report := v_report || one.reap_killed();
+  update one.runs set report = v_report where id = v_run;
+  commit;
+  for v_id in select one.due_checks(false) loop
+    perform one.mark_started(v_id);
+    commit;
+    v_report := one.report_add(v_report, one.run_check_safe(v_id));
+    update one.runs set report = v_report where id = v_run;
+    commit;
+  end loop;
+  v_report := v_report || one.alerts_step();
+  update one.runs set report = v_report where id = v_run;
+  commit;
+  v_report := v_report || one.tick_app_call();
+  update one.runs set finished_at = now(), report = v_report where id = v_run;
+  commit;
+  for v_src in select * from one.events_due() loop
+    perform one.mark_source_started(v_src.source);
+    commit;
+    v_report := jsonb_set(v_report, '{events}', coalesce(v_report -> 'events', '{}') || one.events_copy_safe(v_src.source, v_src.app, v_src.sql));
+    update one.runs set report = v_report where id = v_run;
+    commit;
+  end loop;
+  for v_id in select one.due_checks(true) loop
+    perform one.mark_started(v_id);
+    commit;
+    v_report := one.report_add(v_report, one.run_check_safe(v_id));
+    update one.runs set report = v_report where id = v_run;
+    commit;
+  end loop;
+  perform pg_catalog.pg_advisory_unlock(pg_catalog.hashtext('one.tick'));
+  commit;
 end $$;
 
 -- The numbers a brief is written from: the IST day before p_for_date (the brief built at 02:30 IST on a day reports
@@ -134,6 +224,7 @@ end $$;
 delete from one.api_grants where fn in ('one.app_fixes_claim(text)', 'one.app_fix_report(bigint,boolean,jsonb)', 'one.ui_fixes()',
                                         'one.ui_fix_set(text,jsonb,text,text)', 'one.ui_fix_dry_run(text,bigint,text)');
 
+drop procedure if exists one.fixes_job(jsonb);
 drop function if exists one.fix_outbox_w2(bigint,boolean);
 drop function if exists one.fix_cache_w2(bigint,boolean);
 drop function if exists one.fix_n8n_retry(bigint,boolean);
@@ -150,13 +241,20 @@ drop function if exists one.ui_fix_set(text,jsonb,text,text);
 drop function if exists one.ui_fix_dry_run(text,bigint,text);
 drop function if exists one.app_fixes_claim(text);
 drop function if exists one.app_fix_report(bigint,boolean,jsonb);
-drop function if exists one.proposal_execute(bigint,text);
+drop function if exists one.proposal_execute(bigint,text,jsonb,uuid);
 drop function if exists one.fixes_step();
-drop function if exists one.fix_verify_due();
+drop function if exists one.fixes_report(jsonb);
+drop function if exists one.fix_run_safe(text,bigint);
+drop function if exists one.fixes_verify_safe();
+drop function if exists one.fixes_pairs();
+drop function if exists one.fixes_start_window();
 drop function if exists one.proposals_verify_due();
-drop function if exists one.fix_run(text,bigint,boolean,text,bigint,jsonb);
+drop function if exists one.fix_rows_state(text,bigint);
+drop function if exists one.fix_verify_due();
+drop function if exists one.fix_verify_one(one.actions);
+drop function if exists one.fix_run(text,bigint,boolean,text,bigint,jsonb,uuid);
 drop function if exists one.fix_propose(one.fixes,one.incidents,jsonb,text);
-drop function if exists one.fix_act(text,jsonb);
+drop function if exists one.fix_act(text,jsonb,uuid);
 drop function if exists one.fix_plan_within(jsonb,jsonb);
 drop function if exists one.fix_plan(text,one.incidents);
 drop function if exists one.fix_record(text,bigint,text,text,boolean,jsonb,jsonb,text,text,timestamptz,bigint);
@@ -168,7 +266,7 @@ drop function if exists one.fixer_outbox_kick();
 drop function if exists one.fixer_b2b_outbox_retry(bigint);
 drop function if exists one.fixer_inbox_retry();
 drop function if exists one.fixer_b2c_outbox();
-drop function if exists one.fixer_web_outbox(bigint[]);
+drop function if exists one.fixer_web_outbox(bigint[],uuid);
 drop function if exists one.fixer_catalog_poll();
 drop function if exists one.fixer_programme_cache();
 

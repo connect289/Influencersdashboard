@@ -141,10 +141,16 @@ begin
           using errcode = '22023';
       end if;
     when 'fixes' then
-      if (p_value ? 'observation_days' and (jsonb_typeof(p_value -> 'observation_days') <> 'number' or (p_value ->> 'observation_days')::numeric not between 1 and 90))
+      if (p_value ? 'observation_days' and (jsonb_typeof(p_value -> 'observation_days') <> 'number' or (p_value ->> 'observation_days')::numeric not between 14 and 90))
          or (jsonb_typeof(p_value -> 'observation_started_at') not in ('null') and coalesce(p_value ->> 'observation_started_at', '')
              !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?(Z|[+-][0-9]{2}(:?[0-9]{2})?)?)?$') then
-        raise exception 'setting fixes: observation_days 1–90, observation_started_at null or an ISO time' using errcode = '22023';
+        raise exception 'setting fixes: observation_days 14–90 (spec §8: two weeks at least), observation_started_at null or an ISO time' using errcode = '22023';
+      end if;
+      -- The window's start is set once, by the first tick that runs the fixes; nobody moves it afterwards (phase 7 review m8).
+      if (select s.value ->> 'observation_started_at' from one.settings s where s.key = 'fixes') is not null
+         and ((p_value ->> 'observation_started_at') is null
+              or (p_value ->> 'observation_started_at')::timestamptz <> (select (s.value ->> 'observation_started_at')::timestamptz from one.settings s where s.key = 'fixes')) then
+        raise exception 'setting fixes: the observation window started at its first tick and its start cannot change' using errcode = '22023';
       end if;
       -- Each fix: {enabled, per_tick 1–500, cooldown_min 1–1440}. A fix is switched on only on evidence (spec §8):
       -- after the observation window, and once it has at least one dry run.

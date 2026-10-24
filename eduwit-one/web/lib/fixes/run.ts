@@ -40,16 +40,50 @@ export type FixesSummary = {
 };
 
 const executionIds = z.array(z.string().regex(/^[0-9A-Za-z_-]{1,64}$/)).max(500);
+const BAD = new Set(["error", "crashed"]);
 
+type Skipped = { id: string; why: string };
+
+/**
+ * Retries each execution the run names, once. Before each POST it reads the execution and skips it when it belongs to
+ * another workflow, is no longer in error, or is itself a retry (phase 7 review M9). Every id it never POSTed is in
+ * `skipped`, so the database plans it again; an id it POSTed is never retried again, whatever the answer.
+ */
 async function retryExecutions(n8n: N8nClient | null, target: Record<string, unknown>, deps: FixesDeps) {
   const ids = executionIds.safeParse(target.rows);
   if (!ids.success) return { ok: false, result: { error: "the run names no valid execution id" } };
-  if (!n8n) return { ok: false, result: { error: "n8n is not configured (Setup item n8n_api)" } };
+  if (!n8n) {
+    const skipped = ids.data.map((id) => ({ id, why: "n8n is not configured" }));
+    return {
+      ok: false,
+      result: { error: "n8n is not configured (Setup item n8n_api)", retried: [], failed: [], skipped },
+    };
+  }
+  const workflow = typeof target.workflow_id === "string" ? target.workflow_id : null;
   const retried: Array<{ id: string; new_id: string | null; status: string | null }> = [];
   const failed: Array<{ id: string; error: string }> = [];
+  const skipped: Skipped[] = [];
   for (const id of ids.data) {
     if ((deps.now ?? Date.now)() >= deps.deadline) {
-      failed.push({ id, error: "out of time in this invocation" });
+      skipped.push({ id, why: "out of time in this invocation" });
+      continue;
+    }
+    let why: string | null;
+    try {
+      const x = await n8n.execution(id);
+      why =
+        workflow && x.workflowId && x.workflowId !== workflow
+          ? "another workflow's execution"
+          : !BAD.has(x.status)
+            ? `no longer in error (${x.status.slice(0, 20)})`
+            : x.retryOf || x.mode === "retry"
+              ? "a retry"
+              : null;
+    } catch (e) {
+      why = `could not read it: ${e instanceof Error ? e.message.slice(0, 100) : "error"}`;
+    }
+    if (why) {
+      skipped.push({ id, why });
       continue;
     }
     try {
@@ -59,7 +93,7 @@ async function retryExecutions(n8n: N8nClient | null, target: Record<string, unk
       failed.push({ id, error: e instanceof Error ? e.message.slice(0, 120) : "error" });
     }
   }
-  return { ok: retried.length > 0, result: { retried, failed } };
+  return { ok: retried.length > 0, result: { retried, failed, skipped } };
 }
 
 async function checkSpark(web: AppHealthClient, target: Record<string, unknown>) {
@@ -72,6 +106,8 @@ async function checkSpark(web: AppHealthClient, target: Record<string, unknown>)
 /** Claims the runs waiting for the app, carries each out and reports it. Never throws. */
 export async function runFixes(deps: FixesDeps): Promise<FixesSummary> {
   const summary: FixesSummary = { claimed: 0, reported: [], errors: [] };
+  // A claimed run is never claimed again, so nothing is claimed that this invocation has no time for.
+  if ((deps.now ?? Date.now)() >= deps.deadline) return summary;
   let runs: FixRun[];
   try {
     runs = await deps.db.claim(deps.holder);
@@ -81,7 +117,12 @@ export async function runFixes(deps: FixesDeps): Promise<FixesSummary> {
   }
   summary.claimed = runs.length;
   for (const run of runs) {
-    if ((deps.now ?? Date.now)() >= deps.deadline) break;
+    // Out of time, a retry run is still reported, every id skipped; a reachability check is left, and the next claim
+    // closes it as unknown.
+    if ((deps.now ?? Date.now)() >= deps.deadline && run.fix_id !== "FIX-N8N-RETRY") {
+      summary.errors.push(`${run.fix_id} ${run.action_id}: out of time`);
+      continue;
+    }
     try {
       const done =
         run.fix_id === "FIX-N8N-RETRY"

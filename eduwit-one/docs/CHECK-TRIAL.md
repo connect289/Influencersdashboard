@@ -26,3 +26,9 @@ them. App-run checks (http) are not SQL and are not in this table.
 | CAT-01 to 03 | ok | cache current; no catalogue change pending |
 | CAT-04 | **fail** | 86 active programmes with no fee and no fee_on_request flag |
 | INT-01 to 07 | ok | no leads in a partner allocation yet; money tables empty |
+
+## Re-run, 24 Oct 2026
+
+B2B-01's new SQL (it now also fails on dead deliveries and deliveries waiting over an hour, D-080) was run on production
+at 06:49 UTC, read only: **ok**. `health_check()` ok, 0 dead deliveries in 7 days, 0 waiting over an hour, B2C sync
+cursor 2 s old.

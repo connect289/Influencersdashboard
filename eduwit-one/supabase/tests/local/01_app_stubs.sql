@@ -78,7 +78,7 @@ begin
 end $$;
 create function b2c.inbox_retry(p_limit integer) returns integer language plpgsql security definer set search_path = '' as $$
 begin
-  insert into public.stub_calls (fn, arg) values ('b2c.inbox_retry', to_jsonb(p_limit));
+  insert into public.stub_calls (fn, arg) values ('b2c.inbox_retry', to_jsonb(p_limit)), ('lock_timeout', to_jsonb(current_setting('lock_timeout')));
   return 0;
 end $$;
 create function b2c.outbox_unstick() returns integer language plpgsql security definer set search_path = '' as $$

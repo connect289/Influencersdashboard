@@ -46,15 +46,18 @@ approve (step 6).
 - [ ] After the window: open a fix's "Switch and limits", read its dry runs first, and switch it on only if you would
       have agreed with every one. Give a reason; it is versioned.
 - [ ] Actions (left menu): every run, real or dry, as it happens: "dry run", "about to act", "acted", "did nothing"
-      (and why), "verified: held" or "did not hold". Filter by fix.
+      (and why), "verified: held", "did not hold" or "unverified". Filter by fix. An incident marked "stopped" on
+      Settings → Fixes had a run that did not hold: the fix no longer runs there by itself.
 
 ## 6. Proposals (4 minutes)
 
 - [ ] Proposals: everything that needs a person, newest first, with its risk and who may approve it.
 - [ ] Open a builder proposal: "Why", "The exact change", "Evidence". Approving records your decision; the change is
       made in the app named, not by Eduwit One.
-- [ ] A proposal from a fix (source `check`) carries an amber note: approving runs that fix once, under your session,
-      on the rows listed. The result shows on the page 10 minutes later.
+- [ ] A proposal from a fix (source `check`) carries an amber note saying what approving does (B2B's own function
+      under your session, a run with the fixer's rights, or a run queued for the app) and on which rows. To approve
+      fewer rows, remove them from the change before approving; you cannot add any. If it ran, the rows' state shows
+      on the page 10 minutes later; if nothing ran, the page says why.
 - [ ] Reject needs a reason; snooze brings it back after the days you choose.
 
 ## 7. Tests, brief and Ask (4 minutes)

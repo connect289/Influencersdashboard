@@ -53,17 +53,29 @@ const executedSchema = z.looseObject({
   skipped: z.string().optional(),
   why_not: z.string().nullable().optional(),
   queued_for_app: z.number().optional(),
-  result: z.looseObject({ refused: z.array(z.looseObject({ error: z.string().optional() })).optional() }).optional(),
+  result: z
+    .looseObject({
+      done: z.array(z.unknown()).optional(),
+      refused: z.array(z.looseObject({ error: z.string().optional() })).optional(),
+      partial: z.boolean().optional(),
+      error: z.string().optional(),
+    })
+    .optional(),
 });
 
 /** What an approved fix proposal did when it ran under the approver's session (0019), in one sentence. */
 function approvedMessage(executed: unknown): string {
   const x = executedSchema.safeParse(executed);
   if (!x.success || !x.data.executed) return "Approved.";
+  const r = x.data.result;
+  const refused = r?.refused?.[0]?.error ?? r?.error;
+  if (x.data.status === "done" && r?.partial) {
+    return `Approved and run on ${r.done?.length ?? 0} rows; ${r.refused?.length ?? 0} were refused${refused ? ` (${refused})` : ""}. Eduwit One checks the result in 10 minutes.`;
+  }
   if (x.data.status === "done") return "Approved and run. Eduwit One checks the result in 10 minutes.";
-  if (x.data.queued_for_app) return "Approved; the app runs it within a minute.";
+  if (x.data.queued_for_app)
+    return "Approved; the app runs it within a minute. Eduwit One checks the result in 10 minutes.";
   if (x.data.skipped || x.data.why_not) return `Approved, but nothing ran: ${x.data.skipped ?? x.data.why_not}.`;
-  const refused = x.data.result?.refused?.[0]?.error;
   return `Approved, but the run failed${refused ? `: ${refused}` : ""}. It stays approved and can be proposed again.`;
 }
 

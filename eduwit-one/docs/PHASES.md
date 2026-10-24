@@ -92,6 +92,18 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | Phase review | done: `docs/reviews/phase-6.md` (1 blocker, 6 majors, 6 minors), all resolved; every AI proposal is the owner's (D-077) |
 | Click-through still passes (phase 4's criterion) | CLICK-THROUGH PASSED after the review's fixes (133 pages, 18/18 writes, only `vault.secrets` changed outside schema one) |
 
-## Phase 7
+## Phase 7 — Fixes and hand-over (built and reviewed; every fix off; the window starts with the first production tick)
 
-Not started.
+| Criterion | Status |
+| --- | --- |
+| All fix functions with dry-run | done: the 11 fixes of spec §8 as `one.fix_<id>(incident, dry_run)` over one shell (`one.fix_run`): switch, window, cooldown, rate limit, stop rule, test rows left out, action rows before and after, verification (D-079, D-081). Three cannot act without an app change and propose or wait for the owner (D-080) |
+| Fixer grants per fix | done: USAGE on `public`, `b2b`, `b2c` and EXECUTE on the ten catalogue functions, nothing else; the fixer owns only `one.fixer_*`. Settings → Fixes shows each fix's rights and whether the database holds them |
+| Fixes settings page with dry-run history | done: Settings → Fixes (each fix's trigger, action, mode, rights, rollback, counts, open incidents with "Dry run now" and "stopped", latest rows, the owner's switch and limits) and Actions with each row's step and verdict |
+| Every fix has a dry-run action row from a real or staged incident | done on staged incidents: `99_fixes.sql` records a dry-run row for each of the 11 from incidents with the evidence their checks write. On production, every fix's plan compiles and found nothing to do on 24 Oct; real rows come after the apply |
+| The grant guard in `rehearse.sh` blocks a test migration that grants on `student_leads` | done: `guards.test.ts` runs `rehearse.sh` on five bad migrations (a column grant and a table grant on `student_leads`, an EXECUTE grant inside a DO block, a dynamic `execute(...)` column grant, default privileges into `public`), and each is refused before it connects. The fingerprint wrapper refuses the same grants at apply time (`local-test.sh`) |
+| All fixes disabled in production at hand-over | done in the seed: every fix ships `enabled: false`, and `one.settings_check` refuses switching one on during the window or without a dry run of its own. The production apply is the owner's (phase 1) |
+| `RUNBOOK.md` complete | done: what each check means, what each fix does, how to roll back each migration, how to rotate each secret, how to add a check or a test |
+| Two-week observation window started | **waits on the phase 1 apply**: it starts itself on the first tick that runs the fixes, on production the first after the apply, and cannot be backdated or shortened below 14 days |
+| 30-minute walkthrough as a checklist | done: `docs/WALKTHROUGH.md` |
+| Phase review | done: `docs/reviews/phase-7.md` (1 blocker, 12 majors, 12 minors), resolved; M12 and m2 are the owner's calls, with interim defaults (D-081) |
+| Click-through still passes (phase 4's criterion) | CLICK-THROUGH PASSED after the review's fixes (138 pages, 20/20 writes, including a dry run and a fix setting) |

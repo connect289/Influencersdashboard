@@ -3,6 +3,25 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 7: review resolved (1 blocker, 12 majors, 12 minors; D-081)
+
+- Guards and fingerprint: dynamic `execute(...)` forms, default privileges other than the reader's, `reassign owned`
+  and `alter schema one owner` are refused; the fixer's EXECUTE must match exact signatures and its functions may
+  call only catalogue functions. The fingerprint covers column grants and checks Eduwit One's own roles' grants
+  against an allow-list. Smoke and `99_fixes.sql` check column privileges and memberships.
+- 0019: every real run counts for the cooldown; a fix stops on an incident where a run did not hold; verification
+  needs a check run after the run (held, did not hold, unverified), escalates once per failing check run, and judges
+  each run in its own block. The fixes run after the app call, one commit each, with a 2 s lock timeout. App runs
+  are claimed once. Approvals run only rows proposed, approved and still qualifying, and their `check_result` reads
+  each row's state. Propose-only fixes never go over their limit. FIX-OUTBOX-B2B picks failed deliveries only past
+  an hour. The window lasts 14 to 90 days and its start is write-once.
+- App: the n8n retry reads each execution first (its workflow, still in error, not a retry), reports every id it did
+  not send as skipped, and claims nothing after its deadline; WITTY-02 reports `retries_15m`. Spark "answers" with a
+  2xx, 400, 401, 403, 405, 415 or 422 only. The proposal page says what approving does by mode and shows the check
+  result; the Fixes page counts proposals and marks stopped incidents; Actions shows unverified runs.
+- B2B-01's new SQL re-run on production (read only): ok. `docs/reviews/phase-7.md`, the runbook's Fixes section, the
+  walkthrough and the phase table updated.
+
 ## 24 Oct 2026 — phase 7: the hand-over documents
 
 - `RUNBOOK.md`: what each check means and what to do when one fires; the fixes (each one's trigger, action, rights,

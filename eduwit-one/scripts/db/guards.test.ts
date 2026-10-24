@@ -18,8 +18,8 @@ test("every committed migration and rollback passes", () => {
   }
 });
 
-test("the fixer gets one column-level UPDATE, never a forbidden object (spec §8, phase 7 criterion)", () => {
-  allowed("grant update (status, attempts, next_attempt_at) on public.w2_outbox to eduwit_one_fixer;");
+test("the fixer gets no table or column privilege, never on a forbidden object (spec §8, phase 7 criterion)", () => {
+  refused("grant update (status, attempts, next_attempt_at) on public.w2_outbox to eduwit_one_fixer;");
   refused("grant update (is_sales_ready) on public.student_leads to eduwit_one_fixer;");
   refused("grant update (status) on table b2b.allocations to eduwit_one_fixer;");
   refused("grant update (value) on b2b.settings to eduwit_one_fixer;");
@@ -49,11 +49,54 @@ test("the fixer gets EXECUTE on catalogue functions and USAGE on their schemas, 
   refused("grant insert on public.student_leads to eduwit_one_fixer;");
   refused("grant all on table public.student_leads to eduwit_one_fixer;");
   refused("grant references (id) on public.student_leads to eduwit_one_fixer;");
+  refused("grant execute on function b2b.outbox_kick(integer) to eduwit_one_fixer;");
+  refused("grant execute on function b2c.job_call(text, text) to eduwit_one_fixer;");
+  refused("grant execute on function b2b.outbox_kick(), b2b.outbox_retry(bigint) to eduwit_one_fixer;");
+  allowed("grant execute on function b2c.inbox_retry(int) to eduwit_one_fixer;");
+});
+
+test("dynamic SQL cannot hide a grant: execute(…), execute (…), concatenation (phase 7 review B1)", () => {
+  refused("do $$ begin execute('grant select (id), update (id) on public.student_leads to eduwit_one_fixer'); end $$;");
+  refused("do $$ begin execute ('grant select (whatsapp_number) on public.student_leads to anon'); end $$;");
+  refused("do $$ begin execute (format('grant select on %s to eduwit_one_fixer', 'public.student_leads')); end $$;");
+  refused("do $$ begin execute 'grant select on public.' || 'student_leads to eduwit_one_fixer'; end $$;");
+  refused("do $$ begin execute 'grant select on ' || quote_ident('student_leads') || ' to anon'; end $$;");
+  refused("do $$ begin execute(v_sql); end $$;");
+  refused("create function one.f() returns void language plpgsql as $$ begin execute('update public.student_leads set is_test = true'); end $$;");
+});
+
+test("default privileges, owners and memberships stay as 0001 set them (phase 7 review M1, m9)", () => {
+  refused("alter default privileges for role postgres in schema one, public grant all on tables to eduwit_one_fixer;");
+  refused("alter default privileges for role postgres in schema public grant select on tables to eduwit_one_fixer;");
+  refused("alter default privileges for role postgres in schema one grant select on tables to eduwit_one_reader;");
+  refused("alter default privileges in schema public, b2b grant select on tables to eduwit_one_reader;");
+  allowed("alter default privileges for role postgres in schema b2b grant select on tables to eduwit_one_reader;");
+  refused("alter schema one owner to eduwit_one_fixer;");
+  refused("reassign owned by postgres to eduwit_one_fixer;");
+  refused("do $$ begin grant create on schema one to eduwit_one_fixer; end $$;");
+  allowed("do $$ begin grant create on schema one to eduwit_one_fixer; end $$; revoke create on schema one from eduwit_one_fixer;");
+});
+
+test("a function handed to the fixer calls only catalogue functions (phase 7 review m10)", () => {
+  const make = (body: string) =>
+    `create or replace function one.fixer_x() returns void language plpgsql security definer set search_path = '' as $$ begin ${body} end $$;\n` +
+    "grant create on schema one to eduwit_one_fixer; alter function one.fixer_x() owner to eduwit_one_fixer; revoke create on schema one from eduwit_one_fixer;";
+  allowed(make("perform b2b.outbox_kick();"));
+  refused(make("perform public.lead_intake('{}');"));
+  refused(make("perform public.w2_outbox_retry(20);"));
+  refused(make("perform b2b.outbox_kick(); execute 'select 1';"));
+  refused("alter function one.fixer_elsewhere() owner to eduwit_one_fixer;");
 });
 
 test("the fixer owns only its one.fixer_* functions, and CREATE on schema one only while it receives them", () => {
-  allowed("grant create on schema one to eduwit_one_fixer; alter function one.fixer_kick() owner to eduwit_one_fixer; revoke create on schema one from eduwit_one_fixer;");
-  refused("grant create on schema one to eduwit_one_fixer; alter function one.fixer_kick() owner to eduwit_one_fixer;");
+  allowed(
+    "create function one.fixer_kick() returns jsonb language plpgsql security definer set search_path = '' as $$ begin return b2b.outbox_kick(); end $$;\n" +
+      "grant create on schema one to eduwit_one_fixer; alter function one.fixer_kick() owner to eduwit_one_fixer; revoke create on schema one from eduwit_one_fixer;",
+  );
+  refused(
+    "create function one.fixer_kick() returns jsonb language plpgsql security definer set search_path = '' as $$ begin return b2b.outbox_kick(); end $$;\n" +
+      "grant create on schema one to eduwit_one_fixer; alter function one.fixer_kick() owner to eduwit_one_fixer;",
+  );
   refused("alter function one.ui_shell() owner to eduwit_one_fixer;");
   refused("alter function one.fixer_kick() owner to postgres;");
   refused("alter table one.incidents owner to authenticated;");
@@ -69,12 +112,14 @@ test("rehearse.sh refuses a migration that grants the fixer anything on student_
       "grant update (is_sales_ready) on public.student_leads to eduwit_one_fixer;",
       "grant select on public.student_leads to eduwit_one_fixer;",
       "do $$ begin grant execute on function public.lead_intake(jsonb) to eduwit_one_fixer; end $$;",
+      "do $$ begin execute('grant select (id), update (id) on public.student_leads to eduwit_one_fixer'); end $$;",
+      "alter default privileges for role postgres in schema one, public grant all on tables to eduwit_one_fixer;",
     ]) {
       writeFileSync(join(root, "supabase/migrations/0099_fixer_grants_test.sql"), `${bad}\n`);
       writeFileSync(join(root, "supabase/migrations/0099_fixer_grants_test.rollback.sql"), "select 1;\n");
       const r = spawnSync("bash", [join(root, "scripts/db/rehearse.sh")], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" } });
       assert.notEqual(r.status, 0, bad);
-      assert.match(r.stderr, /0099_fixer_grants_test\.sql: a grant to eduwit_one_fixer/, bad);
+      assert.match(r.stderr, /0099_fixer_grants_test\.sql: (a grant to eduwit_one_fixer|default privileges other than)/, bad);
       assert.match(r.stdout, /GUARDS FAILED/, bad);
       assert.doesNotMatch(r.stdout + r.stderr, /ONE_STAGING_DB_URL|applied 0001/, bad);
     }

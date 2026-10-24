@@ -63,8 +63,12 @@ export function actionSummary(step: string, status: string, result: unknown): st
   if (step === "dry_run") return `Would ${text(r.would) ?? "act"}${r.why_dry ? ` (dry: ${text(r.why_dry)})` : ""}.`;
   if (step === "skip")
     return `Did nothing: ${text(r.reason) ?? "skipped"}${r.proposal ? `, proposal #${String(r.proposal)}` : ""}.`;
-  if (step === "verify")
-    return r.held === true ? "Held." : `Did not hold${r.to ? `: incident now ${text(r.to)}` : ""}.`;
+  if (step === "verify") {
+    const why = text(r.why) ?? text(r.error);
+    if (r.held === true) return `Held${why ? `: ${why}` : ""}.`;
+    if (r.held === false) return `Did not hold${r.to ? `: incident now ${text(r.to)}` : why ? `: ${why}` : ""}.`;
+    return `Unverified${why ? `: ${why}` : ""}.`;
+  }
   if (step === "before") return text(r.waiting) ? `Waiting for ${text(r.waiting)}.` : "About to act.";
   if (r.proposal)
     return `Opened proposal #${String(r.proposal)}${r.waiting ? `, waiting for ${text(r.waiting)}` : ""}.`;

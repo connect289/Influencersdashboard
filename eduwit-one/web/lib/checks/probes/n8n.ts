@@ -12,12 +12,15 @@ const minsAgo = (iso: string | null, now: Date) => (iso ? (now.getTime() - Date.
 
 function witty02(active: boolean, runs: N8nExecution[], now: Date): ResultReport {
   const latest = runs[0]?.startedAt ?? null;
-  const failed = runs.filter((r) => BAD.has(r.status) && minsAgo(r.startedAt, now) <= 15).map((r) => r.id);
+  const bad = runs.filter((r) => BAD.has(r.status) && minsAgo(r.startedAt, now) <= 15);
+  const failed = bad.map((r) => r.id);
+  // A failed execution that is itself a retry still fails WITTY-02, but FIX-N8N-RETRY never retries it again.
+  const retries = bad.filter((r) => Boolean(r.retryOf) || r.mode === "retry").map((r) => r.id);
   const ok = active && minsAgo(latest, now) <= 5 && failed.length === 0;
   return {
     check_id: "WITTY-02",
     status: ok ? "ok" : "fail",
-    value: { active, latest_started_at: latest, failed_15m: failed.slice(0, 10) },
+    value: { active, latest_started_at: latest, failed_15m: failed.slice(0, 10), retries_15m: retries.slice(0, 10) },
   };
 }
 

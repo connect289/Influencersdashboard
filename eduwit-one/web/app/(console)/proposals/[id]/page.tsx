@@ -28,8 +28,15 @@ export default async function ProposalPage({ params }: { params: Promise<{ id: s
   const p = data.proposal;
   const decidable = p.status === "open" || p.status === "snoozed";
   // A proposal a fix opened that runs when approved (0019): what runs, and that it runs under the approver's session.
-  const change = (p.change ?? {}) as { execute?: { fix?: string; rows?: unknown[] } };
+  const change = (p.change ?? {}) as { execute?: { fix?: string; mode?: string; rows?: unknown[] } };
   const runs = p.source === "check" && change.execute?.fix ? change.execute : null;
+  const rowCount = runs && Array.isArray(runs.rows) ? runs.rows.length : 0;
+  const checked = (p.check_result ?? null) as {
+    ran?: boolean;
+    ok?: boolean | null;
+    why?: string;
+    error?: string;
+  } | null;
   return (
     <>
       <PageHeader
@@ -49,17 +56,24 @@ export default async function ProposalPage({ params }: { params: Promise<{ id: s
       />
       {runs && decidable ? (
         <Banner tone="p2">
-          Approving runs {runs.fix} once, now, under your session, on the{" "}
-          {Array.isArray(runs.rows) ? runs.rows.length : 0} rows listed that still qualify then (an edit cannot add
-          rows). The result is checked 10 minutes later and shown here.
+          {runs.mode === "approve"
+            ? `Approving runs B2B's own retry function for each of the ${rowCount} rows listed, now, under your session.`
+            : runs.mode === "app"
+              ? `Approving queues ${runs.fix} once; the app runs it within a minute.`
+              : `Approving runs ${runs.fix} once, now, with the fixer's rights, on the ${rowCount} rows listed.`}{" "}
+          Only rows still failing then are touched. Removing rows from the change below narrows the run; an edit cannot
+          add rows. If it runs, the result is checked 10 minutes later and shown here.
         </Banner>
       ) : null}
-      {runs && p.check_result ? (
-        <Banner tone={(p.check_result as { ok?: boolean }).ok ? "p3" : "p1"}>
-          Checked after the run:{" "}
-          {(p.check_result as { ok?: boolean }).ok
-            ? "none of its rows is still failing."
-            : "some rows still fail; see the result below."}
+      {runs && checked ? (
+        <Banner tone={checked.ok === true ? "p3" : checked.ok === false ? "p1" : "p2"}>
+          {checked.ran === false
+            ? `Nothing ran: ${checked.why ?? "see the result below"}. The proposal stays approved.`
+            : checked.ok === true
+              ? "Checked after the run: every row it touched is done."
+              : checked.ok === false
+                ? "Checked after the run: some rows are still failing; see the result below."
+                : `Checked after the run, but the result could not be read${checked.why || checked.error ? `: ${checked.why ?? checked.error}` : ""}.`}
         </Banner>
       ) : null}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

@@ -7,11 +7,15 @@ import type { N8nClient, N8nExecution } from "./types.ts";
 // only id, status and times.
 
 export const n8nWorkflowFixture = z.object({ id: z.string(), name: z.string(), active: z.boolean() });
+const idish = z.union([z.string(), z.number()]).transform(String);
 const execution = z.object({
-  id: z.union([z.string(), z.number()]).transform(String),
+  id: idish,
   status: z.string(),
   startedAt: z.string().nullable(),
   stoppedAt: z.string().nullable(),
+  retryOf: idish.nullish(),
+  mode: z.string().nullish(),
+  workflowId: idish.nullish(),
 });
 export const n8nExecutionsFixture = z.object({ data: z.array(execution) });
 
@@ -48,6 +52,10 @@ export class RealN8nClient implements N8nClient {
     return n8nExecutionsFixture.parse(await this.get(`/api/v1/executions?${q}`)).data;
   }
 
+  async execution(executionId: string): Promise<N8nExecution> {
+    return execution.parse(await this.get(`/api/v1/executions/${encodeURIComponent(executionId)}?includeData=false`));
+  }
+
   /** Never retried by the HTTP layer: a second POST could run the execution twice. With the run's own workflow version. */
   async retry(executionId: string) {
     const r = await fetchJson(
@@ -76,6 +84,15 @@ export class MockN8nClient implements N8nClient {
 
   async executions(workflowId: string) {
     return (this.f.executions[workflowId] ?? this.f.executions.default ?? { data: [] }).data;
+  }
+
+  async execution(executionId: string): Promise<N8nExecution> {
+    const all = Object.entries(this.f.executions).flatMap(([wf, e]) =>
+      e.data.map((x) => ({ ...x, workflowId: x.workflowId ?? wf })),
+    );
+    return (
+      all.find((x) => x.id === executionId) ?? { id: executionId, status: "error", startedAt: null, stoppedAt: null }
+    );
   }
 
   async retry(executionId: string) {

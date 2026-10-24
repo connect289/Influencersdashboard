@@ -63,6 +63,16 @@ begin
      and n.nspname not like 'pg_toast%'
      and (c.relacl::text like '%eduwit_one_fixer=%');
   if v_bad is not null then raise exception 'ASSERT FAILED: the fixer holds a table privilege: %', v_bad; end if;
+  select string_agg(a.attrelid::regclass::text || '.' || a.attname, ', ') into v_bad
+    from pg_attribute a join pg_class c on c.oid = a.attrelid
+   where a.attacl::text ~ '"?eduwit_one_(fixer|reader)"?=' and c.relnamespace <> 'one'::regnamespace;
+  if v_bad is not null then raise exception 'ASSERT FAILED: an Eduwit One role holds a column privilege: %', v_bad; end if;
+  -- The fixer is a member of no role, and only the migrating user is a member of it (0019 hands it its functions).
+  select string_agg(m.roleid::regrole::text || '>' || m.member::regrole::text, ', ') into v_bad
+    from pg_auth_members m
+   where m.member = 'eduwit_one_fixer'::regrole
+      or (m.roleid = 'eduwit_one_fixer'::regrole and m.member <> (select oid from pg_roles where rolname = current_user));
+  if v_bad is not null then raise exception 'ASSERT FAILED: a membership of or in the fixer: %', v_bad; end if;
   select string_agg(p.oid::regprocedure::text, ', ') into v_bad
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname <> 'one' and p.proacl::text like '%eduwit_one_fixer=%'
@@ -114,9 +124,10 @@ begin
   select string_agg(c.relname, ', ') into v_bad from pg_class c
    where c.relnamespace = 'one'::regnamespace and c.relkind in ('r', 'p') and not c.relrowsecurity;
   if v_bad is not null then raise exception 'ASSERT FAILED: RLS off on one.%', v_bad; end if;
-  -- one.tick_job() is the exception: a procedure that commits cannot carry SET clauses; it sets search_path itself (D-044).
+  -- one.tick_job() and one.fixes_job() are the exceptions: a procedure that commits cannot carry SET clauses; each sets
+  -- search_path itself (D-044, 0019).
   select string_agg(p.oid::regprocedure::text, ', ') into v_bad from pg_proc p
-   where p.pronamespace = 'one'::regnamespace and p.prokind in ('f', 'p') and p.oid <> 'one.tick_job()'::regprocedure
+   where p.pronamespace = 'one'::regnamespace and p.prokind in ('f', 'p') and not (p.prokind = 'p' and p.proname in ('tick_job', 'fixes_job'))
      and not coalesce(p.proconfig::text like '%search_path=%', false);
   if v_bad is not null then raise exception 'ASSERT FAILED: functions without a pinned search_path: %', v_bad; end if;
 end $$;

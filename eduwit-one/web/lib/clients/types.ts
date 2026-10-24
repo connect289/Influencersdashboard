@@ -11,8 +11,9 @@ export interface AppHealthClient {
    */
   health(url: string, expect: "json_ok" | "reachable"): Promise<{ ok: boolean; status: number; ms: number }>;
   /**
-   * Whether anything answers at the URL: HEAD, then GET when HEAD gets no answer or a 5xx (FIX-WEBHOOK-REKICK).
-   * Answered means a status below 500 within 10 s; the body is never read.
+   * Whether the route answers at the URL: HEAD, then GET when HEAD gets no such answer (FIX-WEBHOOK-REKICK). Answered
+   * means, within 10 s, a 2xx or a status that shows the route is there (400, 401, 403, 405, 415, 422); a redirect, a
+   * 404 or a 5xx is not. The body is never read.
    */
   answers(url: string): Promise<{ answered: boolean; status: number; method: "HEAD" | "GET"; ms: number }>;
 }
@@ -29,11 +30,22 @@ export interface ChatwootClient {
   conversationLabels(accountId: string, conversationId: number): Promise<string[]>;
 }
 
-export type N8nExecution = { id: string; status: string; startedAt: string | null; stoppedAt: string | null };
+export type N8nExecution = {
+  id: string;
+  status: string;
+  startedAt: string | null;
+  stoppedAt: string | null;
+  /** Set when this execution is a retry of another (n8n's retryOf), or its mode is "retry". */
+  retryOf?: string | null;
+  mode?: string | null;
+  workflowId?: string | null;
+};
 
 export interface N8nClient {
   workflow(id: string): Promise<{ id: string; active: boolean; name: string }>;
   executions(workflowId: string, limit: number): Promise<N8nExecution[]>;
+  /** One execution's id, status, workflow and retry link, without its data. */
+  execution(executionId: string): Promise<N8nExecution>;
   /** Retries a failed execution once (POST /executions/{id}/retry, FIX-N8N-RETRY): the new execution's id and status. */
   retry(executionId: string): Promise<{ id: string | null; status: string | null }>;
 }
