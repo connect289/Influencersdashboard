@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { acceptsEffort, AnthropicModelClient, GEMINI_API, GeminiModelClient, type ModelClient } from "../ai/client.ts";
+import { acceptsEffort, AnthropicModelClient, type ModelClient } from "../ai/client.ts";
 import { aiSettingsSchema, route, TIERS } from "../ai/models.ts";
 import { RealAppHealthClient } from "../clients/app-health.ts";
 import { RealChatwootClient } from "../clients/chatwoot.ts";
@@ -249,11 +249,18 @@ export async function validate(kind: string, deps: ValidateDeps): Promise<Verdic
         };
       }
       case "ai": {
-        // Each tier's provider, model, price and key, and a free call that proves the key and the model (D-075).
+        // Each tier's model, price and key, the refusal fallback, and a free call that proves the key and each model
+        // (Claude only, owner 24 Oct; D-075).
         const ai = aiSettingsSchema.safeParse(await deps.facts.aiSettings());
         if (!ai.success) return { ok: false, detail: "Settings → AI cannot be read" };
-        const base = (settings.vendors as Record<string, string>).gemini_api ?? GEMINI_API;
+        const key = credentials.anthropic;
+        if (!key) return { ok: false, detail: "no Anthropic key (Vault one_anthropic_key or ONE_ANTHROPIC_API_KEY)" };
+        const client: ModelClient = new AnthropicModelClient(key);
         const proved = new Map<string, { ok: boolean; detail: string }>();
+        const prove = async (model: string) => {
+          if (!proved.has(model)) proved.set(model, await client.check(model));
+          return proved.get(model) ?? { ok: false, detail: "not checked" };
+        };
         const lines: string[] = [];
         let ok = true;
         for (const tier of TIERS) {
@@ -263,25 +270,23 @@ export async function validate(kind: string, deps: ValidateDeps): Promise<Verdic
             lines.push(`${tier}: ${r.detail}`);
             continue;
           }
-          const key = credentials[r.provider];
-          if (!key) {
-            ok = false;
-            lines.push(`${tier}: no ${r.provider} key (Vault one_${r.provider}_key)`);
-            continue;
-          }
-          const id = `${r.provider}:${r.model}`;
-          if (!proved.has(id)) {
-            const client: ModelClient =
-              r.provider === "anthropic" ? new AnthropicModelClient(key) : new GeminiModelClient(key, base);
-            proved.set(id, await client.check(r.model));
-          }
-          const v = proved.get(id) ?? { ok: false, detail: "not checked" };
+          const v = await prove(r.model);
           ok &&= v.ok;
-          const effort =
-            r.effort && r.provider === "anthropic" && !acceptsEffort(r.model) ? ", effort not sent to this model" : "";
+          const effort = r.effort && !acceptsEffort(r.model) ? ", effort not sent to this model" : "";
           lines.push(
-            `${tier}${r.tier !== tier ? ` (falls back to ${r.tier})` : ""}: ${v.ok ? `${r.provider} ${r.model}${effort}` : v.detail}`,
+            `${tier}${r.tier !== tier ? ` (falls back to ${r.tier})` : ""}: ${v.ok ? `${r.model}${effort}` : v.detail}`,
           );
+        }
+        const fb = ai.data.refusal_fallback;
+        if (fb) {
+          if (!ai.data.prices[fb]) {
+            ok = false;
+            lines.push(`refusal fallback ${fb}: no price in Settings → AI`);
+          } else {
+            const v = await prove(fb);
+            ok &&= v.ok;
+            lines.push(`refusal fallback: ${v.ok ? fb : v.detail}`);
+          }
         }
         return { ok, detail: lines.join("; ") };
       }

@@ -82,15 +82,15 @@ export async function probeWhatsApp(cfg: Defaults): Promise<Row> {
 }
 
 export async function probeAiKey(cfg: Defaults): Promise<Row | undefined> {
-  const gemini = env("ONE_GEMINI_API_KEY");
+  // Claude only (owner, 24 Oct; D-004, D-078).
   const anthropic = env("ONE_ANTHROPIC_API_KEY");
-  if (!gemini && !anthropic) return undefined; // Vault presence comes from the database probe or the connector file.
-  const ran = gemini ? `GET ${cfg.vendors.gemini_api}/models` : `GET ${cfg.vendors.anthropic_api}/models`;
-  const r = gemini
-    ? await http(`${cfg.vendors.gemini_api}/models?pageSize=1`, { headers: { "x-goog-api-key": gemini } })
-    : await http(`${cfg.vendors.anthropic_api}/models?limit=1`, { headers: { "x-api-key": anthropic ?? "", "anthropic-version": "2023-06-01" } });
+  if (!anthropic) return undefined; // Vault presence comes from the database probe or the connector file.
+  const ran = `GET ${cfg.vendors.anthropic_api}/models`;
+  const r = await http(`${cfg.vendors.anthropic_api}/models?limit=1`, {
+    headers: { "x-api-key": anthropic, "anthropic-version": "2023-06-01" },
+  });
   return r.status === 200
-    ? { id: "ai_key", status: "verified", ran, detail: `${gemini ? "Gemini" : "Anthropic"} models listed` }
+    ? { id: "ai_key", status: "verified", ran, detail: "Anthropic models listed" }
     : { id: "ai_key", status: "refused", ran, detail: `HTTP ${r.status || r.error}`, fix: refusedFix(r, hostOf(ran.slice(4)), "issue a new API key for Eduwit One's own project") };
 }
 

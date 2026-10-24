@@ -3,6 +3,16 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 6: the owner's answers (D-078)
+
+- Claude only: Gemini removed from the AI layer (settings, router, client, Setup validator, worker route, eval,
+  preflight probes); `one.settings_check` refuses a provider and any non-Claude model. Witty's Gemini checks unchanged.
+- Quick tier Claude Haiku 5.5 (effort low); regular Sonnet 5.5, deep Opus 5.5; refusal fallback Claude Opus 4.8, asked
+  once by the worker when a model declines, priced and capped like any call.
+- Budget: ₹250 a day, sized to the Max/Team plan's monthly API credits that the key draws on; "credit balance is too
+  low" defers tasks for an hour as `budget (credits exhausted)` and ONE-01 reports it.
+- Witty excerpts stay off; brief at 08:00 IST; Vercel Pro; the live eval defaults to the regular tier.
+
 ## 24 Oct 2026 — phase 6 review resolved
 
 - Review: `docs/reviews/phase-6.md` (1 blocker, 6 majors, 6 minors), all resolved.

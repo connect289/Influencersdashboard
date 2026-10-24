@@ -211,9 +211,9 @@
     },
     {
       "id": "ai_key",
-      "title": "Model provider key for the AI layer",
+      "title": "Anthropic API key for the AI layer (Claude only)",
       "who": "owner",
-      "stores": "vault:one_gemini_key or vault:one_anthropic_key",
+      "stores": "vault:one_anthropic_key",
       "unblocks": [
         "classify",
         "triage",
@@ -224,7 +224,7 @@
         "ask",
         "test_author"
       ],
-      "how": "The AI provider's key: one_gemini_key (seeded provider) or one_anthropic_key. The provider and model per tier, and each model's price, are in Settings → AI; a model without a price is never called. Validate checks every tier's key and model with a free call to the provider.",
+      "how": "An Anthropic API key from the Claude Console (console.anthropic.com → API keys), saved here as one_anthropic_key. Claude only (owner, 24 Oct). The model and price of each tier are in Settings → AI; a model without a price is never called. Validate checks every tier's model, and the refusal fallback, with a free model lookup.",
       "validate": "ai"
     },
     {

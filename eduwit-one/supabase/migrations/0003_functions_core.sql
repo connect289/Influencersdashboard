@@ -104,9 +104,8 @@ begin
         raise exception 'setting ai: daily_cap_inr, per_task_cap_inr, queue_non_triage_at_pct and usd_inr are numbers, 0 or more' using errcode = '22023';
       end if;
       -- The worker reads these on every task (phase 6, D-075): a bad edit is refused here, not found by a failing task.
-      if (p_value ? 'provider' and (jsonb_typeof(p_value -> 'provider') <> 'object'
-            or exists (select 1 from jsonb_each(p_value -> 'provider') e where e.key not in ('quick', 'regular', 'deep')
-                                                                           or e.value not in ('"gemini"', '"anthropic"'))))
+      -- Claude only (owner, 24 Oct; D-004): there is no provider to choose.
+      if p_value ? 'provider'
          or (p_value ? 'effort' and (jsonb_typeof(p_value -> 'effort') <> 'object'
             or exists (select 1 from jsonb_each(p_value -> 'effort') e where e.key not in ('quick', 'regular', 'deep')
                                                                          or e.value not in ('null', '"low"', '"medium"', '"high"', '"xhigh"', '"max"'))))
@@ -132,13 +131,13 @@ begin
              or exists (select 1 from jsonb_each(p_value -> 'routing') e where e.value not in ('"quick"', '"regular"', '"deep"'))))
          or (p_value ? 'fallback_when_model_missing' and p_value -> 'fallback_when_model_missing' not in ('null', '"quick"', '"regular"', '"deep"'))
          or (p_value ? 'models' and (jsonb_typeof(p_value -> 'models') <> 'object'
-             or exists (select 1 from jsonb_each(p_value -> 'models') pr
-                         where pr.key not in ('gemini', 'anthropic') or jsonb_typeof(pr.value) <> 'object'
-                            or exists (select 1 from jsonb_each(pr.value) m
-                                        where m.key not in ('quick', 'regular', 'deep')
-                                           or (jsonb_typeof(m.value) <> 'null'
-                                               and (jsonb_typeof(m.value) <> 'string' or (m.value #>> '{}') !~ '^[A-Za-z0-9._:/-]{1,100}$')))))) then
-        raise exception 'setting ai: provider per tier gemini or anthropic; effort per tier null, low, medium, high, xhigh or max; prices per model null or {input, output, cache_read?, cache_write?} in USD per million tokens, 0 or more; queue_non_triage_at_pct at most 100; allow_message_excerpts a boolean; max_parallel 1–5; task_max_age_h 1–720; schedule: brief_mail_at_ist HH:MM, propose_feature_weekday 1–7, explain_after_min 1–1440, propose_fix_after_min 1–10080; usd_inr above 0; routing values quick, regular or deep; fallback_when_model_missing null or a tier; models {gemini|anthropic: {tier: model name or null}}'
+             or exists (select 1 from jsonb_each(p_value -> 'models') m
+                         where m.key not in ('quick', 'regular', 'deep')
+                            or (jsonb_typeof(m.value) <> 'null'
+                                and (jsonb_typeof(m.value) <> 'string' or (m.value #>> '{}') !~ '^claude-[a-z0-9.-]{1,80}$')))))
+         or (p_value ? 'refusal_fallback' and jsonb_typeof(p_value -> 'refusal_fallback') <> 'null'
+             and (jsonb_typeof(p_value -> 'refusal_fallback') <> 'string' or (p_value ->> 'refusal_fallback') !~ '^claude-[a-z0-9.-]{1,80}$')) then
+        raise exception 'setting ai: Claude only, so no provider; effort per tier null, low, medium, high, xhigh or max; prices per model null or {input, output, cache_read?, cache_write?} in USD per million tokens, 0 or more; queue_non_triage_at_pct at most 100; allow_message_excerpts a boolean; max_parallel 1–5; task_max_age_h 1–720; schedule: brief_mail_at_ist HH:MM, propose_feature_weekday 1–7, explain_after_min 1–1440, propose_fix_after_min 1–10080; usd_inr above 0; routing values quick, regular or deep; fallback_when_model_missing null or a tier; models {tier: a claude-… model or null}; refusal_fallback null or a claude-… model'
           using errcode = '22023';
       end if;
     when 'fixes' then

@@ -16,7 +16,7 @@ select json_build_object(
   'w2_alerts', (select jsonb_array_length(public.w2_health_alerts())),
   'spark_base_url', (select value ->> 'base_url' from b2c.settings where key = 'app'),
   'spark_key', exists (select 1 from vault.secrets where name = 'b2c_internal_key'),
-  'model_keys', (select coalesce(json_agg(name), '[]') from vault.secrets where name in ('one_gemini_key', 'one_anthropic_key')),
+  'model_keys', (select coalesce(json_agg(name), '[]') from vault.secrets where name = 'one_anthropic_key'),
   'real_test_phones', (select count(*) from public.w2_trusted where is_test and phone !~ ('^' || :'prefix')),
   'spark_test_users', (select count(*) from b2c.users where is_test_user and is_active),
   'test_partners', (select count(*) from b2b.partners where test_endpoint is not null),
@@ -77,8 +77,8 @@ function surveyRows(s: Survey): Row[] {
       ? { id: "spark_job_key", status: "verified", ran: "read b2c.settings app.base_url and Vault names", detail: "base_url set; b2c_internal_key present" }
       : { id: "spark_job_key", status: "unfilled", ran: "read b2c.settings app.base_url and Vault names", detail: `base_url ${s.spark_base_url ? "set" : "null"}; key ${s.spark_key ? "present" : "missing"}`, fix: "select b2c.app_deploy_set('<spark url>', '<B2C_INTERNAL_KEY from Vercel>')" },
     s.model_keys.length > 0
-      ? { id: "ai_key", status: "unfilled", ran: "read Vault names (value not read)", detail: `present, not validated: ${s.model_keys.join(", ")}; the app's contract test validates it`, fix: "confirm the provider (D-004)" }
-      : { id: "ai_key", status: "not_provided", ran: "read Vault names", detail: "no one_gemini_key or one_anthropic_key", fix: "add the model provider key to Vault" },
+      ? { id: "ai_key", status: "unfilled", ran: "read Vault names (value not read)", detail: `present, not validated: ${s.model_keys.join(", ")}; the Setup page's Validate checks it` }
+      : { id: "ai_key", status: "not_provided", ran: "read Vault names", detail: "no one_anthropic_key (Claude only, D-078)", fix: "add an Anthropic API key to Vault as one_anthropic_key" },
     present("test_whatsapp_number", s.real_test_phones, "w2_trusted is_test outside the harness prefix", "add the real test number to w2_trusted with is_test = true"),
     present("test_spark_user", s.spark_test_users, "b2c.users where is_test_user", "create a Spark counsellor marked as a test user"),
     present("test_partner", s.test_partners, "b2b.partners with test_endpoint", "add a test partner with the sandbox adapter"),

@@ -174,7 +174,7 @@ async function runOne(
   const rec = new Recorder(client);
   await runTask(claim, {
     db,
-    clientFor: (p) => (p === client.provider ? rec : null),
+    client: rec,
     holder: "eval",
     deadline: Date.now() + 600_000,
   });
@@ -300,8 +300,8 @@ export function summarise(r: TierReport): TierSummary {
 export class ReferenceClient implements ModelClient {
   readonly provider: Provider;
 
-  constructor(provider: Provider) {
-    this.provider = provider;
+  constructor() {
+    this.provider = "anthropic";
   }
 
   async complete(req: ModelRequest): Promise<ModelAnswer> {

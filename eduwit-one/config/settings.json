@@ -126,34 +126,22 @@
     }
   },
   "ai": {
-    "provider": {
-      "quick": "gemini",
-      "regular": "gemini",
-      "deep": "gemini"
-    },
     "models": {
-      "gemini": {
-        "quick": "gemini-3.6-flash",
-        "regular": "gemini-3.6-flash",
-        "deep": null
-      },
-      "anthropic": {
-        "quick": "claude-haiku-4-5-20251001",
-        "regular": "claude-sonnet-5-5",
-        "deep": "claude-opus-5-5"
-      }
+      "quick": "claude-haiku-5-5",
+      "regular": "claude-sonnet-5-5",
+      "deep": "claude-opus-5-5"
     },
     "effort": {
-      "quick": null,
+      "quick": "low",
       "regular": "medium",
       "deep": "high"
     },
     "prices": {
-      "claude-haiku-4-5-20251001": {
-        "input": 1,
-        "output": 5,
-        "cache_read": 0.1,
-        "cache_write": 1.25
+      "claude-haiku-5-5": {
+        "input": 0.1,
+        "output": 0.5,
+        "cache_read": 0.01,
+        "cache_write": 0.125
       },
       "claude-sonnet-5-5": {
         "input": 2,
@@ -167,8 +155,20 @@
         "cache_read": 0.2,
         "cache_write": 5
       },
-      "gemini-3.6-flash": null
+      "claude-opus-4-8": {
+        "input": 5,
+        "output": 25,
+        "cache_read": 0.5,
+        "cache_write": 6.25
+      },
+      "claude-haiku-4-5-20251001": {
+        "input": 1,
+        "output": 5,
+        "cache_read": 0.1,
+        "cache_write": 1.25
+      }
     },
+    "refusal_fallback": "claude-opus-4-8",
     "fallback_when_model_missing": "regular",
     "routing": {
       "classify": "quick",
@@ -181,7 +181,7 @@
       "ask": "regular",
       "test_author": "regular"
     },
-    "daily_cap_inr": 500,
+    "daily_cap_inr": 250,
     "per_task_cap_inr": 50,
     "queue_non_triage_at_pct": 80,
     "usd_inr": 85,

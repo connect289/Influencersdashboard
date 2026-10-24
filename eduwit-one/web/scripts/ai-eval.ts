@@ -2,15 +2,15 @@
 // The AI eval (spec §11): 30 incidents (classify and triage) and 10 Ask questions through the real worker, graded
 // deterministically, with cost and latency per tier.
 //   npm run ai:eval                          offline: the reference answerer, proves the harness (spends nothing)
-//   npm run ai:eval -- --live --yes          the providers in config/settings.json, every tier with a model and a price
-//   options: --tier quick|regular|deep  --provider anthropic|gemini  --out results.json
-// Keys come from ONE_ANTHROPIC_API_KEY / ONE_GEMINI_API_KEY (or .env.local), never from anything else. A live run
-// prints its worst-case cost first and spends nothing without --yes.
+//   npm run ai:eval -- --live --yes          Claude, on the regular tier (the owner's choice: the cheapest useful run)
+//   options: --tier quick|regular|deep|all  --out results.json
+// The key comes from ONE_ANTHROPIC_API_KEY (or .env.local), never from anything else. A live run prints its
+// worst-case cost first and spends nothing without --yes.
 import { readFileSync, writeFileSync } from "node:fs";
-import { AnthropicModelClient, GeminiModelClient, type ModelClient } from "../lib/ai/client.ts";
+import { AnthropicModelClient, type ModelClient } from "../lib/ai/client.ts";
 import { INCIDENTS, QUESTIONS } from "../lib/ai/eval/fixtures.ts";
 import { ReferenceClient, runEval, summarise, type TierReport } from "../lib/ai/eval/run.ts";
-import { aiSettingsSchema, route, TIERS, worstCaseInr, type Provider, type Tier } from "../lib/ai/models.ts";
+import { aiSettingsSchema, route, TIERS, worstCaseInr, type Tier } from "../lib/ai/models.ts";
 import { MAX_TOKENS } from "../lib/ai/schemas.ts";
 
 const argv = process.argv.slice(2);
@@ -25,15 +25,12 @@ const raw = (
     ai: Record<string, unknown>;
   }
 ).ai;
-// Offline, every tier runs on the Claude routes (priced in the seed), so the harness is exercised end to end.
-const provider = (opt("provider") ?? (flag("live") ? undefined : "anthropic")) as Provider | undefined;
-const ai = aiSettingsSchema.parse(
-  provider ? { ...raw, provider: { quick: provider, regular: provider, deep: provider } } : raw,
-);
-const tiers: Tier[] = opt("tier") ? [opt("tier") as Tier] : [...TIERS];
+const ai = aiSettingsSchema.parse(raw);
 const live = flag("live");
-const key = (p: Provider) =>
-  (p === "anthropic" ? process.env.ONE_ANTHROPIC_API_KEY : process.env.ONE_GEMINI_API_KEY)?.trim();
+// Offline every tier runs (it costs nothing); live, the regular tier unless --tier says otherwise.
+const tierArg = opt("tier") ?? (live ? "regular" : "all");
+const tiers: Tier[] = tierArg === "all" ? [...TIERS] : [tierArg as Tier];
+const key = process.env.ONE_ANTHROPIC_API_KEY?.trim();
 
 const plan: Array<{ tier: Tier; client: ModelClient; label: string }> = [];
 for (const tier of tiers) {
@@ -41,7 +38,7 @@ for (const tier of tiers) {
   if (!live) {
     plan.push({
       tier,
-      client: new ReferenceClient("error" in r ? "anthropic" : r.provider),
+      client: new ReferenceClient(),
       label: "reference (offline)",
     });
     continue;
@@ -54,12 +51,11 @@ for (const tier of tiers) {
     console.log(`${tier}: skipped: no model of its own (falls back to ${r.tier})`);
     continue;
   }
-  const k = key(r.provider);
-  if (!k) {
-    console.log(`${tier}: skipped: ONE_${r.provider.toUpperCase()}_API_KEY is not set`);
+  if (!key) {
+    console.log(`${tier}: skipped: ONE_ANTHROPIC_API_KEY is not set`);
     continue;
   }
-  const client = r.provider === "anthropic" ? new AnthropicModelClient(k) : new GeminiModelClient(k);
+  const client = new AnthropicModelClient(key);
   // Worst case: every incident's two tasks and every question's three rounds at their whole output allowance.
   const perIncident =
     worstCaseInr(r.price, 12_000, MAX_TOKENS.classify, ai.usd_inr) +
@@ -68,10 +64,8 @@ for (const tier of tiers) {
     2 * worstCaseInr(r.price, 20_000, MAX_TOKENS.ask_round, ai.usd_inr) +
     worstCaseInr(r.price, 40_000, MAX_TOKENS.ask, ai.usd_inr);
   const worst = INCIDENTS.length * perIncident + QUESTIONS.length * perQuestion;
-  console.log(
-    `${tier}: ${r.provider} ${r.model}, worst case ₹${worst.toFixed(0)} (a typical run costs a small fraction of it)`,
-  );
-  plan.push({ tier, client, label: `${r.provider} ${r.model}` });
+  console.log(`${tier}: ${r.model}, worst case ₹${worst.toFixed(0)} (a typical run costs a small fraction of it)`);
+  plan.push({ tier, client, label: r.model });
 }
 
 if (live && !flag("yes")) {

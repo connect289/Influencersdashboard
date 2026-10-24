@@ -603,7 +603,7 @@ begin
     raise exception 'calls must be a list of at most 20' using errcode = '22023';
   end if;
   for c in select * from jsonb_array_elements(p_calls) loop
-    if jsonb_typeof(c) <> 'object' or c ->> 'provider' not in ('anthropic', 'gemini') or coalesce(c ->> 'model', '') !~ '^[A-Za-z0-9._:/-]{1,100}$'
+    if jsonb_typeof(c) <> 'object' or c ->> 'provider' is distinct from 'anthropic' or coalesce(c ->> 'model', '') !~ '^[A-Za-z0-9._:/-]{1,100}$'
        or exists (select 1 from unnest(array['input_tokens', 'output_tokens', 'cache_read', 'cost_usd', 'cost_inr', 'latency_ms']) k
                    where c ? k and (jsonb_typeof(c -> k) <> 'number' or (c ->> k)::numeric < 0)) then
       raise exception 'a call record is malformed' using errcode = '22023';

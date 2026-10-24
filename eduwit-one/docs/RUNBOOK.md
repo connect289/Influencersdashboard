@@ -116,26 +116,28 @@ hour, a weekly feature review on Mondays, a test idea when an incident is resolv
 Ask) and calls the worker when one is due. What the AI may write: an incident's summary and likely cause, briefs, its
 answers, and open proposals a person decides. Synthetic test incidents are never analysed.
 
-To switch it on (Settings → Setup → `ai_key`, owner):
+To switch it on (Settings → Setup → `ai_key`, owner). Claude only (D-078):
 
-1. Choose the provider per tier in Settings → AI (`provider`: `gemini` or `anthropic`; seeded `gemini`, question Q1)
-   and save its key: `one_gemini_key` or `one_anthropic_key` (Vercel env `ONE_GEMINI_API_KEY` /
-   `ONE_ANTHROPIC_API_KEY` also works).
-2. Give every model a price in Settings → AI → `prices` (USD per million tokens: `input`, `output`, and `cache_read`,
-   `cache_write` where the provider charges them). The Claude models are priced in the seed; Gemini 3.6 Flash is not,
-   because its price could not be confirmed from Google (D-075). **A model without a price is never called**: its tasks
-   wait as deferred and say so.
-3. Validate. It checks every tier's provider, model, price and key with the provider's free model lookup; the deep tier
-   with no model of its own reports that it falls back to the regular tier.
+1. In the Claude Console, use the organisation linked to the Max or Team plan's API credits (claude.ai → Settings →
+   the plan's API credits), create an API key for Eduwit One, and save it here as `one_anthropic_key` (or Vercel env
+   `ONE_ANTHROPIC_API_KEY`). Calls then draw on the plan's monthly API credits, never on the plan itself. A
+   subscription login cannot be used by a server (Anthropic's terms). Optionally set a spend limit on that workspace
+   in the Console as a second guard.
+2. The models and prices are seeded (Settings → AI → `models`, `prices`, `refusal_fallback`): Haiku 5.5, Sonnet 5.5,
+   Opus 5.5, and Opus 4.8 for a refusal. **A model without a price is never called**: its tasks wait as deferred and
+   say so.
+3. Validate. It checks the key and every tier's model and the refusal fallback with a free model lookup.
 
-Spend: `daily_cap_inr` (500) and `per_task_cap_inr` (50). From `queue_non_triage_at_pct` (80%) of the day's cap only
+Spend: `daily_cap_inr` (₹250, sized to fit the smallest plan's monthly API credits) and `per_task_cap_inr` (₹50). From `queue_non_triage_at_pct` (80%) of the day's cap only
 classify and triage run; at the cap nothing runs, and ONE-01 fires at the cap or while work waits because of it. A call
 is not made when its worst case (the whole output allowance) would pass the per-task cap, counted over the task's
 attempts, or what is left today. Held-back tasks show "deferred" with the reason on the incident and Ask pages and are
 offered again every 15 minutes; a failed call that can be retried waits 2, 4, then 8 minutes; tasks older than
 `task_max_age_h` (48) are cancelled. To stop all AI work at once, set `daily_cap_inr` to 0 (ONE-01 then stays quiet).
 Every call is in Audit → AI calls with its tokens, cost and prompt version, recorded as it ends; a call that got no
-answer (a timeout) is counted at its worst case, because the provider may have billed it.
+answer (a timeout) is counted at its worst case, because the provider may have billed it. When the plan's API credits
+run out, tasks wait an hour at a time as "budget (credits exhausted)" and ONE-01 reports it: buy more credits or wait
+for the next month's grant. When a model declines a task, the worker asks the refusal fallback once.
 
 Contact data: the database redacts what it sends, and the worker masks it again (`web/lib/ai/pii.ts`: names under a
 name key become initials, phones their last four digits wherever they appear, emails their domain; message texts, notes
@@ -149,13 +151,12 @@ brief covers the day before, is built at 02:30 IST and mailed to the P1 inbox at
 (08:00), with links to the saved views marked "email it".
 
 To run the worker by hand: `curl -X POST -H "Authorization: Bearer $ONE_INTERNAL_KEY" https://one.eduwit.in/api/internal/ai/run`.
-The route needs Vercel's Fluid compute (on by default for new projects) for its 300-second limit; without it the
-deploy fails with a maxDuration error, and lowering `maxDuration` to 60 would leave too little time for the deep tier.
+The route's 300-second limit runs on Vercel Pro with Fluid compute (owner, 24 Oct).
 
 The eval: `cd web && npm run ai:eval` runs the 30 incidents and 10 questions offline (it proves the harness and the
-mask, and spends nothing). `npm run ai:eval -- --live` prints each tier's model and worst-case cost; add `--yes` to run
-it, with `ONE_ANTHROPIC_API_KEY` or `ONE_GEMINI_API_KEY` set. It prints scores, leaks (must be 0), cost and latency per
-tier.
+mask, and spends nothing). `npm run ai:eval -- --live` prints the regular tier's model and worst-case cost; add `--yes`
+to run it, with `ONE_ANTHROPIC_API_KEY` set (`--tier quick|deep|all` for the others). It prints scores, leaks (must be
+0), cost and latency.
 
 ## The external watchdog (UptimeRobot)
 

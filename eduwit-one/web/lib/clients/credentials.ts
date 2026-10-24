@@ -19,9 +19,8 @@ export type Credentials = {
   testRunnerPassword?: string;
   testRunnerTotp?: string;
   testWhatsapp?: string;
-  /** The AI layer's model keys (D-004, D-075): one per provider; the tier's provider decides which is used. */
+  /** The AI layer's Claude key (Claude only, owner 24 Oct; D-004, D-075). */
   anthropic?: string;
-  gemini?: string;
 };
 
 export function credentialsFrom(vault: Record<string, string>): Credentials {
@@ -39,7 +38,6 @@ export function credentialsFrom(vault: Record<string, string>): Credentials {
     testRunnerTotp: secretEnv("ONE_TEST_RUNNER_TOTP") ?? vault.one_test_runner_totp,
     testWhatsapp: secretEnv("ONE_TEST_WA_TOKEN") ?? vault.one_test_wa_token,
     anthropic: secretEnv("ONE_ANTHROPIC_API_KEY") ?? vault.one_anthropic_key,
-    gemini: secretEnv("ONE_GEMINI_API_KEY") ?? vault.one_gemini_key,
   };
 }
 

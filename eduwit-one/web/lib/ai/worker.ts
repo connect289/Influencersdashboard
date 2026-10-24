@@ -2,7 +2,7 @@ import { z } from "zod";
 import { DbError } from "../db.ts";
 import { ModelError, type ModelClient } from "./client.ts";
 import type { AiDb, CallRecord, Claim } from "./db.ts";
-import { aiSettingsSchema, costOf, route, worstCaseInr, type AiSettings, type Provider, type Route } from "./models.ts";
+import { aiSettingsSchema, costOf, fallbackRoute, route, worstCaseInr, type AiSettings, type Route } from "./models.ts";
 import { maskForAi, maskText } from "./pii.ts";
 import { PROMPTS, SYSTEM_PROMPT } from "./prompts.generated.ts";
 import { askFinalSchema, askRoundSchema, MAX_TOKENS, SCHEMAS } from "./schemas.ts";
@@ -21,7 +21,8 @@ export type N8nReader = {
 
 export type WorkerDeps = {
   db: AiDb;
-  clientFor(provider: Provider): ModelClient | null;
+  /** The Claude client, or null when no key is set (tasks then wait as deferred). */
+  client: ModelClient | null;
   /** Witty's n8n executions for Ask (status and times only), when the n8n key is set. */
   n8n?: N8nReader | null;
   holder: string;
@@ -132,6 +133,10 @@ class TaskCalls {
     throw new Stop("retry", `the answer did not match the schema twice (${issue})`);
   }
 
+  /**
+   * One model call, on the routed model and, when that model declines (a refusal), once more on the refusal fallback
+   * (ai.refusal_fallback, priced like any model). Both calls are checked against the caps and recorded.
+   */
   private async call(
     schema: z.ZodType,
     system: string,
@@ -140,9 +145,27 @@ class TaskCalls {
     purpose: string,
     version: string,
   ) {
-    const { ai, r } = this;
-    const schemaChars = r.provider === "gemini" ? JSON.stringify(z.toJSONSchema(schema)).length : 0;
-    const worst = worstCaseInr(r.price, system.length + user.length + schemaChars, maxTokens, ai.usd_inr);
+    const fallback = fallbackRoute(this.ai, this.r);
+    const first = await this.attempt(this.r, schema, system, user, maxTokens, purpose, version);
+    if (first !== null) return first;
+    if (!fallback) throw new Stop("fail", "the model declined to answer");
+    const second = await this.attempt(fallback, schema, system, user, maxTokens, `${purpose}:fallback`, version);
+    if (second !== null) return second;
+    throw new Stop("fail", `the model and its refusal fallback (${fallback.model}) both declined to answer`);
+  }
+
+  /** The answer's text, or null for a refusal. */
+  private async attempt(
+    r: Route,
+    schema: z.ZodType,
+    system: string,
+    user: string,
+    maxTokens: number,
+    purpose: string,
+    version: string,
+  ): Promise<string | null> {
+    const { ai } = this;
+    const worst = worstCaseInr(r.price, system.length + user.length, maxTokens, ai.usd_inr);
     if (this.taskSpentInr + worst > ai.per_task_cap_inr) {
       throw new Stop(
         "fail",
@@ -174,6 +197,15 @@ class TaskCalls {
       });
     } catch (e) {
       const err = e instanceof ModelError ? e : new ModelError("the model call failed", true);
+      if (err.credits) {
+        await this.record({ ...base, ok: false, error: err.message });
+        // The same prefix family ONE-01 reads: work held back by the budget, here the account's API credits.
+        throw new Stop(
+          "defer",
+          "budget (credits exhausted): the Anthropic API credit balance is too low (the subscription's monthly API credits are used up); tasks wait for the next grant",
+          60,
+        );
+      }
       // No answer at all (a timeout or a lost connection): the provider may still have run and billed the call, so it
       // counts at its worst case. A refusal with a status (401, 429, 5xx) is not billed.
       const unknown = err.status === undefined;
@@ -204,6 +236,7 @@ class TaskCalls {
       ok: stopError === null,
       error: stopError,
     });
+    if (answer.stop === "refusal") return null;
     if (stopError) throw new Stop("fail", stopError);
     return answer.text;
   }
@@ -335,9 +368,9 @@ export async function runTask(claim: Claim, deps: WorkerDeps): Promise<Outcome> 
     await db.defer(t.id, holder, `setup: ${r.detail}`, 30);
     return "deferred";
   }
-  const client = deps.clientFor(r.provider);
+  const client = deps.client;
   if (!client) {
-    await db.defer(t.id, holder, `setup: no ${r.provider} key (Setup item ai_key)`, 30);
+    await db.defer(t.id, holder, "setup: no Anthropic key (Setup item ai_key)", 30);
     return "deferred";
   }
   const tc = new TaskCalls(claim, ai, r, client, deps);

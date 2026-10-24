@@ -1,13 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { z } from "zod";
-import { fetchJson, HttpError } from "../http.ts";
+import type { z } from "zod";
 import type { Effort, Provider, Usage } from "./models.ts";
 
-// One interface for both providers (D-004). A call sends a system prompt and one user message and gets JSON back:
-// Claude through the Anthropic SDK with structured outputs, Gemini through its REST API in JSON mode with the schema
-// in the message. The worker validates every answer with the same zod schema either way, so neither provider is
-// trusted to have kept the shape. Errors say whether a later retry can help; they never carry a key or a body.
+// The model client: Claude only (owner, 24 Oct; D-004), through the Anthropic SDK with structured outputs. A call sends
+// a system prompt and one user message and gets JSON back; the worker still checks every answer against the kind's
+// zod schema. Errors say whether a later retry can help; they never carry a key or a body.
 
 export type ModelRequest = {
   model: string;
@@ -31,11 +29,14 @@ export type ModelAnswer = {
 export class ModelError extends Error {
   readonly retry: boolean;
   readonly status: number | undefined;
+  /** The account's API credit balance is used up (a subscription's monthly API credits, or prepaid credits). */
+  readonly credits: boolean;
 
-  constructor(message: string, retry: boolean, status?: number) {
+  constructor(message: string, retry: boolean, status?: number, credits = false) {
     super(message);
     this.retry = retry;
     this.status = status;
+    this.credits = credits;
   }
 }
 
@@ -98,6 +99,10 @@ export class AnthropicModelClient implements ModelClient {
       );
     } catch (e) {
       if (e instanceof Anthropic.APIConnectionError) throw statusError("anthropic", undefined);
+      // Anthropic answers 400 with "Your credit balance is too low…" when the credits are used up (D-078).
+      if (e instanceof Anthropic.BadRequestError && /credit balance/i.test(e.message)) {
+        throw new ModelError("anthropic: the API credit balance is too low", false, 400, true);
+      }
       if (e instanceof Anthropic.APIError) throw statusError("anthropic", e.status);
       throw new ModelError("anthropic: the call failed", true);
     }
@@ -135,124 +140,6 @@ export class AnthropicModelClient implements ModelClient {
       const err =
         e instanceof Anthropic.APIError ? statusError("anthropic", e.status) : statusError("anthropic", undefined);
       return { ok: false, detail: err.message };
-    }
-  }
-}
-
-const geminiAnswer = z.object({
-  candidates: z
-    .array(
-      z.object({
-        content: z
-          .object({
-            parts: z.array(z.object({ text: z.string().optional(), thought: z.boolean().optional() })).default([]),
-          })
-          .optional(),
-        finishReason: z.string().optional(),
-      }),
-    )
-    .default([]),
-  promptFeedback: z.object({ blockReason: z.string().optional() }).optional(),
-  usageMetadata: z
-    .object({
-      promptTokenCount: z.number().default(0),
-      candidatesTokenCount: z.number().default(0),
-      cachedContentTokenCount: z.number().default(0),
-      thoughtsTokenCount: z.number().default(0),
-    })
-    .default({ promptTokenCount: 0, candidatesTokenCount: 0, cachedContentTokenCount: 0, thoughtsTokenCount: 0 }),
-  modelVersion: z.string().optional(),
-});
-
-const REFUSALS = new Set(["SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION", "IMAGE_SAFETY"]);
-
-export const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
-
-export class GeminiModelClient implements ModelClient {
-  readonly provider = "gemini" as const;
-  private readonly apiKey: string;
-  private readonly base: string;
-
-  constructor(apiKey: string, base = GEMINI_API) {
-    this.apiKey = apiKey;
-    this.base = base.replace(/\/$/, "");
-  }
-
-  async complete(req: ModelRequest): Promise<ModelAnswer> {
-    const started = Date.now();
-    // JSON mode with the schema in the message: the worker's zod check is the authority on the shape.
-    const schema = JSON.stringify(z.toJSONSchema(req.schema));
-    let json: unknown;
-    try {
-      ({ json } = await fetchJson(
-        "gemini",
-        `${this.base}/models/${encodeURIComponent(req.model)}:generateContent`,
-        {
-          method: "POST",
-          headers: { "x-goog-api-key": this.apiKey },
-          body: {
-            systemInstruction: { parts: [{ text: req.system }] },
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: `${req.user}\n\nAnswer with one JSON object matching this JSON Schema:\n${schema}` }],
-              },
-            ],
-            generationConfig: { responseMimeType: "application/json", maxOutputTokens: req.maxTokens },
-          },
-        },
-        { timeoutMs: req.timeoutMs, retries: 0, breakerFailures: 3, breakerCooldownMs: 120_000 },
-      ));
-    } catch (e) {
-      throw e instanceof HttpError ? statusError("gemini", e.status) : statusError("gemini", undefined);
-    }
-    const r = geminiAnswer.safeParse(json);
-    if (!r.success) throw new ModelError("gemini: unreadable answer", true);
-    const a = r.data;
-    const c = a.candidates[0];
-    const text = (c?.content?.parts ?? [])
-      .filter((p) => !p.thought)
-      .map((p) => p.text ?? "")
-      .join("");
-    const reason = c?.finishReason ?? "";
-    const stop =
-      a.promptFeedback?.blockReason || REFUSALS.has(reason)
-        ? "refusal"
-        : reason === "MAX_TOKENS"
-          ? "max_tokens"
-          : reason === "STOP" || reason === ""
-            ? "end"
-            : "other";
-    const u = a.usageMetadata;
-    return {
-      text,
-      model: a.modelVersion ?? req.model,
-      // Gemini counts cached tokens inside the prompt count and bills thinking as output.
-      usage: {
-        input: Math.max(0, u.promptTokenCount - u.cachedContentTokenCount),
-        output: u.candidatesTokenCount + u.thoughtsTokenCount,
-        cacheRead: u.cachedContentTokenCount,
-        cacheWrite: 0,
-      },
-      stop,
-      latencyMs: Date.now() - started,
-    };
-  }
-
-  async check(model: string) {
-    try {
-      await fetchJson(
-        "gemini",
-        `${this.base}/models/${encodeURIComponent(model)}`,
-        { headers: { "x-goog-api-key": this.apiKey } },
-        { timeoutMs: 10_000, retries: 0, breakerFailures: 3, breakerCooldownMs: 120_000 },
-      );
-      return { ok: true, detail: `Gemini answered: ${model} is available to this key` };
-    } catch (e) {
-      return {
-        ok: false,
-        detail: (e instanceof HttpError ? statusError("gemini", e.status) : statusError("gemini", undefined)).message,
-      };
     }
   }
 }

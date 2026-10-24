@@ -1,47 +1,51 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { resetBreakers } from "../http.ts";
-import { AnthropicModelClient, GeminiModelClient, ModelError } from "./client.ts";
-import { aiSettingsSchema, costOf, route, worstCaseInr } from "./models.ts";
+import { acceptsEffort, AnthropicModelClient, ModelError } from "./client.ts";
+import { aiSettingsSchema, costOf, fallbackRoute, route, worstCaseInr } from "./models.ts";
 
 const seeded = aiSettingsSchema.parse(
   (JSON.parse(readFileSync(new URL("../../../config/settings.json", import.meta.url), "utf8")) as { ai: unknown }).ai,
 );
 
 describe("routing", () => {
-  it("parses the seeded AI settings", () => {
-    expect(seeded.provider.regular).toBe("gemini");
-    expect(seeded.prices["claude-opus-5-5"]).toMatchObject({ input: 4, output: 20 });
+  it("parses the seeded AI settings: Claude on every tier, each model priced", () => {
+    expect(seeded.models).toEqual({ quick: "claude-haiku-5-5", regular: "claude-sonnet-5-5", deep: "claude-opus-5-5" });
+    for (const m of [...Object.values(seeded.models), seeded.refusal_fallback]) {
+      expect(m && seeded.prices[m], String(m)).toBeTruthy();
+    }
   });
 
-  it("refuses a model that has no price (the seed's Gemini model until the owner sets one)", () => {
-    expect(route(seeded, "triage", null)).toMatchObject({ error: "no_price" });
-  });
-
-  it("picks the tier from the hint, then the routing table, and the model from the tier's provider", () => {
-    const ai = { ...seeded, provider: { quick: "anthropic", regular: "anthropic", deep: "anthropic" } as const };
-    expect(route(ai, "classify", null)).toMatchObject({
-      tier: "quick",
-      model: "claude-haiku-4-5-20251001",
-      effort: null,
+  it("picks the tier from the hint, then the routing table, with that tier's model and effort", () => {
+    expect(route(seeded, "classify", null)).toMatchObject({ tier: "quick", model: "claude-haiku-5-5", effort: "low" });
+    expect(route(seeded, "triage", null)).toMatchObject({
+      tier: "regular",
+      model: "claude-sonnet-5-5",
+      effort: "medium",
     });
-    expect(route(ai, "triage", null)).toMatchObject({ tier: "regular", model: "claude-sonnet-5-5", effort: "medium" });
-    expect(route(ai, "triage", "deep")).toMatchObject({ tier: "deep", model: "claude-opus-5-5", effort: "high" });
+    expect(route(seeded, "triage", "deep")).toMatchObject({ tier: "deep", model: "claude-opus-5-5", effort: "high" });
+  });
+
+  it("refuses a model that has no price", () => {
+    const ai = { ...seeded, models: { ...seeded.models, regular: "claude-unpriced" } };
+    expect(route(ai, "triage", null)).toMatchObject({ error: "no_price" });
   });
 
   it("falls back to the fallback tier when a tier has no model, and says so when none has", () => {
-    const ai = {
-      ...seeded,
-      prices: { ...seeded.prices, "gemini-3.6-flash": { input: 0.75, output: 3.75, cache_read: 0, cache_write: 0 } },
-    };
-    expect(route(ai, "explain", null)).toMatchObject({
-      tier: "regular",
-      provider: "gemini",
-      model: "gemini-3.6-flash",
+    const ai = { ...seeded, models: { ...seeded.models, deep: null } };
+    expect(route(ai, "explain", null)).toMatchObject({ tier: "regular", model: "claude-sonnet-5-5" });
+    expect(route({ ...ai, models: { quick: null, regular: null, deep: null } }, "explain", null)).toMatchObject({
+      error: "no_model",
     });
-    const none = { ...ai, models: { ...ai.models, gemini: { quick: null, regular: null, deep: null } } };
-    expect(route(none, "explain", null)).toMatchObject({ error: "no_model" });
+  });
+
+  it("has a refusal fallback only when it is set, priced and another model", () => {
+    const r = route(seeded, "triage", null);
+    if ("error" in r) throw new Error(r.detail);
+    expect(fallbackRoute(seeded, r)).toMatchObject({ tier: "regular", model: "claude-opus-4-8", price: { input: 5 } });
+    expect(fallbackRoute({ ...seeded, refusal_fallback: null }, r)).toBeNull();
+    expect(fallbackRoute({ ...seeded, refusal_fallback: "claude-unpriced" }, r)).toBeNull();
+    expect(fallbackRoute({ ...seeded, refusal_fallback: "claude-sonnet-5-5" }, r)).toBeNull();
   });
 });
 
@@ -129,61 +133,17 @@ describe("Anthropic client", () => {
   });
 });
 
-describe("Gemini client", () => {
-  it("asks for JSON with the schema in the message and counts cached and thinking tokens", async () => {
-    resetBreakers();
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          candidates: [
-            {
-              content: {
-                parts: [{ text: "thinking…", thought: true }, { text: '{"summary":"s","confidence":"high"}' }],
-              },
-              finishReason: "STOP",
-            },
-          ],
-          usageMetadata: {
-            promptTokenCount: 1000,
-            candidatesTokenCount: 50,
-            cachedContentTokenCount: 400,
-            thoughtsTokenCount: 70,
-          },
-          modelVersion: "gemini-3.6-flash",
-        }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      ),
-    );
-    const a = await new GeminiModelClient("key").complete({ ...req, model: "gemini-3.6-flash" });
-    expect(a).toMatchObject({
-      text: '{"summary":"s","confidence":"high"}',
-      stop: "end",
-      usage: { input: 600, output: 120, cacheRead: 400, cacheWrite: 0 },
-    });
-    const [url, init] = fetchSpy.mock.calls[0] ?? [];
-    expect(String(url)).toBe(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
-    );
-    expect(String(url)).not.toContain("key");
-    const body = JSON.parse(String(init?.body)) as {
-      generationConfig: Record<string, unknown>;
-      contents: Array<{ parts: Array<{ text: string }> }>;
-    };
-    expect(body.generationConfig).toEqual({ responseMimeType: "application/json", maxOutputTokens: 1000 });
-    expect(body.contents[0]?.parts[0]?.text).toContain('"confidence"');
-    fetchSpy.mockRestore();
-  });
-
-  it("reads a safety stop as a refusal", async () => {
-    resetBreakers();
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ candidates: [{ finishReason: "SAFETY" }] }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
-    const a = await new GeminiModelClient("key").complete(req);
-    expect(a.stop).toBe("refusal");
-    fetchSpy.mockRestore();
+describe("effort", () => {
+  it("is sent to current models and left out for those that refuse it", () => {
+    for (const m of ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-opus-4-8"])
+      expect(acceptsEffort(m), m).toBe(true);
+    for (const m of [
+      "claude-haiku-4-5-20251001",
+      "claude-sonnet-4-5",
+      "claude-opus-4-1",
+      "claude-sonnet-4-20250514",
+      "claude-3-5-haiku",
+    ])
+      expect(acceptsEffort(m), m).toBe(false);
   });
 });

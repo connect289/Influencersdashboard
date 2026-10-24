@@ -3,22 +3,17 @@ import { describe, expect, it } from "vitest";
 import { DbError } from "../db.ts";
 import { ModelError, ScriptedModelClient } from "./client.ts";
 import type { AiDb, CallRecord, Claim } from "./db.ts";
-import type { Provider } from "./models.ts";
 import { PROMPTS } from "./prompts.generated.ts";
 import { runTask, runWorker, type WorkerDeps } from "./worker.ts";
 
 // The worker against a scripted model and a fake database: what it sends (masked, within budget), what it files,
 // and the verdict it records in every way a task can end.
 
-const seededAi = (
+const claudeAi = (
   JSON.parse(readFileSync(new URL("../../../config/settings.json", import.meta.url), "utf8")) as {
     ai: Record<string, unknown>;
   }
 ).ai;
-const claudeAi = {
-  ...seededAi,
-  provider: { quick: "anthropic", regular: "anthropic", deep: "anthropic" },
-};
 
 type Verdict =
   | { kind: "finish"; result: Record<string, unknown>; calls: CallRecord[] }
@@ -100,7 +95,7 @@ const triage = {
 function deps(db: FakeAiDb, client: ScriptedModelClient | null, over: Partial<WorkerDeps> = {}): WorkerDeps {
   return {
     db,
-    clientFor: (p: Provider) => (client && client.provider === p ? client : null),
+    client,
     holder: "ai-test",
     deadline: Date.now() + 240_000,
     ...over,
@@ -176,10 +171,14 @@ describe("a task that succeeds", () => {
 });
 
 describe("a task that cannot run yet", () => {
-  it("waits when the tier's model has no price (the seeded Gemini model)", async () => {
+  it("waits when the tier's model has no price", async () => {
     const db = new FakeAiDb();
-    const model = new ScriptedModelClient("gemini", []);
-    expect(await runTask(claim({}, { ai: seededAi }), deps(db, model))).toBe("deferred");
+    const model = new ScriptedModelClient("anthropic", []);
+    const unpriced = {
+      ...claudeAi,
+      models: { quick: "claude-haiku-5-5", regular: "claude-unpriced", deep: "claude-opus-5-5" },
+    };
+    expect(await runTask(claim({}, { ai: unpriced }), deps(db, model))).toBe("deferred");
     expect(db.verdicts[0]).toMatchObject({
       kind: "defer",
       reason: expect.stringContaining("has no price"),
@@ -191,7 +190,7 @@ describe("a task that cannot run yet", () => {
   it("waits when there is no key for the provider", async () => {
     const db = new FakeAiDb();
     expect(await runTask(claim(), deps(db, null))).toBe("deferred");
-    expect(db.verdicts[0]).toMatchObject({ kind: "defer", reason: "setup: no anthropic key (Setup item ai_key)" });
+    expect(db.verdicts[0]).toMatchObject({ kind: "defer", reason: "setup: no Anthropic key (Setup item ai_key)" });
   });
 
   it("waits when the call's worst case is more than what is left today", async () => {
@@ -234,13 +233,52 @@ describe("a task that fails", () => {
   it("does not retry a refused key, a refusal or a cut-off answer, and keeps their cost", async () => {
     for (const [answer, error] of [
       [new ModelError("anthropic: the key was refused (401)", false, 401), "the key was refused"],
-      [{ json: triage, stop: "refusal" as const }, "declined"],
       [{ text: '{"summary": "', stop: "max_tokens" as const }, "cut off"],
     ] as const) {
       const db = new FakeAiDb();
       expect(await runTask(claim(), deps(db, new ScriptedModelClient("anthropic", [answer])))).toBe("failed");
       expect(db.verdicts[0]).toMatchObject({ kind: "fail", retry: false, error: expect.stringContaining(error) });
     }
+  });
+
+  it("asks the refusal fallback once when the model declines, and fails when both decline", async () => {
+    const db = new FakeAiDb();
+    const model = new ScriptedModelClient("anthropic", [{ json: triage, stop: "refusal" }, { json: triage }]);
+    expect(await runTask(claim(), deps(db, model))).toBe("done");
+    expect(model.requests.map((r) => r.model)).toEqual(["claude-sonnet-5-5", "claude-opus-4-8"]);
+    expect(db.recorded.map((c) => [c.purpose, c.ok])).toEqual([
+      ["triage", false],
+      ["triage:fallback", true],
+    ]);
+    const v = db.verdicts[0];
+    expect(v?.kind === "finish" && v.result).toMatchObject({ meta: { model: "claude-opus-4-8" } });
+
+    const both = new FakeAiDb();
+    const refuse = { json: triage, stop: "refusal" as const };
+    expect(await runTask(claim(), deps(both, new ScriptedModelClient("anthropic", [refuse, refuse])))).toBe("failed");
+    expect(both.verdicts[0]).toMatchObject({
+      kind: "fail",
+      retry: false,
+      error: expect.stringContaining("both declined"),
+    });
+
+    const none = new FakeAiDb();
+    const c = claim({}, { ai: { ...claudeAi, refusal_fallback: null } });
+    expect(await runTask(c, deps(none, new ScriptedModelClient("anthropic", [refuse])))).toBe("failed");
+    expect(none.verdicts[0]).toMatchObject({ kind: "fail", error: "the model declined to answer" });
+  });
+
+  it("waits for the next credits when the Anthropic balance runs out, and says so", async () => {
+    const db = new FakeAiDb();
+    const model = new ScriptedModelClient("anthropic", [
+      new ModelError("anthropic: the API credit balance is too low", false, 400, true),
+    ]);
+    expect(await runTask(claim(), deps(db, model))).toBe("deferred");
+    expect(db.verdicts[0]).toMatchObject({
+      kind: "defer",
+      reason: expect.stringMatching(/^budget \(credits exhausted\)/),
+      minutes: 60,
+    });
   });
 
   it("counts a call that got no answer (a timeout) at its worst case", async () => {

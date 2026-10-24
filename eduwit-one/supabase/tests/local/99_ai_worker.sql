@@ -29,13 +29,15 @@ select value as alerts_before from one.settings where key = 'alerts' \gset
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"prices": {"m": {"input": "cheap", "output": 1}}}')$q$) = '22023', 'a price is a number');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"prices": {"m": {"input": 1}}}')$q$) = '22023', 'a price has input and output');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"prices": {"m": {"input": -1, "output": 1}}}')$q$) = '22023', 'a price is not negative');
-select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"provider": {"quick": "openai"}}')$q$) = '22023', 'a provider is gemini or anthropic');
+select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"provider": {"quick": "gemini"}}')$q$) = '22023', 'Claude only: no provider to choose');
+select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"models": {"quick": "gemini-3.6-flash"}}')$q$) = '22023', 'a model is a Claude model');
+select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"refusal_fallback": "gpt-5"}')$q$) = '22023', 'so is the refusal fallback');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"effort": {"deep": "huge"}}')$q$) = '22023', 'an effort is a known level');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"schedule": {"brief_mail_at_ist": "8am"}}')$q$) = '22023', 'the mail time is HH:MM');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"max_parallel": 50}')$q$) = '22023', 'parallel workers are bounded');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"routing": {"propose_fix_high_risk": "opus"}}')$q$) = '22023', 'a route names a tier (review m1)');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"usd_inr": 0}')$q$) = '22023', 'the exchange rate is above 0');
-select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"models": {"anthropic": {"deep": "drop table x;"}}}')$q$) = '22023', 'a model is a model name');
+select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"models": {"deep": "drop table x;"}}')$q$) = '22023', 'a model is a model name');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"fallback_when_model_missing": "best"}')$q$) = '22023', 'the fallback is a tier');
 select pg_temp.ok(pg_temp.err(format('select one.settings_check(%L, %L)', 'ai', :'ai_before')) = 'ok', 'the seeded AI settings pass');
 

@@ -10,10 +10,7 @@ import { leaksIn, ReferenceClient, runEval, summarise } from "./run.ts";
 const seeded = (
   JSON.parse(readFileSync(new URL("../../../../config/settings.json", import.meta.url), "utf8")) as { ai: unknown }
 ).ai;
-const ai = aiSettingsSchema.parse({
-  ...(seeded as Record<string, unknown>),
-  provider: { quick: "anthropic", regular: "anthropic", deep: "anthropic" },
-});
+const ai = aiSettingsSchema.parse(seeded);
 
 describe("the eval set", () => {
   it("has 30 incidents and 10 questions, with unique ids", () => {
@@ -24,7 +21,7 @@ describe("the eval set", () => {
 
   it("scores the reference answers 100% with no leak, on every tier", async () => {
     for (const tier of ["quick", "regular", "deep"] as const) {
-      const report = await runEval(ai, tier, new ReferenceClient("anthropic"));
+      const report = await runEval(ai, tier, new ReferenceClient());
       const s = summarise(report);
       const misses = report.items.filter((i) => i.score < 1 || i.leaks.length);
       expect(misses, JSON.stringify(misses.slice(0, 3))).toEqual([]);

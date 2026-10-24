@@ -1,10 +1,10 @@
 import { z } from "zod";
 import type { TaskKind } from "./models.ts";
 
-// What each task kind must answer (spec §11: outputs validated against schemas). The same schema is sent to Claude as
-// its structured-output format and to Gemini inside the message, and the worker checks every answer against it before
-// anything is filed. Every field is required (null where it may be empty), which both providers handle the same way.
-// Lengths are generous; the database cuts what it stores.
+// What each task kind must answer (spec §11: outputs validated against schemas). The schema is sent to Claude as its
+// structured-output format, and the worker checks every answer against it again before anything is filed. Every field
+// is required (null where it may be empty), as structured outputs expect. Lengths are generous; the database cuts what
+// it stores.
 
 const confidence = z.enum(["low", "medium", "high"]);
 const risk = z.enum(["low", "medium", "high"]);
