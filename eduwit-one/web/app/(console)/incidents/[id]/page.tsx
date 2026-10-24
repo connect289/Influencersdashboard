@@ -200,7 +200,6 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
                 app={i.app}
                 open={open}
                 acknowledged={Boolean(i.acknowledged_at)}
-                back={`/incidents/${i.id}`}
               />
             </CardBody>
           </Card>

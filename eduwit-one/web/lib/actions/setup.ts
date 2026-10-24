@@ -1,5 +1,4 @@
 "use server";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { credentialsFrom, resetVaultCache, vaultSecrets } from "../clients/credentials.ts";
 import { SupabaseOneDb } from "../db.ts";
@@ -24,7 +23,6 @@ export async function saveSecret(_: ActionResult | undefined, form: FormData): P
   const r = await act(
     "ui_secret_put",
     { p_name: p.data.name, p_value: p.data.value.trim() },
-    ["/settings/setup"],
     "Saved to Vault. Press validate to check it.",
   );
   resetVaultCache();
@@ -72,8 +70,6 @@ export async function validateItem(_: ActionResult | undefined, form: FormData):
     log("error", "setup.record_failed", { item: item.id, error: e instanceof Error ? e.message : "error" });
     return { ok: false, error: "The result could not be recorded. Try again." };
   }
-  revalidatePath("/settings/setup");
-  revalidatePath("/");
   return verdict.ok
     ? { ok: true, message: `Validated: ${verdict.detail}` }
     : { ok: false, error: `Not validated: ${verdict.detail}` };

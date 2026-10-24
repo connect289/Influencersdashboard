@@ -19,7 +19,6 @@ export async function saveSetting(_: ActionResult | undefined, form: FormData): 
   return act(
     "ui_settings_put",
     { p_key: p.data.key, p_value: value, p_reason: p.data.reason },
-    ["/settings", `/settings/${p.data.key}`],
     "Saved as a new version.",
   );
 }
@@ -39,12 +38,7 @@ export async function updateCheck(_: ActionResult | undefined, form: FormData): 
   if (!p.success) return invalid(p.error.issues);
   const { id, enabled, reason: why, ...rest } = p.data;
   const patch = { ...rest, ...(enabled ? { enabled: enabled === "on" } : {}) };
-  return act(
-    "ui_check_update",
-    { p_id: id, p_patch: patch, p_reason: why },
-    ["/settings/checks", "/"],
-    "Check updated.",
-  );
+  return act("ui_check_update", { p_id: id, p_patch: patch, p_reason: why }, "Check updated.");
 }
 
 export async function acceptBaseline(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
@@ -52,18 +46,13 @@ export async function acceptBaseline(_: ActionResult | undefined, form: FormData
     .object({ key: z.enum(["lead_intake_md5", "student_leads_columns", "security_definer_views"]) })
     .safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
-  return act(
-    "ui_baseline_accept",
-    { p_key: p.data.key },
-    ["/settings/privileges"],
-    "The current state is the new baseline.",
-  );
+  return act("ui_baseline_accept", { p_key: p.data.key }, "The current state is the new baseline.");
 }
 
 export async function acknowledgePrivilege(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
   const p = z.object({ fn: z.string().min(3).max(300) }).safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
-  return act("ui_privilege_ack", { p_fn: p.data.fn }, ["/settings/privileges"], "Acknowledged.");
+  return act("ui_privilege_ack", { p_fn: p.data.fn }, "Acknowledged.");
 }
 
 export async function putUser(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
@@ -75,12 +64,7 @@ export async function putUser(_: ActionResult | undefined, form: FormData): Prom
     })
     .safeParse({ ...fields(form), active: form.get("active") === "on" ? "on" : "off" });
   if (!p.success) return invalid(p.error.issues);
-  return act(
-    "ui_user_put",
-    { p_email: p.data.email, p_role: p.data.role, p_active: p.data.active === "on" },
-    ["/settings/users"],
-    "Saved.",
-  );
+  return act("ui_user_put", { p_email: p.data.email, p_role: p.data.role, p_active: p.data.active === "on" }, "Saved.");
 }
 
 export async function revokeDevices(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
@@ -89,7 +73,6 @@ export async function revokeDevices(_: ActionResult | undefined, form: FormData)
   return act(
     "ui_devices_revoke",
     { p_user: p.data.user_id },
-    ["/settings/users"],
     "Trusted browsers forgotten; other sessions must sign in again.",
   );
 }
@@ -116,7 +99,6 @@ export async function updateTest(_: ActionResult | undefined, form: FormData): P
       p_patch: { ...(enabled ? { enabled: enabled === "on" } : {}), ...(schedule ? { schedule } : {}) },
       p_reason: why,
     },
-    ["/tests"],
     "Test updated.",
   );
 }
@@ -124,5 +106,5 @@ export async function updateTest(_: ActionResult | undefined, form: FormData): P
 export async function runTest(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
   const p = z.object({ id: z.string().regex(/^T-[A-Z0-9-]+$/) }).safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
-  return act("ui_test_run", { p_id: p.data.id }, ["/tests"], "Requested: the test runner takes it on its next tick.");
+  return act("ui_test_run", { p_id: p.data.id }, "Requested: the test runner takes it on its next tick.");
 }

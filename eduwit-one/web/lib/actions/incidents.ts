@@ -8,12 +8,7 @@ const reason = z.string().trim().min(3, "Give a reason of at least 3 characters.
 export async function acknowledge(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
   const p = z.object({ id }).safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
-  return act(
-    "ui_ack",
-    { p_id: p.data.id },
-    ["/", "/incidents", `/incidents/${p.data.id}`],
-    "Acknowledged: reminders stop.",
-  );
+  return act("ui_ack", { p_id: p.data.id }, "Acknowledged: reminders stop.");
 }
 
 export async function resolve(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
@@ -21,12 +16,7 @@ export async function resolve(_: ActionResult | undefined, form: FormData): Prom
     .object({ id, resolution: z.enum(["fixed", "false_positive", "accepted", "manual"]), note: reason })
     .safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
-  return act(
-    "ui_resolve",
-    { p_id: p.data.id, p_resolution: p.data.resolution, p_note: p.data.note },
-    ["/", "/incidents", `/incidents/${p.data.id}`],
-    "Resolved.",
-  );
+  return act("ui_resolve", { p_id: p.data.id, p_resolution: p.data.resolution, p_note: p.data.note }, "Resolved.");
 }
 
 export async function mute(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
@@ -38,16 +28,14 @@ export async function mute(_: ActionResult | undefined, form: FormData): Promise
       app: z.string().min(1).max(40).optional(),
       minutes: z.coerce.number().int().min(1, "At least a minute.").max(10080, "At most 7 days."),
       reason,
-      back: z.string().startsWith("/").default("/"),
     })
     .safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
-  const { target_type, minutes, back } = p.data;
+  const { target_type, minutes } = p.data;
   const target = target_type === "app" && p.data.app ? p.data.app : p.data.target;
   return act(
     "ui_mute",
     { p_target_type: target_type, p_target: target, p_minutes: minutes, p_reason: p.data.reason },
-    [back, "/settings/maintenance"],
     `Muted for ${minutes} minutes.`,
   );
 }
@@ -55,11 +43,11 @@ export async function mute(_: ActionResult | undefined, form: FormData): Promise
 export async function unmute(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
   const p = z.object({ id }).safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
-  return act("ui_unmute", { p_id: p.data.id }, ["/settings/maintenance", "/incidents"], "Mute ended.");
+  return act("ui_unmute", { p_id: p.data.id }, "Mute ended.");
 }
 
 export async function rerunDeep(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
   const p = z.object({ id }).safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
-  return act("ui_rerun_deep", { p_id: p.data.id }, [`/incidents/${p.data.id}`], "Queued for the deep model.");
+  return act("ui_rerun_deep", { p_id: p.data.id }, "Queued for the deep model.");
 }

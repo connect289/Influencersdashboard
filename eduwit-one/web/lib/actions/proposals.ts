@@ -41,7 +41,6 @@ export async function decide(_: ActionResult | undefined, form: FormData): Promi
       p_change: d.change ?? null,
       p_snooze_days: d.snooze_days ?? null,
     },
-    ["/", "/proposals", `/proposals/${d.id}`],
     done,
   );
 }
@@ -71,7 +70,6 @@ export async function create(_: ActionResult | undefined, form: FormData): Promi
       p_risk: d.risk,
       p_incident_id: d.incident_id ?? null,
     },
-    ["/proposals", ...(d.incident_id ? [`/incidents/${d.incident_id}`] : [])],
     "Proposal created.",
   );
 }

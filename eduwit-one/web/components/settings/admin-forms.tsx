@@ -8,7 +8,6 @@ import { acceptBaseline, acknowledgePrivilege, putUser, revokeDevices } from "@/
 export function MuteForm({ apps }: { apps: Array<[string, string]> }) {
   return (
     <ActionForm action={mute} className="sm:grid-cols-2">
-      <input type="hidden" name="back" value="/settings/maintenance" />
       <Field label="Mute">
         <Select name="target_type" defaultValue="app">
           <option value="app">An app (maintenance window)</option>

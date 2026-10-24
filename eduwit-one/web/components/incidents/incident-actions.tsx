@@ -5,10 +5,10 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field.tsx";
 import { acknowledge, mute, rerunDeep, resolve } from "@/lib/actions/incidents.ts";
 import { create as createProposal } from "@/lib/actions/proposals.ts";
 
-type Props = { id: number; checkId: string; app: string; open: boolean; acknowledged: boolean; back: string };
+type Props = { id: number; checkId: string; app: string; open: boolean; acknowledged: boolean };
 
 /** What a person can do with an incident (spec §12): acknowledge, resolve with a note, mute, re-run triage, propose. */
-export function IncidentActions({ id, checkId, app, open, acknowledged, back }: Props) {
+export function IncidentActions({ id, checkId, app, open, acknowledged }: Props) {
   return (
     <div className="grid gap-4">
       {open && !acknowledged ? (
@@ -42,7 +42,6 @@ export function IncidentActions({ id, checkId, app, open, acknowledged, back }: 
       <details className="rounded-md border border-border p-3">
         <summary className="cursor-pointer text-sm font-medium">Mute</summary>
         <ActionForm action={mute} className="mt-3">
-          <input type="hidden" name="back" value={back} />
           <Field label="What">
             <Select name="target_type" defaultValue="check">
               <option value="check">This check ({checkId})</option>
