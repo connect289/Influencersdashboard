@@ -3,12 +3,13 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
-## 24 Oct 2026 — forms answer before the page refreshes (D-074)
+## 24 Oct 2026 — forms call their action from a submit handler (D-074)
 
-- Server actions no longer revalidate; `ActionForm` shows the answer, then refreshes the page's data. In the
-  click-through, two to four of 18 writes per run lost their answer although the write was audited and the action had
-  resolved: the answer was committed together with the revalidated page tree, and that commit sometimes never came.
-- The mute form's `back` field, which only fed the revalidation, is gone.
+- In the click-through, two to four of 18 writes per run lost their answer although the write was audited and the
+  action had resolved. `ActionForm` now calls the server action from its submit handler and keeps the result in plain
+  state instead of a form action with useActionState, clears the form on success, and refreshes the page's data after
+  the answer. Server actions no longer revalidate (every console page is dynamic); the mute form's `back` field, which
+  only fed the revalidation, is gone.
 
 ## 24 Oct 2026 — correction: the live refresh was not why answers went missing
 
