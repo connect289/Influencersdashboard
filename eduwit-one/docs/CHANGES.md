@@ -3,6 +3,13 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 7: the hand-over documents
+
+- `RUNBOOK.md`: what each check means and what to do when one fires; the fixes (each one's trigger, action, rights,
+  rollback, the window, limits, verification, how to judge dry runs); rolling back each migration; rotating each
+  secret; adding a check or a test. `RUNBOOK-database.md` applies every migration and rolls back between fingerprints.
+- `WALKTHROUGH.md`: a 30-minute checklist to follow alone, and what has to happen once before it.
+
 ## 24 Oct 2026 — phase 7: the fixes in the app and on the pages
 
 - The minute tick carries out the runs the database queues for the app (`lib/fixes`): FIX-N8N-RETRY retries each

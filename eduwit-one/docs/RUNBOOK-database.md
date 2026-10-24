@@ -55,9 +55,10 @@ under D-010.
 Within 24 hours of the dump, one file at a time:
 
 ```sh
-scripts/db/apply.sh 0001_schema_and_roles.sql 0002_core_tables.sql 0003_functions_core.sql 0003_functions_runner.sql \
-  0004_events_union.sql 0005_cron.sql 0006_seed_checks.sql 0007_seed_settings.sql 0008_app_api.sql
+scripts/db/apply.sh $(cd supabase/migrations && ls 0*.sql | grep -v '\.rollback\.sql$' | sort)
 ```
+
+That is every migration in order, 0001 to 0019 today; the rehearsal vouches for the same set.
 
 Each file runs in one transaction between two fingerprints of everything outside schema one; if a file changed any
 app object, it is rolled back whole and the run stops with "refused: this migration changed an object outside schema
@@ -66,8 +67,10 @@ jobs. The report must have no key ending in `_error`, and `cron` must list `one-
 
 ## Undo
 
-Each migration has a `.rollback.sql`. To remove everything from a database, run the rollbacks newest first with the
-same `with-db.ts ... psql -1 -f` line as in step 2. They touch only schema `one`, its two roles and its two cron jobs.
+Each migration has a `.rollback.sql`; `RUNBOOK.md` → "Rolling back a migration" says what each one removes and what to
+check first. To remove everything from a database, run the rollbacks newest first with the same `with-db.ts ... psql
+-1 -f` line as in step 2 (on production between `scripts/db/fp-before.sql` and `fp-after.sql`, as the runbook shows).
+They touch only schema `one`, its two roles, its two cron jobs and the fixer's grants.
 
 `0006_seed_checks.rollback.sql` deletes incidents, proposals and actions, which are kept forever (spec §13), so it
 refuses while any exist. On production, export them first (`pg_dump -n one`), then run it with

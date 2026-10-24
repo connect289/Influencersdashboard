@@ -9,7 +9,8 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
 | --- | --- | --- | --- |
 | `one-tick` | pg_cron, `call one.tick_job()` | minute | Heartbeat `one:tick`; records any check or copy killed last time as an error; due SQL checks (one commit each); escalation, digest; calls the app (the tick counts as finished here); event copy; checks killed earlier, last (D-056) |
 | `one-nightly` | pg_cron, `select one.nightly()` | 02:30 IST | Privilege audit, baselines, retention, proposal expiry, brief task |
-| `/api/internal/tick` | the app, called by `one-tick` | minute | HTTP probes (app health, Vercel, Chatwoot, n8n, WhatsApp), heartbeat `one:app`, alert sender |
+| `/api/internal/tick` | the app, called by `one-tick` | minute | HTTP probes (app health, Vercel, Chatwoot, n8n, WhatsApp), heartbeat `one:app`, alert sender, the fix runs queued for the app (n8n retries, the Spark check), synthetic tests |
+| fixes | in `one-tick`, before the app call | minute | Verifies earlier runs, then tries each fix on each open incident of its checks (dry run while off or in the window) |
 | `/api/internal/ai/run` | the app, called by `one-tick` while an AI task is due | minute | Claims AI tasks for up to four minutes, calls the model of each task's tier, files the answers (D-075) |
 | `/api/watchdog` | the app, called by UptimeRobot | 5 min | `{"ok":true}` while the last finished `one-tick` is under 5 minutes old and no alert email has waited 10 minutes |
 
@@ -74,9 +75,174 @@ Every finding that needs a person is a proposal: from a check, a test, the AI (p
 Approve, reject with a note, or snooze (it comes back to the queue when the snooze ends). Every fix or config proposal,
 and any that touches money, allocation, live switches, partner mappings, prompts, settings or security, needs the
 owner.
-Approving records the decision; the change itself is made in the app named under "where" (Eduwit One changes no app),
-or, from phase 7, by a catalogued fix. The builder's twelve proposals (D-063) and the six for the blocked tests (0017,
-D-071) wait for a decision and never expire.
+Approving records the decision; the change itself is made in the app named under "where" (Eduwit One changes no app).
+The one exception is a proposal a fix opened itself (source `check`): approving it runs that fix once, under your
+session, on the rows it lists that still qualify, and the page shows the check 10 minutes later (see Fixes). The
+builder's twelve proposals (D-063) and the six for the blocked tests (0017, D-071) wait for a decision and never
+expire.
+
+## Checks: what each one means
+
+`docs/CHECKS.md` lists all 88 checks, generated from their sources in `supabase/checks/*.sql`: each one's id, app,
+severity, cadence, what makes it fail and, where one exists, its fix. The same text is on every incident page
+("The check"), with the rule's SQL. Ids read `<APP>-<n>`: WITTY, B2B, B2C, WEB, INF (influencer portal), CAT
+(catalogue), INT (integrity across apps), PLAT (Supabase and pg_cron), ONE (Eduwit One itself), HB (heartbeats: a
+component that stopped reporting).
+
+When one fires:
+
+1. Open the incident. "Evidence" is what the check saw on its last run (`status`, `value`, `error`). A status of
+   `error` or `source_missing` means the check could not run (its SQL raised, or a table or function it reads is
+   gone): look at the error, not at the app. Since D-042 that counts as failing, so a renamed table cannot go quiet.
+2. Read the AI's summary and likely cause if the AI is on; they are advice. The check decides what is broken.
+3. Look at the app's own screen (the Apps page links each app's admin) and its recent events on the incident page.
+4. If a fix is listed for the check, its dry runs say what it would have done; switched on, it may already have acted
+   (Actions page). An incident whose fix did not hold carries the tag `fix_failed` and went up a severity level.
+5. Acknowledge to stop the reminders; resolve with a note once it is fixed (resolution `fixed`), or let three good
+   runs resolve it as recovered. "False positive" and "accepted" are for a check that is wrong or a state you accept;
+   say why, and consider changing the check (below).
+
+Per app, the first place to look: Witty — the n8n workflow's executions and Witty's `w2_health_alerts()`; B2B — its
+command centre and `b2b.health_check()`; Spark — its system health page and its inbox and outbox; website —
+`/api/health` and `public.web_health()`; influencer portal — `/api/health` and `inf.health()`; catalogue — the
+catalogue's change log; PLAT — Supabase's logs and `cron.job_run_details`; ONE — this runbook's Alerts section.
+
+## Fixes
+
+Eleven auto-fixes (spec §8, `one.fixes`; Settings → Fixes shows each one with its rights, history and switch). Each is
+`one.fix_<id>(incident, dry_run)` over one shell (D-079): the switch in Settings → Fixes, the two-week observation
+window, a cooldown, a rate limit, an action row before and after, and a check 2 minutes later.
+
+| Fix | Tried on | What it does | Rights it needs | Rollback |
+| --- | --- | --- | --- | --- |
+| FIX-OUTBOX-W2 | WITTY-01 `outbox_failed` | Lists failed Witty outbox rows that could be sent again and **proposes** a Witty change: Witty has no function that sends a failed row again (D-080) | none | none |
+| FIX-CACHE-W2 | WITTY-01 `cache_expired` | Lists expired prompt caches and **proposes** a look at the Witty workflow: n8n's API cannot start its Cache Manager (D-080) | none | none |
+| FIX-N8N-RETRY | WITTY-02 executions in error | The app retries each failed execution once through the n8n API | n8n API key | none; Witty is idempotent by message id |
+| FIX-OUTBOX-B2B | B2B-01 dead or waiting deliveries | Lists dead and failed deliveries of 7 days (not test ones) and opens a proposal; **your approval** runs B2B's `b2b.outbox_retry` for each, under your session (you must be a B2B admin) | EXECUTE on `b2b.outbox_retry` | an admin sets them back to dead in the B2B CRM |
+| FIX-CURSOR-B2C | B2B-01 sync cursor over 600 s | `b2b.b2c_sync_tick(200)` once; if B2B-01 still fails 2 minutes later, the incident is alerted again and the fix stops for it | EXECUTE on `b2b.b2c_sync_tick` | none |
+| FIX-WEBHOOK-REKICK | B2B-06 | The app checks that Spark's `/v1/handoffs` answers, then `b2b.outbox_kick()`; if Spark does not answer, nothing, and the P1 stays | EXECUTE on `b2b.outbox_kick` | none |
+| FIX-INBOX-RETRY | B2C-02 | `b2c.inbox_retry(50)` | EXECUTE on it | none |
+| FIX-OUTBOX-B2C | B2C-03 | `b2c.outbox_unstick()`, then Spark's urgent sync | EXECUTE on both | none |
+| FIX-OUTBOX-WEB | WEB-01 dead or old outbox rows | `public.web_outbox_retry` for dead rows with attempts left (not test ones), then the website's outbox worker | EXECUTE on both | none |
+| FIX-CATALOG-POLL | WEB-01 poll older than 600 s, CAT-02 | `public.web_catalog_poll()` | EXECUTE on it | none |
+| FIX-CACHE-B2C | CAT-01 | `b2c.programme_cache_refresh(true)` | EXECUTE on it | none |
+
+How they behave:
+
+- **Who acts.** Every app call a fix makes runs as `eduwit_one_fixer`, which can execute exactly the functions in
+  the table and nothing else: no table, no RLS bypass, no login. Postgres enforces it, and the migration guards refuse
+  a grant to it on anything else (`student_leads`, allocations, money, switches, partners, mappings, prompts, settings).
+- **Off and the window.** All ship off. For the first 14 days (`fixes.observation_days`) from the first tick that
+  runs them (on production, the first after the apply; the banner on Settings → Fixes shows the dates), and whenever
+  a fix is off, it only records a **dry run**: what it would have done, on which rows. A fix can be switched on only
+  after the window and only once it has a dry run of its own; the owner does it on Settings → Fixes with a reason.
+- **Limits.** One run per fix per `cooldown_min`. More rows than `per_tick`: it does nothing and opens a (high-risk)
+  proposal; approving runs it once on those rows. Test rows (Witty's test phones, a test flag in a B2B or website
+  payload) are never picked. A fix works only from what its check observed: none runs on an incident whose check
+  could not run.
+- **Held or not.** 2 minutes after a real run (at most its cooldown) the run is verified. If its check fails again
+  within the cooldown while the fix's condition still holds, the incident goes up one level (P3 to P2, P2 to P1; a P1
+  is alerted again), the tag `fix_failed` is added, and the fix does not retry within the cooldown. Actions shows
+  "verified: held" or "did not hold".
+- **Dry run now.** Any engineer can press "Dry run now" on Settings → Fixes or on the incident page to see what a fix
+  would do; it changes nothing and does not hold back the tick's own runs.
+- **Turning one off** takes effect at the next tick. To stop all of them at once, switch each off (owner); a dry run
+  still records what they would do.
+- **Reading the evidence before switching one on.** On Settings → Fixes, each fix's dry runs list the incident, the
+  rows (ids only) and what it would have done. Switch on a fix whose dry runs you would have agreed with every time;
+  leave off one that would have acted where a person should have looked first.
+
+## Rolling back a migration
+
+Every migration in `supabase/migrations/` has a `.rollback.sql`. Roll back newest first: a migration's rollback
+assumes every later one is already rolled back. Each rollback touches only schema `one`, its two roles, its two cron
+jobs and the fixer's grants. Run it from a machine with database access (`RUNBOOK-database.md` §1), between the same
+two catalogue fingerprints the apply uses, so a rollback that touched an app object is undone whole:
+
+```sh
+node scripts/db/with-db.ts ONE_PROD_DB_URL psql -X -q -1 -v ON_ERROR_STOP=1 \
+  -f scripts/db/fp-before.sql -f supabase/migrations/<file>.rollback.sql -f scripts/db/fp-after.sql
+```
+
+Take a dump first (`scripts/db/dump.sh`). History (incidents, actions, proposals, runs, audit) is kept by every
+rollback except 0002's and 0006's, which say so.
+
+| Migration | Its rollback | Before you run it |
+| --- | --- | --- |
+| 0019 fixes | Restores 0018's tick step and brief numbers and 0011's proposal decision verbatim; drops the fix functions, the fixer's functions and its grants on the apps, the action columns and the catalogue; revokes the migrating user's membership in the fixer role | Action rows and the fixes' proposals stay. The fixes stop at once |
+| 0018 AI worker | Restores the tick's app call, delivery claim and verdict, `proposal_sensitive`, Marketing and Analytics reads; drops the worker's API; suppresses brief emails still queued | Roll back 0019 first. Tasks, calls, briefs stay |
+| 0017 test proposals | Removes the undecided ones | — |
+| 0016 test seams | Drops the seams and the purge | Test leads still in the apps are no longer purged: purge them first or note them |
+| 0015 tests | Removes tests (and their checks) that never ran | A test that ran stays, with its runs |
+| 0014 test runner | Drops the runner and its columns; the Tests page read goes back to 0010's | — |
+| 0013 builder proposals | Removes the undecided ones | — |
+| 0012 app panels | Drops the panels, Marketing and Analytics | — |
+| 0011 page writes | Drops the page writes | Secrets saved in Vault stay (they are the owner's) |
+| 0010 page reads | Drops the reads, pins and saved views | — |
+| 0009 sign-in | Drops sign-in functions and tables | Nobody can sign in afterwards |
+| 0008 app API | Drops the app's functions | The app's tick and alert sender stop working |
+| 0007 settings seed | Removes seeded settings; values a person changed stay | — |
+| 0006 checks seed | Removes checks, their state and results, baselines | **Refuses** while incidents, proposals, actions or deliveries exist: export schema one (`pg_dump -n one`), then run it with `PGOPTIONS="-c one.rollback_discards_history=on"` |
+| 0005 cron | Unschedules `one-tick` and `one-nightly` | Monitoring stops; the watchdog pages within 10 minutes |
+| 0004 event copy | Drops the copy functions | — |
+| 0003 runner, then 0003 core | Drop the tick and core functions | Runner first |
+| 0002 core tables | Drops every table of schema one | All of Eduwit One's data is lost: export first |
+| 0001 schema and roles | Drops both roles (and their grants) and schema one | Only when schema one is empty |
+
+To remove Eduwit One completely, run them all newest first; `scripts/db/leftovers.sql` must then print 0.
+
+## Rotating a secret
+
+Paste a new value on Settings → Setup (owner) and press Validate; the app reads Vault every 60 seconds, so it is in use
+within a minute. An environment variable of the same purpose overrides Vault (D-059). Then revoke the old value where
+it was issued. Never paste a secret into a chat, a commit or a log; if one leaks, rotate it at once.
+
+| Secret (Vault name / env) | Issued by | To rotate |
+| --- | --- | --- |
+| `one_internal_key` / `ONE_INTERNAL_KEY` | Eduwit One (random, 32 bytes) | The database's call to the app and the app's check use the same value, and it signs the idle cookie. Generate one (`openssl rand -hex 32`); in the Supabase SQL editor as the owner run `select vault.update_secret(id, '<new>') from vault.secrets where name = 'one_internal_key'`; set the same value in Vercel → eduwit-one → env `ONE_INTERNAL_KEY` and redeploy, within a minute of each other (between the two the tick's app call is refused). Everyone signs in again |
+| `ONE_SUPABASE_SERVICE_KEY`, `ONE_SUPABASE_ANON_KEY` | Supabase (shared project) | Prefer a secret key made for Eduwit One alone (Supabase → Project settings → API keys → new secret key): set it in Vercel, redeploy, then delete the old one. Never roll the project's JWT secret for this: it signs out and breaks all five apps |
+| `one_n8n_key` / `ONE_N8N_API_KEY` | n8n → Settings → n8n API | Create a new key, paste (`n8n_api`), validate, delete the old one in n8n |
+| `one_chatwoot_token` | Chatwoot → profile → access token | Reset the token of the user Eduwit One reads as, paste (`chatwoot`), validate |
+| `one_vercel_token` | Vercel → Account settings → Tokens | New read token for the eduwit team, paste (`vercel`), validate, delete the old |
+| `one_b2b_read_key` | B2B CRM → Settings → API keys | New referrals-only key, paste (`b2b_app`), validate, revoke the old |
+| `one_whatsapp_token`, `one_meta_token` | Meta Business → System users | Generate a new token with the same scopes, paste (`whatsapp`, `meta`), validate, revoke the old |
+| `one_email_key` | Resend → API keys | New sending key for eduwit.in, paste (`email`), validate (sends a test email), delete the old |
+| `one_uptimerobot_key` | UptimeRobot → Integrations & API | Reset the read-only key, paste (`uptimerobot`) |
+| `one_anthropic_key` / `ONE_ANTHROPIC_API_KEY` | Claude Console (the plan-linked organisation) | New key, paste (`ai_key`), validate, disable the old in the Console |
+| `one_b2b_intake_key` | B2B CRM → Settings → API keys | New intake-only key, paste (`test_b2b_intake_key`), validate, revoke the old |
+| `one_test_runner_password`, `one_test_runner_totp` | Supabase Auth; the B2B CRM's two-factor enrolment | Reset the test runner user's password; to change the factor, unenrol and enrol it again in B2B and paste the new base32 secret (`test_runner_user`); validate |
+| `one_test_partner_secret` | B2B CRM → the test partner | Regenerate its inbound secret, paste (`test_partner`), validate |
+| `one_test_wa_token`, `one_test_mailbox_key` | Meta; the mailbox provider | New token or key, paste, validate |
+| `ONE_PROD_DB_URL`, `ONE_STAGING_DB_URL` | Supabase database password | Only in your shell (`RUNBOOK-database.md`). Resetting the database password also breaks n8n's and the apps' Postgres connections: coordinate it with them |
+
+`b2c_internal_key` and `web_internal_key` are Spark's and the website's; Eduwit One only reads that they exist.
+
+## Adding a check or a test
+
+**A check.**
+
+1. Add a block to the app's file in `supabase/checks/` (`-- check: <ID>`, then `app`, `kind` (`sql` or `rpc` for SQL the database runs; `http` for a probe the app runs), `severity`, `cadence_s`, optional `open_after`, `resolve_after`, `fix`,
+   `tags`, `disabled`, `search_path`, then `title` and `description`, then the SQL). The SQL is one read-only statement
+   returning one row `(ok boolean, value jsonb)`, with counts and ids only, never a phone, email or name. Put a
+   threshold in `config/settings.json` → `thresholds` and read it with `one.threshold('<key>')`.
+2. `node scripts/db/gen-checks.ts` regenerates `0006_seed_checks.sql` and `docs/CHECKS.md` (`node scripts/db/gen-seed.ts`
+   regenerates 0007 for a new threshold). Try it against production read-only: `node scripts/db/try-checks.ts --ids=<ID>`
+   prints a statement to run in a read-only transaction.
+3. `ONE_UPDATE_FINGERPRINT=1 scripts/db/local-test.sh` (commit the new `supabase/tests/fingerprint.expected`), then
+   rehearse on staging and apply `0006_seed_checks.sql` again (`RUNBOOK-database.md`): re-applying it upserts every
+   check by id and keeps a person's edits to switches, severity and cadence.
+4. An `http` check also needs a probe in `web/lib/checks/probes/` that reports its result; deploy the app.
+
+**A test.**
+
+1. Describe it in `config/tests.json` (id, app, seam, severity, Setup items it needs, steps with timeouts) and run
+   `node scripts/db/gen-tests.ts` (regenerates `0015_seed_tests.sql` and `docs/TESTS.md`).
+2. Write its journey in `web/lib/tests/journeys/<app>.ts`; it may act only through the kinds of `one.test_act` and
+   read through `one.test_fact` its test is allowed (0016, D-069). A new kind is a migration.
+3. Only test identities (phones `9100009…` handed out by the database): every row it creates must be a test row the
+   app's own delete can remove, and the purge must know how (`web/lib/tests/purge.ts`).
+4. Unit-test the journey (`web/lib/tests/journeys/journeys.test.ts`), run the local test and the click-through, then
+   rehearse, apply and deploy. It switches on by itself when its Setup items are validated.
 
 ## Synthetic tests
 
