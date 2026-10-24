@@ -71,7 +71,8 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | --- | --- |
 | All tests in §10 implemented and scheduled | 7 of 11 have journeys and schedules (D-068 to D-072); T-WEB-ENQUIRY, T-WEB-ADVISOR, T-WEB-CATALOG and T-INFLUENCER are blocked on app changes, each with a proposal (0017) |
 | Each test passes once end to end on the test identities | not yet: no run has happened against the real apps. The seams pass on the local cluster and each journey passes against a simulated app in unit tests; a real run waits for the phase 1 apply and the Setup items (test identities, test runner login); T-ALERT needs only the email key |
-| Purge removes every artefact after the window | built through each app's delete path (D-071); partner-routed test leads are kept until B2B accepts "test" for them, and the rows without a foreign key to the lead stay, listed in D-071 |
+| Purge removes every artefact after the window | partly, by design: each run's test leads are soft-deleted through Spark's recycle bin and B2B's deletion with reason "test" (D-071). Nothing is hard-deleted, because B2B's and Spark's rows have no foreign key to the lead; partner-routed test leads are kept until B2B accepts "test" for them; what stays is listed in D-071. A failed purge is retried and ONE-PURGE reports it |
+| Phase review | done: `docs/reviews/phase-5.md` (1 blocker, 5 majors, 9 minors), all resolved |
 | No test row leaks into any app's analytics | each lead test checks B2B's command centre or Spark's analytics against a direct count of real rows; Witty's harness leads are checked as is_test; Eduwit One's own metrics leave test rows out (D-073). Witty has no lead count of its own to check; the website's waits with its tests |
 
 ## Phases 6–7

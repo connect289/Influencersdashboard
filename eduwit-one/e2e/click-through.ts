@@ -210,6 +210,13 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
   page.on("pageerror", onError);
   page.on("response", onResponse);
   page.on("requestfailed", onFailed);
+  // React attaches its props to a DOM node when it hydrates it: was the button live when it was clicked?
+  const hydrated = await f
+    .locator("button[type=submit]")
+    .first()
+    .evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactProps")))
+    .catch(() => false);
+  seen.push(hydrated ? "clicked after hydration" : "clicked before hydration");
   await f.locator("button[type=submit]").first().click();
   // The form answers in place, or leaves the page: because the state it acted on changed (an acknowledged incident has
   // no Acknowledge form), or because it was sent before the page hydrated and the page reloaded. Either way the audit
