@@ -78,6 +78,11 @@ select pg_temp.ok((select trigger = 'manual' and requested_by = 'eng@eduwit.in' 
 update one.test_runs set lease_until = now() - interval '1 second' where id = :r3;
 set role service_role;
 select pg_temp.ok((select (one.tests_state('runner-b', 90) -> 'runs' -> 0 ->> 'id')::bigint = :r3), 'an expired lease passes to the next runner');
+select one.test_run_save(:r3, 'runner-b', 0, '[]', '{}', null);
+reset role;
+select pg_temp.ok((select lease_until is null from one.test_runs where id = :r3), 'a waiting run is saved with its lease released');
+set role service_role;
+select pg_temp.ok((select (one.tests_state('runner-c', 90) -> 'runs' -> 0 ->> 'id')::bigint = :r3), 'so the next invocation takes it at once');
 reset role;
 update one.test_runs set started_at = now() - interval '2 hours', lease_until = now() - interval '1 second' where id = :r3;
 set role service_role;

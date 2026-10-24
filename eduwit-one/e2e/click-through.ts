@@ -159,6 +159,23 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
     else await field.fill(value);
   }
   const handle = await f.elementHandle();
+  // What the browser saw during this write, reported when it fails: errors, and the server action's own answer.
+  const seen: string[] = [];
+  const onConsole = (m: { type(): string; text(): string }) => {
+    if (m.type() === "error" || m.type() === "warning") seen.push(`console ${m.type()}: ${m.text().slice(0, 160)}`);
+  };
+  const onError = (e: Error) => seen.push(`pageerror: ${e.message.slice(0, 160)}`);
+  const onResponse = (r: { request(): { method(): string; headers(): Record<string, string> }; status(): number }) => {
+    if (r.request().method() === "POST" && r.request().headers()["next-action"])
+      seen.push(`action answered ${r.status()}`);
+  };
+  const onFailed = (r: { method(): string; failure(): { errorText: string } | null }) => {
+    if (r.method() === "POST") seen.push(`POST failed: ${r.failure()?.errorText ?? "?"}`);
+  };
+  page.on("console", onConsole);
+  page.on("pageerror", onError);
+  page.on("response", onResponse);
+  page.on("requestfailed", onFailed);
   await f.locator("button[type=submit]").first().click();
   // The form answers in place, or leaves the page: because the state it acted on changed (an acknowledged incident has
   // no Acknowledge form), or because it was sent before the page hydrated and the page reloaded. Either way the audit
@@ -186,8 +203,13 @@ async function writeIn(page: Page, who: Who, what: string, form: string, fill: R
     await page.screenshot({ path: shot, fullPage: true }).catch(() => undefined);
     message += ` (${shot}; form now: ${((await f.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").slice(0, 160)})`;
   }
+  page.off("console", onConsole);
+  page.off("pageerror", onError);
+  page.off("response", onResponse);
+  page.off("requestfailed", onFailed);
   // Waits up to 120 s so a slow answer is told apart from none; an answer after 30 s still fails.
   const took = (Date.now() - clicked) / 1000;
+  if (!ok) message += ` {${seen.join("; ") || "no action request seen"}}`;
   if (ok && took > 30) {
     ok = false;
     message = `slow answer: ${message}`;

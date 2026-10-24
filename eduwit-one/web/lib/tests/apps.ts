@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { z } from "zod";
 import type { Credentials } from "../clients/credentials.ts";
-import { DEFAULT_POLICY, fetchJson, type HttpPolicy } from "../http.ts";
+import { DEFAULT_POLICY, fetchJson, HttpError, type HttpPolicy } from "../http.ts";
 import type { Settings } from "../state.ts";
 import { totp } from "./totp.ts";
 import type { Identities } from "./types.ts";
@@ -17,6 +17,8 @@ const ONCE: HttpPolicy = { ...DEFAULT_POLICY, retries: 0, timeoutMs: 10_000 };
 export type IntakeResult = { status: number; leadId: number; isTest: boolean; action: string; routing: string | null };
 
 export interface B2bApi {
+  /** Whether partner events can be signed (the test partner's secret is set). */
+  readonly canSign: boolean;
   /** POST /v1/leads. A repeated idempotency key returns the stored answer, so this one may retry. */
   intake(body: Record<string, unknown>, idempotencyKey: string): Promise<IntakeResult>;
   /** POST /v1/partners/{slug}/events, signed with the test partner's inbound secret. */
@@ -26,6 +28,8 @@ export interface B2bApi {
 export interface RunnerApi {
   /** An app function called as the test runner login, in the app's schema. */
   rpc(schema: "b2b" | "b2c", fn: string, args: Record<string, unknown>): Promise<unknown>;
+  /** Ends the session this pass signed in with, if any. */
+  signOut(): Promise<void>;
 }
 
 export interface Harness {
@@ -38,6 +42,11 @@ export interface Harness {
 export interface WaSender {
   /** A text from the test number to Witty's number. */
   send(text: string): Promise<{ id: string }>;
+  /**
+   * The numbers WhatsApp itself gives for the sender (the test number's id) and for Witty's own number id
+   * (settings.whatsapp.phone_ids.witty), digits only: a run sends only when they are the test number and Witty's.
+   */
+  numbers(): Promise<{ sender: string | null; witty: string | null }>;
 }
 
 export interface ChatwootReader {
@@ -70,6 +79,50 @@ export class RealB2bApi implements B2bApi {
     this.base = base;
     this.intakeKey = intakeKey;
     this.partnerSecret = partnerSecret;
+  }
+
+  get canSign(): boolean {
+    return this.partnerSecret !== null;
+  }
+
+  /** The status of a call B2B refuses before it stores anything, or 200 when it unexpectedly accepts it. */
+  private async refusal(path: string, headers: Record<string, string>, body: Record<string, unknown>): Promise<number> {
+    try {
+      return (await fetchJson("test_b2b", `${this.base}${path}`, { method: "POST", headers, body }, ONCE)).status;
+    } catch (e) {
+      if (e instanceof HttpError && e.status !== undefined) return e.status;
+      throw e;
+    }
+  }
+
+  /**
+   * Setup check of the intake key, writing nothing: B2B checks the key before the body, so an empty body answers 400
+   * with a good key and 401 with a bad one.
+   */
+  async checkKey(): Promise<number> {
+    return this.refusal(
+      "/v1/leads",
+      { authorization: `Bearer ${this.intakeKey}`, "idempotency-key": "eduwit-one-setup-check" },
+      {},
+    );
+  }
+
+  /**
+   * Setup check of the partner secret, writing nothing: B2B checks the signature before it reads the event, so a signed
+   * event without an event_id answers 400 with the right secret, 401 with a wrong one and 404 for an unknown partner.
+   */
+  async checkPartner(slug: string, nowMs: number): Promise<number> {
+    if (!this.partnerSecret) return 0;
+    const ts = String(Math.floor(nowMs / 1000));
+    const event = { type: "contacted" };
+    const signature = createHmac("sha256", this.partnerSecret)
+      .update(`${ts}.${JSON.stringify(event)}`)
+      .digest("hex");
+    return this.refusal(
+      `/v1/partners/${encodeURIComponent(slug)}/events`,
+      { "x-eduwit-timestamp": ts, "x-eduwit-signature": `sha256=${signature}` },
+      event,
+    );
   }
 
   async intake(body: Record<string, unknown>, idempotencyKey: string): Promise<IntakeResult> {
@@ -125,8 +178,9 @@ export function jwtClaim(token: string, claim: string): unknown {
 
 /**
  * The test runner login (D-070). Signs in with the password, then proves the TOTP factor, so the session is aal2 as the
- * B2B CRM's admin functions require; the session is kept until two minutes before it expires. The password and the
- * TOTP secret come from Vault and are never logged.
+ * B2B CRM's admin functions require. One instance serves one pass: it signs in on its first call and the pass signs it
+ * out at its end, so no session outlives the invocation. The password and the TOTP secret come from Vault and are never
+ * logged.
  */
 export class RealRunnerApi implements RunnerApi {
   private readonly url: string;
@@ -216,6 +270,18 @@ export class RealRunnerApi implements RunnerApi {
     );
     return r.json;
   }
+
+  async signOut(): Promise<void> {
+    const session = this.session;
+    this.session = undefined;
+    if (!session) return;
+    await fetchJson(
+      "test_runner_auth",
+      `${this.url}/auth/v1/logout?scope=local`,
+      { method: "POST", headers: { apikey: this.anonKey, authorization: `Bearer ${session.token}` }, body: {} },
+      ONCE,
+    ).catch(() => undefined);
+  }
 }
 
 const workflowSchema = z.object({ active: z.boolean() });
@@ -275,17 +341,41 @@ export class RealHarness implements Harness {
 
 const waSentSchema = z.object({ messages: z.array(z.object({ id: z.string() })).min(1) });
 
+const phoneNumberSchema = z.object({ display_phone_number: z.string().nullish() });
+
 export class RealWaSender implements WaSender {
   private readonly graphBase: string;
   private readonly token: string;
   private readonly fromPhoneId: string;
   private readonly to: string;
+  private readonly witty: { phoneId: string; token: string } | null;
 
-  constructor(graphBase: string, token: string, fromPhoneId: string, to: string) {
+  constructor(
+    graphBase: string,
+    token: string,
+    route: { fromPhoneId: string; to: string; witty: { phoneId: string; token: string } | null },
+  ) {
     this.graphBase = graphBase;
     this.token = token;
-    this.fromPhoneId = fromPhoneId;
-    this.to = to;
+    this.fromPhoneId = route.fromPhoneId;
+    this.to = route.to;
+    this.witty = route.witty;
+  }
+
+  private async number(phoneId: string, token: string): Promise<string | null> {
+    const q = new URLSearchParams({ fields: "display_phone_number" });
+    const { json } = await fetchJson("test_whatsapp", `${this.graphBase}/${encodeURIComponent(phoneId)}?${q}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const n = phoneNumberSchema.parse(json).display_phone_number;
+    return n ? n.replace(/\D/g, "") : null;
+  }
+
+  async numbers(): Promise<{ sender: string | null; witty: string | null }> {
+    return {
+      sender: await this.number(this.fromPhoneId, this.token),
+      witty: this.witty ? await this.number(this.witty.phoneId, this.witty.token) : null,
+    };
   }
 
   async send(text: string): Promise<{ id: string }> {
@@ -369,15 +459,34 @@ export function testAppsFor(
         : null,
     wa:
       credentials.testWhatsapp && identities.whatsapp_phone_number_id && identities.witty_number
-        ? new RealWaSender(
-            settings.vendors.graph_api,
-            credentials.testWhatsapp,
-            identities.whatsapp_phone_number_id,
-            identities.witty_number,
-          )
+        ? new RealWaSender(settings.vendors.graph_api, credentials.testWhatsapp, {
+            fromPhoneId: identities.whatsapp_phone_number_id,
+            to: identities.witty_number,
+            witty:
+              settings.whatsapp.phone_ids?.witty && credentials.whatsapp
+                ? { phoneId: settings.whatsapp.phone_ids.witty, token: credentials.whatsapp }
+                : null,
+          })
         : null,
     chatwoot: credentials.chatwoot
       ? new RealChatwootReader(settings.hosts.chatwoot, credentials.chatwoot, settings.chatwoot.account_id)
       : null,
   };
+}
+
+/** Why the test WhatsApp route is not safe to send on, or null: WhatsApp's own numbers must be the test identities. */
+export async function waRouteProblem(
+  wa: WaSender,
+  identities: Pick<Identities, "whatsapp_number" | "witty_number">,
+): Promise<string | null> {
+  const digits = (v: string | null) => (v ?? "").replace(/\D/g, "");
+  const n = await wa.numbers();
+  if (!n.sender || n.sender !== digits(identities.whatsapp_number)) {
+    return "WhatsApp does not give the sender id the test number (test_identities.whatsapp_number)";
+  }
+  if (!n.witty) return "Witty's own number cannot be read (settings.whatsapp.phone_ids.witty and the WhatsApp token)";
+  if (n.witty !== digits(identities.witty_number)) {
+    return "test_identities.witty_number is not Witty's own number, as WhatsApp gives it";
+  }
+  return null;
 }

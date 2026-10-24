@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type TestDef, Unsafe } from "../types.ts";
+import { Failed, type TestDef, Unsafe } from "../types.ts";
 import { allocations, apps, leadGuard, leadOf, leadStored, need, postTestLead, stepAge } from "./common.ts";
 import type { JourneyIo } from "./io.ts";
 
@@ -30,7 +30,7 @@ export const tB2bIntake: TestDef<JourneyIo> = {
       timeoutS: 60,
       until: async (c) => {
         const a = await allocations(c);
-        if (a.length > 0) throw new Error(`B2B routed the test lead by itself (${a[0]?.destination_type ?? "?"})`);
+        if (a.length > 0) throw new Failed(`B2B routed the test lead by itself (${a[0]?.destination_type ?? "?"})`);
         return stepAge(c) >= HELD_AFTER_S
           ? { done: true, detail: `no allocation after ${HELD_AFTER_S} s` }
           : { done: false, detail: "watching the router" };
@@ -40,6 +40,8 @@ export const tB2bIntake: TestDef<JourneyIo> = {
       key: "no_leak",
       title: "B2B's command centre does not count it",
       timeoutS: 60,
+      // The command centre also returns recent events with student names, which the parse drops: it is read once per
+      // run (a poll repeats only after an error), between two direct counts of real leads.
       until: async (c) => {
         const count = async () =>
           Number((await c.io.seams.fact(c.run.id, "b2b.real_leads_today")).leads_today ?? Number.NaN);
@@ -49,11 +51,17 @@ export const tB2bIntake: TestDef<JourneyIo> = {
         ).kpis.leads_today;
         const after = await count();
         if (shown > after) {
-          throw new Error(`the command centre shows ${shown} leads today, real leads are ${after}: test leads leak in`);
+          throw new Failed(
+            `the command centre shows ${shown} leads today, real leads are ${after}: test leads leak in`,
+          );
         }
-        return shown >= before
-          ? { done: true, detail: `${shown} real leads today, as counted directly` }
-          : { done: false, detail: `the command centre shows ${shown}, real leads ${before}` };
+        return {
+          done: true,
+          detail:
+            shown >= before
+              ? `${shown} real leads today, as counted directly`
+              : `${shown} shown, ${before} to ${after} counted directly (real leads changed meanwhile)`,
+        };
       },
     },
   ],
@@ -67,6 +75,8 @@ export const tB2bPush: TestDef<JourneyIo> = {
     if (base) return base;
     const slug = c.identities.partner_slug;
     if (!slug) return "test_identities.partner_slug is not set";
+    // Without the secret the contacted event cannot be signed, and the routed lead would be stranded with the partner.
+    if (!apps(c).b2b?.canSign) return "the test partner's secret is not configured";
     // A sandbox push goes to whichever open partner has a test endpoint; only run while that can only be ours.
     const { slugs } = z
       .object({ slugs: z.array(z.string()) })
@@ -118,7 +128,7 @@ export const tB2bPush: TestDef<JourneyIo> = {
         if (p.to_test_endpoint !== true || p.sandbox !== true)
           throw new Unsafe("the push did not go to the sandbox endpoint");
         if (code >= 200 && code < 300) return { done: true, detail: `HTTP ${code}` };
-        throw new Error(`the sandbox answered HTTP ${code}`);
+        throw new Failed(`the sandbox answered HTTP ${code}`);
       },
     },
     {
@@ -127,7 +137,7 @@ export const tB2bPush: TestDef<JourneyIo> = {
       timeoutS: 30,
       act: async (c) => {
         const reference = c.artefacts.reference;
-        if (typeof reference !== "string") throw new Error("no allocation reference to report on");
+        if (typeof reference !== "string") throw new Failed("no allocation reference to report on");
         const slug = need(c.identities.partner_slug, "test_identities.partner_slug");
         const r = await need(apps(c).b2b, "the B2B intake key").partnerEvent(
           slug,

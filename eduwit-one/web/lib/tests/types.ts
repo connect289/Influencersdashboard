@@ -15,7 +15,11 @@ export type StepResult = {
   at: string;
 };
 
-export type RunState = { step: number; stepStartedAt: string; acted: boolean };
+/**
+ * Where a run is. `acting` is saved before a step's action and `acted` after it, so a runner that dies in between
+ * leaves a mark: the action is never repeated (a second message, a second call), the step fails instead.
+ */
+export type RunState = { step: number; stepStartedAt: string; acted: boolean; acting?: boolean };
 
 export type Run = {
   id: number;
@@ -83,3 +87,9 @@ export type Identities = {
 
 /** Thrown by a step for a refusal that must stop the run (a non-test identity, an unsafe target). */
 export class Unsafe extends Error {}
+
+/**
+ * Thrown by a step when what it checks is wrong (a bounce, a leak, a lead routed by itself): the run fails at once. Any
+ * other error from a poll (a 502, a dropped connection) is retried until the step's own timeout.
+ */
+export class Failed extends Error {}

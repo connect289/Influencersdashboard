@@ -279,7 +279,7 @@
         "T-WITTY-TURN"
       ],
       "how": "Add the test number to w2_trusted with is_test = true (Witty's admin). Register it on a WhatsApp Business account Eduwit One may send from: Settings → test_identities: whatsapp_number (digits), whatsapp_phone_number_id (the sender's Graph id), witty_number (Witty's number, digits); paste the sender's token here. WhatsApp lets a business number send free text only within 24 hours of the other side's last message: Witty's replies keep that window open while T-WITTY-TURN runs; after a longer pause, send one message to the test number from Witty's side, or the send step fails.",
-      "validate": null
+      "validate": "test_whatsapp"
     },
     {
       "id": "test_mailbox",
@@ -328,7 +328,7 @@
         "T-HANDOFF"
       ],
       "how": "A B2B CRM intake-only API key for test leads, saved as one_b2b_intake_key.",
-      "validate": null
+      "validate": "b2b_intake"
     },
     {
       "id": "test_partner",
@@ -339,7 +339,7 @@
         "T-B2B-PUSH"
       ],
       "how": "In the B2B CRM add a partner used only for tests, with test_endpoint set to a sandbox you control (https) and an inbound secret; it must be the only partner with a test_endpoint, or the push test refuses to run. Settings → test_identities.partner_slug; paste the inbound secret here.",
-      "validate": null
+      "validate": "test_partner"
     },
     {
       "id": "test_creator",

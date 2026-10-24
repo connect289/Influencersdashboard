@@ -96,16 +96,13 @@ async function drive(def: TestDef<JourneyIo>, w: World, ids: Identities = identi
   const ctx: TestContext<JourneyIo> = { run, artefacts: run.artefacts, identities: ids, io, now: () => clock.t };
   const guard = await def.guard(ctx);
   if (guard) return { guard, run, calls, finished, result: null };
-  const result = await advanceRun(def, run, ctx, 7200, {
-    db,
-    holder: "h",
-    deadline: T0 + 100_000_000,
-    pollMs: 5000,
-    sleep: async (ms: number) => {
-      clock.t += ms;
-      w.onTick?.((clock.t - T0) / 1000);
-    },
-  });
+  // As the runner does: advance until the run waits, then poll again 5 s later.
+  let result = await advanceRun(def, run, ctx, 7200, { db, holder: "h" });
+  while (result.status === "waiting") {
+    clock.t += 5000;
+    w.onTick?.((clock.t - T0) / 1000);
+    result = await advanceRun(def, run, ctx, 7200, { db, holder: "h" });
+  }
   return { guard: null, run, calls, finished, result };
 }
 
@@ -114,6 +111,7 @@ function fakeB2b(leadId = 77) {
   const sent: Array<{ body: Record<string, unknown>; key: string }> = [];
   const events: Array<{ slug: string; event: Record<string, unknown> }> = [];
   const api: B2bApi = {
+    canSign: true,
     intake: async (body, key) => {
       sent.push({ body, key });
       return { status: 201, leadId, isTest: true, action: "created", routing: "waiting" };
@@ -136,6 +134,7 @@ function fakeRunner(answers: Record<string, (args: Record<string, unknown>) => u
       if (!f) throw new Error(`the runner cannot call ${schema}.${fn} here`);
       return f(args);
     },
+    signOut: async () => undefined,
   };
   return { api, calls };
 }
@@ -219,6 +218,14 @@ describe("the lead tests", () => {
     });
     expect(d.finished).toEqual([{ ok: false, error: "no_leak: error" }]);
     expect(d.run.steps.at(-1)?.detail).toMatch(/test leads leak in/);
+  });
+
+  it("T-B2B-PUSH: will not start without the partner secret, so no lead is stranded with the partner", async () => {
+    const d = await drive(tB2bPush, {
+      facts: { "b2b.sandbox_partners": () => ({ slugs: ["test-partner"] }) },
+      apps: { b2b: { ...fakeB2b().api, canSign: false }, runner: fakeRunner({}).api },
+    });
+    expect(d.guard).toMatch(/secret/);
   });
 
   it("T-B2B-PUSH: will not start while another partner has a test endpoint", async () => {
@@ -330,6 +337,20 @@ describe("the Spark tests", () => {
     expect(JSON.stringify(d.run.artefacts)).not.toContain("910000900005");
   });
 
+  it("T-HANDOFF: leaves Spark's mock call to log itself", async () => {
+    const runner = handoffRunner({ "b2c.call_start": () => ({ call_id: 31, mode: "bridge", provider: "mock" }) });
+    const d = await drive(tHandoff, {
+      acts: allocate,
+      facts: sparkFacts({
+        "b2c.writeback": () => ({ outbox: ["applied"], writes: [{ status: "applied", http_status: 200 }] }),
+        "b2c.real_handoffs": () => ({ real: 3, lead_in_facts: true, lead_fact_is_test: true }),
+      }),
+      apps: { b2b: fakeB2b().api, runner: runner.api },
+    });
+    expect(d.result).toEqual({ status: "finished", ok: true });
+    expect(runner.calls).not.toContain("b2c.call_log");
+  });
+
   it("T-HANDOFF: refuses to log when Spark would place a real call", async () => {
     const runner = handoffRunner({ "b2c.call_start": () => ({ call_id: 31, mode: "bridge" }) });
     const d = await drive(tHandoff, {
@@ -407,13 +428,19 @@ describe("the Spark tests", () => {
   });
 });
 
+/** What WhatsApp answers for the test identities: the sender is the test number, the recipient Witty's. */
+const testNumbers = async () => ({ sender: "15550001111", witty: "919000011111" });
+
 describe("the Witty tests", () => {
   const turn = (replies: unknown[]) => () => ({ inbox: 1, conversation_id: 812, replies });
 
   it("T-WITTY-TURN: will not send from a number Witty does not trust as a test number", async () => {
     const d = await drive(tWittyTurn, {
       facts: { "witty.trusted": () => ({ trusted_test: false }) },
-      apps: { wa: { send: async () => ({ id: "x" }) }, chatwoot: { outgoingSince: async () => 1 } },
+      apps: {
+        wa: { send: async () => ({ id: "x" }), numbers: testNumbers },
+        chatwoot: { outgoingSince: async () => 1 },
+      },
     });
     expect(d.guard).toMatch(/not a trusted test number/);
   });
@@ -431,6 +458,7 @@ describe("the Witty tests", () => {
             sent.push(text);
             return { id: "wamid.1" };
           },
+          numbers: testNumbers,
         },
         chatwoot: { outgoingSince: async (id) => (id === 812 ? 1 : 0) },
       },
@@ -439,13 +467,62 @@ describe("the Witty tests", () => {
     expect(sent[0]).toMatch(/^Eduwit One test 5:/);
   });
 
+  it("T-WITTY-TURN: will not send unless WhatsApp names the sender the test number and the recipient Witty", async () => {
+    const facts = { "witty.trusted": () => ({ trusted_test: true }) };
+    const chatwoot = { outgoingSince: async () => 1 };
+    const sender = await drive(tWittyTurn, {
+      facts,
+      apps: {
+        wa: {
+          send: async () => ({ id: "x" }),
+          numbers: async () => ({ sender: "919811122334", witty: "919000011111" }),
+        },
+        chatwoot,
+      },
+    });
+    expect(sender.guard).toMatch(/sender/);
+    const recipient = await drive(tWittyTurn, {
+      facts,
+      apps: {
+        wa: {
+          send: async () => ({ id: "x" }),
+          numbers: async () => ({ sender: "15550001111", witty: "919812345678" }),
+        },
+        chatwoot,
+      },
+    });
+    expect(recipient.guard).toMatch(/not Witty's own number/);
+  });
+
+  it("T-WITTY-TURN: waits for Witty to record the Chatwoot conversation", async () => {
+    let n = 0;
+    const d = await drive(tWittyTurn, {
+      facts: {
+        "witty.trusted": () => ({ trusted_test: true }),
+        "witty.turn": () => ({
+          inbox: 1,
+          conversation_id: ++n > 4 ? 812 : null,
+          replies: [{ reply_source: "counselor", sent: true, latency_ms: 4200, verify_errors: 0 }],
+        }),
+      },
+      apps: {
+        wa: { send: async () => ({ id: "wamid.1" }), numbers: testNumbers },
+        chatwoot: { outgoingSince: async () => 1 },
+      },
+    });
+    expect(d.result).toEqual({ status: "finished", ok: true });
+  });
+
   it("T-WITTY-TURN: fails on a reply with verify errors", async () => {
     const d = await drive(tWittyTurn, {
       facts: {
         "witty.trusted": () => ({ trusted_test: true }),
         "witty.turn": turn([{ reply_source: "counselor", sent: true, latency_ms: 4200, verify_errors: 2 }]),
       },
-      apps: { wa: { send: async () => ({ id: "wamid.1" }) }, chatwoot: { outgoingSince: async () => 1 } },
+      apps: {
+        wa: { send: async () => ({ id: "wamid.1" }), numbers: testNumbers },
+        chatwoot: { outgoingSince: async () => 1 },
+      },
     });
     expect(d.finished).toEqual([{ ok: false, error: "verified: error" }]);
   });
@@ -491,6 +568,16 @@ describe("the Witty tests", () => {
     const on = fakeHarness(true);
     await drive(tWittyQualify, { facts: qualifyFacts(), apps: { harness: on.harness } });
     expect(on.state.switched).toEqual([]);
+  });
+
+  it("T-WITTY-QUALIFY: switches the harness off again when the scenario cannot start", async () => {
+    const h = fakeHarness(false);
+    h.harness.start = async () => {
+      throw new Error("status 404");
+    };
+    const d = await drive(tWittyQualify, { facts: qualifyFacts(), apps: { harness: h.harness } });
+    expect(d.finished).toEqual([{ ok: false, error: "start: error" }]);
+    expect(h.state.switched).toEqual([true, false]);
   });
 
   it("T-WITTY-QUALIFY: stops on a harness lead that is not a test lead", async () => {

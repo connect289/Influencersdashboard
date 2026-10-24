@@ -15,7 +15,9 @@ alter table one.test_runs
   add column error text,
   add column holder text,
   add column lease_until timestamptz,
-  add column purge_report jsonb;
+  add column purge_report jsonb,
+  add column purge_attempts integer not null default 0,
+  add column purge_next_at timestamptz;
 -- One run in flight per test.
 create unique index test_runs_one_inflight on one.test_runs (test_id) where finished_at is null;
 
@@ -89,7 +91,8 @@ begin
   return one.test_run_json(v_run);
 end $$;
 
--- Saves a run in flight; only its holder can, and the lease is renewed. The runner adds artefacts and never removes
+-- Saves a run in flight; only its holder can, and the lease is renewed, or released with p_lease_s 0 so the next
+-- invocation picks the run up at once (a run waiting for its app). The runner adds artefacts and never removes
 -- one, and `phones` is written only by the database (0016's phone.allocate), so the purge acts on the phones the
 -- database handed out, whatever the runner sends.
 create or replace function one.test_run_save(p_run bigint, p_holder text, p_lease_s integer, p_steps jsonb, p_artefacts jsonb, p_state jsonb) returns void
@@ -99,7 +102,7 @@ begin
      set step_results = one.test_steps_clean(p_steps),
          artefacts = artefacts || case when jsonb_typeof(p_artefacts) = 'object' then p_artefacts - 'phones' else '{}' end,
          state = case when jsonb_typeof(p_state) = 'object' then p_state else state end,
-         lease_until = now() + make_interval(secs => least(greatest(p_lease_s, 30), 600))
+         lease_until = case when p_lease_s <= 0 then null else now() + make_interval(secs => least(greatest(p_lease_s, 30), 600)) end
    where id = p_run and finished_at is null and holder = p_holder;
   if not found then
     raise exception 'run % is not held by this runner', p_run using errcode = '55000';

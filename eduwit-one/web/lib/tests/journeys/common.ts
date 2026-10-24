@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { TestApps } from "../apps.ts";
-import { type Artefacts, type TestContext, Unsafe } from "../types.ts";
+import { type Artefacts, Failed, type TestContext, Unsafe } from "../types.ts";
 import type { JourneyIo } from "./io.ts";
 
 // What the B2B and Spark journeys share: the test lead each starts from, and small readers for seam answers.
@@ -12,7 +12,7 @@ export const apps = (c: Ctx): TestApps => c.io.apps(c.identities);
 
 /** A door the journey needs, or the error that fails its step. */
 export function need<T>(v: T | null, what: string): T {
-  if (v === null) throw new Error(`${what} is not configured`);
+  if (v === null) throw new Failed(`${what} is not configured`);
   return v;
 }
 
@@ -21,7 +21,7 @@ export const stepAge = (c: Ctx): number => (c.now() - Date.parse(c.run.state.ste
 
 export function leadOf(c: Ctx): number {
   const id = c.artefacts.lead_id;
-  if (typeof id !== "number") throw new Error("no test lead recorded by the post step");
+  if (typeof id !== "number") throw new Failed("no test lead recorded by the post step");
   return id;
 }
 
@@ -32,8 +32,7 @@ export function leadGuard(c: Ctx, more: Array<keyof TestApps> = []): string | nu
     if (!a[k])
       return `${k === "b2b" ? "the B2B intake key" : k === "runner" ? "the test runner login" : k} is not configured`;
   }
-  if (!/^9100009\d{0,4}$/.test(c.identities.run_phone_prefix))
-    return "test_identities.run_phone_prefix is not in 9100009";
+  if (c.identities.run_phone_prefix !== "9100009") return "test_identities.run_phone_prefix is not 9100009";
   return null;
 }
 
@@ -113,7 +112,7 @@ export async function handToSpark(c: Ctx): Promise<Artefacts> {
       p_reason: `Eduwit One synthetic test ${c.run.testId}`,
     }),
   );
-  if (r.destination !== "in_house") throw new Error(`the test hand-off went to ${r.destination}`);
+  if (r.destination !== "in_house") throw new Failed(`the test hand-off went to ${r.destination}`);
   return { allocation_id: r.allocation_id };
 }
 
@@ -123,7 +122,7 @@ export async function deliveredToSpark(c: Ctx) {
     .object({ statuses: z.array(z.string()) })
     .parse(await c.io.seams.fact(c.run.id, "b2b.delivered", { lead_id: leadOf(c) })).statuses;
   if (statuses.includes("delivered")) return { done: true, detail: "delivered" };
-  if (statuses.includes("dead")) throw new Error("the outbox gave up on it (dead)");
+  if (statuses.includes("dead")) throw new Failed("the outbox gave up on it (dead)");
   return { done: false, detail: statuses.length ? `outbox ${statuses.join(", ")}` : "not in the outbox yet" };
 }
 

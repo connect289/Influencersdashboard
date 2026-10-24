@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { type TestDef, Unsafe } from "../types.ts";
+import { waRouteProblem } from "../apps.ts";
+import { Failed, type TestDef, Unsafe } from "../types.ts";
 import { apps, need } from "./common.ts";
 import type { JourneyIo } from "./io.ts";
 
@@ -30,9 +31,9 @@ export const tWittyTurn: TestDef<JourneyIo> = {
     if (!a.wa) return "the test WhatsApp sender is not configured";
     if (!a.chatwoot) return "the Chatwoot token is not configured";
     const t = await c.io.seams.fact(c.run.id, "witty.trusted");
-    return t.trusted_test === true
-      ? null
-      : "the test number is not a trusted test number in Witty (w2_trusted, is_test)";
+    if (t.trusted_test !== true) return "the test number is not a trusted test number in Witty (w2_trusted, is_test)";
+    // WhatsApp itself must name the sender the test number and the recipient Witty, so no message reaches a student.
+    return waRouteProblem(a.wa, c.identities);
   },
   steps: [
     {
@@ -53,9 +54,7 @@ export const tWittyTurn: TestDef<JourneyIo> = {
       timeoutS: 30,
       until: async (c) => {
         const t = turnSchema.parse(await c.io.seams.fact(c.run.id, "witty.turn", { since: c.artefacts.since }));
-        return t.inbox >= 1
-          ? { done: true, detail: "received", artefacts: { conversation_id: t.conversation_id } }
-          : { done: false, detail: "not in the inbox yet" };
+        return t.inbox >= 1 ? { done: true, detail: "received" } : { done: false, detail: "not in the inbox yet" };
       },
     },
     {
@@ -77,8 +76,8 @@ export const tWittyTurn: TestDef<JourneyIo> = {
       until: async (c) => {
         const t = turnSchema.parse(await c.io.seams.fact(c.run.id, "witty.turn", { since: c.artefacts.since }));
         const r = t.replies.find((x) => x.sent !== false);
-        if (!r) throw new Error("the reply is gone");
-        if (r.verify_errors > 0) throw new Error(`the reply has ${r.verify_errors} verify error(s)`);
+        if (!r) throw new Failed("the reply is gone");
+        if (r.verify_errors > 0) throw new Failed(`the reply has ${r.verify_errors} verify error(s)`);
         return { done: true, detail: "no verify errors" };
       },
     },
@@ -87,8 +86,11 @@ export const tWittyTurn: TestDef<JourneyIo> = {
       title: "Chatwoot shows the outgoing message",
       timeoutS: 60,
       until: async (c) => {
-        const id = c.artefacts.conversation_id;
-        if (typeof id !== "number") throw new Error("Witty recorded no Chatwoot conversation for the test number");
+        // Witty may store the conversation id after the inbox row, so it is read here, not kept from the inbox step.
+        const { conversation_id: id } = turnSchema.parse(
+          await c.io.seams.fact(c.run.id, "witty.turn", { since: c.artefacts.since }),
+        );
+        if (id === null) return { done: false, detail: "Witty has not recorded the Chatwoot conversation yet" };
         const since = Math.floor(Date.parse(String(c.artefacts.since)) / 1000);
         const n = await need(apps(c).chatwoot, "the Chatwoot token").outgoingSince(id, since);
         return n >= 1 ? { done: true, detail: `${n} outgoing` } : { done: false, detail: "no outgoing message yet" };
@@ -122,8 +124,14 @@ export const tWittyQualify: TestDef<JourneyIo> = {
         const wasActive = await harness.active();
         if (!wasActive) await harness.setActive(true);
         const runTag = `one-${c.run.id}`;
-        const { accepted } = await harness.start(runTag);
-        return { run_tag: runTag, harness_switched_on: !wasActive, harness_accepted: accepted };
+        try {
+          const { accepted } = await harness.start(runTag);
+          return { run_tag: runTag, harness_switched_on: !wasActive, harness_accepted: accepted };
+        } catch (e) {
+          // The cleanup only sees what the act returned, so a failed start switches the harness off here (D-072).
+          if (!wasActive) await harness.setActive(false).catch(() => undefined);
+          throw e;
+        }
       },
     },
     {
@@ -133,7 +141,7 @@ export const tWittyQualify: TestDef<JourneyIo> = {
       until: async (c) => {
         const r = harnessRun.parse(await c.io.seams.fact(c.run.id, "witty.harness_run"));
         if (!r.found) return { done: false, detail: "the harness is still running" };
-        if ((r.summary?.failed ?? 0) > 0) throw new Error(`the harness reports ${r.summary?.failed} failed check(s)`);
+        if ((r.summary?.failed ?? 0) > 0) throw new Failed(`the harness reports ${r.summary?.failed} failed check(s)`);
         return { done: true, detail: `${r.summary?.passed ?? 0} passed` };
       },
     },
@@ -143,7 +151,7 @@ export const tWittyQualify: TestDef<JourneyIo> = {
       timeoutS: 60,
       until: async (c) => {
         const q = qualified.parse(await c.io.seams.fact(c.run.id, "witty.qualified", { since: c.run.startedAt }));
-        if (q.phones === 0) throw new Error("the harness run names no harness phone");
+        if (q.phones === 0) throw new Failed("the harness run names no harness phone");
         return q.hot >= 1 ? { done: true, detail: `${q.hot} HOT` } : { done: false, detail: "none HOT yet" };
       },
     },

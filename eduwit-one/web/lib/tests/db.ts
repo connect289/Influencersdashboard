@@ -40,7 +40,12 @@ const runSchema = z.object({
   startedAt: z.string(),
   steps: z.array(stepSchema).catch([]),
   artefacts: z.record(z.string(), z.unknown()).catch({}),
-  state: z.object({ step: z.number().int().min(0), stepStartedAt: z.string(), acted: z.boolean() }),
+  state: z.object({
+    step: z.number().int().min(0),
+    stepStartedAt: z.string(),
+    acted: z.boolean(),
+    acting: z.boolean().optional(),
+  }),
 });
 
 const stateSchema = z.object({
@@ -147,8 +152,9 @@ export class SupabaseTestsDb implements TestsDb, TestSeams, PurgeDb {
     return parseDue(await this.rpc("test_purge_due", { p_limit: limit }));
   }
 
-  async runPurge(run: number, report: Record<string, unknown>): Promise<void> {
-    await this.rpc("test_run_purge", { p_run: run, p_report: report });
+  async runPurge(run: number, report: Record<string, unknown>): Promise<boolean> {
+    const r = record.parse((await this.rpc("test_run_purge", { p_run: run, p_report: report })) ?? {});
+    return r.purged === true;
   }
 
   /** What the Setup validators of the test items read (0016): the identities and the named Spark journey. */

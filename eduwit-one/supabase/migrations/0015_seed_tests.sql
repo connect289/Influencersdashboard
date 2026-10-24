@@ -50,7 +50,7 @@ select one.seed_test('{
   "app": "witty",
   "title": "Witty qualifies a test student to HOT and creates the lead",
   "seam": "Witty → w2_outbox → lead_intake → student_leads",
-  "description": "Witty''s own n8n test harness (workflow 1BGAINw5XDkSHb2q) plays the scenario in settings n8n.test_harness_scenario on harness phones; one is classified HOT, its outbox row is sent, and lead_intake creates a student_leads row marked is_test. The harness is switched off again after every run, passed or failed.",
+  "description": "Witty''s own n8n test harness (workflow 1BGAINw5XDkSHb2q) plays the scenario in settings n8n.test_harness_scenario on harness phones; one is classified HOT, its outbox row is sent, and lead_intake creates a student_leads row marked is_test. The run switches the harness on, and off again after it, passed or failed, unless someone else had it on.",
   "severity": "P1",
   "timeout_s": 1800,
   "needs": [

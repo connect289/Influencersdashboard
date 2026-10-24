@@ -13,6 +13,8 @@ drop trigger if exists tests_check_sync on one.tests;
 drop function if exists one.tests_check_sync();
 drop function if exists one.seed_test(jsonb);
 drop index if exists one.test_runs_one_inflight;
+alter table one.test_runs drop column if exists purge_next_at;
+alter table one.test_runs drop column if exists purge_attempts;
 alter table one.test_runs drop column if exists purge_report;
 alter table one.test_runs drop column if exists lease_until;
 alter table one.test_runs drop column if exists holder;

@@ -1,4 +1,4 @@
-import type { TestDef } from "../types.ts";
+import { Failed, type TestDef } from "../types.ts";
 import type { JourneyIo } from "./io.ts";
 
 // T-ALERT (spec §10): a synthetic P2 incident gets a delivery to the test recipient; the alert sender (each minute,
@@ -26,7 +26,7 @@ export const tAlert: TestDef<JourneyIo> = {
       until: async (c) => {
         const d = await c.io.seams.fact(c.run.id, "alert.delivery");
         if (d.status === "failed" && Number(d.attempts) >= 2)
-          throw new Error(`the delivery failed: ${String(d.error ?? "")}`);
+          throw new Failed(`the delivery failed: ${String(d.error ?? "")}`);
         return d.status === "sent" && typeof d.provider_id === "string"
           ? { done: true, artefacts: { provider_id: d.provider_id } }
           : { done: false, detail: `delivery ${String(d.status ?? "missing")}` };
@@ -38,9 +38,9 @@ export const tAlert: TestDef<JourneyIo> = {
       timeoutS: 300,
       until: async (c) => {
         const id = c.artefacts.provider_id;
-        if (typeof id !== "string" || !c.io.email) throw new Error("no provider id to follow");
+        if (typeof id !== "string" || !c.io.email) throw new Failed("no provider id to follow");
         const { lastEvent } = await c.io.email.status(id);
-        if (lastEvent === "bounced" || lastEvent === "complained") throw new Error(`Resend reports ${lastEvent}`);
+        if (lastEvent === "bounced" || lastEvent === "complained") throw new Failed(`Resend reports ${lastEvent}`);
         return lastEvent === "delivered"
           ? { done: true, detail: "delivered" }
           : { done: false, detail: `last event ${lastEvent ?? "none"}` };
@@ -52,7 +52,7 @@ export const tAlert: TestDef<JourneyIo> = {
       timeoutS: 10,
       act: async (c) => {
         const r = await c.io.seams.act(c.run.id, "alert.close", { incident_id: c.artefacts.incident_id });
-        if (r.closed !== true) throw new Error("the synthetic incident was not open");
+        if (r.closed !== true) throw new Failed("the synthetic incident was not open");
         return undefined;
       },
     },

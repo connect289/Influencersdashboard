@@ -19,6 +19,12 @@ begin
 exception when others then return sqlstate;
 end $$;
 grant execute on function pg_temp.ok(boolean, text), pg_temp.err(text) to service_role;
+create or replace function pg_temp.check_ok(p_id text) returns boolean language plpgsql as $$
+declare v boolean;
+begin
+  execute (select sql from one.checks where id = p_id) into v;
+  return v;
+end $$;
 
 -- Stubs, owned by postgres as on production, with the columns 0016 reads (measured on production 23 Oct).
 set role postgres;
@@ -41,25 +47,10 @@ create table b2c.leads_state (lead_id bigint primary key, is_test boolean, delet
 create table b2c.outbox (id bigserial primary key, kind text, lead_id bigint, status text, created_at timestamptz default now());
 create table b2c.fact_leads (lead_id bigint primary key, is_test boolean, deleted boolean, handed_off_at timestamptz);
 create table b2c.journey_runs (id bigserial primary key, journey_id bigint, lead_id bigint, step_idx int, status text, is_test boolean);
-create table b2c.send_queue (id bigserial primary key, channel text, lead_id bigint, to_address text, status text);
+create table b2c.send_queue (id bigserial primary key, channel text, lead_id bigint, to_address text, status text, created_at timestamptz default now());
 create function b2b.is_test_phone(p text) returns boolean language sql immutable set search_path = '' as $$
   select regexp_replace(coalesce(p, ''), '\D', '', 'g') ~ '^(910000[0-9]{6}|9190000000[0-9]{2})$';
 $$;
--- Like production: invoker rights, no search_path, unqualified table names.
-create function public.w2_test_reset(p_phone text) returns jsonb language plpgsql as $$
-declare n jsonb := '{}'::jsonb; c int;
-begin
-  if not (coalesce(p_phone, '') similar to '910000[0-9]{6}') then
-    raise exception 'w2_test_reset: % is not a test phone (must be 910000 followed by 6 digits)', p_phone;
-  end if;
-  delete from w2_inbox where phone = p_phone;          get diagnostics c = row_count; n := n || jsonb_build_object('inbox', c);
-  delete from w2_messages where phone = p_phone;       get diagnostics c = row_count; n := n || jsonb_build_object('messages', c);
-  delete from w2_events where phone = p_phone;         get diagnostics c = row_count; n := n || jsonb_build_object('events', c);
-  delete from w2_outbox where phone = p_phone;
-  delete from w2_conversations where phone = p_phone;
-  delete from student_leads where whatsapp_number = p_phone and is_test;
-  return n;
-end $$;
 reset role;
 
 truncate one.ai_tasks, one.deliveries, one.actions, one.proposals, one.incidents, one.mutes restart identity cascade;
@@ -79,16 +70,13 @@ select (one.test_run_start('T-B2B-INTAKE', 'manual', 'T-B2B-INTAKE:j-1', 'r', 90
 select pg_temp.ok(pg_temp.err(format('select one.test_fact(%s, %L, %L)', :run, 'b2c.journey', '{"lead_id": 1}')) = '42501', 'T-B2B-INTAKE cannot read T-B2C-NURTURE''s facts');
 select pg_temp.ok(pg_temp.err(format('select one.test_act(%s, %L)', :run, 'alert.open')) = '42501', 'nor act as T-ALERT');
 
--- 2. A phone from Eduwit One's slice, reset through Witty's own function ----------------------------------------------------
+-- 2. A phone from Eduwit One's slice ------------------------------------------------------------------------------------------
 reset role;
 select '9100009' || lpad((:run % 100000)::text, 5, '0') as phone \gset
-insert into public.w2_messages (phone, direction, content) values (:'phone', 'in', 'left from an earlier run');
-insert into public.student_leads (whatsapp_number, is_test) values (:'phone', true);
 set role service_role;
 select one.test_act(:run, 'phone.allocate') as alloc \gset
 reset role;
-select pg_temp.ok((:'alloc'::jsonb ->> 'phone') = :'phone' and (:'alloc'::jsonb #>> '{reset,messages}')::int = 1, 'the phone is 9100009 and five digits of the run, reset first: ' || :'alloc');
-select pg_temp.ok(not exists (select 1 from public.student_leads where whatsapp_number = :'phone'), 'Witty''s reset removed the earlier test lead (it ran with search_path public)');
+select pg_temp.ok((:'alloc'::jsonb ->> 'phone') = :'phone', 'the phone is 9100009 and five digits of the run: ' || :'alloc');
 select pg_temp.ok((select artefacts -> 'phones' = jsonb_build_array(:'phone') from one.test_runs where id = :run), 'the run holds its phone');
 set role service_role;
 select one.test_run_save(:run, 'r', 90, '[]', '{"phones": ["910000000001"], "lead_id": 7}', null);
@@ -98,6 +86,11 @@ select pg_temp.ok((select artefacts -> 'phones' = jsonb_build_array(:'phone') an
 update one.settings set value = value || '{"run_phone_prefix": "9100001"}' where key = 'test_identities';
 set role service_role;
 select pg_temp.ok(pg_temp.err(format('select one.test_act(%s, %L)', :run, 'phone.allocate')) = '22023', 'a prefix outside 9100009 is refused');
+reset role;
+update one.settings set value = value || '{"run_phone_prefix": "91000091234"}' where key = 'test_identities';
+set role service_role;
+select pg_temp.ok(pg_temp.err(format('select one.test_act(%s, %L)', :run, 'phone.allocate')) = '22023',
+                  'so is a longer one, which would leave too few phones for concurrent runs');
 reset role;
 update one.settings s set value = t.value from t_saved t where s.key = t.key;
 
@@ -138,16 +131,20 @@ select (one.test_run_start('T-B2C-NURTURE', 'manual', 'T-B2C-NURTURE:j-1', 'r', 
 select (one.test_act(:nrun, 'phone.allocate') ->> 'phone') as nphone \gset
 reset role;
 insert into public.student_leads (whatsapp_number, is_test) values (:'nphone', true) returning id as nlead \gset
-insert into b2c.journey_runs (journey_id, lead_id, step_idx, status, is_test) values (4, :nlead, 1, 'running', true);
+insert into b2c.journey_runs (journey_id, lead_id, step_idx, status, is_test) values (4, :nlead, 1, 'running', true) returning id as jrun \gset
+insert into b2c.journey_runs (journey_id, lead_id, step_idx, status, is_test) values (9, :nlead, 0, 'running', true);
+insert into b2c.send_queue (channel, lead_id, to_address, status, created_at) values ('whatsapp', :nlead, '+919812345670', 'dry_run', now() - interval '2 hours');
 insert into b2c.send_queue (channel, lead_id, to_address, status) values ('whatsapp', :nlead, '+' || :'nphone', 'dry_run');
+select (now() - interval '1 minute')::text as enrolled \gset
 set role service_role;
-select one.test_fact(:nrun, 'b2c.journey', jsonb_build_object('lead_id', :nlead)) as j \gset
+select one.test_fact(:nrun, 'b2c.journey', jsonb_build_object('lead_id', :nlead, 'journey_run_id', :jrun, 'since', :'enrolled')) as j \gset
 select pg_temp.ok((:'j'::jsonb ->> 'sends')::int = 1 and (:'j'::jsonb ->> 'sends_to_lead_phone')::int = 1 and (:'j'::jsonb ->> 'sends_live')::int = 0
-                  and (:'j'::jsonb #>> '{run,step_idx}')::int = 1 and :'j' !~ '9100009', 'one dry-run send to the lead''s own phone, no address returned: ' || :'j');
+                  and (:'j'::jsonb #>> '{run,step_idx}')::int = 1 and :'j' !~ '9100009',
+                  'the test''s own journey run, and the one dry-run send since enrolment, to the lead''s own phone: ' || :'j');
 reset role;
 insert into b2c.send_queue (channel, lead_id, to_address, status) values ('whatsapp', :nlead, '+919812345678', 'sent');
 set role service_role;
-select one.test_fact(:nrun, 'b2c.journey', jsonb_build_object('lead_id', :nlead)) as j \gset
+select one.test_fact(:nrun, 'b2c.journey', jsonb_build_object('lead_id', :nlead, 'journey_run_id', :jrun, 'since', :'enrolled')) as j \gset
 select pg_temp.ok((:'j'::jsonb ->> 'sends_to_lead_phone')::int = 1 and (:'j'::jsonb ->> 'sends_live')::int = 1, 'a live send elsewhere shows');
 select one.test_run_finish(:nrun, 'r', false, 'sent: live', '[]', null);
 
@@ -184,7 +181,7 @@ select one.test_run_finish(:trun, 'r', true, null, '[]', null);
 -- 7. The purge: due after purge_after_days; partner-routed leads kept; Witty reset on the rest --------------------------------
 select pg_temp.ok(jsonb_array_length(one.test_purge_due()) = 0, 'nothing is due before purge_after_days');
 reset role;
-update one.test_runs set finished_at = now() - interval '3 days' where id in (:run, :nrun);
+update one.test_runs set finished_at = now() - interval '4 days' where id in (:run, :nrun);
 set role service_role;
 select one.test_purge_due() as due \gset
 select pg_temp.ok(jsonb_array_length(:'due'::jsonb) = 2, 'both lead runs are due: ' || :'due');
@@ -192,28 +189,39 @@ select pg_temp.ok((select (x #>> '{leads,0,with_partner}')::boolean from jsonb_a
                   'the intake run''s lead went to a partner');
 select pg_temp.ok((select (x #>> '{leads,0,with_partner}')::boolean is false and (x -> 'phones')::int = 1 and :'due' !~ '9100009'
                      from jsonb_array_elements(:'due'::jsonb) x where (x ->> 'run')::bigint = :nrun), 'the nurture run''s did not, and no phone is listed');
-select one.test_run_purge(:run, '{"spark": [], "b2b": [{"kept": "with partner"}]}') as p1 \gset
-select one.test_run_purge(:nrun, '{"spark": [{"deleted": true}], "b2b": [{"deleted": true}]}') as p2 \gset
 reset role;
-select pg_temp.ok(exists (select 1 from public.student_leads where id = :lead) and (:'p1'::jsonb -> 'witty' -> :'phone' ->> 'kept') is not null,
-                  'the partner-routed lead and its phone are kept: ' || :'p1');
-select pg_temp.ok(not exists (select 1 from public.student_leads where id = :nlead), 'the other lead is gone through Witty''s reset: ' || :'p2');
-select pg_temp.ok((select count(*) = 2 from one.test_runs where id in (:run, :nrun) and purged_at is not null and purge_report ? 'witty'), 'both runs are marked purged');
+select pg_temp.ok(not pg_temp.check_ok('ONE-PURGE'), 'ONE-PURGE reports runs a day overdue');
+set role service_role;
+select one.test_run_purge(:nrun, '{"spark": {"error": "status 500"}}') as failed \gset
+select pg_temp.ok((:'failed'::jsonb ->> 'purged')::boolean is false and (:'failed'::jsonb ->> 'attempts')::int = 1, 'a failed delete keeps the run unpurged: ' || :'failed');
+select pg_temp.ok(jsonb_array_length(one.test_purge_due()) = 1, 'and it waits an hour before the next try');
+reset role;
+update one.test_runs set purge_next_at = now() - interval '1 minute' where id = :nrun;
+set role service_role;
+select one.test_run_purge(:run, '{"kept": [1]}') as p1 \gset
+select one.test_run_purge(:nrun, '{"kept": [], "spark": {"deleted": 1}, "b2b": {"deleted": 1}}') as p2 \gset
+reset role;
+select pg_temp.ok((:'p1'::jsonb ->> 'purged')::boolean and (:'p2'::jsonb ->> 'purged')::boolean, 'both runs are purged: ' || :'p1' || :'p2');
+select pg_temp.ok(exists (select 1 from public.student_leads where id = :lead) and exists (select 1 from public.student_leads where id = :nlead),
+                  'nothing is hard-deleted: the apps soft-delete their leads, through the runner');
+select pg_temp.ok((select count(*) = 2 from one.test_runs where id in (:run, :nrun) and purged_at is not null and purge_report ? 'kept'), 'and each run keeps its report');
 set role service_role;
 select pg_temp.ok(pg_temp.err(format('select one.test_run_purge(%s, %L)', :run, '{}')) = '22023', 'a run is purged once');
 select pg_temp.ok(jsonb_array_length(one.test_purge_due()) = 0, 'and is no longer due');
 reset role;
+select pg_temp.ok(pg_temp.check_ok('ONE-PURGE'), 'ONE-PURGE is clear again');
+set role service_role;
+reset role;
 
--- 8. A phone still holding a partner-routed lead is never reset by a later run --------------------------------------------------
-update one.settings set value = value || jsonb_build_object('run_phone_prefix', left(:'phone', 11)) where key = 'test_identities';
+-- 8. A phone that already holds a lead is never handed out again ----------------------------------------------------------------
 set role service_role;
 select (one.test_run_start('T-B2B-PUSH', 'manual', 'T-B2B-PUSH:j-1', 'r', 90) ->> 'id')::bigint as prun \gset
 reset role;
-select left(:'phone', 11) || ((:prun % 10)::text) as pphone \gset
-insert into public.student_leads (whatsapp_number, is_test) values (:'pphone', true) returning id as plead \gset
-insert into b2b.allocations (lead_id, status, destination_type, partner_id, is_test, origin) values (:plead, 'pushed', 'partner', :partner, true, 'sandbox');
+-- The phone this run would get, still holding a soft-deleted lead from 100,000 runs ago.
+select '9100009' || lpad((:prun % 100000)::text, 5, '0') as pphone \gset
+insert into public.student_leads (whatsapp_number, is_test, deleted_at) values (:'pphone', true, now()) returning id as plead \gset
 set role service_role;
-select pg_temp.ok(pg_temp.err(format('select one.test_act(%s, %L)', :prun, 'phone.allocate')) = '55000', 'a phone with a partner-routed lead is refused, not reset');
+select pg_temp.ok(pg_temp.err(format('select one.test_act(%s, %L)', :prun, 'phone.allocate')) = '55000', 'a phone that holds a lead is refused');
 select one.test_run_finish(:prun, 'r', false, 'phone in use', '[]', null);
 reset role;
 select pg_temp.ok(exists (select 1 from public.student_leads where id = :plead), 'and its lead is still there');
@@ -257,9 +265,11 @@ reset role;
 
 -- 9. The Setup validators' facts: the Spark journey named in the test identities ---------------------------------------------
 set role postgres;
-create table b2c.journeys (id bigserial primary key, name text, test_mode boolean, status text, current_version int);
+-- As in Spark: current_version is 0 until the journey is published.
+create table b2c.journeys (id bigserial primary key, name text, test_mode boolean, status text, current_version int not null default 0);
 create table b2c.journey_versions (journey_id bigint, version int, steps jsonb);
-insert into b2c.journeys (name, test_mode, status, current_version) values ('Test nurture', true, 'active', 1), ('Real nurture', false, 'active', 1);
+insert into b2c.journeys (name, test_mode, status, current_version) values ('Test nurture', true, 'active', 1), ('Real nurture', false, 'active', 1),
+  ('Draft', true, 'draft', 0);
 insert into b2c.journey_versions values (1, 1, '[{"type": "whatsapp"}, {"type": "wait"}]'), (2, 1, '[]');
 reset role;
 set role service_role;
@@ -270,6 +280,15 @@ set role service_role;
 select one.setup_test_facts() as sf \gset
 select pg_temp.ok((:'sf'::jsonb #>> '{spark_journey,test_mode}')::boolean and (:'sf'::jsonb #>> '{spark_journey,steps}')::int = 2
                   and (:'sf'::jsonb #>> '{identities,spark_test_journey_id}') = '1', 'the named journey, in test mode, with its steps: ' || :'sf');
+reset role;
+update one.settings set value = value || '{"spark_test_journey_id": "3"}' where key = 'test_identities';
+set role service_role;
+select pg_temp.ok((one.setup_test_facts() #>> '{spark_journey,published}')::boolean is false, 'an unpublished journey (version 0) is not published');
+reset role;
+update one.settings set value = value || '{"whatsapp_number": "15550002222"}' where key = 'test_identities';
+insert into public.w2_trusted (phone, is_test) values ('15550002222', true) on conflict do nothing;
+set role service_role;
+select pg_temp.ok((one.setup_test_facts() ->> 'whatsapp_trusted')::boolean, 'the test number is reported trusted');
 reset role;
 update one.settings set value = value || '{"spark_test_journey_id": "2; drop"}' where key = 'test_identities';
 set role service_role;
@@ -302,7 +321,6 @@ delete from b2b.allocations where id > :al_max;
 delete from public.w2_conversations where phone not in (select phone from t_conv);
 delete from public.w2_trusted;
 set role postgres;
-drop function public.w2_test_reset(text);
 drop function b2b.is_test_phone(text);
 drop table public.w2_test_runs, public.w2_inbox, b2b.partners, b2b.engine_decisions, b2b.push_requests, b2b.partner_activities,
   b2b.integration_outbox, b2b.b2c_writes, b2c.lead_records, b2c.leads_state, b2c.outbox, b2c.fact_leads, b2c.journey_runs, b2c.send_queue;

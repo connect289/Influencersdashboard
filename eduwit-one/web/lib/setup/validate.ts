@@ -8,7 +8,7 @@ import { RealVercelClient } from "../clients/vercel.ts";
 import { RealWhatsAppClient } from "../clients/whatsapp.ts";
 import { fetchJson, HttpError } from "../http.ts";
 import type { Settings } from "../state.ts";
-import { RealRunnerApi } from "../tests/apps.ts";
+import { RealB2bApi, RealRunnerApi, RealWaSender, waRouteProblem } from "../tests/apps.ts";
 
 // The Setup page's validate buttons (spec §15): each exercises the value it checks, with the same client the probes
 // use, so "validated" means the real call worked (standard 2: the validate button is the contract test).
@@ -28,7 +28,14 @@ export type ValidateDeps = {
 };
 
 const testFactsSchema = z.object({
-  identities: z.looseObject({ runner_email: z.string().nullish() }),
+  identities: z.looseObject({
+    runner_email: z.string().nullish(),
+    partner_slug: z.string().nullish(),
+    whatsapp_number: z.string().nullish(),
+    whatsapp_phone_number_id: z.string().nullish(),
+    witty_number: z.string().nullish(),
+  }),
+  whatsapp_trusted: z.boolean().optional(),
   spark_journey: z.object({
     found: z.boolean(),
     test_mode: z.boolean().optional(),
@@ -162,6 +169,62 @@ export async function validate(kind: string, deps: ValidateDeps): Promise<Verdic
           ok: admin && role === "admin",
           detail: `signed in with two-factor; B2B admin: ${admin ? "yes" : "no"}; Spark role: ${role ?? "none"}`,
         };
+      }
+      case "b2b_intake": {
+        // Writes nothing: B2B checks the key before the body (D-070).
+        if (!credentials.b2bIntake) return missing("one_b2b_intake_key");
+        const status = await new RealB2bApi(settings.hosts.b2b_app, credentials.b2bIntake, null).checkKey();
+        return status === 400
+          ? { ok: true, detail: "B2B accepts the key (it refused an empty body after checking the key)" }
+          : {
+              ok: false,
+              detail: status === 401 ? "B2B refuses the key, or it lacks the intake scope" : `B2B answered ${status}`,
+            };
+      }
+      case "test_partner": {
+        // Writes nothing: B2B checks the signature before it reads the event, then refuses it for lacking an event id.
+        const slug = (await deps.facts.testFacts())?.identities.partner_slug;
+        if (!slug) return { ok: false, detail: "test_identities.partner_slug is not set" };
+        if (!credentials.b2bIntake) return missing("one_b2b_intake_key");
+        if (!credentials.testPartnerSecret) return missing("one_test_partner_secret");
+        const b2b = new RealB2bApi(settings.hosts.b2b_app, credentials.b2bIntake, credentials.testPartnerSecret);
+        const status = await b2b.checkPartner(slug, Date.now());
+        const why: Record<number, string> = {
+          401: "B2B refuses the signature: the secret is not the partner's inbound secret",
+          404: "B2B knows no such partner, or it has no inbound secret",
+        };
+        return status === 400
+          ? { ok: true, detail: `B2B accepts events signed for ${slug}` }
+          : { ok: false, detail: why[status] ?? `B2B answered ${status}` };
+      }
+      case "test_whatsapp": {
+        const f = await deps.facts.testFacts();
+        const ids = f?.identities;
+        if (!ids?.whatsapp_number || !ids.whatsapp_phone_number_id || !ids.witty_number) {
+          return {
+            ok: false,
+            detail: "set whatsapp_number, whatsapp_phone_number_id and witty_number in test_identities",
+          };
+        }
+        if (!credentials.testWhatsapp) return missing("one_test_wa_token");
+        if (!f?.whatsapp_trusted) return { ok: false, detail: "the test number is not in w2_trusted with is_test" };
+        const wittyId = settings.whatsapp.phone_ids?.witty;
+        const wa = new RealWaSender(settings.vendors.graph_api, credentials.testWhatsapp, {
+          fromPhoneId: ids.whatsapp_phone_number_id,
+          to: ids.witty_number,
+          witty: wittyId && credentials.whatsapp ? { phoneId: wittyId, token: credentials.whatsapp } : null,
+        });
+        const problem = await waRouteProblem(wa, {
+          whatsapp_number: ids.whatsapp_number,
+          witty_number: ids.witty_number,
+        });
+        return problem
+          ? { ok: false, detail: problem }
+          : {
+              ok: true,
+              detail:
+                "the sender is the test number, the recipient is Witty's number, and Witty trusts it as a test number",
+            };
       }
       case "spark_journey": {
         const j = (await deps.facts.testFacts())?.spark_journey;

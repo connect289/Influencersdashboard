@@ -14,8 +14,8 @@ import type { Identities } from "./types.ts";
 /** What the pass needs from the tick: the vendor clients, the settings and the credentials they were built from. */
 export type TestsPassInput = { clients: Clients; settings: Settings; credentials: Credentials };
 
-/** Leave the purge this much of the budget, or skip it until a quieter minute. */
-const PURGE_MIN_MS = 10_000;
+/** The end of the budget is the purge's: the tests stop this long before it. */
+const PURGE_RESERVE_MS = 8_000;
 
 /**
  * One pass of the synthetic tests within the rest of this invocation (D-068), then the purge of runs whose artefacts
@@ -60,18 +60,20 @@ export async function runTestsPass(
       defs: journeys,
       io: { seams: db, email: input.clients.email.client, apps },
       holder: requestId,
-      deadline,
+      deadline: deadline - PURGE_RESERVE_MS,
     });
   } catch (e) {
     log("error", "tests.failed", { requestId, error: e instanceof Error ? e.message : "error" });
   }
   let purge: PurgeSummary | null = null;
-  if (identities && deadline - Date.now() >= PURGE_MIN_MS) {
+  if (identities) {
     try {
       purge = await purgePass(db, apps(identities).runner, deadline);
     } catch (e) {
       log("error", "tests.purge_failed", { requestId, error: e instanceof Error ? e.message : "error" });
     }
+    // The login's session ends with the pass, so no session outlives the invocation (D-070).
+    await apps(identities).runner?.signOut();
   }
   return { tests, purge };
 }

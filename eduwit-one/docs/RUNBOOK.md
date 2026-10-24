@@ -102,7 +102,8 @@ To bring the tests up, in this order (Settings → Setup):
 
 Every lead a test creates has a phone `9100009` + five digits that the database hands out, so every app marks it a
 test lead. Two days after a run (`tests.purge_after_days`) the minute tick deletes its leads in Spark and B2B as the test
-runner and resets its phones in Witty. Partner-routed test leads are kept until B2B accepts "test" for them (proposal
+runner, through each CRM's own delete with reason "test" (nothing is hard-deleted); a purge that fails is retried and
+ONE-PURGE reports it. Partner-routed test leads are kept until B2B accepts "test" for them (proposal
 `p5-b2b-delete-sandbox-test-leads`); the rows the purge leaves are listed in D-071. The website and influencer tests
 are blocked until the apps add what their proposals ask for (D-071).
 

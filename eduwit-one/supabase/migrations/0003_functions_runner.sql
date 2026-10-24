@@ -282,10 +282,11 @@ begin
   return jsonb_build_object('results', v_results, 'events', v_events, 'ai_calls', v_calls);
 end $$;
 
--- Test-row purge goes through each app's own delete path, run by the app (phase 5). Here: how many runs are due.
+-- Test-row purge goes through each app's own delete path, run by the app in the minute tick after the tests (phase 5,
+-- web/lib/tests/purge.ts, D-071). Here: how many runs are due.
 create or replace function one.purge_test_rows() returns jsonb
 language sql set search_path = '' as $$
-  select jsonb_build_object('due', count(*), 'purged_by', 'app:/api/internal/tests/purge')
+  select jsonb_build_object('due', count(*), 'purged_by', 'app: the minute tick, after the tests')
     from one.test_runs
    where purged_at is null and finished_at < now() - make_interval(days => coalesce((one.setting('tests') ->> 'purge_after_days')::int, 2))
 $$;

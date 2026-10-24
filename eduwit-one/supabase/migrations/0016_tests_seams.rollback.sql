@@ -7,7 +7,6 @@ drop function if exists one.test_purge_due(integer);
 drop function if exists one.test_act(bigint, text, jsonb);
 drop function if exists one.test_fact(bigint, text, jsonb);
 drop function if exists one.test_run_lead(bigint, bigint);
-drop function if exists one.witty_test_reset(text);
 drop function if exists one.test_run_phones(bigint);
 drop function if exists one.is_harness_phone(text);
 drop function if exists one.test_run_allows(bigint, text);

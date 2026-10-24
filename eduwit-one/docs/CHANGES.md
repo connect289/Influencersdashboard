@@ -3,6 +3,21 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — phase 5 review resolved
+
+- Review: `docs/reviews/phase-5.md` (1 blocker, 5 majors, 9 minors), all resolved.
+- Setup validators `b2b_intake`, `test_partner` and `test_whatsapp` (none writes anything), and a unit test that every
+  validator a Setup item names exists. T-WITTY-TURN checks WhatsApp's own numbers for the sender and Witty before each run.
+- Runner: rounds over every run, leases released when a run waits, the end of the budget kept for the purge, poll
+  errors retried until the step's timeout (`Failed` and `Unsafe` end a run), an `acting` mark so no action repeats.
+- Purge: only the CRMs' own soft deletes (nothing hard-deleted: B2B's and Spark's rows have no foreign key to the lead);
+  a run whose deletes failed stays due with backoff (`one.test_runs.purge_attempts`, `purge_next_at`); new check
+  ONE-PURGE. Phone allocation refuses a phone that already holds a lead and no longer resets it.
+- Journeys: the command centre read once per run; the harness switched off after a failed start; Spark's mock call
+  accepted; the Chatwoot conversation read in its own step; nurture facts scoped to the test's journey run; T-B2B-PUSH
+  needs the partner secret; one sign-in per pass and a sign-out at its end.
+- e2e: each write's answer is timed, and a failed write reports what the browser saw (errors, the action's answer).
+
 ## 24 Oct 2026 — phase 5, test rows out of Eduwit One's own metrics
 
 - 0012: Witty's replies panel and the Marketing page's leads by campaign and touchpoints leave out harness phones,

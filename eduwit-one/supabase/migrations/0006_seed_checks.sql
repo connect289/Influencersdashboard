@@ -1373,6 +1373,31 @@ select count(*) = 0 as ok,
 $sql$));
 
 select one.seed_check(jsonb_build_object(
+  'id', 'ONE-PURGE',
+  'app', 'one',
+  'kind', 'sql',
+  'severity', 'P2',
+  'cadence_s', 3600,
+  'open_after', 1,
+  'resolve_after', 3,
+  'title', 'Synthetic test rows are not being purged',
+  'description', 'A finished test run still not purged a day after tests.purge_after_days (2): the purge keeps failing in an app (its report is on the run) or is not running (no time left in the tick, the test runner login missing). Test leads then stay in B2B and Spark longer than agreed (D-071).',
+  'auto_fix_id', null,
+  'tags', '[]'::jsonb,
+  'enabled', true,
+  'disabled_reason', null,
+  'search_path', '',
+  'sql', $sql$
+select count(*) = 0 as ok,
+       jsonb_build_object('overdue', count(*), 'oldest_finished_at', min(finished_at), 'max_attempts', coalesce(max(purge_attempts), 0),
+                          'runs', coalesce(to_jsonb((array_agg(id order by finished_at))[1:20]), '[]'),
+                          'tests', coalesce(jsonb_agg(distinct test_id), '[]')) as value
+  from one.test_runs
+ where purged_at is null and finished_at is not null
+   and finished_at < now() - make_interval(days => coalesce(((select one.setting('tests')) ->> 'purge_after_days')::int, 2) + 1)
+$sql$));
+
+select one.seed_check(jsonb_build_object(
   'id', 'ONE-STORM',
   'app', 'one',
   'kind', 'integrity',

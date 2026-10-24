@@ -1,6 +1,7 @@
 import { testDue } from "./cron.ts";
 import {
   type Artefacts,
+  Failed,
   type Identities,
   type Run,
   type StepResult,
@@ -9,10 +10,11 @@ import {
   Unsafe,
 } from "./types.ts";
 
-// The test runner (spec §10), called each minute after the probes and the alert sender. It first moves on the runs
-// already in flight (claimed with a lease, so two overlapping invocations never act twice), then starts the tests that
-// are due or that someone asked to run now. A step's result is saved as soon as it is known; a step still waiting is
-// saved and picked up by the next tick. Nothing here knows an app: the steps do (lib/tests/journeys).
+// The test runner (spec §10), called each minute after the probes and the alert sender. It claims the runs already in
+// flight (with a lease, so two overlapping invocations never act twice), starts the tests that are due or that someone
+// asked to run now, then polls every run in turn until each is finished or the budget ends. A run still waiting is
+// saved with its lease released, so the next invocation takes it up at once. Nothing here knows an app: the steps do
+// (lib/tests/journeys).
 
 export type TestRow = {
   id: string;
@@ -27,7 +29,7 @@ export type TestRow = {
 export type TestsState = { tests: TestRow[]; identities: Identities; runs: Run[] };
 
 export interface TestsDb {
-  /** The catalogue, the identities, and the in-flight runs this holder now leases (their lease had expired). */
+  /** The catalogue, the identities, and the in-flight runs this holder now leases (theirs had expired or was released). */
   testsState(holder: string, leaseS: number): Promise<TestsState>;
   /** A new run, or null when one is in flight, the test is off, or this slot already ran (the idempotency key). */
   runStart(
@@ -37,6 +39,7 @@ export interface TestsDb {
     holder: string,
     leaseS: number,
   ): Promise<Run | null>;
+  /** Saves the run; a lease of 0 releases it. */
   runSave(run: Run, holder: string, leaseS: number): Promise<void>;
   runFinish(run: Run, ok: boolean, error: string | null, holder: string): Promise<void>;
 }
@@ -46,7 +49,7 @@ export type RunnerOptions<Io> = {
   defs: ReadonlyArray<TestDef<Io>>;
   io: Io;
   holder: string;
-  /** Wall-clock end of this invocation's budget (epoch ms). */
+  /** Wall-clock end of this invocation's budget for tests (epoch ms). */
   deadline: number;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
@@ -80,22 +83,28 @@ function merge(into: Artefacts, more: Artefacts | undefined) {
   }
 }
 
-/** Advances one run as far as the budget allows. Returns "finished" or "waiting". */
+type Advance = { status: "finished"; ok: boolean } | { status: "waiting" };
+
+/**
+ * Moves one run on as far as it can go without waiting: each step acts once, then is polled; the first poll that is
+ * not done returns "waiting" (the caller polls again later). A poll's error is retried until the step's own timeout,
+ * except a Failed or Unsafe one, which ends the run.
+ */
 export async function advanceRun<Io>(
   def: TestDef<Io>,
   run: Run,
   ctx: TestContext<Io>,
   timeoutS: number,
-  opts: Required<Pick<RunnerOptions<Io>, "db" | "holder" | "deadline" | "sleep" | "pollMs">>,
-): Promise<{ status: "finished"; ok: boolean } | { status: "waiting" }> {
-  const { db, holder, deadline, sleep, pollMs } = opts;
-  const finish = async (ok: boolean, error: string | null) => {
+  opts: { db: TestsDb; holder: string },
+): Promise<Advance> {
+  const { db, holder } = opts;
+  const finish = async (ok: boolean, error: string | null): Promise<Advance> => {
     try {
       await db.runFinish(run, ok, error, holder);
     } finally {
       await def.cleanup?.(ctx).catch(() => undefined);
     }
-    return { status: "finished" as const, ok };
+    return { status: "finished", ok };
   };
   const record = (ok: boolean, detail: string | null) => {
     const step = def.steps[run.state.step];
@@ -112,6 +121,10 @@ export async function advanceRun<Io>(
   const next = () => {
     run.state = { step: run.state.step + 1, stepStartedAt: new Date(ctx.now()).toISOString(), acted: false };
   };
+  const fail = (e: unknown, key: string) => {
+    record(false, safeMessage(e));
+    return finish(false, e instanceof Unsafe ? `${key}: refused` : `${key}: error`);
+  };
 
   for (;;) {
     const step = def.steps[run.state.step];
@@ -120,17 +133,32 @@ export async function advanceRun<Io>(
       record(false, `the run took longer than ${timeoutS} s`);
       return finish(false, "timeout");
     }
-    try {
-      if (!run.state.acted) {
-        merge(run.artefacts, step.act ? await step.act(ctx) : undefined);
-        run.state = { ...run.state, acted: true };
+    if (!run.state.acted) {
+      if (run.state.acting) {
+        record(false, "the runner stopped during this step's action; it is not repeated");
+        return finish(false, `${step.key}: interrupted`);
+      }
+      if (step.act) {
+        run.state = { ...run.state, acting: true };
         await db.runSave(run, holder, LEASE_S);
+        try {
+          merge(run.artefacts, await step.act(ctx));
+        } catch (e) {
+          return fail(e, step.key);
+        }
+        run.state = { ...run.state, acted: true, acting: false };
+        await db.runSave(run, holder, LEASE_S);
+      } else {
+        run.state = { ...run.state, acted: true };
       }
-      if (!step.until) {
-        record(true, null);
-        next();
-        continue;
-      }
+    }
+    if (!step.until) {
+      record(true, null);
+      next();
+      continue;
+    }
+    let detail: string | undefined;
+    try {
       const poll = await step.until(ctx);
       merge(run.artefacts, poll.artefacts);
       if (poll.done) {
@@ -139,32 +167,24 @@ export async function advanceRun<Io>(
         await db.runSave(run, holder, LEASE_S);
         continue;
       }
-      if (ctx.now() - Date.parse(run.state.stepStartedAt) > step.timeoutS * 1000) {
-        record(false, `not seen within ${step.timeoutS} s${poll.detail ? `: ${poll.detail}` : ""}`);
-        return finish(false, `${step.key}: timeout`);
-      }
-      if (ctx.now() + pollMs >= deadline) {
-        await db.runSave(run, holder, LEASE_S);
-        return { status: "waiting" };
-      }
-      await sleep(pollMs);
+      detail = poll.detail;
     } catch (e) {
-      record(false, safeMessage(e));
-      return finish(false, e instanceof Unsafe ? `${step.key}: refused` : `${step.key}: error`);
+      if (e instanceof Unsafe || e instanceof Failed) return fail(e, step.key);
+      detail = `retrying after: ${safeMessage(e)}`;
     }
+    if (ctx.now() - Date.parse(run.state.stepStartedAt) > step.timeoutS * 1000) {
+      record(false, `not seen within ${step.timeoutS} s${detail ? `: ${detail}` : ""}`);
+      return finish(false, `${step.key}: timeout`);
+    }
+    return { status: "waiting" };
   }
 }
 
-/** One pass: in-flight runs first, then the tests that are due. */
+/** One pass: claim the runs in flight, start the tests that are due, then poll them all in turn. */
 export async function runTests<Io>(o: RunnerOptions<Io>): Promise<RunnerSummary> {
   const now = o.now ?? Date.now;
-  const opts = {
-    db: o.db,
-    holder: o.holder,
-    deadline: o.deadline,
-    sleep: o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))),
-    pollMs: o.pollMs ?? 3000,
-  };
+  const sleep = o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const pollMs = o.pollMs ?? 3000;
   const summary: RunnerSummary = { advanced: 0, started: 0, finished: [], waiting: 0 };
   const state = await o.db.testsState(o.holder, LEASE_S);
   const byId = new Map(o.defs.map((d) => [d.id, d]));
@@ -176,15 +196,9 @@ export async function runTests<Io>(o: RunnerOptions<Io>): Promise<RunnerSummary>
     io: o.io,
     now,
   });
-
-  const drive = async (def: TestDef<Io>, run: Run) => {
-    const r = await advanceRun(def, run, ctxFor(run), rowOf.get(def.id)?.timeout_s ?? 900, opts);
-    if (r.status === "finished") summary.finished.push({ test: def.id, ok: r.ok });
-    else summary.waiting++;
-  };
+  let active: Array<{ def: TestDef<Io>; run: Run }> = [];
 
   for (const run of state.runs) {
-    if (now() >= o.deadline) break;
     const def = byId.get(run.testId);
     summary.advanced++;
     if (!def) {
@@ -192,7 +206,7 @@ export async function runTests<Io>(o: RunnerOptions<Io>): Promise<RunnerSummary>
       summary.finished.push({ test: run.testId, ok: false });
       continue;
     }
-    await drive(def, run);
+    active.push({ def, run });
   }
 
   for (const t of state.tests) {
@@ -231,7 +245,32 @@ export async function runTests<Io>(o: RunnerOptions<Io>): Promise<RunnerSummary>
       summary.finished.push({ test: t.id, ok: false });
       continue;
     }
-    await drive(def, run);
+    active.push({ def, run });
+  }
+
+  // Rounds: every run gets a turn before any gets a second, so one slow run never starves the others.
+  while (active.length) {
+    const still: typeof active = [];
+    for (const a of active) {
+      if (now() >= o.deadline) {
+        still.push(a);
+        continue;
+      }
+      const r = await advanceRun(a.def, a.run, ctxFor(a.run), rowOf.get(a.def.id)?.timeout_s ?? 900, {
+        db: o.db,
+        holder: o.holder,
+      });
+      if (r.status === "finished") summary.finished.push({ test: a.def.id, ok: r.ok });
+      else still.push(a);
+    }
+    active = still;
+    if (!active.length || now() + pollMs >= o.deadline) break;
+    await sleep(pollMs);
+  }
+
+  for (const a of active) {
+    await o.db.runSave(a.run, o.holder, 0);
+    summary.waiting++;
   }
   return summary;
 }

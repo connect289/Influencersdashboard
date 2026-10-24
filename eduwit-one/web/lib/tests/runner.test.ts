@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runTests, safeMessage, type TestRow, type TestsDb, type TestsState } from "./runner.ts";
-import { type Identities, type Run, type TestDef, Unsafe } from "./types.ts";
+import { Failed, type Identities, type Run, type TestDef, Unsafe } from "./types.ts";
 
 const identities: Identities = {
   phone_prefix: "910000",
@@ -22,6 +22,7 @@ class FakeDb implements TestsDb {
   runs: Array<Run & { finished?: { ok: boolean; error: string | null } }> = [];
   keys = new Set<string>();
   saves = 0;
+  leases: number[] = [];
   constructor(tests: Array<Partial<TestRow> & { id: string }>) {
     this.tests = tests.map((t) => ({
       enabled: true,
@@ -64,8 +65,9 @@ class FakeDb implements TestsDb {
     const i = this.runs.findIndex((r) => r.id === run.id);
     this.runs[i] = { ...structuredClone(run), finished: this.runs[i]?.finished };
   }
-  async runSave(run: Run) {
+  async runSave(run: Run, _holder: string, leaseS: number) {
     this.saves++;
+    this.leases.push(leaseS);
     this.put(run);
   }
   async runFinish(run: Run, ok: boolean, error: string | null) {
@@ -238,6 +240,100 @@ describe("the test runner", () => {
       sleep,
     });
     expect(s.finished).toEqual([{ test: "T-A", ok: true }]);
+  });
+
+  it("releases a waiting run's lease at the end of the pass", async () => {
+    clock.t = Date.parse("2026-10-23T10:00:30Z");
+    const db = new FakeDb([{ id: "T-A" }]);
+    const io: Io = { acts: [], ready: () => false };
+    const s = await runTests({
+      db,
+      defs: [journey("T-A", io)],
+      io,
+      holder: "h",
+      deadline: clock.t + 5_000,
+      now,
+      sleep,
+    });
+    expect(s.waiting).toBe(1);
+    expect(db.leases.at(-1)).toBe(0);
+  });
+
+  it("polls every run in turn, so a slow one does not starve the others", async () => {
+    clock.t = Date.parse("2026-10-23T10:00:30Z");
+    const db = new FakeDb([{ id: "T-A" }, { id: "T-B" }]);
+    const io: Io = { acts: [], ready: () => false };
+    let polls = 0;
+    const quick = journey("T-B", io, {
+      steps: [{ key: "see", title: "See", timeoutS: 60, until: async () => ({ done: ++polls >= 3 }) }],
+    });
+    const s = await runTests({
+      db,
+      defs: [journey("T-A", io), quick],
+      io,
+      holder: "h",
+      deadline: clock.t + 40_000,
+      now,
+      sleep,
+      pollMs: 3000,
+    });
+    expect(s.finished).toEqual([{ test: "T-B", ok: true }]);
+    expect(s.waiting).toBe(1);
+  });
+
+  it("retries a poll that errors until the step's timeout, and fails at once on a Failed check", async () => {
+    clock.t = Date.parse("2026-10-23T10:00:30Z");
+    const db = new FakeDb([{ id: "T-A" }, { id: "T-B" }]);
+    let calls = 0;
+    const io: Io = { acts: [], ready: () => true };
+    const flaky = journey("T-A", io, {
+      steps: [
+        {
+          key: "see",
+          title: "See",
+          timeoutS: 60,
+          until: async () => {
+            if (++calls < 3) throw new Error("status 502");
+            return { done: true };
+          },
+        },
+      ],
+    });
+    const wrong = journey("T-B", io, {
+      steps: [
+        {
+          key: "see",
+          title: "See",
+          timeoutS: 60,
+          until: async () => {
+            throw new Failed("the reply has 2 verify errors");
+          },
+        },
+      ],
+    });
+    const s = await runTests({ db, defs: [flaky, wrong], io, holder: "h", deadline: clock.t + 40_000, now, sleep });
+    expect(s.finished).toEqual([
+      { test: "T-B", ok: false },
+      { test: "T-A", ok: true },
+    ]);
+    expect(db.runs.find((r) => r.testId === "T-B")?.finished).toEqual({ ok: false, error: "see: error" });
+  });
+
+  it("never repeats an action a dead runner may have taken", async () => {
+    clock.t = Date.parse("2026-10-23T10:00:30Z");
+    const db = new FakeDb([{ id: "T-A" }]);
+    const io: Io = { acts: [], ready: () => true };
+    db.runs.push({
+      id: 1,
+      testId: "T-A",
+      startedAt: new Date(clock.t).toISOString(),
+      steps: [],
+      artefacts: {},
+      state: { step: 0, stepStartedAt: new Date(clock.t).toISOString(), acted: false, acting: true },
+    });
+    await runTests({ db, defs: [journey("T-A", io)], io, holder: "h", deadline: clock.t + 40_000, now, sleep });
+    expect(io.acts).toEqual([]);
+    expect(db.runs[0]?.finished).toEqual({ ok: false, error: "send: interrupted" });
   });
 
   it("keeps contacts and secrets out of step details", () => {

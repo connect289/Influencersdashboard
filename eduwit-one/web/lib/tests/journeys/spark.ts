@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { type TestDef, Unsafe } from "../types.ts";
+import { Failed, type TestDef, Unsafe } from "../types.ts";
 import {
   apps,
+  type Ctx,
   deliveredToSpark,
   handToSpark,
   heldBySpark,
@@ -15,10 +16,10 @@ import type { JourneyIo } from "./io.ts";
 
 // T-HANDOFF and T-B2C-NURTURE (spec §10): a test lead handed from B2B to Spark with B2B's own test hand-off, then, as
 // the test runner (a Spark admin), a logged call that must come back to B2B, or a test journey whose sends must stay
-// dry runs to the lead's own test phone. Spark dials only when a telephony provider is set, and never for a test lead
-// (b2c.telephony_provider); the call step refuses any answer but a manual call.
+// dry runs to the lead's own test phone. Spark never dials for a test lead: b2c.telephony_provider gives it the mock
+// provider when a real one is set, and a manual call when none is. The call step accepts only those two answers.
 
-const callStart = z.object({ call_id: z.number(), mode: z.string() });
+const callStart = z.object({ call_id: z.number(), mode: z.string(), provider: z.string().nullish() });
 const analytics = z.object({ rows: z.array(z.object({ handoffs: z.coerce.number().nullable().optional() })) });
 
 export const tHandoff: TestDef<JourneyIo> = {
@@ -43,8 +44,9 @@ export const tHandoff: TestDef<JourneyIo> = {
         const runner = need(apps(c).runner, "the test runner login");
         const at = new Date(c.now()).toISOString();
         const start = callStart.parse(await runner.rpc("b2c", "call_start", { p_lead: leadOf(c) }));
-        if (start.mode !== "manual")
-          throw new Unsafe(`Spark would place a ${start.mode} call; only a manual log is safe`);
+        // The mock provider ends the call and logs it itself; Spark refuses a log while it is going on.
+        if (start.mode === "bridge" && start.provider === "mock") return { call_id: start.call_id, call_at: at };
+        if (start.mode !== "manual") throw new Unsafe(`Spark answered a ${start.mode} call for a test lead`);
         await runner.rpc("b2c", "call_log", {
           p_call: start.call_id,
           p_outcome: "connected",
@@ -66,7 +68,7 @@ export const tHandoff: TestDef<JourneyIo> = {
             writes: z.array(z.object({ status: z.string(), http_status: z.number().nullable() })),
           })
           .parse(await c.io.seams.fact(c.run.id, "b2c.writeback", { lead_id: leadOf(c), since: c.artefacts.call_at }));
-        if (w.outbox.includes("refused")) throw new Error("B2B refused Spark's activity");
+        if (w.outbox.includes("refused")) throw new Failed("B2B refused Spark's activity");
         const applied = w.writes.find((x) => x.status === "applied");
         return w.outbox.includes("applied") && applied && (applied.http_status ?? 200) < 300
           ? { done: true, detail: "applied in B2B" }
@@ -92,7 +94,7 @@ export const tHandoff: TestDef<JourneyIo> = {
         const shown = r.rows.reduce((n, x) => n + (x.handoffs ?? 0), 0);
         const after = Number((await facts()).real);
         if (shown > after)
-          throw new Error(`analytics show ${shown} hand-offs today, real ones are ${after}: test leads leak in`);
+          throw new Failed(`analytics show ${shown} hand-offs today, real ones are ${after}: test leads leak in`);
         return shown >= Number(before.real)
           ? { done: true, detail: `${shown} real hand-offs today, as counted directly` }
           : { done: false, detail: `analytics show ${shown}, real ${String(before.real)}` };
@@ -106,6 +108,13 @@ const journeySchema = z.object({
   sends: z.number(),
   sends_to_lead_phone: z.number(),
   sends_live: z.number(),
+});
+
+/** The test's own journey run and the sends since it was enrolled (Spark's other journeys may enrol the lead too). */
+const journeyArgs = (c: Ctx) => ({
+  lead_id: leadOf(c),
+  journey_run_id: c.artefacts.journey_run_id,
+  since: c.artefacts.enrolled_at,
 });
 
 export const tB2cNurture: TestDef<JourneyIo> = {
@@ -128,15 +137,13 @@ export const tB2cNurture: TestDef<JourneyIo> = {
       timeoutS: 30,
       act: async (c) => {
         const journey = Number(need(c.identities.spark_test_journey_id, "test_identities.spark_test_journey_id"));
-        const run = z.coerce
-          .number()
-          .parse(
-            await need(apps(c).runner, "the test runner login").rpc("b2c", "journey_test", {
-              p_id: journey,
-              p_lead: leadOf(c),
-            }),
-          );
-        return { journey_run_id: run };
+        const run = z.coerce.number().parse(
+          await need(apps(c).runner, "the test runner login").rpc("b2c", "journey_test", {
+            p_id: journey,
+            p_lead: leadOf(c),
+          }),
+        );
+        return { journey_run_id: run, enrolled_at: new Date(c.now()).toISOString() };
       },
     },
     {
@@ -144,10 +151,10 @@ export const tB2cNurture: TestDef<JourneyIo> = {
       title: "The journey run advances a step",
       timeoutS: 900,
       until: async (c) => {
-        const j = journeySchema.parse(await c.io.seams.fact(c.run.id, "b2c.journey", { lead_id: leadOf(c) }));
+        const j = journeySchema.parse(await c.io.seams.fact(c.run.id, "b2c.journey", journeyArgs(c)));
         if (!j.run) return { done: false, detail: "no journey run yet" };
         if (j.run.is_test === false) throw new Unsafe("the journey run is not a test run");
-        if (j.run.status === "exited") throw new Error("the journey run exited");
+        if (j.run.status === "exited") throw new Failed("the journey run exited");
         return j.run.step_idx >= 1 || j.run.status === "done"
           ? { done: true, detail: `step ${j.run.step_idx}, ${j.run.status}` }
           : { done: false, detail: `step ${j.run.step_idx}, ${j.run.status}` };
@@ -158,7 +165,7 @@ export const tB2cNurture: TestDef<JourneyIo> = {
       title: "A send to its test phone is queued (a dry run)",
       timeoutS: 900,
       until: async (c) => {
-        const j = journeySchema.parse(await c.io.seams.fact(c.run.id, "b2c.journey", { lead_id: leadOf(c) }));
+        const j = journeySchema.parse(await c.io.seams.fact(c.run.id, "b2c.journey", journeyArgs(c)));
         return j.sends_to_lead_phone >= 1
           ? { done: true, detail: `${j.sends_to_lead_phone} queued to the test phone` }
           : { done: false, detail: `${j.sends} sends queued` };
@@ -169,7 +176,7 @@ export const tB2cNurture: TestDef<JourneyIo> = {
       title: "Nothing is queued for any other address",
       timeoutS: 30,
       until: async (c) => {
-        const j = journeySchema.parse(await c.io.seams.fact(c.run.id, "b2c.journey", { lead_id: leadOf(c) }));
+        const j = journeySchema.parse(await c.io.seams.fact(c.run.id, "b2c.journey", journeyArgs(c)));
         if (j.sends_live > 0) throw new Unsafe(`${j.sends_live} send(s) went out live for a test lead`);
         if (j.sends > j.sends_to_lead_phone)
           throw new Unsafe(`${j.sends - j.sends_to_lead_phone} send(s) queued for another address`);
