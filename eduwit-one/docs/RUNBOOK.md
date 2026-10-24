@@ -10,6 +10,7 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
 | `one-tick` | pg_cron, `call one.tick_job()` | minute | Heartbeat `one:tick`; records any check or copy killed last time as an error; due SQL checks (one commit each); escalation, digest; calls the app (the tick counts as finished here); event copy; checks killed earlier, last (D-056) |
 | `one-nightly` | pg_cron, `select one.nightly()` | 02:30 IST | Privilege audit, baselines, retention, proposal expiry, brief task |
 | `/api/internal/tick` | the app, called by `one-tick` | minute | HTTP probes (app health, Vercel, Chatwoot, n8n, WhatsApp), heartbeat `one:app`, alert sender |
+| `/api/internal/ai/run` | the app, called by `one-tick` while an AI task is due | minute | Claims AI tasks for up to four minutes, calls the model of each task's tier, files the answers (D-075) |
 | `/api/watchdog` | the app, called by UptimeRobot | 5 min | `{"ok":true}` while the last finished `one-tick` is under 5 minutes old and no alert email has waited 10 minutes |
 
 ## Alerts
@@ -106,6 +107,50 @@ runner, through each CRM's own delete with reason "test" (nothing is hard-delete
 ONE-PURGE reports it. Partner-routed test leads are kept until B2B accepts "test" for them (proposal
 `p5-b2b-delete-sandbox-test-leads`); the rows the purge leaves are listed in D-071. The website and influencer tests
 are blocked until the apps add what their proposals ask for (D-071).
+
+## The AI layer
+
+The AI writes advice; the checks' SQL decides what is broken (D-075). Each minute the tick queues AI tasks by fixed
+rules (a classification for each new incident, an explanation for a P1 or P2 open 15 minutes, a fix proposal after an
+hour, a weekly feature review on Mondays, a test idea when an incident is resolved as fixed, the nightly brief, every
+Ask) and calls the worker when one is due. What the AI may write: an incident's summary and likely cause, briefs, its
+answers, and open proposals a person decides. Synthetic test incidents are never analysed.
+
+To switch it on (Settings → Setup → `ai_key`, owner):
+
+1. Choose the provider per tier in Settings → AI (`provider`: `gemini` or `anthropic`; seeded `gemini`, question Q1)
+   and save its key: `one_gemini_key` or `one_anthropic_key` (Vercel env `ONE_GEMINI_API_KEY` /
+   `ONE_ANTHROPIC_API_KEY` also works).
+2. Give every model a price in Settings → AI → `prices` (USD per million tokens: `input`, `output`, and `cache_read`,
+   `cache_write` where the provider charges them). The Claude models are priced in the seed; Gemini 3.6 Flash is not,
+   because its price could not be confirmed from Google (D-075). **A model without a price is never called**: its tasks
+   wait as deferred and say so.
+3. Validate. It checks every tier's provider, model, price and key with the provider's free model lookup; the deep tier
+   with no model of its own reports that it falls back to the regular tier.
+
+Spend: `daily_cap_inr` (500) and `per_task_cap_inr` (50). From `queue_non_triage_at_pct` (80%) of the day's cap only
+classify and triage run; at the cap nothing runs and ONE-01 reports it. A call is not made when its worst case (whole
+output allowance) would pass the per-task cap or what is left today. Held-back tasks show "deferred" with the reason on
+the incident and Ask pages and are offered again every 15 minutes; tasks older than `task_max_age_h` (48) are
+cancelled. To stop all AI work at once, set `daily_cap_inr` to 0. Every call is in Audit → AI calls with its tokens,
+cost and prompt version.
+
+Contact data: the database redacts what it sends, and the worker masks it again (`web/lib/ai/pii.ts`: names become
+initials, phones their last four digits, emails their domain; message texts are left out). Witty message excerpts reach
+the model only for an explanation of a Witty incident, and only while `ai.allow_message_excerpts` is on (off).
+
+Ask uses fixed read-only tools, never SQL written by the model (D-076); each answer lists the tools it used. The morning
+brief covers the day before, is built at 02:30 IST and mailed to the P1 inbox at `ai.schedule.brief_mail_at_ist`
+(08:00), with links to the saved views marked "email it".
+
+To run the worker by hand: `curl -X POST -H "Authorization: Bearer $ONE_INTERNAL_KEY" https://one.eduwit.in/api/internal/ai/run`.
+The route needs Vercel's Fluid compute (on by default for new projects) for its 300-second limit; without it the
+deploy fails with a maxDuration error, and lowering `maxDuration` to 60 would leave too little time for the deep tier.
+
+The eval: `cd web && npm run ai:eval` runs the 30 incidents and 10 questions offline (it proves the harness and the
+mask, and spends nothing). `npm run ai:eval -- --live` prints each tier's model and worst-case cost; add `--yes` to run
+it, with `ONE_ANTHROPIC_API_KEY` or `ONE_GEMINI_API_KEY` set. It prints scores, leaks (must be 0), cost and latency per
+tier.
 
 ## The external watchdog (UptimeRobot)
 
