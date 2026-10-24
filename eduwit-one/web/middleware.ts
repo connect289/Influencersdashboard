@@ -64,6 +64,11 @@ async function cookieKey(internalKey: string | undefined): Promise<string | unde
 }
 
 export async function middleware(request: NextRequest) {
+  // Prefetches skip the middleware (Vercel accepts only string matchers, so the exclusion lives here, not in the
+  // matcher's `missing`): a background prefetch must not redirect or count as activity for the idle rule.
+  if (request.headers.get("next-router-prefetch") !== null || request.headers.get("purpose") === "prefetch") {
+    return NextResponse.next();
+  }
   const url = process.env.ONE_SUPABASE_URL;
   const key = process.env.ONE_SUPABASE_ANON_KEY;
   const isDev = process.env.NODE_ENV === "development";
@@ -150,13 +155,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    {
-      source: "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|brand/|api/).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
-  ],
+  // A plain path matcher: Vercel's build rejects the object form (source + missing); prefetches are skipped in code above.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|brand/|api/).*)"],
 };
