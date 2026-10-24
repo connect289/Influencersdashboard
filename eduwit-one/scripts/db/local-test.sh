@@ -22,10 +22,10 @@ psql_as() { # role, then psql args
   psql -X -q -h "$work" -p "$port" -U "$role" -v ON_ERROR_STOP=1 "$@"
 }
 raw() { # role, file: one transaction (the stubs, which stand in for the apps)
-  psql_as "$1" -d rehearsal -1 -c "set local lock_timeout = '5s'; set local statement_timeout = '5min';" -f "$2" >/dev/null
+  psql_as "$1" -d rehearsal -1 -c "set local lock_timeout = '60s'; set local statement_timeout = '5min';" -f "$2" >/dev/null
 }
 apply() { # role, file: one transaction, as on production (spec §4), refused if it changes anything outside schema one
-  psql_as "$1" -d rehearsal -1 -c "set local lock_timeout = '5s'; set local statement_timeout = '5min';" \
+  psql_as "$1" -d rehearsal -1 -c "set local lock_timeout = '60s'; set local statement_timeout = '5min';" \
     -f "$here/scripts/db/fp-before.sql" -f "$2" -f "$here/scripts/db/fp-after.sql" >/dev/null
 }
 

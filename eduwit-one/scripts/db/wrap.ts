@@ -29,7 +29,7 @@ export function wrap(path: string, opts: { discardHistory?: boolean } = {}): str
   if (!body.endsWith("\n")) body += "\n";
   return [
     "begin;\n",
-    "set local lock_timeout = '5s'; set local statement_timeout = '5min';\n",
+    "set local lock_timeout = '60s'; set local statement_timeout = '5min';\n",
     opts.discardHistory ? "set local one.rollback_discards_history = 'on';\n" : "",
     "-- fp-before.sql, expanded for a single-session run\n",
     fingerprintFor("before"),

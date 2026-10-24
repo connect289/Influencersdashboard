@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Applies migrations to production one file at a time, in the order of spec §5:
 #   guards → the current migration set has a REHEARSAL PASSED row in docs/REHEARSALS.md → a dump from the last 24 h
-#   exists and matches its .sha256 (scripts/db/dump.sh), unless ONE_APPLY_WITHOUT_DUMP=owner-accepted (D-090) → each named file in its own transaction (lock_timeout 5s,
+#   exists and matches its .sha256 (scripts/db/dump.sh), unless ONE_APPLY_WITHOUT_DUMP=owner-accepted (D-090) → each named file in its own transaction (lock_timeout 60s,
 #   statement_timeout 5min), stopping at the first failure → smoke test → prints the tick report to inspect by hand.
 # Target: ONE_PROD_DB_URL, never printed. Usage: scripts/db/apply.sh 0001_schema_and_roles.sql [0002_... ...]
 set -euo pipefail
@@ -29,17 +29,30 @@ else
 fi
 
 q() { psql -X -q -v ON_ERROR_STOP=1 "$@"; }
+# The one-* jobs stay inactive while files run (see rehearse.sh): paused after every file, a running tick waited out,
+# and switched back on after the smoke test.
+jobs_pause() {
+  q -c "select cron.alter_job(jobid, active := false) from cron.job where jobname in ('one-tick', 'one-nightly') and active" >/dev/null
+  for _ in $(seq 1 60); do
+    [ "$(q -At -c "select count(*) from pg_stat_activity where pid <> pg_backend_pid() and state <> 'idle' and query ~ 'one\\.(tick_job|nightly)'")" = "0" ] && return
+    sleep 2
+  done
+  echo "a one-tick run is still going after 2 min"; exit 1
+}
+jobs_resume() { q -c "select cron.alter_job(jobid, active := true) from cron.job where jobname in ('one-tick', 'one-nightly') and not active" >/dev/null; }
 for name in "$@"; do
   f="$here/supabase/migrations/$name"
   case "$name" in *.rollback.sql) echo "refused: $name is a rollback; run it by hand after reading it"; exit 2 ;; esac
   [ -f "$f" ] || { echo "no such migration: $name"; exit 2; }
   # Between two catalogue fingerprints: a file that changes anything outside schema one is rolled back whole (M8).
-  q -1 -c "set local lock_timeout = '5s'; set local statement_timeout = '5min';" \
+  q -1 -c "set local lock_timeout = '60s'; set local statement_timeout = '5min';" \
     -f "$here/scripts/db/fp-before.sql" -f "$f" -f "$here/scripts/db/fp-after.sql" >/dev/null
+  jobs_pause
   echo "  applied $name"
 done
 q -At -f "$here/supabase/tests/smoke.sql" | grep -q '^SMOKE PASSED' || { echo "smoke.sql failed after the apply"; exit 1; }
 echo "  passed smoke.sql"
+jobs_resume
 echo "tick report (inspect it): $(q -At -c 'select report from one.runs where kind = '\''tick'\'' order by id desc limit 1')"
 echo "cron: $(q -At -c "select string_agg(jobname || ' ' || schedule, '; ') from cron.job where jobname like 'one-%'")"
 echo "Record the dump path and this run in docs/DECISIONS.md and docs/CHANGES.md."

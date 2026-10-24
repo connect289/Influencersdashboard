@@ -23,7 +23,10 @@ begin
   if v_run.report::text ~ '_error"' then
     raise exception 'ASSERT FAILED: tick report has an error key: %', v_run.report;
   end if;
-  if not (one.tick() ? 'skipped') then
+  -- one.tick() buckets by now(), this block's start, so the guard can be tested only while the block started in the
+  -- minute of the run above. A real tick takes tens of seconds (38 s on staging, 24 Oct), so this block often starts in
+  -- the next minute; a second tick there is a real one, and the guard is left to the local tests (10_core.sql).
+  if date_trunc('minute', now()) = v_run.bucket and not (one.tick() ? 'skipped') then
     raise exception 'ASSERT FAILED: a second tick in the same minute ran again';
   end if;
   if (select count(*) from cron.job where (jobname, schedule, command) in
