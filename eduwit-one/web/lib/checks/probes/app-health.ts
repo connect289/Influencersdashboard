@@ -1,6 +1,7 @@
+import { z } from "zod";
 import { checkDue, heartbeatDue } from "../due.ts";
-import type { Probe, ProbeOutcome } from "../types.ts";
-import type { HeartbeatReport, ResultReport } from "../../state.ts";
+import { defineProbe, type ProbeOutcome } from "../types.ts";
+import { type HeartbeatReport, healthPathsSchema, hostsSchema, type ResultReport } from "../../state.ts";
 
 // The apps' own health endpoints (spec §7 heartbeats website, spark, b2b-app, influencer; checks WEB-02, INF-04).
 // The host and path come from one.settings.hosts and health_paths; a path other than /api/health is a reachability
@@ -13,9 +14,15 @@ const TARGETS = [
   { app: "spark", component: "spark", intervalS: 120, check: null },
 ] as const;
 
-export const appHealthProbe: Probe = {
+export const appHealthProbe = defineProbe({
   name: "app-health",
-  async run({ state, clients, now }): Promise<ProbeOutcome> {
+  client: "appHealth",
+  checks: TARGETS.flatMap((t) => (t.check ? [t.check] : [])),
+  settings: z.object({
+    hosts: hostsSchema.pick({ website: true, spark: true, b2b_app: true, influencer: true }),
+    health_paths: healthPathsSchema,
+  }),
+  async run({ state, settings, clients, now }): Promise<ProbeOutcome> {
     const heartbeats: HeartbeatReport[] = [];
     const results: ResultReport[] = [];
     const due = TARGETS.filter(
@@ -24,8 +31,8 @@ export const appHealthProbe: Probe = {
     if (due.length === 0) return { status: "not_due", mode: clients.appHealth.mode, heartbeats, results };
     await Promise.all(
       due.map(async (t) => {
-        const host = state.settings.hosts[t.app];
-        const path = state.settings.health_paths[t.app] ?? "/api/health";
+        const host = settings.hosts[t.app];
+        const path = settings.health_paths[t.app] ?? "/api/health";
         const r = await clients.appHealth.client.health(
           `${host}${path}`,
           path === "/api/health" ? "json_ok" : "reachable",
@@ -45,4 +52,4 @@ export const appHealthProbe: Probe = {
     );
     return { status: "ran", mode: clients.appHealth.mode, heartbeats, results };
   },
-};
+});

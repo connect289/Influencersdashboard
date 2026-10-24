@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { secretEnv } from "../env.ts";
-import type { Settings } from "../state.ts";
+import type { ClientSettings } from "../state.ts";
 import { appHealthFixture, MockAppHealthClient, RealAppHealthClient } from "./app-health.ts";
 import {
   chatwootInboxesFixture,
@@ -65,8 +65,13 @@ export function mockClients(): Clients {
   };
 }
 
-export function clientsFor(settings: Settings, credentials: Credentials): Clients {
+/**
+ * settings is null when the hosts and vendor keys of one.settings do not parse (F6): the vendor clients are then not
+ * configured and their probes say so; the app health client needs no setting.
+ */
+export function clientsFor(settings: ClientSettings | null, credentials: Credentials): Clients {
   if (process.env.ONE_CLIENT_MODE === "mock") return mockClients();
+  const off = { mode: "not_configured" as const, client: null };
   const {
     vercel: vercelToken,
     chatwoot: chatwootToken,
@@ -76,20 +81,23 @@ export function clientsFor(settings: Settings, credentials: Credentials): Client
   } = credentials;
   return {
     appHealth: { mode: "real", client: new RealAppHealthClient() },
-    vercel: vercelToken
-      ? { mode: "real", client: new RealVercelClient(settings.vendors.vercel_api, vercelToken) }
-      : { mode: "not_configured", client: null },
-    chatwoot: chatwootToken
-      ? { mode: "real", client: new RealChatwootClient(settings.hosts.chatwoot, chatwootToken) }
-      : { mode: "not_configured", client: null },
-    n8n: n8nKey
-      ? { mode: "real", client: new RealN8nClient(secretEnv("ONE_N8N_BASE_URL") ?? settings.hosts.n8n, n8nKey) }
-      : { mode: "not_configured", client: null },
-    whatsapp: whatsappToken
-      ? { mode: "real", client: new RealWhatsAppClient(settings.vendors.graph_api, whatsappToken) }
-      : { mode: "not_configured", client: null },
-    email: emailKey
-      ? { mode: "real", client: new RealEmailClient(settings.vendors.resend_api, emailKey) }
-      : { mode: "not_configured", client: null },
+    vercel:
+      vercelToken && settings
+        ? { mode: "real", client: new RealVercelClient(settings.vendors.vercel_api, vercelToken) }
+        : off,
+    chatwoot:
+      chatwootToken && settings
+        ? { mode: "real", client: new RealChatwootClient(settings.hosts.chatwoot, chatwootToken) }
+        : off,
+    n8n:
+      n8nKey && settings
+        ? { mode: "real", client: new RealN8nClient(secretEnv("ONE_N8N_BASE_URL") ?? settings.hosts.n8n, n8nKey) }
+        : off,
+    whatsapp:
+      whatsappToken && settings
+        ? { mode: "real", client: new RealWhatsAppClient(settings.vendors.graph_api, whatsappToken) }
+        : off,
+    email:
+      emailKey && settings ? { mode: "real", client: new RealEmailClient(settings.vendors.resend_api, emailKey) } : off,
   };
 }

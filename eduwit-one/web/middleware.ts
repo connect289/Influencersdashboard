@@ -7,6 +7,7 @@ import {
   safeNext,
   SEEN_COOKIE,
   seenFresh,
+  seenKey,
   seenValue,
   signedInAt,
 } from "./lib/security.ts";
@@ -49,6 +50,17 @@ async function idleSeconds(url: string, key: string, token: string | undefined):
     // keep the last known value
   }
   return idlePolicy.seconds;
+}
+
+// The idle cookie's signing key, derived from ONE_INTERNAL_KEY once per process (security review m6).
+const cookieKeys = { from: "", key: "" };
+async function cookieKey(internalKey: string | undefined): Promise<string | undefined> {
+  if (!internalKey) return undefined;
+  if (cookieKeys.from !== internalKey) {
+    cookieKeys.key = await seenKey(internalKey);
+    cookieKeys.from = internalKey;
+  }
+  return cookieKeys.key;
 }
 
 export async function middleware(request: NextRequest) {
@@ -98,9 +110,9 @@ export async function middleware(request: NextRequest) {
   const limit = userId
     ? await idleSeconds(url, key, (await supabase.auth.getSession()).data.session?.access_token)
     : DEFAULT_IDLE_SECONDS;
-  // The idle cookie is signed with the internal key and bound to the session (S5). Without the key (a local build), the
-  // plain timestamp is kept and a missing cookie is not idle, as before.
-  const signKey = process.env.ONE_INTERNAL_KEY;
+  // The idle cookie is signed with a key derived from the internal key (m6) and bound to the session (S5). Without the
+  // key (a local build), the plain timestamp is kept and a missing cookie is not idle, as before.
+  const signKey = await cookieKey(process.env.ONE_INTERNAL_KEY);
   const sessionId = typeof data?.claims?.session_id === "string" ? data.claims.session_id : "";
   const idle = userId
     ? signKey && sessionId

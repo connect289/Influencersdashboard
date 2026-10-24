@@ -2,7 +2,7 @@
 import { ActionForm } from "@/components/forms/action-form.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Field, Input, Select } from "@/components/ui/field.tsx";
-import { dryRunFix, setFix } from "@/lib/actions/fixes.ts";
+import { dryRunFix, setFix, unpauseFix } from "@/lib/actions/fixes.ts";
 
 /** The owner's switch and limits for one fix, with a reason. The database refuses a switch-on before the window ends. */
 export function FixSwitchForm({
@@ -46,6 +46,21 @@ export function FixSwitchForm({
           Save
         </Button>
       </div>
+    </ActionForm>
+  );
+}
+
+/** The owner clears a pause the breaker set (0020), with a reason that is kept in the audit. */
+export function UnpauseForm({ fix }: { fix: string }) {
+  return (
+    <ActionForm action={unpauseFix} className="sm:grid-cols-[1fr_auto] sm:items-end">
+      <input type="hidden" name="fix" value={fix} />
+      <Field label="Why it may act again">
+        <Input name="reason" required minLength={3} placeholder="What was put right, in a few words" />
+      </Field>
+      <Button type="submit" variant="secondary">
+        Clear the pause
+      </Button>
     </ActionForm>
   );
 }

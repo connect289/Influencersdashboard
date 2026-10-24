@@ -1,28 +1,34 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { ActionRows } from "@/components/fixes/action-rows.tsx";
-import { DryRunForm, FixSwitchForm } from "@/components/fixes/fix-forms.tsx";
+import { DryRunForm, FixSwitchForm, UnpauseForm } from "@/components/fixes/fix-forms.tsx";
 import { Badge, SeverityBadge } from "@/components/ui/badge.tsx";
 import { Card, CardBody, CardHeader, Stat } from "@/components/ui/card.tsx";
-import { appName, fixModes } from "@/components/ui/labels.ts";
+import { appName, awaitingVerdict, fixModes, fixProof } from "@/components/ui/labels.ts";
 import { PageError } from "@/components/ui/page-error.tsx";
 import { Banner, Empty, PageHeader } from "@/components/ui/state.tsx";
-import { ago, ist } from "@/lib/format.ts";
+import { ago, ist, istDate } from "@/lib/format.ts";
 import { requireUser } from "@/lib/session.ts";
 import { ui } from "@/lib/ui/api.ts";
-import { fixesSchema } from "@/lib/ui/schemas.ts";
+import { type FixState, fixesSchema, fixStatesSchema } from "@/lib/ui/schemas.ts";
 
 export const metadata: Metadata = { title: "Fixes" };
 
 export default async function FixesPage() {
   const me = await requireUser("/settings/fixes");
-  let data;
+  let loaded;
   try {
-    data = await ui("ui_fixes", fixesSchema);
+    // The proof states (0020) are read beside the fixes; when that read fails the page still shows the fixes.
+    loaded = await Promise.all([
+      ui("ui_fixes", fixesSchema),
+      ui("ui_fix_states", fixStatesSchema).catch((): FixState[] | null => null),
+    ]);
   } catch (e) {
     return <PageError error={e} />;
   }
+  const [data, states] = loaded;
   const { window: w, fixes } = data;
+  const stateOf = new Map((states ?? []).map((s) => [s.fix_id, s]));
   return (
     <>
       <PageHeader
@@ -42,9 +48,17 @@ export default async function FixesPage() {
           switched on by the owner.
         </Banner>
       )}
+      <p className="max-w-3xl text-sm text-fg-muted">
+        Proof before power: a switched-on fix acts on one row until a run of it holds; there is no second run on an
+        incident before the verdict on the last run; two runs that did not hold within 7 days pause the fix (dry runs
+        only) until the owner clears it here.
+        {states === null ? " The proof state of each fix could not be read just now." : ""}
+      </p>
       <div className="grid gap-4">
         {fixes.map((f) => {
           const mode = fixModes[f.mode];
+          const st = stateOf.get(f.id);
+          const trial = Boolean(st && !st.paused && f.settings.enabled && !st.proven);
           return (
             <Card key={f.id} id={f.id}>
               <CardHeader
@@ -53,11 +67,46 @@ export default async function FixesPage() {
                     {f.id}
                     {f.settings.enabled ? <Badge tone="ok">on</Badge> : <Badge tone="off">off</Badge>}
                     {mode ? <Badge tone={mode.tone}>{mode.label}</Badge> : null}
+                    {st?.paused ? <Badge tone={fixProof.paused.tone}>{fixProof.paused.label}</Badge> : null}
+                    {trial ? <Badge tone={fixProof.trial.tone}>{fixProof.trial.label}</Badge> : null}
                   </span>
                 }
                 description={`${f.title} · ${appName(f.app)} · tried on ${f.checks.join(", ")}`}
               />
               <CardBody className="grid gap-4">
+                {st ? (
+                  <div className="grid gap-2 text-sm">
+                    {st.paused ? (
+                      <>
+                        <p>
+                          <span className="font-medium">Paused</span>
+                          {st.paused_at ? ` since ${ist(st.paused_at)}` : ""}
+                          {st.paused_reason ? `: ${st.paused_reason}` : ""}. Dry runs only until the owner clears it.
+                        </p>
+                        {me.role === "owner" ? (
+                          <UnpauseForm fix={f.id} />
+                        ) : (
+                          <p className="text-xs text-fg-muted">Only the owner clears a pause.</p>
+                        )}
+                      </>
+                    ) : null}
+                    {trial ? <p className="text-xs text-fg-muted">Trial: {fixProof.trial.hint}.</p> : null}
+                    {st.proven ? (
+                      <p className="text-xs text-fg-muted">Proven {istDate(st.proven_at)}: a real run of it held.</p>
+                    ) : null}
+                    {st.awaiting_verdict.length > 0 ? (
+                      <p className="text-xs text-fg-muted">
+                        {awaitingVerdict(st.awaiting_verdict)}; no second run on it until then.
+                      </p>
+                    ) : null}
+                    {st.did_not_hold_7d > 0 ? (
+                      <p className="text-xs text-fg-muted">
+                        {st.did_not_hold_7d} {st.did_not_hold_7d === 1 ? "run" : "runs"} did not hold in the last 7
+                        days; two pause the fix.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="grid gap-2 text-sm">
                     <p>

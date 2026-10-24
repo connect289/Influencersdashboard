@@ -1,7 +1,8 @@
+import { z } from "zod";
 import { HttpError } from "../../http.ts";
 import { checkDue, heartbeatDue } from "../due.ts";
-import type { Probe, ProbeOutcome } from "../types.ts";
-import type { HeartbeatReport, ResultReport } from "../../state.ts";
+import { defineProbe, type ProbeOutcome } from "../types.ts";
+import { type HeartbeatReport, n8nSchema, type ResultReport, wittySchema } from "../../state.ts";
 import type { N8nExecution } from "../../clients/types.ts";
 
 // n8n (heartbeats n8n:instance and n8n:<Witty workflow id>; checks WITTY-02, WITTY-08). The Witty workflow has a
@@ -24,14 +25,17 @@ function witty02(active: boolean, runs: N8nExecution[], now: Date): ResultReport
   };
 }
 
-export const n8nProbe: Probe = {
+export const n8nProbe = defineProbe({
   name: "n8n",
-  async run({ state, clients, now }): Promise<ProbeOutcome> {
+  client: "n8n",
+  checks: ["WITTY-02", "WITTY-08"],
+  settings: z.object({ n8n: n8nSchema, witty: wittySchema.pick({ expect_nurture: true, expect_learning: true }) }),
+  async run({ state, settings, clients, now }): Promise<ProbeOutcome> {
     const { mode, client } = clients.n8n;
     if (!client) return { status: "not_configured", mode, heartbeats: [], results: [] };
     const heartbeats: HeartbeatReport[] = [];
     const results: ResultReport[] = [];
-    const ids = state.settings.n8n;
+    const ids = settings.n8n;
     const wittyComponent = `n8n:${ids.witty_workflow_id}`;
     const wantWitty = heartbeatDue(state, wittyComponent, 60, now) || checkDue(state, "WITTY-02", now);
     try {
@@ -53,8 +57,8 @@ export const n8nProbe: Probe = {
       }
       if (checkDue(state, "WITTY-08", now)) {
         const expected = [
-          state.settings.witty.expect_nurture ? ids.nurture_workflow_id : undefined,
-          state.settings.witty.expect_learning ? ids.learning_workflow_id : undefined,
+          settings.witty.expect_nurture ? ids.nurture_workflow_id : undefined,
+          settings.witty.expect_learning ? ids.learning_workflow_id : undefined,
         ].filter((x): x is string => Boolean(x));
         const inactive: string[] = [];
         for (const id of expected) if (!(await client.workflow(id)).active) inactive.push(id);
@@ -71,4 +75,4 @@ export const n8nProbe: Probe = {
     }
     return { status: heartbeats.length + results.length === 0 ? "not_due" : "ran", mode, heartbeats, results };
   },
-};
+});

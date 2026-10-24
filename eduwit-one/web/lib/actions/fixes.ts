@@ -32,6 +32,15 @@ export async function setFix(_: ActionResult | undefined, form: FormData): Promi
   );
 }
 
+/** The owner clears a fix its breaker paused (0020): two runs did not hold within 7 days. The reason is kept. */
+export async function unpauseFix(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
+  const p = z
+    .object({ fix: fixId, reason: z.string().trim().min(3, "Give a reason of at least 3 characters.").max(500) })
+    .safeParse(fields(form));
+  if (!p.success) return invalid(p.error.issues);
+  return act("ui_fix_unpause", { p_fix: p.data.fix, p_reason: p.data.reason }, "Cleared: the fix may act again.");
+}
+
 const dryRunSchema = z.looseObject({
   dry_run: z.boolean().optional(),
   applies: z.boolean().optional(),

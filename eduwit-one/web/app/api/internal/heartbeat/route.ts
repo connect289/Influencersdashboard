@@ -5,7 +5,7 @@ import { SupabaseOneDb } from "@/lib/db.ts";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  if (!internalAuthorized(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (!(await internalAuthorized(request))) return Response.json({ error: "unauthorized" }, { status: 401 });
   const db = SupabaseOneDb.fromEnv();
   if (!db) return Response.json({ error: "not_configured" }, { status: 503 });
   try {

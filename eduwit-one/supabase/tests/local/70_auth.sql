@@ -1,6 +1,8 @@
 -- Phase 4 sign-in (spec §13, migration 0009): the allow-list, the emailed code, trusted devices, roles, revocation.
 -- PostgREST's JWT is simulated with request.jwt.claims. Local test cluster only.
 \set ON_ERROR_STOP 1
+-- This test rewrites histories that are append-only in production (D-085): it says so, as one.retention() does.
+select set_config('one.history_writer', 'on', false);
 do $$ begin
   if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then
     raise exception 'refused: this test rewrites fixtures and runs only on the local test cluster';

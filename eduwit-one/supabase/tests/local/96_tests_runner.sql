@@ -1,6 +1,8 @@
 -- The test runner's database side (migration 0014): start, lease, save, finish, report to the test's check, reap.
 -- Local test cluster only.
 \set ON_ERROR_STOP 1
+-- This test rewrites histories that are append-only in production (D-085): it says so, as one.retention() does.
+select set_config('one.history_writer', 'on', false);
 do $$ begin
   if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then
     raise exception 'refused: this test rewrites fixtures and runs only on the local test cluster';

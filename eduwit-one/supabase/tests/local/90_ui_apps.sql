@@ -1,6 +1,8 @@
 -- Phase 4 Apps, Marketing and Analytics reads (migration 0012): every panel answers without raising, as the signed-in
 -- person, redacted, with its time; the funnel counts leads per step from one.events. Local test cluster only.
 \set ON_ERROR_STOP 1
+-- The histories are append-only in production (D-085); this local test may rewrite them, as one.retention() does.
+select set_config('one.history_writer', 'on', false);
 do $$ begin
   if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then
     raise exception 'refused: this test rewrites fixtures and runs only on the local test cluster';

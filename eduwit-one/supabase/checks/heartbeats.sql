@@ -133,8 +133,11 @@ select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state(
 -- severity: P1
 -- cadence_s: 60
 -- title: Heartbeat lost: Eduwit One's minute tick
--- description: Written first thing by one.tick(). If the tick stops this check stops too, so the external watchdog reads the same row (D-018); this check catches a tick that runs but skips its heartbeat.
-select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('one:tick') as s) x
+-- description: The last finished minute tick is older than heartbeat_multiple (3) minutes, judged by one.runs (hardening F13): a tick that is wedged behind its own lock, or that dies after its app call every minute, fails here and in the watchdog alike. A fresh install is ok for its first 10 minutes. The one:tick heartbeat row (written once the tick holds its lock) carries the lock-breaker's note in last_error.
+select coalesce(max(r.finished_at) > now() - make_interval(secs => 60 * (select one.threshold('heartbeat_multiple'))::int),
+                (select min(x.started_at) from one.runs x where x.kind = 'tick') > now() - interval '10 minutes') as ok,
+       jsonb_build_object('last_finished', max(r.finished_at), 'heartbeat', one.heartbeat_state('one:tick')) as value
+  from one.runs r where r.kind = 'tick'
 
 -- check: HB-one:app
 -- app: one

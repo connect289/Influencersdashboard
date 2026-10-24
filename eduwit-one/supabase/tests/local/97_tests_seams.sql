@@ -1,6 +1,8 @@
 -- The seams the journeys use (migration 0016): a fact or an action only for a run in flight whose test may use it;
 -- T-ALERT's synthetic incident and test delivery; synthetic incidents left out of the digest. Local test cluster only.
 \set ON_ERROR_STOP 1
+-- The histories are append-only in production (D-085); this local test may rewrite them, as one.retention() does.
+select set_config('one.history_writer', 'on', false);
 do $$ begin
   if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then
     raise exception 'refused: this test rewrites fixtures and runs only on the local test cluster';

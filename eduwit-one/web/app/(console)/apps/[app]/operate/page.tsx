@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DryRunForm } from "@/components/fixes/fix-forms.tsx";
 import { IconExternal } from "@/components/icons.tsx";
-import { appName, fixModes } from "@/components/ui/labels.ts";
+import { appName, fixModes, fixProof } from "@/components/ui/labels.ts";
 import { Badge, SeverityBadge, StatusBadge } from "@/components/ui/badge.tsx";
 import { Card, CardBody, CardHeader, Stat } from "@/components/ui/card.tsx";
 import { PageError } from "@/components/ui/page-error.tsx";
@@ -17,6 +17,7 @@ import {
   checksSchema,
   embedSchema,
   fixesSchema,
+  fixStatesSchema,
   heartbeatsSchema,
   incidentRowSchema,
   pageOf,
@@ -52,7 +53,7 @@ export default async function OperatePage({ params }: { params: Promise<{ app: s
   const key = (await params).app;
   const app = OPERATE[key];
   if (!app) notFound();
-  const [setup, fixes, heartbeats, checks, tests, cron, settings, incidents] = await Promise.all([
+  const reads = await Promise.all([
     part(ui("ui_setup", setupSchema)),
     part(ui("ui_fixes", fixesSchema)),
     part(ui("ui_heartbeats", heartbeatsSchema)),
@@ -61,12 +62,15 @@ export default async function OperatePage({ params }: { params: Promise<{ app: s
     part(ui("ui_embed", embedSchema, { p_panel: "platform.cron" })),
     part(ui("ui_settings", settingsSchema)),
     part(ui("ui_incidents", pageOf(incidentRowSchema), { p_status: "open", p_app: key, p_limit: 20 })),
+    part(ui("ui_fix_states", fixStatesSchema)),
   ]);
+  const [setup, fixes, heartbeats, checks, tests, cron, settings, incidents, fixStates] = reads;
   if (setup.error && fixes.error && checks.error) return <PageError error={new UiError("unavailable", setup.error)} />;
   const items = setup.data ?? [];
   const ready = readiness(app, items);
   const byId = new Map(items.map((i) => [i.id, i]));
   const appFixes = (fixes.data?.fixes ?? []).filter((f) => app.fixes.includes(f.id));
+  const fixStateOf = new Map((fixStates.data ?? []).map((s) => [s.fix_id, s]));
   const window = fixes.data?.window ?? null;
   const beats = (heartbeats.data ?? []).filter((h) => h.app === key);
   const appTests = (tests.data ?? []).filter((t) => app.tests.includes(t.id));
@@ -88,9 +92,7 @@ export default async function OperatePage({ params }: { params: Promise<{ app: s
     `Which ${name} checks failed in the last 7 days, and what did each one see?`,
     `What would each fix for ${name} have done this week, from its dry runs?`,
   ];
-  const errors = [setup, fixes, heartbeats, checks, tests, cron, settings, incidents]
-    .map((p) => p.error)
-    .filter(Boolean);
+  const errors = reads.map((p) => p.error).filter(Boolean);
   return (
     <>
       <PageHeader
@@ -120,7 +122,7 @@ export default async function OperatePage({ params }: { params: Promise<{ app: s
       />
       {errors.length ? (
         <Banner tone="p2">
-          Some of this page could not be read ({errors.length} of 8 reads); what loaded is shown.
+          Some of this page could not be read ({errors.length} of {reads.length} reads); what loaded is shown.
         </Banner>
       ) : null}
       {window?.running && appFixes.length ? (
@@ -319,6 +321,8 @@ export default async function OperatePage({ params }: { params: Promise<{ app: s
           <ul className="divide-y divide-border">
             {appFixes.map((f) => {
               const mode = fixModes[f.mode];
+              const st = fixStateOf.get(f.id);
+              const trial = Boolean(st && !st.paused && f.settings.enabled && !st.proven);
               return (
                 <li key={f.id} className="grid gap-1 px-4 py-3 text-sm">
                   <div className="flex flex-wrap items-center gap-2">
@@ -327,6 +331,8 @@ export default async function OperatePage({ params }: { params: Promise<{ app: s
                     </Link>
                     <Badge tone={f.settings.enabled ? "ok" : "off"}>{f.settings.enabled ? "on" : "off"}</Badge>
                     {mode ? <Badge tone={mode.tone}>{mode.label}</Badge> : null}
+                    {st?.paused ? <Badge tone={fixProof.paused.tone}>{fixProof.paused.label}</Badge> : null}
+                    {trial ? <Badge tone={fixProof.trial.tone}>{fixProof.trial.label}</Badge> : null}
                     {!f.grants_state.ok ? <Badge tone="p2">rights missing</Badge> : null}
                     <span className="text-xs text-fg-muted">
                       {f.counts.dry_runs} dry runs · {f.counts.runs} runs · {f.counts.held} held · {f.counts.escalated}{" "}

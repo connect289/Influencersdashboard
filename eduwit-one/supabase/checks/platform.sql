@@ -7,7 +7,7 @@
 -- cadence_s: 60
 -- tags: cron
 -- title: A cron job's latest run failed
--- description: The latest finished run in the last 26 h of each active cron job ended in "failed" (a run still in progress is ignored, so it cannot hide the failure before it). Each job is a subject: a job joining the failing set alerts again (D-043). "job startup timeout" is left to PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10. Reads only the newest cron_scan_runs runs, through the runid key (M3 and M7 of the second review); jobs that ran less than daily are PLAT-01W's.
+-- description: A one-tick run that a killed check or event copy ended is left to that check's incident (hardening F3). The latest finished run in the last 26 h of each active cron job ended in "failed" (a run still in progress is ignored, so it cannot hide the failure before it). Each job is a subject: a job joining the failing set alerts again (D-043). "job startup timeout" is left to PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10. Reads only the newest cron_scan_runs runs, through the runid key (M3 and M7 of the second review); jobs that ran less than daily are PLAT-01W's.
 with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
 last_run as (
   select distinct on (d.jobid) d.jobid, d.status, d.return_message, d.start_time
@@ -18,7 +18,9 @@ last_run as (
 failed as (
   select j.jobname, r.start_time, left(r.return_message, 200) as message
     from cron.job j join last_run r on r.jobid = j.jobid
-   where j.active and r.status = 'failed' and j.jobname <> 'b2c-capacity')
+   where j.active and r.status = 'failed' and j.jobname <> 'b2c-capacity'
+     and not (j.jobname = 'one-tick' and exists (select 1 from one.runs x where x.kind = 'tick' and x.report ? 'killed_error'
+                                                   and x.started_at between r.start_time - interval '2 minutes' and r.start_time + interval '2 minutes')))
 select count(*) = 0 as ok,
        jsonb_build_object('failed_jobs', coalesce(jsonb_agg(jsonb_build_object('job', jobname, 'at', start_time, 'message', message) order by jobname), '[]'),
                           'subjects', coalesce(jsonb_agg(jobname order by jobname), '[]')) as value
@@ -105,7 +107,7 @@ select coalesce(r.return_message !~ '_error', true) as ok,
 -- cadence_s: 60
 -- tags: http, jobs
 -- title: A database-to-app job call was refused or failed
--- description: In the last 15 min, a pg_net response to a job call (Spark's ids in b2c.job_calls, Eduwit One's tick and AI worker calls in one.runs) had status 401, 403 or 500 and up, or no status at all (a timeout, a DNS, TLS or connection failure; M2 of the second review). Other apps' pg_net traffic (partner pushes, webhooks) is not job calls and is watched by their own checks. The website's web_job_call ids are not recorded anywhere (pg_cron keeps "1 row" for its SELECT, D-007), so its calls cannot be told apart; WEB-01 watches its outbox backlog instead (m14).
+-- description: An Eduwit One tick request still in pg_net's queue two minutes on (the worker is dead or backed up; hardening F7). In the last 15 min, a pg_net response to a job call (Spark's ids in b2c.job_calls, Eduwit One's tick and AI worker calls in one.runs) had status 401, 403 or 500 and up, or no status at all (a timeout, a DNS, TLS or connection failure; M2 of the second review). Other apps' pg_net traffic (partner pushes, webhooks) is not job calls and is watched by their own checks. The website's web_job_call ids are not recorded anywhere (pg_cron keeps "1 row" for its SELECT, D-007), so its calls cannot be told apart; WEB-01 watches its outbox backlog instead (m14).
 with ids as (
   select (e ->> 'id')::bigint as id, 'spark' as caller from b2c.job_calls c, jsonb_array_elements(c.calls) e
   union all
@@ -113,9 +115,15 @@ with ids as (
    where r.kind = 'tick' and r.started_at > now() - interval '20 minutes' and r.report ->> 'app' ~ '^[0-9]+$'
   union all
   select (r.report #>> '{ai,request}')::bigint, 'one-ai' from one.runs r
-   where r.kind = 'tick' and r.started_at > now() - interval '20 minutes' and r.report #>> '{ai,request}' ~ '^[0-9]+$')
-select coalesce(sum(n), 0) = 0 as ok,
-       jsonb_build_object('bad_calls', coalesce(sum(n), 0), 'by_caller', coalesce(jsonb_object_agg(caller, n), '{}')) as value
+   where r.kind = 'tick' and r.started_at > now() - interval '20 minutes' and r.report #>> '{ai,request}' ~ '^[0-9]+$'),
+queued as (
+  select count(*) as n from net.http_request_queue q
+   where q.id in (select id from ids where caller in ('one', 'one-ai'))
+     and q.id <= (select coalesce(max((r.report ->> 'app')::bigint), 0) from one.runs r
+                   where r.kind = 'tick' and r.started_at < now() - interval '2 minutes' and r.report ->> 'app' ~ '^[0-9]+$'))
+select coalesce(sum(n), 0) = 0 and (select n from queued) = 0 as ok,
+       jsonb_build_object('bad_calls', coalesce(sum(n), 0), 'by_caller', coalesce(jsonb_object_agg(caller, n), '{}'),
+                          'queued_old', (select n from queued)) as value
   from (select ids.caller, count(*) as n from ids join net._http_response h on h.id = ids.id
          where h.created > now() - interval '15 minutes' and (h.status_code is null or h.status_code in (401, 403) or h.status_code >= 500)
          group by ids.caller) b

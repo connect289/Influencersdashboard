@@ -1,5 +1,7 @@
 -- Event copy, the app call, secrets, the privilege audit and least privilege. Local test cluster only.
 \set ON_ERROR_STOP 1
+-- This test rewrites histories that are append-only in production (D-085): it says so, as one.retention() does.
+select set_config('one.history_writer', 'on', false);
 -- Refuses to run anywhere but the throwaway cluster of scripts/db/local-test.sh: it truncates and rewrites fixtures.
 do $$ begin
   if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then
@@ -77,8 +79,12 @@ set role postgres;
 select one.settings_put('app', '{"base_url": "https://one.example.test", "timezone": "Asia/Kolkata"}', 'owner@eduwit.in');
 select pg_temp.ok(one.job_call('/api/internal/tick') is not null, 'job_call sends once configured');
 reset role;
-select pg_temp.ok((select url = 'https://one.example.test/api/internal/tick' and headers ->> 'authorization' = 'Bearer test-key-not-real'
-                     from net.http_request_queue order by id desc limit 1), 'job_call posts to the base URL with the bearer key');
+select pg_temp.ok((select url = 'https://one.example.test/api/internal/tick' and headers ->> 'authorization' is null
+                       and headers ->> 'x-one-token' ~ '^[0-9]{10}\.[0-9a-f]{64}$'
+                       and split_part(headers ->> 'x-one-token', '.', 2) = one.hmac_hex(split_part(headers ->> 'x-one-token', '.', 1) || '|/api/internal/tick', 'test-key-not-real')
+                       and abs(extract(epoch from now()) - split_part(headers ->> 'x-one-token', '.', 1)::bigint) < 5
+                     from net.http_request_queue order by id desc limit 1),
+                  'job_call posts to the base URL with a short-lived token signed by the key, never the key (D-086)');
 set role postgres;
 select one.settings_put('app', '{"base_url": null, "timezone": "Asia/Kolkata"}', 'owner@eduwit.in');
 

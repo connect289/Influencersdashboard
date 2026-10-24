@@ -13,8 +13,11 @@ export type EmailMessage = {
   idempotencyKey: string;
 };
 
+/** Per-call policy: the tick sends with retries 0 (F8), the sign-in code and the validate button keep the default. */
+export type SendOptions = { retries?: number };
+
 export interface EmailClient {
-  send(message: EmailMessage): Promise<{ id: string }>;
+  send(message: EmailMessage, options?: SendOptions): Promise<{ id: string }>;
   /** Resend's last event for a sent email (delivered, bounced, delivery_delayed...): T-ALERT's "delivered" step. */
   status(id: string): Promise<{ lastEvent: string | null }>;
 }
@@ -31,7 +34,7 @@ export class RealEmailClient implements EmailClient {
     this.key = key;
   }
 
-  async send(m: EmailMessage) {
+  async send(m: EmailMessage, options: SendOptions = {}) {
     const { json } = await fetchJson(
       "email",
       `${this.apiBase}/emails`,
@@ -40,7 +43,7 @@ export class RealEmailClient implements EmailClient {
         headers: { authorization: `Bearer ${this.key}`, "Idempotency-Key": m.idempotencyKey },
         body: { from: m.from, to: [m.to], subject: m.subject, text: m.text, html: m.html },
       },
-      { timeoutMs: 8000, retries: 1, breakerFailures: 3, breakerCooldownMs: 120_000 },
+      { timeoutMs: 8000, retries: options.retries ?? 1, breakerFailures: 3, breakerCooldownMs: 120_000 },
     );
     return emailSentFixture.parse(json);
   }

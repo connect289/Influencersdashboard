@@ -31,7 +31,7 @@ export function isIdleExpired(lastSeen: string | undefined, nowSeconds: number, 
 /** How long after signing in a request may arrive without the idle cookie (the first pages after the callback). */
 export const SIGN_IN_GRACE_SECONDS = 10 * 60;
 
-async function hmac(key: string, text: string): Promise<string> {
+async function hmacBytes(key: string, text: string): Promise<Uint8Array> {
   const k = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(key),
@@ -39,16 +39,84 @@ async function hmac(key: string, text: string): Promise<string> {
     false,
     ["sign"],
   );
-  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(text)));
+  return new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(text)));
+}
+
+async function hmac(key: string, text: string): Promise<string> {
+  const sig = await hmacBytes(key, text);
   return btoa(String.fromCharCode(...sig))
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replace(/=+$/, "");
 }
 
+/** Lowercase hex HMAC-SHA256, the form the database's `encode(hmac(...), 'hex')` produces. */
+async function hmacHex(key: string, text: string): Promise<string> {
+  return Array.from(await hmacBytes(key, text), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Equal strings, compared in constant time (Web Crypto has no timingSafeEqual; the edge runtime has no node:crypto). */
+export function sameString(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/**
+ * The idle cookie's signing key, derived from the internal key rather than being it (security review m6): a cookie
+ * forgery attempt never works against the key the database's job calls carry.
+ */
+export async function seenKey(internalKey: string): Promise<string> {
+  return hmacHex(internalKey, SEEN_COOKIE);
+}
+
 /** The idle cookie's value: the last-seen time, signed and bound to this session, so it cannot be made up or reused. */
 export async function seenValue(key: string, sessionId: string, at: number): Promise<string> {
   return `${at}.${await hmac(key, `one_seen|${sessionId}|${at}`)}`;
+}
+
+// The internal routes' short-lived token (security review m6). The database signs each job call with
+// `x-one-token: <ts>.<hex>`: ts the epoch seconds, hex the lowercase HMAC-SHA256 of `${ts}|${pathname}` under
+// ONE_INTERNAL_KEY (pathname such as /api/internal/tick). A token is good for 90 seconds either side of now, for that
+// path only; the static `Authorization: Bearer <ONE_INTERNAL_KEY>` stays accepted for a person's curl (RUNBOOK.md).
+export const INTERNAL_TOKEN_HEADER = "x-one-token";
+export const INTERNAL_TOKEN_SKEW_S = 90;
+
+/** The token the database computes, for tests and for the runbook's example. */
+export async function internalToken(key: string, pathname: string, ts: number): Promise<string> {
+  return `${ts}.${await hmacHex(key, `${ts}|${pathname}`)}`;
+}
+
+/** Whether a token is this path's, signed with the key, and within the skew of now (epoch seconds). */
+export async function internalTokenValid(
+  key: string,
+  pathname: string,
+  token: string | null | undefined,
+  nowSeconds: number,
+): Promise<boolean> {
+  const m = token ? /^(\d{1,12})\.([0-9a-f]{64})$/.exec(token) : null;
+  if (!m) return false;
+  const ts = Number(m[1]);
+  if (!Number.isFinite(ts) || Math.abs(nowSeconds - ts) > INTERNAL_TOKEN_SKEW_S) return false;
+  return sameString(await internalToken(key, pathname, ts), token ?? "");
+}
+
+/**
+ * The internal routes' caller check: the static bearer (a person) or a fresh token for this path (the database). No key
+ * configured means every call is refused.
+ */
+export async function internalRequestAuthorized(opts: {
+  key: string | undefined;
+  authorization: string | null;
+  token: string | null;
+  pathname: string;
+  nowSeconds: number;
+}): Promise<boolean> {
+  const { key, authorization, token, pathname, nowSeconds } = opts;
+  if (!key) return false;
+  if (authorization?.startsWith("Bearer ") && sameString(authorization.slice(7), key)) return true;
+  return internalTokenValid(key, pathname, token, nowSeconds);
 }
 
 /**

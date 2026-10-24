@@ -10,7 +10,7 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
 | `one-tick` | pg_cron, `call one.tick_job()` | minute | Heartbeat `one:tick`; records any check or copy killed last time as an error; due SQL checks (one commit each); escalation, digest; calls the app (the tick counts as finished here); event copy; checks killed earlier, last (D-056) |
 | `one-nightly` | pg_cron, `select one.nightly()` | 02:30 IST | Privilege audit, baselines, retention, proposal expiry, brief task |
 | `/api/internal/tick` | the app, called by `one-tick` | minute | HTTP probes (app health, Vercel, Chatwoot, n8n, WhatsApp), heartbeat `one:app`, alert sender, the fix runs queued for the app (n8n retries, the Spark check), synthetic tests |
-| fixes | in `one-tick`, before the app call | minute | Verifies earlier runs, then tries each fix on each open incident of its checks (dry run while off or in the window) |
+| fixes | in `one-tick`, after the app call, one commit per fix | minute | Verifies earlier runs, then tries each fix on each open incident of its checks (dry run while off, paused or in the window; a trial of one row until a run holds, D-084) |
 | `/api/internal/ai/run` | the app, called by `one-tick` while an AI task is due | minute | Claims AI tasks for up to four minutes, calls the model of each task's tier, files the answers (D-075) |
 | `/api/watchdog` | the app, called by UptimeRobot | 5 min | `{"ok":true}` while the last finished `one-tick` is under 5 minutes old and no alert email has waited 10 minutes |
 
@@ -28,14 +28,24 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
   individual P1s are held under it for 15 minutes, then alert one by one if still open.
 - **Mute or maintenance.** Mute a check or a whole app from the UI with a duration and a reason. Incidents still
   record; nothing is sent. When the mute ends, anything still failing alerts again.
-- **A failing email.** Retried once after 2 minutes; a second failure is final and ONE-01 reports it, so a dead
-  email key cannot stay silent. Email is the only channel (owner, 23 Oct); no WhatsApp alert is sent.
-- **Emails not going out (ONE-02, P1).** An alert email still waiting after 5 minutes means the database cannot reach
-  the app (check `app.base_url` and the Vercel deployment) or the app cannot send (check the Resend key). Its own
-  email waits in the same queue, so the watchdog pages through UptimeRobot after 10 minutes.
+- **A failing email.** An alert, escalation or storm email the provider refuses is tried again with a growing wait
+  (2, 4, 8, 16, 32, 60, 60 minutes, eight tries in all) while its incident is open and unacknowledged; a brief or
+  digest is tried twice. A delivery that failed for good counts for ONE-02 and the watchdog for 6 hours, so a revoked
+  email key pages through UptimeRobot and cannot stay silent (D-085). Email is the only channel (owner, 23 Oct); no
+  WhatsApp alert is sent.
+- **Emails not going out (ONE-02, P1).** An alert email still waiting after 5 minutes, or one that failed in the last
+  6 hours, means the database cannot reach the app (check `app.base_url` and the Vercel deployment) or the app cannot
+  send (check the Resend key). Its own email waits in the same queue, so the watchdog pages through UptimeRobot after
+  10 minutes.
+- **Reopens and flapping.** A check that fails again within 24 h of recovering reopens its incident and pages again;
+  reopens count for the storm guard like openings. On its third reopen the incident is damped: it goes to the evening
+  digest with the tag `flapping` instead of a page, until it is resolved for good. Look at the check's threshold.
 - **A killed check.** A check that runs past `checks.transaction_timeout` (30 s) is recorded as an error with
   "killed" in its result, which opens its incident; it then runs at the end of the tick, at most every 10 minutes per
-  kill. Look at the check's SQL and the table it reads (a lock or a slow plan).
+  kill. Killed three times in a row it stops, and its incident says so: fix the check's SQL (a lock or a slow plan),
+  then as the database owner `update one.check_state set killed_count = 0 where check_id = '<ID>'`. An event copy
+  that is killed halves its batch each time and stops at three (`one.event_watermarks.killed_count`). PLAT-01 does not
+  page again for a one-tick run such a kill ended: the check's own incident carries it.
 
 ## Signing in
 
@@ -51,7 +61,9 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
 - **Locked out.** If no owner can sign in (lost mailbox, Google outage), sign in to Supabase and, as the owner,
   check `one.sign_in_log` (newest first) for the refusal; `one.users` holds the allow-list.
 - **First deploy.** Supabase → Authentication → URL configuration: add `https://one.eduwit.in/auth/callback`; the
-  Google provider is the one Spark already uses. Vercel env: `ONE_SUPABASE_URL`, `ONE_SUPABASE_ANON_KEY`,
+  Google provider is the one Spark already uses. Any Google account can complete the provider's flow and leave an
+  `auth.users` row in the shared project (the callback signs it out, but the row stays and the CRMs' new-user
+  trigger fires): keep Supabase's sign-ups disabled for the project, or the Google provider limited to the domain. Vercel env: `ONE_SUPABASE_URL`, `ONE_SUPABASE_ANON_KEY`,
   `ONE_SUPABASE_SERVICE_KEY`, `ONE_INTERNAL_KEY` (Setup item `one_app_env`).
 
 ## Setup
@@ -165,6 +177,19 @@ How they behave:
   shown on the proposal: done, still failing, or could not check. If nothing ran, the proposal says why and stays
   approved; the fix proposes again if its check still fails. Proposals from people or the AI record your decision and
   run nothing (the change is made in the app named).
+- **Proof before power (D-084).** A fix applies itself only once it has shown it works, and stops itself when it
+  stops working:
+  - **Trial.** Until a real run of the fix has held within 30 days, each real run within `per_tick` acts on one row
+    only (a fix that makes one call is its own trial). A proposal, whatever opens it (more rows than `per_tick`, a
+    proposing or an approval fix), shows the whole plan, and an approved run is the owner's and runs whole. Settings → Fixes shows "trial" until a run holds,
+    then "proven" with the date.
+  - **One run per verdict.** No second real run on an incident before the verdict on the last one (held, did not
+    hold, or unverified once the cooldown plus two check cadences have passed). The page shows "awaiting the verdict
+    on incident #n".
+  - **The breaker.** Two runs of a fix that did not hold within 7 days pause it: it records dry runs only (their rows
+    say "paused: …"), ONE-FIXES opens an incident, and only the owner clears it on Settings → Fixes with a reason,
+    after reading what went wrong. A further run that does not hold pauses it again at once.
+  - Your approvals are not held by any of this: they are your consent for one run.
 - **Dry run now.** Any engineer can press "Dry run now" on Settings → Fixes or on the incident page to see what a fix
   would do; it changes nothing and does not hold back the tick's own runs.
 - **Turning one off** takes effect at the next tick. To stop all of them at once, switch each off (owner); a dry run
@@ -195,6 +220,33 @@ Each app has an Operate page (Apps → the app → "Operate: set up and run"; Ed
 Everything on these pages is a read or a deep link: Eduwit One never changes an app's settings, deploys it or runs its
 jobs outside the fix catalogue (D-079, D-083). The same content answers Ask's `operate` tool, and the runbook itself
 answers its `runbook` tool (below).
+
+## Eduwit One heals itself
+
+What it does for itself, within schema `one`, its two roles and its two cron jobs (D-085); everything else is the
+watchdog's or yours:
+
+- **A wedged tick.** The minute tick takes a session lock. A session of Eduwit One's own role that has held it for
+  over 10 minutes is ended by the next tick, which notes it in the `one:tick` heartbeat's error (HB-one:tick shows
+  it). HB-one:tick itself judges the last *finished* tick, as the watchdog does: over 3 minutes old is a P1.
+- **Its cron jobs.** The tick re-creates `one-tick` or `one-nightly` when one is missing (and says `rescheduled` in
+  its report). A job a person set inactive is left alone and ONE-03 reports it.
+- **ONE-03 (P2, hourly).** The nightly has not finished in 26 hours, or its job is missing or inactive: retention,
+  the privilege audit, baselines, proposal expiry and the brief are not running. Re-activate the job
+  (`select cron.alter_job(jobid, active := true) from cron.job where jobname = 'one-nightly'`) or look at PLAT-01.
+- **ONE-04 (P1, security).** No active owner can sign in. As the database owner, set the owner's row active in
+  `one.users` (see "Locked out").
+- **ONE-FIXES (P2).** A fix paused itself (see "Proof before power"); clear it on Settings → Fixes.
+- **ONE-01** also counts fix acts that failed and AI tasks that failed in 24 hours (`fix_failed_acts_max`,
+  `ai_failed_tasks_max`).
+- **Poison checks and copies** stop after three kills (above). **Flapping** incidents are damped (Alerts).
+- **Settings.** Every key the app parses has a shape check, so a typo is refused instead of taking the tick route
+  down; the app parses each probe's settings on its own and a bad key shows as that probe's error. Any earlier version
+  of a setting can be restored as a new version (Settings → the key → versions → Restore).
+- **Histories are append-only** by trigger: the audit, settings versions, the sign-in log and check results refuse
+  UPDATE and DELETE outside `one.retention()`. Retention keeps ok results 14 days (`retention.ok_results_days`),
+  failures and errors 90 days, the app's own report audit rows 30 days, codes 7 days, the sign-in log a year.
+- **Pages never silently lost**: see "A failing email" under Alerts.
 
 ## Rolling back a migration
 
@@ -243,7 +295,7 @@ it was issued. Never paste a secret into a chat, a commit or a log; if one leaks
 
 | Secret (Vault name / env) | Issued by | To rotate |
 | --- | --- | --- |
-| `one_internal_key` / `ONE_INTERNAL_KEY` | Eduwit One (random, 32 bytes) | The database's call to the app and the app's check use the same value, and it signs the idle cookie. Generate one (`openssl rand -hex 32`); in the Supabase SQL editor as the owner run `select vault.update_secret(id, '<new>') from vault.secrets where name = 'one_internal_key'`; set the same value in Vercel → eduwit-one → env `ONE_INTERNAL_KEY` and redeploy, within a minute of each other (between the two the tick's app call is refused). Everyone signs in again |
+| `one_internal_key` / `ONE_INTERNAL_KEY` | Eduwit One (random, 32 bytes) | The database signs each call to the app with it (a token good for 90 seconds, `x-one-token`; the key itself never travels, D-086), the app checks it, and a key derived from it signs the idle cookie. Generate one (`openssl rand -hex 32`); from psql on the operator machine (`RUNBOOK-database.md` §1, not the dashboard's SQL editor, which keeps history) run `select vault.update_secret(id, '<new>') from vault.secrets where name = 'one_internal_key'`; set the same value in Vercel → eduwit-one → env `ONE_INTERNAL_KEY` and redeploy, within a minute of each other (between the two the tick's app call is refused). Everyone signs in again. A person's `curl` may still send `Authorization: Bearer <key>` |
 | `ONE_SUPABASE_SERVICE_KEY`, `ONE_SUPABASE_ANON_KEY` | Supabase (shared project) | Prefer a secret key made for Eduwit One alone (Supabase → Project settings → API keys → new secret key): set it in Vercel, redeploy, then delete the old one. Never roll the project's JWT secret for this: it signs out and breaks all five apps |
 | `one_n8n_key` / `ONE_N8N_API_KEY` | n8n → Settings → n8n API | Create a new key, paste (`n8n_api`), validate, delete the old one in n8n |
 | `one_chatwoot_token` | Chatwoot → profile → access token | Reset the token of the user Eduwit One reads as, paste (`chatwoot`), validate |

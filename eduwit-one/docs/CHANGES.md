@@ -3,6 +3,26 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 24 Oct 2026 — hardening: proof before power, self-healing, security, efficiency (0020; D-084 to D-087)
+
+- Fixes (D-084): a switched-on fix acts on one row until a run of it has held (a proposal, whatever opens it, still
+  shows the whole plan, and an approved run runs whole); no second run on an incident before the last run's verdict,
+  a run by hand included; two runs that did not hold within 7 days pause the fix (`one.fix_state`, ONE-FIXES) until
+  the owner clears it (`one.ui_fix_unpause`); the Fixes and Operate pages show trial, proven, paused and awaiting.
+- Self-healing (D-085): alert emails retried with a growing wait and counted by ONE-02 and the watchdog when they
+  fail; the tick breaks its own wedged lock and re-creates its missing cron jobs; poison checks and copies stop;
+  flapping incidents damped; ONE-03 (nightly), ONE-04 (active owner); shapes for every setting the app parses;
+  PLAT-04 sees an unanswered queue; retention prunes ok results, report audit rows, codes, sign-in log; append-only
+  histories by trigger; `one.ui_settings_restore`.
+- Security (D-086): contact data masked in check values, errors, incidents, alert emails and the incident page;
+  owner gate on cadence, open_after and P1 test schedules; the window's start cannot be backdated; saved-view days
+  validated; the database calls the app with a short-lived token; watchdog cache and rate limit; advisory label on
+  AI text in emails; security headers.
+- Efficiency (D-087): eight indexes, fillfactor, grouped Fixes counts, a light fixes list on the incident page, the
+  funnel rewritten, sargable day windows, bounded fix scans, two-tier results retention, dead code dropped.
+- Tests: `99_hardening.sql` sections 5 to 7 (each on its own fixtures); `99_fixes.sql` follows the verdict rule; the
+  tick's lock is looked up under pg_locks' bigint-key form; web tests for each change; `docs/reviews/hardening.md`.
+
 ## 24 Oct 2026 — hardening: operate the five apps, and Ask knows how (0020; D-083)
 
 - Operate pages (`/apps/<app>/operate`, linked from each app's page): what the app needs (Setup items in order,

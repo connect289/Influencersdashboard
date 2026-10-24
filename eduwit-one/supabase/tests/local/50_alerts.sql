@@ -2,6 +2,8 @@
 -- stops when acknowledged; a failing delivery retries once then counts for ONE-01; mutes hold and re-route; a storm
 -- sends one alert and suppresses the rest; the P2 digest; developer copies. Local test cluster only.
 \set ON_ERROR_STOP 1
+-- The histories are append-only in production (D-085); this local test may rewrite them, as one.retention() does.
+select set_config('one.history_writer', 'on', false);
 do $$ begin
   if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then
     raise exception 'refused: this test rewrites fixtures and runs only on the local test cluster';
@@ -52,7 +54,7 @@ select one.claim_deliveries(10);
 reset role;
 select pg_temp.ok((select count(*) = 3 from one.deliveries where kind = 'escalation' and status = 'suppressed'), 'its unsent escalations are closed, not sent');
 
--- 3. A failing delivery retries once, then is final and counts for ONE-01 -----------------------------------------
+-- 3. A failing alert retries with a growing wait, is final on its eighth try, and counts for ONE-01 (D-085) -------------
 set role postgres;
 select one.open_or_touch_incident('B2B-01', 'P1', '{"value": {"ok": false}}');
 set role service_role;
@@ -62,7 +64,14 @@ reset role;
 update one.deliveries set next_attempt_at = now() where status = 'pending';
 set role service_role;
 create temp table t_fail2 as select one.claim_deliveries(10) as c;
-select pg_temp.ok(one.finish_delivery((select (c #>> '{0,id}')::bigint from t_fail2), false, 'status 500') = 'failed', 'second failure is final');
+select pg_temp.ok(one.finish_delivery((select (c #>> '{0,id}')::bigint from t_fail2), false, 'status 500') = 'retry', 'the second failure of an alert retries too (D-085)');
+reset role;
+select pg_temp.ok((select status = 'pending' and attempts = 2 and next_attempt_at between now() + interval '3 minutes' and now() + interval '5 minutes'
+                     from one.deliveries where id = (select (c #>> '{0,id}')::bigint from t_fail2)), 'with a growing wait (2, then 4 minutes)');
+update one.deliveries set attempts = 7, next_attempt_at = now() where status = 'pending';
+set role service_role;
+create temp table t_fail3 as select one.claim_deliveries(10) as c;
+select pg_temp.ok(one.finish_delivery((select (c #>> '{0,id}')::bigint from t_fail3), false, 'status 500') = 'failed', 'the eighth failure is final');
 reset role;
 set role postgres;
 select one.run_check('ONE-01');

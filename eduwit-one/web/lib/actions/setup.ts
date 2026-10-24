@@ -7,6 +7,7 @@ import { log } from "../log.ts";
 import { assertUser } from "../session.ts";
 import { bootEnv } from "../env.ts";
 import { parseTestFacts, validate } from "../setup/validate.ts";
+import { readSettings, settingsSchema } from "../state.ts";
 import { SupabaseTestsDb } from "../tests/db.ts";
 import { ui } from "../ui/api.ts";
 import { checksSchema, heartbeatsSchema, setupSchema } from "../ui/schemas.ts";
@@ -46,8 +47,11 @@ export async function validateItem(_: ActionResult | undefined, form: FormData):
   if (!db) return { ok: false, error: "The app's service key is not set (Setup item one_app_env)." };
   resetVaultCache();
   const [state, vault] = await Promise.all([db.tickState(), vaultSecrets(db)]);
+  // The validators read across the settings; a bad key is named here instead of failing inside a probe (F6).
+  const settings = readSettings(settingsSchema, state.settings);
+  if (!settings.ok) return { ok: false, error: `Fix the settings first: ${settings.error}.` };
   const verdict = await validate(item.validate, {
-    settings: state.settings,
+    settings: settings.value,
     credentials: credentialsFrom(vault),
     facts: {
       checkStatus: async (id) =>

@@ -33,7 +33,7 @@ export function ActionRows({ rows, showFix = false }: { rows: ActionRow[]; showF
               </span>
             </TD>
             <TD className="text-sm">
-              {actionSummary(a.step, a.status, a.result)}
+              {actionSummary(a.step, a.status, a.result, a.target)}
               {a.incident_id ? (
                 <Link href={`/incidents/${a.incident_id}`} className="block text-xs underline">
                   incident #{a.incident_id}

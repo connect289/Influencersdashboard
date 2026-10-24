@@ -2,6 +2,8 @@
 -- bootstrap superuser; the code under test runs as postgres, as pg_cron runs it on Supabase. Re-runnable: it resets
 -- its fixtures first, because the cluster outlives a rollback and re-apply.
 \set ON_ERROR_STOP 1
+-- The histories are append-only in production (D-085); this local test may rewrite them, as one.retention() does.
+select set_config('one.history_writer', 'on', false);
 -- Refuses to run anywhere but the throwaway cluster of scripts/db/local-test.sh: it truncates and rewrites fixtures.
 do $$ begin
   if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then

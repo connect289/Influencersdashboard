@@ -79,6 +79,21 @@ export type IncidentRow = z.infer<typeof incidentRowSchema>;
 
 export const pageOf = <T extends z.ZodType>(row: T) => z.object({ rows: z.array(row), next_before: num.nullable() });
 
+// The fixes tried on an incident's check, as one.ui_incident returns them beside the check (0020): no need to read
+// the whole catalogue. stopped: a run on this incident did not hold; paused: the fix's breaker paused it.
+export const incidentFixesSchema = z
+  .array(
+    z.looseObject({
+      id: z.string(),
+      mode: z.enum(["act", "app", "approve", "propose"]),
+      title: z.string(),
+      enabled: z.boolean(),
+      paused: z.boolean().default(false),
+      stopped: z.boolean().default(false),
+    }),
+  )
+  .default([]);
+
 export const incidentSchema = z.object({
   incident: incidentRowSchema.extend({
     evidence: json,
@@ -105,6 +120,7 @@ export const incidentSchema = z.object({
       fix_enabled: z.boolean(),
     })
     .nullable(),
+  fixes: incidentFixesSchema,
   results: z.array(
     z.looseObject({
       id: num,
@@ -250,6 +266,25 @@ export const fixesSchema = z.object({
   window: z.object({ started_at: isoN, days: num, until: isoN, running: z.boolean() }),
   fixes: z.array(fixSchema),
 });
+
+// Proof before power (0020, D-084): one.ui_fix_states(), read beside ui_fixes. A fix acts on one row (a trial) until a
+// real run of it has held; a second run that did not hold within 7 days pauses it until the owner clears it.
+export const fixStateSchema = z.looseObject({
+  fix_id: z.string(),
+  proven: z.boolean(),
+  proven_at: isoN,
+  paused: z.boolean(),
+  paused_at: isoN,
+  paused_reason: z.string().nullable(),
+  did_not_hold_7d: num,
+  /** Incidents with a real run whose verdict is still to come; a run without an incident (null) is left out. */
+  awaiting_verdict: z
+    .array(num.nullable())
+    .nullish()
+    .transform((ids) => (ids ?? []).filter((n): n is number => n !== null)),
+});
+export type FixState = z.infer<typeof fixStateSchema>;
+export const fixStatesSchema = z.array(fixStateSchema);
 
 export const proposalRowSchema = z.looseObject({
   id: num,

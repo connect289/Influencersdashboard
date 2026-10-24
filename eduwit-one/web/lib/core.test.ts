@@ -61,15 +61,15 @@ describe("internal bearer check", () => {
   it("accepts only the configured key", async () => {
     vi.stubEnv("ONE_INTERNAL_KEY", "k".repeat(40));
     const { internalAuthorized } = await import("./auth.ts");
-    expect(internalAuthorized(req(`Bearer ${"k".repeat(40)}`))).toBe(true);
-    expect(internalAuthorized(req(`Bearer ${"k".repeat(39)}x`))).toBe(false);
-    expect(internalAuthorized(req())).toBe(false);
+    expect(await internalAuthorized(req(`Bearer ${"k".repeat(40)}`))).toBe(true);
+    expect(await internalAuthorized(req(`Bearer ${"k".repeat(39)}x`))).toBe(false);
+    expect(await internalAuthorized(req())).toBe(false);
   });
 
   it("refuses everything when no key is configured", async () => {
     vi.stubEnv("ONE_INTERNAL_KEY", "");
     const { internalAuthorized } = await import("./auth.ts");
-    expect(internalAuthorized(req("Bearer anything-at-all-here-xxxxxxxxxxxxxxx"))).toBe(false);
+    expect(await internalAuthorized(req("Bearer anything-at-all-here-xxxxxxxxxxxxxxx"))).toBe(false);
   });
 });
 

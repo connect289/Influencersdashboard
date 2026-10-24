@@ -48,6 +48,22 @@ export const fixModes: Record<string, { label: string; tone: Tone; hint: string 
   },
 };
 
+// Proof before power (0020, D-084): the badges a fix's state earns.
+export const fixProof: Record<"paused" | "trial", { label: string; tone: Tone; hint: string }> = {
+  paused: {
+    label: "paused",
+    tone: "p2",
+    hint: "two runs did not hold within 7 days; dry runs only until the owner clears it",
+  },
+  trial: { label: "trial", tone: "p3", hint: "its next real run acts on one row until a run holds" },
+};
+
+/** "awaiting the verdict on incident #12" (or "incidents #12, #13"); empty when nothing waits. */
+export function awaitingVerdict(ids: readonly number[]): string {
+  if (ids.length === 0) return "";
+  return `awaiting the verdict on incident${ids.length > 1 ? "s" : ""} ${ids.map((n) => `#${n}`).join(", ")}`;
+}
+
 export const actionSteps: Record<string, string> = {
   dry_run: "dry run",
   before: "about to act",
@@ -56,8 +72,18 @@ export const actionSteps: Record<string, string> = {
   verify: "verified",
 };
 
-/** One line on what an action row says it did, from its result (never its target's ids). */
-export function actionSummary(step: string, status: string, result: unknown): string {
+/**
+ * One line on what an action row says it did, from its result (never its target's ids). A real run marked as a trial
+ * in its result or its plan (0020: one row until a run holds) says so.
+ */
+export function actionSummary(step: string, status: string, result: unknown, target?: unknown): string {
+  const line = summaryLine(step, status, result);
+  const asRecord = (v: unknown) => (v && typeof v === "object" ? (v as Record<string, unknown>) : {});
+  const trial = asRecord(result).trial === true || asRecord(target).trial === true;
+  return trial && (step === "before" || step === "after") ? `${line.replace(/\.$/, "")} (trial: one row).` : line;
+}
+
+function summaryLine(step: string, status: string, result: unknown): string {
   const r = (result && typeof result === "object" ? result : {}) as Record<string, unknown>;
   const text = (v: unknown) => (typeof v === "string" ? v : null);
   if (step === "dry_run") return `Would ${text(r.would) ?? "act"}${r.why_dry ? ` (dry: ${text(r.why_dry)})` : ""}.`;

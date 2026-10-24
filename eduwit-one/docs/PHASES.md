@@ -107,3 +107,15 @@ The acceptance criteria of specification §14, ticked as they pass. With `DECISI
 | 30-minute walkthrough as a checklist | done: `docs/WALKTHROUGH.md` |
 | Phase review | done: `docs/reviews/phase-7.md` (1 blocker, 12 majors, 12 minors), resolved; M12 and m2 are the owner's calls, with interim defaults (D-081) |
 | Click-through still passes (phase 4's criterion) | CLICK-THROUGH PASSED after the review's fixes (138 pages, 20/20 writes, including a dry run and a fix setting) |
+
+## Hardening — 24 Oct 2026 (after phase 7; D-083 to D-087)
+
+| Criterion (owner's words) | Status |
+| --- | --- |
+| Test, fix, optimise; make logic and code more efficient | three independent reviews (security, self-healing, efficiency: `docs/reviews/hardening.md`); every confirmed finding fixed or decided; eight indexes, bounded scans, grouped reads (D-087) |
+| Eduwit One heals itself, not only the five apps | the tick breaks its own wedged lock, re-creates its cron jobs, stops poison checks and copies, damps flapping, retries pages and counts failed ones in ONE-02 and the watchdog; ONE-03, ONE-04, ONE-FIXES; settings shapes and restore; append-only histories (D-085) |
+| Secure against an external attacker or AI | no blocker found; contact data masked in check values, errors, emails and pages; owner gate on cadence, open_after and P1 test schedules; short-lived tokens for the database's calls; watchdog rate limit; security headers; AI text labelled advisory and never executed (D-086) |
+| Uses Claude to the best extent within the rules | Ask reads the Setup state, each app's status, the fix catalogue, the audit and the runbook itself; filled-in questions on every open Setup item and Operate page; two eval questions (D-083). The AI still decides and executes nothing |
+| Helps set up and run the five apps from Eduwit One | an Operate page per app and for Eduwit One itself: needs, first-time steps, live state, what the fixes can do, tests, every-day checks, where to look per check, secrets, what stays in the app (D-083) |
+| Applies fixes to the apps only when tested and sure | proof before power: a trial of one row until a run holds, one run per verdict, the breaker that pauses a fix after two runs that did not hold until the owner clears it (D-084) |
+

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mockClients } from "@/lib/clients/index.ts";
 import { MockN8nClient } from "@/lib/clients/n8n.ts";
 import type { Clients } from "@/lib/clients/types.ts";
+import { alertSettingsSchema, readSettings, settingsSchema } from "@/lib/state.ts";
 import { FakeDb, tickState } from "@/test/state.ts";
 import { runTick } from "./runner.ts";
 import type { Probe } from "./types.ts";
@@ -111,6 +112,44 @@ describe("missing configuration and failures", () => {
     const db = new FakeDb(state);
     await run(db, { ...mockClients(), n8n: { mode: "mock", client: n8n } }, { now });
     expect(result(db, "WITTY-02")).toMatchObject({ status: "fail", value: { active: true, failed_15m: ["8"] } });
-    expect(heartbeat(db, `n8n:${state.settings.n8n.witty_workflow_id}`)?.ok).toBe(true);
+    expect(heartbeat(db, `n8n:${settingsSchema.parse(state.settings).n8n.witty_workflow_id}`)?.ok).toBe(true);
+  });
+});
+
+describe("a bad settings key stops one probe, not the tick (F6)", () => {
+  const section = (state: ReturnType<typeof tickState>, key: string) =>
+    ({ ...(state.settings[key] as Record<string, unknown>) }) as Record<string, unknown>;
+
+  it("gives the n8n probe an error result naming witty.expect_nurture while the other probes run", async () => {
+    const state = tickState();
+    state.settings = { ...state.settings, witty: { ...section(state, "witty"), expect_nurture: "yes" } };
+    state.checks = state.checks.map((c) => (c.id === "WITTY-08" ? { ...c, enabled: true, disabled_reason: null } : c));
+    const db = new FakeDb(state);
+    const summary = await run(db);
+    const naming = expect.stringContaining("witty.expect_nurture");
+    expect(summary.probes.n8n).toMatchObject({ status: "error", error: naming });
+    expect(result(db, "WITTY-08")).toMatchObject({ status: "error", value: {}, error: naming });
+    expect(result(db, "WITTY-02")).toBeUndefined();
+    expect(summary.probes["app-health"]?.status).toBe("ran");
+    expect(result(db, "WEB-02")?.status).toBe("ok");
+    expect(heartbeat(db, "website")?.ok).toBe(true);
+    expect(heartbeat(db, "one:app")?.ok).toBe(true);
+  });
+
+  it("a hosts value without one stops only what reads hosts.one: the probes still run, the alert step names it", async () => {
+    const state = tickState();
+    const hosts = section(state, "hosts");
+    delete hosts.one;
+    state.settings = { ...state.settings, hosts };
+    const db = new FakeDb(state);
+    const summary = await run(db);
+    expect(summary.probes["app-health"]?.status).toBe("ran");
+    expect(result(db, "WEB-02")?.status).toBe("ok");
+    expect(Object.values(summary.probes).every((p) => p.status !== "error")).toBe(true);
+    expect(readSettings(alertSettingsSchema, state.settings)).toEqual({
+      ok: false,
+      error: expect.stringContaining("hosts.one"),
+    });
+    expect(readSettings(settingsSchema, state.settings).ok).toBe(false);
   });
 });

@@ -1,6 +1,8 @@
 -- The app's database API (0008): tick state, batch report with per-item isolation and redaction, escalations without
 -- phones, watchdog ages. Local test cluster only.
 \set ON_ERROR_STOP 1
+-- The histories are append-only in production (D-085); this local test may rewrite them, as one.retention() does.
+select set_config('one.history_writer', 'on', false);
 do $$ begin
   if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then
     raise exception 'refused: this test rewrites fixtures and runs only on the local test cluster';

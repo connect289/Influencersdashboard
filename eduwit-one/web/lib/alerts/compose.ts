@@ -46,8 +46,15 @@ export const deliverySchema = z.object({
       for_date: z.string(),
       body_md: z.string(),
       model: z.string().nullable(),
+      // One saved view with a bad days value (edited by hand) must not make the brief unparseable (m3): it reads 30.
       views: z
-        .array(z.object({ name: z.string(), page: z.enum(["analytics", "marketing"]), days: z.number().nullable() }))
+        .array(
+          z.object({
+            name: z.string(),
+            page: z.enum(["analytics", "marketing"]),
+            days: z.coerce.number().int().min(1).max(365).catch(30),
+          }),
+        )
         .default([]),
     })
     .nullish(),
@@ -99,7 +106,7 @@ export function compose(d: Delivery, oneHost: string): Composed {
     const lines = plainLines(b.body_md).filter(Boolean);
     const note = "Written by the AI from the numbers on the brief's page; what is broken is decided by the checks.";
     // Saved views people asked to have emailed, as links (their numbers stay on the page).
-    const views = b.views.map((v) => `${v.name}: ${oneHost}/${v.page}?days=${v.days ?? 30}`);
+    const views = b.views.map((v) => `${v.name}: ${oneHost}/${v.page}?days=${v.days}`);
     const viewLines = views.length ? ["", "Your saved views:", ...views.map((v) => `- ${v}`)] : [];
     return {
       subject: `[Eduwit One] Morning brief, ${day}`,
@@ -136,7 +143,8 @@ export function compose(d: Delivery, oneHost: string): Composed {
       : `Value: ${shortValue(i.value)}`,
     i.subjects.length > 0 ? `Affected: ${i.subjects.slice(0, 10).join(", ")}` : "",
     `Opened ${ist(i.opened_at)} · seen ${i.occurrences} times`,
-    i.summary ? `Summary: ${i.summary}` : "",
+    // The AI's reading comes last and is marked as advice (m7): what is broken is decided by the lines above.
+    i.summary ? `AI summary (advisory): ${i.summary}` : "",
   ].filter(Boolean);
   return {
     subject,

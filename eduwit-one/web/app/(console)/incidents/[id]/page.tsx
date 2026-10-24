@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DryRunForm } from "@/components/fixes/fix-forms.tsx";
 import { IncidentActions } from "@/components/incidents/incident-actions.tsx";
-import { actionSummary, alertStates, appName, fixModes } from "@/components/ui/labels.ts";
+import { actionSummary, alertStates, appName, fixModes, fixProof } from "@/components/ui/labels.ts";
 import { Badge, SeverityBadge, StatusBadge } from "@/components/ui/badge.tsx";
 import { Card, CardBody, CardHeader, Stat } from "@/components/ui/card.tsx";
 import { PageError } from "@/components/ui/page-error.tsx";
@@ -11,7 +11,7 @@ import { Code, Empty, PageHeader } from "@/components/ui/state.tsx";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table.tsx";
 import { ago, duration, ist, istTime, json, ms, num } from "@/lib/format.ts";
 import { ui } from "@/lib/ui/api.ts";
-import { type Fix, fixesSchema, incidentSchema, type IncidentPage } from "@/lib/ui/schemas.ts";
+import { incidentSchema, type IncidentPage } from "@/lib/ui/schemas.ts";
 import { z } from "zod";
 
 export const metadata: Metadata = { title: "Incident" };
@@ -20,21 +20,14 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
   let data: IncidentPage | null;
-  let fixes: Fix[] = [];
   try {
-    const [incident, catalogue] = await Promise.all([
-      ui("ui_incident", incidentSchema.nullable(), { p_id: id }),
-      ui("ui_fixes", fixesSchema).catch(() => null),
-    ]);
-    data = incident;
-    fixes = catalogue?.fixes ?? [];
+    data = await ui("ui_incident", incidentSchema.nullable(), { p_id: id });
   } catch (e) {
     return <PageError error={e} />;
   }
   if (!data) notFound();
-  const checkId = data.incident.check_id;
-  const ownFixes = fixes.filter((f) => f.checks.includes(checkId));
-  const { incident: i, check } = data;
+  // The fixes tried on this check come with the incident (0020), not from the whole catalogue.
+  const { incident: i, check, fixes: ownFixes } = data;
   const open = !i.resolved_at;
   const evidence = (i.evidence ?? {}) as { value?: unknown; error?: string | null; status?: string };
   return (
@@ -168,8 +161,10 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
                     <Link href={`/settings/fixes#${f.id}`} className="underline">
                       {f.id}
                     </Link>
-                    {f.settings.enabled ? <Badge tone="ok">on</Badge> : <Badge tone="off">off</Badge>}
+                    {f.enabled ? <Badge tone="ok">on</Badge> : <Badge tone="off">off</Badge>}
                     <Badge tone={fixModes[f.mode]?.tone ?? "neutral"}>{fixModes[f.mode]?.label ?? f.mode}</Badge>
+                    {f.paused ? <Badge tone={fixProof.paused.tone}>{fixProof.paused.label}</Badge> : null}
+                    {f.stopped ? <Badge tone="p2">stopped: a run did not hold</Badge> : null}
                     {open ? <DryRunForm fix={f.id} incident={i.id} label="Dry run now" /> : null}
                   </div>
                 ))}

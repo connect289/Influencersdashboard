@@ -895,14 +895,17 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'Heartbeat lost: Eduwit One''s minute tick',
-  'description', 'Written first thing by one.tick(). If the tick stops this check stops too, so the external watchdog reads the same row (D-018); this check catches a tick that runs but skips its heartbeat.',
+  'description', 'The last finished minute tick is older than heartbeat_multiple (3) minutes, judged by one.runs (hardening F13): a tick that is wedged behind its own lock, or that dies after its app call every minute, fails here and in the watchdog alike. A fresh install is ok for its first 10 minutes. The one:tick heartbeat row (written once the tick holds its lock) carries the lock-breaker''s note in last_error.',
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', true,
   'disabled_reason', null,
   'search_path', '',
   'sql', $sql$
-select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('one:tick') as s) x
+select coalesce(max(r.finished_at) > now() - make_interval(secs => 60 * (select one.threshold('heartbeat_multiple'))::int),
+                (select min(x.started_at) from one.runs x where x.kind = 'tick') > now() - interval '10 minutes') as ok,
+       jsonb_build_object('last_finished', max(r.finished_at), 'heartbeat', one.heartbeat_state('one:tick')) as value
+  from one.runs r where r.kind = 'tick'
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -1325,7 +1328,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'Eduwit One itself is unwell: tick errors, AI backlog, failed deliveries or AI overspend',
-  'description', 'A tick report in the last 10 min with an _error key (a killed check or event copy included); a tick that started 2 to 15 min ago and never finished its alert step and app call; an event source in error, killed or missing (where missing counts, D-042; m13 of the second review); a check slower than checks.slow_ms in the last 10 min (a statement timeout cannot be armed per check, D-044); more than ai_queue_max AI tasks pending or held past their 10-minute lease; a failed delivery in the last 24 h; AI spend today (one.ai_calls.cost_inr, IST) at or above one.settings.ai.daily_cap_inr, or AI work held back because the day''s cap is reached or the Anthropic API credits are used up (spec §11: ONE-01 fires at 100%; phase 6 review M1; D-078). A cap of 0 means the owner switched the AI off and raises nothing.',
+  'description', 'More than fix_failed_acts_max fix acts that failed, or more than ai_failed_tasks_max AI tasks that failed, in 24 h (hardening F16). A tick report in the last 10 min with an _error key (a killed check or event copy included); a tick that started 2 to 15 min ago and never finished its alert step and app call; an event source in error, killed or missing (where missing counts, D-042; m13 of the second review); a check slower than checks.slow_ms in the last 10 min (a statement timeout cannot be armed per check, D-044); more than ai_queue_max AI tasks pending or held past their 10-minute lease; a failed delivery in the last 24 h; AI spend today (one.ai_calls.cost_inr, IST) at or above one.settings.ai.daily_cap_inr, or AI work held back because the day''s cap is reached or the Anthropic API credits are used up (spec §11: ONE-01 fires at 100%; phase 6 review M1; D-078). A cap of 0 means the owner switched the AI off and raises nothing.',
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', true,
@@ -1346,10 +1349,13 @@ with v as (
          (select count(*) from one.ai_tasks
            where status = 'deferred' and (deferred_reason like 'budget (cap reached)%' or deferred_reason like 'budget (credits exhausted)%')) as ai_held_at_cap,
          (select count(*) from one.deliveries where status = 'failed' and created_at > now() - interval '24 hours') as deliveries_failed_24h,
-         (select coalesce(sum(cost_inr), 0) from one.ai_calls where (created_at at time zone 'Asia/Kolkata')::date = (now() at time zone 'Asia/Kolkata')::date) as ai_spent_inr_today,
+         (select one.ai_spent_today()) as ai_spent_inr_today,
+         (select count(*) from one.actions where step = 'after' and status = 'failed' and not dry_run and ran_at > now() - interval '24 hours') as fix_acts_failed_24h,
+         (select count(*) from one.ai_tasks where status = 'failed' and created_at > now() - interval '24 hours') as ai_failed_24h,
          ((select one.setting('ai')) ->> 'daily_cap_inr')::numeric as ai_cap_inr)
 select tick_errors_10m = 0 and ticks_unfinished_15m = 0 and jsonb_array_length(event_sources_failing) = 0
        and jsonb_array_length(slow_checks) = 0 and ai_pending <= (select one.threshold('ai_queue_max')) and deliveries_failed_24h = 0
+       and fix_acts_failed_24h <= (select one.threshold('fix_failed_acts_max')) and ai_failed_24h <= (select one.threshold('ai_failed_tasks_max'))
        and (coalesce(ai_cap_inr, 0) = 0 or (ai_spent_inr_today < ai_cap_inr and ai_held_at_cap = 0)) as ok, to_jsonb(v) as value
   from v
 $sql$));
@@ -1363,7 +1369,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'Alert emails are not going out',
-  'description', 'An alert, escalation or storm email still pending or sending delivery_stuck_min (5) minutes after it was queued: the app is not answering the tick''s call, or cannot send. This incident''s own email waits in the same queue, so the external watchdog reads the same age and pages through the uptime monitor (D-018; M2 of the second review).',
+  'description', 'An alert, escalation or storm email still pending or sending delivery_stuck_min (5) minutes after it was queued, or one that failed for good in the last 6 hours (a provider that refuses sends; hardening F1): the app is not answering the tick''s call, or cannot send. This incident''s own email waits in the same queue, so the external watchdog reads the same age and pages through the uptime monitor (D-018; M2 of the second review).',
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', true,
@@ -1371,11 +1377,79 @@ select one.seed_check(jsonb_build_object(
   'search_path', '',
   'sql', $sql$
 select count(*) = 0 as ok,
-       jsonb_build_object('stuck', count(*), 'oldest_at', min(created_at),
+       jsonb_build_object('stuck', count(*) filter (where status in ('pending', 'sending')), 'failed_6h', count(*) filter (where status = 'failed'),
+                          'oldest_at', min(created_at),
                           'ids', coalesce(to_jsonb((array_agg(id order by id) filter (where id is not null))[1:20]), '[]')) as value
   from one.deliveries
- where status in ('pending', 'sending') and kind in ('alert', 'escalation', 'storm')
-   and created_at < now() - make_interval(mins => (select one.threshold('delivery_stuck_min'))::int)
+ where kind in ('alert', 'escalation', 'storm')
+   and ((status in ('pending', 'sending') and created_at < now() - make_interval(mins => (select one.threshold('delivery_stuck_min'))::int))
+        or (status = 'failed' and created_at > now() - interval '6 hours'))
+$sql$));
+
+select one.seed_check(jsonb_build_object(
+  'id', 'ONE-03',
+  'app', 'one',
+  'kind', 'sql',
+  'severity', 'P2',
+  'cadence_s', 3600,
+  'open_after', 1,
+  'resolve_after', 3,
+  'title', 'The nightly job did not run',
+  'description', 'one-nightly (retention, the privilege audit, baselines, proposal expiry, the brief) has no finished run in the last 26 hours, or its cron job is missing or inactive (hardening F5). The tick re-creates a missing job of its own; an inactive one is a person''s choice and is reported here.',
+  'auto_fix_id', null,
+  'tags', '[]'::jsonb,
+  'enabled', true,
+  'disabled_reason', null,
+  'search_path', '',
+  'sql', $sql$
+select (coalesce(max(r.finished_at) > now() - interval '26 hours', false)
+        or (select min(x.created_at) from one.runs x) > now() - interval '26 hours')
+       and (select coalesce(bool_or(j.active), false) from cron.job j where j.jobname = 'one-nightly') as ok,
+       jsonb_build_object('last_nightly', max(r.finished_at),
+                          'job', (select jsonb_build_object('present', count(*) > 0, 'active', coalesce(bool_or(j.active), false)) from cron.job j where j.jobname = 'one-nightly')) as value
+  from one.runs r where r.kind = 'nightly'
+$sql$));
+
+select one.seed_check(jsonb_build_object(
+  'id', 'ONE-04',
+  'app', 'one',
+  'kind', 'sql',
+  'severity', 'P1',
+  'cadence_s', 300,
+  'open_after', 1,
+  'resolve_after', 3,
+  'title', 'No active owner can sign in',
+  'description', 'No one.users row with role owner is active with a live auth.users account (hardening F15): nobody could approve, change a setting or clear a paused fix. Fix in one.users as the database owner (RUNBOOK.md, "Locked out").',
+  'auto_fix_id', null,
+  'tags', '["security"]'::jsonb,
+  'enabled', true,
+  'disabled_reason', null,
+  'search_path', '',
+  'sql', $sql$
+select exists (select 1 from one.users o join auth.users u on u.id = o.user_id where o.role = 'owner' and o.is_active) as ok,
+       jsonb_build_object('active_owners', (select count(*) from one.users o join auth.users u on u.id = o.user_id where o.role = 'owner' and o.is_active)) as value
+$sql$));
+
+select one.seed_check(jsonb_build_object(
+  'id', 'ONE-FIXES',
+  'app', 'one',
+  'kind', 'sql',
+  'severity', 'P2',
+  'cadence_s', 60,
+  'open_after', 1,
+  'resolve_after', 3,
+  'title', 'A fix paused itself: its runs did not hold',
+  'description', 'A fix of spec §8 whose runs did not hold twice within 7 days is paused by its breaker (D-084): it records dry runs only until the owner clears it on Settings → Fixes after reading what went wrong. Open while any fix is paused.',
+  'auto_fix_id', null,
+  'tags', '[]'::jsonb,
+  'enabled', true,
+  'disabled_reason', null,
+  'search_path', '',
+  'sql', $sql$
+select count(*) = 0 as ok,
+       jsonb_build_object('paused', coalesce(jsonb_agg(jsonb_build_object('fix', fix_id, 'since', paused_at, 'why', paused_reason) order by fix_id), '[]'),
+                          'subjects', coalesce(jsonb_agg(fix_id order by fix_id), '[]')) as value
+  from one.fix_state where paused_at is not null and cleared_at is null
 $sql$));
 
 select one.seed_check(jsonb_build_object(
@@ -1412,7 +1486,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 15,
   'title', 'Alert storm: many P1 incidents opened within minutes',
-  'description', 'More than alerts.storm.p1_count (10) P1 incidents opened in alerts.storm.window_min (5) minutes. Its incident is the one storm alert, naming the count and the top three checks; while it was routed in the last storm.suppress_min (15) minutes, other P1s are suppressed and filed under it (spec §9). Resolves after 15 calm minutes.',
+  'description', 'More than alerts.storm.p1_count (10) P1 incidents opened or reopened in alerts.storm.window_min (5) minutes (reopens count since hardening F4). Its incident is the one storm alert, naming the count and the top three checks; while it was routed in the last storm.suppress_min (15) minutes, other P1s are suppressed and filed under it (spec §9). Resolves after 15 calm minutes.',
   'auto_fix_id', null,
   'tags', '[]'::jsonb,
   'enabled', true,
@@ -1423,7 +1497,7 @@ with w as (select coalesce((select one.setting('alerts')) -> 'storm', '{}') as s
 recent as (
   select i.check_id from one.incidents i, w
    where i.severity = 'P1' and i.check_id <> 'ONE-STORM'
-     and i.opened_at > now() - make_interval(mins => coalesce((w.s ->> 'window_min')::int, 5)))
+     and greatest(i.opened_at, coalesce(i.reopened_at, i.opened_at)) > now() - make_interval(mins => coalesce((w.s ->> 'window_min')::int, 5)))
 select count(*) <= coalesce((select (s ->> 'p1_count')::int from w), 10) as ok,
        jsonb_build_object('p1_opened', count(*),
          'top_checks', (select coalesce(jsonb_agg(check_id), '[]') from (select check_id from recent group by check_id order by count(*) desc, check_id limit 3) t)) as value
@@ -1456,7 +1530,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'A cron job''s latest run failed',
-  'description', 'The latest finished run in the last 26 h of each active cron job ended in "failed" (a run still in progress is ignored, so it cannot hide the failure before it). Each job is a subject: a job joining the failing set alerts again (D-043). "job startup timeout" is left to PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10. Reads only the newest cron_scan_runs runs, through the runid key (M3 and M7 of the second review); jobs that ran less than daily are PLAT-01W''s.',
+  'description', 'A one-tick run that a killed check or event copy ended is left to that check''s incident (hardening F3). The latest finished run in the last 26 h of each active cron job ended in "failed" (a run still in progress is ignored, so it cannot hide the failure before it). Each job is a subject: a job joining the failing set alerts again (D-043). "job startup timeout" is left to PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10. Reads only the newest cron_scan_runs runs, through the runid key (M3 and M7 of the second review); jobs that ran less than daily are PLAT-01W''s.',
   'auto_fix_id', null,
   'tags', '["cron"]'::jsonb,
   'enabled', true,
@@ -1473,7 +1547,9 @@ last_run as (
 failed as (
   select j.jobname, r.start_time, left(r.return_message, 200) as message
     from cron.job j join last_run r on r.jobid = j.jobid
-   where j.active and r.status = 'failed' and j.jobname <> 'b2c-capacity')
+   where j.active and r.status = 'failed' and j.jobname <> 'b2c-capacity'
+     and not (j.jobname = 'one-tick' and exists (select 1 from one.runs x where x.kind = 'tick' and x.report ? 'killed_error'
+                                                   and x.started_at between r.start_time - interval '2 minutes' and r.start_time + interval '2 minutes')))
 select count(*) = 0 as ok,
        jsonb_build_object('failed_jobs', coalesce(jsonb_agg(jsonb_build_object('job', jobname, 'at', start_time, 'message', message) order by jobname), '[]'),
                           'subjects', coalesce(jsonb_agg(jobname order by jobname), '[]')) as value
@@ -1598,7 +1674,7 @@ select one.seed_check(jsonb_build_object(
   'open_after', 1,
   'resolve_after', 3,
   'title', 'A database-to-app job call was refused or failed',
-  'description', 'In the last 15 min, a pg_net response to a job call (Spark''s ids in b2c.job_calls, Eduwit One''s tick and AI worker calls in one.runs) had status 401, 403 or 500 and up, or no status at all (a timeout, a DNS, TLS or connection failure; M2 of the second review). Other apps'' pg_net traffic (partner pushes, webhooks) is not job calls and is watched by their own checks. The website''s web_job_call ids are not recorded anywhere (pg_cron keeps "1 row" for its SELECT, D-007), so its calls cannot be told apart; WEB-01 watches its outbox backlog instead (m14).',
+  'description', 'An Eduwit One tick request still in pg_net''s queue two minutes on (the worker is dead or backed up; hardening F7). In the last 15 min, a pg_net response to a job call (Spark''s ids in b2c.job_calls, Eduwit One''s tick and AI worker calls in one.runs) had status 401, 403 or 500 and up, or no status at all (a timeout, a DNS, TLS or connection failure; M2 of the second review). Other apps'' pg_net traffic (partner pushes, webhooks) is not job calls and is watched by their own checks. The website''s web_job_call ids are not recorded anywhere (pg_cron keeps "1 row" for its SELECT, D-007), so its calls cannot be told apart; WEB-01 watches its outbox backlog instead (m14).',
   'auto_fix_id', null,
   'tags', '["http","jobs"]'::jsonb,
   'enabled', true,
@@ -1612,9 +1688,15 @@ with ids as (
    where r.kind = 'tick' and r.started_at > now() - interval '20 minutes' and r.report ->> 'app' ~ '^[0-9]+$'
   union all
   select (r.report #>> '{ai,request}')::bigint, 'one-ai' from one.runs r
-   where r.kind = 'tick' and r.started_at > now() - interval '20 minutes' and r.report #>> '{ai,request}' ~ '^[0-9]+$')
-select coalesce(sum(n), 0) = 0 as ok,
-       jsonb_build_object('bad_calls', coalesce(sum(n), 0), 'by_caller', coalesce(jsonb_object_agg(caller, n), '{}')) as value
+   where r.kind = 'tick' and r.started_at > now() - interval '20 minutes' and r.report #>> '{ai,request}' ~ '^[0-9]+$'),
+queued as (
+  select count(*) as n from net.http_request_queue q
+   where q.id in (select id from ids where caller in ('one', 'one-ai'))
+     and q.id <= (select coalesce(max((r.report ->> 'app')::bigint), 0) from one.runs r
+                   where r.kind = 'tick' and r.started_at < now() - interval '2 minutes' and r.report ->> 'app' ~ '^[0-9]+$'))
+select coalesce(sum(n), 0) = 0 and (select n from queued) = 0 as ok,
+       jsonb_build_object('bad_calls', coalesce(sum(n), 0), 'by_caller', coalesce(jsonb_object_agg(caller, n), '{}'),
+                          'queued_old', (select n from queued)) as value
   from (select ids.caller, count(*) as n from ids join net._http_response h on h.id = ids.id
          where h.created > now() - interval '15 minutes' and (h.status_code is null or h.status_code in (401, 403) or h.status_code >= 500)
          group by ids.caller) b

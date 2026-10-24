@@ -46,7 +46,9 @@ approve (step 6).
 - [ ] Three cannot act on their own (D-080): FIX-OUTBOX-W2 and FIX-CACHE-W2 only propose a change to Witty;
       FIX-OUTBOX-B2B opens a proposal that runs when you approve it.
 - [ ] After the window: open a fix's "Switch and limits", read its dry runs first, and switch it on only if you would
-      have agreed with every one. Give a reason; it is versioned.
+      have agreed with every one. Give a reason; it is versioned. A switched-on fix shows "trial" until one real run
+      has held (it acts on one row until then), then "proven"; "paused" means two runs did not hold within 7 days and
+      only you can clear it, after reading why.
 - [ ] Actions (left menu): every run, real or dry, as it happens: "dry run", "about to act", "acted", "did nothing"
       (and why), "verified: held", "did not hold" or "unverified". Filter by fix. An incident marked "stopped" on
       Settings → Fixes had a run that did not hold: the fix no longer runs there by itself.

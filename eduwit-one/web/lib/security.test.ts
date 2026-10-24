@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildCsp,
   clientIp,
+  internalRequestAuthorized,
+  internalToken,
+  internalTokenValid,
   isAllowedEmail,
   isIdleExpired,
   safeNext,
   seenFresh,
+  seenKey,
   seenValue,
   signedInAt,
 } from "./security.ts";
@@ -87,5 +91,53 @@ describe("the signed idle cookie (S5)", () => {
       }),
     ).toBe(200);
     expect(signedInAt({})).toBeNull();
+  });
+});
+
+describe("the idle cookie's derived key (m6)", () => {
+  it("differs from the internal key and signs and checks the cookie", async () => {
+    const raw = "k".repeat(40);
+    const derived = await seenKey(raw);
+    expect(derived).not.toBe(raw);
+    expect(derived).toMatch(/^[0-9a-f]{64}$/);
+    expect(await seenKey(raw)).toBe(derived);
+    const base = { sessionId: "s1", now: 10_000, limit: 3600, signedInAt: null };
+    const v = await seenValue(derived, "s1", 9_000);
+    expect(await seenFresh({ ...base, key: derived, value: v })).toBe(true);
+    expect(await seenFresh({ ...base, key: raw, value: v })).toBe(false);
+  });
+});
+
+describe("the internal routes' short-lived token (m6)", () => {
+  const key = "k".repeat(40);
+  const path = "/api/internal/tick";
+  const ts = 1_700_000_000;
+
+  it("accepts a token for this path signed with the key, within 90 s either way", async () => {
+    const t = await internalToken(key, path, ts);
+    expect(t).toMatch(/^1700000000\.[0-9a-f]{64}$/);
+    expect(await internalTokenValid(key, path, t, ts)).toBe(true);
+    expect(await internalTokenValid(key, path, t, ts + 90)).toBe(true);
+    expect(await internalTokenValid(key, path, t, ts - 90)).toBe(true);
+  });
+
+  it("refuses an expired token, another path's, another key's and junk", async () => {
+    const t = await internalToken(key, path, ts);
+    expect(await internalTokenValid(key, path, t, ts + 91)).toBe(false);
+    expect(await internalTokenValid(key, "/api/internal/ai/run", t, ts)).toBe(false);
+    expect(await internalTokenValid("j".repeat(40), path, t, ts)).toBe(false);
+    expect(await internalTokenValid(key, path, `${ts}.${"0".repeat(64)}`, ts)).toBe(false);
+    expect(await internalTokenValid(key, path, "1700000000.nothex", ts)).toBe(false);
+    expect(await internalTokenValid(key, path, undefined, ts)).toBe(false);
+  });
+
+  it("still accepts the static bearer, and nothing when no key is configured", async () => {
+    const base = { key, authorization: null, token: null, pathname: path, nowSeconds: ts };
+    expect(await internalRequestAuthorized({ ...base, authorization: `Bearer ${key}` })).toBe(true);
+    expect(await internalRequestAuthorized({ ...base, authorization: `Bearer ${"j".repeat(40)}` })).toBe(false);
+    expect(await internalRequestAuthorized({ ...base, authorization: key })).toBe(false);
+    expect(await internalRequestAuthorized({ ...base, token: await internalToken(key, path, ts) })).toBe(true);
+    expect(await internalRequestAuthorized({ ...base, key: undefined, authorization: `Bearer ${key}` })).toBe(false);
+    expect(await internalRequestAuthorized(base)).toBe(false);
   });
 });

@@ -1,16 +1,18 @@
 import "server-only";
-import { timingSafeEqual } from "node:crypto";
 import { bootEnv } from "./env.ts";
+import { INTERNAL_TOKEN_HEADER, internalRequestAuthorized } from "./security.ts";
 
 /**
- * The internal routes' bearer check (spec §13): the database's job calls carry one_internal_key from Vault; the app
- * holds the same value as ONE_INTERNAL_KEY. Constant-time compare; no key configured means every call is refused.
+ * The internal routes' caller check (spec §13, security review m6): the database's job calls carry a short-lived
+ * x-one-token signed with one_internal_key from Vault; a person's curl carries the same value as a bearer. The app
+ * holds that value as ONE_INTERNAL_KEY. Constant-time compares; no key configured means every call is refused.
  */
-export function internalAuthorized(request: Request): boolean {
-  const key = bootEnv().ONE_INTERNAL_KEY;
-  const header = request.headers.get("authorization") ?? "";
-  if (!key || !header.startsWith("Bearer ")) return false;
-  const given = Buffer.from(header.slice(7));
-  const want = Buffer.from(key);
-  return given.length === want.length && timingSafeEqual(given, want);
+export function internalAuthorized(request: Request): Promise<boolean> {
+  return internalRequestAuthorized({
+    key: bootEnv().ONE_INTERNAL_KEY,
+    authorization: request.headers.get("authorization"),
+    token: request.headers.get(INTERNAL_TOKEN_HEADER),
+    pathname: new URL(request.url).pathname,
+    nowSeconds: Math.floor(Date.now() / 1000),
+  });
 }

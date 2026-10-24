@@ -3,6 +3,8 @@
 -- purge that keeps partner-routed leads. The app tables these read are stubbed here, not in 01_app_stubs.sql, because
 -- the checks must keep seeing them as missing; this file drops them again at the end. Local test cluster only.
 \set ON_ERROR_STOP 1
+-- The histories are append-only in production (D-085); this local test may rewrite them, as one.retention() does.
+select set_config('one.history_writer', 'on', false);
 do $$ begin
   if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then
     raise exception 'refused: this test rewrites fixtures and runs only on the local test cluster';

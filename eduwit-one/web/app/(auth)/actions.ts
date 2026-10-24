@@ -8,6 +8,7 @@ import { DbError, SupabaseOneDb } from "@/lib/db.ts";
 import { log } from "@/lib/log.ts";
 import { clientIp, DEVICE_COOKIE, safeNext } from "@/lib/security.ts";
 import { fetchMe } from "@/lib/session.ts";
+import { signInSettingsSchema } from "@/lib/state.ts";
 import { userClient } from "@/lib/supabase.ts";
 
 export type FormState = { error?: string; notice?: string } | undefined;
@@ -44,13 +45,14 @@ export async function sendCode(_: FormState, form: FormData): Promise<FormState>
     return { error: UNAVAILABLE };
   }
   try {
-    const state = await db.tickState();
+    // Only the keys the code email reads (F6): a bad edit elsewhere in one.settings must not stop sign-in.
+    const settings = signInSettingsSchema.parse((await db.tickState()).settings);
     const key = credentialsFrom(await vaultSecrets(db)).email;
     if (!key) throw new Error("no email key");
-    const minutes = state.settings.access?.code_minutes ?? 10;
-    const m = codeEmail(code, minutes, state.settings.hosts.one);
-    await new RealEmailClient(state.settings.vendors.resend_api, key).send({
-      from: state.settings.alerts.email_from,
+    const minutes = settings.access?.code_minutes ?? 10;
+    const m = codeEmail(code, minutes, settings.hosts.one);
+    await new RealEmailClient(settings.vendors.resend_api, key).send({
+      from: settings.alerts.email_from,
       to: me.email,
       ...m,
       idempotencyKey: `signin:${sessionId}:${Date.now()}`,

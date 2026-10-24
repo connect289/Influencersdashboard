@@ -1,7 +1,8 @@
+import { z } from "zod";
 import { HttpError } from "../../http.ts";
 import { checkDue, heartbeatDue, threshold } from "../due.ts";
-import type { Probe, ProbeOutcome } from "../types.ts";
-import type { HeartbeatReport, ResultReport } from "../../state.ts";
+import { defineProbe, type ProbeOutcome } from "../types.ts";
+import { chatwootSchema, type HeartbeatReport, type ResultReport, thresholdsSchema } from "../../state.ts";
 
 // Chatwoot (heartbeat chatwoot; check WITTY-05). The heartbeat detail carries incoming_recent, the incoming message
 // count over the last witty_silence_h hours, which the SQL check WITTY-03 compares with Witty's inbox (D-035).
@@ -9,18 +10,21 @@ import type { HeartbeatReport, ResultReport } from "../../state.ts";
 const INTERVAL_S = 300;
 const HANDOFF_LABEL = "witty-handoff";
 
-export const chatwootProbe: Probe = {
+export const chatwootProbe = defineProbe({
   name: "chatwoot",
-  async run({ state, clients, db, now }): Promise<ProbeOutcome> {
+  client: "chatwoot",
+  checks: ["WITTY-05"],
+  settings: z.object({ chatwoot: chatwootSchema, thresholds: thresholdsSchema }),
+  async run({ state, settings, clients, db, now }): Promise<ProbeOutcome> {
     const { mode, client } = clients.chatwoot;
     if (!client) return { status: "not_configured", mode, heartbeats: [], results: [] };
     const heartbeats: HeartbeatReport[] = [];
     const results: ResultReport[] = [];
-    const account = state.settings.chatwoot.account_id;
+    const account = settings.chatwoot.account_id;
     if (heartbeatDue(state, "chatwoot", INTERVAL_S, now)) {
       try {
         const until = Math.floor(now.getTime() / 1000);
-        const hours = threshold(state, "witty_silence_h", 3);
+        const hours = threshold(settings.thresholds, "witty_silence_h", 3);
         const [inboxes, incoming] = await Promise.all([
           client.inboxCount(account),
           client.incomingMessages(account, until - hours * 3600, until),
@@ -71,4 +75,4 @@ export const chatwootProbe: Probe = {
     }
     return { status: heartbeats.length + results.length === 0 ? "not_due" : "ran", mode, heartbeats, results };
   },
-};
+});

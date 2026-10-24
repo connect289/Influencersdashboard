@@ -64,7 +64,9 @@
     "cron_scan_runs": 100000,
     "heartbeat_never_seen_grace_min": 15,
     "delivery_stuck_min": 5,
-    "b2b_alert_window_min": 15
+    "b2b_alert_window_min": 15,
+    "fix_failed_acts_max": 2,
+    "ai_failed_tasks_max": 3
   },
   "fixes": {
     "observation_days": 14,
@@ -309,7 +311,8 @@
   "retention": {
     "results_days": 90,
     "events_days": 180,
-    "ai_calls_days": 365
+    "ai_calls_days": 365,
+    "ok_results_days": 14
   },
   "proposals": {
     "expire_days": 14,

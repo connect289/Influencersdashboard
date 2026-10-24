@@ -1,18 +1,22 @@
+import { z } from "zod";
 import { HttpError } from "../../http.ts";
 import { heartbeatDue } from "../due.ts";
-import type { Probe, ProbeOutcome } from "../types.ts";
-import type { HeartbeatReport } from "../../state.ts";
+import { defineProbe, type ProbeOutcome } from "../types.ts";
+import { type HeartbeatReport, whatsappSchema } from "../../state.ts";
 
 // WhatsApp Cloud API (heartbeats whatsapp:witty, whatsapp:b2c): the business numbers' status and quality rating.
 // The phone number ids come from one.settings.whatsapp.phone_ids (Setup item whatsapp).
 
 const INTERVAL_S = 900;
 
-export const whatsappProbe: Probe = {
+export const whatsappProbe = defineProbe({
   name: "whatsapp",
-  async run({ state, clients, now }): Promise<ProbeOutcome> {
+  client: "whatsapp",
+  checks: [],
+  settings: z.object({ whatsapp: whatsappSchema.pick({ phone_ids: true }) }),
+  async run({ state, settings, clients, now }): Promise<ProbeOutcome> {
     const { mode, client } = clients.whatsapp;
-    const ids = state.settings.whatsapp.phone_ids ?? {};
+    const ids = settings.whatsapp.phone_ids ?? {};
     if (!client || Object.keys(ids).length === 0)
       return { status: "not_configured", mode, heartbeats: [], results: [] };
     const heartbeats: HeartbeatReport[] = [];
@@ -41,4 +45,4 @@ export const whatsappProbe: Probe = {
     }
     return { status: heartbeats.length === 0 ? "not_due" : "ran", mode, heartbeats, results: [] };
   },
-};
+});
