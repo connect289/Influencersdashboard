@@ -1,7 +1,8 @@
 -- Local test cluster only. Minimal stand-ins for the app objects schema one reads, owned by postgres as on
 -- production. Deliberately absent, to prove source_missing handling: schema inf, schema catalog, web_funnel_events,
 -- web_audit_log, web_advisor_sessions, b2b.allocation_transitions, b2b.partner_events, b2c.activities, b2c.audit_log.
--- Run as postgres.
+-- Schema ce (the Catalogue Engine) is absent too, as on production until the engine is installed (after 1 Nov 2026):
+-- 99_catalogue_engine.sql creates its stand-ins for its own run and drops them. Run as postgres.
 
 create schema b2b;
 create schema b2c;

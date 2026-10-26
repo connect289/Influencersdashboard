@@ -1,5 +1,6 @@
 "use server";
 import { z } from "zod";
+import { APPS } from "../ai/schemas.ts";
 import { act, fields, invalid, type ActionResult } from "./act.ts";
 
 const jsonText = z
@@ -83,7 +84,7 @@ export async function create(_: ActionResult | undefined, form: FormData): Promi
   const p = z
     .object({
       kind: z.enum(["fix", "feature", "config", "cleanup"]),
-      app: z.enum(["witty", "b2b", "b2c", "web", "influencer", "one", "platform", "catalogue", "integrity"]),
+      app: z.enum(APPS),
       title: z.string().trim().min(5, "A title of at least 5 characters.").max(200),
       rationale: z.string().trim().min(10, "Say why, in at least 10 characters.").max(4000),
       change: jsonText.optional(),

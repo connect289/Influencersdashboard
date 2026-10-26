@@ -1,0 +1,94 @@
+-- Catalogue Engine checks (CE-*; D-094). Sources for scripts/db/gen-checks.ts. The engine keeps the per-partner
+-- programme catalogue in its own schema ce (separate repository); Eduwit One reads its queue, health metrics, worker
+-- heartbeats and runs as the database owner, as it reads every app. Schema ce reaches production after 1 Nov 2026, and a
+-- missing table counts as failing (D-042), so every check ships off with setup:catalogue_engine: validating that Setup
+-- item (it checks that the tables and columns read here exist) switches them all on. These checks are seeded by
+-- 0022_seed_catalogue_engine_checks.sql, not 0006: 0021 registers the app key, and 0006 runs before it (D-094).
+
+-- check: CE-01
+-- app: catalogue_engine
+-- kind: sql
+-- severity: P2
+-- cadence_s: 900
+-- disabled: setup:catalogue_engine
+-- title: A Catalogue Engine worker stopped reporting
+-- description: A ce.heartbeat component (a worker such as worker:capture, or the engine's own db:health_collect timer) with no good report for heartbeat_multiple (3) × its expected_interval_s, or read but never once ok (last_ok_at null while last_error_at is set). A component never written is not counted, as for Eduwit One's own heartbeats (D-050). One alert per stalled component (subjects); the engine's runs and publishes wait while its workers are down. Look at the engine's GitHub Actions workers and its ce-health cron job.
+with h as (
+  select component,
+         (last_ok_at is null and last_error_at is not null)
+         or last_ok_at < now() - make_interval(secs => (select one.threshold('heartbeat_multiple')) * expected_interval_s) as stale
+    from ce.heartbeat)
+select coalesce(bool_and(not stale), true) as ok,
+       jsonb_build_object('components', count(*), 'stale', count(*) filter (where stale),
+                          'subjects', coalesce(jsonb_agg(component order by component) filter (where stale), '[]')) as value
+  from h
+
+-- check: CE-02
+-- app: catalogue_engine
+-- kind: sql
+-- severity: P2
+-- cadence_s: 900
+-- disabled: setup:catalogue_engine
+-- title: Catalogue Engine jobs died after repeated failures
+-- description: A ce.job with status dead: it failed max_attempts times and the queue gave up, so that partner's capture, extraction, verification or publish step is not done. Open until each dead job is retried or cancelled in the engine's dashboard. Value: the count, the stages and kinds, and up to 20 job ids (never the job's payload or error text).
+select count(*) = 0 as ok,
+       jsonb_build_object('count', count(*),
+                          'stages', coalesce(jsonb_agg(distinct stage order by stage), '[]'),
+                          'kinds', coalesce(jsonb_agg(distinct kind order by kind), '[]'),
+                          'ids', coalesce(to_jsonb((array_agg(id order by id) filter (where id is not null))[1:20]), '[]')) as value
+  from ce.job
+ where status = 'dead'
+
+-- check: CE-03
+-- app: catalogue_engine
+-- kind: sql
+-- severity: P2
+-- cadence_s: 900
+-- disabled: setup:catalogue_engine
+-- title: The Catalogue Engine raised a health alert
+-- description: The latest ce.health row of a metric (per partner) in the last 24 h has status alert: written every 15 min by ce.health_collect() (the engine's and the shared database's size, its storage against the cap, dead jobs, stale heartbeats) and by the engine's own alerts such as queue.dead_job. One alert per metric (subjects); the value carries the engine's own message for each, which holds no personal data. Warnings are counted, not raised.
+with latest as (
+  select distinct on (metric, partner_id) metric, partner_id, status, message, observed_at
+    from ce.health
+   where observed_at > now() - interval '24 hours'
+   order by metric, partner_id, observed_at desc, id desc)
+select count(*) filter (where status = 'alert') = 0 as ok,
+       jsonb_build_object('alerts', count(*) filter (where status = 'alert'), 'warnings', count(*) filter (where status = 'warn'),
+                          'subjects', coalesce(jsonb_agg(distinct metric order by metric) filter (where status = 'alert'), '[]'),
+                          'messages', coalesce(to_jsonb((array_agg(jsonb_build_object('metric', metric, 'partner_id', partner_id,
+                                                                                      'message', left(message, 300), 'at', observed_at)
+                                                                   order by metric, partner_id) filter (where status = 'alert'))[1:20]), '[]')) as value
+  from latest
+
+-- check: CE-04
+-- app: catalogue_engine
+-- kind: sql
+-- severity: P3
+-- cadence_s: 900
+-- disabled: setup:catalogue_engine
+-- title: The Catalogue Engine's queue is stuck
+-- description: A ce.job still queued 3 days after its next_run_at (no worker takes its stage), or running with its lease (locked_until) expired over an hour ago (a worker died holding it and nothing reclaimed it). Housekeeping: the engine retries on its own; a stuck job usually means a worker stage is switched off. Value: counts, the oldest next_run_at and up to 20 job ids.
+select count(*) = 0 as ok,
+       jsonb_build_object('queued_overdue', count(*) filter (where status = 'queued'),
+                          'lease_expired', count(*) filter (where status = 'running'),
+                          'oldest_next_run_at', min(next_run_at) filter (where status = 'queued'),
+                          'ids', coalesce(to_jsonb((array_agg(id order by id) filter (where id is not null))[1:20]), '[]')) as value
+  from ce.job
+ where (status = 'queued' and next_run_at < now() - interval '3 days')
+    or (status = 'running' and locked_until < now() - interval '1 hour')
+
+-- check: CE-05
+-- app: catalogue_engine
+-- kind: sql
+-- severity: P2
+-- cadence_s: 900
+-- disabled: setup:catalogue_engine
+-- title: A Catalogue Engine run is held for a person
+-- description: A ce.run with status held: a crawl health gate stopped the run before it published (too many programmes changed or vanished at once), so that partner's catalogue keeps its last good version until a person approves or discards the run in the engine's dashboard. One alert per held run (subjects: run ids). Value: the count, the partners and run kinds, the oldest, and up to 20 run ids.
+select count(*) = 0 as ok,
+       jsonb_build_object('held', count(*), 'partners', count(distinct partner_id),
+                          'kinds', coalesce(jsonb_agg(distinct kind order by kind), '[]'), 'oldest_at', min(updated_at),
+                          'ids', coalesce(to_jsonb((array_agg(id::text order by created_at, id) filter (where id is not null))[1:20]), '[]'),
+                          'subjects', coalesce(to_jsonb((array_agg(id::text order by created_at, id) filter (where id is not null))[1:50]), '[]')) as value
+  from ce.run
+ where status = 'held'

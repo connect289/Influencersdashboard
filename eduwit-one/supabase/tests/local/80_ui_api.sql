@@ -48,7 +48,7 @@ set role authenticated;
 select pg_temp.as_engineer();
 select pg_temp.ok((select s #>> '{me,email}' = 'eng@eduwit.in' and (s #>> '{open,P1}')::int = 1 and (s ->> 'unacked_p1')::int = 1 from (select one.ui_shell() as s) x),
                   'the shell names the engineer and counts the open P1');
-select pg_temp.ok((select jsonb_array_length(o -> 'apps') = 9 and o -> 'actions' -> 0 ->> 'kind' = 'incident' from (select one.ui_overview() as o) x),
+select pg_temp.ok((select jsonb_array_length(o -> 'apps') = 10 and o -> 'actions' -> 0 ->> 'kind' = 'incident' from (select one.ui_overview() as o) x),
                   'the overview has a tile per app and the P1 first in the action list');
 select pg_temp.ok((select (r -> 'rows' -> 0 ->> 'check_id') = 'PLAT-05' from (select one.ui_incidents() as r) x), 'the incident list');
 select pg_temp.ok((select i #>> '{check,id}' = 'PLAT-05' and jsonb_typeof(i -> 'timeline') = 'array' and jsonb_typeof(i -> 'deliveries') = 'array'

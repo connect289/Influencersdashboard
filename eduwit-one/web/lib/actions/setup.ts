@@ -65,6 +65,7 @@ export async function validateItem(_: ActionResult | undefined, form: FormData):
         return tests ? parseTestFacts(await tests.setupFacts()) : null;
       },
       aiSettings: async () => (await SupabaseAiDb.fromEnv()?.aiSettings()) ?? null,
+      engineFacts: async () => await db.setupEngineFacts(),
     },
     supabase: { url: bootEnv().ONE_SUPABASE_URL, anonKey: bootEnv().ONE_SUPABASE_ANON_KEY },
   });
