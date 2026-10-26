@@ -2,7 +2,7 @@
 
 The sixth app in Eduwit's stack. It monitors, tests, alerts on, partly repairs and proposes improvements for Witty, the
 B2B CRM, Spark, the website and the influencer portal, and gives one UI over their admin, marketing and analytics
-screens. The specification and the prerequisites doc are binding; this folder's `docs/` hold the build's state.
+screens. It also watches the Catalogue Engine (app `catalogue_engine`, schema `ce`) once the engine is installed (D-094). The specification and the prerequisites doc are binding; this folder's `docs/` hold the build's state.
 
 | Path | What |
 | --- | --- |

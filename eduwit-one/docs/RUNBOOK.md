@@ -96,11 +96,11 @@ expire.
 
 ## Checks: what each one means
 
-`docs/CHECKS.md` lists all 88 checks, generated from their sources in `supabase/checks/*.sql`: each one's id, app,
+`docs/CHECKS.md` lists all 96 checks, generated from their sources in `supabase/checks/*.sql`: each one's id, app,
 severity, cadence, what makes it fail and, where one exists, its fix. The same text is on every incident page
 ("The check"), with the rule's SQL. Ids read `<APP>-<n>`: WITTY, B2B, B2C, WEB, INF (influencer portal), CAT
-(catalogue), INT (integrity across apps), PLAT (Supabase and pg_cron), ONE (Eduwit One itself), HB (heartbeats: a
-component that stopped reporting).
+(catalogue), CE (the Catalogue Engine), INT (integrity across apps), PLAT (Supabase and pg_cron), ONE (Eduwit One
+itself), HB (heartbeats: a component that stopped reporting).
 
 When one fires:
 
@@ -118,7 +118,44 @@ When one fires:
 Per app, the first place to look: Witty — the n8n workflow's executions and Witty's `w2_health_alerts()`; B2B — its
 command centre and `b2b.health_check()`; Spark — its system health page and its inbox and outbox; website —
 `/api/health` and `public.web_health()`; influencer portal — `/api/health` and `inf.health()`; catalogue — the
-catalogue's change log; PLAT — Supabase's logs and `cron.job_run_details`; ONE — this runbook's Alerts section.
+catalogue's change log; Catalogue Engine — its dashboard's queue and health pages, the messages in `ce.health`, its
+GitHub Actions workers and its `ce-health` cron job (below); PLAT — Supabase's logs and `cron.job_run_details`; ONE —
+this runbook's Alerts section.
+
+## The Catalogue Engine
+
+The Catalogue Engine (its own repository; schema `ce` in the shared database) turns partner websites, portals and
+brochures into the per-partner programme catalogue. Eduwit One watches it like the other apps, by reading: app key
+`catalogue_engine`, beside the older `catalogue` (the shared `catalog_*` tables, CAT-*), which stays as it is (D-094).
+
+| Check | Severity, every | Fails when |
+| --- | --- | --- |
+| CE-01 | P2, 15 min | a `ce.heartbeat` component has no good report for `heartbeat_multiple` (3) × its `expected_interval_s`, or was read but never ok (one alert per component) |
+| CE-02 | P2, 15 min | a `ce.job` is dead (it failed `max_attempts` times) |
+| CE-03 | P2, 15 min | the latest `ce.health` row of a metric in the last 24 h is an alert (one alert per metric, with the engine's message) |
+| CE-04 | P3, 15 min | a job is queued 3 days past its `next_run_at`, or running with its lease expired an hour ago |
+| CE-05 | P2, 15 min | a `ce.run` is held: a crawl health gate stopped a publish and waits for a person (one alert per run) |
+
+**Off until the engine is installed.** Schema `ce` reaches production after 1 Nov 2026, and a check whose table is
+missing counts as failing (D-042), so all five ship off with `setup:catalogue_engine`. Once the engine's migrations are
+in production: Settings → Setup → "Catalogue Engine installed in this database" → **Validate**. It checks that
+`ce.heartbeat`, `ce.job`, `ce.health`, `ce.run` and `ce.events` exist with the columns Eduwit One reads and that the
+database owner can read them (`one.setup_engine_facts()`, names only); when it passes, CE-01 to CE-05 switch on at
+once. If it refuses, its detail names what is missing. To switch one off again, Settings → Checks, with a reason.
+
+**Events.** `ce.events` is copied into the event timeline (app `catalogue_engine`, actor `engine`) by the minute tick as
+soon as the table exists; before that the source is not listed, so its absence is not reported. After the Setup item
+is validated it is always listed: a `ce.events` that goes missing then shows as a failing source in ONE-01, like any
+app's.
+
+**When one fires.** CE-01: the named component's worker (the engine's GitHub Actions workflows; `db:health_collect` is
+the `ce-health` pg_cron job) stopped; its `last_error` in `ce.heartbeat` says why. CE-02: retry or cancel the dead
+jobs in the engine's dashboard after reading their error there (Eduwit One keeps only ids). CE-03: the message says
+what crossed its limit (database or storage size, dead jobs, stale workers). CE-04: a stage with no worker, or a worker
+that died holding a job; the engine reclaims expired leases whenever a worker claims work, so a lasting one means no
+worker is claiming. CE-05: approve or discard the held run in the engine's dashboard; the partner keeps its last good
+catalogue meanwhile. Ask's `app_status` answers for `catalogue_engine` too (its checks and `ce-*` cron jobs). Eduwit
+One has no fix for the engine and changes nothing in schema `ce`.
 
 ## Fixes
 
@@ -262,10 +299,12 @@ node scripts/db/with-db.ts ONE_PROD_DB_URL psql -X -q -1 -v ON_ERROR_STOP=1 \
 ```
 
 Take a dump first (`scripts/db/dump.sh`). History (incidents, actions, proposals, runs, audit) is kept by every
-rollback except 0002's and 0006's, which say so.
+rollback except 0002's, 0006's and 0022's (the Catalogue Engine's), which say so.
 
 | Migration | Its rollback | Before you run it |
 | --- | --- | --- |
+| 0022 Catalogue Engine checks | Removes CE-01 to CE-05 with their state and results, and the `catalogue_engine` app row | **Refuses** while the app has incidents, proposals or actions: export them, then run it with `PGOPTIONS="-c one.rollback_discards_history=on"`. AI tasks about its incidents stay, unlinked |
+| 0021 Catalogue Engine | Restores 0020's `ai_tool_data` and `events_sources` verbatim, drops `setup_engine_facts`, takes the Setup item out of the catalogue, forgets the `ce.events` watermark, puts back 0002's nine app keys | Roll back 0022 first. Events already copied stay |
 | 0019 fixes | Restores 0018's tick step and brief numbers and 0011's proposal decision verbatim; drops the fix functions, the fixer's functions and its grants on the apps, the action columns and the catalogue; revokes the migrating user's membership in the fixer role | Action rows and the fixes' proposals stay. The fixes stop at once |
 | 0018 AI worker | Restores the tick's app call, delivery claim and verdict, `proposal_sensitive`, Marketing and Analytics reads; drops the worker's API; suppresses brief emails still queued | Roll back 0019 first. Tasks, calls, briefs stay |
 | 0017 test proposals | Removes the undecided ones | — |
@@ -322,13 +361,21 @@ it was issued. Never paste a secret into a chat, a commit or a log; if one leaks
    `tags`, `disabled`, `search_path`, then `title` and `description`, then the SQL). The SQL is one read-only statement
    returning one row `(ok boolean, value jsonb)`, with counts and ids only, never a phone, email or name. Put a
    threshold in `config/settings.json` → `thresholds` and read it with `one.threshold('<key>')`.
-2. `node scripts/db/gen-checks.ts` regenerates `0006_seed_checks.sql` and `docs/CHECKS.md` (`node scripts/db/gen-seed.ts`
+2. `node scripts/db/gen-checks.ts` regenerates `0006_seed_checks.sql`, the seed of each app registered after 0002
+   (`0022_seed_catalogue_engine_checks.sql` for `catalogue_engine`) and `docs/CHECKS.md` (`node scripts/db/gen-seed.ts`
    regenerates 0007 for a new threshold). Try it against production read-only: `node scripts/db/try-checks.ts --ids=<ID>`
    prints a statement to run in a read-only transaction.
 3. `ONE_UPDATE_FINGERPRINT=1 scripts/db/local-test.sh` (commit the new `supabase/tests/fingerprint.expected`), then
-   rehearse on staging and apply `0006_seed_checks.sql` again (`RUNBOOK-database.md`): re-applying it upserts every
-   check by id and keeps a person's edits to switches, severity and cadence.
-4. An `http` check also needs a probe in `web/lib/checks/probes/` that reports its result; deploy the app.
+   rehearse on staging and apply the check's seed file again (`RUNBOOK-database.md`): `0006_seed_checks.sql`, or
+   `0022_seed_catalogue_engine_checks.sql` for a CE check. Re-applying it upserts every check by id and keeps a person's
+   edits to switches, severity and cadence. 0007 cannot be applied to production again as it stands (its seed of
+   `fixes` is refused once the observation window has started, D-094): a new threshold or Setup item on production
+   needs a migration of its own, as 0021 did for the item `catalogue_engine`.
+4. A new app: its key goes into a new migration that widens `one.apps`' key constraint (as 0021), and into
+   `APPS` and `LATE_APPS` in `scripts/db/gen-checks.ts`, which then seeds its checks in a file of its own right after
+   that migration (a fresh install runs 0006 before it, D-094); add it to `app_status` in `one.ai_tool_data`, and to
+   `appNames` and `APPS` in the app.
+5. An `http` check also needs a probe in `web/lib/checks/probes/` that reports its result; deploy the app.
 
 **A test.**
 

@@ -65,7 +65,10 @@ Within 24 hours of the dump, one file at a time:
 scripts/db/apply.sh $(cd supabase/migrations && ls 0*.sql | grep -v '\.rollback\.sql$' | sort)
 ```
 
-That is every migration in order, 0001 to 0020 today; the rehearsal vouches for the same set.
+That is every migration in order, 0001 to 0022 today, for an empty database; the rehearsal vouches for the same set.
+Production already holds 0001 to 0020 (D-092): after a rehearsal of the whole set, apply only the files that are new
+there, today `scripts/db/apply.sh 0021_catalogue_engine.sql 0022_seed_catalogue_engine_checks.sql` (D-094). Do not
+apply 0007 there again: its seed of `fixes` is refused once the observation window has started.
 
 Each file runs in one transaction between two fingerprints of everything outside schema one; if a file changed any
 app object, it is rolled back whole and the run stops with "refused: this migration changed an object outside schema
@@ -95,7 +98,8 @@ the rehearsal row, the smoke test).
 3. Rehearse: `scripts/db/api-rehearse.sh` (the sequence of §2; ends with `REHEARSAL PASSED (<hash>)` and adds the row).
    Commit and push `docs/REHEARSALS.md`.
 4. Apply: `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh $(cd supabase/migrations && ls 0*.sql | grep -v '\.rollback\.sql$' | sort)`.
-   Same checks as §4; no dump is taken on this route.
+   Same checks as §4; no dump is taken on this route. On production, which holds 0001 to 0020, name only the new files
+   (today `0021_catalogue_engine.sql 0022_seed_catalogue_engine_checks.sql`, §4).
 
 `with-api.ts` never prints the token (it reaches curl through a config on stdin) and names projects by target only.
 Session settings do not carry between calls, so `smoke.sql`'s `call one.tick_job()` runs as its own top-level call and its
