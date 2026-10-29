@@ -3,6 +3,24 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 29 Oct 2026 — the Catalogue Engine on the Apps page (D-095; not applied anywhere)
+
+- Migration 0023: `one.embed_data` gains three read-only panels for the engine, `catalogue_engine.status` (each partner's
+  live catalogue version, what changed since, queue, open review, alerts: `ce_pub.engine_status()`),
+  `catalogue_engine.versions` (the last 30 versions with who, when, counts, any failed build) and
+  `catalogue_engine.queue` (jobs by stage, the last runs, open review items, conflicts). They read the engine's
+  published contract (`ce_pub`, the approved catalogue every Eduwit app reads; the engine's decision O-29) and its
+  queue tables as the owner; until the engine is installed they answer "not available on this database" like any
+  absent app. Rollback restores 0012's function verbatim.
+- App: the Catalogue Engine entry on the Apps page with the three panels and deep links to the engine's dashboard
+  (Catalogue, Review queue, Partners and Publish); a new optional host `catalogue_engine` in Settings → Hosts (no seed:
+  the owner enters the dashboard's address once it is deployed).
+- Tests: `90_ui_apps.sql` lists the three panels; `99_catalogue_engine.sql` checks them without schema ce (missing)
+  and against a stub of the contract (live version named, versions newest first, queue answers), and cleans the stub
+  up. The local cluster run and `fingerprint.expected` are for the next machine with a Postgres (none in this session).
+- Production database change: none. When approved: rehearse 0001 to 0023 on staging, then apply only
+  `0021_catalogue_engine.sql 0022_seed_catalogue_engine_checks.sql 0023_catalogue_engine_panels.sql`.
+
 ## 26 Oct 2026 — the Catalogue Engine registered (D-094; not applied anywhere)
 
 - New app key `catalogue_engine` (the existing `catalogue` stays): migration 0021 widens `one.apps`' key constraint,

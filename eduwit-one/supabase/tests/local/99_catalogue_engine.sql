@@ -32,6 +32,22 @@ begin
   return jsonb_build_object('rows', v_rows, 'ok', v_ok, 'value', v_value);
 end $$;
 grant execute on function pg_temp.ok(boolean, text), pg_temp.err(text), pg_temp.ce(text) to postgres;
+grant execute on function pg_temp.ok(boolean, text) to authenticated;
+-- A signed-in owner, for the Apps panels (0023), as 90_ui_apps.sql makes one.
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-000000000001', 'connect@eduwit.in') on conflict do nothing;
+insert into auth.sessions (id, user_id) values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000001') on conflict do nothing;
+insert into one.users (user_id, email, role) values ('00000000-0000-0000-0000-000000000001', 'connect@eduwit.in', 'owner') on conflict do nothing;
+insert into one.session_checks (session_id, user_id, method) values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000001', 'email_code')
+on conflict do nothing;
+create or replace function pg_temp.embed(p_panel text) returns jsonb language plpgsql as $$
+declare v jsonb;
+begin
+  perform set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-000000000001", "session_id": "00000000-0000-0000-0000-0000000000c1"}', true);
+  set local role authenticated;
+  v := one.ui_embed(p_panel);
+  reset role;
+  return v;
+end $$;
 
 -- 1. The app key and the catalogue -----------------------------------------------------------------------------------
 select pg_temp.ok((select name = 'Catalogue Engine' from one.apps where key = 'catalogue_engine'), 'catalogue_engine is an app');
@@ -60,6 +76,8 @@ select one.events_refresh() as r0 \gset
 select pg_temp.ok(:'r0'::text !~ '_error"' and not (:'r0'::jsonb ? 'ce.events') and (select count(*) from jsonb_object_keys(:'r0'::jsonb)) > 0,
                   'the other sources copy as before, with no error key: ' || :'r0');
 select pg_temp.ok(not exists (select 1 from one.event_watermarks where source = 'ce.events'), 'and nothing is recorded as missing, so ONE-01 stays quiet');
+select pg_temp.ok((select r ->> 'kind' = 'missing' and not (r ->> 'ok')::boolean from (select pg_temp.embed('catalogue_engine.status') as r) x),
+                  'without the engine its Apps panel says it is not on this database (0023)');
 
 -- 3. Stub ce tables: the engine's columns, owned by postgres with RLS on, as the engine's migrations make them -----------
 set role postgres;
@@ -86,7 +104,46 @@ alter table ce.job enable row level security;
 alter table ce.heartbeat enable row level security;
 alter table ce.health enable row level security;
 alter table ce.events enable row level security;
+-- The engine's published contract, as 0023's panels read it: a partner table, review items, conflicts, and ce_pub.
+create table ce.partner (id uuid primary key default gen_random_uuid(), slug text not null, name text not null);
+create table ce.review_item (id uuid primary key default gen_random_uuid(), queue text not null, status text not null default 'open');
+create table ce.conflict (id uuid primary key default gen_random_uuid(), status text not null default 'open');
+create schema ce_pub;
+create table ce.publication (id bigint generated always as identity primary key, partner_id uuid references ce.partner (id), number int not null,
+  status text not null, created_at timestamptz not null default now(), built_at timestamptz, published_by text, note text,
+  counts jsonb not null default '{}', checksum text, supersedes bigint, rolled_back_at timestamptz, rolled_back_by text, restored_at timestamptz, error text);
+create view ce_pub.catalogue_versions_v1 as
+  select p.id as version_id, p.partner_id, pa.name as partner, pa.slug as partner_slug, p.number, p.status, p.created_at as published_at, p.built_at,
+         p.published_by, p.note, p.counts, p.checksum, p.supersedes, p.rolled_back_at, p.rolled_back_by, p.restored_at, p.error
+    from ce.publication p join ce.partner pa on pa.id = p.partner_id;
+create function ce_pub.engine_status() returns jsonb language sql stable set search_path = '' as $f$
+  select jsonb_build_object('generated_at', now(),
+    'partners', coalesce((select jsonb_agg(jsonb_build_object('partner', pa.slug, 'name', pa.name,
+                            'live_version', (select jsonb_build_object('id', p.id, 'number', p.number) from ce.publication p where p.partner_id = pa.id and p.status = 'live'))) from ce.partner pa), '[]'),
+    'queue', coalesce((select jsonb_object_agg(s.status, s.n) from (select status, count(*) as n from ce.job group by 1) s), '{}'),
+    'review_open', (select count(*) from ce.review_item where status = 'open'),
+    'conflicts_open', (select count(*) from ce.conflict where status in ('open', 'asked_partner')));
+$f$;
+alter table ce.partner enable row level security;
+alter table ce.review_item enable row level security;
+alter table ce.conflict enable row level security;
+alter table ce.publication enable row level security;
+insert into ce.partner (id, slug, name) values ('00000000-0000-0000-0000-0000000000a1', 'degreepartner', 'degreepartner.com');
+insert into ce.publication (partner_id, number, status, published_by, counts, created_at, built_at)
+values ('00000000-0000-0000-0000-0000000000a1', 1, 'superseded', 'owner@eduwit.in', '{"programmes": 1100, "added": 1100}', now() - interval '2 days', now() - interval '2 days'),
+       ('00000000-0000-0000-0000-0000000000a1', 2, 'live', 'owner@eduwit.in', '{"programmes": 1123, "added": 23, "changed": 40}', now() - interval '1 hour', now() - interval '1 hour');
 reset role;
+
+-- 0023: the Apps panels read the contract as the owner, redacted like every app's answer.
+select pg_temp.embed('catalogue_engine.status') as e1 \gset
+select pg_temp.ok((:'e1'::jsonb ->> 'ok')::boolean and (:'e1'::jsonb #>> '{data,partners,0,live_version,number}') = '2'
+                  and (:'e1'::jsonb #>> '{data,review_open}') = '0', 'the status panel names the live version: ' || :'e1');
+select pg_temp.embed('catalogue_engine.versions') as e2 \gset
+select pg_temp.ok((:'e2'::jsonb ->> 'ok')::boolean and jsonb_array_length(:'e2'::jsonb -> 'data') = 2
+                  and (:'e2'::jsonb #>> '{data,0,status}') = 'live' and (:'e2'::jsonb #>> '{data,0,counts,changed}') = '40',
+                  'the versions panel lists the versions, newest first: ' || :'e2');
+select pg_temp.ok((select (r ->> 'ok')::boolean and (r #>> '{data,conflicts_open}') = '0' and jsonb_typeof(r #> '{data,jobs}') = 'object'
+                     from (select pg_temp.embed('catalogue_engine.queue') as r) x), 'the queue panel answers on empty tables');
 
 select one.setup_engine_facts() as f1 \gset
 select pg_temp.ok((select count(*) = 5 and bool_and((t.value ->> 'exists')::boolean and (t.value ->> 'readable')::boolean
@@ -228,7 +285,9 @@ delete from one.events where app = 'catalogue_engine';
 delete from one.event_watermarks where source = 'ce.events';
 set role postgres;
 drop schema ce cascade;
+drop schema ce_pub cascade;
 reset role;
+select pg_temp.ok((select r ->> 'kind' = 'missing' from (select pg_temp.embed('catalogue_engine.versions') as r) x), 'the panels say missing again');
 select pg_temp.ok(not exists (select 1 from one.events_sources() where source = 'ce.events')
                   and (select bool_and(not (t.value ->> 'exists')::boolean) from jsonb_each(one.setup_engine_facts() -> 'tables') t),
                   'without the engine again, the source is left out and the facts say missing');
