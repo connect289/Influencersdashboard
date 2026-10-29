@@ -10,7 +10,10 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")/../.." && pwd)"
 node "$here/scripts/db/guards.ts"
 [ -n "${SUPABASE_ACCESS_TOKEN:-}" ] || { echo "SUPABASE_ACCESS_TOKEN is not set (docs/RUNBOOK-database.md §5)"; exit 2; }
-work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
+work="$(mktemp -d)"
+# Whatever way this script ends, the one-* jobs go back on: a smoke failure after the apply left production's
+# jobs paused on 29 Oct 2026 until they were switched on by hand (D-098).
+trap 'jobs_resume 2>/dev/null || true; rm -rf "$work"' EXIT
 
 api() { node "$here/scripts/db/with-api.ts" staging "$@"; }
 sql() { api --sql "$1"; }

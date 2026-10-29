@@ -3,6 +3,17 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 29 Oct 2026 — 0021 on production; the alerts step's fault found (D-098)
+
+- Production database change: `0021_chat.sql` applied 10:15 UTC through the Management API on the owner's go, one
+  transaction between the two catalogue fingerprints, not refused; no dump (D-090). The command centre now works on
+  production as soon as an Anthropic key is saved on Settings → Setup (`ai_key`).
+- The apply's smoke test failed on a fault older than 0021: the alerts step has errored on every tick since 25 Oct
+  01:48 UTC (reminder level above what `one.deliveries` allows, for P1s unacknowledged since 24 Oct), so reminders and
+  the P2 digest never went out. The one-\* jobs, paused by the script around the file, were switched back on by hand at
+  10:17 UTC (no tick was missed beyond 10:16 and 10:17). Fix: `0025_escalation_cap.sql` (level capped at 10), tested
+  locally; staging rehearsal and the owner's go pending. The apply and rehearsal scripts now resume the jobs on any exit.
+
 ## 29 Oct 2026 — the command centre (D-094)
 
 - Staging: Eduwit One removed (rollbacks 0020 to 0001 through the Management API, each one wrapped transaction) and the

@@ -21,7 +21,8 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
   check's severity. The same check failing again touches it; a new failing subject (another job, partner or alert
   kind) alerts again. Three good runs in a row resolve it as recovered; failing again within 24 h reopens it.
 - **P1:** an email to the P1 inbox at once. If nobody acknowledges it: again at 30 minutes; at 60 minutes to the P1
-  inbox and the second contact; then every 60 minutes. Acknowledge from the incident page to stop it.
+  inbox and the second contact; then every 60 minutes, up to the tenth reminder (the level `one.deliveries` allows; 0025,
+  D-098). Acknowledge from the incident page to stop it.
 - **P2:** listed in the morning brief, and in an 18:00 IST email digest when more than 5 opened that day.
 - **P3:** the dashboard only.
 - **Developer:** incidents tagged `code` also go to `alerts.developer_email` once it is set.

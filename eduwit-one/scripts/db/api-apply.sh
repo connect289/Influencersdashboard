@@ -15,7 +15,10 @@ grep -q "\`$hash\` | REHEARSAL PASSED" "$here/docs/REHEARSALS.md" || { echo "ref
 [ -n "${SUPABASE_ACCESS_TOKEN:-}" ] || { echo "SUPABASE_ACCESS_TOKEN is not set (docs/RUNBOOK-database.md §5)"; exit 2; }
 [ "${ONE_APPLY_WITHOUT_DUMP:-}" = owner-accepted ] || { echo "refused: this route takes no production dump. The owner accepted applying without one on 24 Oct 2026 (D-090); run with ONE_APPLY_WITHOUT_DUMP=owner-accepted to go ahead"; exit 1; }
 echo "no dump: applying without a production dump, as the owner accepted on 24 Oct 2026 (D-090)"
-work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
+work="$(mktemp -d)"
+# Whatever way this script ends, the one-* jobs go back on: a smoke failure after the apply left production's
+# jobs paused on 29 Oct 2026 until they were switched on by hand (D-098).
+trap 'jobs_resume 2>/dev/null || true; rm -rf "$work"' EXIT
 
 api() { node "$here/scripts/db/with-api.ts" production "$@"; }
 sql() { api --sql "$1"; }

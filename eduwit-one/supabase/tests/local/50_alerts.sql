@@ -121,6 +121,23 @@ set role postgres;
 select one.open_or_touch_incident('PLAT-08', 'P2', '{"value": {}}');
 select pg_temp.ok((select count(*) = 1 from one.deliveries where recipient = 'dev@eduwit.in'), 'PLAT-08 (tagged code) copies the developer');
 
+-- 8. A P1 nobody acknowledges for a day: the reminder level stops at 10 (what deliveries allow) instead of failing the
+--    whole alerts step (production, 25 to 29 Oct 2026; 0025, D-098) ---------------------------------------------------
+set role postgres;
+select one.open_or_touch_incident('WEB-02', 'P1', '{"value": {"ok": false}}');
+reset role;
+update one.incidents set routed_at = now() - interval '20 hours', alert_state = 'sent' where check_id = 'WEB-02';
+set role postgres;
+select one.escalate();
+select pg_temp.ok((select max(d.escalation_level) = 10 and count(*) filter (where d.escalation_level = 10) >= 1
+                     from one.deliveries d join one.incidents i on i.id = d.incident_id where i.check_id = 'WEB-02'),
+                  'after 20 hours the reminder is level 10, not 20: the alerts step keeps running');
+select pg_temp.ok((select alert_state = 'escalated_2' from one.incidents where check_id = 'WEB-02'), 'and the incident is escalated_2');
+create temp table t_cap as select count(*) as n from one.deliveries d join one.incidents i on i.id = d.incident_id where i.check_id = 'WEB-02';
+select one.escalate();
+select pg_temp.ok((select count(*) = (select n from t_cap) from one.deliveries d join one.incidents i on i.id = d.incident_id where i.check_id = 'WEB-02'),
+                  'the tenth reminder is the last: another run adds nothing');
+
 reset role;
 update one.settings set value = (select value from t_alerts) where key = 'alerts';
 truncate one.ai_tasks, one.deliveries, one.actions, one.proposals, one.incidents, one.mutes restart identity cascade;
