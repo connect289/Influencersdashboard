@@ -34,6 +34,13 @@ export function fromDbError(error: { code?: string; message?: string }): UiError
         "Schema one is not exposed in the Supabase Data API (Setup item supabase_api_schema).",
         error.code,
       );
+    case "PGRST202":
+      // The function is not on this database: a page shipped before its migration was applied (RUNBOOK-database.md).
+      return new UiError(
+        "unavailable",
+        "This page needs a database migration that is not applied here yet; the app is ahead of the database.",
+        error.code,
+      );
     default:
       return new UiError("unavailable", "The database did not answer as expected. Try again.", error.code);
   }

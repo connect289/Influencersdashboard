@@ -1,4 +1,5 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import { AskForm, PinButton } from "@/components/brief/brief-forms.tsx";
 import { StatusBadge } from "@/components/ui/badge.tsx";
 import { Card, CardBody, CardHeader } from "@/components/ui/card.tsx";
@@ -27,7 +28,16 @@ export default async function AskPage({ searchParams }: { searchParams: Promise<
     <>
       <PageHeader
         title="Ask"
-        description="A question to the AI worker, answered with fixed read-only tools it lists for you (it never writes SQL). The AI reads masked data only."
+        description={
+          <>
+            A question to the AI worker, answered with fixed read-only tools it lists for you (it never writes SQL). The
+            AI reads masked data only. For a conversation that can also act, use the{" "}
+            <Link className="underline" href="/chat">
+              Command centre
+            </Link>
+            .
+          </>
+        }
       />
       <Card>
         <CardBody>

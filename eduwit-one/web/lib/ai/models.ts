@@ -18,6 +18,8 @@ export const TASK_KINDS = [
   "propose_feature",
   "ask",
   "test_author",
+  // The command centre chat (0021, D-094): one task per turn, held by the app, never by the worker.
+  "chat",
 ] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 

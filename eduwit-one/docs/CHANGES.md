@@ -3,6 +3,18 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 29 Oct 2026 — the command centre (D-094)
+
+- New: the Command centre page (`/chat`): a chat with Claude that reads with Ask's fixed tools and acts through the
+  console's own page functions as the signed-in person, every write beyond a small step shown as an action card to
+  confirm; Vault cards for secrets; conversations masked and kept 90 days. Migration `0021_chat.sql` (chat tables and
+  functions, the `chat` task kind, `one.ai_tool` and `one.ai_claim` adjusted, retention, settings `ai.routing.chat` and
+  `retention.chat_days`) with its rollback and `supabase/tests/local/99_chat.sql`; the seed `0007` regenerated for the
+  two settings keys. Not yet rehearsed on staging nor applied to production at the time of this entry (the app's page
+  answers "not available on this database" until 0021 is applied); the production apply waits for the owner's go.
+- Also in this change: `docs/CATALOGUE-ENGINE.md`, the draft of Eduwit One's side of the Catalogue Engine integration
+  (checks, heartbeats, Setup items and the asks to the engine's design), not yet built.
+
 ## 24 Oct 2026 — the Vercel side (D-093)
 
 - Vercel project `eduwit-one`: all four Production values set (none shown anywhere), a dedicated Supabase secret key

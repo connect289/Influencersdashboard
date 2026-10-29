@@ -1,5 +1,5 @@
 {
-  "$comment": "Operational defaults for one.settings (spec §18), seeded by migration 0007 through scripts/db/gen-seed.ts. Every value is editable from the Settings page and versioned; a seed never overwrites a person's edit. Owner decisions from the prerequisites doc override the spec defaults: email-only alerts (D-005), Gemini as the seeded provider (D-004).",
+  "$comment": "Operational defaults for one.settings (spec \u00a718), seeded by migration 0007 through scripts/db/gen-seed.ts. Every value is editable from the Settings page and versioned; a seed never overwrites a person's edit. Owner decisions from the prerequisites doc override the spec defaults: email-only alerts (D-005), Gemini as the seeded provider (D-004).",
   "app": {
     "base_url": null,
     "timezone": "Asia/Kolkata"
@@ -181,7 +181,8 @@
       "propose_feature": "deep",
       "brief": "regular",
       "ask": "regular",
-      "test_author": "regular"
+      "test_author": "regular",
+      "chat": "regular"
     },
     "daily_cap_inr": 250,
     "per_task_cap_inr": 50,
@@ -312,7 +313,8 @@
     "results_days": 90,
     "events_days": 180,
     "ai_calls_days": 365,
-    "ok_results_days": 14
+    "ok_results_days": 14,
+    "chat_days": 90
   },
   "proposals": {
     "expire_days": 14,
