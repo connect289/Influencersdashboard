@@ -1,6 +1,6 @@
-# The Catalogue Engine in Eduwit One
+# Eduwit Scout in Eduwit One
 
-The Catalogue Engine is Eduwit's sixth app: it builds a clean, versioned catalogue of every paid programme (first from
+Eduwit Scout is Eduwit's sixth app: it builds a clean, versioned catalogue of every paid programme (first from
 degreepartner.com, then other partners) that Witty, the two CRMs, the website and the influencer portal are meant to read
 instead of the legacy `public.catalog_*` tables. It is designed and built in its own repository
 (`connect289/eduwit-catalogue-engine`; schemas `ce`, `ce_pub`, `ce_admin`; role `ce_worker`; cron jobs `ce-health`,

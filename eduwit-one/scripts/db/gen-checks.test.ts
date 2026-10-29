@@ -32,7 +32,7 @@ test("an app registered after 0002 is seeded by its own file, right after the mi
   }
 });
 
-test("the Catalogue Engine's checks ship off until its Setup item is validated, and 0022 carries that item as config has it", () => {
+test("Eduwit Scout's checks ship off until its Setup item is validated, and 0022 carries that item as config has it", () => {
   const ce = loadChecks().filter((c) => c.app === "catalogue_engine");
   assert.deepEqual(ce.map((c) => c.id), ["CE-01", "CE-02", "CE-03", "CE-04", "CE-05"]);
   for (const c of ce) assert.equal(c.disabled, "setup:catalogue_engine", c.id);

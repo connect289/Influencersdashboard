@@ -1,4 +1,4 @@
--- Rollback of 0024: restores 0012's one.embed_data verbatim (without the Catalogue Engine's panels).
+-- Rollback of 0024: restores 0012's one.embed_data verbatim (without Eduwit Scout's panels).
 
 create or replace function one.embed_data(p_panel text) returns jsonb
 language plpgsql set search_path = '' as $$

@@ -66,7 +66,7 @@ if out="$(apply postgres "$here/supabase/migrations/0006_seed_checks.rollback.sq
 fi
 echo "$out" | grep -q "0006 rollback refused" || { echo "$out"; exit 1; }
 echo "  0006's rollback refuses to discard history"
-# The same for 0023 (D-096), with a Catalogue Engine incident and an AI task about it; the full rollback below is told
+# The same for 0023 (D-096), with a Eduwit Scout incident and an AI task about it; the full rollback below is told
 # to discard them (the task stays, unlinked).
 psql_as postgres -d rehearsal -c "select one.enqueue_ai('classify', '{}', null, 'local-test:ce-01', one.open_or_touch_incident('CE-01', 'P2', '{}'))" >/dev/null
 if out="$(apply postgres "$here/supabase/migrations/0023_seed_catalogue_engine_checks.rollback.sql" 2>&1)"; then

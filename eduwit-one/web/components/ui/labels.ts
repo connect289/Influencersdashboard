@@ -11,7 +11,7 @@ export const appNames: Record<string, string> = {
   platform: "Platform",
   catalogue: "Catalogue",
   integrity: "Integrity",
-  catalogue_engine: "Catalogue Engine",
+  catalogue_engine: "Eduwit Scout",
 };
 
 export const appName = (key: string) => appNames[key] ?? key;

@@ -70,7 +70,7 @@ describe("Setup validators", () => {
     }
   });
 
-  it("engine_schema passes only when every Catalogue Engine table exists, is readable and has its columns", () => {
+  it("engine_schema passes only when every Eduwit Scout table exists, is readable and has its columns", () => {
     const table = (t: Partial<{ exists: boolean; readable: boolean; missing_columns: string[] }> = {}) => ({
       exists: true,
       readable: true,
@@ -90,7 +90,7 @@ describe("Setup validators", () => {
     });
     expect(missing.ok).toBe(false);
     expect(missing.detail).toBe(
-      "the Catalogue Engine is not installed here yet: ce.job does not exist; ce.run is not readable by the database owner; ce.health lacks message, observed_at",
+      "Eduwit Scout is not installed here yet: ce.job does not exist; ce.run is not readable by the database owner; ce.health lacks message, observed_at",
     );
     expect(engineVerdict({ tables: {} }).ok).toBe(false);
     expect(engineVerdict("nonsense").ok).toBe(false);

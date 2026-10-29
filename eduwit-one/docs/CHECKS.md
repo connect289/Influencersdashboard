@@ -35,11 +35,11 @@ Migration 0006 seeds them, except an app registered after 0002, seeded by its ow
 | CAT-02 | catalogue | sql | P2 | 5 min | on | The website has not picked up a catalogue change | FIX-CATALOG-POLL |
 | CAT-03 | catalogue | sql | P2 | 15 min | on | Witty did not move to the new catalogue version | — |
 | CAT-04 | catalogue | sql | P3 | 24 h | on | An active programme has no fee | — |
-| CE-01 | catalogue_engine | sql | P2 | 15 min | off: `setup:catalogue_engine` | A Catalogue Engine worker stopped reporting | — |
-| CE-02 | catalogue_engine | sql | P2 | 15 min | off: `setup:catalogue_engine` | Catalogue Engine jobs died after repeated failures | — |
-| CE-03 | catalogue_engine | sql | P2 | 15 min | off: `setup:catalogue_engine` | The Catalogue Engine raised a health alert | — |
-| CE-04 | catalogue_engine | sql | P3 | 15 min | off: `setup:catalogue_engine` | The Catalogue Engine's queue is stuck | — |
-| CE-05 | catalogue_engine | sql | P2 | 15 min | off: `setup:catalogue_engine` | A Catalogue Engine run is held for a person | — |
+| CE-01 | catalogue_engine | sql | P2 | 15 min | off: `setup:catalogue_engine` | An Eduwit Scout worker stopped reporting | — |
+| CE-02 | catalogue_engine | sql | P2 | 15 min | off: `setup:catalogue_engine` | Eduwit Scout jobs died after repeated failures | — |
+| CE-03 | catalogue_engine | sql | P2 | 15 min | off: `setup:catalogue_engine` | Eduwit Scout raised a health alert | — |
+| CE-04 | catalogue_engine | sql | P3 | 15 min | off: `setup:catalogue_engine` | Eduwit Scout's queue is stuck | — |
+| CE-05 | catalogue_engine | sql | P2 | 15 min | off: `setup:catalogue_engine` | An Eduwit Scout run is held for a person | — |
 | HB-b2b-app | b2b | heartbeat | P2 | 1 min | on | Heartbeat lost: the B2B CRM app | — |
 | HB-chatwoot | witty | heartbeat | P2 | 1 min | on | Heartbeat lost: Chatwoot | — |
 | HB-gemini | witty | heartbeat | P2 | 5 min | off: `blocked:not_built_d049` | Heartbeat lost: Gemini (Witty's model) | — |

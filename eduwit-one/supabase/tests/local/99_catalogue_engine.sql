@@ -1,4 +1,4 @@
--- The Catalogue Engine (migrations 0022 and 0023, D-096): its app key; its five checks seeded off for Setup; each
+-- Eduwit Scout (migrations 0022 and 0023, D-096): its app key; its five checks seeded off for Setup; each
 -- check's verdict on stub ce tables, passing and failing; the Setup facts and the validation that switches the checks on;
 -- Ask's app_status for it; and the event copy with and without ce.events (production has no schema ce before
 -- 1 Nov 2026, as this cluster has none until section 3). Everything it creates it removes. Local test cluster only.
@@ -50,7 +50,7 @@ begin
 end $$;
 
 -- 1. The app key and the catalogue -----------------------------------------------------------------------------------
-select pg_temp.ok((select name = 'Catalogue Engine' from one.apps where key = 'catalogue_engine'), 'catalogue_engine is an app');
+select pg_temp.ok((select name = 'Eduwit Scout' from one.apps where key = 'catalogue_engine'), 'catalogue_engine is an app');
 select pg_temp.ok(pg_temp.err($q$insert into one.apps (key, name) values ('catalogue_x', 'x')$q$) = '23514', 'an unlisted key is still refused');
 select pg_temp.ok((select count(*) = 4 from one.checks where app = 'catalogue') and exists (select 1 from one.apps where key = 'catalogue'),
                   'the shared catalogue area keeps its key and its four checks');

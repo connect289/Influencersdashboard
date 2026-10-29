@@ -100,7 +100,7 @@ expire.
 `docs/CHECKS.md` lists all 96 checks, generated from their sources in `supabase/checks/*.sql`: each one's id, app,
 severity, cadence, what makes it fail and, where one exists, its fix. The same text is on every incident page
 ("The check"), with the rule's SQL. Ids read `<APP>-<n>`: WITTY, B2B, B2C, WEB, INF (influencer portal), CAT
-(catalogue), CE (the Catalogue Engine), INT (integrity across apps), PLAT (Supabase and pg_cron), ONE (Eduwit One
+(catalogue), CE (Eduwit Scout), INT (integrity across apps), PLAT (Supabase and pg_cron), ONE (Eduwit One
 itself), HB (heartbeats: a component that stopped reporting).
 
 When one fires:
@@ -119,13 +119,13 @@ When one fires:
 Per app, the first place to look: Witty — the n8n workflow's executions and Witty's `w2_health_alerts()`; B2B — its
 command centre and `b2b.health_check()`; Spark — its system health page and its inbox and outbox; website —
 `/api/health` and `public.web_health()`; influencer portal — `/api/health` and `inf.health()`; catalogue — the
-catalogue's change log; Catalogue Engine — its dashboard's queue and health pages, the messages in `ce.health`, its
+catalogue's change log; Eduwit Scout — its dashboard's queue and health pages, the messages in `ce.health`, its
 GitHub Actions workers and its `ce-health` cron job (below); PLAT — Supabase's logs and `cron.job_run_details`; ONE —
 this runbook's Alerts section.
 
-## The Catalogue Engine
+## Eduwit Scout
 
-The Catalogue Engine (its own repository; schema `ce` in the shared database) turns partner websites, portals and
+Eduwit Scout (its own repository; schema `ce` in the shared database) turns partner websites, portals and
 brochures into the per-partner programme catalogue. Eduwit One watches it like the other apps, by reading: app key
 `catalogue_engine`, beside the older `catalogue` (the shared `catalog_*` tables, CAT-*), which stays as it is (D-096).
 
@@ -139,7 +139,7 @@ brochures into the per-partner programme catalogue. Eduwit One watches it like t
 
 **Off until the engine is installed.** Schema `ce` reaches production after 1 Nov 2026, and a check whose table is
 missing counts as failing (D-042), so all five ship off with `setup:catalogue_engine`. Once the engine's migrations are
-in production: Settings → Setup → "Catalogue Engine installed in this database" → **Validate**. It checks that
+in production: Settings → Setup → "Eduwit Scout installed in this database" → **Validate**. It checks that
 `ce.heartbeat`, `ce.job`, `ce.health`, `ce.run` and `ce.events` exist with the columns Eduwit One reads and that the
 database owner can read them (`one.setup_engine_facts()`, names only); when it passes, CE-01 to CE-05 switch on at
 once. If it refuses, its detail names what is missing. To switch one off again, Settings → Checks, with a reason.
@@ -301,13 +301,13 @@ node scripts/db/with-db.ts ONE_PROD_DB_URL psql -X -q -1 -v ON_ERROR_STOP=1 \
 ```
 
 Take a dump first (`scripts/db/dump.sh`). History (incidents, actions, proposals, runs, audit) is kept by every
-rollback except 0002's, 0006's and 0023's (the Catalogue Engine's), which say so.
+rollback except 0002's, 0006's and 0023's (Eduwit Scout's), which say so.
 
 | Migration                    | Its rollback                                                                                                                                                                                                                                                  | Before you run it                                                                                                                                                                           |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0024 Catalogue Engine panels | Restores 0012's `one.embed_data` verbatim: the three engine panels on the Apps page go, every other panel stays                                                                                                                                               | —                                                                                                                                                                                           |
-| 0023 Catalogue Engine checks | Removes CE-01 to CE-05 with their state and results, and the `catalogue_engine` app row                                                                                                                                                                       | **Refuses** while the app has incidents, proposals or actions: export them, then run it with `PGOPTIONS="-c one.rollback_discards_history=on"`. AI tasks about its incidents stay, unlinked |
-| 0022 Catalogue Engine        | Restores 0020's `ai_tool_data` and `events_sources` verbatim, drops `setup_engine_facts`, takes the Setup item out of the catalogue, forgets the `ce.events` watermark, puts back 0002's nine app keys                                                        | Roll back 0023 first. Events already copied stay                                                                                                                                            |
+| 0024 Eduwit Scout panels | Restores 0012's `one.embed_data` verbatim: the three engine panels on the Apps page go, every other panel stays                                                                                                                                               | —                                                                                                                                                                                           |
+| 0023 Eduwit Scout checks | Removes CE-01 to CE-05 with their state and results, and the `catalogue_engine` app row                                                                                                                                                                       | **Refuses** while the app has incidents, proposals or actions: export them, then run it with `PGOPTIONS="-c one.rollback_discards_history=on"`. AI tasks about its incidents stay, unlinked |
+| 0022 Eduwit Scout        | Restores 0020's `ai_tool_data` and `events_sources` verbatim, drops `setup_engine_facts`, takes the Setup item out of the catalogue, forgets the `ce.events` watermark, puts back 0002's nine app keys                                                        | Roll back 0023 first. Events already copied stay                                                                                                                                            |
 | 0019 fixes                   | Restores 0018's tick step and brief numbers and 0011's proposal decision verbatim; drops the fix functions, the fixer's functions and its grants on the apps, the action columns and the catalogue; revokes the migrating user's membership in the fixer role | Action rows and the fixes' proposals stay. The fixes stop at once                                                                                                                           |
 | 0018 AI worker               | Restores the tick's app call, delivery claim and verdict, `proposal_sensitive`, Marketing and Analytics reads; drops the worker's API; suppresses brief emails still queued                                                                                   | Roll back 0019 first. Tasks, calls, briefs stay                                                                                                                                             |
 | 0017 test proposals          | Removes the undecided ones                                                                                                                                                                                                                                    | —                                                                                                                                                                                           |

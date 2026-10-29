@@ -24,7 +24,7 @@ const APPS = ["witty", "b2b", "b2c", "web", "influencer", "one", "platform", "ca
  * (`file`), numbered right after the migration that registers the key (`after`). 0006 keeps the apps 0002 lists.
  */
 export const LATE_APPS: Record<string, { name: string; file: string; after: string }> = {
-  catalogue_engine: { name: "Catalogue Engine", file: "0023_seed_catalogue_engine_checks.sql", after: "0022_catalogue_engine.sql" },
+  catalogue_engine: { name: "Eduwit Scout", file: "0023_seed_catalogue_engine_checks.sql", after: "0022_catalogue_engine.sql" },
 };
 const FORBIDDEN = /\b(insert|update|delete|truncate|alter|drop|create|grant|revoke|copy|call|perform|vacuum|reindex|refresh|lock|set|reset|notify)\b/i;
 

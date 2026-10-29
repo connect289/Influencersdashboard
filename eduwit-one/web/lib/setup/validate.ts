@@ -26,7 +26,7 @@ export type ValidateDeps = {
     testFacts(): Promise<TestFacts | null>;
     /** one.settings.ai, for the ai_key validator (0018). */
     aiSettings(): Promise<unknown>;
-    /** The Catalogue Engine's tables as the database sees them (0022 one.setup_engine_facts), names only. */
+    /** Eduwit Scout's tables as the database sees them (0022 one.setup_engine_facts), names only. */
     engineFacts(): Promise<unknown>;
   };
   /** Where the test runner login signs in (the shared Supabase project's API). */
@@ -61,21 +61,21 @@ const engineFactsSchema = z.object({
 });
 
 /**
- * The Catalogue Engine is installed here when every table its checks and its event copy read exists, the database owner
+ * Eduwit Scout is installed here when every table its checks and its event copy read exists, the database owner
  * (who runs the checks) can read it, and it has the columns they use (D-096). Pure, for the unit test.
  */
 export function engineVerdict(facts: unknown): Verdict {
   const f = engineFactsSchema.safeParse(facts);
   if (!f.success) return { ok: false, detail: "the database could not say what schema ce holds" };
   const tables = Object.entries(f.data.tables);
-  if (tables.length === 0) return { ok: false, detail: "the database named no Catalogue Engine table to look for" };
+  if (tables.length === 0) return { ok: false, detail: "the database named no Eduwit Scout table to look for" };
   const problems = tables.flatMap(([name, t]) => {
     if (!t.exists) return [`${name} does not exist`];
     if (!t.readable) return [`${name} is not readable by the database owner`];
     return t.missing_columns.length ? [`${name} lacks ${t.missing_columns.join(", ")}`] : [];
   });
   return problems.length
-    ? { ok: false, detail: `the Catalogue Engine is not installed here yet: ${problems.join("; ")}` }
+    ? { ok: false, detail: `Eduwit Scout is not installed here yet: ${problems.join("; ")}` }
     : { ok: true, detail: `schema ce has the ${tables.length} tables Eduwit One reads, with their columns` };
 }
 

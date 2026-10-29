@@ -166,7 +166,7 @@ export const embeds: Record<string, AppEmbed> = {
   },
   catalogue_engine: {
     key: "catalogue_engine",
-    title: "Catalogue Engine",
+    title: "Eduwit Scout",
     about:
       "Turns partner websites into the approved programme catalogue every Eduwit app reads (schema ce_pub). Read only here; publishing and review happen in its own dashboard.",
     panels: [

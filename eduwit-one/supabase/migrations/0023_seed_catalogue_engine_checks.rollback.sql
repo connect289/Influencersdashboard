@@ -1,4 +1,4 @@
--- Rollback of 0023: removes the Catalogue Engine's checks with their state and results, and its app row, so 0022's
+-- Rollback of 0023: removes Eduwit Scout's checks with their state and results, and its app row, so 0022's
 -- rollback can put back 0002's app keys. Incidents, proposals and actions are history that spec §13 keeps forever: while
 -- any exists for the app, this rollback refuses, unless the session sets one.rollback_discards_history = on (as 0006's
 -- rollback; the local test and the staging rehearsal do; on production, export first and decide). Check results are
@@ -11,7 +11,7 @@ begin
      and (exists (select 1 from one.incidents where app = 'catalogue_engine')
           or exists (select 1 from one.proposals where app = 'catalogue_engine')
           or exists (select 1 from one.actions where app = 'catalogue_engine')) then
-    raise exception '0023 rollback refused: schema one holds Catalogue Engine incidents, proposals or actions, which are kept forever. Export them, then run this rollback with one.rollback_discards_history = on'
+    raise exception '0023 rollback refused: schema one holds Eduwit Scout incidents, proposals or actions, which are kept forever. Export them, then run this rollback with one.rollback_discards_history = on'
       using errcode = '55000';
   end if;
 end $$;

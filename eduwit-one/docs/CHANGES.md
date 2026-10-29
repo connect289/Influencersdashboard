@@ -3,7 +3,13 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
-## 29 Oct 2026 — the Catalogue Engine on the Apps page (D-097; not applied anywhere)
+## 29 Oct 2026 — the engine is named Eduwit Scout (D-098; not applied anywhere)
+
+- Every people-facing mention of the engine in Eduwit One says Eduwit Scout: the app label and panel title on the Apps
+  page, the Setup item, the titles of CE-01 to CE-05 (0023 regenerated), the runbook, the docs the Ask tool reads.
+  Identifiers are unchanged (app key `catalogue_engine`, schema `ce`, check ids, file names).
+
+## 29 Oct 2026 — Eduwit Scout on the Apps page (D-097; not applied anywhere)
 
 - Migration 0024: `one.embed_data` gains three read-only panels for the engine, `catalogue_engine.status` (each partner's
   live catalogue version, what changed since, queue, open review, alerts: `ce_pub.engine_status()`),
@@ -12,7 +18,7 @@ followed.
   published contract (`ce_pub`, the approved catalogue every Eduwit app reads; the engine's decision O-29) and its
   queue tables as the owner; until the engine is installed they answer "not available on this database" like any
   absent app. Rollback restores 0012's function verbatim.
-- App: the Catalogue Engine entry on the Apps page with the three panels and deep links to the engine's dashboard
+- App: Eduwit Scout entry on the Apps page with the three panels and deep links to the engine's dashboard
   (Catalogue, Review queue, Partners and Publish); a new optional host `catalogue_engine` in Settings → Hosts (no seed:
   the owner enters the dashboard's address once it is deployed).
 - Tests: `90_ui_apps.sql` lists the three panels; `99_catalogue_engine.sql` checks them without schema ce (missing)
@@ -35,10 +41,10 @@ followed.
   `retention.chat_days`) with its rollback and `supabase/tests/local/99_chat.sql`; the seed `0007` regenerated for the
   two settings keys. Not yet rehearsed on staging nor applied to production at the time of this entry (the app's page
   answers "not available on this database" until 0021 is applied); the production apply waits for the owner's go.
-- Also in this change: `docs/CATALOGUE-ENGINE.md`, the draft of Eduwit One's side of the Catalogue Engine integration
+- Also in this change: `docs/CATALOGUE-ENGINE.md`, the draft of Eduwit One's side of Eduwit Scout integration
   (checks, heartbeats, Setup items and the asks to the engine's design), not yet built.
 
-## 26 Oct 2026 — the Catalogue Engine registered (D-096; not applied anywhere)
+## 26 Oct 2026 — Eduwit Scout registered (D-096; not applied anywhere)
 
 - New app key `catalogue_engine` (the existing `catalogue` stays): migration 0022 widens `one.apps`' key constraint,
   copies `ce.events` into the event timeline once the table exists (or the Setup item is validated), lets Ask's
@@ -48,7 +54,7 @@ followed.
 - App: the engine's label and key in the enums, the Setup validator `engine_schema`, the Ask prompt.
 - Production database change: none. When approved: rehearse 0001 to 0023 on staging, then apply only
   `0022_catalogue_engine.sql 0023_seed_catalogue_engine_checks.sql` (not 0007, D-096 (5)); after the engine is in
-  production (after 1 Nov), Settings → Setup → Catalogue Engine → Validate switches the checks on.
+  production (after 1 Nov), Settings → Setup → Eduwit Scout → Validate switches the checks on.
 - Local test: LOCAL TEST PASSED; `supabase/tests/fingerprint.expected` updated; new `99_catalogue_engine.sql`, and
   `local-test.sh` checks that 0023's rollback refuses to discard the engine's incidents.
 

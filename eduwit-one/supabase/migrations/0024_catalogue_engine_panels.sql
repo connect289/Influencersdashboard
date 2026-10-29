@@ -1,4 +1,4 @@
--- 0024 the Catalogue Engine's panels on the Apps page (D-097): one.embed_data gains catalogue_engine.status, .versions
+-- 0024 Eduwit Scout's panels on the Apps page (D-097): one.embed_data gains catalogue_engine.status, .versions
 -- and .queue, read from the engine's published contract (schema ce_pub, the approved catalogue every Eduwit app reads)
 -- and its queue tables, as the database owner, read only. 0012's text otherwise verbatim. Until the engine is installed
 -- the schema is missing and one.ui_embed answers kind 'missing', like any app that is not on this database.
@@ -122,7 +122,7 @@ begin
                                             where d.jobid = j.jobid and d.status in ('succeeded', 'failed')
                                               and d.runid > (select coalesce(max(x.runid), 0) - 100000 from cron.job_run_details x)
                                             order by d.runid desc limit 1) r on true;
-    -- Catalogue Engine (schema ce, its own repository; read only). ce_pub is the approved catalogue every app reads (the
+    -- Eduwit Scout (schema ce, its own repository; read only). ce_pub is the approved catalogue every app reads (the
     -- engine's O-29): engine_status() names each partner's live version, what changed since, the queue, open review and
     -- alerts; catalogue_versions_v1 is every version. Missing schema = 'missing' in ui_embed, as for any app not installed.
     when 'catalogue_engine.status' then v := ce_pub.engine_status();
