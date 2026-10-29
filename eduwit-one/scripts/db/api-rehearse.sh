@@ -44,6 +44,9 @@ left() { scalar "${leftovers_sql%;*} as v"; }
 smoke() {
   # smoke.sql's steps, as separate calls: the committing procedure must run at top level, outside any transaction block
   # (pg_cron's form, D-044); session settings do not carry between calls, so its set/reset lines are left out.
+  # A run pg_cron started in this minute, before the file applied, would be judged instead of a fresh one (0025's
+  # apply, D-098): wait for a minute that has no run yet.
+  while [ "$(scalar "select exists (select 1 from one.runs where kind = 'tick' and bucket = date_trunc('minute', now())) as v")" = "t" ]; do sleep 5; done
   sql "call one.tick_job();" > /dev/null
   grep -vE '^(set lock_timeout|set statement_timeout|reset statement_timeout|call one\.tick_job\(\))' "$here/supabase/tests/smoke.sql" > "$work/smoke-rest.sql"
   api "$work/smoke-rest.sql" | jq -e '.[0].result == "SMOKE PASSED"' > /dev/null || { echo "smoke.sql failed"; exit 1; }

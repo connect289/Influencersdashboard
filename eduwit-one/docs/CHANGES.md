@@ -5,6 +5,11 @@ followed.
 
 ## 29 Oct 2026 — 0021 on production; the alerts step's fault found (D-098)
 
+- Production database change, 10:34 UTC: `0025_escalation_cap.sql` applied through the Management API on the owner's go,
+  one transaction between the fingerprints, not refused; no dump (D-090); rehearsed on staging at 10:32 UTC. The
+  first tick after it (10:35) ran the alerts step without error for the first time since 25 Oct. The apply and
+  rehearsal scripts' smoke step now waits for a fresh minute before its tick, so it never judges a run that started
+  before the file applied.
 - Production database change: `0021_chat.sql` applied 10:15 UTC through the Management API on the owner's go, one
   transaction between the two catalogue fingerprints, not refused; no dump (D-090). The command centre now works on
   production as soon as an Anthropic key is saved on Settings → Setup (`ai_key`).
