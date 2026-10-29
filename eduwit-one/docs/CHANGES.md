@@ -3,6 +3,14 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 29 Oct 2026 — AI usage audit (read-only)
+
+- `docs/reviews/ai-usage-audit.md`: where each of the six apps calls a model, what production spent in the last 30
+  days and what it was worth, with the actions in order. Headline: today only Witty spends (Gemini), and its two
+  prompt caches cost more than they save at 3 turns a day; Claude is off or keyless everywhere; Eduwit One would spend
+  about ₹150 a day once its key is saved, mostly on Opus explanations of unacknowledged set-up gaps, which four
+  changes bring to about ₹55. No code or setting was changed by the audit.
+
 ## 29 Oct 2026 — 0021 on production; the alerts step's fault found (D-098)
 
 - Production database change, 10:34 UTC: `0025_escalation_cap.sql` applied through the Management API on the owner's go,
