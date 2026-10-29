@@ -3,6 +3,14 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 29 Oct 2026 — AI cost controls (0026, D-099)
+
+- `0026_ai_cost_controls.sql` (+ rollback, `99_ai_schedule.sql`): four switches in `ai.schedule` that default to today's
+  behaviour (nothing switched off); builder proposals for Eduwit One's own settings are applied by the owner's approval
+  on the Proposals page (versioned, restorable, audited); one proposal seeded: explain on the regular tier after 60
+  minutes, fix proposals after 180 minutes. Local test passed; staging rehearsal and the production apply follow on
+  the owner's go. The uses the audit called unnecessary stay on until the owner says otherwise.
+
 ## 29 Oct 2026 — AI usage audit (read-only)
 
 - `docs/reviews/ai-usage-audit.md`: where each of the six apps calls a model, what production spent in the last 30

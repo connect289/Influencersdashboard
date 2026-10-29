@@ -197,6 +197,15 @@ per student turn.
 - Witty's section 4 (CRM outbox, every minute) and section 8 (Drive sync, every 10 minutes) run around the clock
   without a model; they are the 10,000 workflow executions a month, not an AI cost.
 
+## Status after the owner's reply (29 Oct, later)
+
+The owner: apply the Eduwit One changes, but switch no use of the AI off without their explicit approval. Done as
+migration 0026 (D-099): the schedule's four switches exist and default to today's behaviour; the one change that keeps
+every use (explain on the regular tier after 60 minutes, fix proposals after 180 minutes) is a proposal on the
+Proposals page that applies itself on approval. Still on, awaiting the owner's word: classification of every incident,
+explanations of P2s and of unacknowledged incidents, fix proposals for checks without a catalogue fix, and the second
+triage on every routing of the same incident (no switch yet).
+
 ## What to do, in order
 
 | #   | Action                                                                                                                                                                                                      | Who                                                                                      | Saves                                                         |
