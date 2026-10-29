@@ -3,6 +3,13 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 29 Oct 2026 — Eduwit Scout, the catalogue engine's name (D-100)
+
+- The owner named the catalogue engine **Eduwit Scout**. `docs/CATALOGUE-ENGINE.md` is now `docs/EDUWIT-SCOUT.md` and
+  says so; the AI usage audit's row and §7 follow. No code, migration or setting changes: the labels people will see
+  are in PR #29 (`claude/jolly-hopper-hrwqbd`), whose session was asked to rename them; the identifiers (`ce*`, `CE-*`,
+  `catalogue_engine`) stay unless that session changes them.
+
 ## 29 Oct 2026 — AI cost controls (0026, D-099)
 
 - `0026_ai_cost_controls.sql` (+ rollback, `99_ai_schedule.sql`): four switches in `ai.schedule` that default to today's
@@ -84,7 +91,7 @@ followed.
 - The rehearsal found and the scripts fixed (no migration changed): the `one-*` jobs now pause while files run and
   resume after the smoke test (a tick deadlocked with `apply_grants()`); the lock wait is 60 s; `fingerprint.sql` sorts
   with `collate "C"` (en*US.UTF-8 ordered `*`and`:`unlike the local cluster);`smoke.sql`'s same-minute tick
-assertion applies only while still in the run's minute. `fingerprint.expected`unchanged;`local-test.sh` passes.
+  assertion applies only while still in the run's minute. `fingerprint.expected`unchanged;`local-test.sh` passes.
 - Staging's stale partial apply of 23 Oct was dropped by its actual signatures, one wrapped transaction per file.
 
 ## 24 Oct 2026 — the dump waived; the Management API route (D-090)
