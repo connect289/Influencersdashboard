@@ -1,4 +1,4 @@
--- 0023 the Catalogue Engine's panels on the Apps page (D-095): one.embed_data gains catalogue_engine.status, .versions
+-- 0024 the Catalogue Engine's panels on the Apps page (D-097): one.embed_data gains catalogue_engine.status, .versions
 -- and .queue, read from the engine's published contract (schema ce_pub, the approved catalogue every Eduwit app reads)
 -- and its queue tables, as the database owner, read only. 0012's text otherwise verbatim. Until the engine is installed
 -- the schema is missing and one.ui_embed answers kind 'missing', like any app that is not on this database.

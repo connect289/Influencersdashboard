@@ -17,7 +17,7 @@ test("0006, the late apps' seeds and CHECKS.md are generated from the current so
   assert.equal(readFileSync(new URL("../../docs/CHECKS.md", import.meta.url), "utf8"), catalogue(checks));
 });
 
-test("an app registered after 0002 is seeded by its own file, right after the migration that registers it (D-094)", () => {
+test("an app registered after 0002 is seeded by its own file, right after the migration that registers it (D-096)", () => {
   const checks = loadChecks();
   const files = readdirSync(new URL("../../supabase/migrations/", import.meta.url));
   const forward = files.filter((f) => /^\d{4}_.*\.sql$/.test(f) && !f.endsWith(".rollback.sql")).sort();
@@ -32,13 +32,13 @@ test("an app registered after 0002 is seeded by its own file, right after the mi
   }
 });
 
-test("the Catalogue Engine's checks ship off until its Setup item is validated, and 0021 carries that item as config has it", () => {
+test("the Catalogue Engine's checks ship off until its Setup item is validated, and 0022 carries that item as config has it", () => {
   const ce = loadChecks().filter((c) => c.app === "catalogue_engine");
   assert.deepEqual(ce.map((c) => c.id), ["CE-01", "CE-02", "CE-03", "CE-04", "CE-05"]);
   for (const c of ce) assert.equal(c.disabled, "setup:catalogue_engine", c.id);
   const items = (JSON.parse(readFileSync(new URL("../../config/setup-items.json", import.meta.url), "utf8")) as { items: Array<{ id: string }> }).items;
-  assert.equal(items.at(-1)?.id, "catalogue_engine", "the item is the catalogue's last, where 0021 appends it");
-  const copy = /\$item\$(.*?)\$item\$/s.exec(migrationText("0021_catalogue_engine.sql"))?.[1] ?? "{}";
+  assert.equal(items.at(-1)?.id, "catalogue_engine", "the item is the catalogue's last, where 0022 appends it");
+  const copy = /\$item\$(.*?)\$item\$/s.exec(migrationText("0022_catalogue_engine.sql"))?.[1] ?? "{}";
   assert.deepEqual(JSON.parse(copy), items.at(-1));
 });
 

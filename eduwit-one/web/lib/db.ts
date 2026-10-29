@@ -141,7 +141,7 @@ export class SupabaseOneDb implements OneDb {
     return r.checks_on;
   }
 
-  /** What the catalogue_engine Setup validator reads (0021 one.setup_engine_facts): schema ce's tables, names only. */
+  /** What the catalogue_engine Setup validator reads (0022 one.setup_engine_facts): schema ce's tables, names only. */
   async setupEngineFacts() {
     return await this.rpc("setup_engine_facts");
   }

@@ -1,4 +1,4 @@
--- The Catalogue Engine (migrations 0021 and 0022, D-094): its app key; its five checks seeded off for Setup; each
+-- The Catalogue Engine (migrations 0022 and 0023, D-096): its app key; its five checks seeded off for Setup; each
 -- check's verdict on stub ce tables, passing and failing; the Setup facts and the validation that switches the checks on;
 -- Ask's app_status for it; and the event copy with and without ce.events (production has no schema ce before
 -- 1 Nov 2026, as this cluster has none until section 3). Everything it creates it removes. Local test cluster only.
@@ -33,7 +33,7 @@ begin
 end $$;
 grant execute on function pg_temp.ok(boolean, text), pg_temp.err(text), pg_temp.ce(text) to postgres;
 grant execute on function pg_temp.ok(boolean, text) to authenticated;
--- A signed-in owner, for the Apps panels (0023), as 90_ui_apps.sql makes one.
+-- A signed-in owner, for the Apps panels (0024), as 90_ui_apps.sql makes one.
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-000000000001', 'connect@eduwit.in') on conflict do nothing;
 insert into auth.sessions (id, user_id) values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000001') on conflict do nothing;
 insert into one.users (user_id, email, role) values ('00000000-0000-0000-0000-000000000001', 'connect@eduwit.in', 'owner') on conflict do nothing;
@@ -77,7 +77,7 @@ select pg_temp.ok(:'r0'::text !~ '_error"' and not (:'r0'::jsonb ? 'ce.events') 
                   'the other sources copy as before, with no error key: ' || :'r0');
 select pg_temp.ok(not exists (select 1 from one.event_watermarks where source = 'ce.events'), 'and nothing is recorded as missing, so ONE-01 stays quiet');
 select pg_temp.ok((select r ->> 'kind' = 'missing' and not (r ->> 'ok')::boolean from (select pg_temp.embed('catalogue_engine.status') as r) x),
-                  'without the engine its Apps panel says it is not on this database (0023)');
+                  'without the engine its Apps panel says it is not on this database (0024)');
 
 -- 3. Stub ce tables: the engine's columns, owned by postgres with RLS on, as the engine's migrations make them -----------
 set role postgres;
@@ -104,7 +104,7 @@ alter table ce.job enable row level security;
 alter table ce.heartbeat enable row level security;
 alter table ce.health enable row level security;
 alter table ce.events enable row level security;
--- The engine's published contract, as 0023's panels read it: a partner table, review items, conflicts, and ce_pub.
+-- The engine's published contract, as 0024's panels read it: a partner table, review items, conflicts, and ce_pub.
 create table ce.partner (id uuid primary key default gen_random_uuid(), slug text not null, name text not null);
 create table ce.review_item (id uuid primary key default gen_random_uuid(), queue text not null, status text not null default 'open');
 create table ce.conflict (id uuid primary key default gen_random_uuid(), status text not null default 'open');
@@ -134,7 +134,7 @@ values ('00000000-0000-0000-0000-0000000000a1', 1, 'superseded', 'owner@eduwit.i
        ('00000000-0000-0000-0000-0000000000a1', 2, 'live', 'owner@eduwit.in', '{"programmes": 1123, "added": 23, "changed": 40}', now() - interval '1 hour', now() - interval '1 hour');
 reset role;
 
--- 0023: the Apps panels read the contract as the owner, redacted like every app's answer.
+-- 0024: the Apps panels read the contract as the owner, redacted like every app's answer.
 select pg_temp.embed('catalogue_engine.status') as e1 \gset
 select pg_temp.ok((:'e1'::jsonb ->> 'ok')::boolean and (:'e1'::jsonb #>> '{data,partners,0,live_version,number}') = '2'
                   and (:'e1'::jsonb #>> '{data,review_open}') = '0', 'the status panel names the live version: ' || :'e1');

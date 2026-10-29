@@ -64,13 +64,17 @@ approve (step 6).
       on the page 10 minutes later; if nothing ran, the page says why.
 - [ ] Reject needs a reason; snooze brings it back after the days you choose.
 
-## 7. Tests, brief and Ask (4 minutes)
+## 7. Tests, brief, Ask and the Command centre (6 minutes)
 
 - [ ] Tests: the eleven synthetic tests, what each waits for (Setup items), last runs and step timings.
 - [ ] Brief: yesterday's morning brief (also emailed at 08:00 IST) and the numbers it was written from, fixes
       included.
 - [ ] Ask: type a question such as "Which checks failed most this week?" or "How do I rotate the n8n key?". The answer
       lists the tools it used (the runbook and the Setup state among them). Never type a student's name or phone.
+- [ ] Command centre: type "What needs me right now?". The answer streams in, with the tools it used as small chips.
+      Then "Acknowledge the newest open incident" (it runs at once and says so) and "Mute WITTY-04 for 30 minutes
+      because I am testing": an action card appears with the exact arguments; press **Confirm and run**, then look at
+      Audit for the row with your email. Never paste a key: ask for the Vault card instead.
 
 ## 8. Settings that matter (3 minutes)
 

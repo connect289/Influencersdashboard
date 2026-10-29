@@ -12,6 +12,7 @@ const sections: Array<{ title?: string; items: Array<{ href: string; label: stri
   {
     items: [
       { href: "/", label: "Overview" },
+      { href: "/chat", label: "Command centre" },
       { href: "/incidents", label: "Incidents", count: "incidents" },
       { href: "/proposals", label: "Proposals", count: "proposals" },
       { href: "/actions", label: "Actions" },

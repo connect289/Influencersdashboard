@@ -1,6 +1,6 @@
--- Rollback of 0021: restores 0020's one.ai_tool_data and one.events_sources verbatim, drops the Setup facts and its
+-- Rollback of 0022: restores 0020's one.ai_tool_data and one.events_sources verbatim, drops the Setup facts and its
 -- grant, forgets the engine's event watermark (a source no longer listed must not leave a status ONE-01 reads), takes the
--- Setup item out of the catalogue, and puts back 0002's app keys. Roll back 0022 first: it removes the catalogue_engine
+-- Setup item out of the catalogue, and puts back 0002's app keys. Roll back 0023 first: it removes the catalogue_engine
 -- row and checks, and the key constraint refuses while the row exists. Events already copied from ce.events stay in
 -- one.events, as every rollback keeps events.
 
@@ -279,7 +279,7 @@ delete from one.event_watermarks where source = 'ce.events';
 select one.settings_put('setup_catalog', jsonb_set(s.c, '{items}', (select coalesce(jsonb_agg(x.i order by x.o), '[]')
                                                                       from jsonb_array_elements(s.c -> 'items') with ordinality x(i, o)
                                                                      where x.i ->> 'id' <> 'catalogue_engine')),
-                        'seed', 'rollback of 0021: the Setup item catalogue_engine')
+                        'seed', 'rollback of 0022: the Setup item catalogue_engine')
   from (select one.setting('setup_catalog') as c) s
  where exists (select 1 from jsonb_array_elements(s.c -> 'items') i where i ->> 'id' = 'catalogue_engine');
 

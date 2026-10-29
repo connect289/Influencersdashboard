@@ -14,6 +14,7 @@ export const PROMPT_NAMES = [
   "test_author",
   "brief",
   "ask",
+  "chat",
 ] as const;
 
 export function promptModule(read: (name: string) => string): string {

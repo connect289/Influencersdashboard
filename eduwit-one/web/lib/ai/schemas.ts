@@ -178,6 +178,8 @@ export const SCHEMAS = {
   test_author: testAuthorSchema,
   brief: briefSchema,
   ask: askFinalSchema,
+  // A chat turn answers in prose with tool calls (lib/ai/chat); the worker never runs one, so no JSON shape.
+  chat: askFinalSchema,
 } satisfies Record<TaskKind, z.ZodType>;
 
 /** Output allowance per kind (thinking counts against it on Claude); the worst-case cost check uses the same numbers. */
@@ -191,4 +193,6 @@ export const MAX_TOKENS: Record<TaskKind | "ask_round", number> = {
   brief: 12000,
   ask: 6000,
   ask_round: 4000,
+  /** One round of the chat: the text or the tool calls of that round, not the whole conversation. */
+  chat: 4000,
 };

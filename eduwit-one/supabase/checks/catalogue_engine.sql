@@ -1,9 +1,9 @@
--- Catalogue Engine checks (CE-*; D-094). Sources for scripts/db/gen-checks.ts. The engine keeps the per-partner
+-- Catalogue Engine checks (CE-*; D-096). Sources for scripts/db/gen-checks.ts. The engine keeps the per-partner
 -- programme catalogue in its own schema ce (separate repository); Eduwit One reads its queue, health metrics, worker
 -- heartbeats and runs as the database owner, as it reads every app. Schema ce reaches production after 1 Nov 2026, and a
 -- missing table counts as failing (D-042), so every check ships off with setup:catalogue_engine: validating that Setup
 -- item (it checks that the tables and columns read here exist) switches them all on. These checks are seeded by
--- 0022_seed_catalogue_engine_checks.sql, not 0006: 0021 registers the app key, and 0006 runs before it (D-094).
+-- 0023_seed_catalogue_engine_checks.sql, not 0006: 0022 registers the app key, and 0006 runs before it (D-096).
 
 -- check: CE-01
 -- app: catalogue_engine

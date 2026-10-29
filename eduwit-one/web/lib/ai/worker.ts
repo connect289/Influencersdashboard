@@ -4,9 +4,7 @@ import { ModelError, type ModelClient } from "./client.ts";
 import type { AiDb, CallRecord, Claim } from "./db.ts";
 import { aiSettingsSchema, costOf, fallbackRoute, route, worstCaseInr, type AiSettings, type Route } from "./models.ts";
 import { maskForAi, maskText } from "./pii.ts";
-import { DOCS } from "./docs.generated.ts";
-import { findSections } from "./docs-source.ts";
-import { OPERATE } from "../operate/index.ts";
+import { localReadTool, type N8nReader } from "./read-tools.ts";
 import { PROMPTS, SYSTEM_PROMPT } from "./prompts.generated.ts";
 import { askFinalSchema, askRoundSchema, MAX_TOKENS, SCHEMAS } from "./schemas.ts";
 
@@ -16,11 +14,7 @@ import { askFinalSchema, askRoundSchema, MAX_TOKENS, SCHEMAS } from "./schemas.t
 // schema (one repair attempt), and files it; the database decides what the answer may change. Every call is recorded
 // with its tokens and cost, whatever the outcome. Nothing here logs a prompt, an answer or a key.
 
-export type N8nReader = {
-  executions(
-    limit: number,
-  ): Promise<Array<{ id: string; status: string; startedAt: string | null; stoppedAt: string | null }>>;
-};
+export type { N8nReader } from "./read-tools.ts";
 
 export type WorkerDeps = {
   db: AiDb;
@@ -260,11 +254,6 @@ function userMessage(claim: Claim, data: unknown): string {
   return `${head}\n\nData (JSON, contact details masked):\n${json}`;
 }
 
-const clamp = (v: unknown, lo: number, hi: number, dflt: number) => {
-  const n = typeof v === "number" ? Math.trunc(v) : dflt;
-  return Math.min(Math.max(Number.isFinite(n) ? n : dflt, lo), hi);
-};
-
 type Query = { tool: string; args: Record<string, unknown>; ok: boolean; rows: number; error?: string };
 
 async function runTool(
@@ -284,45 +273,10 @@ async function runTool(
   }
   let result: { ok: boolean; data?: unknown; error?: string };
   try {
-    if (tool === "runbook") {
-      // The hand-over documents, from the generated module (D-083): the sections a question's words point at.
-      const query = typeof args.query === "string" ? args.query : "";
-      const found = findSections(DOCS, query, 3);
-      result = {
-        ok: true,
-        data: found.length
-          ? found.map((d) => ({ file: `${d.file}.md`, section: d.title, text: d.text.slice(0, 3000) }))
-          : { sections: DOCS.map((d) => `${d.file}: ${d.title}`), note: "no section matches; pick one by name" },
-      };
-    } else if (tool === "operate") {
-      // What each app needs and where to look, as the Operate pages say it (lib/operate; static, no data).
-      const app = typeof args.app === "string" ? OPERATE[args.app] : undefined;
-      result = app
-        ? {
-            ok: true,
-            data: {
-              app: app.key,
-              needs: app.needs,
-              first_time: app.firstTime,
-              daily: app.daily,
-              when_fires: app.whenFires,
-              in_the_app: app.inTheApp,
-              fixes: app.fixes,
-              tests: app.tests,
-            },
-          }
-        : { ok: false, error: `app is one of ${Object.keys(OPERATE).join(", ")}` };
-    } else if (tool === "n8n_executions") {
-      if (!deps.n8n) {
-        result = { ok: false, error: "n8n is not configured (Setup item n8n_api)" };
-      } else {
-        const status = typeof args.status === "string" ? args.status : null;
-        const rows = await deps.n8n.executions(20);
-        result = {
-          ok: true,
-          data: rows.filter((r) => !status || r.status === status).slice(0, clamp(args.limit, 1, 20, 10)),
-        };
-      }
+    // The runbook, operate and n8n_executions tools are the app's own (lib/ai/read-tools.ts); the rest are the database's.
+    const local = await localReadTool(tool, args, deps.n8n);
+    if (local) {
+      result = local;
     } else {
       result = z
         .object({ ok: z.boolean(), data: z.unknown().optional(), error: z.string().optional() })
@@ -409,6 +363,10 @@ export async function runTask(claim: Claim, deps: WorkerDeps): Promise<Outcome> 
   let result: Record<string, unknown>;
   let version: string;
   try {
+    if (t.kind === "chat") {
+      // Never claimed (one.ai_claim leaves chat turns to the app); a stray one is failed, not run.
+      throw new Stop("fail", "a chat turn runs in the app, not in the worker");
+    }
     if (t.kind === "ask") {
       version = PROMPTS.ask.version;
       result = await ask(claim, deps, tc);

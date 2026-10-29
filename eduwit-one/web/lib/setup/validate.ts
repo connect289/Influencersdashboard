@@ -26,7 +26,7 @@ export type ValidateDeps = {
     testFacts(): Promise<TestFacts | null>;
     /** one.settings.ai, for the ai_key validator (0018). */
     aiSettings(): Promise<unknown>;
-    /** The Catalogue Engine's tables as the database sees them (0021 one.setup_engine_facts), names only. */
+    /** The Catalogue Engine's tables as the database sees them (0022 one.setup_engine_facts), names only. */
     engineFacts(): Promise<unknown>;
   };
   /** Where the test runner login signs in (the shared Supabase project's API). */
@@ -62,7 +62,7 @@ const engineFactsSchema = z.object({
 
 /**
  * The Catalogue Engine is installed here when every table its checks and its event copy read exists, the database owner
- * (who runs the checks) can read it, and it has the columns they use (D-094). Pure, for the unit test.
+ * (who runs the checks) can read it, and it has the columns they use (D-096). Pure, for the unit test.
  */
 export function engineVerdict(facts: unknown): Verdict {
   const f = engineFactsSchema.safeParse(facts);
