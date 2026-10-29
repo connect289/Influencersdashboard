@@ -3,13 +3,15 @@
 -- old behaviour; this migration turns the defaults lean and keeps every switch, so the owner turns a use back on in
 -- Settings → AI → schedule. What changes:
 --   1. one.ai_schedule(): no classification unless classify_new_incidents is true; an explanation only for a P1 (or any
---      P1/P2 a person acknowledged, or a storm), 60 minutes after it opened; a fix proposal only when some fix in the
---      catalogue is tried on the check or a person acknowledged the incident, 1440 minutes after it opened.
+--      P1/P2 a person acknowledged, or a storm), after explain_after_min as before (15, on the deep tier as before: what
+--      remains keeps its quality and timing, the owner's "nothing important changes"); a fix proposal only when some fix
+--      in the catalogue is tried on the check (1440 minutes after it opened) or a person acknowledged the incident
+--      (after explain_after_min, so a person who engages is helped at once).
 --   2. one.route_incident(): one triage per incident per triage_min_gap_h (24) hours, unless its severity rose; a
 --      routing for a new subject or a passed storm re-uses the triage it has.
---   3. The ai setting: the audit's tier and timings (explain on the regular tier after 60 minutes, fix proposals after
---      1440 minutes) and the switches written out, as a seed version, only while the row is still the seed's (a person's
---      edit wins, settings_put's rule); then the D-099 proposal that offered part of this is closed as applied.
+--   3. The ai setting: propose_fix_after_min 1440 and the switches written out, as a seed version, only while the row is
+--      still the seed's (a person's edit wins, settings_put's rule). The D-099 proposal (the cheaper explanation tier
+--      after 60 minutes) stays open for the owner, narrowed to that: its fix-proposal timing is now the default.
 --   4. The tasks waiting for a key that these defaults would never queue are cancelled, so the first day with a key
 --      does not spend on them.
 -- Nothing of the five apps is touched; only schema one. Rollback: 0027_lean_ai.rollback.sql.
@@ -44,9 +46,9 @@ begin
     end loop;
   end if;
   v_out := v_out || jsonb_build_object('classify', v_n);
-  -- An explanation for a P1 or P2 still open after explain_after_min when its severity is in schedule.explain_severities
-  -- (P1 by default; with explain_unacknowledged off, only once a person acknowledged it) or a person acknowledged it
-  -- whatever its severity; and for every storm.
+  -- An explanation for a P1 or P2 still open after explain_after_min (15) when its severity is in
+  -- schedule.explain_severities (P1 by default; with explain_unacknowledged off, only once a person acknowledged it) or a
+  -- person acknowledged it whatever its severity; and for every storm.
   v_n := 0;
   for v_i in select * from one.incidents i
               where i.resolved_at is null and i.check_id <> 'ONE-SYNTH' and not ('synthetic' = any (i.tags))
@@ -54,21 +56,24 @@ begin
                      or (i.severity in ('P1', 'P2')
                          and ((i.severity::text = any (v_explain_sev) and (v_explain_unacked or i.acknowledged_at is not null))
                               or i.acknowledged_at is not null)
-                         and i.opened_at < now() - make_interval(mins => coalesce((v_s ->> 'explain_after_min')::int, 60))))
+                         and i.opened_at < now() - make_interval(mins => coalesce((v_s ->> 'explain_after_min')::int, 15))))
                 and not exists (select 1 from one.ai_tasks t where t.idempotency_key = 'explain:' || i.id)
               order by i.id limit 10 loop
     v_n := v_n + (one.enqueue_ai('explain', jsonb_build_object('incident_id', v_i.id, 'check_id', v_i.check_id), null, 'explain:' || v_i.id, v_i.id) is not null)::int;
   end loop;
   v_out := v_out || jsonb_build_object('explain', v_n);
-  -- A fix proposal for a P1 or P2 still open after propose_fix_after_min (the deep tier when it is high-risk), only when
-  -- some fix in the catalogue is tried on its check or a person acknowledged it, unless propose_fix_only_with_catalogue_fix is off.
+  -- A fix proposal for a P1 or P2 (the deep tier when it is high-risk): once a person acknowledged it, after
+  -- explain_after_min; otherwise after propose_fix_after_min (1440) and only when some fix in the catalogue is tried on
+  -- its check, unless propose_fix_only_with_catalogue_fix is off.
   v_n := 0;
   for v_i in select * from one.incidents i
               where i.resolved_at is null and i.severity in ('P1', 'P2') and i.check_id not in ('ONE-SYNTH', 'ONE-STORM')
                 and not ('synthetic' = any (i.tags))
-                and (not v_fix_only_catalogue or i.acknowledged_at is not null
-                     or exists (select 1 from one.fixes f where i.check_id = any (f.checks)))
-                and i.opened_at < now() - make_interval(mins => coalesce((v_s ->> 'propose_fix_after_min')::int, 1440))
+                and (case when i.acknowledged_at is not null
+                          then i.opened_at < now() - make_interval(mins => coalesce((v_s ->> 'explain_after_min')::int, 15))
+                          when not v_fix_only_catalogue or exists (select 1 from one.fixes f where i.check_id = any (f.checks))
+                          then i.opened_at < now() - make_interval(mins => coalesce((v_s ->> 'propose_fix_after_min')::int, 1440))
+                          else false end)
                 and not exists (select 1 from one.ai_tasks t where t.idempotency_key = 'propose_fix:' || i.id)
               order by i.id limit 10 loop
     v_n := v_n + (one.enqueue_ai('propose_fix', jsonb_build_object('incident_id', v_i.id, 'check_id', v_i.check_id),
@@ -149,12 +154,11 @@ begin
   end if;
 end $$;
 
--- 3. The setting, as a seed version while the row is still the seed's; then the D-099 proposal is closed as applied.
+-- 3. The setting, as a seed version while the row is still the seed's; the D-099 proposal narrowed and left open.
 do $$
 declare
   v_row one.settings;
-  v_patch jsonb := '{"routing": {"explain": "regular"},
-                     "schedule": {"explain_after_min": 60, "propose_fix_after_min": 1440, "classify_new_incidents": false,
+  v_patch jsonb := '{"schedule": {"propose_fix_after_min": 1440, "classify_new_incidents": false,
                                   "explain_severities": ["P1"], "explain_unacknowledged": true,
                                   "propose_fix_only_with_catalogue_fix": true, "triage_min_gap_h": 24}}';
 begin
@@ -163,16 +167,20 @@ begin
     raise exception '0027: no ai setting; 0007 must be applied first';
   end if;
   if v_row.actor <> 'seed' then
-    raise notice '0027: Settings → AI was changed by % (version %), so it is left as it is (D-101); the owner sets the lean values there, and the D-099 proposal stays open', v_row.actor, v_row.version;
+    raise notice '0027: Settings → AI was changed by % (version %), so it is left as it is (D-101); the owner sets the lean values there', v_row.actor, v_row.version;
   else
     perform one.settings_put('ai', one.jsonb_deep_merge(v_row.value, v_patch), 'seed',
                              'D-101 (0027): the AI usage audit''s lean defaults, on the owner''s instruction of 29 Oct 2026');
-    update one.proposals
-       set status = 'applied', decided_by = 'seed', decided_at = now(), applied_at = now(), check_due_at = null,
-           decision_note = 'applied by migration 0027 on the owner''s instruction of 29 Oct 2026 (D-101): explanations on the regular tier after 60 minutes; fix proposals after 1440 minutes (the proposal said 180)',
-           check_result = jsonb_build_object('ran', true, 'ok', true, 'checked_at', now(), 'by', '0027')
-     where source_key = 'builder:d099-ai-explain-tier-and-timings' and status in ('open', 'snoozed');
   end if;
+  -- The D-099 proposal offered a cheaper explanation tier and later timings for both explanations and fix proposals. The
+  -- fix-proposal timing is the default now, so the proposal is narrowed to the explanations (tier and 60 minutes), which
+  -- stay as they were until the owner decides it on the Proposals page.
+  update one.proposals
+     set title = 'AI: explain incidents on the regular tier after 60 minutes',
+         change = jsonb_set(change, '{settings_patch,ai,schedule}', '{"explain_after_min": 60}'),
+         rationale = rationale || ' Narrowed by migration 0027 (D-101): fix proposals wait 1440 minutes by default now, so this proposal offers only the explanation tier and timing; the first explanations in Audit → AI calls will show whether the regular tier is enough.'
+   where source_key = 'builder:d099-ai-explain-tier-and-timings' and status in ('open', 'snoozed')
+     and change #> '{settings_patch,ai,schedule}' ? 'propose_fix_after_min';
 end $$;
 
 -- 4. Waiting tasks these defaults would never queue: cancelled, with the reason, so a key saved tomorrow does not pay

@@ -175,7 +175,7 @@
     "routing": {
       "classify": "quick",
       "triage": "regular",
-      "explain": "regular",
+      "explain": "deep",
       "propose_fix": "regular",
       "propose_fix_high_risk": "deep",
       "propose_feature": "deep",
@@ -191,7 +191,7 @@
     "allow_message_excerpts": false,
     "task_max_age_h": 48,
     "schedule": {
-      "explain_after_min": 60,
+      "explain_after_min": 15,
       "propose_fix_after_min": 1440,
       "classify_new_incidents": false,
       "explain_severities": ["P1"],

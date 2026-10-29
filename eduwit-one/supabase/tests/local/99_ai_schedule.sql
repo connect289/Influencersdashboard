@@ -34,7 +34,7 @@ create or replace function pg_temp.as_engineer() returns void language sql as $$
 $$;
 grant execute on function pg_temp.as_owner(), pg_temp.as_engineer() to authenticated;
 
-create temp table t_prop as select status, decision_note from one.proposals where source_key = 'builder:d099-ai-explain-tier-and-timings';
+create temp table t_prop as select status, title, change from one.proposals where source_key = 'builder:d099-ai-explain-tier-and-timings';
 truncate one.ai_tasks, one.deliveries, one.actions, one.proposals, one.incidents, one.mutes restart identity cascade;
 delete from one.session_checks; delete from one.users; delete from auth.sessions; delete from auth.users;
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-000000000001', 'connect@eduwit.in'), ('00000000-0000-0000-0000-000000000002', 'eng@eduwit.in');
@@ -45,11 +45,11 @@ insert into one.users (user_id, email, role) values ('00000000-0000-0000-0000-00
 insert into one.session_checks (session_id, user_id, method) values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-000000000001', 'email_code'),
   ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-000000000002', 'email_code');
 create temp table t_ai as select value from one.settings where key = 'ai';
--- The switches are stripped from the row, so the code's defaults are what §1 tests; the minutes are set to 60 and 60
--- (the seed's 1440 for fix proposals is asserted in §6) and the incidents moved back 2 hours.
+-- The switches are stripped from the row, so the code's defaults are what §1 tests; the minutes are the seed's (15 and
+-- 1440) and the incidents are moved back 2 hours.
 select one.settings_put('ai', (select value from t_ai) || jsonb_build_object('schedule',
          ((select value from t_ai) -> 'schedule') - 'classify_new_incidents' - 'explain_severities' - 'explain_unacknowledged' - 'propose_fix_only_with_catalogue_fix'
-         || '{"explain_after_min": 60, "propose_fix_after_min": 60}'), 'test@eduwit.in', 'switches stripped, 60/60');
+         || '{"explain_after_min": 15, "propose_fix_after_min": 1440}'), 'test@eduwit.in', 'switches stripped, 15/1440');
 
 -- 1. The defaults (0027, D-101): lean ---------------------------------------------------------------------------------
 -- CAT-01 has a catalogue fix (FIX-CACHE-B2C); INF-05 has none. One P1, one P2, one P3.
@@ -58,23 +58,29 @@ select one.open_or_touch_incident('INF-05', 'P1', '{"value": {"n": 1}}') as i_in
 select one.open_or_touch_incident('CAT-04', 'P3', '{"value": {"n": 1}}') as i_p3 \gset
 update one.incidents set opened_at = now() - interval '2 hours';
 select one.ai_schedule() as s1 \gset
-select pg_temp.ok((:'s1'::jsonb ->> 'classify')::int = 0 and (:'s1'::jsonb ->> 'explain')::int = 1 and (:'s1'::jsonb ->> 'propose_fix')::int = 1
+select pg_temp.ok((:'s1'::jsonb ->> 'classify')::int = 0 and (:'s1'::jsonb ->> 'explain')::int = 1 and (:'s1'::jsonb ->> 'propose_fix')::int = 0
                   and exists (select 1 from one.ai_tasks where idempotency_key = 'explain:' || :i_inf)
-                  and not exists (select 1 from one.ai_tasks where idempotency_key = 'explain:' || :i_cat)
-                  and exists (select 1 from one.ai_tasks where idempotency_key = 'propose_fix:' || :i_cat)
-                  and not exists (select 1 from one.ai_tasks where idempotency_key = 'propose_fix:' || :i_inf),
-                  'lean defaults: nothing classified, the P1 explained and the P2 not, a fix proposed only where the catalogue has one: ' || :'s1');
+                  and not exists (select 1 from one.ai_tasks where idempotency_key = 'explain:' || :i_cat),
+                  'lean defaults: nothing classified, the P1 explained after 15 minutes and the P2 not, no fix proposal before 1440 minutes: ' || :'s1');
 select one.acknowledge_incident(:i_inf, 'connect@eduwit.in');
 select one.ai_schedule() as s1b \gset
 select pg_temp.ok((:'s1b'::jsonb ->> 'propose_fix')::int = 1 and exists (select 1 from one.ai_tasks where idempotency_key = 'propose_fix:' || :i_inf),
-                  'an acknowledged incident gets a fix proposal though its check has no catalogue fix: ' || :'s1b');
+                  'an acknowledged incident gets its fix proposal after explain_after_min, though its check has no catalogue fix: ' || :'s1b');
 update one.incidents set acknowledged_at = null, acknowledged_by = null where id = :i_inf;
+update one.incidents set opened_at = now() - interval '25 hours' where id = :i_cat;
+select one.ai_schedule() as s1c \gset
+select pg_temp.ok((:'s1c'::jsonb ->> 'propose_fix')::int = 1 and exists (select 1 from one.ai_tasks where idempotency_key = 'propose_fix:' || :i_cat),
+                  'after 1440 minutes the P2 whose check has a catalogue fix (CAT-01, FIX-CACHE-B2C) gets a fix proposal: ' || :'s1c');
+update one.incidents set opened_at = now() - interval '2 hours' where id = :i_cat;
+-- The rest of §2 sets propose_fix_after_min to 60 so the gate, not the clock, is what each assertion tests.
+select one.settings_put('ai', jsonb_set((select value from one.settings where key = 'ai'), '{schedule,propose_fix_after_min}', '60'), 'test@eduwit.in', 'proposals after 60 for the tests');
 
 -- 2. Each switch, set by the owner, turns a use back on or further down ------------------------------------------------
 truncate one.ai_tasks restart identity cascade;
 select one.settings_put('ai', jsonb_set((select value from one.settings where key = 'ai'), '{schedule,classify_new_incidents}', 'true'), 'test@eduwit.in', 'classify on');
 select pg_temp.ok((one.ai_schedule() ->> 'classify')::int = 3, 'classify_new_incidents true: every incident of the day is classified');
-select pg_temp.ok((select count(*) from one.ai_tasks where kind = 'explain') = 1, 'the other uses are untouched by that switch');
+select pg_temp.ok((select count(*) from one.ai_tasks where kind = 'explain') = 1 and (select count(*) from one.ai_tasks where kind = 'propose_fix') = 1,
+                  'the other uses are untouched by that switch (the P1 explained; CAT-01 proposed after 60)');
 
 truncate one.ai_tasks restart identity cascade;
 select one.settings_put('ai', jsonb_set((select value from one.settings where key = 'ai'), '{schedule,explain_severities}', '["P1", "P2"]'), 'test@eduwit.in', 'explain P2 too');
@@ -108,7 +114,7 @@ truncate one.ai_tasks restart identity cascade;
 select one.settings_put('ai', jsonb_set((select value from one.settings where key = 'ai'), '{schedule,propose_fix_only_with_catalogue_fix}', 'false'), 'test@eduwit.in', 'fix proposals for every P1 and P2');
 select one.ai_schedule() as s3 \gset
 select pg_temp.ok((:'s3'::jsonb ->> 'propose_fix')::int = 2 and exists (select 1 from one.ai_tasks where idempotency_key = 'propose_fix:' || :i_inf),
-                  'propose_fix_only_with_catalogue_fix false: INF-05 gets a proposal too: ' || :'s3');
+                  'propose_fix_only_with_catalogue_fix false: INF-05 gets a proposal too, after propose_fix_after_min: ' || :'s3');
 -- A malformed switch falls back to the default instead of failing the tick.
 select one.settings_put('ai', jsonb_set((select value from one.settings where key = 'ai'), '{schedule,explain_severities}', '"P1"'), 'test@eduwit.in', 'bad shape');
 truncate one.ai_tasks restart identity cascade;
@@ -185,16 +191,19 @@ select one.settings_put('ai', jsonb_set((select value from one.settings where ke
 select one.open_or_touch_incident('PLAT-04', 'P1', '{"value": {"n": 6}}', array['a', 'b', 'c', 'd', 'e']);
 select pg_temp.ok((select count(*) from one.ai_tasks where kind = 'triage' and incident_id = :i_t) = 4, 'a malformed gap means the default of 24 hours');
 
--- 6. The 0027 seed: the lean values in the ai setting, the D-099 proposal closed as applied ------------------------------
-select pg_temp.ok(((select value from t_ai) #>> '{routing,explain}') = 'regular' and ((select value from t_ai) #>> '{schedule,explain_after_min}')::int = 60
+-- 6. The 0027 seed: the lean values in the ai setting; the D-099 proposal narrowed to the explanations and left open -----
+select pg_temp.ok(((select value from t_ai) #>> '{routing,explain}') = 'deep' and ((select value from t_ai) #>> '{schedule,explain_after_min}')::int = 15
                   and ((select value from t_ai) #>> '{schedule,propose_fix_after_min}')::int = 1440
                   and not ((select value from t_ai) #>> '{schedule,classify_new_incidents}')::boolean
                   and ((select value from t_ai) #> '{schedule,explain_severities}') = '["P1"]'
                   and ((select value from t_ai) #>> '{schedule,propose_fix_only_with_catalogue_fix}')::boolean
                   and ((select value from t_ai) #>> '{schedule,triage_min_gap_h}')::int = 24, 'the ai setting carries the lean values: ' || (select value ->> 'schedule' from t_ai));
 -- Earlier test files truncate one.proposals, so the seeded row is checked only where it still exists (the fast 99_* run).
-select pg_temp.ok((select count(*) from t_prop) = 0 or (select status = 'applied' and decision_note like 'applied by migration 0027%' from t_prop),
-                  'the D-099 proposal, where still seeded, is closed as applied by 0027');
+select pg_temp.ok((select count(*) from t_prop) = 0
+                  or (select status = 'open' and title = 'AI: explain incidents on the regular tier after 60 minutes'
+                             and change #> '{settings_patch,ai,schedule}' = '{"explain_after_min": 60}' and change #> '{settings_patch,ai,routing}' = '{"explain": "regular"}'
+                        from t_prop),
+                  'the D-099 proposal, where still seeded, is open and offers only the explanation tier and timing');
 
 select one.settings_put('ai', (select value from t_ai), 'test@eduwit.in', 'restore');
 delete from one.proposals where source_key in ('builder:test-bad-patch', 'builder:test-d099-copy');

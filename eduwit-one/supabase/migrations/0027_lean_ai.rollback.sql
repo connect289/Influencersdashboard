@@ -1,6 +1,6 @@
 -- Rollback of 0027 lean AI: restores 0026's one.ai_schedule() and 0003's one.route_incident() verbatim; puts the ai
 -- setting back to the version before 0027's seed when that seed is still the latest version (a later edit by a person
--- stays); reopens the D-099 proposal if 0027 closed it. Tasks 0027 cancelled stay cancelled (history; the schedule
+-- stays); gives the D-099 proposal its 0026 title and change back while it is open. Tasks 0027 cancelled stay cancelled (history; the schedule
 -- queues new ones).
 
 do $$
@@ -17,8 +17,10 @@ begin
     end if;
   end if;
   update one.proposals
-     set status = 'open', decided_by = null, decided_at = null, applied_at = null, decision_note = null, check_result = null
-   where source_key = 'builder:d099-ai-explain-tier-and-timings' and status = 'applied' and decision_note like 'applied by migration 0027%';
+     set title = 'AI: explain incidents on the regular tier after 60 minutes; propose fixes after 180 minutes',
+         change = '{"where": "Eduwit One: Settings → AI", "settings_patch": {"ai": {"routing": {"explain": "regular"}, "schedule": {"explain_after_min": 60, "propose_fix_after_min": 180}}}, "touches": ["versioned_settings"], "owner_action": "Approve to apply; reject to keep today''s values. Both are versioned on Settings → AI and can be restored."}',
+         rationale = replace(rationale, ' Narrowed by migration 0027 (D-101): fix proposals wait 1440 minutes by default now, so this proposal offers only the explanation tier and timing; the first explanations in Audit → AI calls will show whether the regular tier is enough.', '')
+   where source_key = 'builder:d099-ai-explain-tier-and-timings' and status in ('open', 'snoozed');
 end $$;
 
 create or replace function one.ai_schedule() returns jsonb

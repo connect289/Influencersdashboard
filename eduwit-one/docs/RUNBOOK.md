@@ -428,13 +428,15 @@ Cost controls (0026, D-099; lean by default since 0027, D-101). Settings → AI 
 versioned and restorable: `classify_new_incidents` (false: no category for every new incident), `explain_severities`
 (`["P1"]`: which severities get an explanation while unacknowledged), `explain_unacknowledged` (true: a P1 is explained
 before anyone acknowledges it; an acknowledged P1 or P2 is always explained), `propose_fix_only_with_catalogue_fix`
-(true: fix proposals only where some fix in the catalogue is tried on the check, or a person acknowledged the incident),
-`triage_min_gap_h` (24: one triage per incident per day unless its severity rose; 0 means one per routing),
-`explain_after_min` (60) and `propose_fix_after_min` (1440); `routing.explain` is `regular`. To turn a use back on, set
-its switch on that page; the next tick follows it. A proposal on the Proposals page that names Eduwit One's own
-settings (`change.settings_patch`) is applied by the owner's **Approve**: the patch is merged into the current value and
-saved as a new version under the approver's name. The AI usage audit (`docs/reviews/ai-usage-audit.md`) says what each
-use costs and why these are the defaults.
+(true: fix proposals only where some fix in the catalogue is tried on the check, or once a person acknowledged the
+incident), `triage_min_gap_h` (24: one triage per incident per day unless its severity rose; 0 means one per routing),
+`explain_after_min` (15: when an explanation is due, and a fix proposal for an acknowledged incident) and
+`propose_fix_after_min` (1440: when a fix proposal is due otherwise). Explanations stay on the deep tier
+(`routing.explain`); the open proposal "AI: explain incidents on the regular tier after 60 minutes" offers the cheaper
+choice. To turn a use back on, set its switch on that page; the next tick follows it. A proposal on the Proposals page
+that names Eduwit One's own settings (`change.settings_patch`) is applied by the owner's **Approve**: the patch is
+merged into the current value and saved as a new version under the approver's name. The AI usage audit
+(`docs/reviews/ai-usage-audit.md`) says what each use costs and why these are the defaults.
 
 To run the worker by hand: `curl -X POST -H "Authorization: Bearer $ONE_INTERNAL_KEY" https://one.eduwit.in/api/internal/ai/run`.
 The route's 300-second limit runs on Vercel Pro with Fluid compute (owner, 24 Oct).
