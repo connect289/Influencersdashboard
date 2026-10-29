@@ -206,6 +206,13 @@ Proposals page that applies itself on approval. Still on, awaiting the owner's w
 explanations of P2s and of unacknowledged incidents, fix proposals for checks without a catalogue fix, and the second
 triage on every routing of the same incident (no switch yet).
 
+**Later on 29 Oct:** the owner: "Remove all unnecessary use of AI or AI api from Eduwit One." Migration 0027 (D-101)
+makes findings 1 to 4 of §6 the defaults (classification off; explanations for P1s, acknowledged incidents and storms
+only, on the regular tier after 60 minutes; fix proposals only with a catalogue fix or an acknowledgement, after 24
+hours; one triage per incident per day unless the severity rose), cancels the waiting tasks those defaults would never
+queue, and keeps every switch in Settings → AI. Row 2 below is done by it; rows 1, 3, 4, 5 and 6 are outside Eduwit
+One and still need the owner or the apps' developers.
+
 ## What to do, in order
 
 | #   | Action                                                                                                                                                                                                      | Who                                                                                      | Saves                                                         |

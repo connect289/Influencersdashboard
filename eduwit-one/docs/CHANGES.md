@@ -3,6 +3,18 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 29 Oct 2026 — Lean AI defaults (0027, D-101)
+
+- On the owner's "Remove all unnecessary use of AI or AI api from Eduwit One": `0027_lean_ai.sql` (+ rollback). The
+  schedule's defaults become the audit's lean choices (no classification; explanations for P1s, acknowledged P1/P2s
+  and storms only, after 60 minutes on the regular tier; fix proposals only with a catalogue fix or an acknowledgement,
+  after 1440 minutes), triage runs once per incident per 24 hours unless the severity rose, the `ai` setting carries
+  the values as a seed version while nobody has edited it, the D-099 proposal is closed as applied, and the waiting
+  tasks these defaults would never queue are cancelled. Every switch stays in Settings → AI → schedule.
+  `config/settings.json` and 0007 carry the same defaults for a fresh install. Local tests pass (`99_ai_schedule.sql`
+  rewritten, `99_ai_worker.sql` pinned to the old schedule). Not yet rehearsed nor applied at the time of this entry;
+  the production apply waits for the owner's go.
+
 ## 29 Oct 2026 — 0026 applied to production (D-099)
 
 - On the owner's "Apply 0026 to production": `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh

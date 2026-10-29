@@ -175,7 +175,7 @@
     "routing": {
       "classify": "quick",
       "triage": "regular",
-      "explain": "deep",
+      "explain": "regular",
       "propose_fix": "regular",
       "propose_fix_high_risk": "deep",
       "propose_feature": "deep",
@@ -191,8 +191,13 @@
     "allow_message_excerpts": false,
     "task_max_age_h": 48,
     "schedule": {
-      "explain_after_min": 15,
-      "propose_fix_after_min": 60,
+      "explain_after_min": 60,
+      "propose_fix_after_min": 1440,
+      "classify_new_incidents": false,
+      "explain_severities": ["P1"],
+      "explain_unacknowledged": true,
+      "propose_fix_only_with_catalogue_fix": true,
+      "triage_min_gap_h": 24,
       "propose_feature_weekday": 1,
       "test_author_on_fixed": true,
       "brief_mail_at_ist": "08:00"

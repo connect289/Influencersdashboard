@@ -43,7 +43,10 @@ select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"models": {"d
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('ai', '{"fallback_when_model_missing": "best"}')$q$) = '22023', 'the fallback is a tier');
 select pg_temp.ok(pg_temp.err(format('select one.settings_check(%L, %L)', 'ai', :'ai_before')) = 'ok', 'the seeded AI settings pass');
 
-select one.settings_put('ai', (:'ai_before')::jsonb || '{"daily_cap_inr": 100, "queue_non_triage_at_pct": 80, "max_parallel": 2}'::jsonb, 'test');
+-- The schedule as it was before 0027's lean defaults (D-101): this file tests the worker, 99_ai_schedule.sql the switches.
+select one.settings_put('ai', (:'ai_before')::jsonb || '{"daily_cap_inr": 100, "queue_non_triage_at_pct": 80, "max_parallel": 2}'::jsonb
+                              || jsonb_build_object('schedule', ((:'ai_before')::jsonb -> 'schedule')
+                                   || '{"explain_after_min": 15, "propose_fix_after_min": 60, "classify_new_incidents": true, "explain_severities": ["P1", "P2"], "propose_fix_only_with_catalogue_fix": false}'), 'test');
 select one.settings_put('alerts', jsonb_set((:'alerts_before')::jsonb, '{p1,email}', '["connect@eduwit.in"]'), 'test');
 
 -- 2. The schedule: fixed rules, each task once ------------------------------------------------------------------------
