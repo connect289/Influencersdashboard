@@ -15,7 +15,10 @@ grep -q "\`$hash\` | REHEARSAL PASSED" "$here/docs/REHEARSALS.md" || { echo "ref
 [ -n "${SUPABASE_ACCESS_TOKEN:-}" ] || { echo "SUPABASE_ACCESS_TOKEN is not set (docs/RUNBOOK-database.md §5)"; exit 2; }
 [ "${ONE_APPLY_WITHOUT_DUMP:-}" = owner-accepted ] || { echo "refused: this route takes no production dump. The owner accepted applying without one on 24 Oct 2026 (D-090); run with ONE_APPLY_WITHOUT_DUMP=owner-accepted to go ahead"; exit 1; }
 echo "no dump: applying without a production dump, as the owner accepted on 24 Oct 2026 (D-090)"
-work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
+work="$(mktemp -d)"
+# Whatever way this script ends, the one-* jobs go back on: a smoke failure after the apply left production's
+# jobs paused on 29 Oct 2026 until they were switched on by hand (D-098).
+trap 'jobs_resume 2>/dev/null || true; rm -rf "$work"' EXIT
 
 api() { node "$here/scripts/db/with-api.ts" production "$@"; }
 sql() { api --sql "$1"; }
@@ -42,6 +45,9 @@ for name in "$@"; do
   echo "  applied $name"
 done
 # smoke.sql's steps as separate calls (see api-rehearse.sh): the committing procedure at top level, then the assertions.
+# A run pg_cron started in this minute, before the file applied, would be judged instead of a fresh one (0025's
+# apply, D-098): wait for a minute that has no run yet.
+while [ "$(scalar "select exists (select 1 from one.runs where kind = 'tick' and bucket = date_trunc('minute', now())) as v")" = "t" ]; do sleep 5; done
 sql "call one.tick_job();" > /dev/null
 grep -vE '^(set lock_timeout|set statement_timeout|reset statement_timeout|call one\.tick_job\(\))' "$here/supabase/tests/smoke.sql" > "$work/smoke-rest.sql"
 api "$work/smoke-rest.sql" | jq -e '.[0].result == "SMOKE PASSED"' > /dev/null || { echo "smoke.sql failed after the apply"; exit 1; }

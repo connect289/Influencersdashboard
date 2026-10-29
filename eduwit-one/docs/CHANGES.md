@@ -3,11 +3,48 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
-## 29 Oct 2026 — the engine is named Eduwit Scout (D-098; not applied anywhere)
+## 29 Oct 2026 — the engine is named Eduwit Scout (D-100; not applied anywhere)
 
 - Every people-facing mention of the engine in Eduwit One says Eduwit Scout: the app label and panel title on the Apps
-  page, the Setup item, the titles of CE-01 to CE-05 (0023 regenerated), the runbook, the docs the Ask tool reads.
+  page, the Setup item, the titles of CE-01 to CE-05 (0023 regenerated), the runbook, the docs the Ask tool reads; the decision is D-100.
   Identifiers are unchanged (app key `catalogue_engine`, schema `ce`, check ids, file names).
+
+## 29 Oct 2026 — 0026 applied to production (D-099)
+
+- On the owner's "Apply 0026 to production": `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh
+0026_ai_cost_controls.sql` after the 11:21 UTC rehearsal of the same set (`37e66836…`); applied at 11:36 UTC. The
+  smoke test then failed on `B2C-01=error`: that check's 11:34 run was killed (slow minute, 24.7 s against the tick's
+  transaction timeout) and reaped at 11:35, before the script started, and a killed check waits 10 minutes before it
+  runs again, so the smoke's own tick could not run it. Not a fault of 0026, which touches no check. The jobs went back
+  on at once (the script's exit trap), the 11:37 and 11:38 ticks ran clean, and the four 0026 objects are on production
+  (`one.jsonb_deep_merge`, the switches in `one.ai_schedule()`, the proposal branch in `one.proposal_execute()` and
+  `one.ui_proposal_decide()`, the open proposal `builder:d099-ai-explain-tier-and-timings`). `supabase/tests/smoke.sql`
+  now leaves out a check whose last run was killed before the smoke's tick (local test passed). Kills are a known
+  mechanism (22 checks killed at least once in the last 7 days, most between 22:00 and 02:30 UTC on 28/29 Oct); they
+  are tracked, not fixed, here. B2C-01 ran again at 11:46 UTC and passed; no check was in error after that.
+
+## 29 Oct 2026 — Eduwit Scout, the catalogue engine's name (D-100)
+
+- The owner named the catalogue engine **Eduwit Scout**. `docs/CATALOGUE-ENGINE.md` is now `docs/EDUWIT-SCOUT.md` and
+  says so; the AI usage audit's row and §7 follow. No code, migration or setting changes: the labels people will see
+  are in PR #29 (`claude/jolly-hopper-hrwqbd`), whose session was asked to rename them; the identifiers (`ce*`, `CE-*`,
+  `catalogue_engine`) stay unless that session changes them.
+
+## 29 Oct 2026 — AI cost controls (0026, D-099)
+
+- `0026_ai_cost_controls.sql` (+ rollback, `99_ai_schedule.sql`): four switches in `ai.schedule` that default to today's
+  behaviour (nothing switched off); builder proposals for Eduwit One's own settings are applied by the owner's approval
+  on the Proposals page (versioned, restorable, audited); one proposal seeded: explain on the regular tier after 60
+  minutes, fix proposals after 180 minutes. Local test passed; staging rehearsal and the production apply follow on
+  the owner's go. The uses the audit called unnecessary stay on until the owner says otherwise.
+
+## 29 Oct 2026 — AI usage audit (read-only)
+
+- `docs/reviews/ai-usage-audit.md`: where each of the six apps calls a model, what production spent in the last 30
+  days and what it was worth, with the actions in order. Headline: today only Witty spends (Gemini), and its two
+  prompt caches cost more than they save at 3 turns a day; Claude is off or keyless everywhere; Eduwit One would spend
+  about ₹150 a day once its key is saved, mostly on Opus explanations of unacknowledged set-up gaps, which four
+  changes bring to about ₹55. No code or setting was changed by the audit.
 
 ## 29 Oct 2026 — Eduwit Scout on the Apps page (D-097; not applied anywhere)
 
@@ -26,6 +63,22 @@ followed.
   up. The local cluster run and `fingerprint.expected` are for the next machine with a Postgres (none in this session).
 - Production database change: none. When approved: rehearse 0001 to 0024 on staging, then apply only
   `0022_catalogue_engine.sql 0023_seed_catalogue_engine_checks.sql 0024_catalogue_engine_panels.sql`.
+
+## 29 Oct 2026 — 0021 on production; the alerts step's fault found (D-098)
+
+- Production database change, 10:34 UTC: `0025_escalation_cap.sql` applied through the Management API on the owner's go,
+  one transaction between the fingerprints, not refused; no dump (D-090); rehearsed on staging at 10:32 UTC. The
+  first tick after it (10:35) ran the alerts step without error for the first time since 25 Oct. The apply and
+  rehearsal scripts' smoke step now waits for a fresh minute before its tick, so it never judges a run that started
+  before the file applied.
+- Production database change: `0021_chat.sql` applied 10:15 UTC through the Management API on the owner's go, one
+  transaction between the two catalogue fingerprints, not refused; no dump (D-090). The command centre now works on
+  production as soon as an Anthropic key is saved on Settings → Setup (`ai_key`).
+- The apply's smoke test failed on a fault older than 0021: the alerts step has errored on every tick since 25 Oct
+  01:48 UTC (reminder level above what `one.deliveries` allows, for P1s unacknowledged since 24 Oct), so reminders and
+  the P2 digest never went out. The one-\* jobs, paused by the script around the file, were switched back on by hand at
+  10:17 UTC (no tick was missed beyond 10:16 and 10:17). Fix: `0025_escalation_cap.sql` (level capped at 10), tested
+  locally; staging rehearsal and the owner's go pending. The apply and rehearsal scripts now resume the jobs on any exit.
 
 ## 29 Oct 2026 — the command centre (D-094)
 

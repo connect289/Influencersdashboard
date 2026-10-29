@@ -1,21 +1,28 @@
-# Eduwit Scout in Eduwit One
+# Eduwit Scout (the catalogue engine) in Eduwit One
 
-Eduwit Scout is Eduwit's sixth app: it builds a clean, versioned catalogue of every paid programme (first from
-degreepartner.com, then other partners) that Witty, the two CRMs, the website and the influencer portal are meant to read
-instead of the legacy `public.catalog_*` tables. It is designed and built in its own repository
-(`connect289/eduwit-catalogue-engine`; schemas `ce`, `ce_pub`, `ce_admin`; role `ce_worker`; cron jobs `ce-health`,
-`ce-prune`, `ce-prune-claims`; workers on GitHub Actions; a dashboard on Vercel; three Edge Functions). On 29 Oct 2026 it
-is applied to staging and prepared for production; nothing of it exists on production yet.
+Eduwit Scout is Eduwit's sixth app, the catalogue engine: it builds a clean, versioned catalogue of every paid
+programme (first from degreepartner.com, then other partners) that Witty, the two CRMs, the website and the influencer
+portal are meant to read instead of the legacy `public.catalog_*` tables. It is designed and built in its own repository
+(`connect289/eduwit-catalogue-engine`, a repository named before the product was; schemas `ce`, `ce_pub`, `ce_admin`;
+role `ce_worker`; cron jobs `ce-health`, `ce-prune`, `ce-prune-claims`; workers on GitHub Actions; a dashboard on
+Vercel; three Edge Functions). On 29 Oct 2026 it is applied to staging and prepared for production; nothing of it exists
+on production yet.
 
 This file is Eduwit One's side of the integration: what it will watch and operate, how, and the few stable names it
-needs from the engine. It changes nothing in the engine and nothing in the five apps. The engine's own design stays in
-its repository (`docs/decisions.md`, O-1 to O-28 and T-1 to T-103 there).
+needs from Scout ("the engine" below). It changes nothing in the engine and nothing in the five apps. The engine's own
+design stays in its repository (`docs/decisions.md`, O-1 to O-28 and T-1 to T-103 there).
 
-> **Status, 29 Oct 2026 (D-095).** The engine's design session had already built part of this on branch
-> `claude/jolly-hopper-hrwqbd` (26 Oct, unmerged): the app `catalogue_engine` with five checks off until a Setup item,
-> an event source and runbook sections, as migrations numbered 0021 and 0022 there. On the production branch 0021 is
-> the command centre's, so those become 0022 and 0023 when they land, and this file is then trimmed to what they do not
-> cover (the heartbeats, the switch-over checks and the asks in §3 that the engine has not decided).
+> **Name (29 Oct 2026, D-100).** The owner named the product **Eduwit Scout**. In Eduwit One the name is what people
+> see: the app's label, its Setup item, its Apps page entry, the checks' app name and these docs. The technical
+> identifiers stay as they are unless Scout's own session changes them: schemas `ce`, `ce_pub` and `ce_admin`, the check
+> ids `CE-01` onwards and the app key `catalogue_engine` of PR #29. Nothing in production carries either name yet.
+
+> **Status, 29 Oct 2026 (D-095).** Scout's design session had already built part of this on branch
+> `claude/jolly-hopper-hrwqbd` (26 Oct): the app `catalogue_engine` with five checks off until a Setup item, an event
+> source, three Apps page panels and runbook sections. It is PR #29, renumbered to migrations 0022, 0023 and 0024 and
+> decisions D-096 and D-097 after the production branch took 0021 for the command centre. Its labels say Eduwit
+> Scout (renamed on 29 Oct in the same pull request). When it merges, this file is trimmed to what it does not
+> cover: the heartbeats, the switch-over checks and the asks in §3 that Scout has not decided.
 
 ## 1. Principles, the same as for the other five apps
 
@@ -32,10 +39,12 @@ its repository (`docs/decisions.md`, O-1 to O-28 and T-1 to T-103 there).
 - **Test identities** follow the engine's convention once it states one; until then Eduwit One's tests do not touch the
   engine (no synthetic claims, no test partner).
 
-## 2. What Eduwit One will add (app key `catalogue`, the existing one)
+## 2. What Eduwit One will add
 
-The app `catalogue` already carries CAT-01 to CAT-04 for the legacy catalogue and the consumers' caches. The engine's
-checks join it, so one Operate page shows the whole chain: the engine, the published catalogue, each consumer's sync.
+This draft had Scout's checks join the app `catalogue` (CAT-01 to CAT-04, the legacy catalogue and the consumers'
+caches). PR #29 registers Scout as its own app instead, key `catalogue_engine`, label Eduwit Scout; that choice wins
+when it merges, and the Operate page then shows the chain across the two apps: the engine, the published catalogue,
+each consumer's sync.
 
 ### Checks (new, gated by `setup:catalogue_engine`)
 
@@ -77,7 +86,7 @@ stay the truth.
 - **Ask**: `app_status('catalogue')` already exists; a `catalogue` tool answers "what is published for partner X",
   "which programmes changed this week", "which sources are failing" from `ce_pub` and `ce.job`, read only.
 
-## 3. What Eduwit One needs from the engine (the asks)
+## 3. What Eduwit One needs from Scout (the asks)
 
 Stable names, so the checks are written once. Each is small; the engine's own patterns already have most of them.
 
@@ -102,8 +111,8 @@ Nothing else: no calls from the engine into Eduwit One, no shared secrets, no `o
 
 ## 4. Sequence
 
-1. The design chat confirms or amends the names in §3 (one message; whichever it already has, it keeps).
-2. Eduwit One: migration 0021 (grants for the reader, the `catalogue_engine` and `catalogue_switchover` Setup items,
+1. Scout's design session confirms or amends the names in §3 (one message; whichever it already has, it keeps).
+2. Eduwit One: a migration after PR #29's 0024 (grants for the reader, the `catalogue_engine` and `catalogue_switchover` Setup items,
    thresholds), the CE checks in `supabase/checks/catalogue.sql` (regenerated into 0006 and `docs/CHECKS.md`), the two
    heartbeats, the events source, the Operate page section, the Ask tool, local tests on stubs of the named `ce`
    relations, the click-through. Rehearsed on staging, which already holds the engine, then applied to production as

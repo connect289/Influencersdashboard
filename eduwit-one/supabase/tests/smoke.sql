@@ -38,10 +38,13 @@ begin
   end if;
 
   -- Every enabled check ran and none is broken against this database's real schema. source_missing is allowed:
-  -- staging lacks some sources (D-009).
+  -- staging lacks some sources (D-009). A check whose last run was killed before this tick is in its back-off
+  -- (one.due_checks(true): 10 minutes per kill) and could not have run here, so its 'error' is the kill's, not this
+  -- database's; the 0026 apply on production was judged on one such check (B2C-01, killed two minutes earlier).
   select string_agg(c.id || '=' || coalesce(s.last_status, 'never'), ', ') into v_bad
     from one.checks c left join one.check_state s on s.check_id = c.id
-   where c.enabled and c.sql is not null and coalesce(s.last_status, 'never') not in ('ok', 'fail', 'source_missing', 'skipped');
+   where c.enabled and c.sql is not null and coalesce(s.last_status, 'never') not in ('ok', 'fail', 'source_missing', 'skipped')
+     and not (coalesce(s.killed_count, 0) > 0 and s.last_status = 'error' and s.last_ran_at < v_run.started_at);
   if v_bad is not null then raise exception 'ASSERT FAILED: checks errored or never ran: %', v_bad; end if;
 
   -- Least privilege (spec §13), by catalogue: the reader writes nothing and bypasses no RLS (D-030); the fixer holds no

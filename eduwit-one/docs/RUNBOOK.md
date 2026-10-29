@@ -21,7 +21,8 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
   check's severity. The same check failing again touches it; a new failing subject (another job, partner or alert
   kind) alerts again. Three good runs in a row resolve it as recovered; failing again within 24 h reopens it.
 - **P1:** an email to the P1 inbox at once. If nobody acknowledges it: again at 30 minutes; at 60 minutes to the P1
-  inbox and the second contact; then every 60 minutes. Acknowledge from the incident page to stop it.
+  inbox and the second contact; then every 60 minutes, up to the tenth reminder (the level `one.deliveries` allows; 0025,
+  D-098). Acknowledge from the incident page to stop it.
 - **P2:** listed in the morning brief, and in an 18:00 IST email digest when more than 5 opened that day.
 - **P3:** the dashboard only.
 - **Developer:** incidents tagged `code` also go to `alerts.developer_email` once it is set.
@@ -470,6 +471,15 @@ the live state, with the steps in order. The runbook the AI reads is generated f
 scripts/gen-docs.ts`; a unit test fails while it is stale): edit the documents, not the module. The morning brief
 covers the day before, is built at 02:30 IST and mailed to the P1 inbox at `ai.schedule.brief_mail_at_ist` (08:00),
 with links to the saved views marked "email it".
+
+Cost controls (0026, D-099). Settings → AI → `schedule` holds four switches, each on by default: `classify_new_incidents`
+(a classification for every new incident), `explain_severities` (`["P1","P2"]`: which severities get an explanation),
+`explain_unacknowledged` (explain an incident nobody has acknowledged yet) and `propose_fix_only_with_catalogue_fix`
+(fix proposals only for checks some fix in the catalogue is tried on). Turning one down is the owner's decision, made
+on that page (a versioned setting). A proposal on the Proposals page that names Eduwit One's own settings (`change.
+settings_patch`) is applied by the owner's **Approve**: the patch is merged into the current value and saved as a new
+version under the approver's name, so Settings → AI shows it and can restore the one before. The AI usage audit
+(`docs/reviews/ai-usage-audit.md`) says what each use costs and which ones add little.
 
 To run the worker by hand: `curl -X POST -H "Authorization: Bearer $ONE_INTERNAL_KEY" https://one.eduwit.in/api/internal/ai/run`.
 The route's 300-second limit runs on Vercel Pro with Fluid compute (owner, 24 Oct).
