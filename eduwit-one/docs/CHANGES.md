@@ -15,7 +15,7 @@ followed.
   `one.ui_proposal_decide()`, the open proposal `builder:d099-ai-explain-tier-and-timings`). `supabase/tests/smoke.sql`
   now leaves out a check whose last run was killed before the smoke's tick (local test passed). Kills are a known
   mechanism (22 checks killed at least once in the last 7 days, most between 22:00 and 02:30 UTC on 28/29 Oct); they
-  are tracked, not fixed, here.
+  are tracked, not fixed, here. B2C-01 ran again at 11:46 UTC and passed; no check was in error after that.
 
 ## 29 Oct 2026 — Eduwit Scout, the catalogue engine's name (D-100)
 
