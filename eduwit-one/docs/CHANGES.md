@@ -3,6 +3,20 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 29 Oct 2026 — 0026 applied to production (D-099)
+
+- On the owner's "Apply 0026 to production": `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh
+0026_ai_cost_controls.sql` after the 11:21 UTC rehearsal of the same set (`37e66836…`); applied at 11:36 UTC. The
+  smoke test then failed on `B2C-01=error`: that check's 11:34 run was killed (slow minute, 24.7 s against the tick's
+  transaction timeout) and reaped at 11:35, before the script started, and a killed check waits 10 minutes before it
+  runs again, so the smoke's own tick could not run it. Not a fault of 0026, which touches no check. The jobs went back
+  on at once (the script's exit trap), the 11:37 and 11:38 ticks ran clean, and the four 0026 objects are on production
+  (`one.jsonb_deep_merge`, the switches in `one.ai_schedule()`, the proposal branch in `one.proposal_execute()` and
+  `one.ui_proposal_decide()`, the open proposal `builder:d099-ai-explain-tier-and-timings`). `supabase/tests/smoke.sql`
+  now leaves out a check whose last run was killed before the smoke's tick (local test passed). Kills are a known
+  mechanism (22 checks killed at least once in the last 7 days, most between 22:00 and 02:30 UTC on 28/29 Oct); they
+  are tracked, not fixed, here.
+
 ## 29 Oct 2026 — Eduwit Scout, the catalogue engine's name (D-100)
 
 - The owner named the catalogue engine **Eduwit Scout**. `docs/CATALOGUE-ENGINE.md` is now `docs/EDUWIT-SCOUT.md` and
