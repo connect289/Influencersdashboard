@@ -11,6 +11,12 @@ This file is Eduwit One's side of the integration: what it will watch and operat
 needs from the engine. It changes nothing in the engine and nothing in the five apps. The engine's own design stays in
 its repository (`docs/decisions.md`, O-1 to O-28 and T-1 to T-103 there).
 
+> **Status, 29 Oct 2026 (D-095).** The engine's design session had already built part of this on branch
+> `claude/jolly-hopper-hrwqbd` (26 Oct, unmerged): the app `catalogue_engine` with five checks off until a Setup item,
+> an event source and runbook sections, as migrations numbered 0021 and 0022 there. On the production branch 0021 is
+> the command centre's, so those become 0022 and 0023 when they land, and this file is then trimmed to what they do not
+> cover (the heartbeats, the switch-over checks and the asks in §3 that the engine has not decided).
+
 ## 1. Principles, the same as for the other five apps
 
 - **Read only, by Eduwit One's own role.** `eduwit_one_reader` gets `USAGE` on `ce` and `ce_pub` and `SELECT` on the

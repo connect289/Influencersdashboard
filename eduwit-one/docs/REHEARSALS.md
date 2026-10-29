@@ -4,6 +4,7 @@ One row per passed rehearsal. `scripts/db/rehearse.sh` appends a row when the fu
 rollback leaving nothing, apply, smoke). `scripts/db/apply.sh` refuses to touch production unless the current migration
 set's hash (`node scripts/db/guards.ts --hash`) has a row here. Rows are never edited.
 
-| When (UTC) | Target | Migration set (sha256) | Result | By |
-| --- | --- | --- | --- | --- |
+| When (UTC)        | Target  | Migration set (sha256)                                             | Result           | By                         |
+| ----------------- | ------- | ------------------------------------------------------------------ | ---------------- | -------------------------- |
 | 2026-10-24T15:41Z | staging | `60b7dbb4f2ae72d46e15ba0b4b08ba87157006d8293a510adaad2920b7cac6c0` | REHEARSAL PASSED | scripts/db/api-rehearse.sh |
+| 2026-10-29T05:53Z | staging | `5a5d4be69c48a68b88939f64be5a9124c0363afb2b4ef1d54261ce6707a8557d` | REHEARSAL PASSED | scripts/db/api-rehearse.sh |

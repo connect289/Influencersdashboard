@@ -5,6 +5,11 @@ followed.
 
 ## 29 Oct 2026 — the command centre (D-094)
 
+- Staging: Eduwit One removed (rollbacks 0020 to 0001 through the Management API, each one wrapped transaction) and the
+  whole set 0001 to 0021 rehearsed: `REHEARSAL PASSED` 2026-10-29 (`docs/REHEARSALS.md`), staging keeps 0001 to 0021.
+  Production: not applied; `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh 0021_chat.sql` waits for the
+  owner's go (D-090 route). The app at one.eduwit.in is deployed from 79c9271; its Command centre page says the
+  database migration is not applied yet until then.
 - New: the Command centre page (`/chat`): a chat with Claude that reads with Ask's fixed tools and acts through the
   console's own page functions as the signed-in person, every write beyond a small step shown as an action card to
   confirm; Vault cards for secrets; conversations masked and kept 90 days. Migration `0021_chat.sql` (chat tables and
