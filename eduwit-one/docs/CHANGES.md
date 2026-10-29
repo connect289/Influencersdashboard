@@ -3,6 +3,18 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 29 Oct 2026 — 0027 applied to production (D-101)
+
+- On the owner's "Apply 0027 to production": `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh
+0027_lean_ai.sql` after the 12:45 UTC rehearsal of the same set (`6cd9d121…`); applied at 12:46 UTC, smoke test
+  passed, both jobs on, the 12:47 tick clean, no check in error. Verified read-only afterwards: the `ai` setting is at
+  version 3 (actor seed, reason D-101) with the switches, `propose_fix_after_min` 1440 and `triage_min_gap_h` 24, and
+  `routing.explain` still `deep` at 15 minutes; proposal 19 is open, narrowed to the explanation tier and 60 minutes;
+  `one.ai_schedule()` and `one.route_incident()` carry 0027. Cancelled with the reason: 22 classify, 7 explain (P2s
+  nobody acknowledged), 17 propose_fix (no catalogue fix, nobody acknowledged) and 9 older triage duplicates; still
+  waiting for a key: 14 explain (P1s), 3 propose_fix (checks with a catalogue fix), 22 triage (one per incident) and
+  2 brief. Production now holds 0001 to 0021 and 0025 to 0027.
+
 ## 29 Oct 2026 — Lean AI defaults (0027, D-101)
 
 - On the owner's "Remove all unnecessary use of AI or AI api from Eduwit One", then "don't change anything that is
