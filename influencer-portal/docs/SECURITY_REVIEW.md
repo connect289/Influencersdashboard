@@ -73,3 +73,19 @@ a CRM receipt; and a clawback inside the window (a `clawback` line) did not noti
 - Deploy on Vercel (or set `clientIp` to trust only the platform's header) so per-IP limits cannot be spoofed.
 - Add the `/m/[handle]` page to the edge rate limit (or Vercel firewall) with the public API limits.
 - Re-run `npm audit --omit=dev` and this checklist against the release candidate.
+
+## Estate audit, 30 Oct 2026
+
+Review of the `inf` schema's client-callable functions and the app's routes. Changes in
+`20261030000100_inf_audit_guards.sql` (D-192, pgTAP `025_audit_guards.sql`) unless noted:
+
+| # | Change | Status |
+| --- | --- | --- |
+| 11 | Null-safe side checks in seven content and contract functions | Fixed |
+| 12 | `eligibility_gaps` is internal (no client grant) | Fixed |
+| 13 | `creator_profile_update` applies `avatar_set`'s own-folder rule | Fixed |
+| 14 | `kyc_save` keeps the KYC proof in the creator's own folder | Fixed |
+| 15 | `thread_post` accepts only the attachment path shape the app writes | Fixed |
+| 16 | `tiers_list` answers staff, creators and the service role | Fixed |
+| 17 | The short-link route handles any path segment without an error (`decodeCodeSegment`) | Fixed |
+| 18 | `npm audit --omit=dev`: nodemailer 10.1.7, fast-uri 3.1.9 (0 vulnerabilities) | Fixed |
