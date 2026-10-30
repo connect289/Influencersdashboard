@@ -39,6 +39,11 @@ or group of fixes is one commit with its entries here.
   refused, the owner recorded with an audit row). The fingerprint's functions hash changes; once 0029 is merged it
   is regenerated again. Not yet rehearsed nor applied.
 
+- Merged onto 0029 by the coordinator: `supabase/tests/fingerprint.expected` regenerated for 0001 to 0030 (local test
+  passed), and the three re-seed tests in `scripts/db/gen-checks.test.ts` share one guarded statement finder (the
+  0029 tests had the unguarded indexing the tooling fix above removed). 0029 and 0030 are applied together, after a
+  staging rehearsal of the new set and the owner's go.
+
 ## 30 Oct 2026 — Open findings kept out of the public repository (D-109)
 
 - `docs/reviews/estate-audit-2026-10-30.md`: X1 and X4 now say what each finding is, who acts and what the fix is;

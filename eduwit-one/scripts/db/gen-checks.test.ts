@@ -130,42 +130,35 @@ test("the production trial replaces every one.* reference", () => {
   for (const c of loadChecks().filter((x) => x.sql)) assert.doesNotMatch(forTrial(c.sql as string), /\bone\./, c.id);
 });
 
+// The whole `select one.seed_check(...)` statement that seeds one check in a migration file.
+const seedStatement = (text: string, id: string) => {
+  const lines = text.split("\n");
+  const i = lines.findIndex((l) => l.trim() === `'id', '${id}',`);
+  assert.ok(i >= 0, `the file seeds ${id}`);
+  let a = i;
+  while (a > 0 && !(lines[a] ?? "").startsWith("select one.seed_check(")) a--;
+  let b = i;
+  while (b < lines.length - 1 && !(lines[b] ?? "").trimEnd().endsWith("));")) b++;
+  return lines.slice(a, b + 1).join("\n");
+};
+
 test("0028 re-seeds ONE-01 with the statement 0006 carries (D-102)", () => {
-  const stmt = (text: string) => {
-    const lines = text.split("\n");
-    const i = lines.findIndex((l) => l.trim() === "'id', 'ONE-01',");
-    assert.ok(i >= 0, "the file seeds ONE-01");
-    let a = i;
-    while (a > 0 && !(lines[a] ?? "").startsWith("select one.seed_check(")) a--;
-    let b = i;
-    while (b < lines.length - 1 && !(lines[b] ?? "").trimEnd().endsWith("));")) b++;
-    return lines.slice(a, b + 1).join("\n");
-  };
-  assert.equal(stmt(migrationText("0028_parked_checks_recover.sql")), stmt(migrationText("0006_seed_checks.sql")));
+  assert.equal(
+    seedStatement(migrationText("0028_parked_checks_recover.sql"), "ONE-01"),
+    seedStatement(migrationText("0006_seed_checks.sql"), "ONE-01"),
+  );
 });
 
 test("0029 seeds PLAT-10 with the statement 0006 carries (D-103)", () => {
-  const stmt = (text: string) => {
-    const lines = text.split("\n");
-    const i = lines.findIndex((l) => l.trim() === "'id', 'PLAT-10',");
-    let a = i;
-    while (!lines[a].startsWith("select one.seed_check(")) a--;
-    let b = i;
-    while (!lines[b].trimEnd().endsWith("));")) b++;
-    return lines.slice(a, b + 1).join("\n");
-  };
-  assert.equal(stmt(migrationText("0029_storage_within_plan.sql")), stmt(migrationText("0006_seed_checks.sql")));
+  assert.equal(
+    seedStatement(migrationText("0029_storage_within_plan.sql"), "PLAT-10"),
+    seedStatement(migrationText("0006_seed_checks.sql"), "PLAT-10"),
+  );
 });
 
 test("0029 re-seeds B2C-01 (one pass) with the statement 0006 carries (D-103)", () => {
-  const stmt = (text: string) => {
-    const lines = text.split("\n");
-    const i = lines.findIndex((l) => l.trim() === "'id', 'B2C-01',");
-    let a = i;
-    while (!lines[a].startsWith("select one.seed_check(")) a--;
-    let b = i;
-    while (!lines[b].trimEnd().endsWith("));")) b++;
-    return lines.slice(a, b + 1).join("\n");
-  };
-  assert.equal(stmt(migrationText("0029_storage_within_plan.sql")), stmt(migrationText("0006_seed_checks.sql")));
+  assert.equal(
+    seedStatement(migrationText("0029_storage_within_plan.sql"), "B2C-01"),
+    seedStatement(migrationText("0006_seed_checks.sql"), "B2C-01"),
+  );
 });
