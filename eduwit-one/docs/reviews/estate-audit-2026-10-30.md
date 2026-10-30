@@ -191,3 +191,42 @@ Commits on this branch: `96bf262` (the migration, pgTAP `025_audit_guards.sql`, 
 `influencer-portal/supabase/proposals/`, outside the migration chain, with its rollback; rehearsed by the auditor with
 fake accounts, 14 of 14). The portal's migration and the legacy proposal wait for the owner's go and a staging rehearsal
 (project rule: hard stop 6 for migrations to the live project).
+
+### Witty (WhatsApp, n8n and `public.w2_*`)
+
+A read-only audit: nothing in n8n or the database was changed. Verified by the coordinator: the workflow list (names,
+ids and active state only; no node was opened here, so no credential entered this session); the live `w2_stale_inbox`
+equals the definition W-07's fix replaces; `w2_latency_daily` is readable by anon; every `w2_*` table has row
+security and no policy, so the 56 functions open to client roles reach no row. The 540 failed runs since 25 Oct are the
+database stalls and connection failures, not Witty logic; no student message or reply was lost in the window n8n keeps.
+
+| ID   | Severity | Finding                                                                                                              | State                                                           |
+| ---- | -------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| W-01 | critical | Two inactive n8n workflows ("Eduwit", "Eduwit (Test Harness)") contain copies of production credentials              | owner: archive them, then move the apps to new keys             |
+| W-02 | high     | Witty's Chatwoot webhook does not check the signature Chatwoot already sends                                         | proposal: `n8n_verify_chatwoot_signature.js`, report-only first |
+| W-03 | high     | An inactive developer workflow ("Dev SQL") would run any query if switched on                                        | owner: archive it                                               |
+| W-04 | medium   | The Test Harness webhook has no authentication                                                                       | proposal (header auth)                                          |
+| W-05 | low      | Three inactive developer harnesses would call the model for anyone if switched on                                    | owner: archive them                                             |
+| W-06 | medium   | A reply that fails to send is not recorded                                                                           | proposal (n8n change; the CRM side is the owner's)              |
+| W-07 | medium   | A new student's first message is not retried if the turn fails before the conversation row exists                    | fix `w5_stale_inbox_first_message.sql`, not applied             |
+| W-08 | medium   | The 16 Oct W3 release shipped only its database half (agent take-over, click-to-WhatsApp attribution)                | owner decision                                                  |
+| W-09 | medium   | The active "WhatsApp Ad Leads to Sheet" webhook does not check Meta's signature                                      | proposal: `n8n_verify_meta_signature.js`                        |
+| W-10 | low      | `w2_latency_daily` (daily counts and timings, no phone or text) is readable by anon                                  | fix `w5_latency_daily_invoker.sql`, not applied                 |
+| W-11 | low      | Client roles hold privileges on `w2_*` objects that only row security stops                                          | fix `w5_revoke_api_grants.sql`, not applied                     |
+| W-12 | medium   | The 540 failed runs reached nobody: no n8n error workflow, and Eduwit One has no Chatwoot or n8n key                 | owner: Eduwit One Setup; proposal: an error workflow            |
+| W-13 | low      | `w2_cache_plan` rewrites about 41 KB of unchanged prompt text every 15 minutes                                       | fix `w5_cache_plan_skip_unchanged.sql`, not applied             |
+| W-14 | low      | When "Retry CRM Writes" fails, that minute's stuck-chat recovery does not run                                        | proposal                                                        |
+| W-15 | low      | Unsupported WhatsApp messages reach the model as the text "This message is unavailable."                             | proposal                                                        |
+| W-16 | low      | The Drive sync lists an empty folder 144 times a day                                                                 | owner decision                                                  |
+| W-17 | medium   | Backup tables from the 4 and 5 Oct wipe hold about 2,300 student messages                                            | owner decision (X11)                                            |
+| W-18 | medium   | n8n connects to the database as `postgres`                                                                           | owner decision (a least-privilege role)                         |
+| W-19 | low      | "Meta Leads to WhatsApp Alert" listens to a form named "-copy"                                                       | owner check                                                     |
+| W-20 | low      | A developer workflow holds sample student details; the live workflow hard-codes two test numbers                     | owner: archive; move the numbers to `w2_trusted`                |
+| W-21 | low      | Eduwit One's `n8n` setting names the superseded Nurture and Learning workflows (read only by WITTY-08, which is off) | proposal (a settings change, the owner's)                       |
+| W-22 | info     | n8n keeps about 6 days of executions                                                                                 | none                                                            |
+
+The proposed SQL and Code nodes, with the auditor's rehearsal on a throwaway Postgres built from production's
+definitions (29 of 29 checks) and the Code nodes' mocked runs (12 of 12), are in `estate-audit-2026-10-30/witty/`. Each
+SQL file is idempotent and carries its rollback. The node-by-node n8n change list stays with the owner (D-109).
+Applying any of it changes Witty, so it waits for the owner's go; re-read `w2_stale_inbox` and `w2_cache_plan` on
+production first, since `w4` was applied on 30 Oct.
