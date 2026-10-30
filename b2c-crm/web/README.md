@@ -193,6 +193,7 @@ alerts; the Workspace Home is an attention list, four numbers and two cards. All
   screenshot limits, Gmail attachments; dates are not phone numbers in the brief's check. 96 tests.
 - `../supabase/tests/test_walkthrough_fixes.sql` (10): the b32 and b34 fixes, safe on staging.
 - `../supabase/tests/test_features.sql` (26): the b37 features (snippets, bulk actions, catalogue corrections, the campaign calendar, system health, the audit and sign-in viewers, duplicate suspects), safe on staging.
+- `../supabase/tests/test_audit_2026_10.sql` (32): the audit fixes of 30 Oct 2026 (b47 staff-session checks on qualify_record, support tickets, saved views and insights; b48 a sales head's follow-ups limited to the team; b49 the capacity job with nobody taking leads; b50 the emailed code from a strong random source), safe on staging.
 - `../supabase/tests/test_phase1.sql` (99) and `test_phase2.sql` (45): rolled-back database checks (run in the SQL editor).
   `test_phase3.sql` (91) and `test_phase4.sql` (47), the Phase 3 and 4 exit tests, run on a local database built from
   the migrations.
