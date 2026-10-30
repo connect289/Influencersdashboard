@@ -10,7 +10,18 @@ const confidence = z.enum(["low", "medium", "high"]);
 const risk = z.enum(["low", "medium", "high"]);
 const text = (max: number) => z.string().min(1).max(max);
 
-export const APPS = ["witty", "b2b", "b2c", "web", "influencer", "one", "platform", "catalogue", "integrity"] as const;
+export const APPS = [
+  "witty",
+  "b2b",
+  "b2c",
+  "web",
+  "influencer",
+  "one",
+  "platform",
+  "catalogue",
+  "integrity",
+  "catalogue_engine",
+] as const;
 
 /** What a proposal touches; the sensitive ones make it the owner's to approve (one.proposal_sensitive, D-065). */
 export const TOUCHES = [

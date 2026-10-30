@@ -66,6 +66,14 @@ if out="$(apply postgres "$here/supabase/migrations/0006_seed_checks.rollback.sq
 fi
 echo "$out" | grep -q "0006 rollback refused" || { echo "$out"; exit 1; }
 echo "  0006's rollback refuses to discard history"
+# The same for 0023 (D-096), with a Eduwit Scout incident and an AI task about it; the full rollback below is told
+# to discard them (the task stays, unlinked).
+psql_as postgres -d rehearsal -c "select one.enqueue_ai('classify', '{}', null, 'local-test:ce-01', one.open_or_touch_incident('CE-01', 'P2', '{}'))" >/dev/null
+if out="$(apply postgres "$here/supabase/migrations/0023_seed_catalogue_engine_checks.rollback.sql" 2>&1)"; then
+  echo "0023's rollback discarded history without being told to"; exit 1
+fi
+echo "$out" | grep -q "0023 rollback refused" || { echo "$out"; exit 1; }
+echo "  0023's rollback refuses to discard history"
 # M8: a file that changes anything outside schema one is rolled back whole by the fingerprint wrapper.
 printf 'create table one.fp_probe (id int);\nalter table public.student_leads add column fp_probe text;\n' > "$work/bad.sql"
 if out="$(apply postgres "$work/bad.sql" 2>&1)"; then echo "the fingerprint wrapper let an app change through"; exit 1; fi

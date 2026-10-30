@@ -20,9 +20,9 @@ design stays in its repository (`docs/decisions.md`, O-1 to O-28 and T-1 to T-10
 > **Status, 29 Oct 2026 (D-095).** Scout's design session had already built part of this on branch
 > `claude/jolly-hopper-hrwqbd` (26 Oct): the app `catalogue_engine` with five checks off until a Setup item, an event
 > source, three Apps page panels and runbook sections. It is PR #29, renumbered to migrations 0022, 0023 and 0024 and
-> decisions D-096 and D-097 after the production branch took 0021 for the command centre. Its labels still read
-> "Catalogue Engine" until that session renames them (it was told on 29 Oct). When it merges, this file is trimmed to
-> what it does not cover: the heartbeats, the switch-over checks and the asks in §3 that Scout has not decided.
+> decisions D-096 and D-097 after the production branch took 0021 for the command centre. Its labels say Eduwit
+> Scout (renamed on 29 Oct in the same pull request). When it merges, this file is trimmed to what it does not
+> cover: the heartbeats, the switch-over checks and the asks in §3 that Scout has not decided.
 
 ## 1. Principles, the same as for the other five apps
 

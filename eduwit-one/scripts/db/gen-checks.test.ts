@@ -1,17 +1,45 @@
 // node --test scripts/db/gen-checks.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { catalogue, loadChecks, migration, parseSource } from "./gen-checks.ts";
+import { readdirSync, readFileSync } from "node:fs";
+import { catalogue, LATE_APPS, lateMigration, loadChecks, migration, parseSource } from "./gen-checks.ts";
 import { forTrial } from "./try-checks.ts";
 
 const block = (extra: string, sql: string) =>
   `-- check: T-1\n-- app: platform\n-- kind: sql\n-- severity: P2\n-- cadence_s: 60\n-- title: t\n-- description: d\n${extra}${sql}\n`;
 
-test("0006 and CHECKS.md are generated from the current sources", () => {
+const migrationText = (file: string) => readFileSync(new URL(`../../supabase/migrations/${file}`, import.meta.url), "utf8");
+
+test("0006, the late apps' seeds and CHECKS.md are generated from the current sources", () => {
   const checks = loadChecks();
-  assert.equal(readFileSync(new URL("../../supabase/migrations/0006_seed_checks.sql", import.meta.url), "utf8"), migration(checks));
+  assert.equal(migrationText("0006_seed_checks.sql"), migration(checks));
+  for (const [app, late] of Object.entries(LATE_APPS)) assert.equal(migrationText(late.file), lateMigration(checks, app), late.file);
   assert.equal(readFileSync(new URL("../../docs/CHECKS.md", import.meta.url), "utf8"), catalogue(checks));
+});
+
+test("an app registered after 0002 is seeded by its own file, right after the migration that registers it (D-096)", () => {
+  const checks = loadChecks();
+  const files = readdirSync(new URL("../../supabase/migrations/", import.meta.url));
+  const forward = files.filter((f) => /^\d{4}_.*\.sql$/.test(f) && !f.endsWith(".rollback.sql")).sort();
+  const base = /check \(key in \(([^)]*)\)\)/.exec(migrationText("0002_core_tables.sql"))?.[1] ?? "";
+  for (const [app, late] of Object.entries(LATE_APPS)) {
+    assert.ok(!base.includes(`'${app}'`), `${app} is not one of 0002's keys`);
+    assert.equal(forward.indexOf(late.file), forward.indexOf(late.after) + 1, `${late.file} follows ${late.after}`);
+    assert.match(migrationText(late.after), new RegExp(`add constraint apps_key_check\\s+check \\(key in \\([^)]*'${app}'`), `${late.after} adds the key`);
+    assert.ok(files.includes(late.file.replace(/\.sql$/, ".rollback.sql")), `${late.file} has a rollback`);
+    assert.ok(!migration(checks).includes(`'app', '${app}'`), `0006 seeds no ${app} check`);
+    assert.ok(checks.filter((c) => c.app === app).every((c) => lateMigration(checks, app).includes(`'id', '${c.id}'`)), `${late.file} seeds every ${app} check`);
+  }
+});
+
+test("Eduwit Scout's checks ship off until its Setup item is validated, and 0022 carries that item as config has it", () => {
+  const ce = loadChecks().filter((c) => c.app === "catalogue_engine");
+  assert.deepEqual(ce.map((c) => c.id), ["CE-01", "CE-02", "CE-03", "CE-04", "CE-05"]);
+  for (const c of ce) assert.equal(c.disabled, "setup:catalogue_engine", c.id);
+  const items = (JSON.parse(readFileSync(new URL("../../config/setup-items.json", import.meta.url), "utf8")) as { items: Array<{ id: string }> }).items;
+  assert.equal(items.at(-1)?.id, "catalogue_engine", "the item is the catalogue's last, where 0022 appends it");
+  const copy = /\$item\$(.*?)\$item\$/s.exec(migrationText("0022_catalogue_engine.sql"))?.[1] ?? "{}";
+  assert.deepEqual(JSON.parse(copy), items.at(-1));
 });
 
 test("every check in the specification's catalogue is seeded", () => {

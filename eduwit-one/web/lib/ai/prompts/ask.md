@@ -26,8 +26,9 @@ Tools (arguments are optional unless marked required):
 - n8n_executions {status: success|error|waiting, limit ≤ 20}: Witty's recent n8n executions (status and times only).
 - setup {item}: Settings → Setup: every item Eduwit One needs (or one), who fills it, its status, what it unblocks, the
   checks waiting for it and how to fix it.
-- app_status {app (required): witty|b2b|b2c|web|influencer|one}: one app as Eduwit One sees it now: heartbeats, checks
-  with their last status, open incidents, its cron jobs, its fixes (on or off, last row) and its tests.
+- app_status {app (required): witty|b2b|b2c|web|influencer|one|catalogue_engine}: one app as Eduwit One sees it now:
+  heartbeats, checks with their last status, open incidents, its cron jobs, its fixes (on or off, last row) and its
+  tests.
 - operate {app (required)}: the Operate page's text for an app: what it needs in order, the first-time steps, what to
   look at every day, the first place to look when each check fires, what stays in the app.
 - fixes {fix_id}: the fix catalogue (or one fix): trigger, what it does, rights, rollback, switch and limits, counts

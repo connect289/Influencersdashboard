@@ -437,6 +437,22 @@
       ],
       "how": "In Spark, create a journey in test mode whose first step queues a WhatsApp message; Settings → test_identities.spark_test_journey_id.",
       "validate": "spark_journey"
+    },
+    {
+      "id": "catalogue_engine",
+      "title": "Eduwit Scout installed in this database (schema ce)",
+      "who": "developer",
+      "stores": "none (reads schema ce of the shared database)",
+      "unblocks": [
+        "CE-01",
+        "CE-02",
+        "CE-03",
+        "CE-04",
+        "CE-05",
+        "events from ce.events"
+      ],
+      "how": "Nothing to paste. Once Eduwit Scout's migrations are applied to this database (production: after 1 Nov 2026, from the engine's own repository), press Validate: it checks that ce.heartbeat, ce.job, ce.health, ce.run and ce.events exist with the columns Eduwit One reads and that the database owner can read them, then switches on CE-01 to CE-05. The event copy from ce.events starts by itself as soon as the table exists.",
+      "validate": "engine_schema"
     }
   ]
 }

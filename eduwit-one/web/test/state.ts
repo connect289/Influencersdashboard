@@ -105,4 +105,10 @@ export class FakeDb implements OneDb {
     this.validations.push({ item, ok, actor });
     return 0;
   }
+
+  engineFacts: unknown = { tables: {} };
+
+  async setupEngineFacts() {
+    return this.engineFacts;
+  }
 }

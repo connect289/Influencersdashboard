@@ -20,6 +20,7 @@ export interface OneDb {
   authIssueCode(userId: string, sessionId: string): Promise<string>;
   authRecord(entry: SignInEntry): Promise<void>;
   setupValidated(item: string, ok: boolean, detail: string, actor: string, requestId: string): Promise<number>;
+  setupEngineFacts(): Promise<unknown>;
 }
 
 /** One line of one.sign_in_log, written by the signed-out steps (0009). */
@@ -138,6 +139,11 @@ export class SupabaseOneDb implements OneDb {
         }),
       );
     return r.checks_on;
+  }
+
+  /** What the catalogue_engine Setup validator reads (0022 one.setup_engine_facts): schema ce's tables, names only. */
+  async setupEngineFacts() {
+    return await this.rpc("setup_engine_facts");
   }
 
   async finishDelivery(id: number, ok: boolean, error: string | null, providerId: string | null) {

@@ -49,7 +49,8 @@ select pg_temp.ok((select bool_and(r ? 'ok' and r ? 'ms' and (r ->> 'ok')::boole
                                        'b2c.timers', 'b2c.queues', 'b2c.connectors', 'b2c.nurture', 'b2c.counsellors',
                                        'web.health', 'web.overview', 'web.quality', 'web.seo', 'web.funnel',
                                        'influencer.health', 'influencer.creators', 'influencer.clicks', 'influencer.outcomes',
-                                       'one.health', 'one.runs', 'one.events', 'platform.cron']) p, lateral (select one.ui_embed(p) as r) x),
+                                       'one.health', 'one.runs', 'one.events', 'platform.cron',
+                                       'catalogue_engine.status', 'catalogue_engine.versions', 'catalogue_engine.queue']) p, lateral (select one.ui_embed(p) as r) x),
                   'every panel answers with ok, or a kind of failure');
 select pg_temp.ok(pg_temp.err('select one.ui_embed(''nope.nothing'')') = 'P0002', 'an unknown panel is refused');
 

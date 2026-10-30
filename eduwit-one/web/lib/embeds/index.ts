@@ -164,6 +164,43 @@ export const embeds: Record<string, AppEmbed> = {
     ],
     links: (c) => [{ label: "The watchdog endpoint", href: c.hosts.one ? `${c.hosts.one}/api/watchdog` : undefined }],
   },
+  catalogue_engine: {
+    key: "catalogue_engine",
+    title: "Eduwit Scout",
+    about:
+      "Turns partner websites into the approved programme catalogue every Eduwit app reads (schema ce_pub). Read only here; publishing and review happen in its own dashboard.",
+    panels: [
+      {
+        id: "catalogue_engine.status",
+        title: "Partners and the live catalogue",
+        about:
+          "ce_pub.engine_status(): each partner's live version, what changed since, the queue, open review, alerts.",
+      },
+      {
+        id: "catalogue_engine.versions",
+        title: "Catalogue versions",
+        about: "The last 30 versions: who published, when, how many programmes, what changed, any failed build.",
+      },
+      {
+        id: "catalogue_engine.queue",
+        title: "Queue, runs and review",
+        about:
+          "Jobs by stage and status, the last 10 runs, open review items by queue, open conflicts, alerts in 24 h.",
+      },
+    ],
+    links: (c) => [
+      { label: "Open the engine's dashboard", href: c.hosts.catalogue_engine },
+      { label: "Catalogue", href: c.hosts.catalogue_engine ? `${c.hosts.catalogue_engine}/catalogue` : undefined },
+      { label: "Review queue", href: c.hosts.catalogue_engine ? `${c.hosts.catalogue_engine}/review` : undefined },
+      {
+        label: "Partners and Publish",
+        href: c.hosts.catalogue_engine ? `${c.hosts.catalogue_engine}/partners` : undefined,
+      },
+    ],
+    gaps: [
+      "Publishing, rolling back, review decisions and runs are done in the engine's dashboard; Eduwit One only reads.",
+    ],
+  },
   platform: {
     key: "platform",
     title: "Platform",

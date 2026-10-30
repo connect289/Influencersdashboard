@@ -26,6 +26,8 @@ export type ValidateDeps = {
     testFacts(): Promise<TestFacts | null>;
     /** one.settings.ai, for the ai_key validator (0018). */
     aiSettings(): Promise<unknown>;
+    /** Eduwit Scout's tables as the database sees them (0022 one.setup_engine_facts), names only. */
+    engineFacts(): Promise<unknown>;
   };
   /** Where the test runner login signs in (the shared Supabase project's API). */
   supabase?: { url?: string; anonKey?: string };
@@ -50,6 +52,32 @@ const testFactsSchema = z.object({
 });
 export type TestFacts = z.infer<typeof testFactsSchema>;
 export const parseTestFacts = (v: unknown): TestFacts => testFactsSchema.parse(v);
+
+const engineFactsSchema = z.object({
+  tables: z.record(
+    z.string(),
+    z.object({ exists: z.boolean(), readable: z.boolean(), missing_columns: z.array(z.string()) }),
+  ),
+});
+
+/**
+ * Eduwit Scout is installed here when every table its checks and its event copy read exists, the database owner
+ * (who runs the checks) can read it, and it has the columns they use (D-096). Pure, for the unit test.
+ */
+export function engineVerdict(facts: unknown): Verdict {
+  const f = engineFactsSchema.safeParse(facts);
+  if (!f.success) return { ok: false, detail: "the database could not say what schema ce holds" };
+  const tables = Object.entries(f.data.tables);
+  if (tables.length === 0) return { ok: false, detail: "the database named no Eduwit Scout table to look for" };
+  const problems = tables.flatMap(([name, t]) => {
+    if (!t.exists) return [`${name} does not exist`];
+    if (!t.readable) return [`${name} is not readable by the database owner`];
+    return t.missing_columns.length ? [`${name} lacks ${t.missing_columns.join(", ")}`] : [];
+  });
+  return problems.length
+    ? { ok: false, detail: `Eduwit Scout is not installed here yet: ${problems.join("; ")}` }
+    : { ok: true, detail: `schema ce has the ${tables.length} tables Eduwit One reads, with their columns` };
+}
 
 const missing = (what: string): Verdict => ({ ok: false, detail: `${what} is not set (Vercel env or Vault)` });
 
@@ -150,6 +178,8 @@ export async function validate(kind: string, deps: ValidateDeps): Promise<Verdic
       }
       case "api_schema":
         return { ok: true, detail: "this page read schema one through the Data API" };
+      case "engine_schema":
+        return engineVerdict(await deps.facts.engineFacts());
       case "test_runner": {
         // Signs in as the login (password, then the one-time code) and asks each CRM what it is there.
         const f = await deps.facts.testFacts();

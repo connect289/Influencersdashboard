@@ -18,6 +18,7 @@ export const hostsSchema = z.object({
   chatwoot: url,
   n8n: url,
   one: url,
+  catalogue_engine: url.optional(),
 });
 export const healthPathsSchema = z.record(z.string(), z.string().startsWith("/"));
 export const vendorsSchema = z.looseObject({ vercel_api: url, graph_api: url, resend_api: url });

@@ -40,6 +40,7 @@ export async function runValidate(itemId: string, actor: string): Promise<Verdic
         return tests ? parseTestFacts(await tests.setupFacts()) : null;
       },
       aiSettings: async () => (await SupabaseAiDb.fromEnv()?.aiSettings()) ?? null,
+      engineFacts: async () => await db.setupEngineFacts(),
     },
     supabase: { url: bootEnv().ONE_SUPABASE_URL, anonKey: bootEnv().ONE_SUPABASE_ANON_KEY },
   });
