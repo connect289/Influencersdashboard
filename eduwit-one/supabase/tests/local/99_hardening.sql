@@ -379,11 +379,12 @@ select pg_temp.ok((select status = 'fail' from one.results where check_id = 'ONE
 update one.users set is_active = true where role = 'owner';
 update one.incidents set resolved_at = now(), resolution = 'fixed', resolution_note = 'test' where check_id = 'ONE-04' and resolved_at is null;
 -- 7g. Retention prunes ok results, old app_report audit rows and codes, and leaves people's audit rows (F10).
-insert into one.results (check_id, status, value, ran_at) values ('B2C-05', 'ok', '{}', now() - interval '20 days'), ('B2C-05', 'fail', '{}', now() - interval '20 days');
+-- Since 0029 (D-103) ok results are kept 2 days and failures 14: a 20-day-old ok goes, a 10-day-old failure stays.
+insert into one.results (check_id, status, value, ran_at) values ('B2C-05', 'ok', '{}', now() - interval '20 days'), ('B2C-05', 'fail', '{}', now() - interval '10 days');
 insert into one.audit (actor, action, target, at) values ('app:tick', 'app_report', 'tick', now() - interval '40 days'), ('owner@eduwit.in', 'settings.put', 'settings:x', now() - interval '40 days');
 select one.retention() as ret \gset
 select pg_temp.ok((:'ret'::jsonb ->> 'ok_results')::int >= 1 and (:'ret'::jsonb ->> 'audit')::int >= 1, 'retention pruned ok results and app reports: ' || :'ret');
-select pg_temp.ok((select count(*) = 1 from one.results where check_id = 'B2C-05' and ran_at < now() - interval '19 days'), 'the failure of the same age stays');
+select pg_temp.ok((select count(*) = 1 from one.results where check_id = 'B2C-05' and ran_at < now() - interval '9 days'), 'a failure younger than results_days stays');
 select pg_temp.ok((select count(*) = 1 from one.audit where target = 'settings:x' and at < now() - interval '39 days'), 'a person''s audit row stays');
 select pg_temp.ok(current_setting('one.history_writer', true) is distinct from 'on' or true, 'retention leaves the writer flag local');
 

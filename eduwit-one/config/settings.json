@@ -33,6 +33,9 @@
     "email_from": "Eduwit One <one@eduwit.in>"
   },
   "thresholds": {
+    "db_size_limit_mb": 500,
+    "db_size_warn_pct": 80,
+    "db_size_crit_pct": 90,
     "witty_p95_ms": 8000,
     "witty_fallback_pct": 5,
     "witty_silence_h": 3,
@@ -315,11 +318,13 @@
     "test_harness_scenario": "happy_path_mba"
   },
   "retention": {
-    "results_days": 90,
-    "events_days": 180,
+    "results_days": 14,
+    "events_days": 30,
     "ai_calls_days": 365,
-    "ok_results_days": 14,
-    "chat_days": 90
+    "ok_results_days": 2,
+    "chat_days": 90,
+    "runs_days": 7,
+    "app_report_days": 7
   },
   "proposals": {
     "expire_days": 14,

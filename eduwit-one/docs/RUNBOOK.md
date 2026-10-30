@@ -288,8 +288,16 @@ watchdog's or yours:
   down; the app parses each probe's settings on its own and a bad key shows as that probe's error. Any earlier version
   of a setting can be restored as a new version (Settings → the key → versions → Restore).
 - **Histories are append-only** by trigger: the audit, settings versions, the sign-in log and check results refuse
-  UPDATE and DELETE outside `one.retention()`. Retention keeps ok results 14 days (`retention.ok_results_days`),
-  failures and errors 90 days, the app's own report audit rows 30 days, codes 7 days, the sign-in log a year.
+  UPDATE and DELETE outside `one.retention()`. Retention (Settings, `retention`; 0029, D-103) keeps ok results 2 days
+  (`ok_results_days`), failures and errors 14 (`results_days`), copied app events 30 (`events_days`), the tick and
+  nightly reports 7 (`runs_days`), the app's own report audit rows 7 (`app_report_days`), codes 7 days, the sign-in
+  log a year. These are short because the project is on Supabase's Free plan, which turns the whole database
+  read-only above 500 MB (PLAT-10 warns at 80 % and pages at 90 %); on a paid plan raise them back (for example
+  ok_results 14, results 90, events 180, runs 30).
+- **PLAT-10, the database near its plan's limit.** Free the space before anything else: the largest tables are listed
+  in `docs/reviews/db-stalls-2026-10-30.md` (pg_cron's run history, Eduwit One's results, the catalogue). Pruning makes
+  space reusable; the database's reported size only drops after a `vacuum full` of the pruned table (a short lock).
+  The lasting fix is the Pro plan (8 GB, daily backups) or a lower write volume.
 - **Pages never silently lost**: see "A failing email" under Alerts.
 
 ## Rolling back a migration

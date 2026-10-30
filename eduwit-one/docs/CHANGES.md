@@ -3,6 +3,15 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 30 Oct 2026 — Storage within the plan (0029, D-103)
+
+- `0029_storage_within_plan.sql` (+ rollback, `99_storage.sql`): Eduwit One's retention fits the Free plan's 500 MB
+  database limit (ok results 2 days, failures 14, copied events 30, tick reports 7, app_report audit rows 7, all
+  settings), one pruning pass, and PLAT-10, a new check on the database's size against the plan's limit (P2 at 80 %,
+  P1 at 90 %). `config/settings.json`, 0006 and 0007 carry the same defaults; `99_hardening.sql` §7g follows the new
+  retention. Local test passed. Not yet rehearsed nor applied at the time of this entry; the production apply waits
+  for the owner's go. `docs/reviews/db-stalls-2026-10-30.md` corrected: the plan is Free, so compute needs Pro first.
+
 ## 30 Oct 2026 — 0028 applied to production (D-102)
 
 - On the owner's "apply 0028 to production": `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh

@@ -227,3 +227,21 @@ select prev.value is null
        jsonb_build_object('db_bytes', cur.db_bytes, 'conns', cur.conns, 'top_mean_ms', cur.top_mean_ms,
                           'prev_db_bytes', prev.value ->> 'db_bytes', 'prev_conns', prev.value ->> 'conns', 'prev_top_mean_ms', prev.value ->> 'top_mean_ms') as value
   from cur left join prev on true
+
+-- check: PLAT-10
+-- app: platform
+-- kind: sql
+-- severity: P1
+-- cadence_s: 900
+-- tags: capacity
+-- title: The database is close to its plan's size limit (the Free plan turns the whole project read-only above 500 MB)
+-- description: The sum of pg_database_size over the cluster's databases (how Supabase counts the quota) against db_size_limit_mb (500, the Free plan): fails at db_size_warn_pct (80) as a P2 and at db_size_crit_pct (90) as a P1. Above the limit Supabase stops every write of every app until space is freed or the plan is upgraded (D-103).
+with cfg as (
+  select coalesce((select one.threshold('db_size_limit_mb')), 500)::numeric as limit_mb,
+         coalesce((select one.threshold('db_size_warn_pct')), 80)::numeric as warn_pct,
+         coalesce((select one.threshold('db_size_crit_pct')), 90)::numeric as crit_pct),
+cur as (select sum(pg_database_size(d.datname))::numeric / 1048576 as mb from pg_database d)
+select cur.mb < cfg.limit_mb * cfg.warn_pct / 100 as ok,
+       jsonb_build_object('db_mb', round(cur.mb), 'limit_mb', cfg.limit_mb, 'used_pct', round(100 * cur.mb / cfg.limit_mb, 1),
+                          'severity', case when cur.mb >= cfg.limit_mb * cfg.crit_pct / 100 then 'P1' else 'P2' end) as value
+  from cfg, cur
