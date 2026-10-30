@@ -1,6 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { z } from "zod";
+import { isLocalPath } from "@/lib/security/paths";
 import { env, isProduction } from "./env";
 import { log } from "./log";
 
@@ -16,7 +17,8 @@ export const creatorSchema = z.object({
   photo_url: z.url().optional().nullable(),
   bio: z.string().max(280).optional().nullable(),
   code: z.string().regex(/^[a-z0-9_-]{2,40}$/i),
-  featured: z.array(z.object({ title: z.string().max(120), href: z.string().startsWith("/") })).max(6).default([]),
+  // Same-site paths only: "//host" and "/\host" also start with "/" but browsers open another site.
+  featured: z.array(z.object({ title: z.string().max(120), href: z.string().max(300).refine(isLocalPath) })).max(6).default([]),
 });
 export type Creator = z.infer<typeof creatorSchema>;
 
