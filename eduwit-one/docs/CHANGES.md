@@ -3,6 +3,19 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 30 Oct 2026 — 0028 applied to production (D-102)
+
+- On the owner's "apply 0028 to production": `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh
+0028_parked_checks_recover.sql` after the 10:27 UTC rehearsal of the same set (`1853354a…`); applied at 16:41 UTC.
+  The script's smoke test then reported the nine reset checks as still in error: its `call one.tick_job()` answered
+  "already ran this minute" because the script's wait for a fresh minute never waited (it compared the API's JSON
+  boolean with `"t"`; fixed in both api scripts in this change), so it judged the minute's earlier cron run. The jobs
+  came back at once (exit trap); the 16:42 cron tick ran all nine: eight ok, ONE-03 fail (last night's nightly did
+  fail; it resolves after tonight's), B2C-01 in 29.7 s, a step from the 30-second kill. Verified read-only afterwards:
+  no check parked, none in error, `one.due_checks()` and ONE-01 carry 0028,
+  the checks setting carries `parked_retry_h` 6 as a seed version, both jobs on, the 16:43 tick clean. Production now
+  holds 0001 to 0028.
+
 ## 30 Oct 2026 — Parked checks recover by themselves (0028, D-102)
 
 - `0028_parked_checks_recover.sql` (+ rollback): a check killed three times in a row is tried again every
