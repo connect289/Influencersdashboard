@@ -1,0 +1,788 @@
+From 78b3dc0ebe845b1b27bf8f5431a7471c5918816e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 22:07:43 +0000
+Subject: [PATCH 1/8] website: typecheck generates Next's route types first
+ (clean checkouts and CI failed)
+
+`tsc --noEmit` on a fresh checkout fails with 4 errors (PageProps and RouteContext not found): those global
+types live in .next/types and next-env.d.ts, which only `next build`/`next dev` create and git ignores. The
+CI "check" job runs typecheck straight after `npm ci`, so it could never pass. `next typegen` (0.4 s) writes
+them without a build.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/package.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/website/web/package.json b/website/web/package.json
+index 70fa123..4b7dd22 100644
+--- a/website/web/package.json
++++ b/website/web/package.json
+@@ -10,7 +10,7 @@
+     "dev": "next dev -p 3000",
+     "build": "next build",
+     "start": "next start",
+-    "typecheck": "tsc --noEmit",
++    "typecheck": "next typegen && tsc --noEmit",
+     "lint": "eslint .",
+     "format": "prettier --write .",
+     "format:check": "prettier --check .",
+-- 
+2.43.0
+
+
+From 63d08357b9d07b3df68d0e2c88d2e544be3d72be Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 22:09:50 +0000
+Subject: [PATCH 2/8] website: no console email on a deployed site (codes and
+ addresses reached the logs; students were told a code was sent)
+
+Without a working provider (EMAIL_PROVIDER unset, or smtp without EMAIL_SMTP_HOST) email() fell back to the console
+sender, which on every non-production deployment printed `to=<student email> subject="<6-digit code> is your Eduwit
+verification code"` to the hosting logs (raw console.info, past the PII scrubber) and reported success. The form
+then said "we sent a code" that never arrived, admin second-factor codes went to the same log, and /api/health
+called email fine on preview. The live site runs APP_ENV=preview today.
+
+- console sender: on production and preview it logs `email.not_configured` and throws, so the gate answers
+  send_failed ("We couldn't send the code just now"), the admin sees "We couldn't send the code" and outbox emails
+  retry instead of being marked done; on a developer machine it prints as before.
+- emailProvider(): the provider that actually sends; /api/health detail reports it (chosen vs effective) and flags
+  console on any deployed site; the Turnstile check also says whether the site key is set.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/app/api/health/route.ts        |  9 +++-
+ website/web/lib/server/email/index.test.ts | 61 +++++++++++++++++++++-
+ website/web/lib/server/email/index.ts      | 31 +++++++----
+ 3 files changed, 86 insertions(+), 15 deletions(-)
+
+diff --git a/website/web/app/api/health/route.ts b/website/web/app/api/health/route.ts
+index f2b8621..921efaa 100644
+--- a/website/web/app/api/health/route.ts
++++ b/website/web/app/api/health/route.ts
+@@ -1,6 +1,7 @@
+ import { connection } from "next/server";
+ import { env, isDeployed } from "@/lib/server/env";
+ import { dbConfigured, rpc } from "@/lib/server/db";
++import { emailProvider } from "@/lib/server/email";
+ import { isInternal } from "@/lib/server/internal-auth";
+ import { kv, kvShared } from "@/lib/server/kv";
+ import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
+@@ -44,10 +45,14 @@ export async function GET(req: Request) {
+   } catch {
+     checks.kv = { ok: false };
+   }
+-  checks.email = { ok: e.EMAIL_PROVIDER !== "console" || e.APP_ENV !== "production", provider: e.EMAIL_PROVIDER };
++  // The provider that actually sends ("smtp" without EMAIL_SMTP_HOST sends nothing): a deployed site cannot email codes
++  // through the console.
++  const sender = emailProvider();
++  checks.email = { ok: sender !== "console" || !isDeployed(), provider: sender, chosen: e.EMAIL_PROVIDER };
+   const live = e.GEMINI_API_KEY ? "gemini" : e.ANTHROPIC_API_KEY ? "claude" : null;
+   checks.ai = { ok: true, configured: !!live, mode: live ? "live" : "mock", provider: live };
+-  checks.turnstile = { configured: !!e.TURNSTILE_SECRET_KEY };
++  // Both halves are needed: the site key (read at build time) renders the widget, the secret verifies its token.
++  checks.turnstile = { configured: !!e.TURNSTILE_SECRET_KEY, site_key: !!e.NEXT_PUBLIC_TURNSTILE_SITE_KEY };
+   return Response.json(
+     detail ? { ok, env: e.APP_ENV, ms: Math.round(performance.now() - started), checks } : { ok },
+     { status: ok ? 200 : 503, headers: { "cache-control": "no-store" } },
+diff --git a/website/web/lib/server/email/index.test.ts b/website/web/lib/server/email/index.test.ts
+index 4ba32aa..0554e5f 100644
+--- a/website/web/lib/server/email/index.test.ts
++++ b/website/web/lib/server/email/index.test.ts
+@@ -1,7 +1,9 @@
+-import { describe, expect, it, vi } from "vitest";
++import { afterEach, describe, expect, it, vi } from "vitest";
+ 
+ vi.mock("server-only", () => ({}));
+-const { smtpPassword } = await import("./index");
++const { email, emailProvider, setEmailSender, smtpPassword } = await import("./index");
++const { verificationCodeEmail } = await import("./templates");
++const { resetEnvCache } = await import("../env");
+ 
+ describe("smtpPassword", () => {
+   it("removes the display spaces from a Google app password", () => {
+@@ -13,3 +15,58 @@ describe("smtpPassword", () => {
+     expect(smtpPassword(undefined)).toBe("");
+   });
+ });
++
++const KEYS = ["APP_ENV", "EMAIL_PROVIDER", "EMAIL_SMTP_HOST", "RESEND_API_KEY", "SUPABASE_SECRET_KEY", "WEB_SESSION_SECRET", "WEB_INTERNAL_KEY"];
++const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
++function setEnv(values: Record<string, string | undefined>) {
++  for (const k of KEYS) {
++    const v = k in values ? values[k] : saved[k];
++    if (v === undefined) delete process.env[k];
++    else process.env[k] = v;
++  }
++  resetEnvCache();
++  setEmailSender(null);
++}
++afterEach(() => {
++  setEnv({});
++  vi.restoreAllMocks();
++});
++// Deployed environments refuse to start without these (they are dummies here).
++const deployedSecrets = { SUPABASE_SECRET_KEY: "test-secret-key-0123456789", WEB_SESSION_SECRET: "test-session-secret-0123456789abcdef", WEB_INTERNAL_KEY: "test-internal-key-0123456789" };
++
++describe("emailProvider", () => {
++  it("is the chosen provider only when its settings are there", () => {
++    setEnv({ EMAIL_PROVIDER: "smtp", EMAIL_SMTP_HOST: "smtp.gmail.com" });
++    expect(emailProvider()).toBe("smtp");
++    setEnv({ EMAIL_PROVIDER: "smtp", EMAIL_SMTP_HOST: undefined });
++    expect(emailProvider()).toBe("console");
++    setEnv({ EMAIL_PROVIDER: "resend", RESEND_API_KEY: undefined });
++    expect(emailProvider()).toBe("console");
++    setEnv({ EMAIL_PROVIDER: undefined });
++    expect(emailProvider()).toBe("console");
++  });
++});
++
++describe("console sender", () => {
++  const message = verificationCodeEmail("482913", "verify");
++
++  it("prints the message on a developer machine", async () => {
++    setEnv({ APP_ENV: "local", EMAIL_PROVIDER: "console" });
++    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
++    await expect(email().send("asha@example.com", message)).resolves.toMatchObject({ id: expect.stringMatching(/^console-/) });
++    expect(info.mock.calls.flat().join(" ")).toContain("482913");
++  });
++
++  it("refuses on a deployed site and never logs the address or the code", async () => {
++    for (const APP_ENV of ["preview", "production"]) {
++      setEnv({ ...deployedSecrets, APP_ENV, EMAIL_PROVIDER: "smtp", EMAIL_SMTP_HOST: undefined });
++      const lines: string[] = [];
++      for (const level of ["info", "warn", "error", "log"] as const)
++        vi.spyOn(console, level).mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(" ")));
++      await expect(email().send("asha@example.com", message)).rejects.toThrow(/No email provider/);
++      expect(lines.join("\n")).toContain("email.not_configured");
++      expect(lines.join("\n")).not.toMatch(/482913|asha@example\.com/);
++      vi.restoreAllMocks();
++    }
++  });
++});
+diff --git a/website/web/lib/server/email/index.ts b/website/web/lib/server/email/index.ts
+index b06510e..e8bf31e 100644
+--- a/website/web/lib/server/email/index.ts
++++ b/website/web/lib/server/email/index.ts
+@@ -1,12 +1,12 @@
+ import "server-only";
+ import nodemailer from "nodemailer";
+-import { env } from "../env";
++import { env, isDeployed } from "../env";
+ import { log } from "../log";
+ import type { Rendered } from "./templates";
+ 
+ /**
+  * Transactional email adapter (S-12, D-017): "smtp" (e.g. Google Workspace relay; Mailpit locally), "resend", or
+- * "console" (development: logs that a message was sent, never its content in production).
++ * "console" (a developer machine only: prints the message so codes can be entered locally).
+  */
+ export interface EmailSender {
+   send(to: string, message: Rendered, opts?: { idempotencyKey?: string }): Promise<{ id: string }>;
+@@ -14,9 +14,15 @@ export interface EmailSender {
+ 
+ class ConsoleSender implements EmailSender {
+   async send(to: string, m: Rendered) {
++    // A deployed site (production or preview) has no console mailbox: pretending to send would tell a student "we sent
++    // you a code" that never arrives, and printing the message would put the address and the code (it is in the
++    // subject) in the hosting logs. Fail instead, so the form says the code could not be sent and the log says why.
++    if (isDeployed()) {
++      log("error", "email.not_configured", { provider: env().EMAIL_PROVIDER });
++      throw new Error("No email provider configured (EMAIL_PROVIDER smtp with EMAIL_SMTP_HOST, or resend with RESEND_API_KEY)");
++    }
+     const id = `console-${crypto.randomUUID()}`;
+-    // Development only: show the message so codes can be entered locally. Never used when APP_ENV=production.
+-    if (env().APP_ENV !== "production") console.info(`[email:console] to=${to} subject="${m.subject}"`);
++    console.info(`[email:console] to=${to} subject="${m.subject}"`);
+     log("info", "email.sent", { provider: "console", id });
+     return { id };
+   }
+@@ -64,16 +70,19 @@ class ResendSender implements EmailSender {
+   }
+ }
+ 
++/** The provider that actually sends: "console" when none is chosen or the chosen one lacks its settings. */
++export function emailProvider(): "smtp" | "resend" | "console" {
++  const e = env();
++  if (e.EMAIL_PROVIDER === "smtp" && e.EMAIL_SMTP_HOST) return "smtp";
++  if (e.EMAIL_PROVIDER === "resend" && e.RESEND_API_KEY) return "resend";
++  return "console";
++}
++
+ let sender: EmailSender | null = null;
+ export function email(): EmailSender {
+   if (sender) return sender;
+-  const p = env().EMAIL_PROVIDER;
+-  sender =
+-    p === "smtp" && env().EMAIL_SMTP_HOST
+-      ? new SmtpSender()
+-      : p === "resend" && env().RESEND_API_KEY
+-        ? new ResendSender()
+-        : new ConsoleSender();
++  const p = emailProvider();
++  sender = p === "smtp" ? new SmtpSender() : p === "resend" ? new ResendSender() : new ConsoleSender();
+   return sender;
+ }
+ 
+-- 
+2.43.0
+
+
+From a95d84255b9e8a3d8751a0532e5c6830dff12c42 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 22:10:52 +0000
+Subject: [PATCH 3/8] website: student session and device cookies are Secure on
+ preview deployments too
+
+`ew_sid` (the signed student session, 90 days) and `ew_did` were Secure only when APP_ENV=production, so every
+preview deployment, and the live www.eduwit.in that runs APP_ENV=preview today, issued them without the Secure
+flag (HSTS limits the exposure; the flag is the cookie's own guarantee). Deployed sites are HTTPS-only; plain http
+stays possible on a developer machine.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ .../web/lib/server/student-session.test.ts    | 45 +++++++++++++++++++
+ website/web/lib/server/student-session.ts     |  8 ++--
+ 2 files changed, 50 insertions(+), 3 deletions(-)
+ create mode 100644 website/web/lib/server/student-session.test.ts
+
+diff --git a/website/web/lib/server/student-session.test.ts b/website/web/lib/server/student-session.test.ts
+new file mode 100644
+index 0000000..de3ee40
+--- /dev/null
++++ b/website/web/lib/server/student-session.test.ts
+@@ -0,0 +1,45 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++
++vi.mock("server-only", () => ({}));
++const set = vi.fn();
++vi.mock("next/headers", () => ({ cookies: async () => ({ set, get: () => undefined, delete: vi.fn() }), headers: vi.fn() }));
++
++const { deviceId, setStudentSession, STUDENT_COOKIE, DEVICE_COOKIE } = await import("./student-session");
++const { resetEnvCache } = await import("./env");
++
++const KEYS = ["APP_ENV", "SUPABASE_SECRET_KEY", "WEB_SESSION_SECRET", "WEB_INTERNAL_KEY"];
++const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
++function setEnv(values: Record<string, string>) {
++  for (const k of KEYS) {
++    const v = k in values ? values[k] : saved[k];
++    if (v === undefined) delete process.env[k];
++    else process.env[k] = v;
++  }
++  resetEnvCache();
++}
++afterEach(() => {
++  setEnv({});
++  set.mockClear();
++});
++
++const sid = "6f1c2b9e-4d3a-4b8e-9f0a-1c2d3e4f5a6b";
++const deployed = { SUPABASE_SECRET_KEY: "test-secret-key-0123456789", WEB_SESSION_SECRET: "test-session-secret-0123456789abcdef", WEB_INTERNAL_KEY: "test-internal-key-0123456789" };
++
++describe("student cookies", () => {
++  it("are Secure on production and on preview deployments", async () => {
++    for (const APP_ENV of ["production", "preview"]) {
++      setEnv({ ...deployed, APP_ENV });
++      await setStudentSession(sid);
++      await deviceId();
++      const byName = Object.fromEntries(set.mock.calls.map(([name, , opts]) => [name, opts as { secure: boolean; httpOnly: boolean }]));
++      expect(byName[STUDENT_COOKIE]).toMatchObject({ secure: true, httpOnly: true });
++      expect(byName[DEVICE_COOKIE]).toMatchObject({ secure: true, httpOnly: true });
++      set.mockClear();
++    }
++  });
++  it("stay usable over plain http on a developer machine", async () => {
++    setEnv({ APP_ENV: "local" });
++    await setStudentSession(sid);
++    expect(set.mock.calls[0]![2]).toMatchObject({ secure: false });
++  });
++});
+diff --git a/website/web/lib/server/student-session.ts b/website/web/lib/server/student-session.ts
+index 8290a59..64e9ab3 100644
+--- a/website/web/lib/server/student-session.ts
++++ b/website/web/lib/server/student-session.ts
+@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
+ import { cookies } from "next/headers";
+ import { cache } from "react";
+ import { rpc } from "./db";
+-import { isProduction, sessionSecret } from "./env";
++import { isDeployed, sessionSecret } from "./env";
+ 
+ /**
+  * Student sessions (spec 7.2 "verified users stay signed in", spec 12). The cookie carries only the session id, signed;
+@@ -52,10 +52,12 @@ export const currentStudent = cache(async (): Promise<Student | null> => {
+ });
+ 
+ const cookieOpts = { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" };
++/** Secure on every deployed site (production and preview are HTTPS-only); plain http only on a developer machine. */
++const secure = () => isDeployed();
+ 
+ /** Server actions / route handlers only. */
+ export async function setStudentSession(sid: string) {
+-  (await cookies()).set(STUDENT_COOKIE, signSessionId(sid), { ...cookieOpts, secure: isProduction(), maxAge: MAX_AGE });
++  (await cookies()).set(STUDENT_COOKIE, signSessionId(sid), { ...cookieOpts, secure: secure(), maxAge: MAX_AGE });
+ }
+ 
+ export async function clearStudentSession() {
+@@ -71,6 +73,6 @@ export async function deviceId(): Promise<string> {
+   const existing = jar.get(DEVICE_COOKIE)?.value;
+   if (existing && /^[\w-]{16,64}$/.test(existing)) return existing;
+   const id = crypto.randomUUID();
+-  jar.set(DEVICE_COOKIE, id, { ...cookieOpts, secure: isProduction(), maxAge: 60 * 60 * 24 * 365 });
++  jar.set(DEVICE_COOKIE, id, { ...cookieOpts, secure: secure(), maxAge: 60 * 60 * 24 * 365 });
+   return id;
+ }
+-- 
+2.43.0
+
+
+From 990b253b7c999befbf11454155a728eaf3e90a79 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 22:11:36 +0000
+Subject: [PATCH 4/8] website: runtime redirects back off when the database is
+ unreachable (every page waited 1.5 s)
+
+proxy.ts loads the admin redirect map before every page request. After a failed load the cache kept its old
+timestamp, so the next request loaded again: while the database was unreachable or stalled (production stalled for
+3 to 6 hours three times in two days) each page view waited for the 1.5 s fetch timeout. A failed load now keeps the
+last good map and waits the normal 60 s before trying again.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/lib/server/redirects.test.ts | 44 ++++++++++++++++++++++++
+ website/web/lib/server/redirects.ts      |  4 ++-
+ 2 files changed, 47 insertions(+), 1 deletion(-)
+ create mode 100644 website/web/lib/server/redirects.test.ts
+
+diff --git a/website/web/lib/server/redirects.test.ts b/website/web/lib/server/redirects.test.ts
+new file mode 100644
+index 0000000..3b2fa70
+--- /dev/null
++++ b/website/web/lib/server/redirects.test.ts
+@@ -0,0 +1,44 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++
++vi.mock("server-only", () => ({}));
++const { findRedirect } = await import("./redirects");
++const { resetEnvCache } = await import("./env");
++
++const saved = process.env.SUPABASE_SECRET_KEY;
++afterEach(() => {
++  if (saved === undefined) delete process.env.SUPABASE_SECRET_KEY;
++  else process.env.SUPABASE_SECRET_KEY = saved;
++  resetEnvCache();
++  vi.unstubAllGlobals();
++  vi.useRealTimers();
++});
++
++describe("runtime redirects", () => {
++  it("keep the last good map and back off for a minute when the database is unreachable", async () => {
++    process.env.SUPABASE_SECRET_KEY = "test-secret-key-0123456789";
++    resetEnvCache();
++    vi.useFakeTimers({ toFake: ["Date"] });
++    vi.setSystemTime(new Date("2026-10-30T10:00:00Z"));
++    let up = true;
++    const fetch = vi.fn(async () => {
++      if (!up) throw new Error("timeout");
++      return new Response(JSON.stringify({ "/old": { to: "/new", code: 301 } }), { status: 200 });
++    });
++    vi.stubGlobal("fetch", fetch);
++
++    expect(await findRedirect("/old")).toEqual({ to: "/new", code: 301 });
++    expect(fetch).toHaveBeenCalledTimes(1);
++
++    // The map is 61 s old and the database stops answering: one failed load, then no new attempt for a minute.
++    up = false;
++    vi.setSystemTime(new Date("2026-10-30T10:01:01Z"));
++    for (let i = 0; i < 5; i++) expect(await findRedirect("/old")).toEqual({ to: "/new", code: 301 });
++    expect(fetch).toHaveBeenCalledTimes(2);
++
++    // A minute later it tries again and picks up the database once it is back.
++    up = true;
++    vi.setSystemTime(new Date("2026-10-30T10:02:02Z"));
++    expect(await findRedirect("/old/")).toEqual({ to: "/new", code: 301 });
++    expect(fetch).toHaveBeenCalledTimes(3);
++  });
++});
+diff --git a/website/web/lib/server/redirects.ts b/website/web/lib/server/redirects.ts
+index 25c210b..fa5672f 100644
+--- a/website/web/lib/server/redirects.ts
++++ b/website/web/lib/server/redirects.ts
+@@ -28,7 +28,9 @@ export async function findRedirect(pathname: string): Promise<{ to: string; code
+       inflight ??= load();
+       cache = { at: now, map: await inflight };
+     } catch {
+-      cache = cache ?? { at: now, map: {} }; // keep serving the last good map; never block pages on this
++      // Keep serving the last good map and try again only after a full interval: the proxy runs before every page, so
++      // while the database is unreachable each request would otherwise wait for the 1.5 s timeout.
++      cache = { at: now, map: cache?.map ?? {} };
+     } finally {
+       inflight = null;
+     }
+-- 
+2.43.0
+
+
+From f75dd30b85858afc3210d17a71045adc116db345 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 22:12:32 +0000
+Subject: [PATCH 5/8] website: the code check no longer returns the CRM lead id
+ to the browser
+
+verifyCodeAction / signInVerifyAction returned `leadId` (student_leads.id) in the server-action response. No page
+uses it, and because lead_intake merges on phone, comparing the id returned for someone else's phone with the id of
+a lead just created for a fresh number tells whether that phone was already an Eduwit lead. The id stays server-side
+(the log still records whether a lead was written).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/lib/server/gate.ts             |  5 +++--
+ website/web/lib/server/gate.verify.test.ts | 24 ++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 2 deletions(-)
+ create mode 100644 website/web/lib/server/gate.verify.test.ts
+
+diff --git a/website/web/lib/server/gate.ts b/website/web/lib/server/gate.ts
+index 9d9c8f1..77b73f4 100644
+--- a/website/web/lib/server/gate.ts
++++ b/website/web/lib/server/gate.ts
+@@ -52,8 +52,9 @@ export type StartOutcome =
+   | { status: "verified"; attemptId: string; reference?: string }
+   | { status: "error"; reason: string; message: string };
+ 
++/** Returned to the browser: never the CRM's lead id (comparing it with a fresh lead's id tells whether a phone was already a lead). */
+ export type VerifyOutcome =
+-  | { status: "verified"; attemptId: string; reference?: string; leadId: number | null }
++  | { status: "verified"; attemptId: string; reference?: string }
+   | { status: "wrong_code"; attemptsLeft: number }
+   | { status: "expired" | "too_many_attempts" | "error"; message: string };
+ 
+@@ -309,7 +310,7 @@ export async function verifyCode(attemptId: string, code: string): Promise<Verif
+     if (r.session_id) await setStudentSession(r.session_id);
+     const reference = await openApplicationIfNeeded(info.surface, attemptId);
+     log("info", "gate.verified", { surface: info.surface, requestId, lead: r.lead_id ? "yes" : "no" });
+-    return { status: "verified", attemptId, reference, leadId: r.lead_id ?? null };
++    return { status: "verified", attemptId, reference };
+   } catch (e) {
+     log("error", "gate.verify_failed", { requestId, ...errorFields(e) });
+     return { status: "error", message: MESSAGES.unavailable! };
+diff --git a/website/web/lib/server/gate.verify.test.ts b/website/web/lib/server/gate.verify.test.ts
+new file mode 100644
+index 0000000..a89925a
+--- /dev/null
++++ b/website/web/lib/server/gate.verify.test.ts
+@@ -0,0 +1,24 @@
++import { describe, expect, it, vi } from "vitest";
++
++vi.mock("server-only", () => ({}));
++vi.mock("next/headers", () => ({
++  headers: async () => new Headers({ "x-forwarded-for": "203.0.113.7", "user-agent": "vitest" }),
++  cookies: async () => ({ get: () => undefined, set: vi.fn(), delete: vi.fn() }),
++}));
++const rpc = vi.fn(async (fn: string): Promise<unknown> => {
++  if (fn === "web_gate_attempt_info") return { key: "enquiry:abcdefgh12", surface: "enquiry", email: "asha@example.com" };
++  if (fn === "web_gate_verify") return { ok: true, status: "verified", session_id: "6f1c2b9e-4d3a-4b8e-9f0a-1c2d3e4f5a6b", lead_id: 4242 };
++  if (fn === "web_application_open") return { ok: true, reference: "EDW-26-ABCDE" };
++  throw new Error(`unexpected rpc ${fn}`);
++});
++vi.mock("./db", () => ({ rpc, rpcRead: rpc, dbConfigured: () => true }));
++
++const { verifyCode } = await import("./gate");
++
++describe("verifyCode", () => {
++  it("never hands the CRM's lead id to the browser", async () => {
++    const r = await verifyCode("0d6c3b9a-1e2f-4a5b-8c7d-9e0f1a2b3c4d", "123456");
++    expect(r).toEqual({ status: "verified", attemptId: "0d6c3b9a-1e2f-4a5b-8c7d-9e0f1a2b3c4d", reference: "EDW-26-ABCDE" });
++    expect(JSON.stringify(r)).not.toContain("4242");
++  });
++});
+-- 
+2.43.0
+
+
+From 97071bb2d2605b2906e784e43870871d4d151228 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 22:13:17 +0000
+Subject: [PATCH 6/8] website: creator page "picks" must be pages of this site
+ (protocol-relative links passed)
+
+The creator payload accepted any featured href starting with "/", so "//other.site/apply" or "/\other.site" from the
+creator API would render on eduwit.in/c/<handle> as a link that opens another site. The schema now uses the same
+isLocalPath rule as redirects and sign-in; an invalid payload already falls back to the neutral page.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/lib/server/creators.test.ts | 18 ++++++++++++++++++
+ website/web/lib/server/creators.ts      |  4 +++-
+ 2 files changed, 21 insertions(+), 1 deletion(-)
+ create mode 100644 website/web/lib/server/creators.test.ts
+
+diff --git a/website/web/lib/server/creators.test.ts b/website/web/lib/server/creators.test.ts
+new file mode 100644
+index 0000000..021dee4
+--- /dev/null
++++ b/website/web/lib/server/creators.test.ts
+@@ -0,0 +1,18 @@
++import { describe, expect, it, vi } from "vitest";
++
++vi.mock("server-only", () => ({}));
++const { creatorSchema } = await import("./creators");
++
++const base = { handle: "asha-rao", display_name: "Asha Rao", code: "asha" };
++
++describe("creator payload", () => {
++  it("accepts featured links to pages of this site", () => {
++    const r = creatorSchema.safeParse({ ...base, featured: [{ title: "Online MBA", href: "/programmes/online-mba" }] });
++    expect(r.success).toBe(true);
++  });
++  it("rejects featured links that browsers would open on another site", () => {
++    for (const href of ["//evil.example/apply", "/\\evil.example", "/\t/evil.example", "https://evil.example", "javascript:alert(1)"]) {
++      expect(creatorSchema.safeParse({ ...base, featured: [{ title: "Apply", href }] }).success, href).toBe(false);
++    }
++  });
++});
+diff --git a/website/web/lib/server/creators.ts b/website/web/lib/server/creators.ts
+index 1931b2c..5b7cb1f 100644
+--- a/website/web/lib/server/creators.ts
++++ b/website/web/lib/server/creators.ts
+@@ -1,6 +1,7 @@
+ import "server-only";
+ import { cacheLife, cacheTag } from "next/cache";
+ import { z } from "zod";
++import { isLocalPath } from "@/lib/security/paths";
+ import { env, isProduction } from "./env";
+ import { log } from "./log";
+ 
+@@ -16,7 +17,8 @@ export const creatorSchema = z.object({
+   photo_url: z.url().optional().nullable(),
+   bio: z.string().max(280).optional().nullable(),
+   code: z.string().regex(/^[a-z0-9_-]{2,40}$/i),
+-  featured: z.array(z.object({ title: z.string().max(120), href: z.string().startsWith("/") })).max(6).default([]),
++  // Same-site paths only: "//host" and "/\host" also start with "/" but browsers open another site.
++  featured: z.array(z.object({ title: z.string().max(120), href: z.string().max(300).refine(isLocalPath) })).max(6).default([]),
+ });
+ export type Creator = z.infer<typeof creatorSchema>;
+ 
+-- 
+2.43.0
+
+
+From ee901666efecce6ca29352ae29f645fac3e46200 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 22:13:48 +0000
+Subject: [PATCH 7/8] website: nodemailer 10.1.7 (npm audit --omit=dev: 3
+ moderate addressparser advisories in 10.1.2)
+
+GHSA-8c8m-p3m8-cjg8, GHSA-m943-m63m-w62w, GHSA-85x2-q946-cp5h (crafted addresses parsed into extra recipients,
+fixed in 10.1.4). Not reachable through the site today: every recipient passes the strict email pattern in
+lib/forms/validate.ts and the sender comes from the environment. 10.1.7 is the last patch of the same minor
+(addressparser and MIME fixes only). npm audit --omit=dev: 0 vulnerabilities.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/package-lock.json | 8 ++++----
+ website/web/package.json      | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/website/web/package-lock.json b/website/web/package-lock.json
+index ff52856..f67a85e 100644
+--- a/website/web/package-lock.json
++++ b/website/web/package-lock.json
+@@ -22,7 +22,7 @@
+         "motion": "^14.3.0",
+         "next": "^16.4.2",
+         "next-themes": "^0.4.6",
+-        "nodemailer": "^10.1.2",
++        "nodemailer": "^10.1.7",
+         "radix-ui": "^1.8.1",
+         "react": "^19.3.1",
+         "react-dom": "^19.3.1",
+@@ -12777,9 +12777,9 @@
+       }
+     },
+     "node_modules/nodemailer": {
+-      "version": "10.1.2",
+-      "resolved": "https://registry.npmjs.org/nodemailer/-/nodemailer-10.1.2.tgz",
+-      "integrity": "sha512-rnQn9Rzh8RAwcp42MVsIvxbsv6YZ2a2/av+uyJ/LPU1+2QSlrRgFsWWZTKenyRUqkIl8urOI0c4+CEcmFdsvQw==",
++      "version": "10.1.7",
++      "resolved": "https://registry.npmjs.org/nodemailer/-/nodemailer-10.1.7.tgz",
++      "integrity": "sha512-OQa6FDln5fLttmqSbjDiRYvFDOFNrBqfiOwHPlEbURil3b+vPB1v8xpi+Sp46drzNDlsTnNsS502vthmz56r4w==",
+       "license": "MIT-0",
+       "engines": {
+         "node": ">=20.0.0"
+diff --git a/website/web/package.json b/website/web/package.json
+index 4b7dd22..6ba4ac5 100644
+--- a/website/web/package.json
++++ b/website/web/package.json
+@@ -53,7 +53,7 @@
+     "motion": "^14.3.0",
+     "next": "^16.4.2",
+     "next-themes": "^0.4.6",
+-    "nodemailer": "^10.1.2",
++    "nodemailer": "^10.1.7",
+     "radix-ui": "^1.8.1",
+     "react": "^19.3.1",
+     "react-dom": "^19.3.1",
+-- 
+2.43.0
+
+
+From 296ee474d26002921b9fde15ccbb66f7161a45dc Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 22:19:26 +0000
+Subject: [PATCH 8/8] website: Prettier on the audit's new unit tests
+
+Formatting only (printWidth 120), so the files added by the audit pass `prettier --check`.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/lib/server/creators.test.ts       |  8 +++++++-
+ website/web/lib/server/email/index.test.ts    | 20 ++++++++++++++++---
+ website/web/lib/server/gate.verify.test.ts    | 12 ++++++++---
+ .../web/lib/server/student-session.test.ts    | 15 +++++++++++---
+ 4 files changed, 45 insertions(+), 10 deletions(-)
+
+diff --git a/website/web/lib/server/creators.test.ts b/website/web/lib/server/creators.test.ts
+index 021dee4..cfc0682 100644
+--- a/website/web/lib/server/creators.test.ts
++++ b/website/web/lib/server/creators.test.ts
+@@ -11,7 +11,13 @@ describe("creator payload", () => {
+     expect(r.success).toBe(true);
+   });
+   it("rejects featured links that browsers would open on another site", () => {
+-    for (const href of ["//evil.example/apply", "/\\evil.example", "/\t/evil.example", "https://evil.example", "javascript:alert(1)"]) {
++    for (const href of [
++      "//evil.example/apply",
++      "/\\evil.example",
++      "/\t/evil.example",
++      "https://evil.example",
++      "javascript:alert(1)",
++    ]) {
+       expect(creatorSchema.safeParse({ ...base, featured: [{ title: "Apply", href }] }).success, href).toBe(false);
+     }
+   });
+diff --git a/website/web/lib/server/email/index.test.ts b/website/web/lib/server/email/index.test.ts
+index 0554e5f..3b36255 100644
+--- a/website/web/lib/server/email/index.test.ts
++++ b/website/web/lib/server/email/index.test.ts
+@@ -16,7 +16,15 @@ describe("smtpPassword", () => {
+   });
+ });
+ 
+-const KEYS = ["APP_ENV", "EMAIL_PROVIDER", "EMAIL_SMTP_HOST", "RESEND_API_KEY", "SUPABASE_SECRET_KEY", "WEB_SESSION_SECRET", "WEB_INTERNAL_KEY"];
++const KEYS = [
++  "APP_ENV",
++  "EMAIL_PROVIDER",
++  "EMAIL_SMTP_HOST",
++  "RESEND_API_KEY",
++  "SUPABASE_SECRET_KEY",
++  "WEB_SESSION_SECRET",
++  "WEB_INTERNAL_KEY",
++];
+ const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
+ function setEnv(values: Record<string, string | undefined>) {
+   for (const k of KEYS) {
+@@ -32,7 +40,11 @@ afterEach(() => {
+   vi.restoreAllMocks();
+ });
+ // Deployed environments refuse to start without these (they are dummies here).
+-const deployedSecrets = { SUPABASE_SECRET_KEY: "test-secret-key-0123456789", WEB_SESSION_SECRET: "test-session-secret-0123456789abcdef", WEB_INTERNAL_KEY: "test-internal-key-0123456789" };
++const deployedSecrets = {
++  SUPABASE_SECRET_KEY: "test-secret-key-0123456789",
++  WEB_SESSION_SECRET: "test-session-secret-0123456789abcdef",
++  WEB_INTERNAL_KEY: "test-internal-key-0123456789",
++};
+ 
+ describe("emailProvider", () => {
+   it("is the chosen provider only when its settings are there", () => {
+@@ -53,7 +65,9 @@ describe("console sender", () => {
+   it("prints the message on a developer machine", async () => {
+     setEnv({ APP_ENV: "local", EMAIL_PROVIDER: "console" });
+     const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+-    await expect(email().send("asha@example.com", message)).resolves.toMatchObject({ id: expect.stringMatching(/^console-/) });
++    await expect(email().send("asha@example.com", message)).resolves.toMatchObject({
++      id: expect.stringMatching(/^console-/),
++    });
+     expect(info.mock.calls.flat().join(" ")).toContain("482913");
+   });
+ 
+diff --git a/website/web/lib/server/gate.verify.test.ts b/website/web/lib/server/gate.verify.test.ts
+index a89925a..3d3b2ef 100644
+--- a/website/web/lib/server/gate.verify.test.ts
++++ b/website/web/lib/server/gate.verify.test.ts
+@@ -6,8 +6,10 @@ vi.mock("next/headers", () => ({
+   cookies: async () => ({ get: () => undefined, set: vi.fn(), delete: vi.fn() }),
+ }));
+ const rpc = vi.fn(async (fn: string): Promise<unknown> => {
+-  if (fn === "web_gate_attempt_info") return { key: "enquiry:abcdefgh12", surface: "enquiry", email: "asha@example.com" };
+-  if (fn === "web_gate_verify") return { ok: true, status: "verified", session_id: "6f1c2b9e-4d3a-4b8e-9f0a-1c2d3e4f5a6b", lead_id: 4242 };
++  if (fn === "web_gate_attempt_info")
++    return { key: "enquiry:abcdefgh12", surface: "enquiry", email: "asha@example.com" };
++  if (fn === "web_gate_verify")
++    return { ok: true, status: "verified", session_id: "6f1c2b9e-4d3a-4b8e-9f0a-1c2d3e4f5a6b", lead_id: 4242 };
+   if (fn === "web_application_open") return { ok: true, reference: "EDW-26-ABCDE" };
+   throw new Error(`unexpected rpc ${fn}`);
+ });
+@@ -18,7 +20,11 @@ const { verifyCode } = await import("./gate");
+ describe("verifyCode", () => {
+   it("never hands the CRM's lead id to the browser", async () => {
+     const r = await verifyCode("0d6c3b9a-1e2f-4a5b-8c7d-9e0f1a2b3c4d", "123456");
+-    expect(r).toEqual({ status: "verified", attemptId: "0d6c3b9a-1e2f-4a5b-8c7d-9e0f1a2b3c4d", reference: "EDW-26-ABCDE" });
++    expect(r).toEqual({
++      status: "verified",
++      attemptId: "0d6c3b9a-1e2f-4a5b-8c7d-9e0f1a2b3c4d",
++      reference: "EDW-26-ABCDE",
++    });
+     expect(JSON.stringify(r)).not.toContain("4242");
+   });
+ });
+diff --git a/website/web/lib/server/student-session.test.ts b/website/web/lib/server/student-session.test.ts
+index de3ee40..ec23b1a 100644
+--- a/website/web/lib/server/student-session.test.ts
++++ b/website/web/lib/server/student-session.test.ts
+@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
+ 
+ vi.mock("server-only", () => ({}));
+ const set = vi.fn();
+-vi.mock("next/headers", () => ({ cookies: async () => ({ set, get: () => undefined, delete: vi.fn() }), headers: vi.fn() }));
++vi.mock("next/headers", () => ({
++  cookies: async () => ({ set, get: () => undefined, delete: vi.fn() }),
++  headers: vi.fn(),
++}));
+ 
+ const { deviceId, setStudentSession, STUDENT_COOKIE, DEVICE_COOKIE } = await import("./student-session");
+ const { resetEnvCache } = await import("./env");
+@@ -23,7 +26,11 @@ afterEach(() => {
+ });
+ 
+ const sid = "6f1c2b9e-4d3a-4b8e-9f0a-1c2d3e4f5a6b";
+-const deployed = { SUPABASE_SECRET_KEY: "test-secret-key-0123456789", WEB_SESSION_SECRET: "test-session-secret-0123456789abcdef", WEB_INTERNAL_KEY: "test-internal-key-0123456789" };
++const deployed = {
++  SUPABASE_SECRET_KEY: "test-secret-key-0123456789",
++  WEB_SESSION_SECRET: "test-session-secret-0123456789abcdef",
++  WEB_INTERNAL_KEY: "test-internal-key-0123456789",
++};
+ 
+ describe("student cookies", () => {
+   it("are Secure on production and on preview deployments", async () => {
+@@ -31,7 +38,9 @@ describe("student cookies", () => {
+       setEnv({ ...deployed, APP_ENV });
+       await setStudentSession(sid);
+       await deviceId();
+-      const byName = Object.fromEntries(set.mock.calls.map(([name, , opts]) => [name, opts as { secure: boolean; httpOnly: boolean }]));
++      const byName = Object.fromEntries(
++        set.mock.calls.map(([name, , opts]) => [name, opts as { secure: boolean; httpOnly: boolean }]),
++      );
+       expect(byName[STUDENT_COOKIE]).toMatchObject({ secure: true, httpOnly: true });
+       expect(byName[DEVICE_COOKIE]).toMatchObject({ secure: true, httpOnly: true });
+       set.mockClear();
+-- 
+2.43.0
+

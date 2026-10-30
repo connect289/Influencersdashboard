@@ -3,6 +3,14 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 30 Oct 2026 — Open findings kept out of the public repository (D-109)
+
+- `docs/reviews/estate-audit-2026-10-30.md`: X1 and X4 now say what each finding is, who acts and what the fix is;
+  the step-by-step detail is removed while both are open in production. A header line states the rule.
+- `b2b-crm/supabase/migrations/m33g_revoke_legacy_stage_function.sql`: the header comment is cut to what the fix
+  does; the SQL is unchanged and still not applied.
+- `docs/REHEARSALS.md` (earlier commit): 0001 to 0029 rehearsed on staging, passed, set hash `7e1fd5ce…`.
+
 ## 30 Oct 2026 — Storage within the plan (0029, D-103)
 
 - `0029_storage_within_plan.sql` (+ rollback, `99_storage.sql`): Eduwit One's retention fits the Free plan's 500 MB

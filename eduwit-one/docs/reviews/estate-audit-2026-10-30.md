@@ -7,6 +7,9 @@ by the coordinator before any fix was merged. Severity: critical (exploitable no
 medium, low. Production changes wait for the owner's go; nothing in this file was applied to production unless it
 says so.
 
+This repository is public. A finding that is still open in production is described here only by what it is, who acts
+and what the fix is; its technical detail stays out of the repository until the fix is live (D-109).
+
 ## The estate on 30 Oct
 
 | App                                    | Code                                                   | Live at                       | Database                           |
@@ -28,10 +31,10 @@ the same database's public schema.
 
 | #   | Severity | Finding                                                                                                                                                                                          | State                                      |
 | --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
-| X1  | critical | `public.crm_apply_stage_system` (legacy CRM) checks no caller and is granted to every signed-in user                                                                                             | fix ready (B2B `m33g`), not applied        |
+| X1  | critical | A legacy CRM function in `public` can be run by any signed-in user without a role check, and sign-ups are open                                                                                   | fix ready (B2B `m33g`), not applied        |
 | X2  | critical | Free plan: the whole database turns read-only above 500 MB; it held 394 MB, Eduwit One growing it fastest                                                                                        | fix ready (Eduwit One `0029`), not applied |
 | X3  | high     | pg_cron's history pruning runs inside the nightly stall window and failed two nights running (131 MB)                                                                                            | proposal (owner)                           |
-| X4  | high     | n8n editor on the internet; its only account has no two-factor sign-in; n8n holds the database's master credentials                                                                              | owner action                               |
+| X4  | high     | n8n's only account has no two-factor sign-in                                                                                                                                                     | owner action                               |
 | X5  | high     | Free plan: no daily backups of production at all                                                                                                                                                 | owner decision (Pro plan)                  |
 | X6  | medium   | Sign-in policy: passwords of 6 characters, no character rules, no CAPTCHA, with open sign-ups; redirect allow list holds `http://localhost:3000` and old Vercel preview domains                  | owner decision                             |
 | X7  | medium   | The main GitHub repository is public (all code and security logic readable); no secrets or student data found in any branch's history                                                            | owner decision                             |
@@ -42,16 +45,11 @@ the same database's public schema.
 
 Details:
 
-- **X1.** `public.crm_apply_stage_system(bigint, text, text, text, jsonb, text, boolean)` is SECURITY DEFINER and starts
-  with no authorization; the B2B baseline grants it to `authenticated` on purpose (`b2b-crm/supabase/migrations/
-00000000000000_baseline.sql`). Any stranger who signs up can call it through `/rest/v1/rpc` to move any lead to any
-  stage, rewrite its application, fee and enrolment fields, and for 'lost' close its partner allocations; only the
-  'enrolled' path fails (inside `crm_report_enrollment`'s own check). No trace of use (the legacy CRM's activity log has
-  no rows). Its two callers (`crm_set_stage`, guarded; `crm_partner_event`, not callable by clients) are definers and
-  keep working once the grant is withdrawn. Fix: `b2b-crm/supabase/migrations/m33g_revoke_legacy_stage_function.sql` with
+- **X1.** The fix withdraws the signed-in users' grant on that function; its two internal callers keep working without
+  it. No trace of use was found. Fix: `b2b-crm/supabase/migrations/m33g_revoke_legacy_stage_function.sql` with
   `b2b-crm/supabase/tests/test_m33g_legacy_stage_function.sql`. The safety layer refused the coordinator's write to the
   shared staging project for this one, so it is not rehearsed; it is a single revoke, re-appliable, with its inverse in
-  the file.
+  the file. The detail stays with the owner until the fix is live (D-109).
 - **X2.** Supabase docs (Understanding Database and Disk Size, Free Plan behavior): "Free Plan projects enter read-only
   mode when your database size exceeds 500 MB." Sizes on 30 Oct: cron 131 MB, one 107 MB, public 72 MB (catalogue
   embeddings 48 MB), pg_catalog 46 MB, every app schema under 7 MB. Eduwit One kept every check result (about 40,000 rows
@@ -61,10 +59,8 @@ Details:
 - **X3.** `b2b-cron-prune` deletes `cron.job_run_details` older than 7 days at 22:15 UTC, inside the stalls of 28 and 29
   Oct; its last run ended "job startup timeout", so 10 days (669,000 rows) are kept. Move it to a quiet hour and shorten
   the window; see the B2B section.
-- **X4.** `n8n.eduwit.in` serves the editor's sign-in page to anyone; one n8n user exists and it has no MFA. n8n's tables
-  are owned by `postgres`, so the n8n server holds the database's master credentials: a stolen n8n password is every
-  student's data. Turn on two-factor sign-in for that account (n8n: Settings, Personal, two-factor) and keep n8n updated
-  (its build is from July 2026 or later).
+- **X4.** Turn on two-factor sign-in for the n8n account (n8n: Settings, Personal, two-factor) and keep n8n updated. The
+  detail stays with the owner until it is done (D-109).
 - **X5.** The Free plan has no automated backups. Pro (USD 25 a month) has daily backups kept 7 days, an 8 GB database,
   leaked-password protection and lets the compute be upgraded (the stalls; `db-stalls-2026-10-30.md`).
 - **X6.** Auth settings now: `password_min_length` 6, no required characters, `password_hibp_enabled` false (needs Pro),
@@ -95,3 +91,39 @@ Details:
 ## Per-app findings
 
 (Filled from each auditor's verified report.)
+
+### Website (www.eduwit.in)
+
+Verified by the coordinator: robots.txt, the canonical link, the sitemap, the apex redirect and the sample creator page
+fetched live; verification attempts, students, chats and the website's settings read on production (read-only).
+
+| ID      | Severity | Finding                                                                                                                                                                                                           | State                                               |
+| ------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| SITE-01 | high     | The live domain runs the preview configuration: robots.txt disallows every page, canonical links and the sitemap name the vercel.app address, enquiries would be stored as tests, a sample creator page is public | owner: the go-live decision, then Vercel settings   |
+| SITE-02 | high     | No email code reaches students: since 22 Oct, 3 attempts, 0 verified, 0 leads, 0 chats                                                                                                                            | owner: Vercel email settings; code makes it visible |
+| SITE-03 | medium   | A deployed site without an email provider printed addresses and codes to the hosting logs and told students a code was sent                                                                                       | fixed `63d0835`, not deployed                       |
+| SITE-04 | medium   | The forms have no robot check and codes go out from the main mailbox                                                                                                                                              | owner: Turnstile keys, a dedicated sender           |
+| SITE-05 | medium   | An enquiry can update an existing lead matched only by a phone number the site does not verify                                                                                                                    | owner decision (recommendation with the owner)      |
+| SITE-06 | low      | The code check returned the CRM lead id to the browser                                                                                                                                                            | fixed `f75dd30`, not deployed                       |
+| SITE-07 | low      | Student cookies were not `Secure` on preview deployments (which the live site is today)                                                                                                                           | fixed `a95d842`, not deployed                       |
+| SITE-08 | medium   | While the database was unreachable every page waited up to 1.5 s for the redirect list                                                                                                                            | fixed `990b253`, not deployed                       |
+| SITE-09 | low      | Creator page links could point to another site                                                                                                                                                                    | fixed `97071bb`, not deployed                       |
+| SITE-10 | low      | nodemailer 10.1.2 advisories                                                                                                                                                                                      | fixed `ee90166` (10.1.7), not deployed              |
+| SITE-11 | medium   | `typecheck`, and so CI, failed on a clean checkout; production deploys from a branch CI does not run on                                                                                                           | fixed `78b3dc0`; CI branch: owner                   |
+| SITE-12 | low      | The harness test phone is refused by the phone check, so a test enquiry cannot be made                                                                                                                            | proposal (a signed test route)                      |
+| SITE-13 | low      | `HB-vercel:website` is never written: Eduwit One has no Vercel token                                                                                                                                              | owner: Eduwit One Setup                             |
+| SITE-15 | low      | The website's jobs run every minute whether or not there is work, and ran for minutes during the stalls                                                                                                           | proposal                                            |
+| SITE-16 | low      | `format:check` fails on 197 files (before the audit)                                                                                                                                                              | reported                                            |
+| SITE-17 | low      | Witty's extractor sends the student's email address to the model                                                                                                                                                  | owner decision                                      |
+| SITE-18 | low      | No site-wide daily AI spending cap                                                                                                                                                                                | proposal                                            |
+| SITE-19 | low      | The apex redirects to www, the reverse of the runbook                                                                                                                                                             | owner: pick the primary host                        |
+
+SITE-14 lists what Eduwit One's T-WEB tests need from the website (a signed test route); not built. Checked and sound:
+no website function, `lead_intake` or `crm_verify_*` can be run by browser roles; all 62 `web_*` tables have row
+security and no browser grants; the search functions build no SQL from input; 110 of 119 live functions match the
+repository (the other 9 differ in whitespace only).
+
+Delivery: the eight commits (base `615ee72`, the head of `claude/inspiring-babbage-8asj1y`) are saved as
+`estate-audit-2026-10-30/website-fixes.mbox`. They pass typecheck, lint, 210 of 210 unit tests, the copy check, the build
+and `npm audit --omit=dev`; each new test fails on the old code. Applying them is `git am` on that branch, whose pushes
+deploy www.eduwit.in, so it waits for the owner's go. No database change.
