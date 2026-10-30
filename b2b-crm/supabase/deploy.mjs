@@ -1,4 +1,4 @@
-// Windows-friendly deploy for migrations M24 to M32c (files already applied are skipped). Same steps as deploy.sh, written in Node.
+// Windows-friendly deploy for migrations M24 to M34c (files already applied are skipped). Same steps as deploy.sh, written in Node.
 // Usage (PowerShell), in this folder:
 //   npm install pg --no-save
 //   $env:DATABASE_URL = 'postgresql://postgres:PASSWORD@db.PROJECTREF.supabase.co:5432/postgres'
@@ -26,6 +26,9 @@ const files = [
   'migrations/m32a_a4_b2c_realtime_batch.sql', 'migrations/m32b_a4_b2c_events_reads.sql', 'migrations/m32c_a4_catalog.sql',
   'migrations/m33a_access_api_hardening.sql', 'migrations/m33b_lead_workspace.sql', 'migrations/m33c_data_protection_audit.sql',
   'migrations/m33d_referral_outcomes.sql', 'migrations/m33e_email_partner_adapter.sql', 'migrations/m33f_cron_history_performance.sql',
+  // Estate audit, 30 Oct 2026
+  'migrations/m33g_revoke_legacy_stage_function.sql', 'migrations/m34a_definer_helper_access.sql', 'migrations/m34b_ml_training_skipped.sql',
+  'migrations/m34c_auth_failure_log_throttle.sql',
 ];
 const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
 await client.connect();

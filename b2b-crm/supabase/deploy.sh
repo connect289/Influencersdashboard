@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Applies the B2B CRM migrations M24–M32c to a Supabase database, in order (files already applied are skipped).
+# Applies the B2B CRM migrations M24–M34c to a Supabase database, in order (files already applied are skipped).
 # Usage: DATABASE_URL='postgresql://postgres:...@db.<project>.supabase.co:5432/postgres' ./deploy.sh
 # Run on STAGING first (mplbspysxmtohnlwpbti), then PRODUCTION (xlseqwgyjuqhktrguhyc). Routing stays off; nothing is sent.
 set -euo pipefail
@@ -22,6 +22,8 @@ FILES=(
  migrations/m32a_a4_b2c_realtime_batch.sql migrations/m32b_a4_b2c_events_reads.sql migrations/m32c_a4_catalog.sql
   migrations/m33a_access_api_hardening.sql migrations/m33b_lead_workspace.sql migrations/m33c_data_protection_audit.sql
   migrations/m33d_referral_outcomes.sql migrations/m33e_email_partner_adapter.sql migrations/m33f_cron_history_performance.sql
+  migrations/m33g_revoke_legacy_stage_function.sql migrations/m34a_definer_helper_access.sql migrations/m34b_ml_training_skipped.sql
+  migrations/m34c_auth_failure_log_throttle.sql
 )
 for f in "${FILES[@]}"; do
   name=$(basename "$f" .sql)

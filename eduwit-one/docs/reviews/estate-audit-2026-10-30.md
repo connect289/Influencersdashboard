@@ -33,7 +33,7 @@ the same database's public schema.
 | --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
 | X1  | critical | A legacy CRM function in `public` can be run by any signed-in user without a role check, and sign-ups are open                                                                                   | fix ready (B2B `m33g`), not applied        |
 | X2  | critical | Free plan: the whole database turns read-only above 500 MB; it held 394 MB, Eduwit One growing it fastest                                                                                        | fix ready (Eduwit One `0029`), not applied |
-| X3  | high     | pg_cron's history pruning runs inside the nightly stall window and failed two nights running (131 MB)                                                                                            | proposal (owner)                           |
+| X3  | high     | pg_cron's history pruning runs inside the nightly stall window; it failed on 28 and 29 Oct (131 MB)                                                                                              | proposal (owner)                           |
 | X4  | high     | n8n's only account has no two-factor sign-in                                                                                                                                                     | owner action                               |
 | X5  | high     | Free plan: no daily backups of production at all                                                                                                                                                 | owner decision (Pro plan)                  |
 | X6  | medium   | Sign-in policy: passwords of 6 characters, no character rules, no CAPTCHA, with open sign-ups; redirect allow list holds `http://localhost:3000` and old Vercel preview domains                  | owner decision                             |
@@ -41,7 +41,7 @@ the same database's public schema.
 | X8  | medium   | Eduwit One's checks used about 9.5 s of database time a minute, over half in one check (B2C-01)                                                                                                  | fixed in `0029` (not applied)              |
 | X9  | medium   | The B2B CRM has no CI workflow                                                                                                                                                                   | proposal                                   |
 | X10 | low      | n8n's internal tables sit in the API-exposed public schema with full grants to anon/authenticated, protected only by row security with no policies (and the `ensure_rls` trigger for new tables) | proposal (move n8n to its own schema)      |
-| X11 | low      | Copies of student data in old backup tables (`public.student_leads_backup_2026100x`, `w2_*_backup_*`, `b2b.witty_backup_*`), not exposed                                                         | owner decision (drop when not needed)      |
+| X11 | low      | Copies of student data in old backup tables (`public.student_leads_backup_2026100x`, `w2_*_backup_*`), not exposed; `b2b.witty_backup_*` hold function definitions only                          | owner decision (drop when not needed)      |
 
 Details:
 
@@ -230,3 +230,35 @@ definitions (29 of 29 checks) and the Code nodes' mocked runs (12 of 12), are in
 SQL file is idempotent and carries its rollback. The node-by-node n8n change list stays with the owner (D-109).
 Applying any of it changes Witty, so it waits for the owner's go; re-read `w2_stale_inbox` and `w2_cache_plan` on
 production first, since `w4` was applied on 30 Oct.
+
+### B2B CRM (crm.eduwit.in)
+
+Verified by the coordinator: the grants of the five helpers in m34a (signed-in users can run all five, none checks an
+admin) and `b2b.is_admin()` (always true or false, so m34a's new guard cannot pass on a NULL); m34c's four functions
+equal production's with the one changed line reverted (the auditor's check); typecheck and 437 of 437 unit tests
+re-run. Spark holds no leads yet, so the helpers had nothing to return.
+
+| ID     | Severity | Finding                                                                                            | State                                          |
+| ------ | -------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| B2B-D1 | critical | `next` 16.3.8 and `zod` 4.6.5 carry published advisories (npm audit: 1 critical, 1 high)           | fixed (next 16.4.3, zod 4.6.7), not deployed   |
+| B2B-A1 | high     | Two B2C money and status helpers could be run by any signed-in account                             | fixed `m34a`, not applied                      |
+| B2B-A2 | low      | Three more internal helpers could be run by any signed-in account                                  | fixed `m34a` (`reroute_check` checks admin)    |
+| B2B-A3 | medium   | Refused webhook signatures each wrote an alert row, so strangers could grow `b2b.events`           | fixed `m34c` (once a minute), not applied      |
+| B2B-C1 | medium   | One API key holds all five scopes, and no key expires                                              | owner: one key per consumer, with expiry       |
+| B2B-11 | low      | The nightly "model failed" alert is the training refusing for lack of data                         | fixed `m34b` (logged as skipped)               |
+| B2B-04 | P1       | Lead 1218 is not allocated: routing has never been switched on and no partner exists               | owner: go live, handle by hand, or tune B2B-04 |
+| B2B-L1 | decision | B2B makes 2,411 of the estate's ~3,120 cron starts an hour, almost all idle; bursts at :00 and :30 | owner decision (statements in the report)      |
+| B2B-L2 | decision | `b2b-cron-prune` runs at 22:15 UTC inside the stall window (it succeeded on 30 Oct)                | owner decision: 08:23 UTC, 3-day window        |
+| B2B-T1 | low      | `test_m25_ml.sql` "training_fails_cleanly" was stale since m31                                     | fixed                                          |
+| B2B-R1 | low      | The referral API's scope and cursor differ from `docs/referral-api.md`                             | owner decision                                 |
+| B2B-W1 | low      | `/v1/ai/tick` has no authentication (it only starts queued runs sooner)                            | owner decision                                 |
+| B2B-S1 | low      | Admin-set partner URLs are https-only but not kept from private addresses                          | owner decision                                 |
+| B2B-H1 | low      | `lead_anonymise` trusts a session setting no API path can set today                                | hardening suggestion                           |
+
+Also confirmed: all 272 definer functions signed-in users can run are guarded apart from m34a's five; of the 66
+legacy `crm_*` definer functions open to signed-in users, only `crm_apply_stage_system` (X1, `m33g`) changes data
+before a guard; all 195 `public` tables writable by grant have row security on; every web server action checks the
+Admin first. Commits on this branch: `ca2e36a` (dependencies), `7bdb732` (m34a), `b17b161` (m34b, test fixes),
+`b04420c` (m34c, `test_m34_audit_fixes.sql`, 19 rows); `deploy.mjs` and `deploy.sh` now list m33g and m34a to m34c.
+The auditor's local rebuild: the baseline, all 128 earlier files and m34a to m34c apply cleanly and re-apply cleanly.
+Applying them to production waits for the owner's go.
