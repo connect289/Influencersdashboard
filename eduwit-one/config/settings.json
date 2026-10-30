@@ -333,6 +333,7 @@
     "source_missing_opens_incident": true,
     "lock_timeout": "2s",
     "transaction_timeout": "30s",
+    "parked_retry_h": 6,
     "slow_ms": 5000
   },
   "access": {

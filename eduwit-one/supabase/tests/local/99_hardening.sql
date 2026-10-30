@@ -326,6 +326,19 @@ select one.reap_killed() as rk \gset
 select pg_temp.ok((select killed_count = 3 from one.check_state where check_id = 'ONE-STORM')
                   and (select error ~ 'killed 3 times' from one.results where check_id = 'ONE-STORM' order by id desc limit 1), 'the third kill says it stopped');
 select pg_temp.ok(not exists (select 1 from one.due_checks(true) d where d = 'ONE-STORM'), 'and it is no longer due');
+-- 0028 (D-102): a parked check tries again after checks.parked_retry_h hours, and ONE-01 names it meanwhile.
+select one.run_check_safe('ONE-01');
+select pg_temp.ok((select status = 'fail' and (value -> 'parked_checks') @> '["ONE-STORM"]'::jsonb from one.results where check_id = 'ONE-01' order by id desc limit 1),
+                  'ONE-01 fails while a check is parked and names it');
+update one.incidents set resolved_at = now(), resolution = 'fixed', resolution_note = 'test' where check_id = 'ONE-01' and resolved_at is null;
+update one.check_state set last_started_at = now() - interval '7 hours', last_ran_at = now() - interval '7 hours' where check_id = 'ONE-STORM';
+select pg_temp.ok(exists (select 1 from one.due_checks(true) d where d = 'ONE-STORM'), 'after parked_retry_h (6 hours) it is due again');
+select one.settings_put('checks', (select value from one.settings where key = 'checks') || '{"parked_retry_h": 0}', 'test', 'parked for good');
+select pg_temp.ok(not exists (select 1 from one.due_checks(true) d where d = 'ONE-STORM'), 'parked_retry_h 0: parked until a person resets it, the rule before 0028');
+select one.settings_put('checks', (select value from one.settings where key = 'checks') || '{"parked_retry_h": "soon"}', 'test', 'malformed');
+update one.check_state set last_started_at = now() - interval '7 hours', last_ran_at = now() - interval '7 hours' where check_id = 'ONE-STORM';
+select pg_temp.ok(exists (select 1 from one.due_checks(true) d where d = 'ONE-STORM'), 'a malformed parked_retry_h means the default of 6 hours');
+select one.settings_put('checks', (select value from one.settings where key = 'checks') || '{"parked_retry_h": 6}', 'test', 'back to 6');
 update one.check_state set killed_count = 0, last_ran_at = now() where check_id = 'ONE-STORM';
 update one.incidents set resolved_at = now(), resolution = 'fixed', resolution_note = 'test' where check_id = 'ONE-STORM' and resolved_at is null;
 select one.run_check_safe('ONE-STORM'); -- its last status is a real run again, not the kill
