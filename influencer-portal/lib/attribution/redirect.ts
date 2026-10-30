@@ -11,7 +11,7 @@ import { clientIp, rateIp } from "@/lib/security";
 import { SETTINGS } from "@/lib/settings/registry";
 import { adminClient } from "@/lib/supabase/admin";
 import { deviceType, inAppBrowser, isCrawler } from "./bots";
-import { normalizeCode } from "./codes";
+import { decodeCodeSegment, normalizeCode } from "./codes";
 import { landingUrl, renderMessage, safeHttpsUrl, slugify, utmFor, whatsappUrl, withUtm } from "./links";
 
 const WITTY_TIMEOUT_MS = 1500;
@@ -60,7 +60,7 @@ export async function resolveRedirect(
     status: 302 as const,
     inactive: true as const,
   };
-  const code = normalizeCode(decodeURIComponent(rawCode));
+  const code = normalizeCode(decodeCodeSegment(rawCode));
   if (!code) return inactive;
   const db = adminClient();
   const [resolved, setting] = await Promise.all([

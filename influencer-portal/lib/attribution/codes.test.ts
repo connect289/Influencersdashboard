@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { codeStem, codeTag, looksLikeAccessCode, normalizeCode, suffix, suggestCode, SUFFIX_ALPHABET } from "./codes";
+import {
+  codeStem,
+  codeTag,
+  decodeCodeSegment,
+  looksLikeAccessCode,
+  normalizeCode,
+  suffix,
+  suggestCode,
+  SUFFIX_ALPHABET,
+} from "./codes";
 
 describe("creator codes", () => {
   it.each([
@@ -15,6 +24,21 @@ describe("creator codes", () => {
     ["RIYA-IG", "RIYA-IG"],
   ])("normalizeCode(%j) = %j", (raw, out) => {
     expect(normalizeCode(raw)).toBe(out);
+  });
+
+  it.each([
+    ["RIYA-IG", "RIYA-IG"],
+    ["riya%2Dig", "riya-ig"],
+    ["%", "%"],
+    ["RIYA-%E0%A4%A", "RIYA-%E0%A4%A"],
+  ])("decodeCodeSegment(%j) = %j without throwing", (segment, out) => {
+    expect(decodeCodeSegment(segment)).toBe(out);
+  });
+
+  it("a malformed path segment is an inactive code, not an error", () => {
+    expect(normalizeCode(decodeCodeSegment("%"))).toBeNull();
+    expect(normalizeCode(decodeCodeSegment("RIYA-%E0%A4%A"))).toBeNull();
+    expect(normalizeCode(decodeCodeSegment("riya%2Dig"))).toBe("RIYA-IG");
   });
 
   it("never clashes with Witty's 6-character access codes", () => {
