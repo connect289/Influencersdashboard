@@ -84,9 +84,12 @@ Details:
   bucket) with no client policies; GitHub workflows run on `pull_request` with a read-only token and no secrets; the four
   Vercel apps send strict security headers (HSTS, CSP with nonces, framing denied).
 - **Eduwit Scout:** 46 of its 49 signed-in-callable `ce_admin` functions call `ce.require_admin()` first and the other
-  three are safe as written; its Edge Functions authenticate with a single-use 15-minute code. One low finding sent to its
-  session: refused admin sign-ins each write an audit row with no rate limit (unbounded growth reachable by strangers once
-  `ce_admin` is exposed).
+  three are safe as written; its Edge Functions authenticate with a single-use 15-minute code. Corrected after Scout's
+  session checked it: a stranger's refused admin sign-in rolls back with its audit row (`ce.audit_log` holds 0 rows),
+  so the audit-growth point raised earlier does not hold. Open: `ce_pub` is granted to every signed-in account, broader
+  than Scout's per-consumer design, so only `ce_admin` should be exposed until that is narrowed; Scout's tables reached
+  185 MB on staging after repeated reads of one partner, so its first production run waits for the Pro plan or freed
+  space.
 
 ## Per-app findings
 
