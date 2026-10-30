@@ -127,3 +127,35 @@ Delivery: the eight commits (base `615ee72`, the head of `claude/inspiring-babba
 `estate-audit-2026-10-30/website-fixes.mbox`. They pass typecheck, lint, 210 of 210 unit tests, the copy check, the build
 and `npm audit --omit=dev`; each new test fails on the old code. Applying them is `git am` on that branch, whose pushes
 deploy www.eduwit.in, so it waits for the owner's go. No database change.
+
+### Spark (B2C CRM, spark.eduwit.in)
+
+Verified by the coordinator: the live definitions of `b2c.qualify_record`, `b2c.my_role` and `b2c.is_staff` and the
+grants of the six functions named below (read-only); the four migrations read against them; typecheck and 174 of 174
+unit tests re-run. Spark holds no student data in production yet (0 leads, 0 tickets, 1 user), so nothing was exposed;
+the fixes must be live before its first lead.
+
+| ID     | Severity | Finding                                                                                                    | State                                   |
+| ------ | -------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| SPK-01 | critical | The details step for leads let signed-in people who are not staff through its permission check             | fixed `b47`, not applied                |
+| SPK-02 | high     | The support-ticket permission check had the same gap                                                       | fixed `b47`, not applied                |
+| SPK-03 | medium   | A sales head's Follow-ups list showed every team's leads, not only their team's                            | fixed `b48`, not applied                |
+| SPK-04 | low      | Saved views opened for people who are not staff (no lead data in them)                                     | fixed `b47`, not applied                |
+| SPK-05 | low      | The insights job's function was callable by signed-in users                                                | fixed `b47` (service role only)         |
+| SPK-06 | low      | The emailed sign-in code came from `random()`                                                              | fixed `b50` (`gen_random_bytes`)        |
+| SPK-07 | low      | B2C-10: `b2c-capacity` failed every day while nobody takes leads                                           | fixed `b49`, not applied                |
+| SPK-08 | medium   | PLAT-05: Spark's base URL and Vault key `b2c_internal_key` are missing, so its four HTTP timers do nothing | owner: Vault key, then the base URL     |
+| SPK-09 | medium   | B2C-01 took 10 to 30 s and was killed                                                                      | fixed in Eduwit One `0029`, not applied |
+| SPK-10 | low      | Rows a person owns (tasks, notifications) are readable before the second sign-in step                      | proposal                                |
+| SPK-11 | low      | Staff can read each other's push subscriptions                                                             | proposal                                |
+| SPK-12 | low      | Three money tests use September fixtures and fail since 16 Oct (test data, not code)                       | proposal                                |
+| SPK-13 | low      | nodemailer advisories                                                                                      | fixed (10.1.7)                          |
+| SPK-14 | low      | `b2c-money` and `b2c-anomalies` hit "job startup timeout" on 29 and 30 Oct                                 | platform capacity (Pro plan, compute)   |
+| SPK-15 | low      | Two server-side fetches go to configured hosts without a host allow list                                   | proposal                                |
+| SPK-16 | low      | The leads export starts on a GET request                                                                   | proposal                                |
+
+Commits on this branch: `f2e08f4` (b49), `15c30a9` (b47), `d6108bb` (b48), `d14ac00` (b50), `aa931aa`
+(`b2c-crm/supabase/tests/test_audit_2026_10.sql`, 32 checks; 16 of the first 29 fail before the fixes), `a4749fc`
+(nodemailer). Each migration is idempotent, has no DELETE and ends with its rollback; the auditor's local run of every
+Spark suite: 590 checks pass (the 3 of SPK-12 fail before and after). Applying b47 to b50 to production waits for the
+owner's go and a staging rehearsal.
