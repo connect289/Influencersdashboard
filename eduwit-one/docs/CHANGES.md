@@ -44,6 +44,11 @@ or group of fixes is one commit with its entries here.
   0029 tests had the unguarded indexing the tooling fix above removed). 0029 and 0030 are applied together, after a
   staging rehearsal of the new set and the owner's go.
 
+- Not deployed yet: Vercel's Ignored Build Step for `eduwit-one` is `git diff HEAD^ HEAD --quiet -- .`, so the push
+  that carried these commits was skipped (its last commit left `web/` untouched); production still runs `42ddc75`
+  (30 Oct 10:15 UTC). Changing the rule to compare with `$VERCEL_GIT_PREVIOUS_SHA` was refused to the build session
+  by the safety layer, so it waits for the owner (estate audit E16).
+
 ## 30 Oct 2026 — Open findings kept out of the public repository (D-109)
 
 - `docs/reviews/estate-audit-2026-10-30.md`: X1 and X4 now say what each finding is, who acts and what the fix is;
