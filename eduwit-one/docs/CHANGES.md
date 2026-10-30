@@ -33,6 +33,11 @@ or group of fixes is one commit with its entries here.
   Vault value nor an environment variable for a credential the app reads. Owner: paste the missing values on
   Settings → Setup and press Validate (the list is in the audit report). Tests: `lib/checks/runner.test.ts`,
   `lib/clients/credentials.test.ts`.
+- Privilege acknowledgement (D-110, `0030_privilege_ack_owner.sql` + rollback): `one.ui_privilege_ack` asks for
+  the owner, like the baseline acceptance beside it; Settings → Privileges shows the button to the owner only and
+  the runbook says so. Test: `supabase/tests/local/99_privileges.sql` (anon, a signed-up stranger and an engineer
+  refused, the owner recorded with an audit row). The fingerprint's functions hash changes; once 0029 is merged it
+  is regenerated again. Not yet rehearsed nor applied.
 
 ## 30 Oct 2026 — Open findings kept out of the public repository (D-109)
 

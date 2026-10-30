@@ -35,7 +35,11 @@ export default async function PrivilegesPage() {
       <Card>
         <CardHeader
           title={`To acknowledge (${open.length})`}
-          description="New since the baseline: read what each does before acknowledging."
+          description={
+            me.role === "owner"
+              ? "New since the baseline: read what each does before acknowledging."
+              : "New since the baseline. The owner reads what each does and acknowledges it (D-110)."
+          }
         />
         {open.length === 0 ? (
           <Empty title="Nothing new" />
@@ -46,7 +50,7 @@ export default async function PrivilegesPage() {
                 <span>
                   <code className="text-xs">{f.fn}</code> <span className="text-fg-muted">→ {f.roles.join(", ")}</span>
                 </span>
-                <AckPrivilegeButton fn={f.fn} />
+                {me.role === "owner" ? <AckPrivilegeButton fn={f.fn} /> : null}
               </li>
             ))}
           </ul>
