@@ -27,6 +27,12 @@ or group of fixes is one commit with its entries here.
 - Acknowledging from the chat (D-107): an action card instead of an immediate act; the chat prompt's list of
   immediate acts (`chat@c5abc3f341`) and the runbook match; the generated prompt and docs modules are rebuilt. Tests:
   `lib/ai/chat/tools.test.ts`, `lib/ai/chat/engine.test.ts`.
+- Missing credentials are said, not silent (D-108, the coordinator's finding): a probe without its client writes a
+  failing heartbeat per due component naming what is missing (never a good one, no check result), the Vercel probe
+  does the same for a target without a project, and Setup shows "value missing" when this deployment holds neither a
+  Vault value nor an environment variable for a credential the app reads. Owner: paste the missing values on
+  Settings → Setup and press Validate (the list is in the audit report). Tests: `lib/checks/runner.test.ts`,
+  `lib/clients/credentials.test.ts`.
 
 ## 30 Oct 2026 — Open findings kept out of the public repository (D-109)
 

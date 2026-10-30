@@ -70,6 +70,7 @@ const statusTones: Record<string, Tone> = {
   error: "p1",
   rejected: "off",
   source_missing: "p2",
+  value_missing: "p2",
   skipped: "off",
   planned: "p3",
   pending: "p3",

@@ -56,11 +56,14 @@ export interface WhatsAppClient {
 
 import type { EmailClient } from "./email.ts";
 
+/** A vendor client, or null with what it lacks (D-108): the credential's Vault name, or the settings it is built from. */
+type Slot<C> = { mode: ClientMode; client: C | null; missing?: string };
+
 export type Clients = {
   appHealth: { mode: ClientMode; client: AppHealthClient };
-  vercel: { mode: ClientMode; client: VercelClient | null };
-  chatwoot: { mode: ClientMode; client: ChatwootClient | null };
-  n8n: { mode: ClientMode; client: N8nClient | null };
-  whatsapp: { mode: ClientMode; client: WhatsAppClient | null };
-  email: { mode: ClientMode; client: EmailClient | null };
+  vercel: Slot<VercelClient>;
+  chatwoot: Slot<ChatwootClient>;
+  n8n: Slot<N8nClient>;
+  whatsapp: Slot<WhatsAppClient>;
+  email: Slot<EmailClient>;
 };

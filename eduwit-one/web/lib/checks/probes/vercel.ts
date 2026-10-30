@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { HttpError } from "../../http.ts";
 import { checkDue, heartbeatDue } from "../due.ts";
-import { defineProbe, type ProbeOutcome } from "../types.ts";
+import { defineProbe, notConfiguredBeats, type ProbeOutcome } from "../types.ts";
 import { type HeartbeatReport, type ResultReport, vercelSchema } from "../../state.ts";
 
 // Vercel: the latest production deployment of the website and of Eduwit One (heartbeats vercel:website, vercel:one;
@@ -19,8 +19,15 @@ export const vercelProbe = defineProbe({
   checks: TARGETS.flatMap((t) => (t.check ? [t.check] : [])),
   settings: z.object({ vercel: vercelSchema }),
   async run({ state, settings, clients, now }): Promise<ProbeOutcome> {
-    const { mode, client } = clients.vercel;
-    if (!client) return { status: "not_configured", mode, heartbeats: [], results: [] };
+    const { mode, client, missing } = clients.vercel;
+    if (!client) {
+      const beats = notConfiguredBeats(
+        { state, now },
+        missing ?? "the Vercel client",
+        TARGETS.map((t) => ({ component: t.component, intervalS: INTERVAL_S })),
+      );
+      return { status: "not_configured", mode, heartbeats: beats, results: [] };
+    }
     const heartbeats: HeartbeatReport[] = [];
     const results: ResultReport[] = [];
     const due = TARGETS.filter(
@@ -30,7 +37,14 @@ export const vercelProbe = defineProbe({
     await Promise.all(
       due.map(async (t) => {
         const project = settings.vercel.projects[t.key];
-        if (!project) return;
+        if (!project) {
+          // Said, not skipped (D-108): without a project name this component would read "never seen" for good.
+          const why = `Settings → Vercel names no project for ${t.key} (vercel.projects.${t.key})`;
+          heartbeats.push(
+            ...notConfiguredBeats({ state, now }, why, [{ component: t.component, intervalS: INTERVAL_S }]),
+          );
+          return;
+        }
         try {
           const d = await client.latestProduction(project, settings.vercel.team);
           const ready = d?.state === "READY";

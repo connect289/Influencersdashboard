@@ -5,6 +5,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge.tsx";
 import { Card, CardBody, CardHeader } from "@/components/ui/card.tsx";
 import { PageError } from "@/components/ui/page-error.tsx";
 import { PageHeader } from "@/components/ui/state.tsx";
+import { credentialAvailable, missingCredentials } from "@/lib/clients/credentials.ts";
 import { ago, ist } from "@/lib/format.ts";
 import { requireUser } from "@/lib/session.ts";
 import { ui } from "@/lib/ui/api.ts";
@@ -12,7 +13,10 @@ import { setupSchema, type SetupItem } from "@/lib/ui/schemas.ts";
 
 export const metadata: Metadata = { title: "Setup" };
 
-function status(i: SetupItem): string {
+// A value the app reads that is in neither Vault nor this deployment's environment means what the item unblocks cannot
+// run here, whatever an earlier validation (the build's preflight, with its own credentials) recorded (D-108).
+function status(i: SetupItem, missing: string[]): string {
+  if (missing.length) return "value_missing";
   if (i.state.validated) return "validated";
   return i.state.status ?? "unfilled";
 }
@@ -25,7 +29,9 @@ export default async function SetupPage() {
   } catch (e) {
     return <PageError error={e} />;
   }
-  const open = items.filter((i) => !i.state.validated).length;
+  const missing = new Map(items.map((i) => [i.id, missingCredentials(i.secrets)]));
+  const lacking = (i: SetupItem) => missing.get(i.id) ?? [];
+  const open = items.filter((i) => !i.state.validated || lacking(i).length > 0).length;
   return (
     <>
       <PageHeader
@@ -40,9 +46,9 @@ export default async function SetupPage() {
               description={`${i.id} · filled by the ${i.who}`}
               actions={
                 <>
-                  <StatusBadge status={status(i)} />
+                  <StatusBadge status={status(i, lacking(i))} />
                   {i.validate ? <ValidateButton id={i.id} /> : null}
-                  {!i.state.validated ? (
+                  {!i.state.validated || lacking(i).length ? (
                     <Link
                       href={`/ask?q=${encodeURIComponent(`How do I fill Setup item ${i.id}, step by step, and what does it unblock?`)}`}
                       className="text-sm underline"
@@ -54,6 +60,14 @@ export default async function SetupPage() {
               }
             />
             <CardBody className="grid gap-2 text-sm">
+              {lacking(i).length ? (
+                <p className="text-p2">
+                  {lacking(i).join(", ")} {lacking(i).length === 1 ? "is" : "are"} in neither Vault nor this
+                  deployment&apos;s environment, so what this item unblocks cannot run here
+                  {i.state.validated ? ", although it was validated earlier" : ""}.{" "}
+                  {me.role === "owner" ? "Paste the value below, then press Validate." : "The owner pastes the value."}
+                </p>
+              ) : null}
               {i.how ? <p>{i.how}</p> : null}
               {i.unblocks.length ? (
                 <p>
@@ -88,7 +102,13 @@ export default async function SetupPage() {
                     <div key={s.name} className="grid gap-1">
                       <p className="flex items-center gap-2">
                         Vault <code className="text-xs">{s.name}</code>{" "}
-                        {s.present ? <Badge tone="ok">present</Badge> : <Badge tone="off">missing</Badge>}
+                        {s.present ? (
+                          <Badge tone="ok">present</Badge>
+                        ) : credentialAvailable(s.name, false) ? (
+                          <Badge tone="ok">set in the environment</Badge>
+                        ) : (
+                          <Badge tone="off">missing</Badge>
+                        )}
                       </p>
                       {me.role === "owner" ? <SecretForm name={s.name} /> : null}
                     </div>

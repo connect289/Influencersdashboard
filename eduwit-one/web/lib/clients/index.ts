@@ -23,9 +23,10 @@ import whatsappLive from "./fixtures/whatsapp/live.json" with { type: "json" };
 import emailLive from "./fixtures/email/live.json" with { type: "json" };
 
 // The factory (spec standard 1). Real when the credential is present (env or Vault, credentials.ts); in production a missing credential means
-// "not_configured": the probe writes nothing, so a mock can never fake a heartbeat (D-049). Mock, from the recorded
-// fixtures, only when ONE_CLIENT_MODE=mock (tests, previews against staging). The chosen mode per client is reported
-// with every tick and shown on the Setup page.
+// "not_configured": the probe writes no good reading, so a mock can never fake a heartbeat (D-049), and its components
+// get a failing one that names what is missing (D-108). Mock, from the recorded fixtures, only when
+// ONE_CLIENT_MODE=mock (tests, previews against staging). The chosen mode per client is reported with every tick and
+// shown on the Setup page.
 
 const meta = z.object({ recorded: z.boolean() });
 export const fixtures = {
@@ -71,7 +72,14 @@ export function mockClients(): Clients {
  */
 export function clientsFor(settings: ClientSettings | null, credentials: Credentials): Clients {
   if (process.env.ONE_CLIENT_MODE === "mock") return mockClients();
-  const off = { mode: "not_configured" as const, client: null };
+  // What a client lacks, for its probe's heartbeat (D-108): the credential first, then the settings it is built from.
+  const off = (vaultName: string, credential: string | undefined) => ({
+    mode: "not_configured" as const,
+    client: null,
+    missing: credential
+      ? "the hosts and vendors settings do not parse"
+      : `${vaultName} (in neither Vault nor the environment)`,
+  });
   const {
     vercel: vercelToken,
     chatwoot: chatwootToken,
@@ -84,20 +92,22 @@ export function clientsFor(settings: ClientSettings | null, credentials: Credent
     vercel:
       vercelToken && settings
         ? { mode: "real", client: new RealVercelClient(settings.vendors.vercel_api, vercelToken) }
-        : off,
+        : off("one_vercel_token", vercelToken),
     chatwoot:
       chatwootToken && settings
         ? { mode: "real", client: new RealChatwootClient(settings.hosts.chatwoot, chatwootToken) }
-        : off,
+        : off("one_chatwoot_token", chatwootToken),
     n8n:
       n8nKey && settings
         ? { mode: "real", client: new RealN8nClient(secretEnv("ONE_N8N_BASE_URL") ?? settings.hosts.n8n, n8nKey) }
-        : off,
+        : off("one_n8n_key", n8nKey),
     whatsapp:
       whatsappToken && settings
         ? { mode: "real", client: new RealWhatsAppClient(settings.vendors.graph_api, whatsappToken) }
-        : off,
+        : off("one_whatsapp_token", whatsappToken),
     email:
-      emailKey && settings ? { mode: "real", client: new RealEmailClient(settings.vendors.resend_api, emailKey) } : off,
+      emailKey && settings
+        ? { mode: "real", client: new RealEmailClient(settings.vendors.resend_api, emailKey) }
+        : off("one_email_key", emailKey),
   };
 }

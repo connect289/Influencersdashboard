@@ -57,17 +57,51 @@ describe("one tick against the recorded fixtures", () => {
 });
 
 describe("missing configuration and failures", () => {
-  it("writes nothing for a client that is not configured, so a mock never fakes a heartbeat", async () => {
+  it("names what a client lacks in a failing heartbeat, never a good one, and runs none of its checks (D-049, D-108)", async () => {
     const db = new FakeDb(tickState());
+    const missing = "one_vercel_token (in neither Vault nor the environment)";
     const clients = {
       ...mockClients(),
-      vercel: { mode: "not_configured" as const, client: null },
+      vercel: { mode: "not_configured" as const, client: null, missing },
       n8n: { mode: "not_configured" as const, client: null },
     };
     const summary = await run(db, clients);
-    expect(heartbeat(db, "vercel:website")).toBeUndefined();
+    for (const c of ["vercel:website", "vercel:one"]) {
+      expect(heartbeat(db, c), c).toMatchObject({ ok: false, error: `not configured: ${missing}` });
+    }
+    expect(heartbeat(db, "n8n:instance")).toMatchObject({ ok: false, error: "not configured: the n8n client" });
+    expect(db.reports[0]?.heartbeats.filter((h) => /^(vercel|n8n):/.test(h.component) && h.ok)).toEqual([]);
+    expect(result(db, "WEB-07")).toBeUndefined();
+    expect(result(db, "WITTY-02")).toBeUndefined();
     expect(summary.probes.vercel?.status).toBe("not_configured");
     expect(summary.probes.n8n?.status).toBe("not_configured");
+  });
+
+  it("says once per interval that a client is not configured, like any reading", async () => {
+    const fresh = new Date(Date.now() - 30_000).toISOString();
+    const db = new FakeDb(
+      tickState({
+        heartbeats: [{ component: "vercel:website", last_ok_at: null, last_error_at: fresh, expected_interval_s: 600 }],
+      }),
+    );
+    await run(db, { ...mockClients(), vercel: { mode: "not_configured" as const, client: null, missing: "x" } });
+    expect(heartbeat(db, "vercel:website")).toBeUndefined();
+    expect(heartbeat(db, "vercel:one")).toMatchObject({ ok: false, error: "not configured: x" });
+  });
+
+  it("says a Vercel target without a project instead of skipping it silently (D-108)", async () => {
+    const s = tickState();
+    const vercel = s.settings.vercel as { team: string; projects: Record<string, string> };
+    const db = new FakeDb({
+      ...s,
+      settings: { ...s.settings, vercel: { ...vercel, projects: { website: vercel.projects.website ?? "" } } },
+    });
+    await run(db);
+    expect(heartbeat(db, "vercel:website")?.ok).toBe(true);
+    expect(heartbeat(db, "vercel:one")).toMatchObject({
+      ok: false,
+      error: "not configured: Settings → Vercel names no project for one (vercel.projects.one)",
+    });
   });
 
   it("marks a website that stops answering as a failed heartbeat, which HB-website turns into an incident at 3 × 60 s", async () => {

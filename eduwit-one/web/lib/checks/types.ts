@@ -2,7 +2,7 @@ import type { z } from "zod";
 import type { OneDb } from "../db.ts";
 import type { Clients, ClientMode } from "../clients/types.ts";
 import { type HeartbeatReport, readSettings, type ResultReport, type TickState } from "../state.ts";
-import { checkDue } from "./due.ts";
+import { checkDue, heartbeatDue } from "./due.ts";
 
 export type ProbeContext = {
   state: TickState;
@@ -24,6 +24,28 @@ export type Probe = {
   name: string;
   run(ctx: ProbeContext): Promise<ProbeOutcome>;
 };
+
+/**
+ * Failing heartbeats for the components a probe cannot read (D-108): each one that is due gets an error that names what
+ * is missing ("not configured: one_vercel_token (in neither Vault nor the environment)"), so the Health page and the HB
+ * checks say why instead of "never seen", once per interval as any reading. Never a good reading: without its client
+ * or its settings a probe vouches for nothing (D-049).
+ */
+export function notConfiguredBeats(
+  ctx: Pick<ProbeContext, "state" | "now">,
+  missing: string,
+  components: ReadonlyArray<{ component: string; intervalS: number }>,
+): HeartbeatReport[] {
+  return components
+    .filter((c) => heartbeatDue(ctx.state, c.component, c.intervalS, ctx.now))
+    .map((c) => ({
+      component: c.component,
+      ok: false,
+      detail: {},
+      error: `not configured: ${missing}`,
+      expected_interval_s: c.intervalS,
+    }));
+}
 
 /**
  * A probe that declares the settings it reads (F6). It gets them parsed; when they do not parse it does not run, and

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { HttpError } from "../../http.ts";
 import { checkDue, heartbeatDue } from "../due.ts";
-import { defineProbe, type ProbeOutcome } from "../types.ts";
+import { defineProbe, notConfiguredBeats, type ProbeOutcome } from "../types.ts";
 import { type HeartbeatReport, n8nSchema, type ResultReport, wittySchema } from "../../state.ts";
 import type { N8nExecution } from "../../clients/types.ts";
 
@@ -31,12 +31,18 @@ export const n8nProbe = defineProbe({
   checks: ["WITTY-02", "WITTY-08"],
   settings: z.object({ n8n: n8nSchema, witty: wittySchema.pick({ expect_nurture: true, expect_learning: true }) }),
   async run({ state, settings, clients, now }): Promise<ProbeOutcome> {
-    const { mode, client } = clients.n8n;
-    if (!client) return { status: "not_configured", mode, heartbeats: [], results: [] };
-    const heartbeats: HeartbeatReport[] = [];
-    const results: ResultReport[] = [];
+    const { mode, client, missing } = clients.n8n;
     const ids = settings.n8n;
     const wittyComponent = `n8n:${ids.witty_workflow_id}`;
+    if (!client) {
+      const beats = notConfiguredBeats({ state, now }, missing ?? "the n8n client", [
+        { component: "n8n:instance", intervalS: 300 },
+        { component: wittyComponent, intervalS: 60 },
+      ]);
+      return { status: "not_configured", mode, heartbeats: beats, results: [] };
+    }
+    const heartbeats: HeartbeatReport[] = [];
+    const results: ResultReport[] = [];
     const wantWitty = heartbeatDue(state, wittyComponent, 60, now) || checkDue(state, "WITTY-02", now);
     try {
       if (wantWitty) {

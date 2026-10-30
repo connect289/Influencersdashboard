@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { HttpError } from "../../http.ts";
 import { heartbeatDue } from "../due.ts";
-import { defineProbe, type ProbeOutcome } from "../types.ts";
+import { defineProbe, notConfiguredBeats, type ProbeOutcome } from "../types.ts";
 import { type HeartbeatReport, whatsappSchema } from "../../state.ts";
 
 // WhatsApp Cloud API (heartbeats whatsapp:witty, whatsapp:b2c): the business numbers' status and quality rating.
@@ -15,10 +15,18 @@ export const whatsappProbe = defineProbe({
   checks: [],
   settings: z.object({ whatsapp: whatsappSchema.pick({ phone_ids: true }) }),
   async run({ state, settings, clients, now }): Promise<ProbeOutcome> {
-    const { mode, client } = clients.whatsapp;
+    const { mode, client, missing } = clients.whatsapp;
     const ids = settings.whatsapp.phone_ids ?? {};
-    if (!client || Object.keys(ids).length === 0)
-      return { status: "not_configured", mode, heartbeats: [], results: [] };
+    // No phone ids: there is no component to name. Ids but no client: each line says what is missing (D-108).
+    if (Object.keys(ids).length === 0) return { status: "not_configured", mode, heartbeats: [], results: [] };
+    if (!client) {
+      const beats = notConfiguredBeats(
+        { state, now },
+        missing ?? "the WhatsApp client",
+        Object.keys(ids).map((line) => ({ component: `whatsapp:${line}`, intervalS: INTERVAL_S })),
+      );
+      return { status: "not_configured", mode, heartbeats: beats, results: [] };
+    }
     const heartbeats: HeartbeatReport[] = [];
     for (const [line, id] of Object.entries(ids)) {
       const component = `whatsapp:${line}`;

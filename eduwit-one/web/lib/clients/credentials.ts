@@ -42,6 +42,39 @@ export function credentialsFrom(vault: Record<string, string>): Credentials {
   };
 }
 
+/** The Vault name each credential is read from in credentialsFrom (a unit test keeps the two in step). */
+export const VAULT_CREDENTIALS: Readonly<Record<string, keyof Credentials>> = {
+  one_vercel_token: "vercel",
+  one_chatwoot_token: "chatwoot",
+  one_n8n_key: "n8n",
+  one_whatsapp_token: "whatsapp",
+  one_email_key: "email",
+  one_uptimerobot_key: "uptimerobot",
+  one_meta_token: "meta",
+  one_b2b_intake_key: "b2bIntake",
+  one_test_partner_secret: "testPartnerSecret",
+  one_test_runner_password: "testRunnerPassword",
+  one_test_runner_totp: "testRunnerTotp",
+  one_test_wa_token: "testWhatsapp",
+  one_anthropic_key: "anthropic",
+};
+
+/**
+ * Whether this deployment holds the credential stored under a Vault name (D-108): the name is in Vault, or one of the
+ * environment variables credentialsFrom prefers is set. Null for a name no client or validator reads. Values are never
+ * read here: Vault's side is the name's presence, the environment's only whether a variable is set.
+ */
+export function credentialAvailable(vaultName: string, inVault: boolean): boolean | null {
+  const key = VAULT_CREDENTIALS[vaultName];
+  if (!key) return null;
+  return inVault || credentialsFrom({})[key] !== undefined;
+}
+
+/** The Vault names of a Setup item that a client or validator reads and this deployment does not hold (D-108). */
+export function missingCredentials(secrets: ReadonlyArray<{ name: string; present: boolean }>): string[] {
+  return secrets.filter((s) => credentialAvailable(s.name, s.present) === false).map((s) => s.name);
+}
+
 let cached: { at: number; value: Record<string, string> } | undefined;
 
 /** Vault's one_* secrets through the service role, cached 60 s. A failed read keeps the last good copy, or none. */

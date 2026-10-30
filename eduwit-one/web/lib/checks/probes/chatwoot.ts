@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { HttpError } from "../../http.ts";
 import { checkDue, heartbeatDue, threshold } from "../due.ts";
-import { defineProbe, type ProbeOutcome } from "../types.ts";
+import { defineProbe, notConfiguredBeats, type ProbeOutcome } from "../types.ts";
 import { chatwootSchema, type HeartbeatReport, type ResultReport, thresholdsSchema } from "../../state.ts";
 
 // Chatwoot (heartbeat chatwoot; check WITTY-05). The heartbeat detail carries incoming_recent, the incoming message
@@ -16,8 +16,13 @@ export const chatwootProbe = defineProbe({
   checks: ["WITTY-05"],
   settings: z.object({ chatwoot: chatwootSchema, thresholds: thresholdsSchema }),
   async run({ state, settings, clients, db, now }): Promise<ProbeOutcome> {
-    const { mode, client } = clients.chatwoot;
-    if (!client) return { status: "not_configured", mode, heartbeats: [], results: [] };
+    const { mode, client, missing } = clients.chatwoot;
+    if (!client) {
+      const beats = notConfiguredBeats({ state, now }, missing ?? "the Chatwoot client", [
+        { component: "chatwoot", intervalS: INTERVAL_S },
+      ]);
+      return { status: "not_configured", mode, heartbeats: beats, results: [] };
+    }
     const heartbeats: HeartbeatReport[] = [];
     const results: ResultReport[] = [];
     const account = settings.chatwoot.account_id;
