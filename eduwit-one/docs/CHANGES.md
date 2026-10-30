@@ -3,6 +3,18 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 30 Oct 2026 — 0022 to 0024 applied to production (D-096, D-097)
+
+- On the owner's "Go ahead with 0022-0024", after merging the pull request: staging rolled back from 0027 to 0001
+  (leftovers 0), then `scripts/db/api-rehearse.sh` passed at 09:46 UTC on 0001 to 0027 (`e884abe0…`, row in
+  `docs/REHEARSALS.md`); then `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh 0022_catalogue_engine.sql
+  0023_seed_catalogue_engine_checks.sql 0024_catalogue_engine_panels.sql` (D-090 route, no dump), applied 09:50 to
+  09:51 UTC, smoke test passed, both jobs on, the 09:52 tick clean under pg_cron. Verified read-only afterwards: app
+  `catalogue_engine` named Eduwit Scout; CE-01 to CE-05 present and off; the Setup item "Eduwit Scout installed in this
+  database" present; `one.setup_engine_facts()` present; `ce.events` not among the event sources while schema `ce` is
+  absent; the three panels answer "missing" through `one.ui_embed`. Nothing switches on until the engine is installed
+  and the Setup item validated. Production now holds 0001 to 0027. Run from the Eduwit Scout session.
+
 ## 29 Oct 2026 — 0027 applied to production (D-101)
 
 - On the owner's "Apply 0027 to production": `ONE_APPLY_WITHOUT_DUMP=owner-accepted scripts/db/api-apply.sh
