@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { rpc } from "./db";
-import { isProduction, sessionSecret } from "./env";
+import { isDeployed, sessionSecret } from "./env";
 
 /**
  * Student sessions (spec 7.2 "verified users stay signed in", spec 12). The cookie carries only the session id, signed;
@@ -52,10 +52,12 @@ export const currentStudent = cache(async (): Promise<Student | null> => {
 });
 
 const cookieOpts = { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" };
+/** Secure on every deployed site (production and preview are HTTPS-only); plain http only on a developer machine. */
+const secure = () => isDeployed();
 
 /** Server actions / route handlers only. */
 export async function setStudentSession(sid: string) {
-  (await cookies()).set(STUDENT_COOKIE, signSessionId(sid), { ...cookieOpts, secure: isProduction(), maxAge: MAX_AGE });
+  (await cookies()).set(STUDENT_COOKIE, signSessionId(sid), { ...cookieOpts, secure: secure(), maxAge: MAX_AGE });
 }
 
 export async function clearStudentSession() {
@@ -71,6 +73,6 @@ export async function deviceId(): Promise<string> {
   const existing = jar.get(DEVICE_COOKIE)?.value;
   if (existing && /^[\w-]{16,64}$/.test(existing)) return existing;
   const id = crypto.randomUUID();
-  jar.set(DEVICE_COOKIE, id, { ...cookieOpts, secure: isProduction(), maxAge: 60 * 60 * 24 * 365 });
+  jar.set(DEVICE_COOKIE, id, { ...cookieOpts, secure: secure(), maxAge: 60 * 60 * 24 * 365 });
   return id;
 }
