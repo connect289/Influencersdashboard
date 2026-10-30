@@ -16,7 +16,15 @@ describe("smtpPassword", () => {
   });
 });
 
-const KEYS = ["APP_ENV", "EMAIL_PROVIDER", "EMAIL_SMTP_HOST", "RESEND_API_KEY", "SUPABASE_SECRET_KEY", "WEB_SESSION_SECRET", "WEB_INTERNAL_KEY"];
+const KEYS = [
+  "APP_ENV",
+  "EMAIL_PROVIDER",
+  "EMAIL_SMTP_HOST",
+  "RESEND_API_KEY",
+  "SUPABASE_SECRET_KEY",
+  "WEB_SESSION_SECRET",
+  "WEB_INTERNAL_KEY",
+];
 const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
 function setEnv(values: Record<string, string | undefined>) {
   for (const k of KEYS) {
@@ -32,7 +40,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 // Deployed environments refuse to start without these (they are dummies here).
-const deployedSecrets = { SUPABASE_SECRET_KEY: "test-secret-key-0123456789", WEB_SESSION_SECRET: "test-session-secret-0123456789abcdef", WEB_INTERNAL_KEY: "test-internal-key-0123456789" };
+const deployedSecrets = {
+  SUPABASE_SECRET_KEY: "test-secret-key-0123456789",
+  WEB_SESSION_SECRET: "test-session-secret-0123456789abcdef",
+  WEB_INTERNAL_KEY: "test-internal-key-0123456789",
+};
 
 describe("emailProvider", () => {
   it("is the chosen provider only when its settings are there", () => {
@@ -53,7 +65,9 @@ describe("console sender", () => {
   it("prints the message on a developer machine", async () => {
     setEnv({ APP_ENV: "local", EMAIL_PROVIDER: "console" });
     const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
-    await expect(email().send("asha@example.com", message)).resolves.toMatchObject({ id: expect.stringMatching(/^console-/) });
+    await expect(email().send("asha@example.com", message)).resolves.toMatchObject({
+      id: expect.stringMatching(/^console-/),
+    });
     expect(info.mock.calls.flat().join(" ")).toContain("482913");
   });
 

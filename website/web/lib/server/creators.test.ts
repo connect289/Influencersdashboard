@@ -11,7 +11,13 @@ describe("creator payload", () => {
     expect(r.success).toBe(true);
   });
   it("rejects featured links that browsers would open on another site", () => {
-    for (const href of ["//evil.example/apply", "/\\evil.example", "/\t/evil.example", "https://evil.example", "javascript:alert(1)"]) {
+    for (const href of [
+      "//evil.example/apply",
+      "/\\evil.example",
+      "/\t/evil.example",
+      "https://evil.example",
+      "javascript:alert(1)",
+    ]) {
       expect(creatorSchema.safeParse({ ...base, featured: [{ title: "Apply", href }] }).success, href).toBe(false);
     }
   });

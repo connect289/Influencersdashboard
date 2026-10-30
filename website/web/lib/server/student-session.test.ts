@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 const set = vi.fn();
-vi.mock("next/headers", () => ({ cookies: async () => ({ set, get: () => undefined, delete: vi.fn() }), headers: vi.fn() }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ set, get: () => undefined, delete: vi.fn() }),
+  headers: vi.fn(),
+}));
 
 const { deviceId, setStudentSession, STUDENT_COOKIE, DEVICE_COOKIE } = await import("./student-session");
 const { resetEnvCache } = await import("./env");
@@ -23,7 +26,11 @@ afterEach(() => {
 });
 
 const sid = "6f1c2b9e-4d3a-4b8e-9f0a-1c2d3e4f5a6b";
-const deployed = { SUPABASE_SECRET_KEY: "test-secret-key-0123456789", WEB_SESSION_SECRET: "test-session-secret-0123456789abcdef", WEB_INTERNAL_KEY: "test-internal-key-0123456789" };
+const deployed = {
+  SUPABASE_SECRET_KEY: "test-secret-key-0123456789",
+  WEB_SESSION_SECRET: "test-session-secret-0123456789abcdef",
+  WEB_INTERNAL_KEY: "test-internal-key-0123456789",
+};
 
 describe("student cookies", () => {
   it("are Secure on production and on preview deployments", async () => {
@@ -31,7 +38,9 @@ describe("student cookies", () => {
       setEnv({ ...deployed, APP_ENV });
       await setStudentSession(sid);
       await deviceId();
-      const byName = Object.fromEntries(set.mock.calls.map(([name, , opts]) => [name, opts as { secure: boolean; httpOnly: boolean }]));
+      const byName = Object.fromEntries(
+        set.mock.calls.map(([name, , opts]) => [name, opts as { secure: boolean; httpOnly: boolean }]),
+      );
       expect(byName[STUDENT_COOKIE]).toMatchObject({ secure: true, httpOnly: true });
       expect(byName[DEVICE_COOKIE]).toMatchObject({ secure: true, httpOnly: true });
       set.mockClear();
