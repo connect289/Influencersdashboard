@@ -1,12 +1,12 @@
 import "server-only";
 import nodemailer from "nodemailer";
-import { env } from "../env";
+import { env, isDeployed } from "../env";
 import { log } from "../log";
 import type { Rendered } from "./templates";
 
 /**
  * Transactional email adapter (S-12, D-017): "smtp" (e.g. Google Workspace relay; Mailpit locally), "resend", or
- * "console" (development: logs that a message was sent, never its content in production).
+ * "console" (a developer machine only: prints the message so codes can be entered locally).
  */
 export interface EmailSender {
   send(to: string, message: Rendered, opts?: { idempotencyKey?: string }): Promise<{ id: string }>;
@@ -14,9 +14,15 @@ export interface EmailSender {
 
 class ConsoleSender implements EmailSender {
   async send(to: string, m: Rendered) {
+    // A deployed site (production or preview) has no console mailbox: pretending to send would tell a student "we sent
+    // you a code" that never arrives, and printing the message would put the address and the code (it is in the
+    // subject) in the hosting logs. Fail instead, so the form says the code could not be sent and the log says why.
+    if (isDeployed()) {
+      log("error", "email.not_configured", { provider: env().EMAIL_PROVIDER });
+      throw new Error("No email provider configured (EMAIL_PROVIDER smtp with EMAIL_SMTP_HOST, or resend with RESEND_API_KEY)");
+    }
     const id = `console-${crypto.randomUUID()}`;
-    // Development only: show the message so codes can be entered locally. Never used when APP_ENV=production.
-    if (env().APP_ENV !== "production") console.info(`[email:console] to=${to} subject="${m.subject}"`);
+    console.info(`[email:console] to=${to} subject="${m.subject}"`);
     log("info", "email.sent", { provider: "console", id });
     return { id };
   }
@@ -64,16 +70,19 @@ class ResendSender implements EmailSender {
   }
 }
 
+/** The provider that actually sends: "console" when none is chosen or the chosen one lacks its settings. */
+export function emailProvider(): "smtp" | "resend" | "console" {
+  const e = env();
+  if (e.EMAIL_PROVIDER === "smtp" && e.EMAIL_SMTP_HOST) return "smtp";
+  if (e.EMAIL_PROVIDER === "resend" && e.RESEND_API_KEY) return "resend";
+  return "console";
+}
+
 let sender: EmailSender | null = null;
 export function email(): EmailSender {
   if (sender) return sender;
-  const p = env().EMAIL_PROVIDER;
-  sender =
-    p === "smtp" && env().EMAIL_SMTP_HOST
-      ? new SmtpSender()
-      : p === "resend" && env().RESEND_API_KEY
-        ? new ResendSender()
-        : new ConsoleSender();
+  const p = emailProvider();
+  sender = p === "smtp" ? new SmtpSender() : p === "resend" ? new ResendSender() : new ConsoleSender();
   return sender;
 }
 

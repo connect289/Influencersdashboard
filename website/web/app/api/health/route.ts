@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { env, isDeployed } from "@/lib/server/env";
 import { dbConfigured, rpc } from "@/lib/server/db";
+import { emailProvider } from "@/lib/server/email";
 import { isInternal } from "@/lib/server/internal-auth";
 import { kv, kvShared } from "@/lib/server/kv";
 import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
@@ -44,10 +45,14 @@ export async function GET(req: Request) {
   } catch {
     checks.kv = { ok: false };
   }
-  checks.email = { ok: e.EMAIL_PROVIDER !== "console" || e.APP_ENV !== "production", provider: e.EMAIL_PROVIDER };
+  // The provider that actually sends ("smtp" without EMAIL_SMTP_HOST sends nothing): a deployed site cannot email codes
+  // through the console.
+  const sender = emailProvider();
+  checks.email = { ok: sender !== "console" || !isDeployed(), provider: sender, chosen: e.EMAIL_PROVIDER };
   const live = e.GEMINI_API_KEY ? "gemini" : e.ANTHROPIC_API_KEY ? "claude" : null;
   checks.ai = { ok: true, configured: !!live, mode: live ? "live" : "mock", provider: live };
-  checks.turnstile = { configured: !!e.TURNSTILE_SECRET_KEY };
+  // Both halves are needed: the site key (read at build time) renders the widget, the secret verifies its token.
+  checks.turnstile = { configured: !!e.TURNSTILE_SECRET_KEY, site_key: !!e.NEXT_PUBLIC_TURNSTILE_SITE_KEY };
   return Response.json(
     detail ? { ok, env: e.APP_ENV, ms: Math.round(performance.now() - started), checks } : { ok },
     { status: ok ? 200 : 503, headers: { "cache-control": "no-store" } },
