@@ -293,13 +293,22 @@ insert into r select 'rollback_skips_bad_models', x ->> 'champion' is null
   from (select pg_temp.v('rb2')::jsonb x) z;
 
 -- ---------- a run without enough data fails cleanly ----------
-update b2b.settings set value = value || '{"maturity_days":180}' where key = 'engine';
+-- (since m31 the training reads the maturity from engine.a3_fixed.matured_days; maturity_days alone no longer moves it)
+update b2b.settings set value = value || '{"maturity_days":180}'
+                                      || jsonb_build_object('a3_fixed', coalesce(value -> 'a3_fixed', '{}') || '{"matured_days":180}')
+ where key = 'engine';
 with x as (insert into b2b.ml_models (version, requested_by) values ('m25-too-early', 'test') returning id) insert into t select 'M2', id::text from x;
 select b2b.ml_tick();
 insert into r select 'training_fails_cleanly', m.status = 'failed' and m.error like 'not enough matured outcomes%'
-                     and not exists (select 1 from b2b.ml_training_rows where model_id = m.id), m.status || ' ' || coalesce(m.error, '')
+                     and not exists (select 1 from b2b.ml_training_rows where model_id = m.id)
+                     -- M34b: too few matured outcomes is logged as a skipped run, not as a failed model
+                     and exists (select 1 from b2b.events where type = 'ml.training_skipped' and payload ->> 'version' = 'm25-too-early')
+                     and not exists (select 1 from b2b.events where type = 'ml.model_failed' and payload ->> 'version' = 'm25-too-early'),
+                     m.status || ' ' || coalesce(m.error, '')
   from b2b.ml_models m where m.id = pg_temp.v('M2')::bigint;
-update b2b.settings set value = value || '{"maturity_days":60}' where key = 'engine';
+update b2b.settings set value = value || '{"maturity_days":60}'
+                                      || jsonb_build_object('a3_fixed', coalesce(value -> 'a3_fixed', '{}') || '{"matured_days":60}')
+ where key = 'engine';
 
 -- ---------- a run that never finished is failed by the next tick ----------
 -- (auto_train is off in this transaction, and no other model is 'training' now)
