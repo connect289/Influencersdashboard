@@ -13,6 +13,10 @@
 --      carries (a unit test keeps them equal).
 --   4. One pass of the new retention now, so the space is reusable at once (deleted rows are reused by new ones;
 --      the files do not shrink without a VACUUM FULL, which this migration does not run).
+--   5. Load: Eduwit One's checks spent about 9.5 s of database time a minute on this small, stalling instance, 57 % of
+--      it in B2C-01 (Spark's timers), whose per-job lookups walked pg_cron's history once per job (9.2 s median, 12 s
+--      cold). B2C-01 now reads the same window in one pass (0.08 s warm, 0.14 s cold; the same answer job by job, checked
+--      on production 30 Oct). Seeded here with the statement 0006 carries.
 -- Nothing of the five apps is touched; only schema one. Rollback: 0029_storage_within_plan.rollback.sql.
 
 create or replace function one.retention() returns jsonb
@@ -107,6 +111,42 @@ select cur.mb < cfg.limit_mb * cfg.warn_pct / 100 as ok,
        jsonb_build_object('db_mb', round(cur.mb), 'limit_mb', cfg.limit_mb, 'used_pct', round(100 * cur.mb / cfg.limit_mb, 1),
                           'severity', case when cur.mb >= cfg.limit_mb * cfg.crit_pct / 100 then 'P1' else 'P2' end) as value
   from cfg, cur
+$sql$));
+
+-- 5. B2C-01 in one pass, as 0006 now seeds it.
+select one.seed_check(jsonb_build_object(
+  'id', 'B2C-01',
+  'app', 'b2c',
+  'kind', 'sql',
+  'severity', 'P1',
+  'cadence_s', 60,
+  'open_after', 1,
+  'resolve_after', 3,
+  'title', 'Spark''s timers or its answers to them are failing',
+  'description', 'Direct read of system_health''s "timers" and "app" checks: no b2c-* job at all, a b2c-* job whose latest finished run failed (a run in progress is ignored; startup timeouts excluded, see PLAT-01B; b2c-capacity left to B2C-10), or a Spark job call answered with an error status in the last hour. Reads the newest cron_scan_runs runs through the runid key in one pass for all of Spark''s jobs (M3, M7 of the second review; one pass since 0029, D-103: the per-job lookups took 9 s a minute).',
+  'auto_fix_id', null,
+  'tags', '["cron"]'::jsonb,
+  'enabled', true,
+  'disabled_reason', null,
+  'search_path', '',
+  'sql', $sql$
+with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
+timers as (select j.jobid, j.jobname from cron.job j where j.jobname like 'b2c-%' and j.jobname <> 'b2c-capacity' and j.active),
+last_run as (
+  select distinct on (d.jobid) d.jobid, d.status
+    from cron.job_run_details d, w
+   where d.runid > w.from_runid and d.jobid in (select t.jobid from timers t)
+     and d.status in ('succeeded', 'failed') and d.return_message is distinct from 'job startup timeout'
+   order by d.jobid, d.runid desc),
+jobs as (select t.jobname, r.status as last_status from timers t left join last_run r on r.jobid = t.jobid),
+calls as (
+  select count(*) as failed from b2c.job_calls c, jsonb_array_elements(c.calls) e join net._http_response r on r.id = (e ->> 'id')::bigint
+   where r.created > now() - interval '1 hour' and (r.status_code is null or r.status_code >= 400))
+select (select count(*) from jobs) > 0 and not exists (select 1 from jobs where last_status = 'failed') and (select failed from calls) = 0 as ok,
+       jsonb_build_object('timers', (select count(*) from jobs),
+                          'failed_jobs', (select coalesce(jsonb_agg(jobname order by jobname), '[]') from jobs where last_status = 'failed'),
+                          'subjects', (select coalesce(jsonb_agg(jobname order by jobname), '[]') from jobs where last_status = 'failed'),
+                          'failed_calls_1h', (select failed from calls)) as value
 $sql$));
 
 -- 4. One pass of the new retention.

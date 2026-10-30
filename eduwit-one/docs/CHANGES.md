@@ -8,8 +8,9 @@ followed.
 - `0029_storage_within_plan.sql` (+ rollback, `99_storage.sql`): Eduwit One's retention fits the Free plan's 500 MB
   database limit (ok results 2 days, failures 14, copied events 30, tick reports 7, app_report audit rows 7, all
   settings), one pruning pass, and PLAT-10, a new check on the database's size against the plan's limit (P2 at 80 %,
-  P1 at 90 %). `config/settings.json`, 0006 and 0007 carry the same defaults; `99_hardening.sql` §7g follows the new
-  retention. Local test passed. Not yet rehearsed nor applied at the time of this entry; the production apply waits
+  P1 at 90 %). B2C-01 (Spark's timers) reads pg_cron's history in one pass instead of once per job: 9.2 s a minute
+  down to under 0.2 s, same answers. `config/settings.json`, 0006 and 0007 carry the same defaults; `99_hardening.sql`
+  §7g follows the new retention. Local test passed. Not yet rehearsed nor applied at the time of this entry; the production apply waits
   for the owner's go. `docs/reviews/db-stalls-2026-10-30.md` corrected: the plan is Free, so compute needs Pro first.
 
 ## 30 Oct 2026 — 0028 applied to production (D-102)

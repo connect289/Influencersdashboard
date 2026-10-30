@@ -9,14 +9,16 @@
 -- cadence_s: 60
 -- tags: cron
 -- title: Spark's timers or its answers to them are failing
--- description: Direct read of system_health's "timers" and "app" checks: no b2c-* job at all, a b2c-* job whose latest finished run failed (a run in progress is ignored; startup timeouts excluded, see PLAT-01B; b2c-capacity left to B2C-10), or a Spark job call answered with an error status in the last hour. Reads the newest cron_scan_runs runs through the runid key (M3, M7 of the second review).
+-- description: Direct read of system_health's "timers" and "app" checks: no b2c-* job at all, a b2c-* job whose latest finished run failed (a run in progress is ignored; startup timeouts excluded, see PLAT-01B; b2c-capacity left to B2C-10), or a Spark job call answered with an error status in the last hour. Reads the newest cron_scan_runs runs through the runid key in one pass for all of Spark's jobs (M3, M7 of the second review; one pass since 0029, D-103: the per-job lookups took 9 s a minute).
 with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
-jobs as (
-  select j.jobname, (select d.status from cron.job_run_details d, w
-                      where d.jobid = j.jobid and d.runid > w.from_runid and d.status in ('succeeded', 'failed')
-                        and d.return_message is distinct from 'job startup timeout'
-                      order by d.runid desc limit 1) as last_status
-    from cron.job j where j.jobname like 'b2c-%' and j.jobname <> 'b2c-capacity' and j.active),
+timers as (select j.jobid, j.jobname from cron.job j where j.jobname like 'b2c-%' and j.jobname <> 'b2c-capacity' and j.active),
+last_run as (
+  select distinct on (d.jobid) d.jobid, d.status
+    from cron.job_run_details d, w
+   where d.runid > w.from_runid and d.jobid in (select t.jobid from timers t)
+     and d.status in ('succeeded', 'failed') and d.return_message is distinct from 'job startup timeout'
+   order by d.jobid, d.runid desc),
+jobs as (select t.jobname, r.status as last_status from timers t left join last_run r on r.jobid = t.jobid),
 calls as (
   select count(*) as failed from b2c.job_calls c, jsonb_array_elements(c.calls) e join net._http_response r on r.id = (e ->> 'id')::bigint
    where r.created > now() - interval '1 hour' and (r.status_code is null or r.status_code >= 400))

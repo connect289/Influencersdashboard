@@ -1,6 +1,6 @@
 -- Rollback of 0029 storage within the plan: restores 0021's one.retention() verbatim, puts the retention and thresholds
 -- settings back to the versions before 0029's seeds when those seeds are still the latest (a later edit by a person
--- stays), and removes PLAT-10 with its state and results. PLAT-10's incidents are history that spec §13 keeps forever:
+-- stays), re-seeds B2C-01 as before, and removes PLAT-10 with its state and results. PLAT-10's incidents are history that spec §13 keeps forever:
 -- while any exists, this rollback refuses, unless the session sets one.rollback_discards_history = on (as 0006's
 -- rollback; the local test and the staging rehearsal do). The rows 0029's retention pass deleted are not restored.
 
@@ -66,6 +66,40 @@ begin
     end if;
   end loop;
 end $$;
+
+-- B2C-01 as 0006 seeded it before 0029 (the per-job lookups).
+select one.seed_check(jsonb_build_object(
+  'id', 'B2C-01',
+  'app', 'b2c',
+  'kind', 'sql',
+  'severity', 'P1',
+  'cadence_s', 60,
+  'open_after', 1,
+  'resolve_after', 3,
+  'title', 'Spark''s timers or its answers to them are failing',
+  'description', 'Direct read of system_health''s "timers" and "app" checks: no b2c-* job at all, a b2c-* job whose latest finished run failed (a run in progress is ignored; startup timeouts excluded, see PLAT-01B; b2c-capacity left to B2C-10), or a Spark job call answered with an error status in the last hour. Reads the newest cron_scan_runs runs through the runid key (M3, M7 of the second review).',
+  'auto_fix_id', null,
+  'tags', '["cron"]'::jsonb,
+  'enabled', true,
+  'disabled_reason', null,
+  'search_path', '',
+  'sql', $sql$
+with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
+jobs as (
+  select j.jobname, (select d.status from cron.job_run_details d, w
+                      where d.jobid = j.jobid and d.runid > w.from_runid and d.status in ('succeeded', 'failed')
+                        and d.return_message is distinct from 'job startup timeout'
+                      order by d.runid desc limit 1) as last_status
+    from cron.job j where j.jobname like 'b2c-%' and j.jobname <> 'b2c-capacity' and j.active),
+calls as (
+  select count(*) as failed from b2c.job_calls c, jsonb_array_elements(c.calls) e join net._http_response r on r.id = (e ->> 'id')::bigint
+   where r.created > now() - interval '1 hour' and (r.status_code is null or r.status_code >= 400))
+select (select count(*) from jobs) > 0 and not exists (select 1 from jobs where last_status = 'failed') and (select failed from calls) = 0 as ok,
+       jsonb_build_object('timers', (select count(*) from jobs),
+                          'failed_jobs', (select coalesce(jsonb_agg(jobname order by jobname), '[]') from jobs where last_status = 'failed'),
+                          'subjects', (select coalesce(jsonb_agg(jobname order by jobname), '[]') from jobs where last_status = 'failed'),
+                          'failed_calls_1h', (select failed from calls)) as value
+$sql$));
 
 select set_config('one.history_writer', 'on', true);
 delete from one.deliveries where incident_id in (select id from one.incidents where check_id = 'PLAT-10');
