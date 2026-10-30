@@ -28,7 +28,9 @@ export async function findRedirect(pathname: string): Promise<{ to: string; code
       inflight ??= load();
       cache = { at: now, map: await inflight };
     } catch {
-      cache = cache ?? { at: now, map: {} }; // keep serving the last good map; never block pages on this
+      // Keep serving the last good map and try again only after a full interval: the proxy runs before every page, so
+      // while the database is unreachable each request would otherwise wait for the 1.5 s timeout.
+      cache = { at: now, map: cache?.map ?? {} };
     } finally {
       inflight = null;
     }
