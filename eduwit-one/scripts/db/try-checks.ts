@@ -17,7 +17,7 @@ const settings = JSON.parse(readFileSync(new URL("../../config/settings.json", i
 const EMPTY: Record<string, string> = {
   runs: "select null::text as kind, null::timestamptz as started_at, null::timestamptz as finished_at, null::jsonb as report",
   results: "select null::text as check_id, null::text as status, null::jsonb as value, null::timestamptz as ran_at",
-  check_state: "select null::text as check_id, null::timestamptz as last_ran_at",
+  check_state: "select null::text as check_id, null::timestamptz as last_ran_at, null::int as killed_count",
   incidents:
     "select null::text as check_id, null::text as severity, null::timestamptz as opened_at, null::timestamptz as reopened_at",
   baselines: "select null::text as key, null::jsonb as value, null::timestamptz as captured_at",
@@ -35,7 +35,6 @@ const EMPTY: Record<string, string> = {
   test_runs:
     "select null::bigint as id, null::text as test_id, null::timestamptz as finished_at, null::timestamptz as purged_at, null::int as purge_attempts",
   checks: "select null::text as id, null::boolean as enabled",
-  check_state: "select null::text as check_id, null::int as killed_count",
 };
 const KEYWORDS = new Set([
   "where",

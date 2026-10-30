@@ -134,10 +134,11 @@ test("0028 re-seeds ONE-01 with the statement 0006 carries (D-102)", () => {
   const stmt = (text: string) => {
     const lines = text.split("\n");
     const i = lines.findIndex((l) => l.trim() === "'id', 'ONE-01',");
+    assert.ok(i >= 0, "the file seeds ONE-01");
     let a = i;
-    while (!lines[a].startsWith("select one.seed_check(")) a--;
+    while (a > 0 && !(lines[a] ?? "").startsWith("select one.seed_check(")) a--;
     let b = i;
-    while (!lines[b].trimEnd().endsWith("));")) b++;
+    while (b < lines.length - 1 && !(lines[b] ?? "").trimEnd().endsWith("));")) b++;
     return lines.slice(a, b + 1).join("\n");
   };
   assert.equal(stmt(migrationText("0028_parked_checks_recover.sql")), stmt(migrationText("0006_seed_checks.sql")));

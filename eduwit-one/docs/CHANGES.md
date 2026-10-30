@@ -3,6 +3,17 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 30 Oct 2026 — Independent audit: fixes (D-104 onward)
+
+An auditor outside the build session read the console, the chat, the AI worker, sign-in, setup, the job routes and the
+fixes against production's live catalog (read-only) and the local cluster. The report is the coordinator's; each fix
+is one commit with its entry here.
+
+- Tooling: `npm run typecheck` at `eduwit-one/` (CI's first database step) failed with three errors since 0028:
+  `scripts/db/try-checks.ts` declared the `check_state` stand-in twice, so the second silently replaced the first and a
+  trial of a check reading `check_state.last_ran_at` failed; the 0028 generator test indexed lines without a guard.
+  One stand-in with both columns; the test asserts ONE-01 is found and stays inside the file.
+
 ## 30 Oct 2026 — Open findings kept out of the public repository (D-109)
 
 - `docs/reviews/estate-audit-2026-10-30.md`: X1 and X4 now say what each finding is, who acts and what the fix is;
