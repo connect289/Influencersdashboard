@@ -52,8 +52,9 @@ export type StartOutcome =
   | { status: "verified"; attemptId: string; reference?: string }
   | { status: "error"; reason: string; message: string };
 
+/** Returned to the browser: never the CRM's lead id (comparing it with a fresh lead's id tells whether a phone was already a lead). */
 export type VerifyOutcome =
-  | { status: "verified"; attemptId: string; reference?: string; leadId: number | null }
+  | { status: "verified"; attemptId: string; reference?: string }
   | { status: "wrong_code"; attemptsLeft: number }
   | { status: "expired" | "too_many_attempts" | "error"; message: string };
 
@@ -309,7 +310,7 @@ export async function verifyCode(attemptId: string, code: string): Promise<Verif
     if (r.session_id) await setStudentSession(r.session_id);
     const reference = await openApplicationIfNeeded(info.surface, attemptId);
     log("info", "gate.verified", { surface: info.surface, requestId, lead: r.lead_id ? "yes" : "no" });
-    return { status: "verified", attemptId, reference, leadId: r.lead_id ?? null };
+    return { status: "verified", attemptId, reference };
   } catch (e) {
     log("error", "gate.verify_failed", { requestId, ...errorFields(e) });
     return { status: "error", message: MESSAGES.unavailable! };
