@@ -13,6 +13,11 @@ is one commit with its entry here.
   `scripts/db/try-checks.ts` declared the `check_state` stand-in twice, so the second silently replaced the first and a
   trial of a check reading `check_state.last_ran_at` failed; the 0028 generator test indexed lines without a guard.
   One stand-in with both columns; the test asserts ONE-01 is found and stays inside the file.
+- Web dependencies: the web job's last CI step, `npm audit --omit=dev --audit-level=high`, exits 1 because
+  `next@15.5.28` (the newest 15.x) pins `postcss` 8.4.31 (GHSA-6g55-p6wh-862q and GHSA-r28c-9q8g-f849, high; two
+  moderate). npm's own fix is Next 16, a major upgrade; an `overrides` entry moves only Next's nested copy to 8.5.31,
+  the version Tailwind and Vite already use. It was not exploitable (postcss runs at build time on this repository's
+  CSS); the build passes with byte-identical CSS and the audit finds nothing.
 
 ## 30 Oct 2026 — Open findings kept out of the public repository (D-109)
 
