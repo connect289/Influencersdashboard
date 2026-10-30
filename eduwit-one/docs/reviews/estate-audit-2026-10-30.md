@@ -159,3 +159,35 @@ Commits on this branch: `f2e08f4` (b49), `15c30a9` (b47), `d6108bb` (b48), `d14a
 (nodemailer). Each migration is idempotent, has no DELETE and ends with its rollback; the auditor's local run of every
 Spark suite: 590 checks pass (the 3 of SPK-12 fail before and after). Applying b47 to b50 to production waits for the
 owner's go and a staging rehearsal.
+
+### Influencer portal (influencer.eduwit.in) and the legacy dashboard
+
+Verified by the coordinator: the live `inf.change_request_withdraw` and `inf.contract_side` (the guard passes when the
+caller has no side, as reported); the vercel.app address compiled into the live portal's scripts (INF-A5); typecheck and
+3,676 of 3,676 unit tests re-run with the fixes. The auditor's pgTAP run: 916 of 916 (884 before), and the new file
+fails 23 of its 32 assertions without the migration.
+
+| ID      | Severity | Finding                                                                                                         | State                                           |
+| ------- | -------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| INF-A1  | high     | The legacy dashboard's access rule on `student_leads` still exposes full lead rows                              | proposal ready, owner decision                  |
+| INF-A2  | medium   | The legacy dashboard's sign-in function is still open and keeps its passwords unhashed                          | proposal ready, owner decision                  |
+| INF-A3  | medium   | INF-06: the three legacy accounts are still active                                                              | proposal ready, owner decision                  |
+| INF-A4  | medium   | Seven portal functions let a caller with no side on the deal past their check (effective in two)                | fixed `20261030000100_inf_audit_guards.sql`     |
+| INF-A5  | medium   | The live portal is built with the vercel.app address as its site address, not influencer.eduwit.in              | owner: Vercel setting, then redeploy            |
+| INF-A6  | low      | `inf.eligibility_gaps` was callable by signed-in users                                                          | fixed (client grant withdrawn)                  |
+| INF-A7  | low      | Profile updates accepted any avatar path                                                                        | fixed                                           |
+| INF-A8  | low      | KYC proofs could point outside the creator's own folder                                                         | fixed                                           |
+| INF-A9  | low      | Message attachments were checked by prefix only                                                                 | fixed                                           |
+| INF-A10 | low      | The tier list answered any signed-in account of the shared project                                              | fixed                                           |
+| INF-A11 | low      | Some malformed short links answered 500                                                                         | fixed (`decodeCodeSegment`)                     |
+| INF-A12 | low      | nodemailer and fast-uri advisories                                                                              | fixed                                           |
+| INF-A13 | low      | Payout batches take their GST and TDS amounts from the caller (gross is checked against the ledger)             | owner decision (money logic)                    |
+| INF-A14 | low      | Campaign message threads skip the campaign-visibility check                                                     | proposal                                        |
+| INF-A15 | low      | Supabase sends 8-digit email codes valid 1 hour; the portal's texts say 6 digits and 10 minutes                 | owner: Auth setting (the code field takes both) |
+| INF-A16 | low      | `authenticated` holds write and TRUNCATE privileges on four shared `public` tables (row security blocks writes) | cross-app proposal                              |
+
+Commits on this branch: `96bf262` (the migration, pgTAP `025_audit_guards.sql`, portal D-192, security review rows 11 to
+18), `8851f39` (short links), `f135ca5` (dependencies), `7c658d3` (the legacy retirement proposal in
+`influencer-portal/supabase/proposals/`, outside the migration chain, with its rollback; rehearsed by the auditor with
+fake accounts, 14 of 14). The portal's migration and the legacy proposal wait for the owner's go and a staging rehearsal
+(project rule: hard stop 6 for migrations to the live project).
