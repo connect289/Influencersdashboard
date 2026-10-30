@@ -20,6 +20,34 @@ export function safeNext(next: string | null | undefined, fallback = "/"): strin
   return next;
 }
 
+/**
+ * Whether a link in the assistant's words may be followed: a path inside Eduwit One (/incidents/12, /settings?x=1), never
+ * "//host/…", which a browser opens on another site (D-106).
+ */
+export function consolePath(href: string): boolean {
+  return /^\/(?![/\\])[A-Za-z0-9/_.?=&%-]*$/.test(href);
+}
+
+/**
+ * Whether a cookie-authenticated POST to a route handler came from this app's own pages (D-104): the session cookie is
+ * SameSite=Lax and shared by every page of the same site, so it alone does not say where a request came from. Server
+ * actions have Next's own Origin check; route handlers use this one: Sec-Fetch-Site must be same-origin, or, from a
+ * browser that does not send it, the Origin must be this host; with `json`, the body must be JSON too.
+ */
+export function sameOriginRequest(headers: Headers, opts: { json?: boolean } = {}): boolean {
+  if (opts.json && !/^application\/json\s*(;|$)/i.test(headers.get("content-type") ?? "")) return false;
+  const site = headers.get("sec-fetch-site");
+  if (site !== null) return site === "same-origin";
+  const origin = headers.get("origin");
+  if (origin === null) return true; // not a browser: no page could have sent it
+  const host = headers.get("x-forwarded-host") ?? headers.get("host");
+  try {
+    return host !== null && new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 /** True when the last-seen time (epoch seconds) is older than the idle limit. A missing or bad value is not idle. */
 export function isIdleExpired(lastSeen: string | undefined, nowSeconds: number, limit = DEFAULT_IDLE_SECONDS): boolean {
   if (!lastSeen) return false;

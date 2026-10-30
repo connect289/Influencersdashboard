@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
+import { consolePath } from "@/lib/security.ts";
 
 // The assistant's prose as React nodes: paragraphs, lists, a few inline marks and links to the console's own pages.
-// Nothing is injected as HTML; a link is followed only when it is a path inside Eduwit One (/incidents/12), otherwise
-// its text is shown and the address stays visible.
+// Nothing is injected as HTML; a link is followed only when it is a path inside Eduwit One (/incidents/12; never
+// "//host", which leaves the site: D-106), otherwise its text is shown and the address stays visible.
 
 const INLINE = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\))/g;
 
@@ -25,7 +26,7 @@ function inline(text: string, keyBase: string): ReactNode[] {
       const m = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(part);
       const label = m?.[1] ?? part;
       const href = m?.[2] ?? "";
-      if (/^\/[A-Za-z0-9/_.?=&%-]*$/.test(href)) {
+      if (consolePath(href)) {
         out.push(
           <Link key={key} href={href} className="underline decoration-fg-muted underline-offset-2 hover:decoration-fg">
             {label}

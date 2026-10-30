@@ -47,13 +47,9 @@ describe("the tool catalogue", () => {
 
   it("runs at once only the low-risk, reversible acts; everything else waits for a confirmation", () => {
     const auto = acts.filter((t) => !t.confirm).map((t) => t.name);
-    expect(auto.sort()).toEqual([
-      "acknowledge_incident",
-      "dry_run_fix",
-      "regenerate_brief",
-      "rerun_deep",
-      "validate_setup",
-    ]);
+    // Acknowledging is a card (D-107): it stops a P1's reminders and cannot be undone from the console.
+    expect(toolByName("acknowledge_incident")).toMatchObject({ confirm: true });
+    expect(auto.sort()).toEqual(["dry_run_fix", "regenerate_brief", "rerun_deep", "validate_setup"]);
     for (const t of acts) if (t.risk === "high") expect(t.confirm).toBe(true);
   });
 

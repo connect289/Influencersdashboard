@@ -516,9 +516,9 @@ rules, plus the ability to act, under these limits:
   audit, the Operate pages and this runbook). The model never writes SQL. Contact data is masked twice (the database's
   redaction, then `web/lib/ai/pii.ts`), the person's own message included.
 - **Acts** are the console's own page functions (`one.ui_*`), run as the signed-in person with their role check and audit
-  row, under the same request id. Four reversible, low-risk acts run at once: acknowledge an incident, a fix's dry run, a
-  Setup item's validation, an explanation on the deep model, a brief re-built. Everything else (resolve, mute, run a
-  test, switch a fix, decide a proposal, change a check, a test, a setting or a person) first shows an **action card**
+  row, under the same request id. Four low-risk acts run at once: a fix's dry run, a Setup item's validation, an
+  explanation on the deep model, a brief re-built. Everything else (acknowledge, resolve, mute, run a test, switch a
+  fix, decide a proposal, change a check, a test, a setting or a person) first shows an **action card**
   in the chat with the exact arguments; nothing runs until **Confirm and run** is pressed. A card not decided in two
   hours expires. An engineer is not offered the owner-only acts (fix switches, people); the database refuses them anyway.
 - **Fixes on the apps** keep every rule of the fix catalogue (D-079, D-084): the chat can record a dry run and propose

@@ -71,31 +71,36 @@ export const SECRET_REFUSAL =
   "Paste it into the Vault card for its Setup item instead (ask me to open the card, or use Settings → Setup), " +
   "and if it was a real secret rotate it, because it was typed into a browser.";
 
-/** The conversation so far as the model's messages: alternating roles, actions folded into the person's side. */
+/**
+ * The conversation so far as the model's messages: alternating roles, actions folded into the person's side. Every
+ * stored value is masked here with the app's maskText (D-105), as the new message is: this is the model's input, which
+ * the app masks whatever produced it (spec §11).
+ */
 export function historyMessages(history: HistoryItem[], maxChars = HISTORY_CHARS): ChatMessage[] {
   const parts: Array<{ role: "user" | "assistant"; text: string }> = [];
+  const m = (v: unknown) => maskText(String(v ?? ""));
   for (const h of history) {
     const c = h.content;
     if (h.role === "user") {
-      parts.push({ role: "user", text: String(c.text ?? "") });
+      parts.push({ role: "user", text: m(c.text) });
     } else if (h.role === "assistant") {
       const tools = Array.isArray(c.tools) ? (c.tools as Array<Record<string, unknown>>) : [];
       const used = tools.length
         ? `\n\n[Tools used: ${tools
             .map(
               (t) =>
-                `${String(t.name)}(${JSON.stringify(t.args ?? {})}) → ${t.ok ? `${String(t.rows ?? 0)} rows` : "error"}`,
+                `${String(t.name)}(${m(JSON.stringify(t.args ?? {}))}) → ${t.ok ? `${String(t.rows ?? 0)} rows` : "error"}`,
             )
             .join("; ")}]`
         : "";
       parts.push({
         role: "assistant",
-        text: `${String(c.text ?? "")}${c.error ? ` [turn failed: ${String(c.error)}]` : ""}${used}`,
+        text: `${m(c.text)}${c.error ? ` [turn failed: ${m(c.error)}]` : ""}${used}`,
       });
     } else {
       parts.push({
         role: "user",
-        text: `[Action #${String(c.action_id)} (${String(c.tool)}): ${String(c.status)}${c.error ? `, ${String(c.error)}` : ""} — ${String(c.summary ?? "")}]`,
+        text: `[Action #${String(c.action_id)} (${String(c.tool)}): ${String(c.status)}${c.error ? `, ${m(c.error)}` : ""} — ${m(c.summary)}]`,
       });
     }
   }

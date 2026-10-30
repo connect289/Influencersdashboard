@@ -7,7 +7,7 @@ followed.
 
 An auditor outside the build session read the console, the chat, the AI worker, sign-in, setup, the job routes and the
 fixes against production's live catalog (read-only) and the local cluster. The report is the coordinator's; each fix
-is one commit with its entry here.
+or group of fixes is one commit with its entries here.
 
 - Tooling: `npm run typecheck` at `eduwit-one/` (CI's first database step) failed with three errors since 0028:
   `scripts/db/try-checks.ts` declared the `check_state` stand-in twice, so the second silently replaced the first and a
@@ -18,6 +18,15 @@ is one commit with its entry here.
   moderate). npm's own fix is Next 16, a major upgrade; an `overrides` entry moves only Next's nested copy to 8.5.31,
   the version Tailwind and Vite already use. It was not exploitable (postcss runs at build time on this repository's
   CSS); the build passes with byte-identical CSS and the audit finds nothing.
+- Same-origin route handlers (D-104): `/api/chat` and `/auth/signout` now take requests from this app's own pages
+  only (`sameOriginRequest`), as server actions already did; the chat also takes JSON only. Test: `lib/security.test.ts`.
+- Chat history masking (D-105): `historyMessages` masks every stored value with the app's `maskText` before the
+  model reads it, as the new message already was. Test: `lib/ai/chat/engine.test.ts`.
+- Chat links (D-106): only the console's own paths are links; a protocol-relative address is shown as text. Test:
+  `lib/security.test.ts`.
+- Acknowledging from the chat (D-107): an action card instead of an immediate act; the chat prompt's list of
+  immediate acts (`chat@c5abc3f341`) and the runbook match; the generated prompt and docs modules are rebuilt. Tests:
+  `lib/ai/chat/tools.test.ts`, `lib/ai/chat/engine.test.ts`.
 
 ## 30 Oct 2026 — Open findings kept out of the public repository (D-109)
 

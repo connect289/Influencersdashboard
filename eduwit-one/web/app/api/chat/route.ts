@@ -8,6 +8,7 @@ import { credentialsFrom, vaultSecrets } from "@/lib/clients/credentials.ts";
 import { clientsFor } from "@/lib/clients/index.ts";
 import { SupabaseOneDb } from "@/lib/db.ts";
 import { log } from "@/lib/log.ts";
+import { sameOriginRequest } from "@/lib/security.ts";
 import { assertUser } from "@/lib/session.ts";
 import { runValidate } from "@/lib/setup/run.ts";
 import { clientSettingsSchema, n8nSchema, readSettings } from "@/lib/state.ts";
@@ -27,6 +28,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  // Only this app's own pages may start a turn (D-104).
+  if (!sameOriginRequest(request.headers, { json: true }))
+    return Response.json({ error: "forbidden" }, { status: 403 });
   let me;
   try {
     me = await assertUser();

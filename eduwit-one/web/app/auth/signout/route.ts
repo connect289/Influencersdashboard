@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SEEN_COOKIE } from "@/lib/security.ts";
+import { sameOriginRequest, SEEN_COOKIE } from "@/lib/security.ts";
 import { userClient } from "@/lib/supabase.ts";
 
-/** POST only, so another site cannot sign someone out with a link. The trusted-device cookie stays, as in Spark. */
+/** POST only, from this app's own pages (D-104). The trusted-device cookie stays, as in Spark. */
 export async function POST(request: NextRequest) {
+  if (!sameOriginRequest(request.headers)) return new Response("forbidden", { status: 403 });
   try {
     const supabase = await userClient();
     await supabase.rpc("auth_sign_out");

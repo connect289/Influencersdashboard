@@ -161,7 +161,8 @@ const ACT: ActTool[] = [
     name: "acknowledge_incident",
     description: "Acknowledge an open incident (stops its reminders; it stays open).",
     input: z.object({ id }),
-    confirm: false,
+    // A card (D-107): acknowledging stops a P1's reminders and cannot be undone from the console.
+    confirm: true,
     risk: "low",
     perm: "operate",
     call: (a) => ({ fn: "ui_ack", args: { p_id: a.id } }),

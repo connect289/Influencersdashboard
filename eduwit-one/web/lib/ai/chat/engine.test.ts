@@ -144,17 +144,17 @@ describe("a turn that answers", () => {
         blocks: [
           { type: "text", text: "Let me look." },
           toolUse("t1", "incidents", { status: "open", app: "witty" }),
-          toolUse("t2", "acknowledge_incident", { id: 1 }),
+          toolUse("t2", "rerun_deep", { id: 1 }),
           toolUse("t3", "runbook", { query: "rotate n8n key" }),
         ],
         usage,
       },
-      { text: "Incident #1 is acknowledged. Rotate the key as the runbook says.", usage },
+      { text: "Incident #1 is queued for the deep model. Rotate the key as the runbook says.", usage },
     ]);
     const { chat, aiDb, acts, events, go } = run(model);
     await go();
     expect(aiDb.tools).toEqual([{ name: "incidents", args: { status: "open", app: "witty" } }]);
-    expect(acts).toEqual([{ fn: "ui_ack", args: { p_id: 1 } }]);
+    expect(acts).toEqual([{ fn: "ui_rerun_deep", args: { p_id: 1 } }]);
     const second = model.requests[1] as ChatRequest;
     const results = second.messages.at(-1)?.content;
     expect(Array.isArray(results)).toBe(true);
@@ -165,16 +165,12 @@ describe("a turn that answers", () => {
     expect(events.filter((e) => e.t === "tool").map((e) => (e.t === "tool" ? `${e.name}:${e.status}` : ""))).toEqual([
       "incidents:running",
       "incidents:ok",
-      "acknowledge_incident:running",
-      "acknowledge_incident:ok",
+      "rerun_deep:running",
+      "rerun_deep:ok",
       "runbook:running",
       "runbook:ok",
     ]);
-    expect(chat.finished[0]?.assistant.tools.map((t) => t.name)).toEqual([
-      "incidents",
-      "acknowledge_incident",
-      "runbook",
-    ]);
+    expect(chat.finished[0]?.assistant.tools.map((t) => t.name)).toEqual(["incidents", "rerun_deep", "runbook"]);
     expect(JSON.stringify(chat.finished[0]?.assistant.tools)).not.toContain("9876543210");
     expect(aiDb.recorded).toHaveLength(2);
   });
@@ -205,6 +201,19 @@ describe("a turn that answers", () => {
     const second = model.requests[1] as ChatRequest;
     expect(JSON.stringify(second.messages.at(-1)?.content)).toContain("has not run");
     expect(chat.finished[0]?.assistant.actions).toEqual([1]);
+  });
+
+  it("makes an acknowledgement a card the person confirms (D-107)", async () => {
+    const model = new ScriptedChatClient([
+      { blocks: [toolUse("t1", "acknowledge_incident", { id: 1 })], usage },
+      { text: "I have proposed acknowledging incident #1; confirm the card to apply it.", usage },
+    ]);
+    const { chat, acts, go } = run(model);
+    await go();
+    expect(acts).toEqual([]);
+    expect(chat.proposed).toEqual([
+      { tool: "acknowledge_incident", args: { id: 1 }, summary: "Acknowledge incident #1", risk: "low" },
+    ]);
   });
 
   it("answers a secret request with a Vault card the model never sees into", async () => {
@@ -339,6 +348,33 @@ describe("historyMessages", () => {
     expect(m.map((x) => x.role)).toEqual(["user", "assistant", "user"]);
     expect(m[1]?.content).toContain("[Tools used: mute(");
     expect(m[2]?.content).toBe("[Action #3 (mute): done — Mute check WITTY-04 for 60 minutes]\n\nthanks");
+  });
+
+  it("masks the stored turns again with the app's masker before the model reads them (D-105)", () => {
+    // Phone shapes the app's masker catches; the stored history is the model's input from turn two on.
+    const h: HistoryItem[] = [
+      { role: "user", content: { text: "Why no reply to 987 654 3210 or +44 20 7946 0958 (९८७६५४३२१०)?" } },
+      { role: "assistant", content: { text: "Lead 98.765.43210 waits; mail a.b@gmail.com", error: "x 9876-543-210" } },
+      {
+        role: "action",
+        content: { action_id: 4, tool: "resolve_incident", status: "failed", summary: "Resolve #7 (98 76 54 32 10)" },
+      },
+    ];
+    const text = JSON.stringify(historyMessages(h));
+    for (const raw of [
+      "987 654 3210",
+      "7946 0958",
+      "९८७६५४३२१०",
+      "98.765.43210",
+      "a.b@gmail.com",
+      "9876-543-210",
+      "98 76 54 32 10",
+    ]) {
+      expect(text).not.toContain(raw);
+    }
+    expect(text).toContain("…3210");
+    expect(text).toContain("@gmail.com");
+    expect(text).toContain("Resolve #7");
   });
 
   it("drops the oldest turns when the history is too long", () => {

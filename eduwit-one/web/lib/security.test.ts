@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildCsp,
   clientIp,
+  consolePath,
   internalRequestAuthorized,
   internalToken,
   internalTokenValid,
   isAllowedEmail,
   isIdleExpired,
   safeNext,
+  sameOriginRequest,
   seenFresh,
   seenKey,
   seenValue,
@@ -30,6 +32,61 @@ describe("safeNext", () => {
     ]) {
       expect(safeNext(bad)).toBe("/");
     }
+  });
+});
+
+describe("consolePath (D-106)", () => {
+  it("follows paths inside the console and nothing that leaves it", () => {
+    for (const ok of [
+      "/incidents/12",
+      "/settings/checks?app=witty",
+      "/",
+      "/actions?fix=FIX-N8N-RETRY&day=2026-10-30",
+    ]) {
+      expect(consolePath(ok)).toBe(true);
+    }
+    for (const bad of [
+      "//evil.test/login",
+      "///evil.test",
+      "/\\evil.test",
+      "https://evil.test",
+      "javascript:alert(1)",
+      "incidents/12",
+      "/a b",
+      "",
+    ]) {
+      expect(consolePath(bad)).toBe(false);
+    }
+  });
+});
+
+describe("sameOriginRequest (D-104)", () => {
+  const h = (o: Record<string, string>) => new Headers({ host: "one.eduwit.in", ...o });
+  const json = { "content-type": "application/json" };
+
+  it("accepts this app's own fetches and forms", () => {
+    expect(sameOriginRequest(h({ ...json, "sec-fetch-site": "same-origin" }), { json: true })).toBe(true);
+    expect(sameOriginRequest(h({ "sec-fetch-site": "same-origin", origin: "https://one.eduwit.in" }))).toBe(true);
+    // A browser without Sec-Fetch-Site still names its origin.
+    expect(sameOriginRequest(h({ ...json, origin: "https://one.eduwit.in" }), { json: true })).toBe(true);
+    expect(sameOriginRequest(h({ origin: "https://one.eduwit.in", "x-forwarded-host": "one.eduwit.in" }))).toBe(true);
+    // Not a browser (curl with the person's own cookies): no page could have sent it.
+    expect(sameOriginRequest(h(json), { json: true })).toBe(true);
+  });
+
+  it("refuses another *.eduwit.in page, another site and a non-JSON body", () => {
+    for (const site of ["same-site", "cross-site", "none"]) {
+      expect(sameOriginRequest(h({ ...json, "sec-fetch-site": site }), { json: true })).toBe(false);
+    }
+    for (const origin of ["https://n8n.eduwit.in", "https://eduwit.in", "https://evil.test", "null", "junk"]) {
+      expect(sameOriginRequest(h({ ...json, origin }), { json: true })).toBe(false);
+    }
+    // text/plain is what a page can post without a preflight.
+    expect(
+      sameOriginRequest(h({ "content-type": "text/plain", "sec-fetch-site": "same-origin" }), { json: true }),
+    ).toBe(false);
+    expect(sameOriginRequest(h({ "sec-fetch-site": "same-origin" }), { json: true })).toBe(false);
+    expect(sameOriginRequest(new Headers({ origin: "https://one.eduwit.in" }))).toBe(false);
   });
 });
 
