@@ -262,3 +262,37 @@ Admin first. Commits on this branch: `ca2e36a` (dependencies), `7bdb732` (m34a),
 `b04420c` (m34c, `test_m34_audit_fixes.sql`, 19 rows); `deploy.mjs` and `deploy.sh` now list m33g and m34a to m34c.
 The auditor's local rebuild: the baseline, all 128 earlier files and m34a to m34c apply cleanly and re-apply cleanly.
 Applying them to production waits for the owner's go.
+
+### Eduwit One (one.eduwit.in), independent audit
+
+An auditor outside the build session; production read-only. All 242 `one.*` function bodies and grants in production
+match the repository. Merged by the coordinator onto 0029 (conflicts only in DECISIONS, CHANGES, the docs bundle and the
+fingerprint), then re-checked: the local test passes for 0001 to 0030 (fingerprint regenerated), root typecheck and
+tests, guards (62 files), generators current, the web check (256 tests) and the build. The web fixes go live with this
+branch's next Vercel deploy; heartbeat checks for the components without a key are either already failing (vercel:one,
+vercel:website, chatwoot, which now say which key is missing) or switched off, so the deploy opens no new incident.
+
+| ID  | Severity | Finding                                                                                                                | State                                                                  |
+| --- | -------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| E1  | medium   | The chat and sign-out routes accepted posts from other eduwit.in pages                                                 | fixed (D-104)                                                          |
+| E2  | medium   | From the second chat turn, earlier messages reached the model masked only by the database's narrower masker            | fixed (D-105)                                                          |
+| E3  | low      | Chat links starting with `//` opened another site                                                                      | fixed (D-106)                                                          |
+| E4  | medium   | Text planted in app data could make the chat acknowledge incidents without a click                                     | fixed (D-107: a card the person confirms; one line of the chat prompt) |
+| E5  | medium   | Setup showed three items verified without their keys, and keyless probes wrote nothing ("never seen")                  | fixed (D-108); owner: paste the keys                                   |
+| E6  | medium   | An engineer could acknowledge a new API-callable function and quiet the PLAT-07 security check                         | fixed `0030` (D-110), not applied                                      |
+| E7  | low      | The tooling typecheck (CI's database job) failed                                                                       | fixed                                                                  |
+| E8  | low      | CI's dependency audit failed on Next's pinned postcss (not exploitable)                                                | fixed (override; CSS byte-identical)                                   |
+| E9  | low      | A chat action card shows the proposed arguments, but the confirmed call runs the masked copy                           | proposal                                                               |
+| E10 | low      | The chat offers `put_user`, which cannot succeed while the model sees masked addresses                                 | proposal                                                               |
+| E11 | low      | An engineer can loosen a protected check's threshold                                                                   | owner decision (D-065)                                                 |
+| E12 | low      | `ui_user_put` does not check that the email is confirmed (exploitability not shown)                                    | proposal                                                               |
+| E13 | low      | Parallel chat turns can overshoot the daily AI cap                                                                     | proposal                                                               |
+| E14 | low      | `one.mask_text` misses phone formats the app's masker catches                                                          | proposal                                                               |
+| E15 | low      | The chat's remaining immediate acts (validate a Setup item, re-run an explanation, rebuild a brief) run without a card | owner decision                                                         |
+
+For the owner, from the same audit: Eduwit Scout's 52 new API-callable functions (first seen 30 Oct 21:00 UTC) will
+fail PLAT-07 at its next daily run until acknowledged (owner-only once 0030 is live); production has no Anthropic key, so
+38 AI tasks of the last two days wait; the Vault secret `one_gemini_key` is read by no Eduwit One code; a cut-off part of
+this cloud environment's `VERCEL_TOKEN` appeared in one test's output in the audit session (in no file or commit), so
+rotating that token is a sensible precaution. Commits on this branch: `dd6aa16`, `60341b5`, `127731d`, `5f105a6`,
+`331adfd`, `d14826b`.
