@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NOT_PUBLIC, outboundUrlProblem } from "@/lib/url-safety";
 import { EFFORT_METRIC_LABEL, EFFORT_METRICS, EFFORT_RANGE, reqNum, SLA_RANGE, WEIGHT_RANGE, type EffortMetricKey, type EffortWeights } from "../segments";
 
 /**
@@ -371,7 +372,8 @@ export const AiSettingsSchema = z.object({
   min_gain_pct: reqNum("1 to 50%").pipe(z.number().min(1, "1 to 50%").max(50, "1 to 50%")).default(3),
   max_per_day: reqNum("1 to 10").pipe(z.number().int("1 to 10").min(1, "1 to 10").max(10, "1 to 10")).default(3),
   daily_budget_usd: reqNum("$0 to $200").pipe(z.number().min(0, "$0 to $200").max(200, "$0 to $200")),
-  worker_url: z.string().trim().max(300).refine((v) => v === "" || /^https:\/\/[^\s/]+(\/\S*)?$/.test(v), "Starts with https://"),
+  worker_url: z.string().trim().max(300).refine((v) => v === "" || /^https:\/\/[^\s/]+(\/\S*)?$/.test(v), "Starts with https://")
+    .refine((v) => v === "" || outboundUrlProblem(v) === null, NOT_PUBLIC),   // M34e: b2b.url_allowed
   model_regular: z.string().trim().regex(/^claude-[a-z0-9.-]{3,60}$/, "A claude-… model name"),
   model_deep: z.string().trim().regex(/^claude-[a-z0-9.-]{3,60}$/, "A claude-… model name"),
   model_quick: z.string().trim().regex(/^claude-[a-z0-9.-]{3,60}$/, "A claude-… model name"),

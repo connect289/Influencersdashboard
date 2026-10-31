@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NOT_PUBLIC, outboundUrlProblem } from "./url-safety";
 
 /** The System screen and the machine endpoints for other products (the B2C CRM first). Contract: docs/b2c-contract.md. */
 
@@ -221,7 +222,8 @@ export const DEFAULT_RATE: Record<Scope, number> = { intake: 120, referrals: 60,
 export const EndpointSchema = z.object({
   name: z.string().trim().min(2, "2 to 80 characters.").max(80, "2 to 80 characters."),
   consumer: z.enum(["b2c_crm", "influencer_dashboard", "website", "other"]),
-  url: z.string().trim().max(500, "At most 500 characters.").regex(/^https:\/\/\S+$/, "The URL must start with https://"),
+  url: z.string().trim().max(500, "At most 500 characters.").regex(/^https:\/\/\S+$/, "The URL must start with https://")
+    .refine((v) => outboundUrlProblem(v) === null, NOT_PUBLIC),   // M34e: b2b.url_allowed
   events: z.array(z.string()).min(1, "Choose at least one event.")
     .refine((xs) => xs.every((x) => KNOWN_EVENTS.includes(x)), "Unknown event."),
 });
