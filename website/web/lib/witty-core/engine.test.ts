@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CatalogRow, SearchResult } from "./contract";
-import { acceptFacts, classify, counselorInput, leadPayload, planTurn, searchQuery, type Extraction, type WittyState } from "./engine";
+import { acceptFacts, classify, counselorInput, extractorInput, leadPayload, planTurn, searchQuery, type Extraction, type WittyState } from "./engine";
 
 /** Scenario names follow Witty's harness (witty.md §8); the catalogue rows are fixtures shaped like w2_search_programs. */
 const row = (id: number, university: string, spec: string, fee_yearly: number | null, min_pct = 50, min_q = "BACHELOR", extra: Partial<CatalogRow> = {}): CatalogRow => ({
@@ -241,5 +241,14 @@ describe("lead payload (w2_crm_payload keys)", () => {
     });
     const allowed = new Set(["full_name", "is_name_confirmed", "email", "is_email_confirmed", "interested_course", "interested_specialization", "field_of_interest", "university_preference", "interested_university", "programme_level", "study_mode_preference", "highest_qualification", "current_study", "academic_score_raw", "academic_score_pct", "work_experience_raw", "work_experience_years_num", "current_job_role", "annual_budget_raw", "annual_budget_inr", "enrollment_timeline", "primary_motivation", "location_raw", "preferred_language", "enquirer_relation", "guardian_name", "classification", "classification_ai", "readiness", "eligibility", "conversation_phase", "last_intent", "is_opted_out"]);
     expect(Object.keys(l).every((k) => allowed.has(k))).toBe(true);
+  });
+});
+
+describe("model inputs carry no email address (estate audit SITE-17)", () => {
+  it("the extractor sees the known profile without the verified email", () => {
+    const state: WittyState = { ...start(), profile: { ...start().profile, interested_course: { value: "MBA", confirmed: true } } };
+    const input = extractorInput(state, "I have a BCom");
+    expect(input.known_profile).toEqual({ student_name: "Rohit Sen", interested_course: "MBA" });
+    expect(JSON.stringify(input)).not.toContain("rohit@example.org");
   });
 });

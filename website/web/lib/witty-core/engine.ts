@@ -538,10 +538,13 @@ export function counselorInput(plan: TurnPlan, conversation: { role: "witty" | "
   };
 }
 
-/** Extractor input (extractor prompt INPUT). */
+/**
+ * Extractor input (extractor prompt INPUT). The verified email address stays out of it, as it stays out of the
+ * counselor input: the model never needs it to read a message (estate audit SITE-17).
+ */
 export function extractorInput(state: WittyState, studentMessage: string) {
   const known: Record<string, string> = {};
-  for (const [k, e] of Object.entries(state.profile)) if (e?.value) known[k] = e.value;
+  for (const [k, e] of Object.entries(state.profile)) if (e?.value && k !== "email_id") known[k] = e.value;
   return { pending_question: state.pending_question ?? "NONE", witty_last_message: state.last_witty_message ?? "", known_profile: known, student_message: studentMessage };
 }
 
