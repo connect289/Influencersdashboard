@@ -106,9 +106,13 @@ sent again without risk (D-122). Each file is recorded in `supabase_migrations.s
 | Spark `b47` to `b52`                                                   | SPK-01 to SPK-07, SPK-10, SPK-11         | staging: applied, 47 of 47 checks, rolled back to the exact previous versions, applied, 47 of 47, then 10 and 28 more checks       | function bodies, the `b2c.users` column grants, the users policy                                                               |
 | Witty `w5_*` (four files)                                              | W-07, W-10, W-11, W-13                   | a throwaway local copy of production's definitions, 29 of 29 with rollback (staging holds no Witty objects)                        | no `w2_*` function or relation left to anon or authenticated (except `w2_crm_owned`); Eduwit One keeps its four functions      |
 
-Still to do: the B2B web deploy (the developer), then `b2b-crm/supabase/pending/drop_api_referral_outcomes_v1.sql`;
-re-run `w5_revoke_api_grants.sql` after any new `w2_*` migration (the default privileges grant new objects to clients
-again); Witty's n8n changes (the owner); Eduwit One `0029` to `0031`; the website (`website-fixes.mbox`, then `web14`).
+Still to do, all waiting on the database's stall (connections refused and every query slowed since 01:43 UTC on the
+Micro compute; the upgrade to Pro and a larger compute is the fix): Eduwit One `0029` to `0031` (the apply's catalogue
+fingerprint could not finish inside the API's 120 s), then promoting the newest Eduwit One web deployment, which is
+rolled back to `42ddc75` until then (D-123); the website's redeploy (its 16 fixes are pushed, `3523c0e`, but Vercel's
+build reads the database and timed out) and `web14`. Also: the B2B web deploy (the developer), then
+`b2b-crm/supabase/pending/drop_api_referral_outcomes_v1.sql`; re-run `w5_revoke_api_grants.sql` after any new `w2_*`
+migration (the default privileges grant new objects to clients again); Witty's n8n changes (the owner).
 
 ## Per-app findings
 

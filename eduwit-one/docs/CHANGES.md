@@ -20,6 +20,13 @@ estate report's "Applied to production" section lists each set with its rehearsa
   `w5_revoke_api_grants` (`docs/reviews/estate-audit-2026-10-30/witty/`); the n8n changes stay the owner's.
 - Eduwit One: the rehearsal of 0001 to 0031 passed on staging (`fd3fb19c…`, REHEARSALS.md); 0029 to 0031 are not yet
   applied.
+- Eduwit One's web rolled back on Vercel to `42ddc75` at 07:13 UTC (D-123): a docs push had deployed the web that needs
+  0031. 0029 to 0031 then could not be applied: the database, stalling since 01:43 UTC, could not finish the apply's
+  catalogue fingerprint inside the Management API's 120 s (the fingerprint alone took over 118 s; normally seconds).
+- The website's 16 fixes are on `claude/inspiring-babbage-8asj1y` (`615ee72..3523c0e`; typecheck, 219 tests, lint and a
+  build passed here first), but Vercel's build failed: prerendering reads the database, which timed out. The live site
+  stays on the previous build until a redeploy after the database recovers. web14 is not applied (same stall; its
+  transaction checks production's functions first, and production matched its starting point at 07:22 UTC).
 
 ## 31 Oct 2026 — Independent audit, second round (0031, D-115 to D-121)
 
