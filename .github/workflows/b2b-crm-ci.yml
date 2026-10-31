@@ -1,0 +1,70 @@
+# Eduwit B2B CRM (b2b-crm/web): typecheck, unit tests, build and dependency scanning (estate audit, 30 Oct 2026: the
+# B2B CRM was the only app without CI). Runs on pull requests and pushes that touch the web app. No secrets are used:
+# the unit tests mock every network call, and the build reads no environment values.
+name: b2b-crm CI
+
+on:
+  pull_request:
+    paths:
+      - "b2b-crm/web/**"
+      - ".github/workflows/b2b-crm-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "b2b-crm/web/**"
+      - ".github/workflows/b2b-crm-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: b2b-crm-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, tests, build, audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: b2b-crm/web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: b2b-crm/web/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      # Blocking: a high or critical advisory in a production dependency fails the build (the audit of 30 Oct found a
+      # critical Next.js advisory that nothing had flagged). Dev-only tools are left to Dependabot.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

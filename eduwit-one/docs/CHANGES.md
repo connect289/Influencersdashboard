@@ -3,6 +3,21 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 31 Oct 2026 — the owner's go for the listed actions (D-111)
+
+- n8n: six inactive workflows archived ("Eduwit" and "Eduwit (Test Harness)", which held copied credentials; "Witty 2.0 ·
+  Dev SQL"; the Gemini Harness, Latency Lab and Extractor Eval harnesses). Kept: "Witty 2.0 · Test Harness (dev)", which
+  Eduwit One's tests use. Archiving is reversible in n8n.
+- Vercel: the Ignored Build Step compares with the last successful deployment (D-111), so the audit's web fixes deploy with
+  the next push.
+- Website fixes: the push to `claude/inspiring-babbage-8asj1y` was refused by the session's safety layer as a production
+  deploy; the eight commits stay in `docs/reviews/estate-audit-2026-10-30/website-fixes.mbox` for the owner or developer.
+- 0029 and 0030: the first apply attempt hit a 524 from the Management API at 01:45 UTC while the database stalled; the
+  script stopped before pausing any job. Its single transaction either committed whole or rolled back whole; the state is
+  checked before any retry.
+- `.github/workflows/b2b-crm-ci.yml`: typecheck, unit tests, build and the production dependency audit for the B2B CRM
+  (its build passes with an empty environment).
+
 ## 30 Oct 2026 — Independent audit: fixes (D-104 onward)
 
 An auditor outside the build session read the console, the chat, the AI worker, sign-in, setup, the job routes and the
