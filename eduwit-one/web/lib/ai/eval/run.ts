@@ -104,6 +104,10 @@ class EvalDb implements AiDb {
     this.recorded.push(...calls);
     return { remaining_inr: 1e9 };
   }
+  // The eval has no day's cap: every reservation is granted (D-118).
+  async reserve() {
+    return { ok: true, remaining_inr: 1e9 };
+  }
   async finish(_t: number, _h: string, result: Record<string, unknown>, calls: CallRecord[]) {
     this.verdict = { result, calls: [...this.recorded, ...calls] };
   }

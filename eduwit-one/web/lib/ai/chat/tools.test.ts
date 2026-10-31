@@ -45,18 +45,27 @@ describe("the tool catalogue", () => {
     }
   });
 
-  it("runs at once only the low-risk, reversible acts; everything else waits for a confirmation", () => {
+  it("runs at once only a fix's dry run; everything else waits for a confirmation", () => {
     const auto = acts.filter((t) => !t.confirm).map((t) => t.name);
     // Acknowledging is a card (D-107): it stops a P1's reminders and cannot be undone from the console.
     expect(toolByName("acknowledge_incident")).toMatchObject({ confirm: true });
-    expect(auto.sort()).toEqual(["dry_run_fix", "regenerate_brief", "rerun_deep", "validate_setup"]);
+    // So are the acts with effects outside the console's own records (D-120): a validator's real call, deep-tier spend.
+    for (const name of ["validate_setup", "rerun_deep", "regenerate_brief"]) {
+      expect(toolByName(name), name).toMatchObject({ confirm: true });
+    }
+    expect(auto).toEqual(["dry_run_fix"]);
     for (const t of acts) if (t.risk === "high") expect(t.confirm).toBe(true);
+  });
+
+  it("has no act that adds or changes a person: people are managed on Settings → Users (D-116)", () => {
+    expect(toolByName("put_user")).toBeUndefined();
+    const fns = acts.map((t) => t.call(sample(t))).map((c) => ("fn" in c ? c.fn : c.local));
+    expect(fns).not.toContain("ui_user_put");
   });
 
   it("keeps the owner-only acts from an engineer", () => {
     const engineer = toolsFor("engineer").map((t) => t.name);
     expect(engineer).not.toContain("set_fix");
-    expect(engineer).not.toContain("put_user");
     expect(engineer).toContain("acknowledge_incident");
     expect(toolsFor("owner").map((t) => t.name)).toContain("set_fix");
   });
@@ -101,7 +110,6 @@ function sample(t: ActTool): Record<string, unknown> {
     update_check: { id: "WITTY-04", patch: { severity: "P3" }, reason: "noisy at night" },
     update_test: { id: "T-WITTY-QUALIFY", patch: { enabled: false }, reason: "number changing" },
     put_setting: { key: "thresholds", value: { catalogue_min: 45 }, reason: "the cache runs every 15 minutes" },
-    put_user: { email: "eng@eduwit.in", role: "engineer", active: true },
     regenerate_brief: { for_date: "2026-10-28", tier: "regular" },
     validate_setup: { item: "n8n_api" },
   };

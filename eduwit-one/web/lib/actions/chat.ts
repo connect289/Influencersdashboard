@@ -1,6 +1,7 @@
 "use server";
 import { z } from "zod";
 import { SupabaseChatDb, type Decided } from "../ai/chat/db.ts";
+import { shownArgs } from "../ai/chat/shown.ts";
 import { toolByName } from "../ai/chat/tools.ts";
 import { log } from "../log.ts";
 import { assertUser } from "../session.ts";
@@ -11,15 +12,23 @@ import { act, fields, invalid, type ActionResult } from "./act.ts";
 
 // The person's side of the command centre's action cards (D-094). Confirm marks the action in the database and then
 // runs the one one.ui_* call it names, as this person, under one request id, and closes the action with the result;
-// decline closes it. The arguments are validated against the tool's schema again before anything runs.
+// decline closes it. A confirmation carries the arguments the card showed, and the database confirms only if they are
+// the stored ones (D-115). The arguments are validated against the tool's schema again before anything runs.
 
 export type ChatActionResult = ActionResult & { status?: string };
 
 export async function decideChatAction(_: ChatActionResult | undefined, form: FormData): Promise<ChatActionResult> {
   const p = z
-    .object({ id: z.coerce.number().int().positive(), decision: z.enum(["confirm", "decline"]) })
+    .object({
+      id: z.coerce.number().int().positive(),
+      decision: z.enum(["confirm", "decline"]),
+      args: z.string().optional(),
+    })
     .safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
+  const shown = p.data.decision === "confirm" ? shownArgs(p.data.args) : null;
+  if (p.data.decision === "confirm" && !shown)
+    return { ok: false, error: "This card cannot be confirmed: reload the conversation and decide again." };
   let me;
   try {
     me = await assertUser();
@@ -30,7 +39,7 @@ export async function decideChatAction(_: ChatActionResult | undefined, form: Fo
   const requestId = crypto.randomUUID();
   let decided: Decided;
   try {
-    decided = await db.actionDecide(p.data.id, p.data.decision, requestId);
+    decided = await db.actionDecide(p.data.id, p.data.decision, requestId, shown);
   } catch (e) {
     return { ok: false, error: e instanceof UiError ? e.message : "That did not work. Try again." };
   }

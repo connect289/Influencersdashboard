@@ -70,6 +70,13 @@ class FakeAi {
   tools: Array<{ name: string; args: Record<string, unknown> }> = [];
   answer: (name: string) => unknown = () => ({ ok: true, data: [{ id: 1, phone: "9876543210", title: "x" }] });
   remaining = 200;
+  /** Each call's reserved worst case (D-118); refuse = the cap is taken by calls in flight. */
+  reserved: number[] = [];
+  refuse = false;
+  async reserve(_t: number, _h: string, amount: number) {
+    this.reserved.push(amount);
+    return { ok: !this.refuse, remaining_inr: this.refuse ? 0.5 : this.remaining - amount };
+  }
   async recordCalls(_t: number, _h: string, calls: CallRecord[]) {
     this.recorded.push(...calls);
     this.remaining -= calls.reduce((n, c) => n + (c.cost_inr ?? 0), 0);
@@ -144,17 +151,17 @@ describe("a turn that answers", () => {
         blocks: [
           { type: "text", text: "Let me look." },
           toolUse("t1", "incidents", { status: "open", app: "witty" }),
-          toolUse("t2", "rerun_deep", { id: 1 }),
+          toolUse("t2", "dry_run_fix", { fix_id: "FIX-N8N-RETRY", incident_id: 1 }),
           toolUse("t3", "runbook", { query: "rotate n8n key" }),
         ],
         usage,
       },
-      { text: "Incident #1 is queued for the deep model. Rotate the key as the runbook says.", usage },
+      { text: "The dry run of FIX-N8N-RETRY is recorded. Rotate the key as the runbook says.", usage },
     ]);
     const { chat, aiDb, acts, events, go } = run(model);
     await go();
     expect(aiDb.tools).toEqual([{ name: "incidents", args: { status: "open", app: "witty" } }]);
-    expect(acts).toEqual([{ fn: "ui_rerun_deep", args: { p_id: 1 } }]);
+    expect(acts).toEqual([{ fn: "ui_fix_dry_run", args: { p_fix: "FIX-N8N-RETRY", p_incident: 1 } }]);
     const second = model.requests[1] as ChatRequest;
     const results = second.messages.at(-1)?.content;
     expect(Array.isArray(results)).toBe(true);
@@ -165,12 +172,12 @@ describe("a turn that answers", () => {
     expect(events.filter((e) => e.t === "tool").map((e) => (e.t === "tool" ? `${e.name}:${e.status}` : ""))).toEqual([
       "incidents:running",
       "incidents:ok",
-      "rerun_deep:running",
-      "rerun_deep:ok",
+      "dry_run_fix:running",
+      "dry_run_fix:ok",
       "runbook:running",
       "runbook:ok",
     ]);
-    expect(chat.finished[0]?.assistant.tools.map((t) => t.name)).toEqual(["incidents", "rerun_deep", "runbook"]);
+    expect(chat.finished[0]?.assistant.tools.map((t) => t.name)).toEqual(["incidents", "dry_run_fix", "runbook"]);
     expect(JSON.stringify(chat.finished[0]?.assistant.tools)).not.toContain("9876543210");
     expect(aiDb.recorded).toHaveLength(2);
   });
@@ -254,15 +261,30 @@ describe("a turn that answers", () => {
     expect(names).toContain("acknowledge_incident");
   });
 
-  it("runs a Setup validator as an act and reports the verdict", async () => {
+  it("makes a Setup validation, a deep re-run and a brief re-build cards; none runs by itself (D-120)", async () => {
     const model = new ScriptedChatClient([
-      { blocks: [toolUse("t1", "validate_setup", { item: "n8n_api" })], usage },
-      { text: "n8n is validated.", usage },
+      {
+        blocks: [
+          toolUse("t1", "validate_setup", { item: "n8n_api" }),
+          toolUse("t2", "rerun_deep", { id: 1 }),
+          toolUse("t3", "regenerate_brief", { for_date: "2026-10-30", tier: "deep" }),
+        ],
+        usage,
+      },
+      { text: "Three cards wait for you.", usage },
     ]);
-    const { go, events } = run(model);
+    let validated = 0;
+    const { go, acts, chat } = run(model, {
+      validateSetup: async () => {
+        validated++;
+        return { ok: true, detail: "n8n answered" };
+      },
+    });
     await go();
-    expect(JSON.stringify((model.requests[1] as ChatRequest).messages.at(-1)?.content)).toContain("n8n answered");
-    expect(events.some((e) => e.t === "tool" && e.name === "validate_setup" && e.status === "ok")).toBe(true);
+    expect(validated).toBe(0);
+    expect(acts).toEqual([]);
+    expect(chat.proposed.map((p) => p.tool)).toEqual(["validate_setup", "rerun_deep", "regenerate_brief"]);
+    expect(JSON.stringify((model.requests[1] as ChatRequest).messages.at(-1)?.content)).toContain("has not run");
   });
 });
 
@@ -292,6 +314,40 @@ describe("a turn that cannot or should not run", () => {
     expect(r.chat.finished[0]?.status).toBe("failed");
     expect(r.chat.finished[0]?.error).toMatch(/^budget \(cap reached\)/);
     expect(r.events.at(-1)?.t).toBe("error");
+  });
+
+  it("reserves each call's worst case in the database before making it (D-118)", async () => {
+    const model = new ScriptedChatClient([
+      { blocks: [toolUse("t1", "incidents", { status: "open" })], usage },
+      { text: "One incident is open.", usage },
+    ]);
+    const r = run(model);
+    await r.go();
+    expect(model.requests).toHaveLength(2);
+    expect(r.aiDb.reserved).toHaveLength(2);
+    for (const w of r.aiDb.reserved) expect(w).toBeGreaterThan(0);
+  });
+
+  it("makes no call when the day's cap is taken by calls in flight elsewhere (D-118)", async () => {
+    const model = new ScriptedChatClient([{ text: "x", usage }]);
+    const r = run(model);
+    r.aiDb.refuse = true;
+    await r.go();
+    expect(model.requests).toEqual([]);
+    expect(r.aiDb.recorded).toEqual([]);
+    expect(r.chat.finished[0]?.status).toBe("failed");
+    expect(r.chat.finished[0]?.error).toMatch(/^budget \(cap reached\).*counting the calls in flight$/);
+  });
+
+  it("makes no call when the reservation cannot be made", async () => {
+    const model = new ScriptedChatClient([{ text: "x", usage }]);
+    const r = run(model);
+    r.aiDb.reserve = async () => {
+      throw new Error("database away");
+    };
+    await r.go();
+    expect(model.requests).toEqual([]);
+    expect(r.chat.finished[0]?.status).toBe("failed");
   });
 
   it("records a failed call, counted at its worst case when no status came back, and fails the turn", async () => {

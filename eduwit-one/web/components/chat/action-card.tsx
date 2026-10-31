@@ -31,6 +31,8 @@ export function ActionCard({ action, onDecided }: { action: ActionCardData; onDe
       const form = new FormData();
       form.set("id", String(state.id));
       form.set("decision", decision);
+      // What this card shows is what is confirmed (D-115): the database runs it only if these are the stored arguments.
+      if (decision === "confirm") form.set("args", JSON.stringify(state.args));
       let r: ChatActionResult;
       try {
         r = await decideChatAction(undefined, form);

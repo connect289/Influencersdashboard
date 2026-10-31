@@ -461,7 +461,9 @@ To switch it on (Settings → Setup → `ai_key`, owner). Claude only (D-078):
 Spend: `daily_cap_inr` (₹250, sized to fit the smallest plan's monthly API credits) and `per_task_cap_inr` (₹50). From `queue_non_triage_at_pct` (80%) of the day's cap only
 classify and triage run; at the cap nothing runs, and ONE-01 fires at the cap or while work waits because of it. A call
 is not made when its worst case (the whole output allowance) would pass the per-task cap, counted over the task's
-attempts, or what is left today. Held-back tasks show "deferred" with the reason on the incident and Ask pages and are
+attempts, or what is left today; each call reserves that worst case in the database before it runs and its record
+settles it, so calls in parallel (worker tasks, chat turns) cannot pass the day's cap together (`one.ai_reserve`,
+D-118). Held-back tasks show "deferred" with the reason on the incident and Ask pages and are
 offered again every 15 minutes; a failed call that can be retried waits 2, 4, then 8 minutes; tasks older than
 `task_max_age_h` (48) are cancelled. To stop all AI work at once, set `daily_cap_inr` to 0 (ONE-01 then stays quiet).
 Every call is in Audit → AI calls with its tokens, cost and prompt version, recorded as it ends; a call that got no
@@ -521,11 +523,14 @@ rules, plus the ability to act, under these limits:
   audit, the Operate pages and this runbook). The model never writes SQL. Contact data is masked twice (the database's
   redaction, then `web/lib/ai/pii.ts`), the person's own message included.
 - **Acts** are the console's own page functions (`one.ui_*`), run as the signed-in person with their role check and audit
-  row, under the same request id. Four low-risk acts run at once: a fix's dry run, a Setup item's validation, an
-  explanation on the deep model, a brief re-built. Everything else (acknowledge, resolve, mute, run a test, switch a
-  fix, decide a proposal, change a check, a test, a setting or a person) first shows an **action card**
-  in the chat with the exact arguments; nothing runs until **Confirm and run** is pressed. A card not decided in two
-  hours expires. An engineer is not offered the owner-only acts (fix switches, people); the database refuses them anyway.
+  row, under the same request id. One act runs at once: a fix's dry run, which only records what the fix would do.
+  Everything else (acknowledge, resolve, mute, validate a Setup item, explain again on the deep model, re-build a brief,
+  run a test, switch a fix, decide a proposal, change a check, a test or a setting) first shows an **action card** in
+  the chat with the exact arguments; nothing runs until **Confirm and run** is pressed, and the confirmation carries the
+  arguments the card showed, which must be the stored ones (D-115). An action's arguments cannot hold an email address
+  or a phone-shaped number. A card not decided in two hours expires. People are added and changed on Settings → Users,
+  not in the chat (D-116). An engineer is not offered the owner-only acts (fix switches); the database refuses them
+  anyway.
 - **Fixes on the apps** keep every rule of the fix catalogue (D-079, D-084): the chat can record a dry run and propose
   the owner's switch; it never runs a fix and never promises one will run.
 - **Secrets** never pass through the model: the chat shows a Vault card (`request_secret`), the value goes to
@@ -533,7 +538,8 @@ rules, plus the ability to act, under these limits:
   is refused before it is stored or sent, with a note to rotate it if it was real.
 - **Budget**: each turn is one `chat` task in `one.ai_tasks`, its calls in Audit → AI calls with their cost, on the
   `regular` tier (`ai.routing.chat`). The day's cap and `queue_non_triage_at_pct` apply exactly as to Ask (at 80 % of the
-  cap the chat says so and stops); a turn stops at the per-task cap, after 16 tool calls or 8 rounds. A turn the app
+  cap the chat says so and stops); a turn stops at the per-task cap, after 16 tool calls or 8 rounds. Each call
+  reserves its worst case first, as the worker's do, so turns in parallel cannot pass the day's cap (D-118). A turn the app
   did not finish in 10 minutes is failed, never re-queued, so it never counts as waiting work (ONE-01).
 - **Storage**: conversations are the person's own (nobody else can read them, the owner included), kept
   `retention.chat_days` (90) and pruned by `one.retention()`; **Archive** hides one. Each conversation shows the tools

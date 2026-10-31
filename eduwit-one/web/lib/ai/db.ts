@@ -49,6 +49,11 @@ export interface AiDb {
   claim(holder: string): Promise<Claim | null>;
   /** Records calls as they end, and answers with today's budget as it now stands. */
   recordCalls(task: number, holder: string, calls: CallRecord[]): Promise<{ remaining_inr: number }>;
+  /**
+   * Reserves a model call's worst case before it runs (0031, D-118): granted only while today's spend, the calls in
+   * flight and this one fit under the day's cap. Recording the call settles it.
+   */
+  reserve(task: number, holder: string, amountInr: number): Promise<{ ok: boolean; remaining_inr: number }>;
   finish(task: number, holder: string, result: Record<string, unknown>, calls: CallRecord[]): Promise<void>;
   fail(task: number, holder: string, error: string, calls: CallRecord[], retry: boolean): Promise<string>;
   defer(task: number, holder: string, reason: string, minutes: number): Promise<void>;
@@ -88,6 +93,12 @@ export class SupabaseAiDb implements AiDb {
     return z
       .object({ remaining_inr: z.number() })
       .parse(await this.rpc("ai_calls_add", { p_task: task, p_holder: holder, p_calls: calls }));
+  }
+
+  async reserve(task: number, holder: string, amountInr: number) {
+    return z
+      .object({ ok: z.boolean(), remaining_inr: z.number() })
+      .parse(await this.rpc("ai_reserve", { p_task: task, p_holder: holder, p_amount: amountInr }));
   }
 
   async finish(task: number, holder: string, result: Record<string, unknown>, calls: CallRecord[]) {

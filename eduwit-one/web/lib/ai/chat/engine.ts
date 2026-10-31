@@ -38,7 +38,7 @@ export type ChatEvent =
 
 export type ChatDeps = {
   chat: ChatDb;
-  ai: Pick<AiDb, "recordCalls" | "tool">;
+  ai: Pick<AiDb, "recordCalls" | "tool" | "reserve">;
   /** The Claude client, or null when no key is set. */
   client: ChatModelClient | null;
   n8n?: N8nReader | null;
@@ -178,6 +178,25 @@ class Budget {
         `budget (cap reached): the next call could cost up to ${inr(worst)} and ${inr(Math.max(this.remainingInr, 0))} is left today`,
       );
     }
+    return worst;
+  }
+
+  /**
+   * The call's worst case, reserved in the database before it runs (D-118): turns and worker tasks in parallel cannot
+   * pass the day's cap together. The call's record settles it. No answer from the database, no call.
+   */
+  async reserve(deps: ChatDeps, task: number, worst: number) {
+    let r: { ok: boolean; remaining_inr: number };
+    try {
+      r = await deps.ai.reserve(task, deps.holder, worst);
+    } catch {
+      throw new Stop("the call's budget could not be reserved; ask again");
+    }
+    if (!r.ok) {
+      throw new Stop(
+        `budget (cap reached): the next call could cost up to ${inr(worst)} and ${inr(Math.max(r.remaining_inr, 0))} is left today, counting the calls in flight`,
+      );
+    }
   }
 
   async record(deps: ChatDeps, task: number, c: CallRecord) {
@@ -300,9 +319,10 @@ export async function runTurn(
       const chars = requestChars(req);
       if (chars > CONTEXT_MAX_CHARS)
         throw new Stop("this conversation has grown too long for one turn; start a new one");
-      budget.check(r, chars, MAX_TOKENS.chat);
+      const worstCall = budget.check(r, chars, MAX_TOKENS.chat);
       const timeLeft = deps.deadline - now() - 3_000;
       if (timeLeft < CALL_MIN_MS) throw new Stop("the turn ran out of time before the answer; ask again");
+      await budget.reserve(deps, turn.task_id, worstCall);
       const base = {
         provider: "anthropic" as const,
         model: r.model,

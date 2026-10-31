@@ -5,8 +5,9 @@ import { APPS, ASK_TOOLS } from "../schemas.ts";
 //   read    the fixed read-only tools Ask already has (the database's one.ai_tool_data, plus runbook, operate and
 //           n8n_executions in the app); the model calls them freely.
 //   act     one one.ui_* page function each, run as the signed-in person with their own role check and audit row.
-//           A low-risk, reversible act runs at once ("auto"); every other act is first an action card the person
-//           confirms in the chat ("confirm"). The model never gets a function the pages do not have.
+//           Only a fix's dry run, which records what the fix would do and changes nothing, runs at once ("auto");
+//           every other act is first an action card the person confirms in the chat ("confirm", D-107, D-120). The
+//           model never gets a function the pages do not have.
 //   secret  no model involvement at all: the chat shows a Vault card; the value goes to one.ui_secret_put directly.
 // The arguments are validated here (zod) before anything runs, whatever the model sent.
 
@@ -183,7 +184,8 @@ const ACT: ActTool[] = [
     name: "rerun_deep",
     description: "Ask the AI worker to explain an incident again on the deep model.",
     input: z.object({ id }),
-    confirm: false,
+    // A card (D-120): it spends on the deep tier.
+    confirm: true,
     risk: "low",
     perm: "operate",
     call: (a) => ({ fn: "ui_rerun_deep", args: { p_id: a.id } }),
@@ -385,22 +387,14 @@ const ACT: ActTool[] = [
     call: (a) => ({ fn: "ui_settings_put", args: { p_key: a.key, p_value: a.value, p_reason: a.reason } }),
     summary: (a) => `Change setting ${String(a.key)}`,
   }),
-  act({
-    name: "put_user",
-    description: "Add a person to Eduwit One or change their role or active state (owner).",
-    input: z.object({ email: z.email().max(200), role: z.enum(["owner", "engineer"]), active: z.boolean() }),
-    confirm: true,
-    risk: "high",
-    perm: "owner",
-    call: (a) => ({ fn: "ui_user_put", args: { p_email: a.email, p_role: a.role, p_active: a.active } }),
-    summary: (a) =>
-      `${a.active ? "Give" : "Remove"} ${String(a.email)} ${a.active ? `the ${String(a.role)} role` : "access"}`,
-  }),
+  // No act adds or changes a person (D-116): an address is contact data the model never holds, so people are managed on
+  // Settings → Users.
   act({
     name: "regenerate_brief",
     description: "Queue the morning brief for a day again, on a tier.",
     input: z.object({ for_date: z.iso.date(), tier: z.enum(["quick", "regular", "deep"]) }),
-    confirm: false,
+    // A card (D-120): it spends on the chosen tier.
+    confirm: true,
     risk: "low",
     perm: "operate",
     call: (a) => ({ fn: "ui_brief_regenerate", args: { p_for_date: a.for_date, p_tier: a.tier } }),
@@ -411,7 +405,8 @@ const ACT: ActTool[] = [
     description:
       "Run a Setup item's validator now (the real call with the saved value) and record the verdict; the checks it unblocks switch on when it passes.",
     input: z.object({ item: z.string().regex(/^[a-z0-9_]{2,60}$/) }),
-    confirm: false,
+    // A card (D-120): a validator makes the real call (a test email, a sign-in as the test runner).
+    confirm: true,
     risk: "low",
     perm: "operate",
     call: (a) => ({ local: "validate_setup", item: String(a.item) }),

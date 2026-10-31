@@ -41,6 +41,13 @@ class FakeAiDb implements AiDb {
     this.remaining -= calls.reduce((n, c) => n + (c.cost_inr ?? 0), 0);
     return { remaining_inr: this.remaining };
   }
+  /** Each call's reserved worst case (D-118); refuseReserve = the cap is taken by calls in flight. */
+  reserved: number[] = [];
+  refuseReserve = false;
+  async reserve(_t: number, _h: string, amount: number) {
+    this.reserved.push(amount);
+    return { ok: !this.refuseReserve, remaining_inr: this.refuseReserve ? 0.25 : this.remaining - amount };
+  }
   async finish(_t: number, _h: string, result: Record<string, unknown>, calls: CallRecord[]) {
     if (this.finishError) throw this.finishError;
     this.verdicts.push({ kind: "finish", result, calls });
@@ -300,6 +307,38 @@ describe("a task that fails", () => {
     );
     expect(await runTask(c, deps(db, model))).toBe("failed");
     expect(db.verdicts[0]).toMatchObject({ kind: "fail", error: expect.stringContaining("per-task cap ₹50.00") });
+    expect(model.requests).toHaveLength(0);
+  });
+
+  it("reserves each call's worst case before making it (D-118)", async () => {
+    const db = new FakeAiDb();
+    const model = new ScriptedModelClient("anthropic", [{ json: triage }]);
+    expect(await runTask(claim(), deps(db, model))).toBe("done");
+    expect(model.requests).toHaveLength(1);
+    expect(db.reserved).toHaveLength(1);
+    expect(db.reserved[0]).toBeGreaterThan(0);
+  });
+
+  it("waits without a call when the day's cap is taken by calls in flight (D-118)", async () => {
+    const db = new FakeAiDb();
+    db.refuseReserve = true;
+    const model = new ScriptedModelClient("anthropic", [{ json: triage }]);
+    expect(await runTask(claim(), deps(db, model))).toBe("deferred");
+    expect(model.requests).toHaveLength(0);
+    expect(db.verdicts[0]).toMatchObject({
+      kind: "defer",
+      reason: expect.stringMatching(/^budget \(cap reached\): .*₹0\.25 is left today, counting the calls in flight$/),
+      minutes: 15,
+    });
+  });
+
+  it("makes no call when the reservation cannot be made", async () => {
+    const db = new FakeAiDb();
+    db.reserve = async () => {
+      throw new Error("database away");
+    };
+    const model = new ScriptedModelClient("anthropic", [{ json: triage }]);
+    expect(await runTask(claim(), deps(db, model))).toBe("retry");
     expect(model.requests).toHaveLength(0);
   });
 

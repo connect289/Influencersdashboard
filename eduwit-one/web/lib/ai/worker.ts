@@ -180,6 +180,21 @@ class TaskCalls {
     }
     const timeLeft = this.deps.deadline - this.now() - 5_000;
     if (timeLeft < CALL_MIN_MS) throw new Stop("retry", "the worker ran out of time before the call");
+    // The day's cap holds across calls in parallel (D-118): the worst case is reserved first, and the call's record
+    // settles it. A refusal is the cap reached counting the calls in flight; no answer from the database, no call.
+    let reserved: { ok: boolean; remaining_inr: number };
+    try {
+      reserved = await this.deps.db.reserve(this.claim.task.id, this.deps.holder, worst);
+    } catch {
+      throw new Stop("retry", "the call's budget could not be reserved");
+    }
+    if (!reserved.ok) {
+      throw new Stop(
+        "defer",
+        `budget (cap reached): this call could cost up to ${inr(worst)} and ${inr(Math.max(reserved.remaining_inr, 0))} is left today, counting the calls in flight`,
+        15,
+      );
+    }
     const base = { provider: r.provider, model: r.model, purpose, prompt_version: version };
     let answer;
     try {

@@ -16,6 +16,12 @@ rehearsed nor applied: apply 0031 before deploying the web.
   `supabase/tests/local/99_audit_fixes.sql` (each section fails on 0030 and passes on 0031),
   `web/lib/ai/mask-corpus.test.ts`, `99_chat.sql` confirming with the card's arguments; fingerprint regenerated
   (246 functions, 37 tables). The D-110 row is back inside the decisions table.
+- The web half (D-115, D-116, D-118, D-120): the action card posts the arguments it showed and `decideChatAction`
+  passes them on (`lib/ai/chat/shown.ts`); the chat engine and the worker reserve each call's worst case before it
+  (`AiDb.reserve`; no reservation, no call); `put_user` is no longer a chat act; `validate_setup`, `rerun_deep` and
+  `regenerate_brief` are cards, so only a fix's dry run runs at once; the chat prompt (`chat@a01405a6c5`) and the
+  runbook match. Tests: `lib/ai/chat/engine.test.ts`, `lib/ai/worker.test.ts`, `lib/ai/chat/tools.test.ts`,
+  `lib/ai/chat/shown.test.ts`.
 
 ## 31 Oct 2026 — the owner's go for the listed actions (D-111)
 

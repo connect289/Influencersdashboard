@@ -112,7 +112,13 @@ export interface ChatDb {
     summary: string,
     risk: string,
   ): Promise<number>;
-  actionDecide(id: number, decision: "confirm" | "decline", requestId: string): Promise<Decided>;
+  /** shown: the arguments the card showed; a confirmation runs only if they are the stored ones (0031, D-115). */
+  actionDecide(
+    id: number,
+    decision: "confirm" | "decline",
+    requestId: string,
+    shown?: Record<string, unknown> | null,
+  ): Promise<Decided>;
   actionResult(id: number, ok: boolean, result: unknown, error: string | null): Promise<string>;
 }
 
@@ -162,8 +168,18 @@ export class SupabaseChatDb implements ChatDb {
     return r.id;
   }
 
-  async actionDecide(id: number, decision: "confirm" | "decline", requestId: string) {
-    return ui("ui_chat_action_decide", decidedSchema, { p_id: id, p_decision: decision, p_request_id: requestId });
+  async actionDecide(
+    id: number,
+    decision: "confirm" | "decline",
+    requestId: string,
+    shown: Record<string, unknown> | null = null,
+  ) {
+    return ui("ui_chat_action_decide", decidedSchema, {
+      p_id: id,
+      p_decision: decision,
+      p_request_id: requestId,
+      p_shown: shown,
+    });
   }
 
   async actionResult(id: number, ok: boolean, result: unknown, error: string | null) {
