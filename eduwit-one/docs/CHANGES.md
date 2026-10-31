@@ -9,7 +9,8 @@ followed.
   Dev SQL"; the Gemini Harness, Latency Lab and Extractor Eval harnesses). Kept: "Witty 2.0 · Test Harness (dev)", which
   Eduwit One's tests use. Archiving is reversible in n8n.
 - Vercel: the Ignored Build Step compares with the last successful deployment (D-111), so the audit's web fixes deploy with
-  the next push.
+  the next push. Its first version errored on Vercel's shallow clone (deployment `ab3ee3e`, ERROR, production unaffected);
+  corrected to build whenever it cannot prove nothing changed.
 - Website fixes: the push to `claude/inspiring-babbage-8asj1y` was refused by the session's safety layer as a production
   deploy; the eight commits stay in `docs/reviews/estate-audit-2026-10-30/website-fixes.mbox` for the owner or developer.
 - 0029 and 0030: the first apply attempt hit a 524 from the Management API at 01:45 UTC while the database stalled; the
