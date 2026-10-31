@@ -102,6 +102,7 @@ const MESSAGES: Record<string, string> = {
   blocked: "We couldn't accept these details. Please contact us on WhatsApp instead.",
   too_many_codes: "You've asked for several codes already. Please wait an hour or contact us on WhatsApp.",
   too_soon: "Please wait a few seconds before asking for another code.",
+  site_busy: "We're getting a lot of requests right now. Please try again in a few minutes, or contact us on WhatsApp.",
   send_failed: "We couldn't send the code just now. Please try again in a minute.",
   unavailable: "Something went wrong on our side. Please try again, or contact us on WhatsApp.",
   expired: "That code has expired. Ask for a new one.",
@@ -112,6 +113,21 @@ const err = (reason: string): { status: "error"; reason: string; message: string
   reason,
   message: MESSAGES[reason] ?? MESSAGES.unavailable!,
 });
+
+/**
+ * The database refuses new codes above the site-wide hourly ceiling (web_settings code_send_hourly_cap, web14). The
+ * first refusal on a server instance in any 10 minutes is logged as an error (the alert), the rest as warnings.
+ */
+let codeCeilingAlertAt = 0;
+function codeCeilingReached(surface: Surface, requestId: string) {
+  const now = Date.now();
+  if (now - codeCeilingAlertAt > 10 * 60_000) {
+    codeCeilingAlertAt = now;
+    log("error", "gate.code_ceiling_reached", { surface, requestId });
+  } else {
+    log("warn", "gate.code_ceiling_refused", { surface, requestId });
+  }
+}
 
 export function newCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
@@ -241,7 +257,8 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
       p: { ...payload, code_hash: codeHash(payload.idempotency_key, code) },
     });
     if (!r.ok) {
-      log("info", "gate.refused", { surface, reason: r.reason, requestId });
+      if (r.reason === "site_busy") codeCeilingReached(surface, requestId);
+      else log("info", "gate.refused", { surface, reason: r.reason, requestId });
       return err(r.reason ?? "unavailable");
     }
     if (r.status === "already_verified") return { status: "verified", attemptId: r.attempt_id! };
@@ -279,7 +296,10 @@ export async function resendCode(attemptId: string): Promise<StartOutcome> {
       p_attempt: attemptId,
       p_code_hash: codeHash(info.key, code),
     });
-    if (!r.ok) return r.reason === "too_soon" ? { ...err("too_soon") } : err(r.reason ?? "unavailable");
+    if (!r.ok) {
+      if (r.reason === "site_busy") codeCeilingReached(info.surface, requestId);
+      return r.reason === "too_soon" ? { ...err("too_soon") } : err(r.reason ?? "unavailable");
+    }
     await verifier.sendCode(info.email, code, info.surface === "signin" ? "signin" : "verify", `code:${attemptId}:${code}`);
     log("info", "gate.code_resent", { surface: info.surface, requestId });
     return { status: "code_sent", attemptId, resendIn: r.resend_in ?? 30, maskedEmail: maskEmail(info.email) };
