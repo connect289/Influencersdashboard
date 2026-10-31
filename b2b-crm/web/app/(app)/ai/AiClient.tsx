@@ -148,6 +148,11 @@ export function AiSettingsForm({ s, version, gate }: { s: AiSettings; version: n
         <L label="Worker address" error={e.worker_url} hint="This CRM's https:// address; the database wakes /v1/ai/tick there.">
           <input name="worker_url" defaultValue={s.worker_url ?? ""} placeholder="https://b2b.eduwit.in" className={field} aria-invalid={Boolean(e.worker_url)} />
         </L>
+        <L label="Worker key" error={e.worker_key}
+          hint={s.worker_key_set ? "Saved. Paste a new AI_WORKER_KEY only to replace it." : "Paste the server's AI_WORKER_KEY: the database sends it when it wakes the worker."}>
+          <input name="worker_key" type="password" autoComplete="off" defaultValue="" placeholder={s.worker_key_set ? "••••••••" : "eb2b_…"} className={field}
+            aria-invalid={Boolean(e.worker_key)} />
+        </L>
         {AI_MODEL_ROLES.map((role) => (
           <L key={role} label={`Model: ${ROLE_LABEL[role].toLowerCase()}`} error={e[`model_${role}`]}>
             <input name={`model_${role}`} defaultValue={s.models[role]} onChange={(ev) => { const v = ev.target.value; setModels((m) => ({ ...m, [role]: v })); }}

@@ -1,11 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { anthropicMessages, runOnce, type Db, type Usage } from "@/lib/ai/worker";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { carriesKey } from "@/lib/worker-auth";
 
 /**
- * The AI optimiser's worker (spec B7.8.2). The database wakes it (pg_net) when a run is queued; anyone calling it can
- * only make queued runs start sooner, because the database decides what runs and enforces the daily budget. Needs two
- * server-side environment variables: ANTHROPIC_API_KEY and AI_WORKER_KEY (an API key with the ai_worker scope).
+ * The AI optimiser's worker (spec B7.8.2). The database wakes it (pg_net) when a run is queued, sending the worker key as
+ * "Authorization: Bearer <key>" (b2b.ai_wake, m34f); any other caller is refused (401). The database decides what runs and
+ * enforces the daily budget. Needs two server-side environment variables: ANTHROPIC_API_KEY and AI_WORKER_KEY (an API key
+ * with the ai_worker scope), and the same AI_WORKER_KEY saved in AI settings (Worker key) so the database can send it.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,10 +32,11 @@ function db(key: string): Db {
   };
 }
 
-async function tick(): Promise<Response> {
+async function tick(request: Request): Promise<Response> {
   const workerKey = process.env.AI_WORKER_KEY;
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!workerKey) return Response.json({ ok: false, error: "AI_WORKER_KEY is not set on the server" }, { status: 503 });
+  // M34f: only the caller holding the worker key; nothing about the server's set-up is said to anyone else
+  if (!workerKey || !carriesKey(request.headers, workerKey)) return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   const d = db(workerKey);
   if (!apiKey) {
     // report in, so the Admin screen can say what is missing; claim nothing

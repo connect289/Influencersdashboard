@@ -58,7 +58,7 @@ export type FormState = { errors?: Record<string, string>; error?: string; ok?: 
 
 export async function saveAiSettings(_prev: FormState, form: FormData): Promise<FormState> {
   await assertAdmin();
-  const keys = ["enabled", "mode", "min_gain_pct", "max_per_day", "daily_budget_usd", "worker_url", "model_regular", "model_deep", "model_quick", "light", "hourly", "nightly", "weekly",
+  const keys = ["enabled", "mode", "min_gain_pct", "max_per_day", "daily_budget_usd", "worker_url", "worker_key", "model_regular", "model_deep", "model_quick", "light", "hourly", "nightly", "weekly",
                 ...AI_PRICE_KEYS, "reason"];
   const p = AiSettingsSchema.safeParse(Object.fromEntries(keys.map((k) => [k, form.get(k) ?? undefined])));
   if (!p.success) {

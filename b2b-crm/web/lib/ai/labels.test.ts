@@ -236,6 +236,14 @@ describe("AI settings numbers (C63)", () => {
     expect(issue({ max_per_day: "2.5" }, "max_per_day")).toBe("1 to 10");
     expect(aiSettingsPayload(AiSettingsSchema.parse({ ...base, min_gain_pct: "4.5", max_per_day: "2" })).autopilot).toEqual({ min_gain_pct: 4.5, max_per_day: 2 });
   });
+  it("M34f: the worker key is sent only when typed, and the worker address must be public", () => {
+    expect(aiSettingsPayload(AiSettingsSchema.parse(base))).not.toHaveProperty("worker_key");
+    const key = "eb2b_0123456789abcdef0123456789abcdef";
+    expect(aiSettingsPayload(AiSettingsSchema.parse({ ...base, worker_key: ` ${key} ` })).worker_key).toBe(key);
+    expect(issue({ worker_key: "short" }, "worker_key")).toBe("Paste the whole key (AI_WORKER_KEY)");
+    expect(issue({ worker_url: "https://169.254.169.254" }, "worker_url")).toMatch(/public internet/);
+    expect(AiSettingsSchema.parse({ ...base, worker_url: "https://crm.eduwit.in" }).worker_url).toBe("https://crm.eduwit.in");
+  });
 });
 
 describe("AI settings prices", () => {
