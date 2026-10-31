@@ -35,7 +35,7 @@ create temporary table ids (label text primary key, id uuid);
 grant select, insert, update on ids to authenticated, service_role;
 insert into ids select label, creator_id from tests.people where creator_id is not null;
 insert into ids values ('deal', gen_random_uuid()), ('campaign', gen_random_uuid());
-insert into inf.campaigns (id, name, objective, created_by) values ((select id from ids where label = 'campaign'), 'Comm push', 'leads', (select user_id from tests.people where label = 'mona'));
+insert into inf.campaigns (id, name, objective, status, created_by) values ((select id from ids where label = 'campaign'), 'Comm push', 'leads', 'open', (select user_id from tests.people where label = 'mona'));
 insert into inf.deals (id, creator_id, title, status, starts_on, deal_model, agreed_at, owner_id)
 values ((select id from ids where label = 'deal'), (select id from ids where label = 'riya'), 'Riya reel deal', 'active', (now() at time zone 'Asia/Kolkata')::date - 10, 'hybrid', now(),
         (select user_id from tests.people where label = 'mona'));

@@ -89,3 +89,4 @@ Review of the `inf` schema's client-callable functions and the app's routes. Cha
 | 16 | `tiers_list` answers staff, creators and the service role | Fixed |
 | 17 | The short-link route handles any path segment without an error (`decodeCodeSegment`) | Fixed |
 | 18 | `npm audit --omit=dev`: nodemailer 10.1.7, fast-uri 3.1.9 (0 vulnerabilities) | Fixed |
+| 19 | Campaign conversations follow campaign visibility; archived campaigns' conversations are read-only (D-193, `20261031000100_inf_campaign_threads.sql`, pgTAP `026_campaign_threads.sql`) | Fixed |

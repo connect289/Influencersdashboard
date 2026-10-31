@@ -106,7 +106,7 @@ export const ALL_STAFF: Guide = {
       title: "Messages",
       blocks: [
         {
-          p: "Every application, deal, contract, brief, deliverable and payout has a conversation with the creator (and their agency, if the creator gave it the matching permission). Each creator also has a support conversation, and each campaign has a private conversation per creator for questions before they apply.",
+          p: "Every application, deal, contract, brief, deliverable and payout has a conversation with the creator (and their agency, if the creator gave it the matching permission). Each creator also has a support conversation, and each campaign has a private conversation per creator for questions before they apply. A creator (and an agency they let negotiate) can use it while the campaign is open to them in the marketplace or they were invited, applied, have a deal in it or already have a conversation about it; an archived campaign's conversations stay readable but take no new messages.",
         },
         {
           list: [
