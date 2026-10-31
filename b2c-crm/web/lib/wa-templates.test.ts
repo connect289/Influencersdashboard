@@ -1,7 +1,36 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/admin", () => ({ adminClient: () => ({}) }));
-import { templateBody } from "./wa-templates";
+import type { fetchChecked } from "./safe-fetch";
+import { sampleRules, templateBody, uploadHeaderSample } from "./wa-templates";
+
+describe("a media header's sample", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+  it("is fetched only from an allowed https host, never from an internal address", async () => {
+    vi.stubEnv("WHATSAPP_APP_ID", "app");
+    const fetchSpy = vi.fn(async () => new Response("x"));
+    vi.stubGlobal("fetch", fetchSpy);
+    for (const url of ["https://169.254.169.254/latest/meta-data/", "https://metadata.google.internal/computeMetadata/v1/", "https://evil.example.com/a.png",
+      "http://eduwit.in/a.png", "https://eduwit.in:8443/a.png"]) {
+      const r = await uploadHeaderSample(url, "token");
+      expect(r.ok, url).toBe(false);
+    }
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+  it("allows the Eduwit and Spark hosts and the configured list, then uploads to Meta", async () => {
+    vi.stubEnv("WHATSAPP_APP_ID", "app");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://abcdefgh.supabase.co");
+    vi.stubEnv("MEDIA_FETCH_HOSTS", "cdn.example.com");
+    expect(sampleRules().hosts).toEqual(expect.arrayContaining([".eduwit.in", "abcdefgh.supabase.co", "cdn.example.com"]));
+    const seen: string[] = [];
+    const fetcher = (async (url) => { seen.push(url); return { status: 200, contentType: "image/png", body: Buffer.from("png"), url }; }) as typeof fetchChecked;
+    const meta = vi.fn(async (url: string) => new Response(JSON.stringify(url.includes("/uploads") ? { id: "upload:1" } : { h: "4::handle" })));
+    vi.stubGlobal("fetch", meta);
+    expect(await uploadHeaderSample("https://www.eduwit.in/brochure.png", "token", "v21.0", fetcher)).toEqual({ ok: true, handle: "4::handle" });
+    expect(seen).toEqual(["https://www.eduwit.in/brochure.png"]);
+    expect(meta.mock.calls.map((c) => String(c[0]))).toEqual(["https://graph.facebook.com/v21.0/app/uploads?file_length=3&file_type=image%2Fpng", "https://graph.facebook.com/v21.0/upload:1"]);
+  });
+});
 
 describe("Meta template body", () => {
   it("adds example values and quick replies", () => {

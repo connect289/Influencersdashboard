@@ -1,5 +1,37 @@
-import { describe, expect, it } from "vitest";
-import { exotelConfig, exotelStatus, parseExotel, silentWav } from "./telephony";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { fetchChecked } from "./safe-fetch";
+import { exotelConfig, exotelStatus, fetchRecording, parseExotel, silentWav } from "./telephony";
+
+const CFG = exotelConfig({ EXOTEL_SID: "s", EXOTEL_API_KEY: "key", EXOTEL_API_TOKEN: "token", EXOTEL_WEBHOOK_KEY: "w" })!;
+
+describe("recording downloads", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+  it("refuses a recording link outside Exotel's hosts and sends nothing", async () => {
+    const fetchSpy = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "audio/mpeg" } }));
+    vi.stubGlobal("fetch", fetchSpy);
+    for (const url of ["https://evil.example.com/r.mp3", "https://169.254.169.254/latest/meta-data/", "http://recordings.exotel.com/r.mp3"]) {
+      await expect(fetchRecording("exotel", url, CFG), url).rejects.toThrow(/refused/);
+    }
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+  it("offers Exotel's credentials only for Exotel's hosts", async () => {
+    vi.stubEnv("EXOTEL_RECORDING_HOSTS", "files.example.net");
+    const calls: { url: string; credentialHosts: readonly string[] | undefined; creds: Record<string, string> | undefined; hosts: readonly string[] }[] = [];
+    const fetcher = (async (url, rules, creds) => {
+      calls.push({ url, credentialHosts: rules.credentialHosts, creds, hosts: rules.hosts });
+      return { status: 200, contentType: "audio/mpeg", body: Buffer.from("ID3"), url };
+    }) as typeof fetchChecked;
+    const f = await fetchRecording("exotel", "https://recordings.exotel.com/a.mp3", CFG, fetcher);
+    expect(f).toMatchObject({ contentType: "audio/mpeg", ext: "mp3" });
+    await fetchRecording("exotel", "https://files.example.net/a.mp3", CFG, fetcher);
+    expect(calls.map((c) => c.url)).toEqual(["https://recordings.exotel.com/a.mp3", "https://files.example.net/a.mp3"]);
+    for (const c of calls) {
+      expect(c.creds?.authorization).toBe("Basic " + Buffer.from("key:token").toString("base64"));
+      expect(c.credentialHosts).toEqual([".exotel.com", ".exotel.in"]);   // fetchChecked adds them only on these hosts
+      expect(c.hosts).toContain("files.example.net");
+    }
+  });
+});
 
 describe("Exotel callbacks", () => {
   it("maps a completed outbound call with talk time and recording", () => {

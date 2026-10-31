@@ -4,6 +4,8 @@
  * plays the same events for test leads. Another provider is one more `parse…` and `start…` pair here.
  * The database (b2c.call_start, b2c.call_event) decides everything; this file only speaks the provider's HTTP.
  */
+import { fetchChecked, hostList, urlProblem, type FetchRules } from "@/lib/safe-fetch";
+
 export type CallStatus = "initiated" | "ringing" | "answered" | "completed" | "no_answer" | "busy" | "failed" | "agent_no_answer" | "missed";
 export type CallEvent = {
   provider: string; provider_ref?: string; call_id?: number; status: CallStatus; provider_status?: string; direction: "in" | "out";
@@ -92,19 +94,25 @@ export async function exotelConnect(cfg: ExotelConfig, o: { agent: string; stude
   return { sid: ((data.Call as { Sid?: string } | undefined)?.Sid) ?? null };
 }
 
+/** Exotel's own domains (and their subdomains): the only hosts that ever receive the account's API key and token. */
+export const EXOTEL_HOSTS = [".exotel.com", ".exotel.in"] as const;
+
+/** Where recordings may be downloaded from: Exotel's domains, plus EXOTEL_RECORDING_HOSTS (comma-separated, no credentials). */
+export function recordingRules(env: Record<string, string | undefined> = process.env): FetchRules {
+  return { hosts: [...EXOTEL_HOSTS, ...hostList(env.EXOTEL_RECORDING_HOSTS)], credentialHosts: EXOTEL_HOSTS, maxBytes: 50 * 1024 * 1024, timeoutMs: 60_000, maxRedirects: 3 };
+}
+
 /** A recording's bytes. Exotel's links take the account's basic auth; the mock returns one second of silence. */
-export async function fetchRecording(provider: string, url: string, cfg: ExotelConfig | null): Promise<{ bytes: Uint8Array; contentType: string; ext: string }> {
+export async function fetchRecording(provider: string, url: string, cfg: ExotelConfig | null, fetcher: typeof fetchChecked = fetchChecked): Promise<{ bytes: Uint8Array; contentType: string; ext: string }> {
   if (provider === "mock" || url.startsWith("mock://")) return { bytes: silentWav(1), contentType: "audio/wav", ext: "wav" };
-  if (!/^https:\/\//.test(url)) throw new Error("not an https recording link");
-  const r = await fetch(url, {
-    cache: "no-store", signal: AbortSignal.timeout(60_000),
-    headers: cfg && provider === "exotel" ? { authorization: "Basic " + Buffer.from(`${cfg.apiKey}:${cfg.apiToken}`).toString("base64") } : {},
-  });
-  if (!r.ok) throw new Error(`recording download failed (${r.status})`);
-  const type = (r.headers.get("content-type") ?? "audio/mpeg").split(";")[0]!.trim();
-  const bytes = new Uint8Array(await r.arrayBuffer());
-  if (bytes.byteLength > 50 * 1024 * 1024) throw new Error("recording larger than 50 MB");
-  return { bytes, contentType: type.startsWith("audio/") ? type : "audio/mpeg", ext: type.includes("wav") ? "wav" : "mp3" };
+  const rules = recordingRules();
+  const problem = urlProblem(url, rules.hosts);
+  if (problem) throw new Error(`recording link refused: ${problem}`);
+  const credentials = cfg && provider === "exotel" ? { authorization: "Basic " + Buffer.from(`${cfg.apiKey}:${cfg.apiToken}`).toString("base64") } : undefined;
+  const r = await fetcher(url, rules, credentials);
+  if (r.status < 200 || r.status >= 300) throw new Error(`recording download failed (${r.status})`);
+  const type = (r.contentType ?? "audio/mpeg").split(";")[0]!.trim();
+  return { bytes: new Uint8Array(r.body), contentType: type.startsWith("audio/") ? type : "audio/mpeg", ext: type.includes("wav") ? "wav" : "mp3" };
 }
 
 /** A valid mono 8 kHz 16-bit WAV of the given seconds of silence (the mock's "recording"). */
