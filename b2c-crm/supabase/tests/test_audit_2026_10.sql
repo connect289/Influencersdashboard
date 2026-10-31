@@ -217,6 +217,34 @@ begin
   perform pg_temp.as_system();
 end $x$;
 
+-- ---------- b52: staff do not read each other's push subscriptions; each reads their own ----------
+do $x$
+declare e text; j jsonb;
+begin
+  perform pg_temp.as_system();
+  update b2c.users set push_subscription = '[{"endpoint": "https://fcm.googleapis.com/fcm/send/au-bala", "keys": {"p256dh": "kb", "auth": "ab"}, "at": "2026-10-30T10:00:00Z"}]'
+   where user_id = 'aaaaaaaa-0000-0000-0000-00000000a703';
+  update b2c.users set push_subscription = '[{"endpoint": "https://fcm.googleapis.com/fcm/send/au-asha", "keys": {"p256dh": "ka", "auth": "aa"}, "at": "2026-10-30T10:00:00Z"}]'
+   where user_id = 'aaaaaaaa-0000-0000-0000-00000000a702';
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000a702');
+  set local role authenticated;
+  begin select push_subscription::text into e from b2c.users where user_id = 'aaaaaaaa-0000-0000-0000-00000000a703'; e := 'read: ' || coalesce(e, 'null');
+  exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('staff_cannot_read_push_subscriptions', e like 'permission denied%', e);
+  begin select invite_token_hash into e from b2c.users where user_id = 'aaaaaaaa-0000-0000-0000-00000000a703'; e := 'read';
+  exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('staff_cannot_read_invite_hashes', e like 'permission denied%', e);
+  insert into r (name, ok, detail) values ('staff_still_read_the_team', (select full_name from b2c.users where user_id = 'aaaaaaaa-0000-0000-0000-00000000a703') = 'Bala AU', null);
+  begin j := b2c.my_push_subscriptions(); e := 'ok'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('own_push_subscriptions_readable', e = 'ok' and jsonb_array_length(j) = 1 and j -> 0 ->> 'endpoint' like '%/au-asha'
+    and not (j -> 0 ? 'keys'), coalesce(j::text, e));
+  reset role;
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000a705');   -- without the second step: nothing
+  begin j := b2c.my_push_subscriptions(); e := 'ok'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('own_push_subscriptions_need_second_step', e = 'ok' and jsonb_array_length(j) = 0, coalesce(j::text, e));
+  perform pg_temp.as_system();
+end $x$;
+
 -- ---------- b50: the emailed code (after the checks above, which need Nocode without a checked session) ----------
 do $x$
 declare c text; j jsonb;
