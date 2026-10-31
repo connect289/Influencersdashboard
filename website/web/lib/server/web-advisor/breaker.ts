@@ -40,7 +40,14 @@ export async function recordFailure(reason: string) {
  * needs the database.
  */
 export async function dailyCapReached(): Promise<boolean> {
-  let r: { ok: boolean; turns?: number; cost_usd?: number; max_turns?: number; max_cost_usd?: number; reset_seconds?: number };
+  let r: {
+    ok: boolean;
+    turns?: number;
+    cost_usd?: number;
+    max_turns?: number;
+    max_cost_usd?: number;
+    reset_seconds?: number;
+  };
   try {
     r = await rpc("web_advisor_daily_check");
   } catch {
@@ -52,7 +59,12 @@ export async function dailyCapReached(): Promise<boolean> {
   } catch {
     // KV unavailable: every turn is refused by this check instead
   }
-  log("error", "web_advisor.daily_cap_reached", { turns: r.turns, cost_usd: r.cost_usd, max_turns: r.max_turns, max_cost_usd: r.max_cost_usd });
+  log("error", "web_advisor.daily_cap_reached", {
+    turns: r.turns,
+    cost_usd: r.cost_usd,
+    max_turns: r.max_turns,
+    max_cost_usd: r.max_cost_usd,
+  });
   return true;
 }
 
