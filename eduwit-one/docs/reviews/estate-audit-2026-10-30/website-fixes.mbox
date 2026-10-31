@@ -1,7 +1,7 @@
 From 78b3dc0ebe845b1b27bf8f5431a7471c5918816e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 30 Oct 2026 22:07:43 +0000
-Subject: [PATCH 1/8] website: typecheck generates Next's route types first
+Subject: [PATCH 01/16] website: typecheck generates Next's route types first
  (clean checkouts and CI failed)
 
 `tsc --noEmit` on a fresh checkout fails with 4 errors (PageProps and RouteContext not found): those global
@@ -35,7 +35,7 @@ index 70fa123..4b7dd22 100644
 From 63d08357b9d07b3df68d0e2c88d2e544be3d72be Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 30 Oct 2026 22:09:50 +0000
-Subject: [PATCH 2/8] website: no console email on a deployed site (codes and
+Subject: [PATCH 02/16] website: no console email on a deployed site (codes and
  addresses reached the logs; students were told a code was sent)
 
 Without a working provider (EMAIL_PROVIDER unset, or smtp without EMAIL_SMTP_HOST) email() fell back to the console
@@ -233,8 +233,8 @@ index b06510e..e8bf31e 100644
 From a95d84255b9e8a3d8751a0532e5c6830dff12c42 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 30 Oct 2026 22:10:52 +0000
-Subject: [PATCH 3/8] website: student session and device cookies are Secure on
- preview deployments too
+Subject: [PATCH 03/16] website: student session and device cookies are Secure
+ on preview deployments too
 
 `ew_sid` (the signed student session, 90 days) and `ew_did` were Secure only when APP_ENV=production, so every
 preview deployment, and the live www.eduwit.in that runs APP_ENV=preview today, issued them without the Secure
@@ -342,8 +342,8 @@ index 8290a59..64e9ab3 100644
 From 990b253b7c999befbf11454155a728eaf3e90a79 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 30 Oct 2026 22:11:36 +0000
-Subject: [PATCH 4/8] website: runtime redirects back off when the database is
- unreachable (every page waited 1.5 s)
+Subject: [PATCH 04/16] website: runtime redirects back off when the database
+ is unreachable (every page waited 1.5 s)
 
 proxy.ts loads the admin redirect map before every page request. After a failed load the cache kept its old
 timestamp, so the next request loaded again: while the database was unreachable or stalled (production stalled for
@@ -430,8 +430,8 @@ index 25c210b..fa5672f 100644
 From f75dd30b85858afc3210d17a71045adc116db345 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 30 Oct 2026 22:12:32 +0000
-Subject: [PATCH 5/8] website: the code check no longer returns the CRM lead id
- to the browser
+Subject: [PATCH 05/16] website: the code check no longer returns the CRM lead
+ id to the browser
 
 verifyCodeAction / signInVerifyAction returned `leadId` (student_leads.id) in the server-action response. No page
 uses it, and because lead_intake merges on phone, comparing the id returned for someone else's phone with the id of
@@ -507,8 +507,8 @@ index 0000000..a89925a
 From 97071bb2d2605b2906e784e43870871d4d151228 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 30 Oct 2026 22:13:17 +0000
-Subject: [PATCH 6/8] website: creator page "picks" must be pages of this site
- (protocol-relative links passed)
+Subject: [PATCH 06/16] website: creator page "picks" must be pages of this
+ site (protocol-relative links passed)
 
 The creator payload accepted any featured href starting with "/", so "//other.site/apply" or "/\other.site" from the
 creator API would render on eduwit.in/c/<handle> as a link that opens another site. The schema now uses the same
@@ -575,7 +575,7 @@ index 1931b2c..5b7cb1f 100644
 From ee901666efecce6ca29352ae29f645fac3e46200 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 30 Oct 2026 22:13:48 +0000
-Subject: [PATCH 7/8] website: nodemailer 10.1.7 (npm audit --omit=dev: 3
+Subject: [PATCH 07/16] website: nodemailer 10.1.7 (npm audit --omit=dev: 3
  moderate addressparser advisories in 10.1.2)
 
 GHSA-8c8m-p3m8-cjg8, GHSA-m943-m63m-w62w, GHSA-85x2-q946-cp5h (crafted addresses parsed into extra recipients,
@@ -636,7 +636,7 @@ index 4b7dd22..6ba4ac5 100644
 From 296ee474d26002921b9fde15ccbb66f7161a45dc Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 30 Oct 2026 22:19:26 +0000
-Subject: [PATCH 8/8] website: Prettier on the audit's new unit tests
+Subject: [PATCH 08/16] website: Prettier on the audit's new unit tests
 
 Formatting only (printWidth 120), so the files added by the audit pass `prettier --check`.
 
@@ -783,6 +783,1840 @@ index de3ee40..ec23b1a 100644
        expect(byName[STUDENT_COOKIE]).toMatchObject({ secure: true, httpOnly: true });
        expect(byName[DEVICE_COOKIE]).toMatchObject({ secure: true, httpOnly: true });
        set.mockClear();
+-- 
+2.43.0
+
+
+From 359e2b5af8fc5c721e3124abf377a8cddd18ed95 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 31 Oct 2026 02:26:15 +0000
+Subject: [PATCH 09/16] website: web14 database limits from the estate audit
+ (code ceiling, lead trust, outbox tick, Witty daily counter)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+One migration, approved by the owner on 31 Oct (audit SITE-04, SITE-05, SITE-15, SITE-18):
+- code_send_hourly_cap (default 200): web_gate_start and web_gate_resend refuse with 'site_busy' once the site has
+  issued that many student codes in the last hour (new index on web_verification_codes.created_at).
+- web_lead_intake(p, verified_email): every website lead write goes through it. When the phone's existing lead has
+  another confirmed email, is enrolled or is CRM-owned (w2_crm_owned), the website's fields reach lead_intake as the
+  untrusted source 'web_agent_unverified' (fill-empty only) and a classification is dropped if the lead has one.
+  New leads, the same student and leads without a confirmed email behave as before; the result records 'web_trust'.
+  lead_intake() is not modified.
+- web_outbox_tick(): the pg_cron job web_outbox_worker calls the site only when web_outbox_due(); web_catalog_poll
+  runs with statement_timeout 30s (cron.use_background_workers is off in production, same pattern as b2b-ml-tick).
+- web_advisor_daily (turns and spend per India day, written by web_advisor_turn_commit) and
+  web_advisor_daily_check() against web_advisor_daily_cap (default 2000 turns / 25 USD).
+- web_admin_setting: the two ceilings, push_unverified_after_minutes, internal_base_url and transcript_target are
+  super-admin only.
+Replaced functions are the repository's current definitions (production's, apart from whitespace; re-checked
+read-only on 31 Oct) with only the lines above changed. Rollback: supabase/rollbacks/…web14….rollback.sql.
+
+Tests: supabase/tests/95_web_limits.test.sql (46 checks; fails on a database without web14). On a throwaway local
+PostgreSQL 16 with stand-ins for Supabase roles, default privileges, pg_cron and pg_net, plus the snapshot whose
+lead_intake is byte-identical to production's: all 11 SQL test files pass (1,413 checks), web14 applies twice, and
+its rollback returns functions, ACLs, relations, jobs and settings to the exact pre-web14 state. Applied nowhere else.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ .../20261031100000_web14_audit_limits.sql     | 468 ++++++++++++++++++
+ ...1031100000_web14_audit_limits.rollback.sql | 333 +++++++++++++
+ website/supabase/tests/95_web_limits.test.sql | 180 +++++++
+ 3 files changed, 981 insertions(+)
+ create mode 100644 website/supabase/migrations/20261031100000_web14_audit_limits.sql
+ create mode 100644 website/supabase/rollbacks/20261031100000_web14_audit_limits.rollback.sql
+ create mode 100644 website/supabase/tests/95_web_limits.test.sql
+
+diff --git a/website/supabase/migrations/20261031100000_web14_audit_limits.sql b/website/supabase/migrations/20261031100000_web14_audit_limits.sql
+new file mode 100644
+index 0000000..a1edac9
+--- /dev/null
++++ b/website/supabase/migrations/20261031100000_web14_audit_limits.sql
+@@ -0,0 +1,468 @@
++-- =====================================================================================================================
++-- web14 · Limits from the estate audit of 30 Oct 2026 (approved by the owner on 31 Oct; docs/DECISIONS.md D-086–D-089):
++--   1. A site-wide ceiling on verification codes per hour (setting code_send_hourly_cap, default 200; students' codes,
++--      not the admin second factor). Above it web_gate_start / web_gate_resend answer 'site_busy' and the app alerts.
++--   2. Every lead write goes through web_lead_intake(): an existing lead that is not tied to the verified student
++--      (its confirmed email is another one, it is enrolled, or a CRM team owns it) receives the website's fields as a
++--      fill-empty-only update (an untrusted source for lead_intake) instead of overwriting them. New leads and the same
++--      student behave as before. lead_intake() itself is unchanged.
++--   3. The outbox worker job calls the site only when a job is due (or unverified pushes are on): web_outbox_tick().
++--      The catalogue poll job runs with a 30 s statement timeout.
++--   4. A site-wide daily ceiling on Witty turns and model spend (setting web_advisor_daily_cap, default 2000 turns /
++--      25 USD per India day), counted in web_advisor_daily; the app opens its circuit breaker above it.
++-- The two new ceilings, and the settings that point the database jobs at the site, are super-admin only.
++-- Idempotent (create or replace / if not exists / on conflict). Rollback:
++-- supabase/rollbacks/20261031100000_web14_audit_limits.rollback.sql.
++-- =====================================================================================================================
++
++-- ---------------------------------------------------------------------------------------------------------------------
++-- Settings
++insert into public.web_settings (key, value, description) values
++  ('code_send_hourly_cap', '200'::jsonb,
++   'Most email verification codes the whole site sends in any hour (forms, Witty gate, student sign-in). Above it people are asked to try again a little later and the site logs an alert. 0 stops all sends.'),
++  ('web_advisor_daily_cap', '{"turns": 2000, "cost_usd": 25}'::jsonb,
++   'Most Witty turns and model spend (USD) per India day for the whole site. Above either, Witty pauses until midnight IST and visitors get the guided finder and a counsellor.')
++on conflict (key) do nothing;
++
++-- ---------------------------------------------------------------------------------------------------------------------
++-- 1. Site-wide code ceiling
++create index if not exists web_verification_codes_created_idx on public.web_verification_codes (created_at);
++
++-- True when the codes created in the last hour reach the ceiling (counting stops at the ceiling).
++create or replace function public.web_code_cap_reached()
++returns boolean language sql stable security definer set search_path = '' as $$
++  with cap as (
++    select coalesce((select least(floor((s.value #>> '{}')::numeric), 1000000)::int from public.web_settings s
++                      where s.key = 'code_send_hourly_cap' and jsonb_typeof(s.value) = 'number' and (s.value #>> '{}')::numeric >= 0), 200) as n
++  )
++  select (select count(*) from (select 1 from public.web_verification_codes c
++                                 where c.created_at > now() - interval '1 hour' limit (select n from cap)) x) >= (select n from cap)
++$$;
++
++create or replace function public.web_gate_start(p jsonb)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare
++  v_email text := lower(btrim(p->>'email'));
++  v_attempt public.web_gate_attempts;
++  v_recent int;
++  v_screen jsonb;
++begin
++  v_screen := public.web_email_screen(v_email, p->>'phone', p->>'ip_hash');
++  if not (v_screen->>'ok')::boolean then return v_screen; end if;
++  select count(*) into v_recent from public.web_verification_codes where target = v_email and created_at > now() - interval '1 hour';
++  if v_recent >= 5 then return jsonb_build_object('ok', false, 'reason', 'too_many_codes'); end if;
++  -- web14: site-wide hourly ceiling
++  if public.web_code_cap_reached() then return jsonb_build_object('ok', false, 'reason', 'site_busy'); end if;
++
++  insert into public.web_gate_attempts as a (idempotency_key, surface, context, full_name, email_norm, phone_e164, consent_version,
++    consent_marketing, attribution, junk_score, junk_reasons, ip_hash, device_hash, turnstile_ok, is_test)
++  values (p->>'idempotency_key', p->>'surface', coalesce(p->'context', '{}'), p->>'name', v_email, p->>'phone', p->>'consent_version',
++    coalesce((p->>'marketing')::boolean, false), coalesce(p->'attribution', '{}'), coalesce((p->>'junk_score')::int, 0),
++    coalesce(array(select jsonb_array_elements_text(p->'junk_reasons')), '{}'), p->>'ip_hash', p->>'device_hash',
++    (p->>'turnstile_ok')::boolean, coalesce((p->>'is_test')::boolean, false))
++  on conflict (idempotency_key) do update set
++    full_name = excluded.full_name, email_norm = excluded.email_norm, phone_e164 = excluded.phone_e164,
++    consent_version = excluded.consent_version, consent_marketing = excluded.consent_marketing, context = excluded.context,
++    junk_score = excluded.junk_score, junk_reasons = excluded.junk_reasons, submitted_at = now()
++  where a.verified_at is null
++  returning * into v_attempt;
++  if v_attempt.id is null then
++    select * into v_attempt from public.web_gate_attempts where idempotency_key = p->>'idempotency_key';
++    return jsonb_build_object('ok', true, 'status', 'already_verified', 'attempt_id', v_attempt.id);
++  end if;
++
++  update public.web_verification_codes set consumed_at = now() where attempt_id = v_attempt.id and consumed_at is null;
++  insert into public.web_verification_codes (attempt_id, channel, target, code_hash, expires_at, resend_after)
++  values (v_attempt.id, 'email', v_email, p->>'code_hash', now() + interval '10 minutes', now() + interval '30 seconds');
++  update public.web_gate_attempts set code_sent_at = now() where id = v_attempt.id;
++  return jsonb_build_object('ok', true, 'status', 'code_sent', 'attempt_id', v_attempt.id, 'resend_in', 30);
++end $$;
++
++create or replace function public.web_gate_resend(p_attempt uuid, p_code_hash text)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare v_a public.web_gate_attempts; v_last public.web_verification_codes; v_recent int;
++begin
++  select * into v_a from public.web_gate_attempts where id = p_attempt;
++  if v_a.id is null or v_a.verified_at is not null then return jsonb_build_object('ok', false, 'reason', 'invalid'); end if;
++  select * into v_last from public.web_verification_codes where attempt_id = p_attempt order by created_at desc limit 1;
++  if v_last.resend_after > now() then
++    return jsonb_build_object('ok', false, 'reason', 'too_soon', 'resend_in', ceil(extract(epoch from v_last.resend_after - now())));
++  end if;
++  select count(*) into v_recent from public.web_verification_codes where target = v_a.email_norm and created_at > now() - interval '1 hour';
++  if v_recent >= 5 then return jsonb_build_object('ok', false, 'reason', 'too_many_codes'); end if;
++  -- web14: site-wide hourly ceiling
++  if public.web_code_cap_reached() then return jsonb_build_object('ok', false, 'reason', 'site_busy'); end if;
++  update public.web_verification_codes set consumed_at = now() where attempt_id = p_attempt and consumed_at is null;
++  insert into public.web_verification_codes (attempt_id, channel, target, code_hash, expires_at, resend_after)
++  values (p_attempt, 'email', v_a.email_norm, p_code_hash, now() + interval '10 minutes', now() + interval '30 seconds');
++  return jsonb_build_object('ok', true, 'status', 'code_sent', 'attempt_id', p_attempt, 'resend_in', 30, 'email', v_a.email_norm);
++end $$;
++
++-- ---------------------------------------------------------------------------------------------------------------------
++-- 2. One wrapper for every website lead write.
++-- p is the lead_intake payload; p_verified_email is the email the website has verified for this student (null for the
++-- optional push of unverified attempts). When the phone already has a lead that is not tied to that email — its
++-- confirmed email is another one, it is enrolled, or a CRM team owns it (w2_crm_owned) — the payload goes to
++-- lead_intake as source 'web_agent_unverified' (lead_intake trusts only witty, web_agent and crm, so it fills empty
++-- fields only), and a classification is dropped when the lead already has one (lead_intake would otherwise apply it to
++-- the temperature and sales-ready flags whatever the source). An opt-out still applies. The result says which case it
++-- was ('web_trust'). search_path = public (pg_temp last) like the D-055 wrappers: crm_find_lead and w2_crm_owned are
++-- shared SQL functions that resolve their tables through it; every name here is still qualified.
++create or replace function public.web_lead_intake(p jsonb, p_verified_email text)
++returns jsonb language plpgsql volatile security definer set search_path = public, pg_temp as $$
++declare
++  v_phone text := public.crm_norm_phone(p->>'phone');
++  v_email text := lower(btrim(coalesce(p_verified_email, '')));
++  v_lead public.student_leads;
++  v_why text;
++  v_p jsonb := p;
++begin
++  if v_phone is not null and length(v_phone) >= 10 then
++    v_lead := public.crm_find_lead(v_phone);
++  end if;
++  if v_lead.id is not null then
++    v_why := case
++      when v_email = '' then 'email_not_verified'
++      when coalesce(v_lead.email_confirmed, false) and lower(btrim(coalesce(v_lead.email_id, ''))) <> v_email then 'other_confirmed_email'
++      when v_lead.enrollment_status is not null then 'enrolled'
++      when coalesce(public.w2_crm_owned(v_phone), false) then 'crm_owned'
++    end;
++  end if;
++  if v_why is not null then
++    v_p := v_p || jsonb_build_object('source_system', 'web_agent_unverified');
++    if v_lead.lead_status is not null and jsonb_typeof(v_p->'lead') = 'object' then
++      v_p := jsonb_set(v_p, '{lead}', (v_p->'lead') - 'classification' - 'lead_status');
++    end if;
++  end if;
++  return public.lead_intake(v_p) || jsonb_build_object('web_trust', coalesce(v_why, 'trusted'));
++end $$;
++
++create or replace function public.web_gate_complete(p_attempt uuid, p_ua_hash text, p_method text)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare v_a public.web_gate_attempts; v_s public.web_students; v_sid uuid; v_ct public.web_consent_texts; v_res jsonb; v_key text;
++begin
++  select * into v_a from public.web_gate_attempts where id = p_attempt for update;
++  insert into public.web_students as s (email_norm, phone_e164, full_name, email_verified_at, last_seen_at)
++  values (v_a.email_norm, v_a.phone_e164, v_a.full_name, now(), now())
++  on conflict (email_norm) do update set phone_e164 = coalesce(excluded.phone_e164, s.phone_e164),
++    full_name = coalesce(excluded.full_name, s.full_name), email_verified_at = coalesce(s.email_verified_at, now()),
++    last_seen_at = now(), deleted_at = null
++  returning * into v_s;
++  insert into public.web_email_verifications (student_id, email_norm, attempt_id, method) values (v_s.id, v_a.email_norm, v_a.id, p_method);
++  insert into public.web_student_sessions (student_id, expires_at, last_seen_at, ua_hash) values (v_s.id, now() + interval '90 days', now(), p_ua_hash)
++  returning id into v_sid;
++  update public.web_gate_attempts set verified_at = now(), student_id = v_s.id where id = v_a.id returning * into v_a;
++
++  if v_a.consent_version is not null then
++    select * into v_ct from public.web_consent_texts where version = v_a.consent_version;
++    insert into public.web_consents (student_id, version, purposes, surface, ip_hash) values (v_s.id, v_ct.version, v_ct.purposes, v_a.surface, v_a.ip_hash);
++    if v_a.consent_marketing then
++      insert into public.web_consents (student_id, version, purposes, surface, ip_hash)
++      select v_s.id, version, purposes, v_a.surface, v_a.ip_hash from public.web_consent_texts where channel = 'marketing' and active limit 1;
++    end if;
++  end if;
++
++  -- Lead: exactly once per attempt (web_lead_submissions), through the website's wrapper of lead_intake (D-009, web14).
++  if v_a.phone_e164 is not null and v_a.surface <> 'signin' then
++    v_key := 'web:verify:' || v_a.id::text;
++    insert into public.web_lead_submissions (idempotency_key, student_id, kind) values (v_key, v_s.id, v_a.surface || '.verified')
++    on conflict do nothing;
++    if found then
++      v_res := public.web_lead_intake(public.web_lead_payload(v_a, v_sid, 'lead.verified') || jsonb_build_object('idempotency_key', v_key), v_a.email_norm);
++      update public.web_lead_submissions set result = v_res where idempotency_key = v_key;
++      update public.web_gate_attempts set lead_id = (v_res->>'lead_id')::bigint, lead_action = v_res->>'action' where id = v_a.id;
++      update public.web_students set lead_id = coalesce(lead_id, (v_res->>'lead_id')::bigint) where id = v_s.id;
++      update public.web_consents set lead_id = (v_res->>'lead_id')::bigint where student_id = v_s.id and lead_id is null;
++      perform public.web_outbox_enqueue('capi_lead', 'capi_lead:' || v_a.id::text,
++        jsonb_build_object('event_id', v_a.id, 'email', v_a.email_norm, 'phone', v_a.phone_e164, 'surface', v_a.surface,
++                           'attribution', v_a.attribution, 'marketing_consent', v_a.consent_marketing));
++    end if;
++  end if;
++  return jsonb_build_object('ok', true, 'status', 'verified', 'student_id', v_s.id, 'session_id', v_sid,
++    'lead_id', coalesce((v_res->>'lead_id')::bigint, v_s.lead_id), 'lead_action', v_res->>'action', 'email', v_s.email_norm);
++end $$;
++
++create or replace function public.web_application_save_step(p jsonb)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare
++  v_app public.web_applications; v_a public.web_gate_attempts; v_step int := (p->>'step')::int; v_data jsonb := coalesce(p->'data', '{}');
++  v_lead jsonb := case when jsonb_typeof(p->'lead') = 'object' then p->'lead' else '{}' end; v_key text; v_res jsonb;
++begin
++  select * into v_app from public.web_applications where attempt_id = (p->>'attempt_id')::uuid for update;
++  if v_app.id is null then return jsonb_build_object('ok', false, 'reason', 'no_application'); end if;
++  -- Only the verified student who owns the application (from the signed session) may change it.
++  if v_app.student_id is distinct from (p->>'student_id')::uuid then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
++  select * into v_a from public.web_gate_attempts where id = v_app.attempt_id;
++  update public.web_applications set steps = jsonb_set(steps, array[v_step::text], v_data), updated_at = now(),
++    status = case when status = 'submitted' then status else 'step_' || least(4, v_step)::text end,
++    preferred_offering_ids = case when p ? 'preferred_offering_ids' then array(select jsonb_array_elements_text(p->'preferred_offering_ids')::bigint) else preferred_offering_ids end,
++    eligibility_note = coalesce(p->>'eligibility_note', eligibility_note)
++  where id = v_app.id;
++  -- Enrich the same lead (approved update path: lead_intake through web_lead_intake; first-touch fields never change).
++  if v_a.phone_e164 is not null and v_lead <> '{}' then
++    v_key := 'web:step:' || v_app.id::text || ':' || v_step || ':' || md5(v_lead::text);
++    insert into public.web_lead_submissions (idempotency_key, student_id, kind) values (v_key, v_app.student_id, 'application.step_' || v_step)
++    on conflict do nothing;
++    if found then
++      v_res := public.web_lead_intake(jsonb_build_object('phone', v_a.phone_e164, 'source_system', 'web_agent', 'event_type', 'lead.updated',
++        'lead', v_lead, 'idempotency_key', v_key, 'is_test', v_a.is_test), v_a.email_norm);
++      update public.web_lead_submissions set result = v_res where idempotency_key = v_key;
++    end if;
++  end if;
++  return jsonb_build_object('ok', true);
++end $$;
++
++create or replace function public.web_application_submit(p jsonb)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare v_app public.web_applications; v_a public.web_gate_attempts; v_key text; v_res jsonb;
++begin
++  select * into v_app from public.web_applications where attempt_id = (p->>'attempt_id')::uuid for update;
++  if v_app.id is null then return jsonb_build_object('ok', false, 'reason', 'no_application'); end if;
++  if v_app.student_id is distinct from (p->>'student_id')::uuid then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
++  if v_app.status = 'submitted' then return jsonb_build_object('ok', true, 'reference', v_app.reference, 'status', 'already_submitted'); end if;
++  select * into v_a from public.web_gate_attempts where id = v_app.attempt_id;
++  update public.web_applications set status = 'submitted', submitted_at = now(), updated_at = now(),
++    steps = steps || jsonb_build_object('final', coalesce(p->'data', '{}')) where id = v_app.id;
++  v_key := 'web:submit:' || v_app.id::text;
++  insert into public.web_lead_submissions (idempotency_key, student_id, kind) values (v_key, v_app.student_id, v_app.kind || '.submitted')
++  on conflict do nothing;
++  if found and v_a.phone_e164 is not null then
++    v_res := public.web_lead_intake(jsonb_build_object('phone', v_a.phone_e164, 'source_system', 'web_agent',
++      'event_type', case when v_app.kind = 'application' then 'lead.application_requested' else 'lead.enquiry' end,
++      'lead', jsonb_strip_nulls(case when jsonb_typeof(p->'lead') = 'object' then p->'lead' else '{}' end || jsonb_build_object('last_intent', case when v_app.kind = 'application' then 'wants_to_apply' else 'enquiry' end)),
++      'idempotency_key', v_key, 'is_test', v_a.is_test), v_a.email_norm);
++    update public.web_lead_submissions set result = v_res where idempotency_key = v_key;
++    perform public.web_outbox_enqueue('email_confirmation', 'email_confirmation:' || v_app.id::text,
++      jsonb_build_object('kind', v_app.kind, 'reference', v_app.reference, 'email', v_a.email_norm, 'name', v_a.full_name, 'context', v_app.context));
++    if v_app.kind = 'application' then
++      perform public.web_outbox_enqueue('capi_submit_application', 'capi_submit:' || v_app.id::text,
++        -- event_id = the application reference, the same id the browser Pixel sends (de-duplication, D-047)
++        jsonb_build_object('event_id', v_app.reference, 'email', v_a.email_norm, 'phone', v_a.phone_e164, 'attribution', v_a.attribution,
++                           'marketing_consent', v_a.consent_marketing));
++    end if;
++  end if;
++  return jsonb_build_object('ok', true, 'reference', v_app.reference, 'status', 'submitted');
++end $$;
++
++-- Withdraw consent: recorded in the ledger; withdrawing sales/partner consent opts the lead out of contact
++-- (lead_intake can only turn is_opted_out on). Marketing-only withdrawal does not opt out of the enquiry itself.
++create or replace function public.web_consent_withdraw(p_student uuid, p_purposes text[])
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare s public.web_students; v_res jsonb;
++begin
++  select * into s from public.web_students where id = p_student;
++  if s.id is null then return jsonb_build_object('ok', false); end if;
++  update public.web_consents set withdrawn_at = now() where student_id = p_student and withdrawn_at is null and purposes && p_purposes;
++  if p_purposes && array['sales', 'partner_share'] and s.phone_e164 is not null then
++    v_res := public.web_lead_intake(jsonb_build_object('phone', s.phone_e164, 'source_system', 'web_agent', 'event_type', 'lead.opted_out',
++      'lead', jsonb_build_object('is_opted_out', true), 'idempotency_key', 'web:optout:' || p_student::text || ':' || extract(epoch from now())::bigint), s.email_norm);
++  end if;
++  insert into public.web_audit_log (action, entity, entity_id, after) values ('student.consent_withdrawn', 'web_students', p_student::text, to_jsonb(p_purposes));
++  return jsonb_build_object('ok', true, 'lead', v_res);
++end $$;
++
++-- Optional (setting push_unverified_gate_leads, default off): gate attempts never verified are pushed to lead_intake as
++-- unverified after N minutes. Called by the outbox worker's cron. No verified email: an existing lead is never overwritten.
++create or replace function public.web_push_unverified()
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare v_on boolean; v_min int; a public.web_gate_attempts; n int := 0; v_key text; v_res jsonb;
++begin
++  select coalesce((select value = 'true'::jsonb from public.web_settings where key = 'push_unverified_gate_leads'), false) into v_on;
++  if not v_on then return jsonb_build_object('enabled', false); end if;
++  select coalesce((select (value #>> '{}')::int from public.web_settings where key = 'push_unverified_after_minutes'), 60) into v_min;
++  for a in select * from public.web_gate_attempts where verified_at is null and pushed_unverified_at is null and phone_e164 is not null
++             and junk_score < 50 and submitted_at < now() - make_interval(mins => v_min) order by submitted_at limit 50 for update skip locked loop
++    v_key := 'web:unverified:' || a.id::text;
++    insert into public.web_lead_submissions (idempotency_key, kind) values (v_key, a.surface || '.unverified') on conflict do nothing;
++    if found then
++      v_res := public.web_lead_intake(public.web_lead_payload(a, null, 'lead.unverified',
++        jsonb_build_object('is_email_confirmed', false, 'source_detail', a.surface || '_unverified')) || jsonb_build_object('idempotency_key', v_key), null);
++      update public.web_lead_submissions set result = v_res where idempotency_key = v_key;
++      update public.web_gate_attempts set pushed_unverified_at = now(), lead_id = (v_res->>'lead_id')::bigint where id = a.id;
++      n := n + 1;
++    end if;
++  end loop;
++  return jsonb_build_object('enabled', true, 'pushed', n);
++end $$;
++
++create or replace function public.web_callback_request(p_student uuid, p_session uuid, p_date date, p_slot text)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare st public.web_students; v_id bigint; v_res jsonb; v_label text;
++begin
++  select * into st from public.web_students where id = p_student and deleted_at is null;
++  if st.id is null or st.phone_e164 is null then return jsonb_build_object('ok', false, 'reason', 'no_phone'); end if;
++  if p_date < (now() at time zone 'Asia/Kolkata')::date or p_date > (now() at time zone 'Asia/Kolkata')::date + 14 then
++    return jsonb_build_object('ok', false, 'reason', 'bad_date');
++  end if;
++  v_label := 'Callback ' || to_char(p_date, 'Dy DD Mon') || ', ' || case p_slot when 'morning' then 'morning (9am–12pm)' when 'afternoon' then 'afternoon (12–4pm)' else 'evening (4–8pm)' end;
++  -- The same slot again: already booked, nothing new reaches the lead. At most 3 requests a day per student.
++  select id into v_id from public.web_callback_requests where student_id = p_student and slot_date = p_date and slot = p_slot;
++  if v_id is not null then return jsonb_build_object('ok', true, 'id', v_id, 'label', v_label, 'duplicate', true); end if;
++  if (select count(*) from public.web_callback_requests where student_id = p_student and created_at > now() - interval '1 day') >= 3 then
++    return jsonb_build_object('ok', false, 'reason', 'too_many');
++  end if;
++  insert into public.web_callback_requests (student_id, session_id, lead_id, slot_date, slot)
++  values (p_student, p_session, st.lead_id, p_date, p_slot)
++  on conflict (student_id, slot_date, slot) do nothing returning id into v_id;
++  if v_id is null then return jsonb_build_object('ok', true, 'label', v_label, 'duplicate', true); end if;
++  v_label := 'Callback ' || to_char(p_date, 'Dy DD Mon') || ', ' || case p_slot when 'morning' then 'morning (9am–12pm)' when 'afternoon' then 'afternoon (12–4pm)' else 'evening (4–8pm)' end;
++  v_res := public.web_lead_intake(jsonb_build_object('phone', st.phone_e164, 'source_system', 'web_agent', 'event_type', 'lead.updated',
++    'idempotency_key', 'web:callback:' || v_id, 'lead', jsonb_build_object('preferred_call_time', v_label, 'last_intent', 'asks_human')), st.email_norm);
++  return jsonb_build_object('ok', true, 'id', v_id, 'label', v_label, 'lead', v_res);
++end $$;
++
++-- ---------------------------------------------------------------------------------------------------------------------
++-- 4. Daily Witty ceiling: one counter row per India day, written by web_advisor_turn_commit (retries are not counted).
++create table if not exists public.web_advisor_daily (
++  day date primary key,                          -- India date (Asia/Kolkata)
++  turns integer not null default 0,
++  cost_usd numeric(12, 5) not null default 0,
++  updated_at timestamptz not null default now()
++);
++alter table public.web_advisor_daily enable row level security;
++revoke all on public.web_advisor_daily from anon, authenticated, public;
++
++create or replace function public.web_advisor_turn_commit(p jsonb)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare
++  s public.web_advisor_sessions; st public.web_students; v_turn int; v_in bigint; v_out bigint; v_res jsonb; v_key text;
++  v_phone text; v_lead jsonb := case when jsonb_typeof(p->'lead') = 'object' then p->'lead' else '{}' end;
++  u jsonb := coalesce(p->'usage', '{}');
++begin
++  select * into s from public.web_advisor_sessions where id = (p->>'session_id')::uuid for update;
++  if s.id is null or s.student_id is distinct from (p->>'student_id')::uuid then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
++  select * into st from public.web_students where id = s.student_id;
++  v_turn := s.turns + 1;
++  v_phone := ltrim(coalesce(st.phone_e164, ''), '+');
++
++  insert into public.web_advisor_messages (phone, direction, kind, message_id, run_id, content, sent, meta, session_id)
++  values (v_phone, 'in', 'chat', p->>'message_id', p->>'run_id', left(p->>'student_message', 4000), true,
++          jsonb_build_object('client_id', p->>'message_id'), s.id)
++  on conflict (session_id, message_id) where direction = 'in' do nothing
++  returning id into v_in;
++  if v_in is null then
++    return jsonb_build_object('ok', true, 'status', 'duplicate');
++  end if;
++  insert into public.web_advisor_messages (phone, direction, kind, run_id, content, answer_mode, reply_source, model, prompt_tokens,
++    cached_tokens, output_tokens, latency_ms, verify_errors, sent, meta, session_id)
++  values (v_phone, 'out', 'reply', p->>'run_id', p->>'reply', p->>'answer_mode', p->>'reply_source', p->>'model',
++    (u->>'prompt_tokens')::int, (u->>'cached_tokens')::int, (u->>'output_tokens')::int, (p->>'latency_ms')::int,
++    p->'verify_errors', true, coalesce(p->'meta', '{}'), s.id)
++  returning id into v_out;
++
++  update public.web_advisor_sessions set
++    state = coalesce(p->'state', state), turns = v_turn, last_turn_at = now(),
++    classification = coalesce(p->>'classification', classification), readiness = coalesce(p->>'readiness', readiness),
++    eligibility = coalesce(p->>'eligibility', eligibility), phase = coalesce(p->>'phase', phase),
++    language = coalesce(p->>'language', language), agent_core_version = coalesce(p->>'agent_core_version', agent_core_version),
++    prompt_tokens = prompt_tokens + coalesce((u->>'prompt_tokens')::int, 0),
++    cached_tokens = cached_tokens + coalesce((u->>'cached_tokens')::int, 0),
++    output_tokens = output_tokens + coalesce((u->>'output_tokens')::int, 0),
++    cost_usd = cost_usd + coalesce((u->>'cost_usd')::numeric, 0),
++    escalated_at = case when (p->>'escalate')::boolean then coalesce(escalated_at, now()) else escalated_at end
++  where id = s.id;
++
++  -- web14: the site-wide daily counter (turns and spend per India day)
++  insert into public.web_advisor_daily as d (day, turns, cost_usd)
++  values ((now() at time zone 'Asia/Kolkata')::date, 1, coalesce((u->>'cost_usd')::numeric, 0))
++  on conflict (day) do update set turns = d.turns + 1, cost_usd = d.cost_usd + excluded.cost_usd, updated_at = now();
++
++  -- Lead: same key set as w2_crm_payload, source_system web_agent (D-009), web channel stamps (first-touch).
++  if st.phone_e164 is not null and coalesce(p->>'event_type', '') <> '' then
++    v_key := 'web:' || s.id::text || ':' || v_turn;
++    insert into public.web_lead_submissions (idempotency_key, student_id, kind) values (v_key, s.student_id, 'advisor.' || (p->>'event_type'))
++    on conflict do nothing;
++    if found then
++      v_res := public.web_lead_intake(jsonb_build_object('phone', st.phone_e164, 'source_system', 'web_agent', 'event_type', p->>'event_type',
++        'idempotency_key', v_key, 'is_test', s.is_test, 'occurred_at', now(),
++        'lead', jsonb_strip_nulls(v_lead || jsonb_build_object('web_session_id', s.id::text, 'channel', 'web', 'first_agent_channel', 'web',
++          'source', 'website_agent', 'last_agent_message_at', now()))), st.email_norm);
++      update public.web_lead_submissions set result = v_res where idempotency_key = v_key;
++      update public.web_advisor_sessions set lead_id = coalesce(lead_id, (v_res->>'lead_id')::bigint) where id = s.id;
++    end if;
++  end if;
++  return jsonb_build_object('ok', true, 'turn', v_turn, 'in_id', v_in, 'out_id', v_out, 'lead', v_res);
++end $$;
++
++-- Today's Witty usage against the ceiling, and the seconds until the India-midnight reset.
++create or replace function public.web_advisor_daily_check()
++returns jsonb language sql stable security definer set search_path = '' as $$
++  with cap as (
++    select coalesce((select s.value from public.web_settings s where s.key = 'web_advisor_daily_cap' and jsonb_typeof(s.value) = 'object'), '{}'::jsonb) as v
++  ), lim as (
++    select case when jsonb_typeof(v->'turns') = 'number' and (v->>'turns')::numeric >= 0 then (v->>'turns')::numeric else 2000 end as max_turns,
++           case when jsonb_typeof(v->'cost_usd') = 'number' and (v->>'cost_usd')::numeric >= 0 then (v->>'cost_usd')::numeric else 25 end as max_cost
++      from cap
++  ), today as (
++    select coalesce(d.turns, 0) as turns, coalesce(d.cost_usd, 0) as cost
++      from (select 1) one left join public.web_advisor_daily d on d.day = (now() at time zone 'Asia/Kolkata')::date
++  )
++  select jsonb_build_object('ok', t.turns < l.max_turns and t.cost < l.max_cost, 'turns', t.turns, 'cost_usd', t.cost,
++    'max_turns', l.max_turns, 'max_cost_usd', l.max_cost,
++    'reset_seconds', greatest(1, ceil(extract(epoch from
++      ((((now() at time zone 'Asia/Kolkata')::date + 1)::timestamp at time zone 'Asia/Kolkata') - now())))::int))
++  from today t, lim l
++$$;
++
++-- ---------------------------------------------------------------------------------------------------------------------
++-- 3. Outbox worker only when a job is due; the catalogue poll with a statement timeout.
++-- Same "due" rule as web_outbox_claim(), plus the optional push of unverified attempts that the worker also runs.
++create or replace function public.web_outbox_due()
++returns boolean language sql stable security definer set search_path = '' as $$
++  select exists (select 1 from public.web_outbox o
++                  where (o.status = 'pending' or (o.status = 'processing' and o.locked_until < now()))
++                    and o.next_attempt_at <= now())
++      or coalesce((select s.value = 'true'::jsonb from public.web_settings s where s.key = 'push_unverified_gate_leads'), false)
++$$;
++
++-- What the pg_cron job web_outbox_worker runs every minute: the HTTP call only when there is work.
++create or replace function public.web_outbox_tick()
++returns bigint language plpgsql volatile security definer set search_path = '' as $$
++begin
++  if not public.web_outbox_due() then return null; end if;
++  return public.web_job_call('/api/internal/outbox');
++end $$;
++
++do $$
++begin
++  if exists (select 1 from pg_extension where extname = 'pg_cron') then
++    if exists (select 1 from cron.job where jobname = 'web_outbox_worker') then
++      perform cron.schedule('web_outbox_worker', '* * * * *', $j$select public.web_outbox_tick()$j$);
++    end if;
++    if exists (select 1 from cron.job where jobname = 'web_catalog_poll') then
++      perform cron.schedule('web_catalog_poll', '* * * * *', $j$set statement_timeout = '30s'; select public.web_catalog_poll()$j$);
++    end if;
++  end if;
++end $$;
++
++-- ---------------------------------------------------------------------------------------------------------------------
++-- Admin: the ceilings and the job settings are super-admin only (the admin save path already keeps the rest).
++create or replace function public.web_admin_setting(p_key text, p_value jsonb, p_actor uuid, p_actor_email text, p_role text)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++begin
++  if not public.web_admin_role_ok(p_role, case when p_key in ('web_advisor_enabled', 'require_phone_otp', 'push_unverified_gate_leads',
++      'push_unverified_after_minutes', 'document_upload_enabled', 'lead_writer', 'web_advisor_models', 'web_advisor_budget',
++      'code_send_hourly_cap', 'web_advisor_daily_cap', 'internal_base_url', 'transcript_target') then 'super_admin' else 'content_editor' end) then
++    return jsonb_build_object('ok', false, 'error', 'forbidden');
++  end if;
++  -- web_settings_set keeps the history and writes the audit row.
++  perform public.web_settings_set(p_key, p_value, p_actor, p_actor_email);
++  return jsonb_build_object('ok', true);
++end $$;
++
++-- ---------------------------------------------------------------------------------------------------------------------
++-- Grants: service role only (Supabase grants new public functions to the API roles by default).
++do $$
++declare f text;
++begin
++  foreach f in array array[
++    'public.web_code_cap_reached()', 'public.web_gate_start(jsonb)', 'public.web_gate_resend(uuid, text)',
++    'public.web_lead_intake(jsonb, text)', 'public.web_gate_complete(uuid, text, text)', 'public.web_application_save_step(jsonb)',
++    'public.web_application_submit(jsonb)', 'public.web_consent_withdraw(uuid, text[])', 'public.web_push_unverified()',
++    'public.web_callback_request(uuid, uuid, date, text)', 'public.web_advisor_turn_commit(jsonb)', 'public.web_advisor_daily_check()',
++    'public.web_outbox_due()', 'public.web_outbox_tick()', 'public.web_admin_setting(text, jsonb, uuid, text, text)'
++  ] loop
++    execute format('revoke all on function %s from public, anon, authenticated', f);
++    execute format('grant execute on function %s to service_role', f);
++  end loop;
++end $$;
+diff --git a/website/supabase/rollbacks/20261031100000_web14_audit_limits.rollback.sql b/website/supabase/rollbacks/20261031100000_web14_audit_limits.rollback.sql
+new file mode 100644
+index 0000000..d8635c8
+--- /dev/null
++++ b/website/supabase/rollbacks/20261031100000_web14_audit_limits.rollback.sql
+@@ -0,0 +1,333 @@
++-- =====================================================================================================================
++-- Rollback of web14 (20261031100000_web14_audit_limits.sql). Restores the previous definitions (verbatim from the
++-- migrations named below, which is what production ran before web14) and the previous pg_cron commands, then removes
++-- what web14 added: web_lead_intake, web_code_cap_reached, web_advisor_daily_check, web_outbox_due, web_outbox_tick,
++-- table web_advisor_daily (daily Witty counters only), index web_verification_codes_created_idx and the two settings.
++-- Leads and touchpoints written meanwhile stay as they are. Generated from the migration files; run in a transaction:
++--   psql "<url>" -v ON_ERROR_STOP=1 -1 -f supabase/rollbacks/20261031100000_web14_audit_limits.rollback.sql
++-- =====================================================================================================================
++
++-- web_gate_start: as in 20261017100600_web7_students_leads.sql
++create or replace function public.web_gate_start(p jsonb)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare
++  v_email text := lower(btrim(p->>'email'));
++  v_attempt public.web_gate_attempts;
++  v_recent int;
++  v_screen jsonb;
++begin
++  v_screen := public.web_email_screen(v_email, p->>'phone', p->>'ip_hash');
++  if not (v_screen->>'ok')::boolean then return v_screen; end if;
++  select count(*) into v_recent from public.web_verification_codes where target = v_email and created_at > now() - interval '1 hour';
++  if v_recent >= 5 then return jsonb_build_object('ok', false, 'reason', 'too_many_codes'); end if;
++
++  insert into public.web_gate_attempts as a (idempotency_key, surface, context, full_name, email_norm, phone_e164, consent_version,
++    consent_marketing, attribution, junk_score, junk_reasons, ip_hash, device_hash, turnstile_ok, is_test)
++  values (p->>'idempotency_key', p->>'surface', coalesce(p->'context', '{}'), p->>'name', v_email, p->>'phone', p->>'consent_version',
++    coalesce((p->>'marketing')::boolean, false), coalesce(p->'attribution', '{}'), coalesce((p->>'junk_score')::int, 0),
++    coalesce(array(select jsonb_array_elements_text(p->'junk_reasons')), '{}'), p->>'ip_hash', p->>'device_hash',
++    (p->>'turnstile_ok')::boolean, coalesce((p->>'is_test')::boolean, false))
++  on conflict (idempotency_key) do update set
++    full_name = excluded.full_name, email_norm = excluded.email_norm, phone_e164 = excluded.phone_e164,
++    consent_version = excluded.consent_version, consent_marketing = excluded.consent_marketing, context = excluded.context,
++    junk_score = excluded.junk_score, junk_reasons = excluded.junk_reasons, submitted_at = now()
++  where a.verified_at is null
++  returning * into v_attempt;
++  if v_attempt.id is null then
++    select * into v_attempt from public.web_gate_attempts where idempotency_key = p->>'idempotency_key';
++    return jsonb_build_object('ok', true, 'status', 'already_verified', 'attempt_id', v_attempt.id);
++  end if;
++
++  update public.web_verification_codes set consumed_at = now() where attempt_id = v_attempt.id and consumed_at is null;
++  insert into public.web_verification_codes (attempt_id, channel, target, code_hash, expires_at, resend_after)
++  values (v_attempt.id, 'email', v_email, p->>'code_hash', now() + interval '10 minutes', now() + interval '30 seconds');
++  update public.web_gate_attempts set code_sent_at = now() where id = v_attempt.id;
++  return jsonb_build_object('ok', true, 'status', 'code_sent', 'attempt_id', v_attempt.id, 'resend_in', 30);
++end $$;
++
++-- web_gate_resend: as in 20261017100600_web7_students_leads.sql
++create or replace function public.web_gate_resend(p_attempt uuid, p_code_hash text)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare v_a public.web_gate_attempts; v_last public.web_verification_codes; v_recent int;
++begin
++  select * into v_a from public.web_gate_attempts where id = p_attempt;
++  if v_a.id is null or v_a.verified_at is not null then return jsonb_build_object('ok', false, 'reason', 'invalid'); end if;
++  select * into v_last from public.web_verification_codes where attempt_id = p_attempt order by created_at desc limit 1;
++  if v_last.resend_after > now() then
++    return jsonb_build_object('ok', false, 'reason', 'too_soon', 'resend_in', ceil(extract(epoch from v_last.resend_after - now())));
++  end if;
++  select count(*) into v_recent from public.web_verification_codes where target = v_a.email_norm and created_at > now() - interval '1 hour';
++  if v_recent >= 5 then return jsonb_build_object('ok', false, 'reason', 'too_many_codes'); end if;
++  update public.web_verification_codes set consumed_at = now() where attempt_id = p_attempt and consumed_at is null;
++  insert into public.web_verification_codes (attempt_id, channel, target, code_hash, expires_at, resend_after)
++  values (p_attempt, 'email', v_a.email_norm, p_code_hash, now() + interval '10 minutes', now() + interval '30 seconds');
++  return jsonb_build_object('ok', true, 'status', 'code_sent', 'attempt_id', p_attempt, 'resend_in', 30, 'email', v_a.email_norm);
++end $$;
++
++-- web_gate_complete: as in 20261017100600_web7_students_leads.sql
++create or replace function public.web_gate_complete(p_attempt uuid, p_ua_hash text, p_method text)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare v_a public.web_gate_attempts; v_s public.web_students; v_sid uuid; v_ct public.web_consent_texts; v_res jsonb; v_key text;
++begin
++  select * into v_a from public.web_gate_attempts where id = p_attempt for update;
++  insert into public.web_students as s (email_norm, phone_e164, full_name, email_verified_at, last_seen_at)
++  values (v_a.email_norm, v_a.phone_e164, v_a.full_name, now(), now())
++  on conflict (email_norm) do update set phone_e164 = coalesce(excluded.phone_e164, s.phone_e164),
++    full_name = coalesce(excluded.full_name, s.full_name), email_verified_at = coalesce(s.email_verified_at, now()),
++    last_seen_at = now(), deleted_at = null
++  returning * into v_s;
++  insert into public.web_email_verifications (student_id, email_norm, attempt_id, method) values (v_s.id, v_a.email_norm, v_a.id, p_method);
++  insert into public.web_student_sessions (student_id, expires_at, last_seen_at, ua_hash) values (v_s.id, now() + interval '90 days', now(), p_ua_hash)
++  returning id into v_sid;
++  update public.web_gate_attempts set verified_at = now(), student_id = v_s.id where id = v_a.id returning * into v_a;
++
++  if v_a.consent_version is not null then
++    select * into v_ct from public.web_consent_texts where version = v_a.consent_version;
++    insert into public.web_consents (student_id, version, purposes, surface, ip_hash) values (v_s.id, v_ct.version, v_ct.purposes, v_a.surface, v_a.ip_hash);
++    if v_a.consent_marketing then
++      insert into public.web_consents (student_id, version, purposes, surface, ip_hash)
++      select v_s.id, version, purposes, v_a.surface, v_a.ip_hash from public.web_consent_texts where channel = 'marketing' and active limit 1;
++    end if;
++  end if;
++
++  -- Lead: exactly once per attempt (web_lead_submissions), through the shared lead_intake (D-009).
++  if v_a.phone_e164 is not null and v_a.surface <> 'signin' then
++    v_key := 'web:verify:' || v_a.id::text;
++    insert into public.web_lead_submissions (idempotency_key, student_id, kind) values (v_key, v_s.id, v_a.surface || '.verified')
++    on conflict do nothing;
++    if found then
++      v_res := public.lead_intake(public.web_lead_payload(v_a, v_sid, 'lead.verified') || jsonb_build_object('idempotency_key', v_key));
++      update public.web_lead_submissions set result = v_res where idempotency_key = v_key;
++      update public.web_gate_attempts set lead_id = (v_res->>'lead_id')::bigint, lead_action = v_res->>'action' where id = v_a.id;
++      update public.web_students set lead_id = coalesce(lead_id, (v_res->>'lead_id')::bigint) where id = v_s.id;
++      update public.web_consents set lead_id = (v_res->>'lead_id')::bigint where student_id = v_s.id and lead_id is null;
++      perform public.web_outbox_enqueue('capi_lead', 'capi_lead:' || v_a.id::text,
++        jsonb_build_object('event_id', v_a.id, 'email', v_a.email_norm, 'phone', v_a.phone_e164, 'surface', v_a.surface,
++                           'attribution', v_a.attribution, 'marketing_consent', v_a.consent_marketing));
++    end if;
++  end if;
++  return jsonb_build_object('ok', true, 'status', 'verified', 'student_id', v_s.id, 'session_id', v_sid,
++    'lead_id', coalesce((v_res->>'lead_id')::bigint, v_s.lead_id), 'lead_action', v_res->>'action', 'email', v_s.email_norm);
++end $$;
++
++-- web_application_save_step: as in 20261017100600_web7_students_leads.sql
++create or replace function public.web_application_save_step(p jsonb)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare
++  v_app public.web_applications; v_a public.web_gate_attempts; v_step int := (p->>'step')::int; v_data jsonb := coalesce(p->'data', '{}');
++  v_lead jsonb := case when jsonb_typeof(p->'lead') = 'object' then p->'lead' else '{}' end; v_key text; v_res jsonb;
++begin
++  select * into v_app from public.web_applications where attempt_id = (p->>'attempt_id')::uuid for update;
++  if v_app.id is null then return jsonb_build_object('ok', false, 'reason', 'no_application'); end if;
++  -- Only the verified student who owns the application (from the signed session) may change it.
++  if v_app.student_id is distinct from (p->>'student_id')::uuid then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
++  select * into v_a from public.web_gate_attempts where id = v_app.attempt_id;
++  update public.web_applications set steps = jsonb_set(steps, array[v_step::text], v_data), updated_at = now(),
++    status = case when status = 'submitted' then status else 'step_' || least(4, v_step)::text end,
++    preferred_offering_ids = case when p ? 'preferred_offering_ids' then array(select jsonb_array_elements_text(p->'preferred_offering_ids')::bigint) else preferred_offering_ids end,
++    eligibility_note = coalesce(p->>'eligibility_note', eligibility_note)
++  where id = v_app.id;
++  -- Enrich the same lead (approved update path: lead_intake, trusted web_agent; first-touch fields never change).
++  if v_a.phone_e164 is not null and v_lead <> '{}' then
++    v_key := 'web:step:' || v_app.id::text || ':' || v_step || ':' || md5(v_lead::text);
++    insert into public.web_lead_submissions (idempotency_key, student_id, kind) values (v_key, v_app.student_id, 'application.step_' || v_step)
++    on conflict do nothing;
++    if found then
++      v_res := public.lead_intake(jsonb_build_object('phone', v_a.phone_e164, 'source_system', 'web_agent', 'event_type', 'lead.updated',
++        'lead', v_lead, 'idempotency_key', v_key, 'is_test', v_a.is_test));
++      update public.web_lead_submissions set result = v_res where idempotency_key = v_key;
++    end if;
++  end if;
++  return jsonb_build_object('ok', true);
++end $$;
++
++-- web_application_submit: as in 20261017100600_web7_students_leads.sql
++create or replace function public.web_application_submit(p jsonb)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare v_app public.web_applications; v_a public.web_gate_attempts; v_key text; v_res jsonb;
++begin
++  select * into v_app from public.web_applications where attempt_id = (p->>'attempt_id')::uuid for update;
++  if v_app.id is null then return jsonb_build_object('ok', false, 'reason', 'no_application'); end if;
++  if v_app.student_id is distinct from (p->>'student_id')::uuid then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
++  if v_app.status = 'submitted' then return jsonb_build_object('ok', true, 'reference', v_app.reference, 'status', 'already_submitted'); end if;
++  select * into v_a from public.web_gate_attempts where id = v_app.attempt_id;
++  update public.web_applications set status = 'submitted', submitted_at = now(), updated_at = now(),
++    steps = steps || jsonb_build_object('final', coalesce(p->'data', '{}')) where id = v_app.id;
++  v_key := 'web:submit:' || v_app.id::text;
++  insert into public.web_lead_submissions (idempotency_key, student_id, kind) values (v_key, v_app.student_id, v_app.kind || '.submitted')
++  on conflict do nothing;
++  if found and v_a.phone_e164 is not null then
++    v_res := public.lead_intake(jsonb_build_object('phone', v_a.phone_e164, 'source_system', 'web_agent',
++      'event_type', case when v_app.kind = 'application' then 'lead.application_requested' else 'lead.enquiry' end,
++      'lead', jsonb_strip_nulls(case when jsonb_typeof(p->'lead') = 'object' then p->'lead' else '{}' end || jsonb_build_object('last_intent', case when v_app.kind = 'application' then 'wants_to_apply' else 'enquiry' end)),
++      'idempotency_key', v_key, 'is_test', v_a.is_test));
++    update public.web_lead_submissions set result = v_res where idempotency_key = v_key;
++    perform public.web_outbox_enqueue('email_confirmation', 'email_confirmation:' || v_app.id::text,
++      jsonb_build_object('kind', v_app.kind, 'reference', v_app.reference, 'email', v_a.email_norm, 'name', v_a.full_name, 'context', v_app.context));
++    if v_app.kind = 'application' then
++      perform public.web_outbox_enqueue('capi_submit_application', 'capi_submit:' || v_app.id::text,
++        -- event_id = the application reference, the same id the browser Pixel sends (de-duplication, D-047)
++        jsonb_build_object('event_id', v_app.reference, 'email', v_a.email_norm, 'phone', v_a.phone_e164, 'attribution', v_a.attribution,
++                           'marketing_consent', v_a.consent_marketing));
++    end if;
++  end if;
++  return jsonb_build_object('ok', true, 'reference', v_app.reference, 'status', 'submitted');
++end $$;
++
++-- web_consent_withdraw: as in 20261017100600_web7_students_leads.sql
++create or replace function public.web_consent_withdraw(p_student uuid, p_purposes text[])
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare s public.web_students; v_res jsonb;
++begin
++  select * into s from public.web_students where id = p_student;
++  if s.id is null then return jsonb_build_object('ok', false); end if;
++  update public.web_consents set withdrawn_at = now() where student_id = p_student and withdrawn_at is null and purposes && p_purposes;
++  if p_purposes && array['sales', 'partner_share'] and s.phone_e164 is not null then
++    v_res := public.lead_intake(jsonb_build_object('phone', s.phone_e164, 'source_system', 'web_agent', 'event_type', 'lead.opted_out',
++      'lead', jsonb_build_object('is_opted_out', true), 'idempotency_key', 'web:optout:' || p_student::text || ':' || extract(epoch from now())::bigint));
++  end if;
++  insert into public.web_audit_log (action, entity, entity_id, after) values ('student.consent_withdrawn', 'web_students', p_student::text, to_jsonb(p_purposes));
++  return jsonb_build_object('ok', true, 'lead', v_res);
++end $$;
++
++-- web_push_unverified: as in 20261017100600_web7_students_leads.sql
++create or replace function public.web_push_unverified()
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare v_on boolean; v_min int; a public.web_gate_attempts; n int := 0; v_key text; v_res jsonb;
++begin
++  select coalesce((select value = 'true'::jsonb from public.web_settings where key = 'push_unverified_gate_leads'), false) into v_on;
++  if not v_on then return jsonb_build_object('enabled', false); end if;
++  select coalesce((select (value #>> '{}')::int from public.web_settings where key = 'push_unverified_after_minutes'), 60) into v_min;
++  for a in select * from public.web_gate_attempts where verified_at is null and pushed_unverified_at is null and phone_e164 is not null
++             and junk_score < 50 and submitted_at < now() - make_interval(mins => v_min) order by submitted_at limit 50 for update skip locked loop
++    v_key := 'web:unverified:' || a.id::text;
++    insert into public.web_lead_submissions (idempotency_key, kind) values (v_key, a.surface || '.unverified') on conflict do nothing;
++    if found then
++      v_res := public.lead_intake(public.web_lead_payload(a, null, 'lead.unverified',
++        jsonb_build_object('is_email_confirmed', false, 'source_detail', a.surface || '_unverified')) || jsonb_build_object('idempotency_key', v_key));
++      update public.web_lead_submissions set result = v_res where idempotency_key = v_key;
++      update public.web_gate_attempts set pushed_unverified_at = now(), lead_id = (v_res->>'lead_id')::bigint where id = a.id;
++      n := n + 1;
++    end if;
++  end loop;
++  return jsonb_build_object('enabled', true, 'pushed', n);
++end $$;
++
++-- web_callback_request: as in 20261017101000_web11_hardening.sql
++create or replace function public.web_callback_request(p_student uuid, p_session uuid, p_date date, p_slot text)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare st public.web_students; v_id bigint; v_res jsonb; v_label text;
++begin
++  select * into st from public.web_students where id = p_student and deleted_at is null;
++  if st.id is null or st.phone_e164 is null then return jsonb_build_object('ok', false, 'reason', 'no_phone'); end if;
++  if p_date < (now() at time zone 'Asia/Kolkata')::date or p_date > (now() at time zone 'Asia/Kolkata')::date + 14 then
++    return jsonb_build_object('ok', false, 'reason', 'bad_date');
++  end if;
++  v_label := 'Callback ' || to_char(p_date, 'Dy DD Mon') || ', ' || case p_slot when 'morning' then 'morning (9am–12pm)' when 'afternoon' then 'afternoon (12–4pm)' else 'evening (4–8pm)' end;
++  -- The same slot again: already booked, nothing new reaches the lead. At most 3 requests a day per student.
++  select id into v_id from public.web_callback_requests where student_id = p_student and slot_date = p_date and slot = p_slot;
++  if v_id is not null then return jsonb_build_object('ok', true, 'id', v_id, 'label', v_label, 'duplicate', true); end if;
++  if (select count(*) from public.web_callback_requests where student_id = p_student and created_at > now() - interval '1 day') >= 3 then
++    return jsonb_build_object('ok', false, 'reason', 'too_many');
++  end if;
++  insert into public.web_callback_requests (student_id, session_id, lead_id, slot_date, slot)
++  values (p_student, p_session, st.lead_id, p_date, p_slot)
++  on conflict (student_id, slot_date, slot) do nothing returning id into v_id;
++  if v_id is null then return jsonb_build_object('ok', true, 'label', v_label, 'duplicate', true); end if;
++  v_label := 'Callback ' || to_char(p_date, 'Dy DD Mon') || ', ' || case p_slot when 'morning' then 'morning (9am–12pm)' when 'afternoon' then 'afternoon (12–4pm)' else 'evening (4–8pm)' end;
++  v_res := public.lead_intake(jsonb_build_object('phone', st.phone_e164, 'source_system', 'web_agent', 'event_type', 'lead.updated',
++    'idempotency_key', 'web:callback:' || v_id, 'lead', jsonb_build_object('preferred_call_time', v_label, 'last_intent', 'asks_human')));
++  return jsonb_build_object('ok', true, 'id', v_id, 'label', v_label, 'lead', v_res);
++end $$;
++
++-- web_advisor_turn_commit: as in 20261017100700_web8_advisor.sql
++create or replace function public.web_advisor_turn_commit(p jsonb)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++declare
++  s public.web_advisor_sessions; st public.web_students; v_turn int; v_in bigint; v_out bigint; v_res jsonb; v_key text;
++  v_phone text; v_lead jsonb := case when jsonb_typeof(p->'lead') = 'object' then p->'lead' else '{}' end;
++  u jsonb := coalesce(p->'usage', '{}');
++begin
++  select * into s from public.web_advisor_sessions where id = (p->>'session_id')::uuid for update;
++  if s.id is null or s.student_id is distinct from (p->>'student_id')::uuid then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
++  select * into st from public.web_students where id = s.student_id;
++  v_turn := s.turns + 1;
++  v_phone := ltrim(coalesce(st.phone_e164, ''), '+');
++
++  insert into public.web_advisor_messages (phone, direction, kind, message_id, run_id, content, sent, meta, session_id)
++  values (v_phone, 'in', 'chat', p->>'message_id', p->>'run_id', left(p->>'student_message', 4000), true,
++          jsonb_build_object('client_id', p->>'message_id'), s.id)
++  on conflict (session_id, message_id) where direction = 'in' do nothing
++  returning id into v_in;
++  if v_in is null then
++    return jsonb_build_object('ok', true, 'status', 'duplicate');
++  end if;
++  insert into public.web_advisor_messages (phone, direction, kind, run_id, content, answer_mode, reply_source, model, prompt_tokens,
++    cached_tokens, output_tokens, latency_ms, verify_errors, sent, meta, session_id)
++  values (v_phone, 'out', 'reply', p->>'run_id', p->>'reply', p->>'answer_mode', p->>'reply_source', p->>'model',
++    (u->>'prompt_tokens')::int, (u->>'cached_tokens')::int, (u->>'output_tokens')::int, (p->>'latency_ms')::int,
++    p->'verify_errors', true, coalesce(p->'meta', '{}'), s.id)
++  returning id into v_out;
++
++  update public.web_advisor_sessions set
++    state = coalesce(p->'state', state), turns = v_turn, last_turn_at = now(),
++    classification = coalesce(p->>'classification', classification), readiness = coalesce(p->>'readiness', readiness),
++    eligibility = coalesce(p->>'eligibility', eligibility), phase = coalesce(p->>'phase', phase),
++    language = coalesce(p->>'language', language), agent_core_version = coalesce(p->>'agent_core_version', agent_core_version),
++    prompt_tokens = prompt_tokens + coalesce((u->>'prompt_tokens')::int, 0),
++    cached_tokens = cached_tokens + coalesce((u->>'cached_tokens')::int, 0),
++    output_tokens = output_tokens + coalesce((u->>'output_tokens')::int, 0),
++    cost_usd = cost_usd + coalesce((u->>'cost_usd')::numeric, 0),
++    escalated_at = case when (p->>'escalate')::boolean then coalesce(escalated_at, now()) else escalated_at end
++  where id = s.id;
++
++  -- Lead: same key set as w2_crm_payload, source_system web_agent (D-009), web channel stamps (first-touch).
++  if st.phone_e164 is not null and coalesce(p->>'event_type', '') <> '' then
++    v_key := 'web:' || s.id::text || ':' || v_turn;
++    insert into public.web_lead_submissions (idempotency_key, student_id, kind) values (v_key, s.student_id, 'advisor.' || (p->>'event_type'))
++    on conflict do nothing;
++    if found then
++      v_res := public.lead_intake(jsonb_build_object('phone', st.phone_e164, 'source_system', 'web_agent', 'event_type', p->>'event_type',
++        'idempotency_key', v_key, 'is_test', s.is_test, 'occurred_at', now(),
++        'lead', jsonb_strip_nulls(v_lead || jsonb_build_object('web_session_id', s.id::text, 'channel', 'web', 'first_agent_channel', 'web',
++          'source', 'website_agent', 'last_agent_message_at', now()))));
++      update public.web_lead_submissions set result = v_res where idempotency_key = v_key;
++      update public.web_advisor_sessions set lead_id = coalesce(lead_id, (v_res->>'lead_id')::bigint) where id = s.id;
++    end if;
++  end if;
++  return jsonb_build_object('ok', true, 'turn', v_turn, 'in_id', v_in, 'out_id', v_out, 'lead', v_res);
++end $$;
++
++-- web_admin_setting: as in 20261017100800_web9_admin.sql
++create or replace function public.web_admin_setting(p_key text, p_value jsonb, p_actor uuid, p_actor_email text, p_role text)
++returns jsonb language plpgsql volatile security definer set search_path = '' as $$
++begin
++  if not public.web_admin_role_ok(p_role, case when p_key in ('web_advisor_enabled', 'require_phone_otp', 'push_unverified_gate_leads', 'document_upload_enabled', 'lead_writer', 'web_advisor_models', 'web_advisor_budget') then 'super_admin' else 'content_editor' end) then
++    return jsonb_build_object('ok', false, 'error', 'forbidden');
++  end if;
++  -- web_settings_set keeps the history and writes the audit row.
++  perform public.web_settings_set(p_key, p_value, p_actor, p_actor_email);
++  return jsonb_build_object('ok', true);
++end $$;
++
++-- pg_cron commands as before web14
++do $$
++begin
++  if exists (select 1 from pg_extension where extname = 'pg_cron') then
++    if exists (select 1 from cron.job where jobname = 'web_outbox_worker') then
++      perform cron.schedule('web_outbox_worker', '* * * * *', $j$select public.web_job_call('/api/internal/outbox')$j$);
++    end if;
++    if exists (select 1 from cron.job where jobname = 'web_catalog_poll') then
++      perform cron.schedule('web_catalog_poll', '* * * * *', 'select public.web_catalog_poll()');
++    end if;
++  end if;
++end $$;
++
++drop function if exists public.web_outbox_tick();
++drop function if exists public.web_outbox_due();
++drop function if exists public.web_advisor_daily_check();
++drop function if exists public.web_lead_intake(jsonb, text);
++drop function if exists public.web_code_cap_reached();
++drop table if exists public.web_advisor_daily;
++drop index if exists public.web_verification_codes_created_idx;
++delete from public.web_settings where key in ('code_send_hourly_cap', 'web_advisor_daily_cap');
+diff --git a/website/supabase/tests/95_web_limits.test.sql b/website/supabase/tests/95_web_limits.test.sql
+new file mode 100644
+index 0000000..38b5ea0
+--- /dev/null
++++ b/website/supabase/tests/95_web_limits.test.sql
+@@ -0,0 +1,180 @@
++-- web14: site-wide code ceiling, lead writes for leads not tied to the verified student, outbox worker only when due,
++-- daily Witty ceiling (estate audit 30 Oct 2026). Runs on the replica too (no catalogue needed).
++begin;
++create temp table r (ok boolean, name text) on commit drop;
++create temp table v (k text primary key, val jsonb) on commit drop;
++
++-- ---------------------------------------------------------------------------------------------------------------
++-- 1. Site-wide hourly ceiling on verification codes (setting code_send_hourly_cap, default 200).
++insert into r select (select value = '200'::jsonb from public.web_settings where key = 'code_send_hourly_cap'), 'code ceiling setting exists, default 200';
++update public.web_settings set value = to_jsonb((select count(*) from public.web_verification_codes where created_at > now() - interval '1 hour') + 2)
++ where key = 'code_send_hourly_cap';
++insert into v select 'c1', public.web_gate_start('{"idempotency_key":"cap-1","surface":"enquiry","email":"cap1@example.com","phone":"+919876511101","name":"Cap One","code_hash":"h"}');
++insert into v select 'c2', public.web_gate_start('{"idempotency_key":"cap-2","surface":"enquiry","email":"cap2@example.com","phone":"+919876511102","name":"Cap Two","code_hash":"h"}');
++insert into v select 'c3', public.web_gate_start('{"idempotency_key":"cap-3","surface":"enquiry","email":"cap3@example.com","phone":"+919876511103","name":"Cap Three","code_hash":"h"}');
++insert into r select (select val->>'status' from v where k = 'c1') = 'code_sent' and (select val->>'status' from v where k = 'c2') = 'code_sent', 'codes sent below the ceiling';
++insert into r select (select val->>'reason' from v where k = 'c3') = 'site_busy', 'start refused at the ceiling';
++insert into r select not exists (select 1 from public.web_gate_attempts where idempotency_key = 'cap-3'), 'a refused start leaves no attempt behind';
++update public.web_verification_codes set resend_after = now() - interval '1 second' where attempt_id = (select (val->>'attempt_id')::uuid from v where k = 'c1');
++insert into r select (public.web_gate_resend((select (val->>'attempt_id')::uuid from v where k = 'c1'), 'h2') ->> 'reason') = 'site_busy', 'resend refused at the ceiling';
++update public.web_settings set value = '0' where key = 'code_send_hourly_cap';
++insert into r select (public.web_gate_start('{"idempotency_key":"cap-4","surface":"signin","email":"cap4@example.com","code_hash":"h"}') ->> 'reason') = 'site_busy', 'a ceiling of 0 stops every send';
++update public.web_settings set value = '"lots"' where key = 'code_send_hourly_cap';
++insert into r select (public.web_gate_start('{"idempotency_key":"cap-5","surface":"signin","email":"cap5@example.com","code_hash":"h"}') ->> 'status') = 'code_sent', 'an invalid setting falls back to the default ceiling';
++-- only super admins change it through the admin
++insert into r select (public.web_admin_setting('code_send_hourly_cap', '300', gen_random_uuid(), 'editor@example.com', 'content_editor') ->> 'error') = 'forbidden', 'content editors cannot change the code ceiling';
++insert into r select (public.web_admin_setting('code_send_hourly_cap', '300', gen_random_uuid(), 'admin@example.com', 'super_admin') ->> 'ok')::boolean, 'super admins can';
++insert into r select (select value = '300'::jsonb from public.web_settings where key = 'code_send_hourly_cap'), 'the new ceiling is stored';
++update public.web_settings set value = '1000000' where key = 'code_send_hourly_cap';
++
++-- ---------------------------------------------------------------------------------------------------------------
++-- 2. Lead writes. A lead whose confirmed email is someone else's, an enrolled lead or a CRM-owned lead gets the
++--    website's fields fill-empty only; a new lead and the same student behave as before.
++-- helper: start + verify one gate/form attempt in this test
++create temp table g (k text primary key, attempt uuid, student uuid, session uuid, lead bigint) on commit drop;
++create or replace function pg_temp.verify_as(p_key text, p_surface text, p_name text, p_email text, p_phone text) returns void language plpgsql as $$
++declare s jsonb; vv jsonb;
++begin
++  s := public.web_gate_start(jsonb_build_object('idempotency_key', p_key, 'surface', p_surface, 'name', p_name, 'email', p_email, 'phone', p_phone,
++         'consent_version', case when p_surface = 'gate' then 'web-gate-2026-10-v1' else 'web-form-2026-10-v1' end, 'is_test', true, 'code_hash', 'k-' || p_key));
++  vv := public.web_gate_verify((s->>'attempt_id')::uuid, 'k-' || p_key);
++  insert into pg_temp.g values (p_key, (s->>'attempt_id')::uuid, (vv->>'student_id')::uuid, (vv->>'session_id')::uuid, (vv->>'lead_id')::bigint);
++end $$;
++
++-- an existing lead (from WhatsApp) with a confirmed email
++select public.lead_intake('{"phone":"919876522201","source_system":"witty","event_type":"lead.created","is_test":true,
++  "lead":{"full_name":"Meera Iyer","is_name_confirmed":true,"email":"meera@example.com","is_email_confirmed":true,"interested_course":"MBA"}}');
++insert into v select 'meera', to_jsonb(l) from public.student_leads l where whatsapp_number = '919876522201';
++
++-- a verified visitor whose email is not the lead's confirmed email
++select pg_temp.verify_as('l-other', 'enquiry', 'Other Person', 'other@example.com', '+919876522201');
++insert into r select (select lead from g where k = 'l-other') = (select (val->>'id')::bigint from v where k = 'meera'), 'same phone: the existing lead is used (no duplicate)';
++insert into r select (select student_name = 'Meera Iyer' and email_id = 'meera@example.com' and interested_course = 'MBA' and name_confirmed and email_confirmed
++  from public.student_leads where whatsapp_number = '919876522201'), 'another confirmed email: name, email and course are kept';
++insert into r select exists (select 1 from public.touchpoints t where t.lead_id = (select (val->>'id')::bigint from v where k = 'meera') and t.source_system = 'web_agent_unverified'),
++  'the visit is still recorded on the lead, as an unverified website touch';
++insert into r select (select result->>'web_trust' from public.web_lead_submissions where idempotency_key = 'web:verify:' || (select attempt from g where k = 'l-other')) = 'other_confirmed_email',
++  'the submission records why the website did not overwrite';
++-- application steps and submit on that attempt: fill-empty only too
++select public.web_application_open((select attempt from g where k = 'l-other'), 'enquiry', 'EDW-26-LIMT1');
++select public.web_application_save_step(jsonb_build_object('attempt_id', (select attempt from g where k = 'l-other'), 'student_id', (select student from g where k = 'l-other'),
++  'step', 2, 'data', '{}'::jsonb, 'lead', '{"highest_qualification":"Graduation","interested_course":"BBA"}'::jsonb));
++insert into r select (select interested_course = 'MBA' and highest_qualification = 'Graduation' from public.student_leads where whatsapp_number = '919876522201'),
++  'application step: empty fields filled, existing course kept';
++select public.web_application_submit(jsonb_build_object('attempt_id', (select attempt from g where k = 'l-other'), 'student_id', (select student from g where k = 'l-other'),
++  'data', '{}'::jsonb, 'lead', '{"interested_course":"BCA"}'::jsonb));
++insert into r select (select interested_course = 'MBA' from public.student_leads where whatsapp_number = '919876522201'), 'submit: existing course kept';
++
++-- Witty turns for that student: no overwrite and no change of the lead's classification
++insert into v select 'w-open', public.web_advisor_session_open((select student from g where k = 'l-other'), false, true);
++select public.web_advisor_turn_commit(jsonb_build_object('session_id', (select val->'session'->>'id' from v where k = 'w-open'),
++  'student_id', (select student from g where k = 'l-other'), 'message_id', 'lim-m1', 'student_message', 'join now', 'reply', 'ok', 'answer_mode', 'HANDOFF',
++  'classification', 'HOT', 'event_type', 'lead.escalated', 'lead', '{"classification":"HOT","full_name":"Other Person","interested_course":"BCA"}'::jsonb));
++insert into r select (select student_name = 'Meera Iyer' and interested_course = 'MBA' and lead_status = 'UNQUALIFIED' and temperature is null and not is_sales_ready
++  from public.student_leads where whatsapp_number = '919876522201'), 'chat turn: name, course and classification kept';
++-- callback: fills an empty preferred time
++insert into r select (public.web_callback_request((select student from g where k = 'l-other'), (select (val->'session'->>'id')::uuid from v where k = 'w-open'),
++  ((now() at time zone 'Asia/Kolkata')::date + 1), 'morning') ->> 'ok')::boolean
++  and (select preferred_counseling_time like 'Callback %morning%' from public.student_leads where whatsapp_number = '919876522201'), 'callback fills an empty preferred time';
++-- an opt-out from the website still applies (it only ever reduces contact)
++select public.web_consent_withdraw((select student from g where k = 'l-other'), array['sales', 'partner_share']);
++insert into r select (select is_opted_out from public.student_leads where whatsapp_number = '919876522201'), 'opt-out still reaches the lead';
++
++-- the same student (same confirmed email) behaves as before: trusted, details updated
++select public.lead_intake('{"phone":"919876522202","source_system":"witty","event_type":"lead.created","is_test":true,
++  "lead":{"full_name":"Arjun S","email":"arjun@example.com","is_email_confirmed":true,"interested_course":"MBA"}}');
++select pg_temp.verify_as('l-same', 'application', 'Arjun Sharma', 'ARJUN@example.com', '+919876522202');
++insert into r select (select student_name = 'Arjun Sharma' from public.student_leads where whatsapp_number = '919876522202'), 'same student: name updated as before';
++insert into r select (select result->>'web_trust' from public.web_lead_submissions where idempotency_key = 'web:verify:' || (select attempt from g where k = 'l-same')) = 'trusted', 'same student: trusted';
++insert into r select exists (select 1 from public.touchpoints t where t.lead_id = (select lead from g where k = 'l-same') and t.source_system = 'web_agent'), 'same student: web_agent touch as before';
++
++-- a lead without a confirmed email (e.g. WhatsApp only) is enriched as before
++select public.lead_intake('{"phone":"919876522203","source_system":"witty","event_type":"lead.created","is_test":true,"lead":{"interested_course":"MBA"}}');
++select pg_temp.verify_as('l-noemail', 'enquiry', 'Kavya N', 'kavya@example.com', '+919876522203');
++insert into r select (select student_name = 'Kavya N' and email_id = 'kavya@example.com' from public.student_leads where whatsapp_number = '919876522203'), 'no confirmed email on the lead: enriched as before';
++
++-- a new phone creates the lead with the website's details, as before
++select pg_temp.verify_as('l-new', 'enquiry', 'Nisha Rao', 'nisha@example.com', '+919876522204');
++insert into r select (select student_name = 'Nisha Rao' and email_id = 'nisha@example.com' and lead_source = 'website_form' from public.student_leads where id = (select lead from g where k = 'l-new')), 'new lead: created as before';
++insert into r select (select result->>'web_trust' from public.web_lead_submissions where idempotency_key = 'web:verify:' || (select attempt from g where k = 'l-new')) = 'trusted', 'new lead: trusted';
++
++-- an enrolled lead (no confirmed email) is not overwritten
++select public.lead_intake('{"phone":"919876522205","source_system":"witty","event_type":"lead.created","is_test":true,"lead":{"full_name":"Enrolled Student"}}');
++update public.student_leads set enrollment_status = 'enrolled' where whatsapp_number = '919876522205';
++select pg_temp.verify_as('l-enrolled', 'enquiry', 'Someone Else', 'someone@example.com', '+919876522205');
++insert into r select (select student_name = 'Enrolled Student' from public.student_leads where whatsapp_number = '919876522205'), 'enrolled lead: name kept';
++insert into r select (select result->>'web_trust' from public.web_lead_submissions where idempotency_key = 'web:verify:' || (select attempt from g where k = 'l-enrolled')) = 'enrolled', 'enrolled lead: recorded as enrolled';
++
++-- a lead a B2C counsellor owns is not overwritten
++select public.lead_intake('{"phone":"919876522206","source_system":"witty","event_type":"lead.created","is_test":true,"lead":{"full_name":"Owned Student"}}');
++update public.student_leads set owner_user_id = gen_random_uuid() where whatsapp_number = '919876522206';
++select pg_temp.verify_as('l-owned', 'gate', 'Someone Else', 'someone2@example.com', '+919876522206');
++insert into r select (select student_name = 'Owned Student' from public.student_leads where whatsapp_number = '919876522206'), 'CRM-owned lead: name kept';
++insert into r select (select result->>'web_trust' from public.web_lead_submissions where idempotency_key = 'web:verify:' || (select attempt from g where k = 'l-owned')) = 'crm_owned', 'CRM-owned lead: recorded as crm_owned';
++
++-- unverified pushes (setting push_unverified_gate_leads) never overwrite an existing lead
++select public.lead_intake('{"phone":"919876522207","source_system":"witty","event_type":"lead.created","is_test":true,"lead":{"full_name":"Pushed Student"}}');
++select public.web_gate_start('{"idempotency_key":"l-push","surface":"gate","email":"push@example.com","phone":"+919876522207","name":"Not Verified","consent_version":"web-gate-2026-10-v1","is_test":true,"code_hash":"h"}');
++update public.web_gate_attempts set submitted_at = now() - interval '2 hours' where idempotency_key = 'l-push';
++update public.web_settings set value = 'true' where key = 'push_unverified_gate_leads';
++select public.web_push_unverified();
++insert into r select (select student_name = 'Pushed Student' from public.student_leads where whatsapp_number = '919876522207'), 'unverified push: existing lead kept';
++update public.web_settings set value = 'false' where key = 'push_unverified_gate_leads';
++
++-- ---------------------------------------------------------------------------------------------------------------
++-- 3. Outbox worker: calls the site only when a job is due (or unverified pushes are on).
++delete from public.web_outbox where status in ('pending', 'processing');
++insert into r select not public.web_outbox_due(), 'nothing due: no call';
++insert into r select public.web_outbox_tick() is null, 'tick does nothing when nothing is due';
++select public.web_outbox_enqueue('revalidate', 'lim-later', '{"tags":["x"]}'::jsonb, null, 600);
++insert into r select not public.web_outbox_due(), 'a job scheduled for later is not due yet';
++select public.web_outbox_enqueue('revalidate', 'lim-now', '{"tags":["x"]}'::jsonb);
++insert into r select public.web_outbox_due(), 'a pending job is due';
++update public.web_outbox set status = 'processing', locked_until = now() + interval '1 minute' where dedupe_key = 'lim-now';
++insert into r select not public.web_outbox_due(), 'a job being processed is not due';
++update public.web_outbox set locked_until = now() - interval '1 second' where dedupe_key = 'lim-now';
++insert into r select public.web_outbox_due(), 'a job whose lock expired is due again';
++delete from public.web_outbox where dedupe_key in ('lim-now', 'lim-later');
++update public.web_settings set value = 'true' where key = 'push_unverified_gate_leads';
++insert into r select public.web_outbox_due(), 'unverified pushes on: the worker runs every minute';
++update public.web_settings set value = 'false' where key = 'push_unverified_gate_leads';
++-- where pg_cron schedules the jobs (production, replica): the worker goes through the check, the poll has a timeout
++insert into r select not exists (select 1 from pg_extension where extname = 'pg_cron')
++  or not exists (select 1 from cron.job where jobname = 'web_outbox_worker')
++  or (select command = 'select public.web_outbox_tick()' from cron.job where jobname = 'web_outbox_worker'), 'outbox job runs web_outbox_tick()';
++insert into r select not exists (select 1 from pg_extension where extname = 'pg_cron')
++  or not exists (select 1 from cron.job where jobname = 'web_catalog_poll')
++  or (select command = 'set statement_timeout = ''30s''; select public.web_catalog_poll()' from cron.job where jobname = 'web_catalog_poll'), 'catalogue poll runs with a 30 s statement timeout';
++
++-- ---------------------------------------------------------------------------------------------------------------
++-- 4. Daily ceiling on Witty turns and spend (setting web_advisor_daily_cap, default 2000 turns / 25 USD).
++insert into r select (select value = '{"turns": 2000, "cost_usd": 25}'::jsonb from public.web_settings where key = 'web_advisor_daily_cap'), 'daily ceiling setting exists with its default';
++insert into v select 'd0', public.web_advisor_daily_check();
++insert into r select (select (val->>'ok')::boolean and (val->>'max_turns')::numeric = 2000 and (val->>'max_cost_usd')::numeric = 25
++  and (val->>'reset_seconds')::int between 1 and 86400 from v where k = 'd0'), 'under the ceiling: ok, with the limits and the time to the IST midnight reset';
++select pg_temp.verify_as('d-1', 'gate', 'Daily Cap', 'daily@example.com', '+919876533301');
++insert into v select 'd-open', public.web_advisor_session_open((select student from g where k = 'd-1'), false, true);
++select public.web_advisor_turn_commit(jsonb_build_object('session_id', (select val->'session'->>'id' from v where k = 'd-open'),
++  'student_id', (select student from g where k = 'd-1'), 'message_id', 'dc-1', 'student_message', 'hi', 'reply', 'hello',
++  'usage', '{"prompt_tokens":100,"cached_tokens":0,"output_tokens":10,"cost_usd":0.25}'::jsonb));
++select public.web_advisor_turn_commit(jsonb_build_object('session_id', (select val->'session'->>'id' from v where k = 'd-open'),
++  'student_id', (select student from g where k = 'd-1'), 'message_id', 'dc-1', 'student_message', 'hi', 'reply', 'hello'));
++insert into v select 'd1', public.web_advisor_daily_check();
++insert into r select (select (val->>'turns')::int = (select (val->>'turns')::int from v where k = 'd0') + 1
++  and (val->>'cost_usd')::numeric = (select (val->>'cost_usd')::numeric from v where k = 'd0') + 0.25 from v where k = 'd1'), 'a turn counts once (the retried message does not), with its cost';
++update public.web_settings set value = jsonb_build_object('turns', (select (val->>'turns')::int from v where k = 'd1'), 'cost_usd', 25) where key = 'web_advisor_daily_cap';
++insert into r select not (public.web_advisor_daily_check() ->> 'ok')::boolean, 'at the turn ceiling: not ok';
++update public.web_settings set value = jsonb_build_object('turns', 100000, 'cost_usd', (select (val->>'cost_usd')::numeric from v where k = 'd1')) where key = 'web_advisor_daily_cap';
++insert into r select not (public.web_advisor_daily_check() ->> 'ok')::boolean, 'at the spend ceiling: not ok';
++update public.web_settings set value = '"bad"' where key = 'web_advisor_daily_cap';
++insert into r select (public.web_advisor_daily_check() ->> 'max_turns')::numeric = 2000, 'an invalid setting falls back to the defaults';
++insert into r select (public.web_admin_setting('web_advisor_daily_cap', '{"turns":10,"cost_usd":1}', gen_random_uuid(), 'editor@example.com', 'content_editor') ->> 'error') = 'forbidden',
++  'content editors cannot change the Witty ceiling';
++
++do $$ begin
++  if exists (select 1 from r where not ok) then
++    raise exception 'FAILED (%): %', (select count(*) from r where not ok), (select string_agg(name, ' | ') from r where not ok);
++  end if;
++  raise notice 'PASS % checks', (select count(*) from r);
++end $$;
++rollback;
+-- 
+2.43.0
+
+
+From def96451dbabbc5a4dac4b54c113910d4665a586 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 31 Oct 2026 02:26:30 +0000
+Subject: [PATCH 10/16] website: forms and Witty's gate answer "try again
+ later" at the site-wide code ceiling, with an alert (SITE-04)
+
+When the database refuses a code with 'site_busy' (web14, code_send_hourly_cap) the visitor reads "We're getting a
+lot of requests right now. Please try again in a few minutes, or contact us on WhatsApp." instead of the generic
+error, and the server logs gate.code_ceiling_reached at error level (once per instance per 10 minutes; later
+refusals as warnings, never with the address). Start and resend both.
+
+Test: lib/server/gate.ceiling.test.ts (fails on the previous gate.ts: generic message, no alert).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/lib/server/gate.ceiling.test.ts | 49 +++++++++++++++++++++
+ website/web/lib/server/gate.ts              | 24 +++++++++-
+ 2 files changed, 71 insertions(+), 2 deletions(-)
+ create mode 100644 website/web/lib/server/gate.ceiling.test.ts
+
+diff --git a/website/web/lib/server/gate.ceiling.test.ts b/website/web/lib/server/gate.ceiling.test.ts
+new file mode 100644
+index 0000000..c885ad5
+--- /dev/null
++++ b/website/web/lib/server/gate.ceiling.test.ts
+@@ -0,0 +1,49 @@
++import { describe, expect, it, vi } from "vitest";
++
++vi.mock("server-only", () => ({}));
++vi.mock("next/headers", () => ({
++  headers: async () => new Headers({ "x-forwarded-for": "203.0.113.9", "user-agent": "vitest" }),
++  cookies: async () => ({ get: () => undefined, set: vi.fn(), delete: vi.fn() }),
++}));
++const rpc = vi.fn(async (fn: string): Promise<unknown> => {
++  if (fn === "web_gate_start" || fn === "web_gate_resend") return { ok: false, reason: "site_busy" };
++  if (fn === "web_gate_attempt_info")
++    return { key: "enquiry:abcdefgh12", surface: "enquiry", email: "asha@example.com" };
++  throw new Error(`unexpected rpc ${fn}`);
++});
++vi.mock("./db", () => ({ rpc, rpcRead: rpc, dbConfigured: () => true }));
++
++const { resendCode, startVerification } = await import("./gate");
++const { CONSENT } = await import("@/content/consent");
++
++function capture() {
++  const lines: { level: string; line: string }[] = [];
++  for (const level of ["error", "warn", "info"] as const)
++    vi.spyOn(console, level).mockImplementation(
++      (...a: unknown[]) => void lines.push({ level, line: a.map(String).join(" ") }),
++    );
++  return lines;
++}
++
++describe("site-wide code ceiling (web14)", () => {
++  it("tells the visitor to try again later and raises one alert, then warnings", async () => {
++    const lines = capture();
++    const input = {
++      surface: "enquiry" as const,
++      name: "Asha Rao",
++      phone: "9876543211",
++      email: "asha@example.com",
++      consentVersion: CONSENT.form.version,
++      idempotencyKey: "abcdefgh12",
++    };
++    const first = await startVerification(input);
++    expect(first).toMatchObject({ status: "error", reason: "site_busy" });
++    expect(first.status === "error" && first.message).toMatch(/a lot of requests/);
++    const again = await resendCode("0d6c3b9a-1e2f-4a5b-8c7d-9e0f1a2b3c4d");
++    expect(again).toMatchObject({ status: "error", reason: "site_busy" });
++    expect(lines.filter((l) => l.level === "error" && l.line.includes("gate.code_ceiling_reached"))).toHaveLength(1);
++    expect(lines.some((l) => l.level === "warn" && l.line.includes("gate.code_ceiling_refused"))).toBe(true);
++    expect(lines.map((l) => l.line).join("\n")).not.toContain("asha@example.com");
++    vi.restoreAllMocks();
++  });
++});
+diff --git a/website/web/lib/server/gate.ts b/website/web/lib/server/gate.ts
+index 77b73f4..659aeb5 100644
+--- a/website/web/lib/server/gate.ts
++++ b/website/web/lib/server/gate.ts
+@@ -102,6 +102,7 @@ const MESSAGES: Record<string, string> = {
+   blocked: "We couldn't accept these details. Please contact us on WhatsApp instead.",
+   too_many_codes: "You've asked for several codes already. Please wait an hour or contact us on WhatsApp.",
+   too_soon: "Please wait a few seconds before asking for another code.",
++  site_busy: "We're getting a lot of requests right now. Please try again in a few minutes, or contact us on WhatsApp.",
+   send_failed: "We couldn't send the code just now. Please try again in a minute.",
+   unavailable: "Something went wrong on our side. Please try again, or contact us on WhatsApp.",
+   expired: "That code has expired. Ask for a new one.",
+@@ -113,6 +114,21 @@ const err = (reason: string): { status: "error"; reason: string; message: string
+   message: MESSAGES[reason] ?? MESSAGES.unavailable!,
+ });
+ 
++/**
++ * The database refuses new codes above the site-wide hourly ceiling (web_settings code_send_hourly_cap, web14). The
++ * first refusal on a server instance in any 10 minutes is logged as an error (the alert), the rest as warnings.
++ */
++let codeCeilingAlertAt = 0;
++function codeCeilingReached(surface: Surface, requestId: string) {
++  const now = Date.now();
++  if (now - codeCeilingAlertAt > 10 * 60_000) {
++    codeCeilingAlertAt = now;
++    log("error", "gate.code_ceiling_reached", { surface, requestId });
++  } else {
++    log("warn", "gate.code_ceiling_refused", { surface, requestId });
++  }
++}
++
+ export function newCode(): string {
+   return String(randomInt(0, 1_000_000)).padStart(6, "0");
+ }
+@@ -241,7 +257,8 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
+       p: { ...payload, code_hash: codeHash(payload.idempotency_key, code) },
+     });
+     if (!r.ok) {
+-      log("info", "gate.refused", { surface, reason: r.reason, requestId });
++      if (r.reason === "site_busy") codeCeilingReached(surface, requestId);
++      else log("info", "gate.refused", { surface, reason: r.reason, requestId });
+       return err(r.reason ?? "unavailable");
+     }
+     if (r.status === "already_verified") return { status: "verified", attemptId: r.attempt_id! };
+@@ -279,7 +296,10 @@ export async function resendCode(attemptId: string): Promise<StartOutcome> {
+       p_attempt: attemptId,
+       p_code_hash: codeHash(info.key, code),
+     });
+-    if (!r.ok) return r.reason === "too_soon" ? { ...err("too_soon") } : err(r.reason ?? "unavailable");
++    if (!r.ok) {
++      if (r.reason === "site_busy") codeCeilingReached(info.surface, requestId);
++      return r.reason === "too_soon" ? { ...err("too_soon") } : err(r.reason ?? "unavailable");
++    }
+     await verifier.sendCode(info.email, code, info.surface === "signin" ? "signin" : "verify", `code:${attemptId}:${code}`);
+     log("info", "gate.code_resent", { surface: info.surface, requestId });
+     return { status: "code_sent", attemptId, resendIn: r.resend_in ?? 30, maskedEmail: maskEmail(info.email) };
+-- 
+2.43.0
+
+
+From 6ca096a63e1a66c76e70a0c3b9153f40cb335faf Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 31 Oct 2026 02:26:31 +0000
+Subject: [PATCH 11/16] website: a site-wide daily ceiling on Witty turns and
+ spend opens the breaker (SITE-18)
+
+Before each turn /api/witty asks web_advisor_daily_check() (web14). At web_advisor_daily_cap (default 2000 turns or
+25 USD per India day) the turn is refused with the usual fallback, the circuit breaker opens (re-checked every 10
+minutes, so a raised ceiling applies soon) and web_advisor.daily_cap_reached is logged. A failed check lets the turn
+run, since the turn itself needs the database. The check runs after the session and rate-limit checks.
+
+Test: lib/server/web-advisor/breaker.test.ts (below / at the ceiling / failed check; fails before: no such check).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/app/api/witty/route.ts            |  4 +-
+ .../lib/server/web-advisor/breaker.test.ts    | 39 +++++++++++++++++++
+ website/web/lib/server/web-advisor/breaker.ts | 24 ++++++++++++
+ 3 files changed, 66 insertions(+), 1 deletion(-)
+ create mode 100644 website/web/lib/server/web-advisor/breaker.test.ts
+
+diff --git a/website/web/app/api/witty/route.ts b/website/web/app/api/witty/route.ts
+index dbec0d2..324a38d 100644
+--- a/website/web/app/api/witty/route.ts
++++ b/website/web/app/api/witty/route.ts
+@@ -5,7 +5,7 @@ import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
+ import { ipFrom } from "@/lib/server/request";
+ import { getSettings } from "@/lib/server/settings";
+ import { currentStudent } from "@/lib/server/student-session";
+-import { breakerOpen } from "@/lib/server/web-advisor/breaker";
++import { breakerOpen, dailyCapReached } from "@/lib/server/web-advisor/breaker";
+ import { failTurn, openSession, runTurn } from "@/lib/server/web-advisor/turn";
+ 
+ /**
+@@ -35,6 +35,8 @@ export async function POST(req: Request) {
+   ] as const) {
+     if (!(await rateLimit(limit, id)).ok) return json(429, { error: "slow_down" });
+   }
++  // Site-wide daily ceiling on turns and model spend (web14): above it the breaker opens and visitors get the finder.
++  if (await dailyCapReached()) return json(503, { error: "degraded", fallback: true });
+ 
+   const session = await openSession(student);
+   if (!session) return json(401, { error: "verify_first" });
+diff --git a/website/web/lib/server/web-advisor/breaker.test.ts b/website/web/lib/server/web-advisor/breaker.test.ts
+new file mode 100644
+index 0000000..086ef71
+--- /dev/null
++++ b/website/web/lib/server/web-advisor/breaker.test.ts
+@@ -0,0 +1,39 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++
++vi.mock("server-only", () => ({}));
++let daily: Record<string, unknown> = { ok: true };
++const rpc = vi.fn(async (fn: string): Promise<unknown> => {
++  if (fn === "web_advisor_daily_check") return daily;
++  throw new Error(`unexpected rpc ${fn}`);
++});
++vi.mock("../db", () => ({ rpc, rpcRead: rpc, dbConfigured: () => true }));
++
++const { breakerOpen, dailyCapReached } = await import("./breaker");
++const { kv } = await import("../kv");
++
++afterEach(async () => {
++  await kv().del("wa:breaker:open");
++  vi.restoreAllMocks();
++});
++
++describe("site-wide daily Witty ceiling (web14)", () => {
++  it("below the ceiling: the turn runs and the breaker stays closed", async () => {
++    daily = { ok: true, turns: 10, cost_usd: 0.4, max_turns: 2000, max_cost_usd: 25, reset_seconds: 3600 };
++    expect(await dailyCapReached()).toBe(false);
++    expect(await breakerOpen()).toBe(false);
++  });
++
++  it("at the ceiling: the turn is refused, the breaker opens and the alert is logged", async () => {
++    const errors: string[] = [];
++    vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => void errors.push(a.map(String).join(" ")));
++    daily = { ok: false, turns: 2000, cost_usd: 9.5, max_turns: 2000, max_cost_usd: 25, reset_seconds: 3600 };
++    expect(await dailyCapReached()).toBe(true);
++    expect(await breakerOpen()).toBe(true);
++    expect(errors.some((l) => l.includes("web_advisor.daily_cap_reached"))).toBe(true);
++  });
++
++  it("a failed check does not block the turn", async () => {
++    rpc.mockRejectedValueOnce(new Error("db down"));
++    expect(await dailyCapReached()).toBe(false);
++  });
++});
+diff --git a/website/web/lib/server/web-advisor/breaker.ts b/website/web/lib/server/web-advisor/breaker.ts
+index 33b0c65..ea2bae2 100644
+--- a/website/web/lib/server/web-advisor/breaker.ts
++++ b/website/web/lib/server/web-advisor/breaker.ts
+@@ -1,4 +1,5 @@
+ import "server-only";
++import { rpc } from "../db";
+ import { kv } from "../kv";
+ import { log } from "../log";
+ 
+@@ -32,6 +33,29 @@ export async function recordFailure(reason: string) {
+   }
+ }
+ 
++/**
++ * Site-wide daily ceiling on Witty turns and model spend (web_settings web_advisor_daily_cap, counted per India day in
++ * web_advisor_daily, web14). Checked before every turn; at the ceiling the breaker opens (re-checked every 10 minutes,
++ * so a raised ceiling takes effect soon) and the alert is logged. A failed check lets the turn run: the turn itself
++ * needs the database.
++ */
++export async function dailyCapReached(): Promise<boolean> {
++  let r: { ok: boolean; turns?: number; cost_usd?: number; max_turns?: number; max_cost_usd?: number; reset_seconds?: number };
++  try {
++    r = await rpc("web_advisor_daily_check");
++  } catch {
++    return false;
++  }
++  if (r.ok) return false;
++  try {
++    await kv().set(OPEN_KEY, Date.now(), Math.max(1, Math.min(r.reset_seconds ?? 600, 600)));
++  } catch {
++    // KV unavailable: every turn is refused by this check instead
++  }
++  log("error", "web_advisor.daily_cap_reached", { turns: r.turns, cost_usd: r.cost_usd, max_turns: r.max_turns, max_cost_usd: r.max_cost_usd });
++  return true;
++}
++
+ export async function recordSuccess() {
+   try {
+     await kv().del(FAIL_KEY);
+-- 
+2.43.0
+
+
+From acdb70b6adc121c3702da6ccc656f7b35e640708 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 31 Oct 2026 02:26:31 +0000
+Subject: [PATCH 12/16] website: Witty's extractor no longer receives the
+ student's email address (SITE-17)
+
+extractorInput() leaves email_id out of known_profile, as counselorInput() already did. Nothing reads it there (the
+scripted provider uses interested_course only); the model reads the student's message and never needs the address.
+
+Test: lib/witty-core/engine.test.ts "model inputs carry no email address" (fails on the previous engine.ts).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/lib/witty-core/engine.test.ts | 11 ++++++++++-
+ website/web/lib/witty-core/engine.ts      |  7 +++++--
+ 2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/website/web/lib/witty-core/engine.test.ts b/website/web/lib/witty-core/engine.test.ts
+index f8ca6ce..ecb513d 100644
+--- a/website/web/lib/witty-core/engine.test.ts
++++ b/website/web/lib/witty-core/engine.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from "vitest";
+ import type { CatalogRow, SearchResult } from "./contract";
+-import { acceptFacts, classify, counselorInput, leadPayload, planTurn, searchQuery, type Extraction, type WittyState } from "./engine";
++import { acceptFacts, classify, counselorInput, extractorInput, leadPayload, planTurn, searchQuery, type Extraction, type WittyState } from "./engine";
+ 
+ /** Scenario names follow Witty's harness (witty.md §8); the catalogue rows are fixtures shaped like w2_search_programs. */
+ const row = (id: number, university: string, spec: string, fee_yearly: number | null, min_pct = 50, min_q = "BACHELOR", extra: Partial<CatalogRow> = {}): CatalogRow => ({
+@@ -243,3 +243,12 @@ describe("lead payload (w2_crm_payload keys)", () => {
+     expect(Object.keys(l).every((k) => allowed.has(k))).toBe(true);
+   });
+ });
++
++describe("model inputs carry no email address (estate audit SITE-17)", () => {
++  it("the extractor sees the known profile without the verified email", () => {
++    const state: WittyState = { ...start(), profile: { ...start().profile, interested_course: { value: "MBA", confirmed: true } } };
++    const input = extractorInput(state, "I have a BCom");
++    expect(input.known_profile).toEqual({ student_name: "Rohit Sen", interested_course: "MBA" });
++    expect(JSON.stringify(input)).not.toContain("rohit@example.org");
++  });
++});
+diff --git a/website/web/lib/witty-core/engine.ts b/website/web/lib/witty-core/engine.ts
+index bb72635..66381c3 100644
+--- a/website/web/lib/witty-core/engine.ts
++++ b/website/web/lib/witty-core/engine.ts
+@@ -538,10 +538,13 @@ export function counselorInput(plan: TurnPlan, conversation: { role: "witty" | "
+   };
+ }
+ 
+-/** Extractor input (extractor prompt INPUT). */
++/**
++ * Extractor input (extractor prompt INPUT). The verified email address stays out of it, as it stays out of the
++ * counselor input: the model never needs it to read a message (estate audit SITE-17).
++ */
+ export function extractorInput(state: WittyState, studentMessage: string) {
+   const known: Record<string, string> = {};
+-  for (const [k, e] of Object.entries(state.profile)) if (e?.value) known[k] = e.value;
++  for (const [k, e] of Object.entries(state.profile)) if (e?.value && k !== "email_id") known[k] = e.value;
+   return { pending_question: state.pending_question ?? "NONE", witty_last_message: state.last_witty_message ?? "", known_profile: known, student_message: studentMessage };
+ }
+ 
+-- 
+2.43.0
+
+
+From 1feaf05551d69ff76ef0e3d45e2a72efc90353fc Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 31 Oct 2026 02:26:46 +0000
+Subject: [PATCH 13/16] =?UTF-8?q?website:=20super=20admins=20see=20and=20c?=
+ =?UTF-8?q?hange=20the=20two=20site-wide=20ceilings=20in=20Admin=20?=
+ =?UTF-8?q?=E2=86=92=20Flags=20and=20settings?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+New card "Site-wide limits (super admin)": verification codes per hour (code_send_hourly_cap) and Witty per India
+day (web_advisor_daily_cap). The settings registry knows both with the database defaults (200; 2000 turns / 25 USD),
+the save action accepts them only as whole numbers / non-negative amounts (lib/admin/ceilings.ts) and the database
+keeps them super-admin only (web14). Other settings unchanged.
+
+Test: lib/admin/ceilings.test.ts (validation and defaults; new module).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/app/admin/content-actions.ts |  5 +++++
+ website/web/app/admin/settings/page.tsx  |  4 ++++
+ website/web/lib/admin/ceilings.test.ts   | 28 ++++++++++++++++++++++++
+ website/web/lib/admin/ceilings.ts        | 17 ++++++++++++++
+ website/web/lib/settings.ts              |  3 +++
+ 5 files changed, 57 insertions(+)
+ create mode 100644 website/web/lib/admin/ceilings.test.ts
+ create mode 100644 website/web/lib/admin/ceilings.ts
+
+diff --git a/website/web/app/admin/content-actions.ts b/website/web/app/admin/content-actions.ts
+index 212b0e4..e0a5618 100644
+--- a/website/web/app/admin/content-actions.ts
++++ b/website/web/app/admin/content-actions.ts
+@@ -2,6 +2,7 @@
+ 
+ import { revalidateTag } from "next/cache";
+ import { redirect } from "next/navigation";
++import { ceilingError } from "@/lib/admin/ceilings";
+ import { entityConfig, parseEntityForm } from "@/lib/admin/entities";
+ import { requireAdmin } from "@/lib/server/admin";
+ import { rpc } from "@/lib/server/db";
+@@ -92,6 +93,8 @@ const SETTING_KEYS = new Set([
+   "finder_include_regular_mode",
+   "application_form",
+   "business_hours",
++  "code_send_hourly_cap",
++  "web_advisor_daily_cap",
+ ]);
+ 
+ export async function saveSettingAction(_prev: AdminFormState, form: FormData): Promise<AdminFormState> {
+@@ -114,6 +117,8 @@ export async function saveSettingAction(_prev: AdminFormState, form: FormData):
+   if (key === "counsellor_whatsapp" || key === "counsellor_phone") {
+     if (typeof value !== "string" || !/^\+91[6-9]\d{9}$/.test(value)) return { error: "Use +91 followed by a 10-digit mobile number." };
+   }
++  const ceiling = ceilingError(key, value);
++  if (ceiling) return { error: ceiling };
+   const r = await rpc<{ ok: boolean; error?: string }>("web_admin_setting", { p_key: key, p_value: value, p_actor: s.userId, p_actor_email: s.email, p_role: s.role });
+   if (!r.ok) return { error: r.error === "forbidden" ? "Only a super admin can change this setting." : (r.error ?? "Saving failed.") };
+   revalidateTag("settings", { expire: 0 });
+diff --git a/website/web/app/admin/settings/page.tsx b/website/web/app/admin/settings/page.tsx
+index fbfb886..950b23d 100644
+--- a/website/web/app/admin/settings/page.tsx
++++ b/website/web/app/admin/settings/page.tsx
+@@ -21,6 +21,10 @@ async function Settings() {
+         <SettingForm name="require_phone_otp" label="Require phone OTP" kind="bool" value={v.require_phone_otp} disabled help="Needs a phone OTP provider first (S-25)." />
+         <SettingForm name="document_upload_enabled" label="Document upload in the application form" kind="bool" value={v.document_upload_enabled} disabled help="Not built in v1 (D-054)." />
+       </Card>
++      <Card title="Site-wide limits (super admin)">
++        <SettingForm name="code_send_hourly_cap" label="Verification codes per hour, whole site" kind="number" value={v.code_send_hourly_cap} disabled={!admin} help="Above it, forms and Witty ask people to try again a little later and an alert is logged. Raise it for a big campaign; 0 stops all sends." />
++        <SettingForm name="web_advisor_daily_cap" label="Witty per day (India time), whole site" kind="json" value={v.web_advisor_daily_cap} disabled={!admin} help='{"turns": 2000, "cost_usd": 25}. Above either, Witty pauses until midnight IST and visitors get the guided finder and a counsellor.' />
++      </Card>
+       <Card title="Site">
+         <SettingForm name="announcement" label="Announcement bar" kind="json" value={v.announcement} disabled={!editor} help='{"text": "Admissions open for January", "href": "/programmes", "tone": "info"} — or null to hide.' />
+         <SettingForm name="sections" label="Homepage sections on/off" kind="json" value={v.sections} disabled={!editor} help='{"faq": true, "testimonials": false, …}' />
+diff --git a/website/web/lib/admin/ceilings.test.ts b/website/web/lib/admin/ceilings.test.ts
+new file mode 100644
+index 0000000..2711ec3
+--- /dev/null
++++ b/website/web/lib/admin/ceilings.test.ts
+@@ -0,0 +1,28 @@
++import { describe, expect, it } from "vitest";
++import { ceilingError } from "./ceilings";
++import { DEFAULT_SETTINGS, parseSettings } from "../settings";
++
++describe("site-wide ceilings (web14)", () => {
++  it("accept whole numbers of codes per hour, including 0", () => {
++    expect(ceilingError("code_send_hourly_cap", 200)).toBeNull();
++    expect(ceilingError("code_send_hourly_cap", 0)).toBeNull();
++    for (const bad of [-1, 2.5, Number.NaN, "200", null])
++      expect(ceilingError("code_send_hourly_cap", bad)).toMatch(/whole number/);
++  });
++  it("accept a daily Witty ceiling of turns and spend", () => {
++    expect(ceilingError("web_advisor_daily_cap", { turns: 2000, cost_usd: 25 })).toBeNull();
++    for (const bad of [null, [], { turns: 10 }, { turns: -1, cost_usd: 5 }, { turns: 10, cost_usd: "5" }])
++      expect(ceilingError("web_advisor_daily_cap", bad)).toMatch(/turns/);
++  });
++  it("leave other settings alone", () => {
++    expect(ceilingError("announcement", null)).toBeNull();
++  });
++  it("have safe defaults when the database has no value or a bad one", () => {
++    expect(DEFAULT_SETTINGS.code_send_hourly_cap).toBe(200);
++    expect(DEFAULT_SETTINGS.web_advisor_daily_cap).toEqual({ turns: 2000, cost_usd: 25 });
++    expect(parseSettings({ code_send_hourly_cap: "lots", web_advisor_daily_cap: { turns: "x" } })).toMatchObject({
++      code_send_hourly_cap: 200,
++      web_advisor_daily_cap: { turns: 2000, cost_usd: 25 },
++    });
++  });
++});
+diff --git a/website/web/lib/admin/ceilings.ts b/website/web/lib/admin/ceilings.ts
+new file mode 100644
+index 0000000..e96a130
+--- /dev/null
++++ b/website/web/lib/admin/ceilings.ts
+@@ -0,0 +1,17 @@
++/**
++ * Validation of the site-wide ceilings an admin can change (web14: code_send_hourly_cap, web_advisor_daily_cap). The
++ * database enforces them and keeps them super-admin only; this only gives the editor a clear message.
++ */
++export function ceilingError(key: string, value: unknown): string | null {
++  if (key === "code_send_hourly_cap") {
++    const ok = typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 1_000_000;
++    return ok ? null : "Use a whole number of codes per hour (0 stops all sends).";
++  }
++  if (key === "web_advisor_daily_cap") {
++    const v = value as { turns?: unknown; cost_usd?: unknown } | null;
++    const num = (x: unknown) => typeof x === "number" && Number.isFinite(x) && x >= 0;
++    const ok = !!v && typeof v === "object" && !Array.isArray(v) && num(v.turns) && num(v.cost_usd);
++    return ok ? null : 'Use {"turns": 2000, "cost_usd": 25} (numbers of zero or more).';
++  }
++  return null;
++}
+diff --git a/website/web/lib/settings.ts b/website/web/lib/settings.ts
+index 7230695..ead5581 100644
+--- a/website/web/lib/settings.ts
++++ b/website/web/lib/settings.ts
+@@ -24,6 +24,9 @@ export const settingsSchema = z.object({
+   web_advisor_budget: z
+     .object({ max_tokens_per_session: z.number(), turn_timeout_ms: z.number(), max_turns_per_session: z.number() })
+     .default({ max_tokens_per_session: 60000, turn_timeout_ms: 20000, max_turns_per_session: 40 }),
++  /** Site-wide ceilings (web14; enforced in the database, super-admin only). */
++  code_send_hourly_cap: z.number().int().min(0).default(200),
++  web_advisor_daily_cap: z.object({ turns: z.number().min(0), cost_usd: z.number().min(0) }).default({ turns: 2000, cost_usd: 25 }),
+   sections: z.record(z.string(), z.boolean()).default({}),
+   /** Opening hours for LocalBusiness structured data, e.g. ["Mo-Sa 10:00-19:00"] (S-51); none shown until set. */
+   business_hours: z.array(z.string().regex(/^(Mo|Tu|We|Th|Fr|Sa|Su)(-(Mo|Tu|We|Th|Fr|Sa|Su))? \d{2}:\d{2}-\d{2}:\d{2}$/)).nullable().default(null),
+-- 
+2.43.0
+
+
+From 68090a6a64c557dc44b5c73dbefbda090d11cd71 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 31 Oct 2026 02:26:47 +0000
+Subject: [PATCH 14/16] website: npm audit --omit=dev clean again: Sentry's
+ bundler plugin gets the patched glob 14.0.3
+
+Advisories published 27-28 Oct (GHSA-3g3m-2fjr-6pw4 glob >=9 <=14.0.1, GHSA-g3hv-75wg-m249 minimatch <11.0.1) hit
+@sentry/nextjs -> @sentry/bundler-plugins -> glob 13.0.6 -> minimatch 10.2.6; every @sentry/nextjs 11.x still asks for
+glob ^13 and npm's only fix is a downgrade to Sentry 10. An override gives that plugin glob 14.0.3 (with minimatch
+11.0.3), which keeps the glob() call the plugin uses. The plugin never runs here (next.config.ts has no
+withSentryConfig), so nothing in the app's behaviour changes. Tarball hashes checked against the lockfile.
+npm audit --omit=dev: 0. Remove the override once Sentry depends on glob 14.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/package-lock.json | 39 ++++++++++++++++++++++++++++-------
+ website/web/package.json      |  5 +++++
+ 2 files changed, 36 insertions(+), 8 deletions(-)
+
+diff --git a/website/web/package-lock.json b/website/web/package-lock.json
+index f67a85e..f42c871 100644
+--- a/website/web/package-lock.json
++++ b/website/web/package-lock.json
+@@ -1216,6 +1216,12 @@
+         "url": "https://opencollective.com/libvips"
+       }
+     },
++    "node_modules/@isaacs/nonrecursive-glob-match": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/@isaacs/nonrecursive-glob-match/-/nonrecursive-glob-match-1.0.3.tgz",
++      "integrity": "sha512-SI7kyKHq4XXDRozw+r9GlRZkia1ZkFrpLW98r2IC2Bpr8YkFGE3fvjzmxCG0x78A++69HmDNrDvSMYBZmHGpKA==",
++      "license": "BlueOak-1.0.0"
++    },
+     "node_modules/@jridgewell/gen-mapping": {
+       "version": "0.3.13",
+       "resolved": "https://registry.npmjs.org/@jridgewell/gen-mapping/-/gen-mapping-0.3.13.tgz",
+@@ -5600,14 +5606,14 @@
+       }
+     },
+     "node_modules/@sentry/bundler-plugins/node_modules/glob": {
+-      "version": "13.0.6",
+-      "resolved": "https://registry.npmjs.org/glob/-/glob-13.0.6.tgz",
+-      "integrity": "sha512-Wjlyrolmm8uDpm/ogGyXZXb1Z+Ca2B8NbJwqBVg0axK9GbBeoS7yGV6vjXnYdGm6X53iehEuxxbyiKp8QmN4Vw==",
++      "version": "14.0.3",
++      "resolved": "https://registry.npmjs.org/glob/-/glob-14.0.3.tgz",
++      "integrity": "sha512-A1vjIwC3qpdCso45Iw127gnp7sPhqgY8lUQhDrArIs+GbmfaaVPFuoyy7WyLT9EPZCRZ7j7aLdwUhQmHWesEow==",
+       "license": "BlueOak-1.0.0",
+       "dependencies": {
+-        "minimatch": "^10.2.2",
++        "minimatch": "^11.0.2",
+         "minipass": "^7.1.3",
+-        "path-scurry": "^2.0.2"
++        "path-scurry": "^3.0.0"
+       },
+       "engines": {
+         "node": "18 || 20 || >=22"
+@@ -5625,6 +5631,22 @@
+         "node": ">=8"
+       }
+     },
++    "node_modules/@sentry/bundler-plugins/node_modules/minimatch": {
++      "version": "11.0.3",
++      "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-11.0.3.tgz",
++      "integrity": "sha512-iny/40PEGkNJQ5/Pv6z3nm6FbRAby32GeZRjCUJk2WnNDbgPSTcdI+DDvLqsgBdD4cD5sMtMheqPPnehCCa8Nw==",
++      "license": "BlueOak-1.0.0",
++      "dependencies": {
++        "@isaacs/nonrecursive-glob-match": "^1.0.3",
++        "brace-expansion": "^5.0.12"
++      },
++      "engines": {
++        "node": "18 || 20 || >=22"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/isaacs"
++      }
++    },
+     "node_modules/@sentry/bundler-plugins/node_modules/supports-color": {
+       "version": "8.1.1",
+       "resolved": "https://registry.npmjs.org/supports-color/-/supports-color-8.1.1.tgz",
+@@ -12474,6 +12496,7 @@
+       "version": "10.2.6",
+       "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-10.2.6.tgz",
+       "integrity": "sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A==",
++      "dev": true,
+       "license": "BlueOak-1.0.0",
+       "dependencies": {
+         "brace-expansion": "^5.0.8"
+@@ -13207,9 +13230,9 @@
+       "license": "MIT"
+     },
+     "node_modules/path-scurry": {
+-      "version": "2.0.2",
+-      "resolved": "https://registry.npmjs.org/path-scurry/-/path-scurry-2.0.2.tgz",
+-      "integrity": "sha512-3O/iVVsJAPsOnpwWIeD+d6z/7PmqApyQePUtCndjatj/9I5LylHvt5qluFaBT3I5h3r1ejfR056c+FCv+NnNXg==",
++      "version": "3.0.0",
++      "resolved": "https://registry.npmjs.org/path-scurry/-/path-scurry-3.0.0.tgz",
++      "integrity": "sha512-1pTbQqH1wIwMi/eleQ5leFTTCkzFsPcgXNjwOA8YGGW/W4/kHT3dssE7Z6NH+zuqNLOzOB0uaD61yl7cAcVhgg==",
+       "license": "BlueOak-1.0.0",
+       "dependencies": {
+         "lru-cache": "^11.0.0",
+diff --git a/website/web/package.json b/website/web/package.json
+index 6ba4ac5..8f8c2b7 100644
+--- a/website/web/package.json
++++ b/website/web/package.json
+@@ -83,5 +83,10 @@
+     "tailwindcss": "^4.3.3",
+     "typescript": "^5.9.3",
+     "vitest": "^5.0.5"
++  },
++  "overrides": {
++    "@sentry/bundler-plugins": {
++      "glob": "14.0.3"
++    }
+   }
+ }
+-- 
+2.43.0
+
+
+From 883425def0f70f76d83824a6b43d246d541169a6 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 31 Oct 2026 02:26:47 +0000
+Subject: [PATCH 15/16] =?UTF-8?q?website=20docs:=20D-086=E2=80=93D-090=20a?=
+ =?UTF-8?q?nd=20runbook=20entries=20for=20the=20audit=20limits=20(web14)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Decisions (owner approval of 31 Oct): site-wide code ceiling, lead writes for leads not tied to the verified student,
+outbox worker only when due and the 30 s poll timeout, daily Witty ceiling, no email in the model's input. Runbook:
+the two new settings in the flags table, the jobs row, two incident rows, web14's own rollback, and web14 in the
+go-live migration range.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/docs/DECISIONS.md | 49 +++++++++++++++++++++++++++++++++++++++
+ website/docs/RUNBOOK.md   | 10 ++++++--
+ 2 files changed, 57 insertions(+), 2 deletions(-)
+
+diff --git a/website/docs/DECISIONS.md b/website/docs/DECISIONS.md
+index 373b036..5b1d871 100644
+--- a/website/docs/DECISIONS.md
++++ b/website/docs/DECISIONS.md
+@@ -614,3 +614,52 @@ these at the end (spec Section 0).
+   number).
+ - **To change:** `components/site/SiteFooter.tsx`, `app/(site)/about/page.tsx`, `lib/seo/jsonld.ts` (`contact` flag).
+ 
++
++## Estate audit follow-up (owner approval, 31 Oct 2026)
++
++### D-086 · A site-wide ceiling on verification codes (audit SITE-04)
++- **Decision:** at most `code_send_hourly_cap` student verification codes per hour for the whole site (default 200),
++  counted in the database: `web_gate_start` and `web_gate_resend` answer `site_busy`, the visitor is asked to try again
++  a little later, and the app logs `gate.code_ceiling_reached` (error, once per server instance per 10 minutes; later
++  refusals are warnings). Admin second-factor codes are not counted, so staff can always sign in. 0 stops all sends.
++  Super admins change it in Admin → Flags and settings; the database also keeps `push_unverified_after_minutes`,
++  `internal_base_url` and `transcript_target` super-admin only (web14).
++- **Why:** the per-IP, per-device and per-email limits bound one sender, not the total, and the total is what protects
++  the sending mailbox's daily quota and reputation.
++- **To change:** the setting, or the web14 rollback (`supabase/rollbacks/`).
++
++### D-087 · Lead writes for a lead the website cannot tie to the verified student (audit SITE-05)
++- **Decision:** every website lead write goes through `web_lead_intake(p, verified_email)`. When the phone already has
++  a lead whose confirmed email is another one, that is enrolled, or that a CRM team owns (`w2_crm_owned`), the
++  website's fields reach `lead_intake` as source `web_agent_unverified`, which it treats as untrusted (fills empty
++  fields only), and a Witty classification is dropped when the lead already has one. New leads, the same student (same
++  confirmed email) and leads without a confirmed email behave as before (`web_agent`). The optional push of unverified
++  attempts never overwrites an existing lead. Opt-outs still apply. `web_lead_submissions.result->>'web_trust'` records
++  which case applied. `lead_intake()` is unchanged.
++- **Why:** the website verifies the email, not the phone (phone OTP, S-25, is off), and `lead_intake` matches by phone.
++- **Not changed here:** reopening a lost or enrolled lead on a new enquiry is `lead_intake`'s shared rule; the CRMs
++  show the untrusted touches under the source name `web_agent_unverified`.
++- **To change:** phone OTP (S-25) makes the phone verified; or the web14 rollback.
++
++### D-088 · The outbox worker calls the site only when there is work; the catalogue poll has a timeout (audit SITE-15)
++- **Decision:** pg_cron job `web_outbox_worker` runs `select public.web_outbox_tick()`, which makes the HTTP call only
++  when `web_outbox_due()` (a job due by the same rule as `web_outbox_claim`, or `push_unverified_gate_leads` on).
++  `web_catalog_poll` runs as `set statement_timeout = '30s'; select public.web_catalog_poll()` (production's pg_cron
++  runs jobs over connections, `cron.use_background_workers = off`, so the setting applies to the poll statement; the
++  same pattern as the B2B CRM's `b2b-ml-tick`).
++- **Why:** about 1,440 calls a day with nothing to do, and during the database stalls of 29–30 Oct a single poll held a
++  job slot for up to six minutes.
++- **Note:** a catalogue refresh slower than 30 s (today about 1–3 s) would fail and retry each minute; raise the
++  timeout in the job if the catalogue ever grows that much.
++
++### D-089 · A site-wide daily ceiling on Witty (audit SITE-18)
++- **Decision:** `web_advisor_daily` counts turns and model spend per India day (written by `web_advisor_turn_commit`;
++  a retried message is not counted). Before each turn `/api/witty` calls `web_advisor_daily_check()`; at
++  `web_advisor_daily_cap` (default 2,000 turns or 25 USD) the circuit breaker opens (re-checked every 10 minutes, so a
++  raised ceiling applies soon), visitors get the guided finder and a counsellor, and `web_advisor.daily_cap_reached` is
++  logged. Super admins change it.
++- **Why:** the per-student, per-IP and per-session limits bound one visitor, not the site's model bill.
++
++### D-090 · The model never receives the verified email address (audit SITE-17)
++- **Decision:** `extractorInput` leaves `email_id` out of `known_profile`, as `counselorInput` already did.
++- **Why:** data minimisation; the extractor reads the student's message and never needs the address.
+diff --git a/website/docs/RUNBOOK.md b/website/docs/RUNBOOK.md
+index 2bd24f0..abff6b2 100644
+--- a/website/docs/RUNBOOK.md
++++ b/website/docs/RUNBOOK.md
+@@ -11,7 +11,7 @@ rollback), and what to do when something breaks. Companion docs: `GO_LIVE_CHECKL
+ |---|---|---|
+ | Next.js app (`website/web`) | Vercel, region `bom1` (Mumbai) | Static/ISR pages and cached API responses from Vercel's edge; functions for everything else |
+ | Database | the shared production Supabase project `xlseqwgyjuqhktrguhyc` | website objects are `public.web_*`; shared catalogue read-only; leads only through `lead_intake` |
+-| Scheduled jobs | Supabase pg_cron only (D-082; Vercel stays on Hobby, no Vercel crons) | `web_catalog_poll` every minute (inside the database); `web_outbox_worker` every minute → POST `/api/internal/outbox`; `web_seo_daily` 21:30 UTC / 03:00 IST → POST `/api/internal/seo-daily`. The two HTTP jobs use `web_settings.internal_base_url` and Vault secret `web_internal_key`; until both exist they send nothing |
++| Scheduled jobs | Supabase pg_cron only (D-082; Vercel stays on Hobby, no Vercel crons) | `web_catalog_poll` every minute (inside the database, 30 s statement timeout, D-088); `web_outbox_worker` every minute → `web_outbox_tick()`, which POSTs `/api/internal/outbox` only when a job is due (D-088); `web_seo_daily` 21:30 UTC / 03:00 IST → POST `/api/internal/seo-daily`. The two HTTP jobs use `web_settings.internal_base_url` and Vault secret `web_internal_key`; until both exist they send nothing |
+ | Email | the provider in S-12 | verification codes, confirmations (through the outbox, retried) |
+ | Rate limits, breaker | Upstash Redis (S-15) | without it: Postgres limiter for rate limits (D-077); the AI breaker is then per instance |
+ | Errors | Sentry (S-19) + Vercel logs | logs are JSON with `requestId`; no personal data (scrubbed) |
+@@ -61,6 +61,8 @@ time, in the Vault secret the database jobs use: `select vault.update_secret((se
+ | `default_theme` | `system` | dark / light / follow the device |
+ | `application_form` | — | hide or make optional non-core form fields (D-069) |
+ | `business_hours` | none | opening hours in structured data (S-51) |
++| `code_send_hourly_cap` | 200 | verification codes per hour for the whole site; above it forms ask people to try again later and `gate.code_ceiling_reached` is logged; 0 stops all sends (super admin, D-086) |
++| `web_advisor_daily_cap` | `{"turns": 2000, "cost_usd": 25}` | Witty turns and model spend per India day for the whole site; above either Witty pauses until midnight IST (super admin, D-089) |
+ 
+ ## 5. Go-live procedure (only after the owner's written approval)
+ 
+@@ -85,7 +87,7 @@ Everything below is rehearsed by `scripts/db/go-live-dry-run.sh`.
+ 6. **Backup:** the Supabase organisation is on the Free plan (no point-in-time recovery or automatic backups), so take a
+    full dump first: `pg_dump "$PROD_DB_URL" -Fc --no-owner -f eduwit-prod-before-website-<date>.dump` and keep it safe
+    (it contains personal data).
+-7. **Apply website migrations** to production in order (`supabase/migrations/20261017100000_…` to `…101200_web13…`;
++7. **Apply website migrations** to production in order (`supabase/migrations/20261017100000_…` to `…20261031100000_web14…`;
+    never `00000000000000_prod_snapshot.sql`), each in its own transaction with `set lock_timeout = '5s'`. Expected
+    ≈ 1–5 s in total plus the first read-model build (≈ 3 s). Then `scripts/db/check-shared-unchanged.sh <prod-url>`
+    (read-only) must say "shared objects unchanged".
+@@ -138,6 +140,8 @@ After 14 stable days: raise the TTL back to 3600 s and retire the Hostinger site
+ 
+ - **Shared proposals:** each `supabase/migrations-shared/sNN_*.rollback.sql`, in reverse order of application.
+   s05's rollback refuses once leads reference the website consent versions (deactivate instead, as it says).
++- **web14 alone** (limits of 31 Oct 2026): `supabase/rollbacks/20261031100000_web14_audit_limits.rollback.sql` (one
++  transaction) restores the earlier function definitions and job commands and removes what web14 added.
+ - **Website objects:** first `pg_dump --schema=public --table='web_*'` (keep the consent ledger, applications and
+   privacy requests for DPDP), then `scripts/db/rollback-web.sql`. It refuses if any shared object depends on a website
+   object, removes the website's pg_cron jobs and every `web_*` object, and leaves leads and touchpoints in the shared
+@@ -161,6 +165,8 @@ After 14 stable days: raise the TTL back to 3600 s and retire the Hostinger site
+ | Lead missing in the CRM | `lead_intake` error, or routing held (A-B2B-1 not applied) | Admin → Outbox / logs (`lead.*` events, request id); B2B "unqualified: phone_not_verified" means A-B2B-1 is not live |
+ | A shared function changed under the website (after another product's release) | another product's migration | rebuild the replica and run `npm run db:gate`; `check-shared-unchanged.sh` names what changed |
+ | Suspected abuse (floods of enquiries) | bots | rate limits and Turnstile hold; Admin → Insights shows junk scores; lower limits in `web/lib/server/rate-limit.ts` and redeploy if needed |
++| Forms say "We're getting a lot of requests right now" | the site-wide code ceiling is reached (log `gate.code_ceiling_reached`, D-086) | Admin → Insights and the gate attempts show whether it is real demand (a campaign) or a flood; raise `code_send_hourly_cap` for real demand; it clears by itself within the hour |
++| Witty shows the finder all day; log `web_advisor.daily_cap_reached` | the daily Witty ceiling is reached (D-089) | check Admin → Insights for one visitor or many; raise `web_advisor_daily_cap` if it is real use; it resets at midnight IST |
+ 
+ **Regenerating s01** (if production's `lead_intake` changed): `scripts/db/make-s01.py` (instructions inside; it reads
+ production's current body read-only, re-inserts the s01 lines and rewrites the rollback file), then
+-- 
+2.43.0
+
+
+From 3523c0e171b4bca739c79886804f4cd5bea72760 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 31 Oct 2026 02:29:00 +0000
+Subject: [PATCH 16/16] website: Prettier on breaker.ts (the daily-ceiling
+ lines)
+
+breaker.ts passed `prettier --check` before the daily ceiling was added; formatting only, so it does again (the
+Prettier failure count is back to the 197 files that predate the audit).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N9g7Xn7RWKaJF173G8V173
+---
+ website/web/lib/server/web-advisor/breaker.ts | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/website/web/lib/server/web-advisor/breaker.ts b/website/web/lib/server/web-advisor/breaker.ts
+index ea2bae2..ed47944 100644
+--- a/website/web/lib/server/web-advisor/breaker.ts
++++ b/website/web/lib/server/web-advisor/breaker.ts
+@@ -40,7 +40,14 @@ export async function recordFailure(reason: string) {
+  * needs the database.
+  */
+ export async function dailyCapReached(): Promise<boolean> {
+-  let r: { ok: boolean; turns?: number; cost_usd?: number; max_turns?: number; max_cost_usd?: number; reset_seconds?: number };
++  let r: {
++    ok: boolean;
++    turns?: number;
++    cost_usd?: number;
++    max_turns?: number;
++    max_cost_usd?: number;
++    reset_seconds?: number;
++  };
+   try {
+     r = await rpc("web_advisor_daily_check");
+   } catch {
+@@ -52,7 +59,12 @@ export async function dailyCapReached(): Promise<boolean> {
+   } catch {
+     // KV unavailable: every turn is refused by this check instead
+   }
+-  log("error", "web_advisor.daily_cap_reached", { turns: r.turns, cost_usd: r.cost_usd, max_turns: r.max_turns, max_cost_usd: r.max_cost_usd });
++  log("error", "web_advisor.daily_cap_reached", {
++    turns: r.turns,
++    cost_usd: r.cost_usd,
++    max_turns: r.max_turns,
++    max_cost_usd: r.max_cost_usd,
++  });
+   return true;
+ }
+ 
 -- 
 2.43.0
 

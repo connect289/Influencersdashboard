@@ -126,10 +126,17 @@ no website function, `lead_intake` or `crm_verify_*` can be run by browser roles
 security and no browser grants; the search functions build no SQL from input; 110 of 119 live functions match the
 repository (the other 9 differ in whitespace only).
 
-Delivery: the eight commits (base `615ee72`, the head of `claude/inspiring-babbage-8asj1y`) are saved as
-`estate-audit-2026-10-30/website-fixes.mbox`. They pass typecheck, lint, 210 of 210 unit tests, the copy check, the build
-and `npm audit --omit=dev`; each new test fails on the old code. Applying them is `git am` on that branch, whose pushes
-deploy www.eduwit.in, so it waits for the owner's go. No database change.
+Delivery: sixteen commits on base `615ee72` (the head of `claude/inspiring-babbage-8asj1y`), saved as
+`estate-audit-2026-10-30/website-fixes.mbox`. The first eight fix SITE-03, 06, 07, 08, 09, 10 and 11; the follow-up of
+31 Oct adds a site-wide hourly ceiling on code emails (SITE-04), a website wrapper that sends an existing lead's fields
+untrusted when the phone's lead has another confirmed email, is enrolled or is CRM-owned (SITE-05; `lead_intake()`
+unchanged; the new source name is `web_agent_unverified`), an outbox tick that calls the site only when a job is due and
+a 30 s limit on the catalogue poll (SITE-15), no email address in the extractor's input (SITE-17), and a daily ceiling
+on Witty's turns and spend (SITE-18), with super-admin settings for both ceilings. Database change:
+`website/supabase/migrations/20261031100000_web14_audit_limits.sql` (rollback in `website/supabase/rollbacks/`;
+service-role grants only). Verified by the coordinator: typecheck and 219 of 219 unit tests; the auditor's local
+database run passes 1,413 checks (the new file fails before web14). Applying the commits is `git am` on that branch,
+whose pushes deploy www.eduwit.in, and web14 goes through the website's own migration path; both wait for the owner.
 
 ### Spark (B2C CRM, spark.eduwit.in)
 
