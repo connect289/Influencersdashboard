@@ -32,6 +32,11 @@ estate report's "Applied to production" section lists each set with its rehearsa
   meanwhile: since 03:30 UTC the database logged no permission or missing-function error from any app (only from this
   session's own test queries); Witty's failed runs are connection timeouts; web14's ceilings sit far above use (at most
   2 codes in an hour over 14 days, against 200; no website Witty sessions, against 2,000 turns a day).
+- 13:40 UTC: on the owner's request, Eduwit Scout's published catalogue (`ce_pub`) narrowed to the apps' server keys in
+  Scout's own repository (its T-111; branch `claude/festive-babbage-7yhhx8`, commit `99cf5f8`), applied to staging and
+  checked there with real reads (signed-in accounts and anon refused, the server key reads, the dashboard's 49
+  functions unchanged). Production gets the same bundle after the Pro upgrade; it does not expose `ce_pub` yet. Eduwit
+  One is unaffected: its Scout panels read through `one.ui_embed`, a definer function (D-125).
 
 ## 31 Oct 2026 — Independent audit, second round (0031, D-115 to D-121)
 

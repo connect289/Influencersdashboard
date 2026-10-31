@@ -84,10 +84,11 @@ Details:
 - **Eduwit Scout:** 46 of its 49 signed-in-callable `ce_admin` functions call `ce.require_admin()` first and the other
   three are safe as written; its Edge Functions authenticate with a single-use 15-minute code. Corrected after Scout's
   session checked it: a stranger's refused admin sign-in rolls back with its audit row (`ce.audit_log` holds 0 rows),
-  so the audit-growth point raised earlier does not hold. Open: `ce_pub` is granted to every signed-in account, broader
-  than Scout's per-consumer design, so only `ce_admin` should be exposed until that is narrowed; Scout's tables reached
-  185 MB on staging after repeated reads of one partner, so its first production run waits for the Pro plan or freed
-  space.
+  so the audit-growth point raised earlier does not hold. Fixed in Scout's repository on 31 Oct (its T-111): `ce_pub`
+  was granted to every signed-in account, broader than Scout's per-consumer design; it is now the apps' server keys
+  only, live on staging and on production after the Pro upgrade, so only `ce_admin` is exposed until then. Scout's
+  tables reached 185 MB on staging after repeated reads of one partner, so its first production run waits for the Pro
+  plan or freed space.
 
 ## Applied to production, 31 Oct 2026
 
@@ -327,7 +328,8 @@ vercel:website, chatwoot, which now say which key is missing) or switched off, s
 | E17 | medium   | Eduwit One's reader role could read the apps' credential columns (password, token, secret and hash columns, push subscriptions), which no check uses                                                                            | fixed `0031` (D-121), not applied                                      |
 
 For the owner, from the same audit: Eduwit Scout's 52 new API-callable functions (first seen 30 Oct 21:00 UTC) will
-fail PLAT-07 at its next daily run until acknowledged (owner-only once 0030 is live); production has no Anthropic key, so
+fail PLAT-07 at its next daily run until acknowledged (owner-only once 0030 is live; the 3 in `ce_pub` stop
+counting once T-111 reaches production); production has no Anthropic key, so
 38 AI tasks of the last two days wait; the Vault secret `one_gemini_key` is read by no Eduwit One code; a cut-off part of
 this cloud environment's `VERCEL_TOKEN` appeared in one test's output in the audit session (in no file or commit), so
 rotating that token is a sensible precaution. Commits on this branch: `dd6aa16`, `60341b5`, `127731d`, `5f105a6`,
