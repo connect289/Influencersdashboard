@@ -21,6 +21,10 @@ async function Settings() {
         <SettingForm name="require_phone_otp" label="Require phone OTP" kind="bool" value={v.require_phone_otp} disabled help="Needs a phone OTP provider first (S-25)." />
         <SettingForm name="document_upload_enabled" label="Document upload in the application form" kind="bool" value={v.document_upload_enabled} disabled help="Not built in v1 (D-054)." />
       </Card>
+      <Card title="Site-wide limits (super admin)">
+        <SettingForm name="code_send_hourly_cap" label="Verification codes per hour, whole site" kind="number" value={v.code_send_hourly_cap} disabled={!admin} help="Above it, forms and Witty ask people to try again a little later and an alert is logged. Raise it for a big campaign; 0 stops all sends." />
+        <SettingForm name="web_advisor_daily_cap" label="Witty per day (India time), whole site" kind="json" value={v.web_advisor_daily_cap} disabled={!admin} help='{"turns": 2000, "cost_usd": 25}. Above either, Witty pauses until midnight IST and visitors get the guided finder and a counsellor.' />
+      </Card>
       <Card title="Site">
         <SettingForm name="announcement" label="Announcement bar" kind="json" value={v.announcement} disabled={!editor} help='{"text": "Admissions open for January", "href": "/programmes", "tone": "info"} — or null to hide.' />
         <SettingForm name="sections" label="Homepage sections on/off" kind="json" value={v.sections} disabled={!editor} help='{"faq": true, "testimonials": false, …}' />

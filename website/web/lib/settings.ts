@@ -24,6 +24,9 @@ export const settingsSchema = z.object({
   web_advisor_budget: z
     .object({ max_tokens_per_session: z.number(), turn_timeout_ms: z.number(), max_turns_per_session: z.number() })
     .default({ max_tokens_per_session: 60000, turn_timeout_ms: 20000, max_turns_per_session: 40 }),
+  /** Site-wide ceilings (web14; enforced in the database, super-admin only). */
+  code_send_hourly_cap: z.number().int().min(0).default(200),
+  web_advisor_daily_cap: z.object({ turns: z.number().min(0), cost_usd: z.number().min(0) }).default({ turns: 2000, cost_usd: 25 }),
   sections: z.record(z.string(), z.boolean()).default({}),
   /** Opening hours for LocalBusiness structured data, e.g. ["Mo-Sa 10:00-19:00"] (S-51); none shown until set. */
   business_hours: z.array(z.string().regex(/^(Mo|Tu|We|Th|Fr|Sa|Su)(-(Mo|Tu|We|Th|Fr|Sa|Su))? \d{2}:\d{2}-\d{2}:\d{2}$/)).nullable().default(null),

@@ -2,6 +2,7 @@
 
 import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
+import { ceilingError } from "@/lib/admin/ceilings";
 import { entityConfig, parseEntityForm } from "@/lib/admin/entities";
 import { requireAdmin } from "@/lib/server/admin";
 import { rpc } from "@/lib/server/db";
@@ -92,6 +93,8 @@ const SETTING_KEYS = new Set([
   "finder_include_regular_mode",
   "application_form",
   "business_hours",
+  "code_send_hourly_cap",
+  "web_advisor_daily_cap",
 ]);
 
 export async function saveSettingAction(_prev: AdminFormState, form: FormData): Promise<AdminFormState> {
@@ -114,6 +117,8 @@ export async function saveSettingAction(_prev: AdminFormState, form: FormData): 
   if (key === "counsellor_whatsapp" || key === "counsellor_phone") {
     if (typeof value !== "string" || !/^\+91[6-9]\d{9}$/.test(value)) return { error: "Use +91 followed by a 10-digit mobile number." };
   }
+  const ceiling = ceilingError(key, value);
+  if (ceiling) return { error: ceiling };
   const r = await rpc<{ ok: boolean; error?: string }>("web_admin_setting", { p_key: key, p_value: value, p_actor: s.userId, p_actor_email: s.email, p_role: s.role });
   if (!r.ok) return { error: r.error === "forbidden" ? "Only a super admin can change this setting." : (r.error ?? "Saving failed.") };
   revalidateTag("settings", { expire: 0 });
