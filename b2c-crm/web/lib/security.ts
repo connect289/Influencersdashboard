@@ -18,6 +18,31 @@ export function safeNext(next: string | null | undefined, fallback = "/"): strin
   return next;
 }
 
+/**
+ * The same-origin check for a cookie-signed POST to a route handler (server actions get Next's own): the browser's Origin
+ * must be this deployment (the request's host, or the configured site URL), and Sec-Fetch-Site, when the browser sends
+ * it, must say same-origin. A missing or opaque ("null") Origin is refused.
+ */
+export function sameOrigin(headers: Headers, site?: string | null): boolean {
+  const origin = headers.get("origin");
+  if (!origin || origin === "null") return false;
+  let host: string;
+  try {
+    host = new URL(origin).host;
+  } catch {
+    return false;
+  }
+  const fetchSite = headers.get("sec-fetch-site");
+  if (fetchSite && fetchSite !== "same-origin") return false;
+  const own = [headers.get("x-forwarded-host")?.split(",")[0]?.trim(), headers.get("host")?.trim()];
+  try {
+    if (site) own.push(new URL(site).host);
+  } catch {
+    // a malformed site URL adds nothing
+  }
+  return own.some((h) => !!h && h.toLowerCase() === host.toLowerCase());
+}
+
 /** True when the last-seen timestamp (epoch seconds) is older than the idle limit. A missing or bad value is not idle. */
 export function isIdleExpired(lastSeen: string | undefined, nowSeconds: number, limit = IDLE_LIMIT_SECONDS): boolean {
   if (!lastSeen) return false;

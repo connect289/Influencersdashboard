@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { breachedPassword, buildCsp, clientIp, isIdleExpired, passwordProblem, pwnedCount, pwnedParts, rateIp, rateKey, retryAfter, safeNext } from "./security";
+import { breachedPassword, buildCsp, clientIp, isIdleExpired, passwordProblem, pwnedCount, pwnedParts, rateIp, rateKey, retryAfter, safeNext, sameOrigin } from "./security";
+
+describe("same-origin POSTs", () => {
+  const h = (o: Record<string, string>) => new Headers(o);
+  it("accepts this deployment by host, forwarded host or site URL", () => {
+    expect(sameOrigin(h({ origin: "https://spark.eduwit.in", host: "spark.eduwit.in" }))).toBe(true);
+    expect(sameOrigin(h({ origin: "https://spark.eduwit.in", host: "internal:3000", "x-forwarded-host": "spark.eduwit.in" }))).toBe(true);
+    expect(sameOrigin(h({ origin: "https://spark.eduwit.in", host: "internal:3000" }), "https://spark.eduwit.in")).toBe(true);
+    expect(sameOrigin(h({ origin: "http://localhost:3000", host: "localhost:3000", "sec-fetch-site": "same-origin" }))).toBe(true);
+  });
+  it("refuses another site, a missing or opaque origin, and a cross-site fetch", () => {
+    expect(sameOrigin(h({ origin: "https://evil.example", host: "spark.eduwit.in" }), "https://spark.eduwit.in")).toBe(false);
+    expect(sameOrigin(h({ host: "spark.eduwit.in" }), "https://spark.eduwit.in")).toBe(false);
+    expect(sameOrigin(h({ origin: "null", host: "spark.eduwit.in" }))).toBe(false);
+    expect(sameOrigin(h({ origin: "https://spark.eduwit.in", host: "spark.eduwit.in", "sec-fetch-site": "same-site" }))).toBe(false);
+    expect(sameOrigin(h({ origin: "https://spark.eduwit.in.evil.example", host: "spark.eduwit.in" }))).toBe(false);
+  });
+});
 
 describe("safeNext", () => {
   it("keeps same-origin paths", () => {
