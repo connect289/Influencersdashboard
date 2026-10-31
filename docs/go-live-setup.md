@@ -303,7 +303,8 @@ Claude reads aggregated, pseudonymised scorecards and proposes bounded engine ch
 1. **Anthropic key.** Vercel env `ANTHROPIC_API_KEY` (organisation key, zero data retention if available). Never stored in the database. Redeploy.
 2. **Worker key.** System health → Webhooks and API keys → create a key with scope **`ai_worker`**; put it in Vercel env `AI_WORKER_KEY`. Redeploy.
    Check: AI Optimiser (`/ai`) → Set up card shows the key as seen and the worker key present (`select exists (select 1 from b2b.api_keys where 'ai_worker' = any (scopes) and revoked_at is null);`).
-3. **Worker address.** AI Optimiser → Settings → Worker: `ai.worker_url` = `https://<crm host>`; the database wakes `<worker_url>/v1/ai/tick` when a run is queued.
+3. **Worker address and key.** AI Optimiser → Settings → Worker: `ai.worker_url` = `https://<crm host>`, and Worker key = the same `AI_WORKER_KEY` (Vault `b2b_ai_worker_key`; m34f). The database wakes `<worker_url>/v1/ai/tick` when a run is queued, with the key as a Bearer token; the route refuses any other call.
+   Check: the Set up card shows the worker key saved (`select (value ->> 'worker_key_set')::boolean from b2b.settings where key = 'ai';`).
 4. **Budget and models.** `ai.daily_budget_usd` (default $5, 0–200); models for regular / deep / quick runs with their prices per million tokens (`ai.prices_per_mtok`; the save refuses a model without a price); `max_tokens` 12,000; schedules light / hourly / nightly / weekly.
 5. **Switch on** (`ai.enabled = true`, `mode = advisory`). Autopilot stays locked until AI-steered leads beat the holdout over 4 weeks of matured leads (60–88 days after allocation), so it cannot be on for at least two months.
    Check: AI Optimiser → Runs shows the first light check or hourly run finishing `done`; Spend shows the cost; `select kind, status, cost_usd from b2b.ai_runs order by id desc limit 5;`. The inbox says "little to replay" until leads mature (60 days): that is expected.

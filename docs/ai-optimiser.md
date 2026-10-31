@@ -88,8 +88,10 @@ unproven and the screen says so.
    claims no run, so queued runs wait instead of failing.
 2. **Worker key.** In the CRM, System → API keys: create a key with the scope *AI optimiser worker*. Add it to Vercel as
    `AI_WORKER_KEY`. Redeploy.
-3. **Worker address.** AI Optimiser → Settings: enter the CRM's address (e.g. `https://b2b.eduwit.in`). The database
-   wakes `/v1/ai/tick` there when a run is queued.
+3. **Worker address and key.** AI Optimiser → Settings: enter the CRM's address (e.g. `https://b2b.eduwit.in`) and paste
+   the same `AI_WORKER_KEY` as the Worker key (kept in Vault, never shown again). The database wakes `/v1/ai/tick` there
+   when a run is queued and sends the key; the route refuses any call without it (m34f). The address must be on the
+   public internet (m34e).
 4. **Budget.** Set the daily budget (default $5). Runs stop for the day once it is spent, with one alert a day.
 5. **Switch it on** (AI Optimiser → Settings). The Set up card on the Inbox tab shows what is still missing.
 
