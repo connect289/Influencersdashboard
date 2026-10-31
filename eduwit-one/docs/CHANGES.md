@@ -27,6 +27,11 @@ estate report's "Applied to production" section lists each set with its rehearsa
   build passed here first), but Vercel's build failed: prerendering reads the database, which timed out. The live site
   stays on the previous build until a redeploy after the database recovers. web14 is not applied (same stall; its
   transaction checks production's functions first, and production matched its starting point at 07:22 UTC).
+- 11:43 to 12:09 UTC: Eduwit One's tick and nightly jobs paused to relieve the database (switched back on and checked);
+  the apply still could not finish its fingerprint. The owner chose to wait for the Pro upgrade (D-124). Checked
+  meanwhile: since 03:30 UTC the database logged no permission or missing-function error from any app (only from this
+  session's own test queries); Witty's failed runs are connection timeouts; web14's ceilings sit far above use (at most
+  2 codes in an hour over 14 days, against 200; no website Witty sessions, against 2,000 turns a day).
 
 ## 31 Oct 2026 — Independent audit, second round (0031, D-115 to D-121)
 
