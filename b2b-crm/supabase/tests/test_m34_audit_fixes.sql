@@ -73,6 +73,12 @@ do $x$ declare x jsonb; k jsonb; begin
   insert into t values ('RK', k ->> 'key');
 end $x$;
 reset role;
+-- since m34d a referrals key reads only the codes it is linked to
+do $x$ begin
+  if exists (select 1 from information_schema.columns where table_schema = 'b2b' and table_name = 'api_keys' and column_name = 'referral_codes') then
+    execute $q$update b2b.api_keys set referral_codes = '{M34REF}' where name = 'm34 referrals key'$q$;
+  end if;
+end $x$;
 -- the referral API (anon, a referrals key) reads b2c_status_of inside its definer context
 set local role anon;
 do $x$ declare x jsonb; begin

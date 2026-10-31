@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
-import { ApiKeySchema, EndpointSchema } from "@/lib/integrations";
+import { ApiKeySchema, EndpointSchema, referralCodesProblem } from "@/lib/integrations";
 import { zodErrors } from "@/lib/notifications";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,16 +24,29 @@ const refresh = () => revalidatePath("/system");
 
 export type SecretResult = { ok: true; secret: string } | { ok: false; error: string; errors?: Record<string, string> };
 
-/** Creates an API key and returns it once; only its hash is stored. */
-export async function createApiKey(name: string, scopes: string[], expiresDays?: number, ratePerMinute?: number | null): Promise<SecretResult> {
+/** Creates an API key and returns it once; only its hash is stored. A referrals key is linked to its codes (M34d). */
+export async function createApiKey(name: string, scopes: string[], expiresDays?: number, ratePerMinute?: number | null,
+                                   referralCodes: string[] = []): Promise<SecretResult> {
   await assertAdmin();
-  const p = ApiKeySchema.safeParse({ name, scopes, expires_days: expiresDays ?? 0, rate_per_minute: ratePerMinute ?? null });
+  const p = ApiKeySchema.safeParse({ name, scopes, expires_days: expiresDays ?? 0, rate_per_minute: ratePerMinute ?? null, referral_codes: referralCodes });
   if (!p.success) return { ok: false, error: "Check the highlighted fields.", errors: zodErrors(p.error.issues) };
   const expiresAt = p.data.expires_days > 0 ? new Date(Date.now() + p.data.expires_days * 86400000).toISOString() : null;
-  const { data, error } = await rpc("api_key_create", { p: { name: p.data.name, scopes: p.data.scopes, expires_at: expiresAt, rate_per_minute: p.data.rate_per_minute } });
+  const { data, error } = await rpc("api_key_create", { p: { name: p.data.name, scopes: p.data.scopes, expires_at: expiresAt, rate_per_minute: p.data.rate_per_minute,
+                                                             referral_codes: p.data.referral_codes } });
   if (error || !data) return { ok: false, error: error ? dbMessage(error, "Could not create the key. Try again.") : "Could not create the key. Try again." };
   refresh();
   return { ok: true, secret: (data as { key: string }).key };
+}
+
+/** M34d: replaces the referral codes a referrals key may read. */
+export async function setKeyReferralCodes(id: number, codes: string[]): Promise<string | void> {
+  await assertAdmin();
+  if (!Id.safeParse(id).success) return "Invalid key.";
+  const problem = z.array(z.string().max(70)).max(200).safeParse(codes).success ? referralCodesProblem(["referrals"], codes) : "At most 200 codes.";
+  if (problem) return problem;
+  const { error } = await rpc("api_key_update", { p_id: id, p: { referral_codes: codes } });
+  if (error) return dbMessage(error, "Could not save the codes. Try again.");
+  refresh();
 }
 
 export async function revokeApiKey(id: number): Promise<string | void> {

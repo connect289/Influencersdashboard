@@ -16,6 +16,8 @@ export type ApiKeyRow = {
   note?: string | null;
   requests_1h?: number;
   requests_24h?: number;
+  /** M34d: the referral codes (or prefixes ending in *) a referrals key may read */
+  referral_codes?: string[];
 };
 
 export type Consumer = "b2c_crm" | "influencer_dashboard" | "website" | "other";
@@ -181,12 +183,36 @@ export const JOB_LABEL: Record<string, string> = {
   "b2b-lost-grace-tick": "Lost leads: end of the 7-day grace",
 };
 
+/** M34d: a referral code a key may be linked to, or a prefix ending in * with 3 or more characters before it. */
+export const REFERRAL_CODE_RE = /^[A-Z0-9_-]{1,60}$/;
+export const REFERRAL_PREFIX_RE = /^[A-Z0-9_-]{3,59}\*$/;
+
+/** The codes typed into the key form (separated by commas, spaces or new lines), upper-cased, de-duplicated, sorted. */
+export function parseReferralCodes(text: string): string[] {
+  return [...new Set(text.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean))].sort();
+}
+
+/** What is wrong with a key's referral codes for its scopes, or null. Mirrors b2b.referral_codes_parse and api_key_create (m34d). */
+export function referralCodesProblem(scopes: readonly string[], codes: readonly string[]): string | null {
+  const bad = codes.find((c) => !REFERRAL_CODE_RE.test(c) && !REFERRAL_PREFIX_RE.test(c));
+  if (bad) return `Not a referral code: ${bad.slice(0, 30)}. Letters, digits, _ and -; a prefix ends in * after 3 or more characters.`;
+  if (codes.length > 200) return "At most 200 codes per key.";
+  if (scopes.includes("referrals") && codes.length === 0) return "Link the key to at least one referral code (or a prefix such as INF*).";
+  if (!scopes.includes("referrals") && codes.length > 0) return "Referral codes apply only to a key with the Referrals scope.";
+  return null;
+}
+
 export const ApiKeySchema = z.object({
   name: z.string().trim().min(2, "Give the key a name (2 to 80 characters).").max(80, "Give the key a name (2 to 80 characters)."),
   scopes: z.array(z.enum(SCOPES)).min(1, "Choose at least one scope."),
   /** M33a: days until the key expires (0 = never), and an optional per-minute limit. */
   expires_days: z.number().int().min(0).max(730).default(0),
   rate_per_minute: z.number().int().min(1).max(100000).nullable().default(null),
+  /** M34d: the codes a referrals key may read */
+  referral_codes: z.array(z.string().max(70)).max(200).default([]),
+}).superRefine((d, ctx) => {
+  const problem = referralCodesProblem(d.scopes, d.referral_codes);
+  if (problem) ctx.addIssue({ code: "custom", path: ["referral_codes"], message: problem });
 });
 
 /** The per-minute defaults per scope (setting api_limits), for the key form's hint. */
@@ -220,6 +246,22 @@ export function parseHandoffsQuery(params: URLSearchParams): { ok: true; q: Hand
   const n = limit === null ? 200 : Number(limit);
   if (n < 1 || n > 500) return { ok: false, error: "limit must be 1 to 500" };
   return { ok: true, q: { since: since === null ? null : new Date(since).toISOString(), after: after === null ? null : Number(after), limit: n } };
+}
+
+/** M34d: an opaque referral cursor (next_after), as b2b.referral_cursor makes it. */
+export const REFERRAL_CURSOR_RE = /^c1\.[A-Za-z0-9_-]{16,64}$/;
+
+export type ReferralQuery = { after: string | null; limit: number };
+
+/** Query of GET /v1/referrals/{code}/outcomes: `after` is the next_after of the previous page (an opaque cursor, m34d). */
+export function parseReferralQuery(params: URLSearchParams): { ok: true; q: ReferralQuery } | { ok: false; error: string } {
+  const after = params.get("after");
+  const limit = params.get("limit");
+  if (after !== null && after !== "" && !REFERRAL_CURSOR_RE.test(after)) return { ok: false, error: "after must be the next_after of the previous page" };
+  if (limit !== null && !/^\d{1,3}$/.test(limit)) return { ok: false, error: "limit must be 1 to 500" };
+  const n = limit === null ? 100 : Number(limit);
+  if (n < 1 || n > 500) return { ok: false, error: "limit must be 1 to 500" };
+  return { ok: true, q: { after: after ? after : null, limit: n } };
 }
 
 /** Collapses wildcard coverage for display: ["b2c.*", "b2c.lead_flagged"] shows only "b2c.*". */
