@@ -132,7 +132,8 @@ select one.ui_chat_action_decide(:a1, 'decline', 'req-2') as d1 \gset
 select pg_temp.ok(:'d1'::jsonb ->> 'status' = 'declined' and (pg_temp.q($q$select status = 'declined' and decided_by = 'connect@eduwit.in' as v from one.chat_actions where id = $q$ || :a1) ->> 'v')::boolean, 'declined');
 select pg_temp.ok((pg_temp.q($q$select exists (select 1 from one.chat_messages where thread_id = 1 and role = 'action' and (content ->> 'action_id')::bigint = $q$ || :a1 || $q$ and content ->> 'status' = 'declined') as v$q$) ->> 'v')::boolean,
                   'the decline joins the conversation');
-select one.ui_chat_action_decide(:a2, 'confirm', 'req-3') as d2 \gset
+-- A confirmation carries the arguments its card showed (0031, D-115).
+select one.ui_chat_action_decide(:a2, 'confirm', 'req-3', '{"target_type": "check", "target": "WITTY-04", "minutes": 60, "reason": "deploy"}') as d2 \gset
 select pg_temp.ok(:'d2'::jsonb ->> 'status' = 'confirmed' and :'d2'::jsonb ->> 'tool' = 'mute' and :'d2'::jsonb #>> '{args,target}' = 'WITTY-04',
                   'confirm hands the call back to the app');
 select pg_temp.ok((pg_temp.q($q$select exists (select 1 from one.audit where action = 'chat.action.confirm' and target = 'chat_action:$q$ || :a2 || $q$' and request_id = 'req-3') as v$q$) ->> 'v')::boolean, 'confirmation is audited');

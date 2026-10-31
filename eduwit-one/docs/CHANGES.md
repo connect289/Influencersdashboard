@@ -3,6 +3,20 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 31 Oct 2026 — Independent audit, second round (0031, D-115 to D-120)
+
+On the owner's go to fix everything that needs no business decision (the threshold rule of D-065 stays). Not yet
+rehearsed nor applied: apply 0031 before deploying the web.
+
+- `0031_audit_hardening.sql` (+ rollback): `one.mask_text` follows the app's masker, held to one corpus with it
+  (D-119); `one.ui_user_put` maps confirmed users only (D-117); an action's arguments are stored as proposed and a
+  confirmation must carry the card's arguments (the database half of D-115); `one.ai_reserve` and
+  `one.ai_reservations` reserve each model call's worst case and `one.ai_calls_add` settles it (the database half of
+  D-118). The local test cluster runs UTF8 and from `eduwit-one/`; the auth stub has `email_confirmed_at`. Tests:
+  `supabase/tests/local/99_audit_fixes.sql` (each section fails on 0030 and passes on 0031),
+  `web/lib/ai/mask-corpus.test.ts`, `99_chat.sql` confirming with the card's arguments; fingerprint regenerated
+  (246 functions, 37 tables). The D-110 row is back inside the decisions table.
+
 ## 31 Oct 2026 — the owner's go for the listed actions (D-111)
 
 - n8n: six inactive workflows archived ("Eduwit" and "Eduwit (Test Harness)", which held copied credentials; "Witty 2.0 ·

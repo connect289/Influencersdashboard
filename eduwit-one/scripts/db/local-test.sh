@@ -6,6 +6,8 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")/../.." && pwd)"
+# Tests read fixtures by paths relative to eduwit-one/ (supabase/tests/mask-corpus.json, D-119), wherever this is run from.
+cd "$here"
 work="$(mktemp -d)"
 port=55433
 bin="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)"
@@ -14,7 +16,8 @@ as_server() { if [ "$(id -u)" = 0 ]; then runuser -u postgres -- "$@"; else "$@"
 [ "$(id -u)" = 0 ] && chown postgres "$work"
 trap 'as_server "$bin/pg_ctl" -D "$work/data" -m immediate stop >/dev/null 2>&1 || true; rm -rf "$work"' EXIT
 
-as_server "$bin/initdb" -D "$work/data" -U supabase_admin --auth=trust >/dev/null
+# UTF8, as Supabase's databases are: one.mask_text normalises Unicode (D-119), which needs it.
+as_server "$bin/initdb" -D "$work/data" -U supabase_admin --auth=trust -E UTF8 --no-locale >/dev/null
 as_server "$bin/pg_ctl" -D "$work/data" -o "-k $work -p $port -c listen_addresses=''" -l "$work/log" -w start >/dev/null
 
 psql_as() { # role, then psql args

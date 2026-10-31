@@ -55,7 +55,8 @@ check_id = '<ID>'`. A platform stall (every app's jobs failing to start, PLAT-01
 ## Signing in
 
 - **Who.** Only `@eduwit.in` Google accounts with an active row in Settings → Users. The owner adds an engineer
-  there after the person has signed in once with Google (their Supabase user must exist). An engineer reads and
+  there after the person has signed in once with Google (their Supabase user must exist and have confirmed the
+  address: D-117). An engineer reads and
   operates; only the owner changes users, owner-only settings, recipients, Setup secrets and sensitive proposals.
 - **The second step.** After Google, a 6-digit code goes to the person's email (valid 10 minutes, 5 tries, 5 codes an
   hour). Ticking "Trust this browser for 30 days" skips the code on that browser. Settings → Users → "Sign out

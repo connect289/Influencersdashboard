@@ -14,7 +14,9 @@ create extension if not exists pgcrypto;
 -- pg_cron: tables owned by the admin, postgres may read them with grant option (as measured on production).
 -- Supabase Auth: the two tables Eduwit One reads (who a user is; whether their session still exists).
 create schema auth;
-create table auth.users (id uuid primary key default gen_random_uuid(), email text);
+-- email_confirmed_at as Supabase has it (null until the address is confirmed); fixture users are confirmed unless a
+-- test says otherwise (0031, D-117).
+create table auth.users (id uuid primary key default gen_random_uuid(), email text, email_confirmed_at timestamptz default now());
 create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid references auth.users (id), created_at timestamptz default now(), not_after timestamptz);
 grant usage on schema auth to postgres;
 grant select on auth.users, auth.sessions to postgres;
