@@ -18,6 +18,8 @@ followed.
   checked before any retry.
 - `.github/workflows/b2b-crm-ci.yml`: typecheck, unit tests, build and the production dependency audit for the B2B CRM
   (its build passes with an empty environment).
+- `supabase/pending/after_pro_plan.sql` (+ rollback, D-112): the Pro plan's settings, ready and tested locally, outside the
+  migration chain until the organisation is on Pro; RUNBOOK's retention paragraph says how to use it.
 
 ## 30 Oct 2026 — Independent audit: fixes (D-104 onward)
 
