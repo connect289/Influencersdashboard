@@ -75,6 +75,11 @@ app object, it is rolled back whole and the run stops with "refused: this migrat
 one" (D-057). It stops at the first failure, runs the smoke test, and prints the first tick report and the two cron
 jobs. The report must have no key ending in `_error`, and `cron` must list `one-tick` and `one-nightly`.
 
+If the smoke test fails with "the reader can read credential columns", an app has added a relation with a credential
+column since 0031 (the default privileges let the reader read a new relation whole): add a migration that runs
+`call one.reader_without_credentials();` (D-121). `one.reader_excluded_columns` lists the columns the reader does not
+read.
+
 ## 5. From a cloud session, through the Management API
 
 For a machine that has HTTPS to `api.supabase.com` but no Postgres connection (D-090). The scripts here post each

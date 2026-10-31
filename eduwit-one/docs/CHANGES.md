@@ -3,7 +3,7 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
-## 31 Oct 2026 — Independent audit, second round (0031, D-115 to D-120)
+## 31 Oct 2026 — Independent audit, second round (0031, D-115 to D-121)
 
 On the owner's go to fix everything that needs no business decision (the threshold rule of D-065 stays). Not yet
 rehearsed nor applied: apply 0031 before deploying the web.
@@ -22,6 +22,15 @@ rehearsed nor applied: apply 0031 before deploying the web.
   `regenerate_brief` are cards, so only a fix's dry run runs at once; the chat prompt (`chat@a01405a6c5`) and the
   runbook match. Tests: `lib/ai/chat/engine.test.ts`, `lib/ai/worker.test.ts`, `lib/ai/chat/tools.test.ts`,
   `lib/ai/chat/shown.test.ts`.
+- The reader narrowed (D-121): 0031 adds `one.credential_column_pattern()`, `one.is_credential_column()`,
+  `one.reader_without_credentials()` and `one.reader_excluded_columns`, and runs the procedure, so the reader keeps
+  SELECT on every other column of an app relation with a credential column. `smoke.sql` allows the reader's column
+  SELECT and fails while it can read a credential column; `local-test.sh` proves that on a relation granted whole again.
+  The fingerprint wrapper allows the reader's column SELECT (its negative case is now a column UPDATE) and `guards.ts`
+  reviews the four dynamic statements of the procedure and its rollback. Tests: `99_audit_fixes.sql` §5 (new stubs: a
+  legacy login, Spark's users, n8n's users and credential store), `scripts/db/reader-columns.test.ts`; fingerprint
+  regenerated (249 functions, 38 tables). After the apply, `select * from one.reader_excluded_columns` lists what the
+  reader no longer reads.
 
 ## 31 Oct 2026 — the owner's go for the listed actions (D-111)
 

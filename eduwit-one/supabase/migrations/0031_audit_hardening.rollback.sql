@@ -1,6 +1,34 @@
--- Rollback of 0031: restores 0020's one.mask_text, 0021's one.ui_chat_action_propose and 3-argument
--- one.ui_chat_action_decide, 0011's one.ui_user_put and 0018's one.ai_calls_add verbatim; drops one.mask_normalise,
--- one.mask_phones, one.ai_reserve, one.ai_reserved and one.ai_reservations (reservations are transient: nothing is lost).
+-- Rollback of 0031: gives the reader its table-wide SELECT back where 0031 narrowed it; restores 0020's one.mask_text,
+-- 0021's one.ui_chat_action_propose and 3-argument one.ui_chat_action_decide, 0011's one.ui_user_put and 0018's
+-- one.ai_calls_add verbatim; drops one.reader_without_credentials, one.is_credential_column,
+-- one.credential_column_pattern, one.reader_excluded_columns, one.mask_normalise, one.mask_phones, one.ai_reserve,
+-- one.ai_reserved and one.ai_reservations (reservations are transient: nothing is lost).
+
+-- The reader reads each relation 0031 narrowed whole again (one.reader_excluded_columns, where it still exists), its
+-- column grants there gone, as before 0031.
+do $$
+declare
+  r record;
+begin
+  for r in
+    select x.relation as rel,
+           string_agg(pg_catalog.quote_ident(a.attname), ', ' order by a.attnum)
+             filter (where exists (select 1 from pg_catalog.aclexplode(a.attacl) g
+                                    where g.grantee = 'eduwit_one_reader'::regrole and g.privilege_type = 'SELECT')) as cols
+      from (select distinct relation from one.reader_excluded_columns) x
+      join pg_catalog.pg_attribute a on a.attrelid = pg_catalog.to_regclass(x.relation) and a.attnum > 0 and not a.attisdropped
+     group by x.relation
+  loop
+    if r.cols is not null then
+      execute format('revoke select (%s) on %s from eduwit_one_reader', r.cols, r.rel);
+    end if;
+    execute format('grant select on %s to eduwit_one_reader', r.rel);
+  end loop;
+end $$;
+drop procedure if exists one.reader_without_credentials();
+drop function if exists one.is_credential_column(regclass, name);
+drop function if exists one.credential_column_pattern();
+drop table if exists one.reader_excluded_columns;
 
 delete from one.api_grants where fn = 'one.ai_reserve(bigint,text,numeric)';
 drop function if exists one.ai_reserve(bigint, text, numeric);

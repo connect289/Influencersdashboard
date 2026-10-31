@@ -8,6 +8,8 @@
 --   one.ai_reserve, ai_reservations, ai_calls_add   a model call reserves its worst case before it runs and settles at
 --                                 its real cost, one reservation at a time, so calls in parallel cannot pass the day's cap
 --                                 together (D-118)
+--   one.reader_without_credentials, reader_excluded_columns   eduwit_one_reader no longer reads the apps' credential
+--                                 columns, and each column left out is recorded (D-121)
 -- Numbered 0031: 0029 and 0030 precede it.
 
 -- The app's contact shapes in the database (D-119). one.mask_text masked fewer phone shapes than web/lib/ai/pii.ts's
@@ -250,5 +252,82 @@ end $$;
 insert into one.api_grants (fn, role, why) values
   ('one.ai_reserve(bigint,text,numeric)', 'service_role', 'the app reserves a model call''s worst case before it runs (0031, D-118)')
 on conflict do nothing;
+
+-- The reader reads no credential (D-121). eduwit_one_reader held SELECT on every relation of public, b2b, b2c and
+-- catalog (0001), credential columns included. Nothing in Eduwit One reads as the reader: the checks, panels, events
+-- copy and tools run as the owner (D-030); and no check, panel, probe or events source reads a credential column
+-- (scripts/db/reader-columns.test.ts holds Eduwit One's SQL to that). Wherever the reader holds SELECT on a relation
+-- with a credential column (one.is_credential_column: a name that says password, secret, token, key, hash, salt,
+-- one-time or MFA code, cookie, credentials, push subscription or encrypted, in snake_case or camelCase; or one of the
+-- few that hold a credential under a plain name), its table-wide SELECT becomes SELECT on the other columns, and
+-- one.reader_excluded_columns records each column left out (the rollback reads it). The default privileges stay: a
+-- relation created later is readable whole. So when an app adds a relation with a credential column, the next
+-- migration calls one.reader_without_credentials() again; smoke.sql fails until one does. (A column added later to a
+-- relation narrowed here is not readable at all: the reader's grants there are per column.)
+create table one.reader_excluded_columns (
+  relation text not null,
+  column_name text not null,
+  excluded_at timestamptz not null default now(),
+  primary key (relation, column_name)
+);
+
+create or replace function one.credential_column_pattern() returns text
+language sql immutable parallel safe set search_path = '' as $$
+  -- reader-credential-pattern (read by scripts/db/reader-columns.test.ts), matched against a column name in snake_case
+  -- (camelCase split at each capital, then lower case): a name that says credential, but not a time, a count, an id, a
+  -- flag or another plain property of one (token_failed_at, input_tokens, has_password, require_totp, token_error)
+  select '^(?!(has|is|can|require|requires)_)(?!.*_(at|on|date|time|count|attempts|tries|status|state|type|kind|id|ids|name|label|set|enabled|required|version|len|length|ttl|expiry|expires|used|last4|hint|sent|days|hours|minutes|seconds|method|error)$)(.*(^|_)(password|passwd|pwd|secret|token|otp|totp|mfa|salt|cookie|credential|credentials|apikey)(_|$).*|.*(^|_)(api|private|signing|secret|access|auth|webhook|encryption)_key(_|$).*|.*(^|_)recovery_codes?(_|$).*|.*(^|_)push_subscriptions?(_|$).*|(.*_)?hash|.*(^|_)(encrypted|ciphertext)(_|$).*|.*_enc)$'::text
+$$;
+
+create or replace function one.is_credential_column(p_rel regclass, p_col name) returns boolean
+language sql stable parallel safe set search_path = '' as $$
+  select pg_catalog.lower(pg_catalog.regexp_replace(p_col::text, '([a-z0-9])([A-Z])', '\1_\2', 'g')) ~ one.credential_column_pattern()
+         -- reader-credential-columns (read by scripts/db/reader-columns.test.ts): n8n's credential stores and OAuth
+         -- authorization codes, which share schema public on production and say nothing in their names
+      or p_rel::text || '.' || p_col::text = any (array['public.credentials_entity.data', 'public.dynamic_credential_entry.data',
+                                                       'public.dynamic_credential_user_entry.data', 'public.dynamic_credential_resolver.config',
+                                                       'public.oauth_authorization_codes.code'])
+$$;
+
+create or replace procedure one.reader_without_credentials()
+language plpgsql set search_path = '' as $$
+declare
+  r record;
+begin
+  -- What an app has dropped since is no longer excluded.
+  delete from one.reader_excluded_columns x
+   where not exists (select 1 from pg_catalog.pg_attribute a
+                      where a.attrelid = pg_catalog.to_regclass(x.relation) and a.attname = x.column_name and not a.attisdropped);
+  for r in
+    select s.oid, s.rel,
+           string_agg(pg_catalog.quote_ident(s.attname), ', ' order by s.attnum) filter (where not s.cred) as keep,
+           array_agg(s.attname::text order by s.attnum) filter (where s.cred) as excluded
+      from (select c.oid, c.oid::regclass::text as rel, a.attnum, a.attname, one.is_credential_column(c.oid, a.attname) as cred
+              from pg_catalog.pg_class c
+              join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+              join pg_catalog.pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+             where n.nspname in ('public', 'b2b', 'b2c', 'catalog') and c.relkind in ('r', 'p', 'v', 'm', 'f')
+               and exists (select 1 from pg_catalog.aclexplode(c.relacl) x
+                            where x.grantee = 'eduwit_one_reader'::regrole and x.privilege_type = 'SELECT')) s
+     group by s.oid, s.rel
+    having bool_or(s.cred)
+  loop
+    execute format('revoke select on %s from eduwit_one_reader', r.rel);
+    -- A REVOKE takes back only what its own role granted: a SELECT another role gave the reader stays, so the call fails.
+    if exists (select 1 from pg_catalog.pg_class c, pg_catalog.aclexplode(c.relacl) x
+                where c.oid = r.oid and x.grantee = 'eduwit_one_reader'::regrole and x.privilege_type = 'SELECT') then
+      raise exception 'the reader still reads % whole: another role granted it, and only that role can take it back', r.rel
+        using errcode = '42501';
+    end if;
+    if r.keep is not null then
+      execute format('grant select (%s) on %s to eduwit_one_reader', r.keep, r.rel);
+    end if;
+    insert into one.reader_excluded_columns (relation, column_name)
+    select r.rel, e from pg_catalog.unnest(r.excluded) e
+    on conflict do nothing;
+  end loop;
+end $$;
+
+call one.reader_without_credentials();
 
 call one.apply_grants();

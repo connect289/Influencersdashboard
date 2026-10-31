@@ -62,6 +62,15 @@ elif [ "$fp" != "$(cat "$here/supabase/tests/fingerprint.expected" 2>/dev/null)"
   echo "the fingerprint differs from supabase/tests/fingerprint.expected; run ONE_UPDATE_FINGERPRINT=1 scripts/db/local-test.sh and commit it"; exit 1
 fi
 echo "test"; run_tests
+# D-121: smoke.sql fails while the reader can read an app's credential column (here a relation granted whole again, as
+# the default privileges do for a new one), and passes once one.reader_without_credentials() has run again.
+psql_as postgres -d rehearsal -c "grant select on b2c.users, public.\"user\", public.credentials_entity to eduwit_one_reader" >/dev/null
+if out="$(psql_as postgres -d rehearsal -At -f "$here/supabase/tests/smoke.sql" 2>&1)"; then echo "smoke.sql passed while the reader could read a credential column"; exit 1; fi
+echo "$out" | grep -qF 'the reader can read credential columns: b2c.users.push_subscription, b2c.users.invite_token_hash, public.credentials_entity.data, public.user.password, public.user.mfaSecret, public.user.mfaRecoveryCodes (' \
+  || { echo "$out"; exit 1; }
+psql_as postgres -d rehearsal -c "call one.reader_without_credentials()" >/dev/null
+psql_as postgres -d rehearsal -At -f "$here/supabase/tests/smoke.sql" | grep -q "^SMOKE PASSED" || { echo "smoke.sql failed after the reader was narrowed again"; exit 1; }
+echo "  smoke.sql refuses a credential column the reader can read"
 # m8: with history in schema one, 0006's rollback refuses unless told to discard it.
 psql_as postgres -d rehearsal -c "select one.open_or_touch_incident('PLAT-05', 'P1', '{}')" >/dev/null
 if out="$(apply postgres "$here/supabase/migrations/0006_seed_checks.rollback.sql" 2>&1)"; then
@@ -94,7 +103,7 @@ for bad in \
   "grant eduwit_one_fixer to authenticated;" \
   "grant eduwit_one_reader to eduwit_one_fixer;" \
   "alter role eduwit_one_fixer bypassrls;" \
-  "do \$\$ begin execute('grant select (email_id) on public.student_leads to eduwit_one_reader'); end \$\$;"; do
+  "do \$\$ begin execute('grant update (email_id) on public.student_leads to eduwit_one_reader'); end \$\$;"; do
   printf 'create table one.fp_probe (id int);\n%s\n' "$bad" > "$work/bad.sql"
   if out="$(apply postgres "$work/bad.sql" 2>&1)"; then echo "the fingerprint wrapper let this through: $bad"; exit 1; fi
   echo "$out" | grep -q "changed an object outside schema one" || { echo "$bad: $out"; exit 1; }

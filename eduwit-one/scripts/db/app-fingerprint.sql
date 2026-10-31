@@ -2,11 +2,12 @@
 -- fp-before.sql and fp-after.sql, which every apply in local-test.sh, rehearse.sh and apply.sh wraps around each
 -- migration file, in the same transaction: a migration that changes any of these is rolled back whole (M8 of the second
 -- review). Left out are exactly the grants the migrations make to Eduwit One's two roles (an allow-list, B1 of the
--- phase 7 review): the reader's SELECT on relations, USAGE on schemas, default SELECT, and EXECUTE on the four health
--- functions; the fixer's USAGE on public, b2b and b2c and EXECUTE on the ten catalogue functions with their exact types;
--- the two roles granted to the migrating user; and the one-* cron jobs. Anything else given to either role (a column
--- or table privilege, another function, a membership, a role attribute) changes the fingerprint. A null ACL is read as
--- its default, since the first grant on an object writes the owner's default entry out next to the new one. Read-only.
+-- phase 7 review): the reader's SELECT on relations and on columns (D-121), USAGE on schemas, default SELECT, and
+-- EXECUTE on the four health functions; the fixer's USAGE on public, b2b and b2c and EXECUTE on the ten catalogue
+-- functions with their exact types; the two roles granted to the migrating user; and the one-* cron jobs. Anything else
+-- given to either role (another column or table privilege, another function, a membership, a role attribute) changes
+-- the fingerprint. A null ACL is read as its default, since the first grant on an object writes the owner's default
+-- entry out next to the new one. Read-only.
 select pg_catalog.set_config('one.fp_' || :'fp_phase', md5(concat_ws('|',
   -- relations: kind, RLS switches, ACL
   (select md5(string_agg(c.oid::regclass::text || ':' || c.relkind::text || ':' || c.relrowsecurity || ':' || c.relforcerowsecurity || ':'
@@ -14,9 +15,10 @@ select pg_catalog.set_config('one.fp_' || :'fp_phase', md5(concat_ws('|',
                          ';' order by c.oid::regclass::text))
      from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname <> 'one' and n.nspname !~ '^(pg_catalog|information_schema|pg_toast|pg_temp)' and c.relkind in ('r', 'p', 'v', 'm', 'f', 'S')),
-  -- columns
+  -- columns (the reader's SELECT on a column is allowed as on a relation: 0031 narrows it to non-credential columns,
+  -- D-121; any other column privilege, the reader's writes included, counts)
   (select md5(string_agg(a.attrelid::regclass::text || '.' || a.attname || ':' || a.atttypid::regtype::text || ':' || a.attnotnull || ':' || a.attisdropped
-                         || ':' || coalesce(a.attacl::text, ''),
+                         || ':' || coalesce((select string_agg(x::text, ',' order by x::text) from unnest(a.attacl) x where x::text !~ '^"?eduwit_one_reader"?=r/'), ''),
                          ';' order by a.attrelid::regclass::text, a.attnum))
      from pg_attribute a join pg_class c on c.oid = a.attrelid join pg_namespace n on n.oid = c.relnamespace
     where n.nspname <> 'one' and n.nspname !~ '^(pg_catalog|information_schema|pg_toast|pg_temp)' and c.relkind in ('r', 'p', 'v', 'm', 'f') and a.attnum > 0),

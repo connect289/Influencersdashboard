@@ -1,6 +1,7 @@
 -- The audit's second round (migration 0031): one.mask_text holds to the app's corpus (D-119); an action's arguments are
 -- stored as proposed and a confirmation binds what its card showed (D-115); an address maps only to a confirmed user
--- (D-117); model calls reserve their worst case so calls in parallel cannot pass the day's cap (D-118). Local only.
+-- (D-117); model calls reserve their worst case so calls in parallel cannot pass the day's cap (D-118); the reader
+-- reads no credential column of the apps (D-121). Local only.
 \set ON_ERROR_STOP 1
 select set_config('one.history_writer', 'on', false);
 do $$ begin
@@ -136,6 +137,84 @@ set role service_role;
 select pg_temp.ok((one.ai_reserve(:ta, 'worker-a1', 9) ->> 'ok')::boolean, 'a task that ended holds nothing');
 reset role;
 select pg_temp.ok((select count(*) from one.ai_reservations) = 1, 'and its reservation is gone');
+
+-- 5. The reader reads no credential column of the apps (D-121) -------------------------------------------------------------
+create or replace function pg_temp.reads(p_rel text, p_col text) returns boolean language sql as $$
+  select has_column_privilege('eduwit_one_reader', p_rel, p_col, 'select')
+$$;
+create or replace function pg_temp.excluded() returns text[] language sql as $$
+  select coalesce(array_agg(relation || '.' || column_name order by relation collate "C", column_name collate "C"), '{}') from one.reader_excluded_columns
+$$;
+-- What 0031 leaves out of the stubs (01_app_stubs.sql).
+create or replace function pg_temp.excluded0() returns text[] language sql as $$
+  select array['b2c.users.invite_token_hash', 'b2c.users.push_subscription', 'public."user".mfaRecoveryCodes', 'public."user".mfaSecret',
+               'public."user".password', 'public.credentials_entity.data', 'public.influencer_auth.secret_password']
+$$;
+-- The reader's grants on the apps' relations and columns, as one value.
+create or replace function pg_temp.reader_acl() returns text language sql as $$
+  select md5(string_agg(c.oid::regclass::text || ':' || coalesce(c.relacl::text, '') || ':'
+                        || coalesce((select string_agg(coalesce(a.attacl::text, ''), ',' order by a.attnum)
+                                       from pg_attribute a where a.attrelid = c.oid and a.attnum > 0), ''), ';' order by c.oid::regclass::text))
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname in ('public', 'b2b', 'b2c', 'catalog')
+$$;
+select pg_temp.ok(not has_table_privilege('eduwit_one_reader', 'b2c.users', 'select')
+                  and not pg_temp.reads('b2c.users', 'push_subscription') and not pg_temp.reads('b2c.users', 'invite_token_hash')
+                  and pg_temp.reads('b2c.users', 'full_name') and pg_temp.reads('b2c.users', 'invite_token_expires_at'),
+                  'the reader reads Spark''s users, not their push subscription or invite token hash');
+select pg_temp.ok(not pg_temp.reads('public.influencer_auth', 'secret_password') and pg_temp.reads('public.influencer_auth', 'username'),
+                  'nor a legacy login''s password');
+select pg_temp.ok(not pg_temp.reads('public."user"', 'mfaSecret') and not pg_temp.reads('public."user"', 'mfaRecoveryCodes')
+                  and not pg_temp.reads('public."user"', 'password') and pg_temp.reads('public."user"', 'mfaEnabled') and pg_temp.reads('public."user"', 'email'),
+                  'nor n8n''s users'' passwords and MFA secrets, named in camelCase');
+select pg_temp.ok(not pg_temp.reads('public.credentials_entity', 'data') and pg_temp.reads('public.credentials_entity', 'name'),
+                  'nor n8n''s credential store, whose column has a plain name');
+select pg_temp.ok(pg_temp.excluded() = pg_temp.excluded0(), 'each column left out is recorded, and only those (w2_messages.prompt_tokens and the like stay)');
+select pg_temp.ok(has_table_privilege('eduwit_one_reader', 'public.student_leads', 'select') and has_table_privilege('eduwit_one_reader', 'b2c.settings', 'select')
+                  and has_table_privilege('eduwit_one_reader', 'public.w2_messages', 'select'), 'a relation without a credential column stays readable whole');
+select pg_temp.ok(exists (select 1 from pg_default_acl d where d.defaclobjtype = 'r' and d.defaclnamespace = 'b2c'::regnamespace
+                            and exists (select 1 from aclexplode(d.defaclacl) x where x.grantee = 'eduwit_one_reader'::regrole and x.privilege_type = 'SELECT')),
+                  'new relations keep the reader''s default SELECT');
+-- An app adds relations later, as postgres: the default privileges make them readable whole, until the procedure runs again.
+set role postgres;
+create table b2b.audit_api_clients (id bigserial primary key, name text, client_secret text, last_used_at timestamptz);
+create view public.audit_client_tokens as select client_secret as token from b2b.audit_api_clients;
+reset role;
+select pg_temp.ok(pg_temp.reads('b2b.audit_api_clients', 'client_secret') and pg_temp.reads('public.audit_client_tokens', 'token'),
+                  'a relation created later is readable whole');
+call one.reader_without_credentials();
+select pg_temp.ok(not pg_temp.reads('b2b.audit_api_clients', 'client_secret') and pg_temp.reads('b2b.audit_api_clients', 'last_used_at')
+                  and not has_table_privilege('eduwit_one_reader', 'public.audit_client_tokens', 'select') and not pg_temp.reads('public.audit_client_tokens', 'token'),
+                  'running it again narrows it, and takes a relation of credentials only away whole');
+select pg_temp.ok(pg_temp.excluded() @> array['b2b.audit_api_clients.client_secret', 'public.audit_client_tokens.token'] and cardinality(pg_temp.excluded()) = 9,
+                  'both are recorded');
+select pg_temp.reader_acl() as acl1 \gset
+call one.reader_without_credentials();
+select pg_temp.ok(pg_temp.reader_acl() = :'acl1' and cardinality(pg_temp.excluded()) = 9, 'running it once more changes nothing');
+set role postgres;
+drop view public.audit_client_tokens;
+drop table b2b.audit_api_clients;
+reset role;
+call one.reader_without_credentials();
+select pg_temp.ok(pg_temp.excluded() = pg_temp.excluded0(), 'what an app dropped is no longer recorded');
+-- A SELECT another role gave the reader is not the migrating role's to take back: the call fails, and nothing is left
+-- half done. (This test's role owns the table and grants postgres the grant option, so postgres's REVOKE is a no-op.)
+create table b2c.audit_foreign (id int, token text);
+grant select on b2c.audit_foreign to postgres with grant option;
+grant select on b2c.audit_foreign to eduwit_one_reader;
+set role postgres;
+do $$ begin
+  call one.reader_without_credentials();
+  raise exception 'ASSERT FAILED: the reader''s SELECT from another role was left in place';
+exception when insufficient_privilege then
+  if sqlerrm not like 'the reader still reads b2c.audit_foreign whole%' then raise; end if;
+end $$;
+reset role;
+select pg_temp.ok(has_table_privilege('eduwit_one_reader', 'b2c.audit_foreign', 'select') and pg_temp.excluded() = pg_temp.excluded0(),
+                  'a SELECT another role granted fails the call, which records nothing');
+drop table b2c.audit_foreign;
+select pg_temp.ok(not has_function_privilege('authenticated', 'one.reader_without_credentials()', 'execute')
+                  and not has_function_privilege('service_role', 'one.reader_without_credentials()', 'execute')
+                  and not has_table_privilege('service_role', 'one.reader_excluded_columns', 'select'), 'no API role runs it or reads its record');
 
 -- Clean up ------------------------------------------------------------------------------------------------------------------
 select one.settings_put('ai', (select value from t_ai), 'test@eduwit.in', 'audit test: restore');

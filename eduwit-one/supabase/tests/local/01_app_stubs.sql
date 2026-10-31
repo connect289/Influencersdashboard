@@ -119,3 +119,13 @@ grant execute on function b2b.outbox_kick(), b2b.b2c_sync_tick(integer), b2c.inb
   b2c.programme_cache_refresh(boolean), public.web_outbox_retry(bigint, uuid), public.web_job_call(text, integer), public.web_catalog_poll()
   to service_role;
 grant execute on function b2b.is_admin(), b2b.outbox_retry(bigint) to authenticated, service_role;
+
+-- App tables with credential columns, as production has them (0031, D-121): the reader keeps SELECT on the other
+-- columns only. A legacy login with its password; Spark's users with a push subscription and an invite token hash; and
+-- two of n8n's tables, which share schema public: its users (camelCase names) and its credential store (a plain name).
+create table public.influencer_auth (id bigserial primary key, username text, secret_password text, created_at timestamptz default now());
+create table b2c.users (user_id uuid primary key default gen_random_uuid(), full_name text, email text, role text,
+  push_subscription jsonb, invite_token_hash text, invite_token_expires_at timestamptz, created_at timestamptz default now());
+create table public."user" (id uuid primary key default gen_random_uuid(), email text, password text, "mfaEnabled" boolean default false,
+  "mfaSecret" text, "mfaRecoveryCodes" text, "lastActiveAt" date);
+create table public.credentials_entity (id text primary key, name text, data text, type text, "createdAt" timestamptz default now());

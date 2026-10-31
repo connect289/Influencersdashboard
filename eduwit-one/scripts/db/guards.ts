@@ -54,6 +54,12 @@ const REVIEWED_TEMPLATES = new Set([
   "alter table __dyn__ enable row level security", // one.apply_grants: every relation of schema one
   "revoke all on __dyn__ from public, anon, authenticated, service_role", // one.apply_grants: every relation of schema one
   "grant execute on function __dyn__ to __dyn__", // one.apply_grants: rows of one.api_grants (roles constrained by a check)
+  // one.reader_without_credentials (0031, D-121) and its rollback: the reader's own SELECT, narrowed to an app
+  // relation's non-credential columns and back. A static SELECT grant to the reader is allowed on any object already.
+  "revoke select on __dyn__ from eduwit_one_reader",
+  "grant select (__dyn__) on __dyn__ to eduwit_one_reader",
+  "revoke select (__dyn__) on __dyn__ from eduwit_one_reader",
+  "grant select on __dyn__ to eduwit_one_reader",
 ]);
 
 // ---------------------------------------------------------------------------------------------------------- lexer

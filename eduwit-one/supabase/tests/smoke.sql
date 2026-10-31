@@ -69,10 +69,26 @@ begin
      and n.nspname not like 'pg_toast%'
      and (c.relacl::text like '%eduwit_one_fixer=%');
   if v_bad is not null then raise exception 'ASSERT FAILED: the fixer holds a table privilege: %', v_bad; end if;
+  -- On columns, only the reader's SELECT, where 0031 narrowed a relation to its non-credential columns (D-121).
   select string_agg(a.attrelid::regclass::text || '.' || a.attname, ', ') into v_bad
     from pg_attribute a join pg_class c on c.oid = a.attrelid
-   where a.attacl::text ~ '"?eduwit_one_(fixer|reader)"?=' and c.relnamespace <> 'one'::regnamespace;
-  if v_bad is not null then raise exception 'ASSERT FAILED: an Eduwit One role holds a column privilege: %', v_bad; end if;
+   where c.relnamespace <> 'one'::regnamespace
+     and exists (select 1 from unnest(a.attacl) x
+                  where x::text ~ '^"?eduwit_one_(fixer|reader)"?=' and x::text !~ '^"?eduwit_one_reader"?=r/');
+  if v_bad is not null then raise exception 'ASSERT FAILED: an Eduwit One role holds a column privilege other than the reader''s SELECT: %', v_bad; end if;
+  -- The reader reads no credential column of the apps (D-121). A relation an app created since 0031 with such a column
+  -- is readable whole (default privileges): a migration calls one.reader_without_credentials() again.
+  select string_agg(n.nspname || '.' || c.relname || '.' || a.attname, ', ' order by n.nspname collate "C", c.relname collate "C", a.attnum) into v_bad
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    join pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+   where n.nspname in ('public', 'b2b', 'b2c', 'catalog') and c.relkind in ('r', 'p', 'v', 'm', 'f')
+     and one.is_credential_column(c.oid, a.attname)
+     and exists (select 1 from aclexplode(c.relacl) x where x.grantee = 'eduwit_one_reader'::regrole and x.privilege_type = 'SELECT'
+                 union all
+                 select 1 from aclexplode(a.attacl) x where x.grantee = 'eduwit_one_reader'::regrole and x.privilege_type = 'SELECT');
+  if v_bad is not null then
+    raise exception 'ASSERT FAILED: the reader can read credential columns: % (a migration calls one.reader_without_credentials(), D-121)', v_bad;
+  end if;
   -- The fixer is a member of no role, and only the migrating user is a member of it (0019 hands it its functions).
   select string_agg(m.roleid::regrole::text || '>' || m.member::regrole::text, ', ') into v_bad
     from pg_auth_members m
