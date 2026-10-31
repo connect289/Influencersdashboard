@@ -5,7 +5,7 @@ import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
 import { ipFrom } from "@/lib/server/request";
 import { getSettings } from "@/lib/server/settings";
 import { currentStudent } from "@/lib/server/student-session";
-import { breakerOpen } from "@/lib/server/web-advisor/breaker";
+import { breakerOpen, dailyCapReached } from "@/lib/server/web-advisor/breaker";
 import { failTurn, openSession, runTurn } from "@/lib/server/web-advisor/turn";
 
 /**
@@ -35,6 +35,8 @@ export async function POST(req: Request) {
   ] as const) {
     if (!(await rateLimit(limit, id)).ok) return json(429, { error: "slow_down" });
   }
+  // Site-wide daily ceiling on turns and model spend (web14): above it the breaker opens and visitors get the finder.
+  if (await dailyCapReached()) return json(503, { error: "degraded", fallback: true });
 
   const session = await openSession(student);
   if (!session) return json(401, { error: "verify_first" });
