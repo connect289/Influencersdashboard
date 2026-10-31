@@ -31,15 +31,15 @@ the same database's public schema.
 
 | #   | Severity | Finding                                                                                                                                                                                          | State                                      |
 | --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
-| X1  | critical | A legacy CRM function in `public` can be run by any signed-in user without a role check, and sign-ups are open                                                                                   | fix ready (B2B `m33g`), not applied        |
+| X1  | critical | A legacy CRM function in `public` can be run by any signed-in user without a role check, and sign-ups are open                                                                                   | fixed B2B `m33g`, applied 31 Oct           |
 | X2  | critical | Free plan: the whole database turns read-only above 500 MB; it held 394 MB, Eduwit One growing it fastest                                                                                        | fix ready (Eduwit One `0029`), not applied |
-| X3  | high     | pg_cron's history pruning runs inside the nightly stall window; it failed on 28 and 29 Oct (131 MB)                                                                                              | proposal (owner)                           |
+| X3  | high     | pg_cron's history pruning runs inside the nightly stall window; it failed on 28 and 29 Oct (131 MB)                                                                                              | applied 31 Oct (B2B-L2)                    |
 | X4  | high     | n8n's only account has no two-factor sign-in                                                                                                                                                     | owner action                               |
 | X5  | high     | Free plan: no daily backups of production at all                                                                                                                                                 | owner decision (Pro plan)                  |
 | X6  | medium   | Sign-in policy: passwords of 6 characters, no character rules, no CAPTCHA, with open sign-ups; redirect allow list holds `http://localhost:3000` and old Vercel preview domains                  | owner decision                             |
 | X7  | medium   | The main GitHub repository is public (all code and security logic readable); no secrets or student data found in any branch's history                                                            | owner decision                             |
 | X8  | medium   | Eduwit One's checks used about 9.5 s of database time a minute, over half in one check (B2C-01)                                                                                                  | fixed in `0029` (not applied)              |
-| X9  | medium   | The B2B CRM has no CI workflow                                                                                                                                                                   | proposal                                   |
+| X9  | medium   | The B2B CRM has no CI workflow                                                                                                                                                                   | fixed (`.github/workflows/b2b-crm-ci.yml`) |
 | X10 | low      | n8n's internal tables sit in the API-exposed public schema with full grants to anon/authenticated, protected only by row security with no policies (and the `ensure_rls` trigger for new tables) | proposal (move n8n to its own schema)      |
 | X11 | low      | Copies of student data in old backup tables (`public.student_leads_backup_2026100x`, `w2_*_backup_*`), not exposed; `b2b.witty_backup_*` hold function definitions only                          | owner decision (drop when not needed)      |
 
@@ -47,9 +47,7 @@ Details:
 
 - **X1.** The fix withdraws the signed-in users' grant on that function; its two internal callers keep working without
   it. No trace of use was found. Fix: `b2b-crm/supabase/migrations/m33g_revoke_legacy_stage_function.sql` with
-  `b2b-crm/supabase/tests/test_m33g_legacy_stage_function.sql`. The safety layer refused the coordinator's write to the
-  shared staging project for this one, so it is not rehearsed; it is a single revoke, re-appliable, with its inverse in
-  the file. The detail stays with the owner until the fix is live (D-109).
+  `b2b-crm/supabase/tests/test_m33g_legacy_stage_function.sql`. Applied on 31 Oct with m34a to m34g (see Applied to production).
 - **X2.** Supabase docs (Understanding Database and Disk Size, Free Plan behavior): "Free Plan projects enter read-only
   mode when your database size exceeds 500 MB." Sizes on 30 Oct: cron 131 MB, one 107 MB, public 72 MB (catalogue
   embeddings 48 MB), pg_catalog 46 MB, every app schema under 7 MB. Eduwit One kept every check result (about 40,000 rows
@@ -90,6 +88,27 @@ Details:
   than Scout's per-consumer design, so only `ce_admin` should be exposed until that is narrowed; Scout's tables reached
   185 MB on staging after repeated reads of one partner, so its first production run waits for the Pro plan or freed
   space.
+
+## Applied to production, 31 Oct 2026
+
+On the owner's go ("apply the blocked fixes"), without a dump (Free plan, D-090), while the database was stalling
+(connections refused for minutes at a time). Each set ran as one transaction that first checks production still holds
+what the fixes were written against (the body of every function they replace, the grants and policies they change) and
+refuses otherwise, then checks the result before it commits; a request cut by the API's time limit could therefore be
+sent again without risk (D-122). Each file is recorded in `supabase_migrations.schema_migrations` under its name.
+
+| Set                                                                    | Findings                                 | Rehearsal                                                                                                                          | Checked afterwards                                                                                                             |
+| ---------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| B2B job schedules (`b2b-crm/supabase/manual/cron_load_2026_10_31.sql`) | B2B-L1, B2B-L2, X3                       | read against the live schedules                                                                                                    | every changed job's schedule                                                                                                   |
+| Legacy dashboard retirement, sections 1 to 4                           | INF-A1 to INF-A3                         | the auditor's run with fake accounts (14 of 14)                                                                                    | the policy is gone, 3 accounts inactive, 3 of 3 passwords hashed, the function closed to clients                               |
+| Portal `20261030000100`, `20261031000100`                              | INF-A4, INF-A6 to INF-A10, INF-A14       | pgTAP `025` and `026` locally (the portal's convention); production's 12 functions first matched their recorded previous versions  | the 12 functions equal the files; client grants equal `inf.client_grants` exactly                                              |
+| B2B `m33g`, `m34a` to `m34g`                                           | X1, B2B-A1 to A3, B2B-11, R1, W1, S1, H1 | the auditor's local rebuild; staging's B2B schema is 25 migrations behind production, so each replaced function was diffed instead | the 35 functions equal the files; all B2B jobs active; the AI optimiser was off and never ran, so the worker key stops nothing |
+| Spark `b47` to `b52`                                                   | SPK-01 to SPK-07, SPK-10, SPK-11         | staging: applied, 47 of 47 checks, rolled back to the exact previous versions, applied, 47 of 47, then 10 and 28 more checks       | function bodies, the `b2c.users` column grants, the users policy                                                               |
+| Witty `w5_*` (four files)                                              | W-07, W-10, W-11, W-13                   | a throwaway local copy of production's definitions, 29 of 29 with rollback (staging holds no Witty objects)                        | no `w2_*` function or relation left to anon or authenticated (except `w2_crm_owned`); Eduwit One keeps its four functions      |
+
+Still to do: the B2B web deploy (the developer), then `b2b-crm/supabase/pending/drop_api_referral_outcomes_v1.sql`;
+re-run `w5_revoke_api_grants.sql` after any new `w2_*` migration (the default privileges grant new objects to clients
+again); Witty's n8n changes (the owner); Eduwit One `0029` to `0031`; the website (`website-fixes.mbox`, then `web14`).
 
 ## Per-app findings
 
@@ -145,30 +164,30 @@ grants of the six functions named below (read-only); the four migrations read ag
 unit tests re-run. Spark holds no student data in production yet (0 leads, 0 tickets, 1 user), so nothing was exposed;
 the fixes must be live before its first lead.
 
-| ID     | Severity | Finding                                                                                                    | State                                   |
-| ------ | -------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| SPK-01 | critical | The details step for leads let signed-in people who are not staff through its permission check             | fixed `b47`, not applied                |
-| SPK-02 | high     | The support-ticket permission check had the same gap                                                       | fixed `b47`, not applied                |
-| SPK-03 | medium   | A sales head's Follow-ups list showed every team's leads, not only their team's                            | fixed `b48`, not applied                |
-| SPK-04 | low      | Saved views opened for people who are not staff (no lead data in them)                                     | fixed `b47`, not applied                |
-| SPK-05 | low      | The insights job's function was callable by signed-in users                                                | fixed `b47` (service role only)         |
-| SPK-06 | low      | The emailed sign-in code came from `random()`                                                              | fixed `b50` (`gen_random_bytes`)        |
-| SPK-07 | low      | B2C-10: `b2c-capacity` failed every day while nobody takes leads                                           | fixed `b49`, not applied                |
-| SPK-08 | medium   | PLAT-05: Spark's base URL and Vault key `b2c_internal_key` are missing, so its four HTTP timers do nothing | owner: Vault key, then the base URL     |
-| SPK-09 | medium   | B2C-01 took 10 to 30 s and was killed                                                                      | fixed in Eduwit One `0029`, not applied |
-| SPK-10 | low      | Rows a person owns (tasks, notifications) are readable before the second sign-in step                      | proposal                                |
-| SPK-11 | low      | Staff can read each other's push subscriptions                                                             | proposal                                |
-| SPK-12 | low      | Three money tests use September fixtures and fail since 16 Oct (test data, not code)                       | proposal                                |
-| SPK-13 | low      | nodemailer advisories                                                                                      | fixed (10.1.7)                          |
-| SPK-14 | low      | `b2c-money` and `b2c-anomalies` hit "job startup timeout" on 29 and 30 Oct                                 | platform capacity (Pro plan, compute)   |
-| SPK-15 | low      | Two server-side fetches go to configured hosts without a host allow list                                   | proposal                                |
-| SPK-16 | low      | The leads export starts on a GET request                                                                   | proposal                                |
+| ID     | Severity | Finding                                                                                                    | State                                           |
+| ------ | -------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| SPK-01 | critical | The details step for leads let signed-in people who are not staff through its permission check             | fixed `b47`, applied 31 Oct                     |
+| SPK-02 | high     | The support-ticket permission check had the same gap                                                       | fixed `b47`, applied 31 Oct                     |
+| SPK-03 | medium   | A sales head's Follow-ups list showed every team's leads, not only their team's                            | fixed `b48`, applied 31 Oct                     |
+| SPK-04 | low      | Saved views opened for people who are not staff (no lead data in them)                                     | fixed `b47`, applied 31 Oct                     |
+| SPK-05 | low      | The insights job's function was callable by signed-in users                                                | fixed `b47` (service role only), applied 31 Oct |
+| SPK-06 | low      | The emailed sign-in code came from `random()`                                                              | fixed `b50`, applied 31 Oct                     |
+| SPK-07 | low      | B2C-10: `b2c-capacity` failed every day while nobody takes leads                                           | fixed `b49`, applied 31 Oct                     |
+| SPK-08 | medium   | PLAT-05: Spark's base URL and Vault key `b2c_internal_key` are missing, so its four HTTP timers do nothing | owner: Vault key, then the base URL             |
+| SPK-09 | medium   | B2C-01 took 10 to 30 s and was killed                                                                      | fixed in Eduwit One `0029`, not applied         |
+| SPK-10 | low      | Rows a person owns (tasks, notifications) are readable before the second sign-in step                      | fixed `b51`, applied 31 Oct                     |
+| SPK-11 | low      | Staff can read each other's push subscriptions                                                             | fixed `b52`, applied 31 Oct                     |
+| SPK-12 | low      | Three money tests use September fixtures and fail since 16 Oct (test data, not code)                       | proposal                                        |
+| SPK-13 | low      | nodemailer advisories                                                                                      | fixed (10.1.7)                                  |
+| SPK-14 | low      | `b2c-money` and `b2c-anomalies` hit "job startup timeout" on 29 and 30 Oct                                 | platform capacity (Pro plan, compute)           |
+| SPK-15 | low      | Two server-side fetches go to configured hosts without a host allow list                                   | proposal                                        |
+| SPK-16 | low      | The leads export starts on a GET request                                                                   | proposal                                        |
 
 Commits on this branch: `f2e08f4` (b49), `15c30a9` (b47), `d6108bb` (b48), `d14ac00` (b50), `aa931aa`
 (`b2c-crm/supabase/tests/test_audit_2026_10.sql`, 32 checks; 16 of the first 29 fail before the fixes), `a4749fc`
 (nodemailer). Each migration is idempotent, has no DELETE and ends with its rollback; the auditor's local run of every
-Spark suite: 590 checks pass (the 3 of SPK-12 fail before and after). Applying b47 to b50 to production waits for the
-owner's go and a staging rehearsal.
+Spark suite: 590 checks pass (the 3 of SPK-12 fail before and after). b51 and b52 (SPK-10, SPK-11) followed; b47 to b52 were
+rehearsed on staging and applied on 31 Oct (see Applied to production).
 
 ### Influencer portal (influencer.eduwit.in) and the legacy dashboard
 
@@ -177,30 +196,30 @@ caller has no side, as reported); the vercel.app address compiled into the live 
 3,676 of 3,676 unit tests re-run with the fixes. The auditor's pgTAP run: 916 of 916 (884 before), and the new file
 fails 23 of its 32 assertions without the migration.
 
-| ID      | Severity | Finding                                                                                                         | State                                           |
-| ------- | -------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| INF-A1  | high     | The legacy dashboard's access rule on `student_leads` still exposes full lead rows                              | proposal ready, owner decision                  |
-| INF-A2  | medium   | The legacy dashboard's sign-in function is still open and keeps its passwords unhashed                          | proposal ready, owner decision                  |
-| INF-A3  | medium   | INF-06: the three legacy accounts are still active                                                              | proposal ready, owner decision                  |
-| INF-A4  | medium   | Seven portal functions let a caller with no side on the deal past their check (effective in two)                | fixed `20261030000100_inf_audit_guards.sql`     |
-| INF-A5  | medium   | The live portal is built with the vercel.app address as its site address, not influencer.eduwit.in              | owner: Vercel setting, then redeploy            |
-| INF-A6  | low      | `inf.eligibility_gaps` was callable by signed-in users                                                          | fixed (client grant withdrawn)                  |
-| INF-A7  | low      | Profile updates accepted any avatar path                                                                        | fixed                                           |
-| INF-A8  | low      | KYC proofs could point outside the creator's own folder                                                         | fixed                                           |
-| INF-A9  | low      | Message attachments were checked by prefix only                                                                 | fixed                                           |
-| INF-A10 | low      | The tier list answered any signed-in account of the shared project                                              | fixed                                           |
-| INF-A11 | low      | Some malformed short links answered 500                                                                         | fixed (`decodeCodeSegment`)                     |
-| INF-A12 | low      | nodemailer and fast-uri advisories                                                                              | fixed                                           |
-| INF-A13 | low      | Payout batches take their GST and TDS amounts from the caller (gross is checked against the ledger)             | owner decision (money logic)                    |
-| INF-A14 | low      | Campaign message threads skip the campaign-visibility check                                                     | proposal                                        |
-| INF-A15 | low      | Supabase sends 8-digit email codes valid 1 hour; the portal's texts say 6 digits and 10 minutes                 | owner: Auth setting (the code field takes both) |
-| INF-A16 | low      | `authenticated` holds write and TRUNCATE privileges on four shared `public` tables (row security blocks writes) | cross-app proposal                              |
+| ID      | Severity | Finding                                                                                                         | State                                                           |
+| ------- | -------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| INF-A1  | high     | The legacy dashboard's access rule on `student_leads` still exposes full lead rows                              | applied 31 Oct (legacy retirement §1)                           |
+| INF-A2  | medium   | The legacy dashboard's sign-in function is still open and keeps its passwords unhashed                          | applied 31 Oct (legacy retirement §3, §4)                       |
+| INF-A3  | medium   | INF-06: the three legacy accounts are still active                                                              | applied 31 Oct (legacy retirement §2)                           |
+| INF-A4  | medium   | Seven portal functions let a caller with no side on the deal past their check (effective in two)                | fixed `20261030000100_inf_audit_guards.sql`, applied 31 Oct     |
+| INF-A5  | medium   | The live portal is built with the vercel.app address as its site address, not influencer.eduwit.in              | owner: Vercel setting, then redeploy                            |
+| INF-A6  | low      | `inf.eligibility_gaps` was callable by signed-in users                                                          | fixed (client grant withdrawn), applied 31 Oct                  |
+| INF-A7  | low      | Profile updates accepted any avatar path                                                                        | fixed, applied 31 Oct                                           |
+| INF-A8  | low      | KYC proofs could point outside the creator's own folder                                                         | fixed, applied 31 Oct                                           |
+| INF-A9  | low      | Message attachments were checked by prefix only                                                                 | fixed, applied 31 Oct                                           |
+| INF-A10 | low      | The tier list answered any signed-in account of the shared project                                              | fixed, applied 31 Oct                                           |
+| INF-A11 | low      | Some malformed short links answered 500                                                                         | fixed (`decodeCodeSegment`)                                     |
+| INF-A12 | low      | nodemailer and fast-uri advisories                                                                              | fixed                                                           |
+| INF-A13 | low      | Payout batches take their GST and TDS amounts from the caller (gross is checked against the ledger)             | owner decision (money logic)                                    |
+| INF-A14 | low      | Campaign message threads skip the campaign-visibility check                                                     | fixed `20261031000100_inf_campaign_threads.sql`, applied 31 Oct |
+| INF-A15 | low      | Supabase sends 8-digit email codes valid 1 hour; the portal's texts say 6 digits and 10 minutes                 | owner: Auth setting (the code field takes both)                 |
+| INF-A16 | low      | `authenticated` holds write and TRUNCATE privileges on four shared `public` tables (row security blocks writes) | cross-app proposal                                              |
 
 Commits on this branch: `96bf262` (the migration, pgTAP `025_audit_guards.sql`, portal D-192, security review rows 11 to
 18), `8851f39` (short links), `f135ca5` (dependencies), `7c658d3` (the legacy retirement proposal in
 `influencer-portal/supabase/proposals/`, outside the migration chain, with its rollback; rehearsed by the auditor with
-fake accounts, 14 of 14). The portal's migration and the legacy proposal wait for the owner's go and a staging rehearsal
-(project rule: hard stop 6 for migrations to the live project).
+fake accounts, 14 of 14). Both portal migrations (`20261030000100`, `20261031000100`, INF-A14) and sections 1 to 4 of the legacy proposal were
+applied on the owner's go on 31 Oct (see Applied to production).
 
 ### Witty (WhatsApp, n8n and `public.w2_*`)
 
@@ -218,13 +237,13 @@ database stalls and connection failures, not Witty logic; no student message or 
 | W-04 | medium   | The Test Harness webhook has no authentication                                                                       | proposal (header auth)                                          |
 | W-05 | low      | Three inactive developer harnesses would call the model for anyone if switched on                                    | owner: archive them                                             |
 | W-06 | medium   | A reply that fails to send is not recorded                                                                           | proposal (n8n change; the CRM side is the owner's)              |
-| W-07 | medium   | A new student's first message is not retried if the turn fails before the conversation row exists                    | fix `w5_stale_inbox_first_message.sql`, not applied             |
+| W-07 | medium   | A new student's first message is not retried if the turn fails before the conversation row exists                    | fixed `w5_stale_inbox_first_message.sql`, applied 31 Oct        |
 | W-08 | medium   | The 16 Oct W3 release shipped only its database half (agent take-over, click-to-WhatsApp attribution)                | owner decision                                                  |
 | W-09 | medium   | The active "WhatsApp Ad Leads to Sheet" webhook does not check Meta's signature                                      | proposal: `n8n_verify_meta_signature.js`                        |
-| W-10 | low      | `w2_latency_daily` (daily counts and timings, no phone or text) is readable by anon                                  | fix `w5_latency_daily_invoker.sql`, not applied                 |
-| W-11 | low      | Client roles hold privileges on `w2_*` objects that only row security stops                                          | fix `w5_revoke_api_grants.sql`, not applied                     |
+| W-10 | low      | `w2_latency_daily` (daily counts and timings, no phone or text) is readable by anon                                  | fixed `w5_latency_daily_invoker.sql`, applied 31 Oct            |
+| W-11 | low      | Client roles hold privileges on `w2_*` objects that only row security stops                                          | fixed `w5_revoke_api_grants.sql`, applied 31 Oct                |
 | W-12 | medium   | The 540 failed runs reached nobody: no n8n error workflow, and Eduwit One has no Chatwoot or n8n key                 | owner: Eduwit One Setup; proposal: an error workflow            |
-| W-13 | low      | `w2_cache_plan` rewrites about 41 KB of unchanged prompt text every 15 minutes                                       | fix `w5_cache_plan_skip_unchanged.sql`, not applied             |
+| W-13 | low      | `w2_cache_plan` rewrites about 41 KB of unchanged prompt text every 15 minutes                                       | fixed `w5_cache_plan_skip_unchanged.sql`, applied 31 Oct        |
 | W-14 | low      | When "Retry CRM Writes" fails, that minute's stuck-chat recovery does not run                                        | proposal                                                        |
 | W-15 | low      | Unsupported WhatsApp messages reach the model as the text "This message is unavailable."                             | proposal                                                        |
 | W-16 | low      | The Drive sync lists an empty folder 144 times a day                                                                 | owner decision                                                  |
@@ -238,8 +257,8 @@ database stalls and connection failures, not Witty logic; no student message or 
 The proposed SQL and Code nodes, with the auditor's rehearsal on a throwaway Postgres built from production's
 definitions (29 of 29 checks) and the Code nodes' mocked runs (12 of 12), are in `estate-audit-2026-10-30/witty/`. Each
 SQL file is idempotent and carries its rollback. The node-by-node n8n change list stays with the owner (D-109).
-Applying any of it changes Witty, so it waits for the owner's go; re-read `w2_stale_inbox` and `w2_cache_plan` on
-production first, since `w4` was applied on 30 Oct.
+The four SQL files were applied on the owner's go on 31 Oct, after `w2_stale_inbox` and `w2_cache_plan` were re-read
+on production (unchanged since the audit); the n8n changes stay the owner's (see Applied to production).
 
 ### B2B CRM (crm.eduwit.in)
 
@@ -248,30 +267,31 @@ admin) and `b2b.is_admin()` (always true or false, so m34a's new guard cannot pa
 equal production's with the one changed line reverted (the auditor's check); typecheck and 437 of 437 unit tests
 re-run. Spark holds no leads yet, so the helpers had nothing to return.
 
-| ID     | Severity | Finding                                                                                            | State                                          |
-| ------ | -------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| B2B-D1 | critical | `next` 16.3.8 and `zod` 4.6.5 carry published advisories (npm audit: 1 critical, 1 high)           | fixed (next 16.4.3, zod 4.6.7), not deployed   |
-| B2B-A1 | high     | Two B2C money and status helpers could be run by any signed-in account                             | fixed `m34a`, not applied                      |
-| B2B-A2 | low      | Three more internal helpers could be run by any signed-in account                                  | fixed `m34a` (`reroute_check` checks admin)    |
-| B2B-A3 | medium   | Refused webhook signatures each wrote an alert row, so strangers could grow `b2b.events`           | fixed `m34c` (once a minute), not applied      |
-| B2B-C1 | medium   | One API key holds all five scopes, and no key expires                                              | owner: one key per consumer, with expiry       |
-| B2B-11 | low      | The nightly "model failed" alert is the training refusing for lack of data                         | fixed `m34b` (logged as skipped)               |
-| B2B-04 | P1       | Lead 1218 is not allocated: routing has never been switched on and no partner exists               | owner: go live, handle by hand, or tune B2B-04 |
-| B2B-L1 | decision | B2B makes 2,411 of the estate's ~3,120 cron starts an hour, almost all idle; bursts at :00 and :30 | owner decision (statements in the report)      |
-| B2B-L2 | decision | `b2b-cron-prune` runs at 22:15 UTC inside the stall window (it succeeded on 30 Oct)                | owner decision: 08:23 UTC, 3-day window        |
-| B2B-T1 | low      | `test_m25_ml.sql` "training_fails_cleanly" was stale since m31                                     | fixed                                          |
-| B2B-R1 | low      | The referral API's scope and cursor differ from `docs/referral-api.md`                             | owner decision                                 |
-| B2B-W1 | low      | `/v1/ai/tick` has no authentication (it only starts queued runs sooner)                            | owner decision                                 |
-| B2B-S1 | low      | Admin-set partner URLs are https-only but not kept from private addresses                          | owner decision                                 |
-| B2B-H1 | low      | `lead_anonymise` trusts a session setting no API path can set today                                | hardening suggestion                           |
+| ID     | Severity | Finding                                                                                            | State                                                       |
+| ------ | -------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| B2B-D1 | critical | `next` 16.3.8 and `zod` 4.6.5 carry published advisories (npm audit: 1 critical, 1 high)           | fixed (next 16.4.3, zod 4.6.7), not deployed                |
+| B2B-A1 | high     | Two B2C money and status helpers could be run by any signed-in account                             | fixed `m34a`, applied 31 Oct                                |
+| B2B-A2 | low      | Three more internal helpers could be run by any signed-in account                                  | fixed `m34a` (`reroute_check` checks admin), applied 31 Oct |
+| B2B-A3 | medium   | Refused webhook signatures each wrote an alert row, so strangers could grow `b2b.events`           | fixed `m34c` (once a minute), applied 31 Oct                |
+| B2B-C1 | medium   | One API key holds all five scopes, and no key expires                                              | owner: one key per consumer, with expiry                    |
+| B2B-11 | low      | The nightly "model failed" alert is the training refusing for lack of data                         | fixed `m34b` (logged as skipped), applied 31 Oct            |
+| B2B-04 | P1       | Lead 1218 is not allocated: routing has never been switched on and no partner exists               | owner: go live, handle by hand, or tune B2B-04              |
+| B2B-L1 | decision | B2B makes 2,411 of the estate's ~3,120 cron starts an hour, almost all idle; bursts at :00 and :30 | applied 31 Oct (`manual/cron_load_2026_10_31.sql`)          |
+| B2B-L2 | decision | `b2b-cron-prune` runs at 22:15 UTC inside the stall window (it succeeded on 30 Oct)                | applied 31 Oct: 08:23 UTC, 3-day window                     |
+| B2B-T1 | low      | `test_m25_ml.sql` "training_fails_cleanly" was stale since m31                                     | fixed                                                       |
+| B2B-R1 | low      | The referral API's scope and cursor differ from `docs/referral-api.md`                             | fixed `m34d`, applied 31 Oct; web deploy pending            |
+| B2B-W1 | low      | `/v1/ai/tick` has no authentication (it only starts queued runs sooner)                            | fixed `m34f`, applied 31 Oct; web deploy pending            |
+| B2B-S1 | low      | Admin-set partner URLs are https-only but not kept from private addresses                          | fixed `m34e`, applied 31 Oct                                |
+| B2B-H1 | low      | `lead_anonymise` trusts a session setting no API path can set today                                | fixed `m34g`, applied 31 Oct                                |
 
 Also confirmed: all 272 definer functions signed-in users can run are guarded apart from m34a's five; of the 66
 legacy `crm_*` definer functions open to signed-in users, only `crm_apply_stage_system` (X1, `m33g`) changes data
 before a guard; all 195 `public` tables writable by grant have row security on; every web server action checks the
 Admin first. Commits on this branch: `ca2e36a` (dependencies), `7bdb732` (m34a), `b17b161` (m34b, test fixes),
-`b04420c` (m34c, `test_m34_audit_fixes.sql`, 19 rows); `deploy.mjs` and `deploy.sh` now list m33g and m34a to m34c.
-The auditor's local rebuild: the baseline, all 128 earlier files and m34a to m34c apply cleanly and re-apply cleanly.
-Applying them to production waits for the owner's go.
+`b04420c` (m34c, `test_m34_audit_fixes.sql`, 19 rows); m34d to m34g followed (B2B-R1, W1, S1, H1); `deploy.mjs` and
+`deploy.sh` list m33g and m34a to m34g. The auditor's local rebuild: the baseline, all 128 earlier files and the fixes
+apply and re-apply cleanly. Applied on 31 Oct (see Applied to production); the web half of m34d and m34f goes live with
+the B2B web deploy.
 
 ### Eduwit One (one.eduwit.in), independent audit
 

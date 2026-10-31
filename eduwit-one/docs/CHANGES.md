@@ -3,6 +3,24 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 31 Oct 2026 — The apps' database fixes on the live project (D-122)
+
+On the owner's go ("apply the blocked fixes"); no dump (Free plan, D-090). One guarded transaction per set (D-122); the
+estate report's "Applied to production" section lists each set with its rehearsal and checks.
+
+- B2B job schedules (`b2b-crm/supabase/manual/cron_load_2026_10_31.sql`, B2B-L1, B2B-L2): about 1,048 B2B starts an
+  hour instead of 2,411; the nightly jobs and the run-history clean-up (08:23 UTC, 3 days) moved out of the stall window.
+- The legacy influencer dashboard retired (sections 1 to 4 of
+  `influencer-portal/supabase/proposals/legacy_influencer_dashboard_retirement.sql`): its policy on `student_leads` is
+  gone, its 3 accounts are inactive, their passwords are bcrypt hashes and its function is closed to clients.
+- Influencer portal `20261030000100_inf_audit_guards.sql` and `20261031000100_inf_campaign_threads.sql`.
+- B2B CRM `m33g` and `m34a` to `m34g`; the B2B web deploy and then `pending/drop_api_referral_outcomes_v1.sql` remain.
+- Spark `b47` to `b52`, rehearsed on staging first (staging now matches production for Spark).
+- Witty `w5_stale_inbox_first_message`, `w5_cache_plan_skip_unchanged`, `w5_latency_daily_invoker` and
+  `w5_revoke_api_grants` (`docs/reviews/estate-audit-2026-10-30/witty/`); the n8n changes stay the owner's.
+- Eduwit One: the rehearsal of 0001 to 0031 passed on staging (`fd3fb19c…`, REHEARSALS.md); 0029 to 0031 are not yet
+  applied.
+
 ## 31 Oct 2026 — Independent audit, second round (0031, D-115 to D-121)
 
 On the owner's go to fix everything that needs no business decision (the threshold rule of D-065 stays). Not yet
