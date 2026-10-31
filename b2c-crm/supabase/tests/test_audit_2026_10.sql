@@ -161,6 +161,62 @@ begin
   perform pg_temp.as_system();
 end $x$;
 
+-- ---------- b51: a person's own rows need the checked second step (read as the API does: role authenticated) ----------
+create temp table own (k text primary key, id bigint);
+grant all on own to authenticated, service_role;
+do $x$
+begin
+  perform pg_temp.as_system();
+  perform b2c.add_task(997701, 'aaaaaaaa-0000-0000-0000-00000000a705', 'call', 'AU own task Nocode', now() - interval '1 hour', null, false, 'manual');
+  perform b2c.add_task(997702, 'aaaaaaaa-0000-0000-0000-00000000a702', 'call', 'AU own task Asha', now() - interval '1 hour', null, false, 'manual');
+  perform b2c.notify('aaaaaaaa-0000-0000-0000-00000000a705', 'assignment', 'AU note for Nocode', null, '/s', null, null);
+  perform b2c.notify('aaaaaaaa-0000-0000-0000-00000000a702', 'assignment', 'AU note for Asha', null, '/s', null, null);
+  update b2c.users set phone = '+919000000075', leaderboard_visible = false, first_sign_in_at = null where user_id = 'aaaaaaaa-0000-0000-0000-00000000a705';
+  with s as (insert into b2c.snippets (owner_id, title, body) values ('aaaaaaaa-0000-0000-0000-00000000a705', 'AU snippet', 'Hello') returning id)
+  insert into own select 'snippet', id from s;
+  with s as (insert into b2c.dashboards (name, owner_id, created_by)
+             values ('AU own dashboard', 'aaaaaaaa-0000-0000-0000-00000000a705', 'aaaaaaaa-0000-0000-0000-00000000a705') returning id)
+  insert into own select 'dashboard', id from s;
+end $x$;
+do $x$
+declare j jsonb; e text; n int;
+begin
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000a705');   -- Nocode: password only, no checked session
+  set local role authenticated;
+  insert into r (name, ok, detail) values ('own_tasks_need_second_step', (select count(*) from b2c.tasks where title like 'AU own task%') = 0, null);
+  insert into r (name, ok, detail) values ('own_notifications_need_second_step', (select count(*) from b2c.notifications where title like 'AU note%') = 0
+    and (b2c.notifications_mine() ->> 'unread')::int = 0 and jsonb_array_length(b2c.notifications_mine() -> 'items') = 0, null);
+  j := b2c.nav_counts();
+  insert into r (name, ok, detail) values ('own_counts_need_second_step', (j ->> 'overdue')::int = 0 and (j ->> 'unread_alerts')::int = 0
+    and (b2c.followup_counts('aaaaaaaa-0000-0000-0000-00000000a705') ->> 'overdue')::int = 0, j::text);
+  insert into r (name, ok, detail) values ('own_user_row_needs_second_step', (select count(*) from b2c.users where user_id = 'aaaaaaaa-0000-0000-0000-00000000a705') = 0
+    and b2c.phone_mine() is null and b2c.calendar_mine() is null, coalesce(b2c.phone_mine()::text, 'null'));
+  insert into r (name, ok, detail) values ('own_snippets_need_second_step', (select count(*) from b2c.snippets where title = 'AU snippet') = 0, null);
+  begin perform b2c.snippet_delete((select id from own where k = 'snippet')); e := 'deleted'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('own_snippet_delete_needs_second_step', e = 'not your snippet', e);
+  begin perform b2c.dashboard_get((select id from own where k = 'dashboard')); e := 'read'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('own_dashboard_needs_second_step', e = 'not allowed', e);
+  begin perform b2c.dashboard_archive((select id from own where k = 'dashboard')); e := 'archived'; exception when others then e := sqlerrm; end;
+  insert into r (name, ok, detail) values ('own_dashboard_archive_needs_second_step', e = 'not allowed', e);
+  perform b2c.notifications_read(null);
+  perform b2c.leaderboard_opt(true);
+  perform b2c.session_note('AU browser', '192.0.2.10');
+  reset role;
+  perform pg_temp.as_system();
+  insert into r (name, ok, detail) values ('own_writes_need_second_step',
+    (select count(*) from b2c.notifications where title = 'AU note for Nocode' and read_at is null) = 1
+    and (select not leaderboard_visible and first_sign_in_at is null from b2c.users where user_id = 'aaaaaaaa-0000-0000-0000-00000000a705')
+    and (select archived_at is null from b2c.dashboards where id = (select id from own where k = 'dashboard')), null);
+  -- the same rows for a checked session (Asha)
+  perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000a702');
+  set local role authenticated;
+  insert into r (name, ok, detail) values ('own_rows_with_second_step', (select count(*) from b2c.tasks where title = 'AU own task Asha') = 1
+    and exists (select 1 from jsonb_array_elements(b2c.notifications_mine() -> 'items') x where x ->> 'title' = 'AU note for Asha')
+    and (b2c.nav_counts() ->> 'overdue')::int >= 1 and (select count(*) from b2c.users where user_id = 'aaaaaaaa-0000-0000-0000-00000000a702') = 1, null);
+  reset role;
+  perform pg_temp.as_system();
+end $x$;
+
 -- ---------- b50: the emailed code (after the checks above, which need Nocode without a checked session) ----------
 do $x$
 declare c text; j jsonb;
