@@ -11,7 +11,7 @@ rollback), and what to do when something breaks. Companion docs: `GO_LIVE_CHECKL
 |---|---|---|
 | Next.js app (`website/web`) | Vercel, region `bom1` (Mumbai) | Static/ISR pages and cached API responses from Vercel's edge; functions for everything else |
 | Database | the shared production Supabase project `xlseqwgyjuqhktrguhyc` | website objects are `public.web_*`; shared catalogue read-only; leads only through `lead_intake` |
-| Scheduled jobs | Supabase pg_cron only (D-082; Vercel stays on Hobby, no Vercel crons) | `web_catalog_poll` every minute (inside the database); `web_outbox_worker` every minute → POST `/api/internal/outbox`; `web_seo_daily` 21:30 UTC / 03:00 IST → POST `/api/internal/seo-daily`. The two HTTP jobs use `web_settings.internal_base_url` and Vault secret `web_internal_key`; until both exist they send nothing |
+| Scheduled jobs | Supabase pg_cron only (D-082; Vercel stays on Hobby, no Vercel crons) | `web_catalog_poll` every minute (inside the database, 30 s statement timeout, D-088); `web_outbox_worker` every minute → `web_outbox_tick()`, which POSTs `/api/internal/outbox` only when a job is due (D-088); `web_seo_daily` 21:30 UTC / 03:00 IST → POST `/api/internal/seo-daily`. The two HTTP jobs use `web_settings.internal_base_url` and Vault secret `web_internal_key`; until both exist they send nothing |
 | Email | the provider in S-12 | verification codes, confirmations (through the outbox, retried) |
 | Rate limits, breaker | Upstash Redis (S-15) | without it: Postgres limiter for rate limits (D-077); the AI breaker is then per instance |
 | Errors | Sentry (S-19) + Vercel logs | logs are JSON with `requestId`; no personal data (scrubbed) |
@@ -61,6 +61,8 @@ time, in the Vault secret the database jobs use: `select vault.update_secret((se
 | `default_theme` | `system` | dark / light / follow the device |
 | `application_form` | — | hide or make optional non-core form fields (D-069) |
 | `business_hours` | none | opening hours in structured data (S-51) |
+| `code_send_hourly_cap` | 200 | verification codes per hour for the whole site; above it forms ask people to try again later and `gate.code_ceiling_reached` is logged; 0 stops all sends (super admin, D-086) |
+| `web_advisor_daily_cap` | `{"turns": 2000, "cost_usd": 25}` | Witty turns and model spend per India day for the whole site; above either Witty pauses until midnight IST (super admin, D-089) |
 
 ## 5. Go-live procedure (only after the owner's written approval)
 
@@ -85,7 +87,7 @@ Everything below is rehearsed by `scripts/db/go-live-dry-run.sh`.
 6. **Backup:** the Supabase organisation is on the Free plan (no point-in-time recovery or automatic backups), so take a
    full dump first: `pg_dump "$PROD_DB_URL" -Fc --no-owner -f eduwit-prod-before-website-<date>.dump` and keep it safe
    (it contains personal data).
-7. **Apply website migrations** to production in order (`supabase/migrations/20261017100000_…` to `…101200_web13…`;
+7. **Apply website migrations** to production in order (`supabase/migrations/20261017100000_…` to `…20261031100000_web14…`;
    never `00000000000000_prod_snapshot.sql`), each in its own transaction with `set lock_timeout = '5s'`. Expected
    ≈ 1–5 s in total plus the first read-model build (≈ 3 s). Then `scripts/db/check-shared-unchanged.sh <prod-url>`
    (read-only) must say "shared objects unchanged".
@@ -138,6 +140,8 @@ After 14 stable days: raise the TTL back to 3600 s and retire the Hostinger site
 
 - **Shared proposals:** each `supabase/migrations-shared/sNN_*.rollback.sql`, in reverse order of application.
   s05's rollback refuses once leads reference the website consent versions (deactivate instead, as it says).
+- **web14 alone** (limits of 31 Oct 2026): `supabase/rollbacks/20261031100000_web14_audit_limits.rollback.sql` (one
+  transaction) restores the earlier function definitions and job commands and removes what web14 added.
 - **Website objects:** first `pg_dump --schema=public --table='web_*'` (keep the consent ledger, applications and
   privacy requests for DPDP), then `scripts/db/rollback-web.sql`. It refuses if any shared object depends on a website
   object, removes the website's pg_cron jobs and every `web_*` object, and leaves leads and touchpoints in the shared
@@ -161,6 +165,8 @@ After 14 stable days: raise the TTL back to 3600 s and retire the Hostinger site
 | Lead missing in the CRM | `lead_intake` error, or routing held (A-B2B-1 not applied) | Admin → Outbox / logs (`lead.*` events, request id); B2B "unqualified: phone_not_verified" means A-B2B-1 is not live |
 | A shared function changed under the website (after another product's release) | another product's migration | rebuild the replica and run `npm run db:gate`; `check-shared-unchanged.sh` names what changed |
 | Suspected abuse (floods of enquiries) | bots | rate limits and Turnstile hold; Admin → Insights shows junk scores; lower limits in `web/lib/server/rate-limit.ts` and redeploy if needed |
+| Forms say "We're getting a lot of requests right now" | the site-wide code ceiling is reached (log `gate.code_ceiling_reached`, D-086) | Admin → Insights and the gate attempts show whether it is real demand (a campaign) or a flood; raise `code_send_hourly_cap` for real demand; it clears by itself within the hour |
+| Witty shows the finder all day; log `web_advisor.daily_cap_reached` | the daily Witty ceiling is reached (D-089) | check Admin → Insights for one visitor or many; raise `web_advisor_daily_cap` if it is real use; it resets at midnight IST |
 
 **Regenerating s01** (if production's `lead_intake` changed): `scripts/db/make-s01.py` (instructions inside; it reads
 production's current body read-only, re-inserts the s01 lines and rewrites the rollback file), then

@@ -614,3 +614,52 @@ these at the end (spec Section 0).
   number).
 - **To change:** `components/site/SiteFooter.tsx`, `app/(site)/about/page.tsx`, `lib/seo/jsonld.ts` (`contact` flag).
 
+
+## Estate audit follow-up (owner approval, 31 Oct 2026)
+
+### D-086 · A site-wide ceiling on verification codes (audit SITE-04)
+- **Decision:** at most `code_send_hourly_cap` student verification codes per hour for the whole site (default 200),
+  counted in the database: `web_gate_start` and `web_gate_resend` answer `site_busy`, the visitor is asked to try again
+  a little later, and the app logs `gate.code_ceiling_reached` (error, once per server instance per 10 minutes; later
+  refusals are warnings). Admin second-factor codes are not counted, so staff can always sign in. 0 stops all sends.
+  Super admins change it in Admin → Flags and settings; the database also keeps `push_unverified_after_minutes`,
+  `internal_base_url` and `transcript_target` super-admin only (web14).
+- **Why:** the per-IP, per-device and per-email limits bound one sender, not the total, and the total is what protects
+  the sending mailbox's daily quota and reputation.
+- **To change:** the setting, or the web14 rollback (`supabase/rollbacks/`).
+
+### D-087 · Lead writes for a lead the website cannot tie to the verified student (audit SITE-05)
+- **Decision:** every website lead write goes through `web_lead_intake(p, verified_email)`. When the phone already has
+  a lead whose confirmed email is another one, that is enrolled, or that a CRM team owns (`w2_crm_owned`), the
+  website's fields reach `lead_intake` as source `web_agent_unverified`, which it treats as untrusted (fills empty
+  fields only), and a Witty classification is dropped when the lead already has one. New leads, the same student (same
+  confirmed email) and leads without a confirmed email behave as before (`web_agent`). The optional push of unverified
+  attempts never overwrites an existing lead. Opt-outs still apply. `web_lead_submissions.result->>'web_trust'` records
+  which case applied. `lead_intake()` is unchanged.
+- **Why:** the website verifies the email, not the phone (phone OTP, S-25, is off), and `lead_intake` matches by phone.
+- **Not changed here:** reopening a lost or enrolled lead on a new enquiry is `lead_intake`'s shared rule; the CRMs
+  show the untrusted touches under the source name `web_agent_unverified`.
+- **To change:** phone OTP (S-25) makes the phone verified; or the web14 rollback.
+
+### D-088 · The outbox worker calls the site only when there is work; the catalogue poll has a timeout (audit SITE-15)
+- **Decision:** pg_cron job `web_outbox_worker` runs `select public.web_outbox_tick()`, which makes the HTTP call only
+  when `web_outbox_due()` (a job due by the same rule as `web_outbox_claim`, or `push_unverified_gate_leads` on).
+  `web_catalog_poll` runs as `set statement_timeout = '30s'; select public.web_catalog_poll()` (production's pg_cron
+  runs jobs over connections, `cron.use_background_workers = off`, so the setting applies to the poll statement; the
+  same pattern as the B2B CRM's `b2b-ml-tick`).
+- **Why:** about 1,440 calls a day with nothing to do, and during the database stalls of 29–30 Oct a single poll held a
+  job slot for up to six minutes.
+- **Note:** a catalogue refresh slower than 30 s (today about 1–3 s) would fail and retry each minute; raise the
+  timeout in the job if the catalogue ever grows that much.
+
+### D-089 · A site-wide daily ceiling on Witty (audit SITE-18)
+- **Decision:** `web_advisor_daily` counts turns and model spend per India day (written by `web_advisor_turn_commit`;
+  a retried message is not counted). Before each turn `/api/witty` calls `web_advisor_daily_check()`; at
+  `web_advisor_daily_cap` (default 2,000 turns or 25 USD) the circuit breaker opens (re-checked every 10 minutes, so a
+  raised ceiling applies soon), visitors get the guided finder and a counsellor, and `web_advisor.daily_cap_reached` is
+  logged. Super admins change it.
+- **Why:** the per-student, per-IP and per-session limits bound one visitor, not the site's model bill.
+
+### D-090 · The model never receives the verified email address (audit SITE-17)
+- **Decision:** `extractorInput` leaves `email_id` out of `known_profile`, as `counselorInput` already did.
+- **Why:** data minimisation; the extractor reads the student's message and never needs the address.
