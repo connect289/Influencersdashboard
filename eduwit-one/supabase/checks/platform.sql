@@ -4,17 +4,20 @@
 -- app: platform
 -- kind: sql
 -- severity: P1
--- cadence_s: 60
+-- cadence_s: 300
 -- tags: cron
 -- title: A cron job's latest run failed
--- description: A one-tick run that a killed check or event copy ended is left to that check's incident (hardening F3). The latest finished run in the last 26 h of each active cron job ended in "failed" (a run still in progress is ignored, so it cannot hide the failure before it). Each job is a subject: a job joining the failing set alerts again (D-043). "job startup timeout" is left to PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10. Reads only the newest cron_scan_runs runs, through the runid key (M3 and M7 of the second review); jobs that ran less than daily are PLAT-01W's.
+-- description: A one-tick run that a killed check or event copy ended is left to that check's incident (hardening F3). The latest finished run in the last 26 h of each active cron job ended in "failed" (a run still in progress is ignored, so it cannot hide the failure before it). Each job is a subject: a job joining the failing set alerts again (D-043). "job startup timeout" is left to PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10. Reads only the newest cron_scan_runs runs, through the runid key (M3 and M7 of the second review); jobs that ran less than daily are PLAT-01W's. Every 5 minutes since 0033 (D-128): it was over half of the minute tick's database time, mostly reading a day of run history; job stalls stay PLAT-01B's, every minute. Each job's newest run is found by its run number first and only those rows are read.
 with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
-last_run as (
-  select distinct on (d.jobid) d.jobid, d.status, d.return_message, d.start_time
+latest as (
+  select d.jobid, max(d.runid) as runid
     from cron.job_run_details d, w
    where d.runid > w.from_runid and d.start_time > now() - interval '26 hours'
      and d.status in ('succeeded', 'failed') and d.return_message is distinct from 'job startup timeout'
-   order by d.jobid, d.runid desc),
+   group by d.jobid),
+last_run as (
+  select d.jobid, d.status, d.return_message, d.start_time
+    from latest l join cron.job_run_details d on d.runid = l.runid),
 failed as (
   select j.jobname, r.start_time, left(r.return_message, 200) as message
     from cron.job j join last_run r on r.jobid = j.jobid

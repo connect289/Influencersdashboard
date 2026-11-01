@@ -3,6 +3,12 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 1 Nov 2026 — A lighter minute tick (D-128)
+
+- `0033_lighter_tick`: PLAT-01 and B2C-01 every 5 minutes instead of every minute, each job's newest run found by its run
+  number before any row is read. one-tick took a median of 5.2 s a minute before. Local test passed; staging rehearsal
+  running, then the production apply.
+
 ## 1 Nov 2026 — On Supabase Pro: the queued fixes applied (D-126)
 
 On the owner's word that Supabase and Vercel are on Pro; no dump (D-090), daily backups present. The database had

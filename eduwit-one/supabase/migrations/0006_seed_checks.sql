@@ -400,11 +400,11 @@ select one.seed_check(jsonb_build_object(
   'app', 'b2c',
   'kind', 'sql',
   'severity', 'P1',
-  'cadence_s', 60,
+  'cadence_s', 300,
   'open_after', 1,
   'resolve_after', 3,
   'title', 'Spark''s timers or its answers to them are failing',
-  'description', 'Direct read of system_health''s "timers" and "app" checks: no b2c-* job at all, a b2c-* job whose latest finished run failed (a run in progress is ignored; startup timeouts excluded, see PLAT-01B; b2c-capacity left to B2C-10), or a Spark job call answered with an error status in the last hour. Reads the newest cron_scan_runs runs through the runid key in one pass for all of Spark''s jobs (M3, M7 of the second review; one pass since 0029, D-103: the per-job lookups took 9 s a minute).',
+  'description', 'Direct read of system_health''s "timers" and "app" checks: no b2c-* job at all, a b2c-* job whose latest finished run failed (a run in progress is ignored; startup timeouts excluded, see PLAT-01B; b2c-capacity left to B2C-10), or a Spark job call answered with an error status in the last hour. Reads the newest cron_scan_runs runs through the runid key in one pass for all of Spark''s jobs (M3, M7 of the second review; one pass since 0029, D-103: the per-job lookups took 9 s a minute). Every 5 minutes since 0033 (D-128), each job''s newest run found by its run number first.',
   'auto_fix_id', null,
   'tags', '["cron"]'::jsonb,
   'enabled', true,
@@ -413,12 +413,13 @@ select one.seed_check(jsonb_build_object(
   'sql', $sql$
 with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
 timers as (select j.jobid, j.jobname from cron.job j where j.jobname like 'b2c-%' and j.jobname <> 'b2c-capacity' and j.active),
-last_run as (
-  select distinct on (d.jobid) d.jobid, d.status
+latest as (
+  select d.jobid, max(d.runid) as runid
     from cron.job_run_details d, w
    where d.runid > w.from_runid and d.jobid in (select t.jobid from timers t)
      and d.status in ('succeeded', 'failed') and d.return_message is distinct from 'job startup timeout'
-   order by d.jobid, d.runid desc),
+   group by d.jobid),
+last_run as (select d.jobid, d.status from latest l join cron.job_run_details d on d.runid = l.runid),
 jobs as (select t.jobname, r.status as last_status from timers t left join last_run r on r.jobid = t.jobid),
 calls as (
   select count(*) as failed from b2c.job_calls c, jsonb_array_elements(c.calls) e join net._http_response r on r.id = (e ->> 'id')::bigint
@@ -1536,11 +1537,11 @@ select one.seed_check(jsonb_build_object(
   'app', 'platform',
   'kind', 'sql',
   'severity', 'P1',
-  'cadence_s', 60,
+  'cadence_s', 300,
   'open_after', 1,
   'resolve_after', 3,
   'title', 'A cron job''s latest run failed',
-  'description', 'A one-tick run that a killed check or event copy ended is left to that check''s incident (hardening F3). The latest finished run in the last 26 h of each active cron job ended in "failed" (a run still in progress is ignored, so it cannot hide the failure before it). Each job is a subject: a job joining the failing set alerts again (D-043). "job startup timeout" is left to PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10. Reads only the newest cron_scan_runs runs, through the runid key (M3 and M7 of the second review); jobs that ran less than daily are PLAT-01W''s.',
+  'description', 'A one-tick run that a killed check or event copy ended is left to that check''s incident (hardening F3). The latest finished run in the last 26 h of each active cron job ended in "failed" (a run still in progress is ignored, so it cannot hide the failure before it). Each job is a subject: a job joining the failing set alerts again (D-043). "job startup timeout" is left to PLAT-01B (D-008); b2c-capacity has its own P2 check, B2C-10. Reads only the newest cron_scan_runs runs, through the runid key (M3 and M7 of the second review); jobs that ran less than daily are PLAT-01W''s. Every 5 minutes since 0033 (D-128): it was over half of the minute tick''s database time, mostly reading a day of run history; job stalls stay PLAT-01B''s, every minute. Each job''s newest run is found by its run number first and only those rows are read.',
   'auto_fix_id', null,
   'tags', '["cron"]'::jsonb,
   'enabled', true,
@@ -1548,12 +1549,15 @@ select one.seed_check(jsonb_build_object(
   'search_path', '',
   'sql', $sql$
 with w as (select coalesce(max(runid), 0) - (select one.threshold('cron_scan_runs'))::bigint as from_runid from cron.job_run_details),
-last_run as (
-  select distinct on (d.jobid) d.jobid, d.status, d.return_message, d.start_time
+latest as (
+  select d.jobid, max(d.runid) as runid
     from cron.job_run_details d, w
    where d.runid > w.from_runid and d.start_time > now() - interval '26 hours'
      and d.status in ('succeeded', 'failed') and d.return_message is distinct from 'job startup timeout'
-   order by d.jobid, d.runid desc),
+   group by d.jobid),
+last_run as (
+  select d.jobid, d.status, d.return_message, d.start_time
+    from latest l join cron.job_run_details d on d.runid = l.runid),
 failed as (
   select j.jobname, r.start_time, left(r.return_message, 200) as message
     from cron.job j join last_run r on r.jobid = j.jobid
