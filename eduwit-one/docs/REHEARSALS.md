@@ -17,3 +17,4 @@ set's hash (`node scripts/db/guards.ts --hash`) has a row here. Rows are never e
 | 2026-10-30T23:08Z | staging | `f22eca31951a853646461440300048ed270168fbcdcdc82c74c0affb759e2d77` | REHEARSAL PASSED | scripts/db/api-rehearse.sh |
 | 2026-10-31T03:47Z | staging | `fd3fb19c78d287f9b3a8efa3fd5ad79424223c5aaa6013cde1218aafb26952ab` | REHEARSAL PASSED | scripts/db/api-rehearse.sh |
 | 2026-11-01T22:05Z | staging | `71a140f5ee3d5970d200cc0f6015a8d301050d98973ff448e1101f1397760608` | REHEARSAL PASSED | scripts/db/api-rehearse.sh |
+| 2026-11-01T22:44Z | staging | `d20923f57b3dd873396db9509b36a400f588ca8b80fd216429217fd53f7489da` | REHEARSAL PASSED | scripts/db/api-rehearse.sh |

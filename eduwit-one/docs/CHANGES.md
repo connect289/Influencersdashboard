@@ -6,8 +6,8 @@ followed.
 ## 1 Nov 2026 — A lighter minute tick (D-128)
 
 - `0033_lighter_tick`: PLAT-01 and B2C-01 every 5 minutes instead of every minute, each job's newest run found by its run
-  number before any row is read. one-tick took a median of 5.2 s a minute before. Local test passed; staging rehearsal
-  running, then the production apply.
+  number before any row is read. one-tick took a median of 5.2 s a minute before. Rehearsed on staging (`d20923f5…`) and
+  applied at 22:46 UTC; smoke passed.
 
 ## 1 Nov 2026 — On Supabase Pro: the queued fixes applied (D-126)
 
