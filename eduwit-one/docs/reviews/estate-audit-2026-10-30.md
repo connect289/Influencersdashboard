@@ -112,17 +112,22 @@ sent again without risk (D-122). Each file is recorded in `supabase_migrations.s
 The rest waited for the stall to end (D-124). On the owner's word that the organisation is on Pro, with the database
 answering again (the catalogue fingerprint in 4 s), these went in order:
 
-| Set                                                 | Checked afterwards                                                                                                                                 |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Eduwit One `0029` to `0031` (rehearsal `fd3fb19c…`) | smoke, after `w5b` below; the tick report; both one-\* jobs active                                                                                 |
-| Witty `w5b_fixer_keeps_no_witty_function`           | the fixer executes nothing outside the fix catalogue; the reader and service_role keep the four functions; no client role executes them            |
-| Eduwit One's web, `dd02504` promoted on Vercel      | `/api/health` and `/api/watchdog` ok; the functions the new web calls exist (D-123's hold lifted)                                                  |
-| Website `web14` and the rebuild of `3523c0e`        | the payload's own post checks; recorded as `web14_audit_limits`; the Vercel build ready and aliased                                                |
-| Eduwit Scout T-111 as `20261101223000`              | signed-in and anon refused on `ce_pub`, the server key reads, only `service_role` declared, the dashboard's 49 functions unchanged, RLS everywhere |
+| Set                                                                   | Checked afterwards                                                                                                                                 |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Eduwit One `0029` to `0031` (rehearsal `fd3fb19c…`)                   | smoke, after `w5b` below; the tick report; both one-\* jobs active                                                                                 |
+| Witty `w5b_fixer_keeps_no_witty_function`                             | the fixer executes nothing outside the fix catalogue; the reader and service_role keep the four functions; no client role executes them            |
+| Eduwit One's web, `dd02504` promoted on Vercel                        | `/api/health` and `/api/watchdog` ok; the functions the new web calls exist (D-123's hold lifted)                                                  |
+| Website `web14` and the rebuild of `3523c0e`                          | the payload's own post checks; recorded as `web14_audit_limits`; the Vercel build ready and aliased                                                |
+| Eduwit Scout T-111 as `20261101223000`                                | signed-in and anon refused on `ce_pub`, the server key reads, only `service_role` declared, the dashboard's 49 functions unchanged, RLS everywhere |
+| Eduwit One `0032` (D-112's after-Pro settings; rehearsal `71a140f5…`) | history back to 14/90/180/30/30 days; PLAT-10 against the 8 GB disk; smoke                                                                         |
 
 The smoke after 0031 caught a deviation in the audit's own Witty fix: `w5_revoke_api_grants` had granted Eduwit One's
 fixer four Witty functions to keep what PUBLIC used to give it, while the fixer may call only the fix catalogue's
 functions (D-079). `w5b` took them back from the fixer only; the w5 file no longer grants them.
+
+The database pass that followed (D-127): pg_cron's run history pruned to 3 days by B2B's own rule (414,488 rows; its
+08:23 job had timed out in the stall); sign-in hardened (leaked-password protection, minimum 10 characters, 6-digit codes
+valid 10 minutes, two stale redirect addresses removed); security and health read and found sound (D-127 lists each check).
 
 Still to do: the B2B web deploy (the developer), then `b2b-crm/supabase/pending/drop_api_referral_outcomes_v1.sql`;
 re-run `w5_revoke_api_grants.sql` after any new `w2_*` migration (the default privileges grant new objects to clients

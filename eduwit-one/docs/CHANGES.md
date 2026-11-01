@@ -15,8 +15,11 @@ recovered (catalogue fingerprint 4 s); it is still the Micro compute.
 - The website's `web14` (recorded as `web14_audit_limits`) and its rebuild of `3523c0e` (ready).
 - Eduwit Scout's T-111, renumbered `20261101223000` (the portal's migration holds `20261031000100` on production),
   applied to staging and production and checked role by role.
-- `0032_after_pro_plan` (D-112's file, moved from `supabase/pending/`): local test passed; staging rehearsal running,
-  then the production apply.
+- `0032_after_pro_plan` (D-112's file, moved from `supabase/pending/`): rehearsed on staging (`71a140f5…`) and applied
+  at 22:06 UTC; history back to 14/90/180/30/30 days, PLAT-10 against the 8 GB disk.
+- The database pass (D-127): pg_cron's run history pruned to 3 days (414,488 rows, B2B's own rule, its 08:23 job had
+  timed out in the stall); sign-in with leaked-password protection, minimum 10 characters, 6-digit email codes valid 10
+  minutes and two stale redirect addresses removed; security and health checks read and recorded.
 
 ## 31 Oct 2026 — The apps' database fixes on the live project (D-122)
 
