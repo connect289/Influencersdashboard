@@ -19,7 +19,9 @@ class ConsoleSender implements EmailSender {
     // subject) in the hosting logs. Fail instead, so the form says the code could not be sent and the log says why.
     if (isDeployed()) {
       log("error", "email.not_configured", { provider: env().EMAIL_PROVIDER });
-      throw new Error("No email provider configured (EMAIL_PROVIDER smtp with EMAIL_SMTP_HOST, or resend with RESEND_API_KEY)");
+      throw new Error(
+        "No email provider configured (EMAIL_PROVIDER smtp with EMAIL_SMTP_HOST, or resend with RESEND_API_KEY)",
+      );
     }
     const id = `console-${crypto.randomUUID()}`;
     console.info(`[email:console] to=${to} subject="${m.subject}"`);
@@ -34,18 +36,37 @@ export function smtpPassword(raw: string | undefined): string {
   return /^[a-z]{4}( [a-z]{4}){3}$/i.test(v) ? v.replace(/ /g, "") : v;
 }
 
+/** What a failed SMTP login was given, without the values: enough to tell a normal password from an app password. */
+export function smtpLoginShape(user: string | undefined, pass: string | undefined) {
+  const p = smtpPassword(pass);
+  return {
+    user_is_email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user ?? ""),
+    user_domain: (user ?? "").split("@")[1]?.toLowerCase() ?? null,
+    password_is_app_password: /^[a-z]{16}$/i.test(p),
+    password_length: p.length,
+  };
+}
+
 class SmtpSender implements EmailSender {
   private t = nodemailer.createTransport({
     host: env().EMAIL_SMTP_HOST,
     port: env().EMAIL_SMTP_PORT,
     secure: env().EMAIL_SMTP_PORT === 465,
-    auth: env().EMAIL_SMTP_USER ? { user: env().EMAIL_SMTP_USER!, pass: smtpPassword(env().EMAIL_SMTP_PASSWORD) } : undefined,
+    auth: env().EMAIL_SMTP_USER
+      ? { user: env().EMAIL_SMTP_USER!, pass: smtpPassword(env().EMAIL_SMTP_PASSWORD) }
+      : undefined,
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 10000,
   });
   async send(to: string, m: Rendered) {
-    const info = await this.t.sendMail({ from: env().EMAIL_FROM, to, subject: m.subject, text: m.text, html: m.html });
+    const info = await this.t
+      .sendMail({ from: env().EMAIL_FROM, to, subject: m.subject, text: m.text, html: m.html })
+      .catch((e: unknown) => {
+        if ((e as { code?: string }).code === "EAUTH")
+          log("error", "email.smtp_login_rejected", smtpLoginShape(env().EMAIL_SMTP_USER, env().EMAIL_SMTP_PASSWORD));
+        throw e;
+      });
     log("info", "email.sent", { provider: "smtp", id: info.messageId });
     return { id: info.messageId };
   }

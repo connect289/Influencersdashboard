@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-const { email, emailProvider, setEmailSender, smtpPassword } = await import("./index");
+const { email, emailProvider, setEmailSender, smtpLoginShape, smtpPassword } = await import("./index");
 const { verificationCodeEmail } = await import("./templates");
 const { resetEnvCache } = await import("../env");
 
@@ -82,5 +82,21 @@ describe("console sender", () => {
       expect(lines.join("\n")).not.toMatch(/482913|asha@example\.com/);
       vi.restoreAllMocks();
     }
+  });
+});
+
+describe("smtpLoginShape", () => {
+  it("describes the login without revealing it", () => {
+    expect(smtpLoginShape("connect@eduwit.in", "abcd efgh ijkl mnop")).toEqual({
+      user_is_email: true,
+      user_domain: "eduwit.in",
+      password_is_app_password: true,
+      password_length: 16,
+    });
+    expect(smtpLoginShape("connect", "MyGooglePass!2024")).toMatchObject({
+      user_is_email: false,
+      user_domain: null,
+      password_is_app_password: false,
+    });
   });
 });
