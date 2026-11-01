@@ -29,19 +29,19 @@ the same database's public schema.
 
 ## Cross-app findings
 
-| #   | Severity | Finding                                                                                                                                                                                          | State                                      |
-| --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
-| X1  | critical | A legacy CRM function in `public` can be run by any signed-in user without a role check, and sign-ups are open                                                                                   | fixed B2B `m33g`, applied 31 Oct           |
-| X2  | critical | Free plan: the whole database turns read-only above 500 MB; it held 394 MB, Eduwit One growing it fastest                                                                                        | fix ready (Eduwit One `0029`), not applied |
-| X3  | high     | pg_cron's history pruning runs inside the nightly stall window; it failed on 28 and 29 Oct (131 MB)                                                                                              | applied 31 Oct (B2B-L2)                    |
-| X4  | high     | n8n's only account has no two-factor sign-in                                                                                                                                                     | owner action                               |
-| X5  | high     | Free plan: no daily backups of production at all                                                                                                                                                 | owner decision (Pro plan)                  |
-| X6  | medium   | Sign-in policy: passwords of 6 characters, no character rules, no CAPTCHA, with open sign-ups; redirect allow list holds `http://localhost:3000` and old Vercel preview domains                  | owner decision                             |
-| X7  | medium   | The main GitHub repository is public (all code and security logic readable); no secrets or student data found in any branch's history                                                            | owner decision                             |
-| X8  | medium   | Eduwit One's checks used about 9.5 s of database time a minute, over half in one check (B2C-01)                                                                                                  | fixed in `0029` (not applied)              |
-| X9  | medium   | The B2B CRM has no CI workflow                                                                                                                                                                   | fixed (`.github/workflows/b2b-crm-ci.yml`) |
-| X10 | low      | n8n's internal tables sit in the API-exposed public schema with full grants to anon/authenticated, protected only by row security with no policies (and the `ensure_rls` trigger for new tables) | proposal (move n8n to its own schema)      |
-| X11 | low      | Copies of student data in old backup tables (`public.student_leads_backup_2026100x`, `w2_*_backup_*`), not exposed; `b2b.witty_backup_*` hold function definitions only                          | owner decision (drop when not needed)      |
+| #   | Severity | Finding                                                                                                                                                                                          | State                                                      |
+| --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| X1  | critical | A legacy CRM function in `public` can be run by any signed-in user without a role check, and sign-ups are open                                                                                   | fixed B2B `m33g`, applied 31 Oct                           |
+| X2  | critical | Free plan: the whole database turns read-only above 500 MB; it held 394 MB, Eduwit One growing it fastest                                                                                        | on Pro since 1 Nov (8 GB); Eduwit One `0029` applied 1 Nov |
+| X3  | high     | pg_cron's history pruning runs inside the nightly stall window; it failed on 28 and 29 Oct (131 MB)                                                                                              | applied 31 Oct (B2B-L2)                                    |
+| X4  | high     | n8n's only account has no two-factor sign-in                                                                                                                                                     | owner action                                               |
+| X5  | high     | Free plan: no daily backups of production at all                                                                                                                                                 | owner decision (Pro plan)                                  |
+| X6  | medium   | Sign-in policy: passwords of 6 characters, no character rules, no CAPTCHA, with open sign-ups; redirect allow list holds `http://localhost:3000` and old Vercel preview domains                  | owner decision                                             |
+| X7  | medium   | The main GitHub repository is public (all code and security logic readable); no secrets or student data found in any branch's history                                                            | owner decision                                             |
+| X8  | medium   | Eduwit One's checks used about 9.5 s of database time a minute, over half in one check (B2C-01)                                                                                                  | fixed in `0029` (applied 1 Nov)                            |
+| X9  | medium   | The B2B CRM has no CI workflow                                                                                                                                                                   | fixed (`.github/workflows/b2b-crm-ci.yml`)                 |
+| X10 | low      | n8n's internal tables sit in the API-exposed public schema with full grants to anon/authenticated, protected only by row security with no policies (and the `ensure_rls` trigger for new tables) | proposal (move n8n to its own schema)                      |
+| X11 | low      | Copies of student data in old backup tables (`public.student_leads_backup_2026100x`, `w2_*_backup_*`), not exposed; `b2b.witty_backup_*` hold function definitions only                          | owner decision (drop when not needed)                      |
 
 Details:
 
@@ -86,9 +86,9 @@ Details:
   session checked it: a stranger's refused admin sign-in rolls back with its audit row (`ce.audit_log` holds 0 rows),
   so the audit-growth point raised earlier does not hold. Fixed in Scout's repository on 31 Oct (its T-111): `ce_pub`
   was granted to every signed-in account, broader than Scout's per-consumer design; it is now the apps' server keys
-  only, live on staging and on production after the Pro upgrade, so only `ce_admin` is exposed until then. Scout's
-  tables reached 185 MB on staging after repeated reads of one partner, so its first production run waits for the Pro
-  plan or freed space.
+  only, live on staging since 31 Oct and on production since 1 Nov (renumbered `20261101223000`, D-126), so `ce_pub`
+  may be exposed when an app needs it. Scout's tables reached 185 MB on staging after repeated reads of one partner, so
+  its first production run waited for the Pro plan or freed space.
 
 ## Applied to production, 31 Oct 2026
 
@@ -107,13 +107,27 @@ sent again without risk (D-122). Each file is recorded in `supabase_migrations.s
 | Spark `b47` to `b52`                                                   | SPK-01 to SPK-07, SPK-10, SPK-11         | staging: applied, 47 of 47 checks, rolled back to the exact previous versions, applied, 47 of 47, then 10 and 28 more checks       | function bodies, the `b2c.users` column grants, the users policy                                                               |
 | Witty `w5_*` (four files)                                              | W-07, W-10, W-11, W-13                   | a throwaway local copy of production's definitions, 29 of 29 with rollback (staging holds no Witty objects)                        | no `w2_*` function or relation left to anon or authenticated (except `w2_crm_owned`); Eduwit One keeps its four functions      |
 
-Still to do, all waiting on the database's stall (connections refused and every query slowed since 01:43 UTC on the
-Micro compute; the upgrade to Pro and a larger compute is the fix): Eduwit One `0029` to `0031` (the apply's catalogue
-fingerprint could not finish inside the API's 120 s), then promoting the newest Eduwit One web deployment, which is
-rolled back to `42ddc75` until then (D-123); the website's redeploy (its 16 fixes are pushed, `3523c0e`, but Vercel's
-build reads the database and timed out) and `web14`. Also: the B2B web deploy (the developer), then
-`b2b-crm/supabase/pending/drop_api_referral_outcomes_v1.sql`; re-run `w5_revoke_api_grants.sql` after any new `w2_*`
-migration (the default privileges grant new objects to clients again); Witty's n8n changes (the owner).
+### Applied on Supabase Pro, 1 Nov 2026 (D-126)
+
+The rest waited for the stall to end (D-124). On the owner's word that the organisation is on Pro, with the database
+answering again (the catalogue fingerprint in 4 s), these went in order:
+
+| Set                                                 | Checked afterwards                                                                                                                                 |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Eduwit One `0029` to `0031` (rehearsal `fd3fb19c…`) | smoke, after `w5b` below; the tick report; both one-\* jobs active                                                                                 |
+| Witty `w5b_fixer_keeps_no_witty_function`           | the fixer executes nothing outside the fix catalogue; the reader and service_role keep the four functions; no client role executes them            |
+| Eduwit One's web, `dd02504` promoted on Vercel      | `/api/health` and `/api/watchdog` ok; the functions the new web calls exist (D-123's hold lifted)                                                  |
+| Website `web14` and the rebuild of `3523c0e`        | the payload's own post checks; recorded as `web14_audit_limits`; the Vercel build ready and aliased                                                |
+| Eduwit Scout T-111 as `20261101223000`              | signed-in and anon refused on `ce_pub`, the server key reads, only `service_role` declared, the dashboard's 49 functions unchanged, RLS everywhere |
+
+The smoke after 0031 caught a deviation in the audit's own Witty fix: `w5_revoke_api_grants` had granted Eduwit One's
+fixer four Witty functions to keep what PUBLIC used to give it, while the fixer may call only the fix catalogue's
+functions (D-079). `w5b` took them back from the fixer only; the w5 file no longer grants them.
+
+Still to do: the B2B web deploy (the developer), then `b2b-crm/supabase/pending/drop_api_referral_outcomes_v1.sql`;
+re-run `w5_revoke_api_grants.sql` after any new `w2_*` migration (the default privileges grant new objects to clients
+again); Witty's n8n changes (the owner). The database is still the Micro compute (no add-on selected on 1 Nov); it
+stalled again from 02:00 to 16:44 UTC that day, so the Small compute remains the owner's step that ends the stalls.
 
 ## Per-app findings
 
@@ -179,7 +193,7 @@ the fixes must be live before its first lead.
 | SPK-06 | low      | The emailed sign-in code came from `random()`                                                              | fixed `b50`, applied 31 Oct                     |
 | SPK-07 | low      | B2C-10: `b2c-capacity` failed every day while nobody takes leads                                           | fixed `b49`, applied 31 Oct                     |
 | SPK-08 | medium   | PLAT-05: Spark's base URL and Vault key `b2c_internal_key` are missing, so its four HTTP timers do nothing | owner: Vault key, then the base URL             |
-| SPK-09 | medium   | B2C-01 took 10 to 30 s and was killed                                                                      | fixed in Eduwit One `0029`, not applied         |
+| SPK-09 | medium   | B2C-01 took 10 to 30 s and was killed                                                                      | fixed in Eduwit One `0029`, applied 1 Nov       |
 | SPK-10 | low      | Rows a person owns (tasks, notifications) are readable before the second sign-in step                      | fixed `b51`, applied 31 Oct                     |
 | SPK-11 | low      | Staff can read each other's push subscriptions                                                             | fixed `b52`, applied 31 Oct                     |
 | SPK-12 | low      | Three money tests use September fixtures and fail since 16 Oct (test data, not code)                       | proposal                                        |
@@ -314,18 +328,18 @@ vercel:website, chatwoot, which now say which key is missing) or switched off, s
 | E3  | low      | Chat links starting with `//` opened another site                                                                                                                                                                               | fixed (D-106)                                                          |
 | E4  | medium   | Text planted in app data could make the chat acknowledge incidents without a click                                                                                                                                              | fixed (D-107: a card the person confirms; one line of the chat prompt) |
 | E5  | medium   | Setup showed three items verified without their keys, and keyless probes wrote nothing ("never seen")                                                                                                                           | fixed (D-108); owner: paste the keys                                   |
-| E6  | medium   | An engineer could acknowledge a new API-callable function and quiet the PLAT-07 security check                                                                                                                                  | fixed `0030` (D-110), not applied                                      |
+| E6  | medium   | An engineer could acknowledge a new API-callable function and quiet the PLAT-07 security check                                                                                                                                  | fixed `0030` (D-110), applied 1 Nov                                    |
 | E7  | low      | The tooling typecheck (CI's database job) failed                                                                                                                                                                                | fixed                                                                  |
 | E8  | low      | CI's dependency audit failed on Next's pinned postcss (not exploitable)                                                                                                                                                         | fixed (override; CSS byte-identical)                                   |
-| E9  | low      | A chat action card shows the proposed arguments, but the confirmed call runs the masked copy                                                                                                                                    | fixed `0031` (D-115), not applied                                      |
+| E9  | low      | A chat action card shows the proposed arguments, but the confirmed call runs the masked copy                                                                                                                                    | fixed `0031` (D-115), applied 1 Nov                                    |
 | E10 | low      | The chat offers `put_user`, which cannot succeed while the model sees masked addresses                                                                                                                                          | fixed (D-116: removed from the chat)                                   |
 | E11 | low      | An engineer can loosen a protected check's threshold                                                                                                                                                                            | owner decision (D-065)                                                 |
-| E12 | low      | `ui_user_put` does not check that the email is confirmed (exploitability not shown)                                                                                                                                             | fixed `0031` (D-117), not applied                                      |
-| E13 | low      | Parallel chat turns can overshoot the daily AI cap                                                                                                                                                                              | fixed `0031` (D-118), not applied                                      |
-| E14 | low      | `one.mask_text` misses phone formats the app's masker catches                                                                                                                                                                   | fixed `0031` (D-119), not applied                                      |
+| E12 | low      | `ui_user_put` does not check that the email is confirmed (exploitability not shown)                                                                                                                                             | fixed `0031` (D-117), applied 1 Nov                                    |
+| E13 | low      | Parallel chat turns can overshoot the daily AI cap                                                                                                                                                                              | fixed `0031` (D-118), applied 1 Nov                                    |
+| E14 | low      | `one.mask_text` misses phone formats the app's masker catches                                                                                                                                                                   | fixed `0031` (D-119), applied 1 Nov                                    |
 | E15 | low      | The chat's remaining immediate acts (validate a Setup item, re-run an explanation, rebuild a brief) run without a card                                                                                                          | fixed (D-120: cards; only a fix's dry run runs at once)                |
 | E16 | medium   | Found by the coordinator: Vercel skips a push whose last commit leaves `eduwit-one/web` untouched (its rule is `git diff HEAD^ HEAD`), so the audit's web fixes were not deployed; production runs `42ddc75` (30 Oct 10:15 UTC) | fixed (D-111, 31 Oct); deploys when Vercel's daily limit frees         |
-| E17 | medium   | Eduwit One's reader role could read the apps' credential columns (password, token, secret and hash columns, push subscriptions), which no check uses                                                                            | fixed `0031` (D-121), not applied                                      |
+| E17 | medium   | Eduwit One's reader role could read the apps' credential columns (password, token, secret and hash columns, push subscriptions), which no check uses                                                                            | fixed `0031` (D-121), applied 1 Nov                                    |
 
 For the owner, from the same audit: Eduwit Scout's 52 new API-callable functions (first seen 30 Oct 21:00 UTC) will
 fail PLAT-07 at its next daily run until acknowledged (owner-only once 0030 is live; the 3 in `ce_pub` stop

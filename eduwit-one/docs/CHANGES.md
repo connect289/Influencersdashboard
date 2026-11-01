@@ -3,6 +3,21 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 1 Nov 2026 — On Supabase Pro: the queued fixes applied (D-126)
+
+On the owner's word that Supabase and Vercel are on Pro; no dump (D-090), daily backups present. The database had
+recovered (catalogue fingerprint 4 s); it is still the Micro compute.
+
+- Eduwit One `0029` to `0031` (rehearsal `fd3fb19c…`), 21:35 UTC. The smoke after it refused four Witty functions the
+  fixer could execute (granted by `w5_revoke_api_grants` on 31 Oct); `w5b_fixer_keeps_no_witty_function.sql` revoked them
+  from the fixer only, the w5 file no longer grants them, and the smoke passed.
+- Eduwit One's web: `dd02504` promoted on Vercel (D-123's hold lifted); health and watchdog ok.
+- The website's `web14` (recorded as `web14_audit_limits`) and its rebuild of `3523c0e` (ready).
+- Eduwit Scout's T-111, renumbered `20261101223000` (the portal's migration holds `20261031000100` on production),
+  applied to staging and production and checked role by role.
+- `0032_after_pro_plan` (D-112's file, moved from `supabase/pending/`): local test passed; staging rehearsal running,
+  then the production apply.
+
 ## 31 Oct 2026 — The apps' database fixes on the live project (D-122)
 
 On the owner's go ("apply the blocked fixes"); no dump (Free plan, D-090). One guarded transaction per set (D-122); the
@@ -20,8 +35,8 @@ estate report's "Applied to production" section lists each set with its rehearsa
   `w5_revoke_api_grants` (`docs/reviews/estate-audit-2026-10-30/witty/`); the n8n changes stay the owner's.
 - Eduwit One: the rehearsal of 0001 to 0031 passed on staging (`fd3fb19c…`, REHEARSALS.md); 0029 to 0031 are not yet
   applied.
-- Eduwit One's web rolled back on Vercel to `42ddc75` at 07:13 UTC (D-123): a docs push had deployed the web that needs
-  0031. 0029 to 0031 then could not be applied: the database, stalling since 01:43 UTC, could not finish the apply's
+- Eduwit One's web rolled back on Vercel to `42ddc75` at 07:13 UTC (D-123): a docs push had deployed the web that
+  needs 0031. 0029 to 0031 then could not be applied: the database, stalling since 01:43 UTC, could not finish the apply's
   catalogue fingerprint inside the Management API's 120 s (the fingerprint alone took over 118 s; normally seconds).
 - The website's 16 fixes are on `claude/inspiring-babbage-8asj1y` (`615ee72..3523c0e`; typecheck, 219 tests, lint and a
   build passed here first), but Vercel's build failed: prerendering reads the database, which timed out. The live site

@@ -1,8 +1,10 @@
--- w5_revoke_api_grants (proposed 30 Oct 2026, Witty audit; not applied)
+-- w5_revoke_api_grants (proposed 30 Oct 2026, Witty audit; applied 31 Oct 2026; amended 1 Nov 2026, see below)
 --
 -- What: removes the privileges that Supabase's default privileges gave anon, authenticated and PUBLIC on the
--- public.w2_* tables, views and functions. service_role keeps everything. Eduwit One's reader and fixer roles keep
--- w2_health_alerts() and w2_health_digest(integer) and the two helpers those call. public.w2_crm_owned(text) keeps its
+-- public.w2_* tables, views and functions. service_role keeps everything. Eduwit One's reader keeps
+-- w2_health_alerts() and w2_health_digest(integer) and the two helpers those call. Its fixer keeps none: a fixer function
+-- may call only the fix catalogue's functions (D-079), and smoke.sql refuses a fixer grant outside it. The 31 Oct apply
+-- granted the four to the fixer as well; w5b_fixer_keeps_no_witty_function.sql took that back on 1 Nov (D-126). public.w2_crm_owned(text) keeps its
 -- authenticated grant (the B2B CRM's database tests call it).
 -- Why: least privilege next to RLS. Witty's callers are the owner (n8n and pg_cron run as postgres) and postgres-owned
 -- SECURITY DEFINER functions of the other apps; no client role needs these privileges.
@@ -39,10 +41,6 @@ begin
     grant execute on function public.w2_health_alerts(), public.w2_health_digest(integer),
                               public.w2_stale_inbox(integer), public.w2_is_test(text) to eduwit_one_reader;
   end if;
-  if exists (select 1 from pg_roles where rolname = 'eduwit_one_fixer') then
-    grant execute on function public.w2_health_alerts(), public.w2_health_digest(integer),
-                              public.w2_stale_inbox(integer), public.w2_is_test(text) to eduwit_one_fixer;
-  end if;
 end $$;
 
 -- rollback (restores the grants as they were on 30 Oct 2026; w2_crm_owned and w2_fee_review are untouched by both):
@@ -67,9 +65,5 @@ end $$;
 --   end loop;
 --   if exists (select 1 from pg_roles where rolname = 'eduwit_one_reader') then
 --     revoke execute on function public.w2_stale_inbox(integer), public.w2_is_test(text) from eduwit_one_reader;
---   end if;
---   if exists (select 1 from pg_roles where rolname = 'eduwit_one_fixer') then
---     revoke execute on function public.w2_health_alerts(), public.w2_health_digest(integer),
---                                public.w2_stale_inbox(integer), public.w2_is_test(text) from eduwit_one_fixer;
 --   end if;
 -- end $$;

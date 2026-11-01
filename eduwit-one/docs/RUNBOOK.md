@@ -290,14 +290,13 @@ watchdog's or yours:
   down; the app parses each probe's settings on its own and a bad key shows as that probe's error. Any earlier version
   of a setting can be restored as a new version (Settings → the key → versions → Restore).
 - **Histories are append-only** by trigger: the audit, settings versions, the sign-in log and check results refuse
-  UPDATE and DELETE outside `one.retention()`. Retention (Settings, `retention`; 0029, D-103) keeps ok results 2 days
-  (`ok_results_days`), failures and errors 14 (`results_days`), copied app events 30 (`events_days`), the tick and
-  nightly reports 7 (`runs_days`), the app's own report audit rows 7 (`app_report_days`), codes 7 days, the sign-in
-  log a year. These are short because the project is on Supabase's Free plan, which turns the whole database
-  read-only above 500 MB (PLAT-10 warns at 80 % and pages at 90 %). Once the organisation is on Pro, apply
-  `supabase/pending/after_pro_plan.sql` (D-112): move it and its rollback into `supabase/migrations/` under the next
-  free number, rehearse, apply; it sets ok_results 14, results 90, events 180, runs and app_report 30, and PLAT-10's
-  limit to Pro's 8 GB disk, each only while the setting is still a seed version.
+  UPDATE and DELETE outside `one.retention()`. Retention (Settings, `retention`; 0032, D-112) keeps ok results 14
+  days (`ok_results_days`), failures and errors 90 (`results_days`), copied app events 180 (`events_days`), the tick
+  and nightly reports 30 (`runs_days`), the app's own report audit rows 30 (`app_report_days`), codes 7 days, the
+  sign-in log a year. The organisation is on Supabase Pro since 1 Nov 2026 (8 GB disk, daily backups), and PLAT-10
+  measures the database against that disk (`db_size_limit_mb` 8192; warns at 80 %, pages at 90 %). On the Free plan
+  (500 MB, then the whole database turns read-only) 0029 had kept 2, 14, 30, 7 and 7 days; those are the values to go
+  back to if the plan ever is.
 - **PLAT-10, the database near its plan's limit.** Free the space before anything else: the largest tables are listed
   in `docs/reviews/db-stalls-2026-10-30.md` (pg_cron's run history, Eduwit One's results, the catalogue). Pruning makes
   space reusable; the database's reported size only drops after a `vacuum full` of the pruned table (a short lock).

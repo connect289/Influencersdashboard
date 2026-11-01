@@ -1,5 +1,6 @@
--- Storage within the plan (migration 0029, D-103): Eduwit One's history kept by setting within the Free plan's 500 MB
--- database limit, and PLAT-10, the database's size against the plan's limit. Local cluster only.
+-- Storage within the plan (migrations 0029, D-103, and 0032, D-112): Eduwit One's history kept by setting, and PLAT-10,
+-- the database's size against the plan's limit. 0029 fitted the Free plan's 500 MB; 0032 (on Pro) restores the longer
+-- history and points PLAT-10 at the 8 GB disk. Local cluster only.
 \set ON_ERROR_STOP 1
 do $$ begin
   if current_database() <> 'rehearsal' or to_regclass('public.stub_health') is null then
@@ -17,19 +18,25 @@ begin
 exception when others then return sqlstate;
 end $$;
 
--- 1. The settings carry 0029's values, and the new keys are validated like the others.
-select pg_temp.ok((select (value ->> 'ok_results_days')::int = 2 and (value ->> 'results_days')::int = 14 and (value ->> 'events_days')::int = 30
-                          and (value ->> 'runs_days')::int = 7 and (value ->> 'app_report_days')::int = 7
+-- 1. The settings carry 0032's values (0029's keys, Pro's lengths), and the new keys are validated like the others.
+select pg_temp.ok((select (value ->> 'ok_results_days')::int = 14 and (value ->> 'results_days')::int = 90 and (value ->> 'events_days')::int = 180
+                          and (value ->> 'runs_days')::int = 30 and (value ->> 'app_report_days')::int = 30
                      from one.settings where key = 'retention'),
-                  'retention carries the 0029 values: ' || (select value::text from one.settings where key = 'retention'));
-select pg_temp.ok((select (value ->> 'db_size_limit_mb')::int = 500 and (value ->> 'db_size_warn_pct')::int = 80 and (value ->> 'db_size_crit_pct')::int = 90
+                  'retention carries the 0032 values: ' || (select value::text from one.settings where key = 'retention'));
+select pg_temp.ok((select actor = 'seed' from one.settings where key = 'retention')
+                  and exists (select 1 from one.settings_versions where key = 'retention' and reason like 'D-112 (after Pro)%'),
+                  '0032 moved retention as a seed version');
+select pg_temp.ok((select (value ->> 'db_size_limit_mb')::int = 8192 and (value ->> 'db_size_warn_pct')::int = 80 and (value ->> 'db_size_crit_pct')::int = 90
                      from one.settings where key = 'thresholds'), 'thresholds carry PLAT-10''s keys');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('retention', '{"runs_days": 0}')$q$) = '22023', 'runs_days is at least 1');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('retention', '{"runs_days": 1, "app_report_days": 1}')$q$) = 'ok', 'runs_days and app_report_days of 1 are accepted');
 select pg_temp.ok(pg_temp.err($q$select one.settings_check('retention', '{"results_days": 6}')$q$) = '22023', 'failures are still kept at least 7 days');
 
--- 2. One pass of retention keeps exactly what the settings say.
+-- 2. One pass of retention keeps exactly what the settings say (run with 0029's shorter lengths, then restored).
 create temp table t_ret as select value from one.settings where key = 'retention';
+select one.settings_put('retention', (select value from t_ret)
+         || '{"ok_results_days": 2, "results_days": 14, "events_days": 30, "runs_days": 7, "app_report_days": 7}',
+       'test@eduwit.in', '0029''s lengths for this pass');
 insert into one.results (check_id, status, ran_at, value) values
   ('CAT-04', 'ok',   now() - interval '3 days',  '{"t": "0029-ok-old"}'),
   ('CAT-04', 'ok',   now() - interval '1 day',   '{"t": "0029-ok-new"}'),

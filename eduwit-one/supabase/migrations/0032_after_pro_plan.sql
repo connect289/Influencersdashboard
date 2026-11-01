@@ -1,10 +1,11 @@
--- After the Supabase Pro plan is active (D-112). NOT a migration yet: it waits in supabase/pending/ so no apply can run
--- it early. Once the organisation is on Pro (8 GB disk, daily backups), move this file and its rollback into
--- supabase/migrations/ under the next free number, rehearse the set, then apply it.
+-- 0032 after the Supabase Pro plan (D-112, D-126). Waited in supabase/pending/ from 31 Oct 2026 until the organisation
+-- was on Pro (the owner, 1 Nov 2026: "Both Vercel and Supabase subscription have been upgraded to pro"; checked the same
+-- day: organisation plan pro). Pro has an 8 GB disk and daily backups instead of the Free plan's 500 MB read-only limit.
 -- What it does: Eduwit One's history goes back to the lengths it had before 0029 (ok results 14 days, failures 90,
 -- copied events 180, tick reports and app_report audit rows 30), and PLAT-10 measures the database against Pro's 8 GB
 -- disk instead of the Free plan's 500 MB read-only limit (P2 at 80 %, P1 at 90 %, unchanged). Each setting moves only
 -- while its row is still a seed version, as 0029 did: a value a person set stays, and the file says so.
+-- Nothing of the five apps is touched; only schema one. Rollback: 0032_after_pro_plan.rollback.sql.
 
 do $$
 declare

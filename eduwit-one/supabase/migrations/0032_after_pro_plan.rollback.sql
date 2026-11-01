@@ -1,4 +1,4 @@
--- Rollback of the after-Pro file (D-112): each of retention and thresholds goes back to the version before D-112, but only
+-- Rollback of 0032, the after-Pro file (D-112): each of retention and thresholds goes back to the version before D-112, but only
 -- while D-112's seed version is still the latest (a person's later edit stays).
 do $$
 declare
