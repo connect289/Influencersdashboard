@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RealVercelClient } from "./vercel.ts";
 
-// The probe judges the newest production deployment that was built: a canceled one (a docs-only push skipped by the
-// ignored-build step, D-111, or one superseded) is passed over; an ERROR is still a failure.
+// The probe judges the newest production deployment that finished building: a canceled one (a docs-only push skipped by
+// the ignored-build step, D-111, or one superseded) or one still building is passed over; an ERROR is still a failure.
 const deployments = (states: string[]) => ({
   deployments: states.map((s, i) => ({
     uid: `dpl_${i}`,
@@ -36,6 +36,10 @@ describe("latestProduction", () => {
   it("keeps a failed build as the answer", async () => {
     const d = await client(["CANCELED", "ERROR", "READY"]).latestProduction("eduwit-one", "eduwit");
     expect(d).toMatchObject({ uid: "dpl_1", state: "ERROR" });
+  });
+  it("passes over a build still in progress", async () => {
+    const d = await client(["BUILDING", "CANCELED", "READY"]).latestProduction("eduwit-one", "eduwit");
+    expect(d).toMatchObject({ uid: "dpl_2", state: "READY" });
   });
   it("returns the newest when every listed deployment was canceled", async () => {
     const d = await client(["CANCELED", "CANCELED"]).latestProduction("eduwit-one", "eduwit");

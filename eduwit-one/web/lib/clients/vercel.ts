@@ -14,11 +14,13 @@ const deployment = z.object({
 export const vercelDeploymentsFixture = z.object({ deployments: z.array(deployment) });
 export type VercelDeploymentsFixture = z.infer<typeof vercelDeploymentsFixture>;
 
-// The newest production deployment that was built. A CANCELED one is a build Vercel skipped (the ignored-build step,
-// D-111, cancels docs-only pushes) or one a newer push superseded; it never served traffic, so it says nothing about
-// production and is passed over. ERROR stays a failure. Only when every listed deployment is canceled is one returned.
+// The newest production deployment that finished building: READY, or ERROR, which stays a failure. A CANCELED one is a
+// build Vercel skipped (the ignored-build step, D-111, cancels docs-only pushes) or one a newer push superseded, and a
+// QUEUED, INITIALIZING or BUILDING one has not served traffic yet; neither says anything about production, so both are
+// passed over (D-129). Only when none of the listed deployments finished is the newest returned as it stands.
+const FINISHED = new Set(["READY", "ERROR"]);
 function latest(body: VercelDeploymentsFixture): VercelDeployment | null {
-  const d = body.deployments.find((x) => (x.readyState ?? x.state) !== "CANCELED") ?? body.deployments[0];
+  const d = body.deployments.find((x) => FINISHED.has(x.readyState ?? x.state ?? "")) ?? body.deployments[0];
   if (!d) return null;
   return { uid: d.uid, state: d.readyState ?? d.state ?? "UNKNOWN", createdAt: d.created, url: d.url ?? null };
 }

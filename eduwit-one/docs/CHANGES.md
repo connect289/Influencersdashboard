@@ -5,8 +5,8 @@ followed.
 
 ## 2 Nov 2026 — Vercel heartbeats ignore skipped builds (D-129)
 
-- `web/lib/clients/vercel.ts`: the newest production deployment that was built (canceled ones passed over; ERROR still a
-  failure), so docs-only pushes no longer read as "deployment CANCELED" on vercel:one. Test `lib/clients/vercel.test.ts`.
+- `web/lib/clients/vercel.ts`: the newest production deployment that finished building (canceled and in-progress ones
+  passed over; ERROR still a failure), so docs-only pushes no longer read as "deployment CANCELED" on vercel:one. Test `lib/clients/vercel.test.ts`.
 - Setup with the owner: Rounds 1 to 3 validated (schema one, app environment, alert routing with the one@eduwit.in
   sender, UptimeRobot key and watchdog monitor); the Vercel token in Round 4.
 
