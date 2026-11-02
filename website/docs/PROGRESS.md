@@ -30,6 +30,12 @@
   providers and advertising platforms; §8 cites the 2011 SPDI Rules rather than the DPDP Act; under-16 vs under-18
   children wording; arbitration seat Varanasi; a named Grievance Officer.
 - On-campus programmes (22 Oct, owner): shown (D-084); 29 universities, 715 programmes; mode label "On-campus".
+- Email and Witty (1–2 Nov): verification emails work (Gmail app password replaced by the owner; env values are trimmed;
+  a rejected SMTP login logs its shape). Witty's replies wait for a valid `GEMINI_API_KEY` (Google answered
+  API_KEY_INVALID); the owner is replacing it.
+- WhatsApp widget (2 Nov, owner): AiSensy snippet on the public pages (D-091, web15 applied: `whatsapp_widget_id` =
+  `"aabsod"`). Its first deploy failed because the shared database stalled at 14:46 UTC (every cron job hit a startup
+  timeout; connections could not authenticate within 15 s); the owner moved Supabase to Pro and raised the compute size.
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).
