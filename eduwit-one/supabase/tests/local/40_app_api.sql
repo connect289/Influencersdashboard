@@ -27,15 +27,19 @@ select pg_temp.ok((select exists (select 1 from jsonb_array_elements(s -> 'check
 -- 2. Report: heartbeats and results applied one by one; a bad item is refused alone; values are redacted ------------
 create temp table t_rep as select one.app_report($j${
   "heartbeats": [{"component": "website", "ok": true, "detail": {"status": 200, "contact": {"email": "x@example.com"}}, "expected_interval_s": 60},
-                 {"component": "BAD COMPONENT", "ok": true}],
+                 {"component": "BAD COMPONENT", "ok": true},
+                 {"component": "n8n:PKPs7tXg9bej8AgX", "ok": true, "expected_interval_s": 60}],
   "results": [{"check_id": "WEB-02", "status": "ok", "value": {"status": 200}, "duration_ms": 120},
               {"check_id": "WITTY-02", "status": "fail", "value": {}},
               {"check_id": "WEB-07", "status": "weird"}]}$j$::jsonb, 'app:test', 'req-1') as r;
 select pg_temp.ok((select r #>> '{heartbeats,website}' = 'ok' and r #>> '{heartbeats,BAD COMPONENT}' <> 'ok' from t_rep), 'good heartbeat applied, bad one refused: ' || (select r::text from t_rep));
+select pg_temp.ok((select r #>> '{heartbeats,n8n:PKPs7tXg9bej8AgX}' = 'ok' from t_rep),
+                  'a mixed-case workflow id is a valid heartbeat name (0034, D-130)');
 select pg_temp.ok((select r #>> '{results,WEB-02}' = 'none' and r #>> '{results,WITTY-02}' like 'refused%' and r #>> '{results,WEB-07}' like 'refused%' from t_rep),
                   'enabled check accepted; disabled check and bad status refused');
 reset role;
 select pg_temp.ok((select detail::text !~ 'example.com' from one.heartbeats where component = 'website'), 'heartbeat detail redacted');
+select pg_temp.ok(exists (select 1 from one.heartbeats where component = 'n8n:PKPs7tXg9bej8AgX'), 'the mixed-case heartbeat is stored');
 select pg_temp.ok(exists (select 1 from one.audit where action = 'app_report' and request_id = 'req-1'), 'the write is audited');
 
 -- 3. Escalations: conversation ids only, never the phone -----------------------------------------------------------
