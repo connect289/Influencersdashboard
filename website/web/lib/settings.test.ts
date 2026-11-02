@@ -19,3 +19,11 @@ describe("settings parsing", () => {
     expect(s.counsellor_phone).toBe("+911234567890");
   });
 });
+
+describe("whatsapp_widget_id", () => {
+  it("is off until set, and an unsafe value falls back to off", () => {
+    expect(parseSettings({}).whatsapp_widget_id).toBeNull();
+    expect(parseSettings({ whatsapp_widget_id: "aabsod" }).whatsapp_widget_id).toBe("aabsod");
+    expect(parseSettings({ whatsapp_widget_id: '"><script>' }).whatsapp_widget_id).toBeNull();
+  });
+});

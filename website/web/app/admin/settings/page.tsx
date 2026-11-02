@@ -15,24 +15,127 @@ async function Settings() {
   return (
     <AdminShell session={s} title="Flags and settings">
       <Card title="Feature flags (super admin)">
-        <SettingForm name="web_advisor_enabled" label="Witty on the website" kind="bool" value={v.web_advisor_enabled} disabled={!admin} help="Off: the hero shows search, the guided finder and free counselling. Turn on only after A-AGENT-1 and S-14 (docs/APPROVALS_NEEDED.md)." />
-        <SettingForm name="push_unverified_gate_leads" label="Push unverified gate attempts as leads" kind="bool" value={v.push_unverified_gate_leads} disabled={!admin} help="Off by default (spec 7.2). Attempts with a junk score of 50 or more are never pushed." />
-        <SettingForm name="push_unverified_after_minutes" label="…after this many minutes" kind="number" value={v.push_unverified_after_minutes} disabled={!admin} />
-        <SettingForm name="require_phone_otp" label="Require phone OTP" kind="bool" value={v.require_phone_otp} disabled help="Needs a phone OTP provider first (S-25)." />
-        <SettingForm name="document_upload_enabled" label="Document upload in the application form" kind="bool" value={v.document_upload_enabled} disabled help="Not built in v1 (D-054)." />
+        <SettingForm
+          name="web_advisor_enabled"
+          label="Witty on the website"
+          kind="bool"
+          value={v.web_advisor_enabled}
+          disabled={!admin}
+          help="Off: the hero shows search, the guided finder and free counselling. Turn on only after A-AGENT-1 and S-14 (docs/APPROVALS_NEEDED.md)."
+        />
+        <SettingForm
+          name="push_unverified_gate_leads"
+          label="Push unverified gate attempts as leads"
+          kind="bool"
+          value={v.push_unverified_gate_leads}
+          disabled={!admin}
+          help="Off by default (spec 7.2). Attempts with a junk score of 50 or more are never pushed."
+        />
+        <SettingForm
+          name="push_unverified_after_minutes"
+          label="…after this many minutes"
+          kind="number"
+          value={v.push_unverified_after_minutes}
+          disabled={!admin}
+        />
+        <SettingForm
+          name="require_phone_otp"
+          label="Require phone OTP"
+          kind="bool"
+          value={v.require_phone_otp}
+          disabled
+          help="Needs a phone OTP provider first (S-25)."
+        />
+        <SettingForm
+          name="document_upload_enabled"
+          label="Document upload in the application form"
+          kind="bool"
+          value={v.document_upload_enabled}
+          disabled
+          help="Not built in v1 (D-054)."
+        />
       </Card>
       <Card title="Site-wide limits (super admin)">
-        <SettingForm name="code_send_hourly_cap" label="Verification codes per hour, whole site" kind="number" value={v.code_send_hourly_cap} disabled={!admin} help="Above it, forms and Witty ask people to try again a little later and an alert is logged. Raise it for a big campaign; 0 stops all sends." />
-        <SettingForm name="web_advisor_daily_cap" label="Witty per day (India time), whole site" kind="json" value={v.web_advisor_daily_cap} disabled={!admin} help='{"turns": 2000, "cost_usd": 25}. Above either, Witty pauses until midnight IST and visitors get the guided finder and a counsellor.' />
+        <SettingForm
+          name="code_send_hourly_cap"
+          label="Verification codes per hour, whole site"
+          kind="number"
+          value={v.code_send_hourly_cap}
+          disabled={!admin}
+          help="Above it, forms and Witty ask people to try again a little later and an alert is logged. Raise it for a big campaign; 0 stops all sends."
+        />
+        <SettingForm
+          name="web_advisor_daily_cap"
+          label="Witty per day (India time), whole site"
+          kind="json"
+          value={v.web_advisor_daily_cap}
+          disabled={!admin}
+          help='{"turns": 2000, "cost_usd": 25}. Above either, Witty pauses until midnight IST and visitors get the guided finder and a counsellor.'
+        />
       </Card>
       <Card title="Site">
-        <SettingForm name="announcement" label="Announcement bar" kind="json" value={v.announcement} disabled={!editor} help='{"text": "Admissions open for January", "href": "/programmes", "tone": "info"} — or null to hide.' />
-        <SettingForm name="sections" label="Homepage sections on/off" kind="json" value={v.sections} disabled={!editor} help='{"faq": true, "testimonials": false, …}' />
-        <SettingForm name="counsellor_whatsapp" label="Counsellor WhatsApp number" kind="text" value={v.counsellor_whatsapp} disabled={!editor} />
-        <SettingForm name="counsellor_phone" label="Counsellor phone number" kind="text" value={v.counsellor_phone} disabled={!editor} />
-        <SettingForm name="application_form" label="Application form fields" kind="json" value={v.application_form} disabled={!editor} help='{"hidden": ["board", "industry"], "optional": ["score"]}. Configurable: stream, score, yearOfPassing, board, role, industry, goal, why, intake, budget, emi, city, state, bestTime, questions. Contact details and consent are always shown.' />
-        <SettingForm name="business_hours" label="Opening hours (local SEO)" kind="json" value={v.business_hours} disabled={!editor} help='["Mo-Sa 10:00-19:00"] — shown in LocalBusiness structured data; null hides them.' />
-        <SettingForm name="default_theme" label="Default theme" kind="text" value={v.default_theme} disabled={!editor} help="system, dark or light" />
+        <SettingForm
+          name="announcement"
+          label="Announcement bar"
+          kind="json"
+          value={v.announcement}
+          disabled={!editor}
+          help='{"text": "Admissions open for January", "href": "/programmes", "tone": "info"} — or null to hide.'
+        />
+        <SettingForm
+          name="sections"
+          label="Homepage sections on/off"
+          kind="json"
+          value={v.sections}
+          disabled={!editor}
+          help='{"faq": true, "testimonials": false, …}'
+        />
+        <SettingForm
+          name="counsellor_whatsapp"
+          label="Counsellor WhatsApp number"
+          kind="text"
+          value={v.counsellor_whatsapp}
+          disabled={!editor}
+        />
+        <SettingForm
+          name="counsellor_phone"
+          label="Counsellor phone number"
+          kind="text"
+          value={v.counsellor_phone}
+          disabled={!editor}
+        />
+        <SettingForm
+          name="whatsapp_widget_id"
+          label="WhatsApp chat widget (AiSensy)"
+          kind="text"
+          value={v.whatsapp_widget_id ?? ""}
+          disabled={!editor}
+          help="The widget-id from the AiSensy snippet, e.g. aabsod. Leave empty to hide the widget."
+        />
+        <SettingForm
+          name="application_form"
+          label="Application form fields"
+          kind="json"
+          value={v.application_form}
+          disabled={!editor}
+          help='{"hidden": ["board", "industry"], "optional": ["score"]}. Configurable: stream, score, yearOfPassing, board, role, industry, goal, why, intake, budget, emi, city, state, bestTime, questions. Contact details and consent are always shown.'
+        />
+        <SettingForm
+          name="business_hours"
+          label="Opening hours (local SEO)"
+          kind="json"
+          value={v.business_hours}
+          disabled={!editor}
+          help='["Mo-Sa 10:00-19:00"] — shown in LocalBusiness structured data; null hides them.'
+        />
+        <SettingForm
+          name="default_theme"
+          label="Default theme"
+          kind="text"
+          value={v.default_theme}
+          disabled={!editor}
+          help="system, dark or light"
+        />
       </Card>
     </AdminShell>
   );

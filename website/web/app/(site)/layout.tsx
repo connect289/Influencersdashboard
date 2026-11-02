@@ -3,6 +3,7 @@ import { MobileActionBar } from "@/components/site/MobileActionBar";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { Toaster } from "@/components/site/Toaster";
+import { WhatsAppWidget } from "@/components/site/WhatsAppWidget";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { LinkTracker } from "@/components/consent/LinkTracker";
 import { resourcesList } from "@/lib/server/content";
@@ -25,6 +26,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       />
       <MobileActionBar advisorEnabled={s.web_advisor_enabled} phone={s.counsellor_phone} />
       <Toaster />
+      {s.whatsapp_widget_id ? <WhatsAppWidget widgetId={s.whatsapp_widget_id} /> : null}
       {/* Public pages only (staff pages load no analytics). Not in the root layout: no usePathname() needed (D-058). */}
       <ConsentBanner />
       <LinkTracker />

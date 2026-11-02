@@ -663,3 +663,8 @@ these at the end (spec Section 0).
 ### D-090 · The model never receives the verified email address (audit SITE-17)
 - **Decision:** `extractorInput` leaves `email_id` out of `known_profile`, as `counselorInput` already did.
 - **Why:** data minimisation; the extractor reads the student's message and never needs the address.
+
+### D-091 · WhatsApp chat widget (AiSensy) on the public pages (owner request, 2 Nov 2026)
+- **Decision:** the owner's AiSensy snippet runs on every public page (not admin), loaded by `components/site/WhatsAppWidget.tsx` after the page has loaded and the browser is idle. Its widget id is the setting `whatsapp_widget_id` (web15; Admin → Flags and settings; empty hides it). The CSP allows `d3mkw6s8thqya7.cloudfront.net` (script, style, image, font, connect) and `*.aisensy.com` (connect, image, frame).
+- **Why:** the owner wants a WhatsApp chat button; idle loading keeps it off the page's critical path, and a setting lets staff change or hide it without a deploy.
+- **Not verified:** the loader's own requests could not be inspected from the build environment (its host is outside the allowed network). If the button does not appear, the browser console names any blocked host; add it to `lib/security/csp.ts`.

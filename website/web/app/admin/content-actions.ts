@@ -6,6 +6,7 @@ import { ceilingError } from "@/lib/admin/ceilings";
 import { entityConfig, parseEntityForm } from "@/lib/admin/entities";
 import { requireAdmin } from "@/lib/server/admin";
 import { rpc } from "@/lib/server/db";
+import { WHATSAPP_WIDGET_ID } from "@/lib/settings";
 import { errorFields, log } from "@/lib/server/log";
 
 /**
@@ -13,7 +14,12 @@ import { errorFields, log } from "@/lib/server/log";
  * the affected cache tags are expired so the public pages show it at once ("revalidate pages on publish").
  */
 /** `values` echoes what was submitted so a rejected form keeps the editor's input. */
-export type AdminFormState = { error?: string; fieldErrors?: Record<string, string>; ok?: string; values?: Record<string, string> } | null;
+export type AdminFormState = {
+  error?: string;
+  fieldErrors?: Record<string, string>;
+  ok?: string;
+  values?: Record<string, string>;
+} | null;
 
 function expire(tags: unknown) {
   for (const t of Array.isArray(tags) ? tags : []) if (typeof t === "string") revalidateTag(t, { expire: 0 });
@@ -43,7 +49,8 @@ export async function saveEntityAction(_prev: AdminFormState, form: FormData): P
   const keyJson = String(form.get("__key") ?? "");
   const isNew = !keyJson;
   const values: Record<string, string> = {};
-  for (const [k, v] of form.entries()) if (typeof v === "string" && !k.startsWith("__") && !k.startsWith("$")) values[k] = v;
+  for (const [k, v] of form.entries())
+    if (typeof v === "string" && !k.startsWith("__") && !k.startsWith("$")) values[k] = v;
   const { row, errors } = parseEntityForm(cfg, form, isNew);
   if (Object.keys(errors).length) return { error: "Please fix the highlighted fields.", fieldErrors: errors, values };
   if (!isNew) {
@@ -53,14 +60,25 @@ export async function saveEntityAction(_prev: AdminFormState, form: FormData): P
   }
   let saved: { ok: boolean; error?: string; tags?: string[]; row?: Record<string, unknown> };
   try {
-    saved = await rpc("web_admin_save", { p_entity: entity, p_row: row, p_actor: s.userId, p_actor_email: s.email, p_role: s.role });
+    saved = await rpc("web_admin_save", {
+      p_entity: entity,
+      p_row: row,
+      p_actor: s.userId,
+      p_actor_email: s.email,
+      p_role: s.role,
+    });
   } catch (err) {
     log("error", "admin.save_failed", { entity, ...errorFields(err) });
     return { error: "Saving failed. Please try again.", values };
   }
-  if (!saved.ok) return { error: saved.error === "forbidden" ? "Your role cannot change this." : (saved.error ?? "Saving failed."), values };
+  if (!saved.ok)
+    return {
+      error: saved.error === "forbidden" ? "Your role cannot change this." : (saved.error ?? "Saving failed."),
+      values,
+    };
   expire(saved.tags);
-  if (entity === "university_profiles" || entity === "synonyms") await rpc("web_refresh_read_model").catch(() => undefined);
+  if (entity === "university_profiles" || entity === "synonyms")
+    await rpc("web_refresh_read_model").catch(() => undefined);
   log("info", "admin.saved", { entity, actor: s.email });
   const key = Object.fromEntries(cfg.key.map((k) => [k, saved.row?.[k]]));
   redirect(`/admin/content/${entity}/edit?key=${encodeURIComponent(JSON.stringify(key))}&saved=1`);
@@ -73,7 +91,13 @@ export async function deleteEntityAction(form: FormData): Promise<void> {
   const s = await requireAdmin(cfg.minRole);
   const key = parseKey(cfg.key, String(form.get("__key") ?? ""));
   if (!key) redirect(`/admin/content/${entity}?deleted=0`);
-  const r = await rpc<{ ok: boolean; tags?: string[] }>("web_admin_delete", { p_entity: entity, p_key: key, p_actor: s.userId, p_actor_email: s.email, p_role: s.role });
+  const r = await rpc<{ ok: boolean; tags?: string[] }>("web_admin_delete", {
+    p_entity: entity,
+    p_key: key,
+    p_actor: s.userId,
+    p_actor_email: s.email,
+    p_role: s.role,
+  });
   if (r.ok) expire(r.tags);
   redirect(`/admin/content/${entity}?deleted=${r.ok ? 1 : 0}`);
 }
@@ -84,6 +108,7 @@ const SETTING_KEYS = new Set([
   "sections",
   "counsellor_whatsapp",
   "counsellor_phone",
+  "whatsapp_widget_id",
   "default_theme",
   "design_concept",
   "push_unverified_gate_leads",
@@ -115,12 +140,30 @@ export async function saveSettingAction(_prev: AdminFormState, form: FormData): 
     }
   }
   if (key === "counsellor_whatsapp" || key === "counsellor_phone") {
-    if (typeof value !== "string" || !/^\+91[6-9]\d{9}$/.test(value)) return { error: "Use +91 followed by a 10-digit mobile number." };
+    if (typeof value !== "string" || !/^\+91[6-9]\d{9}$/.test(value))
+      return { error: "Use +91 followed by a 10-digit mobile number." };
+  }
+  if (key === "whatsapp_widget_id") {
+    if (value === "") value = null;
+    else if (typeof value !== "string" || !WHATSAPP_WIDGET_ID.test(value))
+      return {
+        error:
+          "Use the widget-id from the AiSensy snippet (letters and numbers), or leave it empty to hide the widget.",
+      };
   }
   const ceiling = ceilingError(key, value);
   if (ceiling) return { error: ceiling };
-  const r = await rpc<{ ok: boolean; error?: string }>("web_admin_setting", { p_key: key, p_value: value, p_actor: s.userId, p_actor_email: s.email, p_role: s.role });
-  if (!r.ok) return { error: r.error === "forbidden" ? "Only a super admin can change this setting." : (r.error ?? "Saving failed.") };
+  const r = await rpc<{ ok: boolean; error?: string }>("web_admin_setting", {
+    p_key: key,
+    p_value: value,
+    p_actor: s.userId,
+    p_actor_email: s.email,
+    p_role: s.role,
+  });
+  if (!r.ok)
+    return {
+      error: r.error === "forbidden" ? "Only a super admin can change this setting." : (r.error ?? "Saving failed."),
+    };
   revalidateTag("settings", { expire: 0 });
   return { ok: `Saved ${key}.` };
 }

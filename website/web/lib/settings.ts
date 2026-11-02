@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const WHATSAPP_WIDGET_ID = /^[A-Za-z0-9_-]{3,40}$/;
+
 /** Site settings and feature flags (mirror of web_settings defaults in web1_foundation). */
 export const settingsSchema = z.object({
   web_advisor_enabled: z.boolean().default(false),
@@ -14,6 +16,8 @@ export const settingsSchema = z.object({
   transcript_target: z.string().default("web_advisor_messages"),
   counsellor_whatsapp: z.string().default("+919643977407"),
   counsellor_phone: z.string().default("+919650683269"),
+  /** AiSensy WhatsApp chat widget id (widget-id in their snippet); null hides the widget (D-091). */
+  whatsapp_widget_id: z.string().regex(WHATSAPP_WIDGET_ID).nullable().default(null),
   announcement: z
     .object({ text: z.string(), href: z.string().optional(), tone: z.enum(["info", "amber"]).default("info") })
     .nullable()
@@ -26,10 +30,15 @@ export const settingsSchema = z.object({
     .default({ max_tokens_per_session: 60000, turn_timeout_ms: 20000, max_turns_per_session: 40 }),
   /** Site-wide ceilings (web14; enforced in the database, super-admin only). */
   code_send_hourly_cap: z.number().int().min(0).default(200),
-  web_advisor_daily_cap: z.object({ turns: z.number().min(0), cost_usd: z.number().min(0) }).default({ turns: 2000, cost_usd: 25 }),
+  web_advisor_daily_cap: z
+    .object({ turns: z.number().min(0), cost_usd: z.number().min(0) })
+    .default({ turns: 2000, cost_usd: 25 }),
   sections: z.record(z.string(), z.boolean()).default({}),
   /** Opening hours for LocalBusiness structured data, e.g. ["Mo-Sa 10:00-19:00"] (S-51); none shown until set. */
-  business_hours: z.array(z.string().regex(/^(Mo|Tu|We|Th|Fr|Sa|Su)(-(Mo|Tu|We|Th|Fr|Sa|Su))? \d{2}:\d{2}-\d{2}:\d{2}$/)).nullable().default(null),
+  business_hours: z
+    .array(z.string().regex(/^(Mo|Tu|We|Th|Fr|Sa|Su)(-(Mo|Tu|We|Th|Fr|Sa|Su))? \d{2}:\d{2}-\d{2}:\d{2}$/))
+    .nullable()
+    .default(null),
   /** Application form: non-core fields to hide or make optional (spec 9.1A; contact and consent are locked). */
   application_form: z
     .object({ hidden: z.array(z.string()).default([]), optional: z.array(z.string()).default([]) })

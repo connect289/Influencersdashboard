@@ -26,4 +26,10 @@ describe("CSP", () => {
     expect(p).toContain("https://challenges.cloudflare.com");
     expect(p).toContain("https://www.googletagmanager.com");
   });
+  it("allows the WhatsApp chat widget's loader on every page", () => {
+    for (const p of [buildCsp(), buildCsp({ nonce: "n" })]) {
+      const script = p.split("; ").find((d) => d.startsWith("script-src"))!;
+      expect(script).toContain("https://d3mkw6s8thqya7.cloudfront.net");
+    }
+  });
 });
