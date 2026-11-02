@@ -6,7 +6,7 @@ followed.
 ## 2 Nov 2026 — Heartbeat names with capital letters (D-130)
 
 - `0034_heartbeat_names_mixed_case`: `one.app_report` accepts A-Z in heartbeat names, so Witty's n8n workflow heartbeat
-  (`n8n:PKPs7tXg9bej8AgX`) is stored instead of refused. Local test passed; staging rehearsal, then the production apply.
+  (`n8n:PKPs7tXg9bej8AgX`) is stored instead of refused. Rehearsed (`588cee7e…`) and applied at 10:30 UTC.
 - Setup with the owner: Chatwoot (a separate agent), n8n and WhatsApp (Witty's number 1262275256962937, CONNECTED,
   GREEN) validated; the B2B read key skipped (nothing in Eduwit One uses it).
 
