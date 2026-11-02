@@ -2,7 +2,7 @@ import { z } from "zod";
 import { fetchJson } from "../http.ts";
 import type { VercelClient, VercelDeployment } from "./types.ts";
 
-// Vercel REST API, read only: the latest production deployment of a project.
+// Vercel REST API, read only: the latest production deployment of a project that was built (canceled ones skipped).
 
 const deployment = z.object({
   uid: z.string(),
@@ -14,8 +14,11 @@ const deployment = z.object({
 export const vercelDeploymentsFixture = z.object({ deployments: z.array(deployment) });
 export type VercelDeploymentsFixture = z.infer<typeof vercelDeploymentsFixture>;
 
+// The newest production deployment that was built. A CANCELED one is a build Vercel skipped (the ignored-build step,
+// D-111, cancels docs-only pushes) or one a newer push superseded; it never served traffic, so it says nothing about
+// production and is passed over. ERROR stays a failure. Only when every listed deployment is canceled is one returned.
 function latest(body: VercelDeploymentsFixture): VercelDeployment | null {
-  const d = body.deployments[0];
+  const d = body.deployments.find((x) => (x.readyState ?? x.state) !== "CANCELED") ?? body.deployments[0];
   if (!d) return null;
   return { uid: d.uid, state: d.readyState ?? d.state ?? "UNKNOWN", createdAt: d.created, url: d.url ?? null };
 }
@@ -31,7 +34,7 @@ export class RealVercelClient implements VercelClient {
 
   /** Raw (validated) list, used by the fixture recorder. */
   async deployments(project: string, team: string): Promise<VercelDeploymentsFixture> {
-    const q = new URLSearchParams({ projectId: project, target: "production", limit: "1", slug: team });
+    const q = new URLSearchParams({ projectId: project, target: "production", limit: "10", slug: team });
     const { json } = await fetchJson("vercel", `${this.apiBase}/v6/deployments?${q}`, {
       headers: { authorization: `Bearer ${this.token}` },
     });
