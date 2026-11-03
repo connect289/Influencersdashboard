@@ -139,7 +139,7 @@ brochures into the per-partner programme catalogue. Eduwit One watches it like t
 | ----- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | CE-01 | P2, 15 min      | a `ce.heartbeat` component has no good report for `heartbeat_multiple` (3) × its `expected_interval_s`, or was read but never ok (one alert per component) |
 | CE-02 | P2, 15 min      | a `ce.job` is dead (it failed `max_attempts` times)                                                                                                        |
-| CE-03 | P2, 15 min      | the latest `ce.health` row of a metric in the last 24 h is an alert (one alert per metric, with the engine's message)                                      |
+| CE-03 | P2, 15 min      | the latest `ce.health` row of a metric in the last 24 h is an alert (one alert per metric, with the engine's message); a `session.expired` alert is over once that partner's `ce.session` is valid again (0035) |
 | CE-04 | P3, 15 min      | a job is queued 3 days past its `next_run_at`, or running with its lease expired an hour ago                                                               |
 | CE-05 | P2, 15 min      | a `ce.run` is held: a crawl health gate stopped a publish and waits for a person (one alert per run)                                                       |
 

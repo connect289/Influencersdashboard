@@ -69,8 +69,8 @@ select pg_temp.ok(exists (select 1 from jsonb_array_elements(one.setting('setup_
 
 -- 2. Without schema ce (production until the engine is installed) ------------------------------------------------------
 select one.setup_engine_facts() as f0 \gset
-select pg_temp.ok((select count(*) = 5 and bool_and(not (t.value ->> 'exists')::boolean and not (t.value ->> 'readable')::boolean)
-                     from jsonb_each(:'f0'::jsonb -> 'tables') t), 'the Setup facts name the five tables, all missing: ' || :'f0');
+select pg_temp.ok((select count(*) = 6 and bool_and(not (t.value ->> 'exists')::boolean and not (t.value ->> 'readable')::boolean)
+                     from jsonb_each(:'f0'::jsonb -> 'tables') t), 'the Setup facts name the six tables, all missing: ' || :'f0');
 select pg_temp.ok(not exists (select 1 from one.events_sources() where source = 'ce.events'), 'without ce.events the source is left out');
 select one.events_refresh() as r0 \gset
 select pg_temp.ok(:'r0'::text !~ '_error"' and not (:'r0'::jsonb ? 'ce.events') and (select count(*) from jsonb_object_keys(:'r0'::jsonb)) > 0,
@@ -97,12 +97,17 @@ create table ce.heartbeat (component text primary key, last_ok_at timestamptz, l
 create table ce.health (id bigint generated always as identity primary key, metric text not null, partner_id uuid, value numeric,
   status text not null check (status in ('ok', 'warn', 'alert')), detail jsonb not null default '{}', message text,
   observed_at timestamptz not null default now());
+-- A partner's portal login (the engine's ce.session): CE-03 reads its status and updated_at (0035, D-132).
+create table ce.session (id uuid primary key default gen_random_uuid(), partner_id uuid not null, portal_domain text not null,
+  status text not null default 'valid', generation int not null default 1, created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now());
 create table ce.events (id bigint generated always as identity primary key, occurred_at timestamptz not null default now(),
   type text not null, partner_id uuid, run_id uuid, actor text not null default 'system', payload jsonb not null default '{}');
 alter table ce.run enable row level security;
 alter table ce.job enable row level security;
 alter table ce.heartbeat enable row level security;
 alter table ce.health enable row level security;
+alter table ce.session enable row level security;
 alter table ce.events enable row level security;
 -- The engine's published contract, as 0024's panels read it: a partner table, review items, conflicts, and ce_pub.
 create table ce.partner (id uuid primary key default gen_random_uuid(), slug text not null, name text not null);
@@ -146,7 +151,7 @@ select pg_temp.ok((select (r ->> 'ok')::boolean and (r #>> '{data,conflicts_open
                      from (select pg_temp.embed('catalogue_engine.queue') as r) x), 'the queue panel answers on empty tables');
 
 select one.setup_engine_facts() as f1 \gset
-select pg_temp.ok((select count(*) = 5 and bool_and((t.value ->> 'exists')::boolean and (t.value ->> 'readable')::boolean
+select pg_temp.ok((select count(*) = 6 and bool_and((t.value ->> 'exists')::boolean and (t.value ->> 'readable')::boolean
                                                     and t.value -> 'missing_columns' = '[]')
                      from jsonb_each(:'f1'::jsonb -> 'tables') t), 'with the tables, every one exists, is readable and has its columns: ' || :'f1');
 begin;
@@ -179,7 +184,12 @@ insert into ce.health (metric, partner_id, status, message, observed_at) values
   ('queue.dead', null, 'warn', '1 job(s) stopped after repeated failures and need a look.', now() - interval '10 minutes'),
   ('storage.engine_mb', null, 'alert', 'Engine files use 990 MB, over the 900 MB cap; new uploads are refused.', now() - interval '2 hours'),
   ('storage.engine_mb', null, 'ok', null, now() - interval '10 minutes'),
-  ('db.engine_mb', null, 'alert', 'The engine uses 210 MB of database, over its 200 MB budget.', now() - interval '30 hours');
+  ('db.engine_mb', null, 'alert', 'The engine uses 210 MB of database, over its 200 MB budget.', now() - interval '30 hours'),
+  ('session.expired', '00000000-0000-0000-0000-0000000000a1', 'alert',
+   'The degreepartner.com login has expired. Log in again from the partner page: the run continues where it stopped.', now() - interval '3 hours');
+-- The login was renewed an hour after that alert (the engine writes no ok row for it; 0035, D-132).
+insert into ce.session (partner_id, portal_domain, status, generation, updated_at)
+values ('00000000-0000-0000-0000-0000000000a1', 'degreepartner.com', 'valid', 2, now() - interval '2 hours');
 set role postgres;
 select pg_temp.ce('CE-01') as p1 \gset
 select pg_temp.ok((:'p1'::jsonb ->> 'ok')::boolean and (:'p1'::jsonb #>> '{value,components}')::int = 4 and :'p1'::jsonb #> '{value,subjects}' = '[]',
@@ -187,7 +197,7 @@ select pg_temp.ok((:'p1'::jsonb ->> 'ok')::boolean and (:'p1'::jsonb #>> '{value
 select pg_temp.ok((pg_temp.ce('CE-02') ->> 'ok')::boolean and (pg_temp.ce('CE-02') #>> '{value,count}')::int = 0, 'CE-02 passes with no dead job');
 select pg_temp.ce('CE-03') as p3 \gset
 select pg_temp.ok((:'p3'::jsonb ->> 'ok')::boolean and (:'p3'::jsonb #>> '{value,warnings}')::int = 1 and (:'p3'::jsonb #>> '{value,alerts}')::int = 0,
-                  'CE-03 passes: a recovered alert and one older than 24 h do not count, a warning is counted: ' || :'p3');
+                  'CE-03 passes: a recovered alert, one older than 24 h and a login expiry followed by a new login do not count, a warning is counted: ' || :'p3');
 select pg_temp.ok((pg_temp.ce('CE-04') ->> 'ok')::boolean, 'CE-04 passes: queued a day, leased for 5 more minutes');
 select pg_temp.ok((pg_temp.ce('CE-05') ->> 'ok')::boolean and (pg_temp.ce('CE-05') #>> '{value,held}')::int = 0, 'CE-05 passes with no held run');
 reset role;
@@ -205,7 +215,11 @@ insert into ce.job (run_id, stage, kind, status, attempts, next_run_at, locked_b
   ('00000000-0000-0000-0000-00000000c002', 'resolve', 'resolve.institution', 'running', 1, now() - interval '3 hours', 'worker-2', now() - interval '2 hours', null);
 insert into ce.health (metric, partner_id, status, message, observed_at) values
   ('db.total_mb', null, 'alert', 'The shared database is at 460 MB of the Free plan''s 500 MB.', now() - interval '1 minute'),
-  ('queue.dead_job', '00000000-0000-0000-0000-0000000000a2', 'alert', 'Job capture.page stopped after 5 attempts.', now() - interval '1 minute');
+  ('queue.dead_job', '00000000-0000-0000-0000-0000000000a2', 'alert', 'Job capture.page stopped after 5 attempts.', now() - interval '1 minute'),
+  ('session.expired', '00000000-0000-0000-0000-0000000000a2', 'alert', 'The otherportal.example login has expired. Log in again from the partner page.', now() - interval '1 minute');
+-- That partner's login is still expired (its row changed at the expiry, not after it), so the alert stands.
+insert into ce.session (partner_id, portal_domain, status, generation, updated_at)
+values ('00000000-0000-0000-0000-0000000000a2', 'otherportal.example', 'expired', 1, now() - interval '1 minute');
 set role postgres;
 select pg_temp.ce('CE-01') as x1 \gset
 select pg_temp.ok((:'x1'::jsonb ->> 'rows')::int = 1 and not (:'x1'::jsonb ->> 'ok')::boolean
@@ -216,9 +230,10 @@ select pg_temp.ok(not (:'x2'::jsonb ->> 'ok')::boolean and (:'x2'::jsonb #>> '{v
                   and jsonb_array_length(:'x2'::jsonb #> '{value,ids}') = 2 and :'x2'::jsonb #> '{value,stages}' = '["capture", "publish"]'
                   and :'x2'::text !~ 'HTTP 403|gate refused', 'CE-02 fails with the count, stages and ids, never the error text: ' || :'x2');
 select pg_temp.ce('CE-03') as x3 \gset
-select pg_temp.ok(not (:'x3'::jsonb ->> 'ok')::boolean and :'x3'::jsonb #> '{value,subjects}' = '["db.total_mb", "queue.dead_job"]'
-                  and (:'x3'::jsonb #>> '{value,alerts}')::int = 2 and jsonb_array_length(:'x3'::jsonb #> '{value,messages}') = 2
-                  and :'x3'::text ~ '460 MB of the Free plan', 'CE-03 fails, one subject per metric, with the engine''s messages: ' || :'x3');
+select pg_temp.ok(not (:'x3'::jsonb ->> 'ok')::boolean and :'x3'::jsonb #> '{value,subjects}' = '["db.total_mb", "queue.dead_job", "session.expired"]'
+                  and (:'x3'::jsonb #>> '{value,alerts}')::int = 3 and jsonb_array_length(:'x3'::jsonb #> '{value,messages}') = 3
+                  and :'x3'::text ~ '460 MB of the Free plan',
+                  'CE-03 fails, one subject per metric, with the engine''s messages; a login still expired counts: ' || :'x3');
 select pg_temp.ce('CE-04') as x4 \gset
 select pg_temp.ok(not (:'x4'::jsonb ->> 'ok')::boolean and (:'x4'::jsonb #>> '{value,queued_overdue}')::int = 1
                   and (:'x4'::jsonb #>> '{value,lease_expired}')::int = 1 and jsonb_array_length(:'x4'::jsonb #> '{value,ids}') = 2,

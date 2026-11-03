@@ -3,6 +3,21 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 3 Nov 2026 — CE-03 lets a login-expiry alert go once the login is valid again (0035, D-132)
+
+- Eduwit Scout writes a `ce.health` row with status `alert` when a partner's portal login expires (`session.expired`)
+  and no `ok` row when a person logs in again, so CE-03, which reads the newest row per metric and partner in 24 hours,
+  kept the degreepartner incident open for a day after each new login (the login was valid again at 02:00 UTC on 3 Nov;
+  the alert row of 01:52 stayed the newest). The rule (`supabase/checks/catalogue_engine.sql`; 0023 regenerated for a
+  fresh install) now leaves a `session.expired` alert out when that partner's `ce.session` is valid and newer than the
+  alert row. `0035_ce03_login_alert_clears.sql` carries the same text to a database that already has 0023 (a direct
+  update of `one.checks`, so the owner's switch, severity and cadence stay) and names `ce.session` in the Setup validator
+  `one.setup_engine_facts()`; rollback alongside. Local test: a `ce.session` stub, a renewed login that does not count,
+  an expired one that does; `supabase/tests/fingerprint.expected` updated. Checked read-only on production first: the
+  new statement answers ok with zero alerts while the old one holds the stale alert. The staging rehearsal and the
+  production apply are recorded in `docs/REHEARSALS.md` and in an addendum here when done. Docs: `EDUWIT-SCOUT.md`,
+  `RUNBOOK.md`.
+
 ## 3 Nov 2026 — The Scout integration document trimmed to what is live (D-131)
 
 - `docs/EDUWIT-SCOUT.md` rewritten: what Eduwit One reads of Eduwit Scout today (the app, CE-01 to CE-05 as the

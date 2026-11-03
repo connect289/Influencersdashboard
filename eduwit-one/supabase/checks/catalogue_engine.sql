@@ -46,19 +46,24 @@ select count(*) = 0 as ok,
 -- cadence_s: 900
 -- disabled: setup:catalogue_engine
 -- title: Eduwit Scout raised a health alert
--- description: The latest ce.health row of a metric (per partner) in the last 24 h has status alert: written every 15 min by ce.health_collect() (the engine's and the shared database's size, its storage against the cap, dead jobs, stale heartbeats) and by the engine's own alerts such as queue.dead_job. One alert per metric (subjects); the value carries the engine's own message for each, which holds no personal data. Warnings are counted, not raised.
+-- description: The latest ce.health row of a metric (per partner) in the last 24 h has status alert: written every 15 min by ce.health_collect() (the engine's and the shared database's size, its storage against the cap, dead jobs, stale heartbeats) and by the engine's own alerts such as queue.dead_job. A session.expired alert is over once that partner's ce.session is valid again and newer than the alert (Scout writes no ok row when a person logs in again, D-132). One alert per metric (subjects); the value carries the engine's own message for each, which holds no personal data. Warnings are counted, not raised.
 with latest as (
   select distinct on (metric, partner_id) metric, partner_id, status, message, observed_at
     from ce.health
    where observed_at > now() - interval '24 hours'
-   order by metric, partner_id, observed_at desc, id desc)
+   order by metric, partner_id, observed_at desc, id desc),
+live as (
+  select l.* from latest l
+   where not (l.metric = 'session.expired' and l.status = 'alert'
+              and exists (select 1 from ce.session s
+                           where s.partner_id = l.partner_id and s.status = 'valid' and s.updated_at > l.observed_at)))
 select count(*) filter (where status = 'alert') = 0 as ok,
        jsonb_build_object('alerts', count(*) filter (where status = 'alert'), 'warnings', count(*) filter (where status = 'warn'),
                           'subjects', coalesce(jsonb_agg(distinct metric order by metric) filter (where status = 'alert'), '[]'),
                           'messages', coalesce(to_jsonb((array_agg(jsonb_build_object('metric', metric, 'partner_id', partner_id,
                                                                                       'message', left(message, 300), 'at', observed_at)
                                                                    order by metric, partner_id) filter (where status = 'alert'))[1:20]), '[]')) as value
-  from latest
+  from live
 
 -- check: CE-04
 -- app: catalogue_engine

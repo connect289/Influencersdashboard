@@ -31,14 +31,16 @@ item on 2 Nov; trimmed to what is live on 3 Nov (D-131).
   | ----- | ---------------------------------- | ---------------------------------------------------------------------------------------------- |
   | CE-01 | `ce.heartbeat`                     | a component has had no good report for 3 × its interval, or was never once ok                  |
   | CE-02 | `ce.job`                           | a job is `dead` (failed `max_attempts` times)                                                  |
-  | CE-03 | `ce.health`                        | a metric's latest row in 24 h has status `alert` (Scout's own alerts, such as `session.expired`) |
+  | CE-03 | `ce.health`, `ce.session`          | a metric's latest row in 24 h has status `alert` (Scout's own alerts, such as `session.expired`); a login-expiry alert is over once that partner's `ce.session` is valid again (0035, D-132) |
   | CE-04 | `ce.job`                           | queued 3 days past `next_run_at`, or running with its lease expired over an hour ago            |
   | CE-05 | `ce.run`                           | a run is `held` (a crawl health gate stopped it before publishing)                             |
 
   Their first day (2 Nov) opened three true incidents: CE-01 (a worker silent, 16:06 to 17:25 UTC) and CE-04 (the
   queue stuck, 16:40 to 21:10) during the database slowdown, and CE-03, open since 13:43 UTC on the degreepartner
   login's expiries (a real logout at 13:30, a false expiry at 21:04 that Scout's T-113 removed, a real one at 01:52
-  on 3 Nov).
+  on 3 Nov). That incident stayed open after every new login, because Scout writes an alert row when a login expires
+  and no ok row when a person logs in again; since 0035 (3 Nov, D-132) CE-03 reads the partner's `ce.session` and the
+  incident closes once the login is valid again. The Setup validator names `ce.session` too.
 - **The panels** on the Apps page (0024): status, versions and queue, read by `one.embed_data` as the database owner
   from `ce_pub.programmes_v1`, `ce_pub.catalogue_versions_v1`, `ce_pub.changes_v1` and `ce.job`, with deep links to
   Scout's dashboard.
