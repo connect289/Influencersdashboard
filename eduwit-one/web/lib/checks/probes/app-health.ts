@@ -5,13 +5,17 @@ import { type HeartbeatReport, healthPathsSchema, hostsSchema, type ResultReport
 
 // The apps' own health endpoints (spec §7 heartbeats website, spark, b2b-app, influencer; checks WEB-02, INF-04).
 // The host and path come from one.settings.hosts and health_paths; a path other than /api/health is a reachability
-// check (Spark has no health endpoint yet).
+// check (Spark has no health endpoint yet). Every app is called once in 5 minutes (D-133: the owner's rule after the
+// Vercel pause of 3 Nov 2026; a health call that waits on a slow database runs on the app's side long after this probe
+// gave up, so each call costs the app far more than it costs here). WEB-02 and INF-04 run at the same cadence (0036).
+
+export const APP_PROBE_INTERVAL_S = 300;
 
 const TARGETS = [
-  { app: "website", component: "website", intervalS: 60, check: "WEB-02" },
-  { app: "influencer", component: "influencer", intervalS: 120, check: "INF-04" },
-  { app: "b2b_app", component: "b2b-app", intervalS: 120, check: null },
-  { app: "spark", component: "spark", intervalS: 120, check: null },
+  { app: "website", component: "website", intervalS: APP_PROBE_INTERVAL_S, check: "WEB-02" },
+  { app: "influencer", component: "influencer", intervalS: APP_PROBE_INTERVAL_S, check: "INF-04" },
+  { app: "b2b_app", component: "b2b-app", intervalS: APP_PROBE_INTERVAL_S, check: null },
+  { app: "spark", component: "spark", intervalS: APP_PROBE_INTERVAL_S, check: null },
 ] as const;
 
 export const appHealthProbe = defineProbe({

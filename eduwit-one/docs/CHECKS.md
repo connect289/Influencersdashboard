@@ -58,7 +58,7 @@ Migration 0006 seeds them, except an app registered after 0002, seeded by its ow
 | INF-01 | influencer | sql | P2 | 1 h | on | A lead carries a referral code no creator owns | — |
 | INF-02 | influencer | sql | P2 | 1 h | on | Legacy referral outcomes disagree with the leads table | — |
 | INF-03 | influencer | sql | P2 | 5 min | on | Repeated failed legacy portal logins for one code | — |
-| INF-04 | influencer | http | P1 | 1 min | on | The influencer portal's /api/health is not ok | — |
+| INF-04 | influencer | http | P1 | 5 min | on | The influencer portal's /api/health is not ok | — |
 | INF-05 | influencer | rpc | P1 | 1 min | on | The influencer portal's database health is not ok | — |
 | INF-06 | influencer | integrity | P1 | 1 h | on | Legacy influencer accounts are still active | — |
 | INT-01 | integrity | sql | P1 | 5 min | on | A lead is both with a partner and owned in Spark | — |
@@ -89,7 +89,7 @@ Migration 0006 seeds them, except an app registered after 0002, seeded by its ow
 | PLAT-09 | platform | sql | P3 | 1 h | on | Database size, connections or the slowest query more than doubled in 24 h | — |
 | PLAT-10 | platform | sql | P1 | 15 min | on | The database is close to its plan's size limit (the Free plan turns the whole project read-only above 500 MB) | — |
 | WEB-01 | web | rpc | P1 | 1 min | on | The website's database health is not ok | FIX-OUTBOX-WEB |
-| WEB-02 | web | http | P1 | 1 min | on | The website's /api/health is not ok | — |
+| WEB-02 | web | http | P1 | 5 min | on | The website's /api/health is not ok | — |
 | WEB-03 | web | sql | P1 | 1 min | on | A website sign-up did not get its code or its lead | — |
 | WEB-04 | web | sql | P2 | 15 min | on | The website catalogue has unmapped rows or rows awaiting review | — |
 | WEB-05 | web | sql | P3 | 1 h | on | Website search returns nothing too often, or a new 404 is popular | — |
@@ -140,25 +140,25 @@ Migration 0006 seeds them, except an app registered after 0002, seeded by its ow
 - **CE-03**: The latest ce.health row of a metric (per partner) in the last 24 h has status alert: written every 15 min by ce.health_collect() (the engine's and the shared database's size, its storage against the cap, dead jobs, stale heartbeats) and by the engine's own alerts such as queue.dead_job. A session.expired alert is over once that partner's ce.session is valid again and newer than the alert (Scout writes no ok row when a person logs in again, D-132). One alert per metric (subjects); the value carries the engine's own message for each, which holds no personal data. Warnings are counted, not raised. (source `supabase/checks/catalogue_engine.sql`)
 - **CE-04**: A ce.job still queued 3 days after its next_run_at (no worker takes its stage), or running with its lease (locked_until) expired over an hour ago (a worker died holding it and nothing reclaimed it). Housekeeping: the engine retries on its own; a stuck job usually means a worker stage is switched off. Value: counts, the oldest next_run_at and up to 20 job ids. (source `supabase/checks/catalogue_engine.sql`)
 - **CE-05**: A ce.run with status held: a crawl health gate stopped the run before it published (too many programmes changed or vanished at once), so that partner's catalogue keeps its last good version until a person approves or discards the run in the engine's dashboard. One alert per held run (subjects: run ids). Value: the count, the partners and run kinds, the oldest, and up to 20 run ids. (source `supabase/checks/catalogue_engine.sql`)
-- **HB-b2b-app**: The B2B CRM host's /api/health, written by the app's health probe; expected every 120 s. (source `supabase/checks/heartbeats.sql`)
+- **HB-b2b-app**: The B2B CRM host's /api/health, written by the app's health probe; expected every 300 s (D-133). (source `supabase/checks/heartbeats.sql`)
 - **HB-chatwoot**: Chatwoot API inbox list answered (with the incoming message count WITTY-03 reads), written by the app's Chatwoot probe; expected every 300 s. (source `supabase/checks/heartbeats.sql`)
 - **HB-gemini**: The last successful n8n execution that called Gemini, written by the app's n8n probe; expected every 900 s. (source `supabase/checks/heartbeats.sql`)
-- **HB-influencer**: The portal host's /api/health, written by the app's health probe; expected every 120 s. (source `supabase/checks/heartbeats.sql`)
+- **HB-influencer**: The portal host's /api/health, written by the app's health probe; expected every 300 s (D-133). (source `supabase/checks/heartbeats.sql`)
 - **HB-meta**: The last b2b.intake_requests fetched successfully or a Graph API ping, written by the app's Meta probe; expected every 3600 s. (source `supabase/checks/heartbeats.sql`)
 - **HB-n8n:instance**: n8n API /api/v1/workflows answered, written by the app's n8n probe; expected every 300 s. (source `supabase/checks/heartbeats.sql`)
 - **HB-n8n:PKPs7tXg9bej8AgX**: Latest execution startedAt of the Witty workflow (1-minute timer), written by the app's n8n probe; expected every 60 s. (source `supabase/checks/heartbeats.sql`)
 - **HB-one:app**: The app's answer to the tick's job call (/api/internal/tick), which writes this row; expected every 60 s once the app is deployed and app.base_url is set. (source `supabase/checks/heartbeats.sql`)
 - **HB-one:tick**: The last finished minute tick is older than heartbeat_multiple (3) minutes, judged by one.runs (hardening F13): a tick that is wedged behind its own lock, or that dies after its app call every minute, fails here and in the watchdog alike. A fresh install is ok for its first 10 minutes. The one:tick heartbeat row (written once the tick holds its lock) carries the lock-breaker's note in last_error. (source `supabase/checks/heartbeats.sql`)
-- **HB-spark**: Spark's /api/health, written by the app's health probe; expected every 120 s. (source `supabase/checks/heartbeats.sql`)
+- **HB-spark**: Spark's /api/health, written by the app's health probe; expected every 300 s (D-133). (source `supabase/checks/heartbeats.sql`)
 - **HB-vercel:one**: Vercel API latest production deployment of eduwit-one READY, written by the app's Vercel probe; expected every 600 s. (source `supabase/checks/heartbeats.sql`)
 - **HB-vercel:website**: Vercel API latest production deployment READY, written by the app's Vercel probe; expected every 600 s. (source `supabase/checks/heartbeats.sql`)
-- **HB-website**: The website's /api/health, written by the app's health probe; expected every 60 s. (source `supabase/checks/heartbeats.sql`)
+- **HB-website**: The website's /api/health, written by the app's health probe; expected every 300 s (D-133). (source `supabase/checks/heartbeats.sql`)
 - **HB-whatsapp:b2c**: WhatsApp Cloud API phone number status and quality rating, written by the app's WhatsApp probe; expected every 900 s. (source `supabase/checks/heartbeats.sql`)
 - **HB-whatsapp:witty**: WhatsApp Cloud API phone number status and quality rating, written by the app's WhatsApp probe; expected every 900 s. (source `supabase/checks/heartbeats.sql`)
 - **INF-01**: Leads from the last 30 days whose student_leads.referral_code matches no legacy public.influencers code, no inf.tracking_links code and no inf.deals code (retargeted to schema inf, D-019). (source `supabase/checks/influencer.sql`)
 - **INF-02**: For each legacy public.influencers code, the public.b2b_referral_outcomes row count differs from the student_leads count with that referral_code. (source `supabase/checks/influencer.sql`)
 - **INF-03**: More than 20 failed public.influencer_login_attempts for one referral code in 15 min. (source `supabase/checks/influencer.sql`)
-- **INF-04**: GET <hosts.influencer>/api/health not ok twice in a row. Run by the app's health probe, which also writes heartbeat influencer. (source `supabase/checks/influencer.sql`)
+- **INF-04**: GET <hosts.influencer>/api/health not ok twice in a row. Run by the app's health probe every 5 minutes (D-133), which also writes heartbeat influencer. (source `supabase/checks/influencer.sql`)
 - **INF-05**: inf.health() through one.inf_health(): database or job queue not ok (D-019, D-020). (source `supabase/checks/influencer.sql`)
 - **INF-06**: public.influencers rows with status active. The legacy RLS policy lets each read full student_leads rows of its referred leads (portal SHARED_CHANGES L-1, D-019); retire them through a cleanup proposal. (source `supabase/checks/influencer.sql`)
 - **INT-01**: A lead whose student_leads.destination_type is partner, with an open partner allocation, that also has an owner in b2c.leads_state. (source `supabase/checks/integrity.sql`)
@@ -189,7 +189,7 @@ Migration 0006 seeds them, except an app registered after 0002, seeded by its ow
 - **PLAT-09**: Compares now with this check's own result from 23 to 25 h ago: database size, connection count, and the mean time of the slowest pg_stat_statements query (calls >= 50). (source `supabase/checks/platform.sql`)
 - **PLAT-10**: The sum of pg_database_size over the cluster's databases (how Supabase counts the quota) against db_size_limit_mb (500, the Free plan): fails at db_size_warn_pct (80) as a P2 and at db_size_crit_pct (90) as a P1. Above the limit Supabase stops every write of every app until space is freed or the plan is upgraded (D-103). (source `supabase/checks/platform.sql`)
 - **WEB-01**: public.web_health(): db false, catalogue poll older than 600 s, dead outbox rows, or oldest pending over 900 s. FIX-CATALOG-POLL attaches to the catalogue case. (source `supabase/checks/web.sql`)
-- **WEB-02**: GET <hosts.website>/api/health not {ok:true} within 5 s, twice in a row (open_after 2). Run by the app's health probe, which also writes heartbeat website. (source `supabase/checks/web.sql`)
+- **WEB-02**: GET <hosts.website>/api/health not {ok:true} within 5 s, twice in a row (open_after 2). Run by the app's health probe every 5 minutes (D-133), which also writes heartbeat website. (source `supabase/checks/web.sql`)
 - **WEB-03**: Non-test web_gate_attempts from the last 24 h with no code_sent_at web_code_min minutes after submitted_at, or verified with no lead_id web_lead_min minutes after verified_at. (source `supabase/checks/web.sql`)
 - **WEB-04**: web_catalog_state.last_result reports unmapped or admin_needs_review above 0; open_after 4 at a 15-min cadence means it must last an hour. (source `supabase/checks/web.sql`)
 - **WEB-05**: Zero-result share of web_search_log in the last hour above 20 percent (at least 20 searches), or an unresolved web_404_log path first seen in the last 7 days with more than 10 hits. (source `supabase/checks/web.sql`)

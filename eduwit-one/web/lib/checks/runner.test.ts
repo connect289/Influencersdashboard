@@ -104,7 +104,7 @@ describe("missing configuration and failures", () => {
     });
   });
 
-  it("marks a website that stops answering as a failed heartbeat, which HB-website turns into an incident at 3 × 60 s", async () => {
+  it("marks a website that stops answering as a failed heartbeat, which HB-website turns into an incident at 3 × 300 s (D-133)", async () => {
     const db = new FakeDb(tickState());
     const clients = mockClients();
     clients.appHealth = {
@@ -115,7 +115,7 @@ describe("missing configuration and failures", () => {
       },
     };
     await run(db, clients);
-    expect(heartbeat(db, "website")).toMatchObject({ ok: false, error: "health 503", expected_interval_s: 60 });
+    expect(heartbeat(db, "website")).toMatchObject({ ok: false, error: "health 503", expected_interval_s: 300 });
     expect(result(db, "WEB-02")?.status).toBe("fail");
   });
 

@@ -18,10 +18,10 @@ select coalesce((h ->> 'db')::boolean, false)
 -- app: web
 -- kind: http
 -- severity: P1
--- cadence_s: 60
+-- cadence_s: 300
 -- open_after: 2
 -- title: The website's /api/health is not ok
--- description: GET <hosts.website>/api/health not {ok:true} within 5 s, twice in a row (open_after 2). Run by the app's health probe, which also writes heartbeat website.
+-- description: GET <hosts.website>/api/health not {ok:true} within 5 s, twice in a row (open_after 2). Run by the app's health probe every 5 minutes (D-133), which also writes heartbeat website.
 
 -- check: WEB-03
 -- app: web

@@ -3,6 +3,28 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 3 Nov 2026 — The apps are probed every 5 minutes and their health calls are capped (0036, D-133)
+
+- Vercel paused the account on 3 Nov for function time: 251 GB-hours in 30 days against the Hobby plan's 100, read
+  from Vercel's usage API (website 122, influencer portal 43, unattributed 35, Eduwit One 31, B2C CRM 10, B2B CRM 9;
+  invocations, requests, bandwidth and builds all far inside their limits). The cause: the health probe called the
+  website every minute and the portal, the B2B CRM and Spark every two, and a health call that waits on a slow database
+  runs on the app's side up to Vercel's 300 s ceiling after Eduwit One's 5 s deadline (29 and 31 Oct and 1 Nov: 38, 39
+  and 50 GB-hours a day, with 94, 128 and 176 timed-out functions). The owner upgraded Vercel and Supabase to Pro and
+  ruled: every app once in 5 minutes.
+- `lib/checks/probes/app-health.ts`: `APP_PROBE_INTERVAL_S = 300` for website, influencer, b2b-app and spark (each
+  heartbeat row carries the interval on its next write). 0036 sets WEB-02 and INF-04 to cadence 300 and the four
+  heartbeat checks' descriptions to 300 s (direct updates; sources `web.sql`, `influencer.sql`, `heartbeats.sql`; 0006
+  regenerated; `fingerprint.expected` updated). Detection: a website that fails is an incident at most 10 minutes later
+  (two probes, `open_after` 2); a silent one at 3 × 300 s. WITTY-02 stays at a minute: it reads the n8n API, not an app
+  on Vercel, and its rule counts 5 silent minutes.
+- The health routes answer within 10 s (`maxDuration`) with 3 s for the database call: the website's `/api/health`
+  (branch `claude/inspiring-babbage-8asj1y`, which deploys the site) and the influencer portal's
+  (`influencer-portal/app/api/health/route.ts`, on this branch; the portal deploys from `main`, so it goes live when
+  merged). The B2C CRM has no health route (Spark is probed for reachability on its home page); the B2B CRM's route,
+  6.5 s a call on average, is untouched, outside this change's scope.
+- Rehearsal on staging and the production apply follow (`docs/REHEARSALS.md`, addendum here).
+
 ## 3 Nov 2026 — CE-03 lets a login-expiry alert go once the login is valid again (0035, D-132)
 
 - Eduwit Scout writes a `ce.health` row with status `alert` when a partner's portal login expires (`session.expired`)

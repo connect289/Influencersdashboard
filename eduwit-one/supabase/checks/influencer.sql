@@ -45,10 +45,10 @@ select count(*) = 0 as ok, jsonb_build_object('codes', coalesce(jsonb_agg(jsonb_
 -- app: influencer
 -- kind: http
 -- severity: P1
--- cadence_s: 60
+-- cadence_s: 300
 -- open_after: 2
 -- title: The influencer portal's /api/health is not ok
--- description: GET <hosts.influencer>/api/health not ok twice in a row. Run by the app's health probe, which also writes heartbeat influencer.
+-- description: GET <hosts.influencer>/api/health not ok twice in a row. Run by the app's health probe every 5 minutes (D-133), which also writes heartbeat influencer.
 
 -- check: INF-05
 -- app: influencer

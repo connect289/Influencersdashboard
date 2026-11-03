@@ -39,7 +39,7 @@ select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state(
 -- severity: P1
 -- cadence_s: 60
 -- title: Heartbeat lost: Spark
--- description: Spark's /api/health, written by the app's health probe; expected every 120 s.
+-- description: Spark's /api/health, written by the app's health probe; expected every 300 s (D-133).
 select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('spark') as s) x
 
 -- check: HB-b2b-app
@@ -48,7 +48,7 @@ select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state(
 -- severity: P2
 -- cadence_s: 60
 -- title: Heartbeat lost: the B2B CRM app
--- description: The B2B CRM host's /api/health, written by the app's health probe; expected every 120 s.
+-- description: The B2B CRM host's /api/health, written by the app's health probe; expected every 300 s (D-133).
 select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('b2b-app') as s) x
 
 -- check: HB-website
@@ -57,7 +57,7 @@ select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state(
 -- severity: P1
 -- cadence_s: 60
 -- title: Heartbeat lost: the website
--- description: The website's /api/health, written by the app's health probe; expected every 60 s.
+-- description: The website's /api/health, written by the app's health probe; expected every 300 s (D-133).
 select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('website') as s) x
 
 -- check: HB-vercel:website
@@ -84,7 +84,7 @@ select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state(
 -- severity: P2
 -- cadence_s: 60
 -- title: Heartbeat lost: the influencer portal
--- description: The portal host's /api/health, written by the app's health probe; expected every 120 s.
+-- description: The portal host's /api/health, written by the app's health probe; expected every 300 s (D-133).
 select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('influencer') as s) x
 
 -- check: HB-whatsapp:witty
