@@ -14,9 +14,11 @@ followed.
   update of `one.checks`, so the owner's switch, severity and cadence stay) and names `ce.session` in the Setup validator
   `one.setup_engine_facts()`; rollback alongside. Local test: a `ce.session` stub, a renewed login that does not count,
   an expired one that does; `supabase/tests/fingerprint.expected` updated. Checked read-only on production first: the
-  new statement answers ok with zero alerts while the old one holds the stale alert. The staging rehearsal and the
-  production apply are recorded in `docs/REHEARSALS.md` and in an addendum here when done. Docs: `EDUWIT-SCOUT.md`,
-  `RUNBOOK.md`.
+  new statement answers ok with zero alerts while the old one holds the stale alert. Rehearsed on staging at 05:12 UTC
+  (set `1c775e4d…`, `docs/REHEARSALS.md`; staging first rolled back off the previous rehearsal's copy) and applied to
+  production at 05:13 UTC with `scripts/db/api-apply.sh` under the dump waiver (D-090): smoke test passed, CE-03 at
+  version 3, the Setup facts name `ce.session` as present and readable. The open CE-03 incident (141, since 2 Nov
+  13:43 UTC) closes by itself after three passing runs. Docs: `EDUWIT-SCOUT.md`, `RUNBOOK.md`.
 
 ## 3 Nov 2026 — The Scout integration document trimmed to what is live (D-131)
 
