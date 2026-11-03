@@ -7,15 +7,45 @@ import { kv, kvShared } from "@/lib/server/kv";
 import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
 import { ipFrom } from "@/lib/server/request";
 
+// A health call never outlives the caller's patience: Eduwit One gives up after 5 s, and a function that kept waiting
+// on a slow database ran up to Vercel's 300 s ceiling and was billed for it (29 and 31 Oct, 1 Nov 2026; the Vercel
+// account was paused for function time on 3 Nov). The database answer has 3 s, the key-value ping 2 s, the whole
+// call 10 s.
+export const maxDuration = 10;
+const DB_TIMEOUT_MS = 3_000;
+const KV_TIMEOUT_MS = 2_000;
+
+class HealthTimeout extends Error {
+  constructor() {
+    super("health check timed out");
+    this.name = "TimeoutError";
+  }
+}
+
+/** The promise's value, or a HealthTimeout after `ms`. */
+async function within<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new HealthTimeout()), ms);
+  });
+  try {
+    return await Promise.race([p, late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
- * Health for uptime checks and the future oversight system (spec 9.4, 15): database, read model, outbox backlog,
- * email provider, AI provider and key-value store. 200 when the site can take leads; 503 when the database is down.
- * Public callers get only { ok }; the detail (configuration state, never secrets) needs the internal bearer key.
+ * Health for uptime checks and the oversight system (spec 9.4, 15): database, read model, outbox backlog, email
+ * provider, AI provider and key-value store. 200 when the site can take leads; 503 when the database is down or does
+ * not answer within 3 s. Public callers get only { ok }; the detail (configuration state, never secrets) needs the
+ * internal bearer key.
  */
 export async function GET(req: Request) {
   await connection();
   const detail = isInternal(req);
-  if (!detail && !(await rateLimit(LIMITS.beaconPerIp, ipFrom(req))).ok) return Response.json({ ok: true }, { status: 429 });
+  if (!detail && !(await rateLimit(LIMITS.beaconPerIp, ipFrom(req))).ok)
+    return Response.json({ ok: true }, { status: 429 });
   const started = performance.now();
   const e = env();
   const checks: Record<string, unknown> = {};
@@ -23,14 +53,24 @@ export async function GET(req: Request) {
   if (dbConfigured()) {
     try {
       const t = performance.now();
-      const h = await rpc<Record<string, unknown>>("web_health");
+      const h = await within(rpc<Record<string, unknown>>("web_health"), DB_TIMEOUT_MS);
       checks.db = { ok: true, ms: Math.round(performance.now() - t), ...h };
       // Outbox worker (pg_cron web_outbox_worker, every minute, D-082): dead letters, or a job waiting 10+ minutes, means trouble.
       const oldest = Number(h.outbox_oldest_pending_seconds ?? 0);
-      checks.outbox = { ok: Number(h.outbox_dead) === 0 && oldest < 600, dead: h.outbox_dead, pending: h.outbox_pending, oldest_pending_seconds: oldest };
+      checks.outbox = {
+        ok: Number(h.outbox_dead) === 0 && oldest < 600,
+        dead: h.outbox_dead,
+        pending: h.outbox_pending,
+        oldest_pending_seconds: oldest,
+      };
       // Catalogue sync (D-081): the poll runs every minute; over 10 minutes without a check means it has stopped.
       const age = h.catalog_checked_seconds_ago == null ? null : Number(h.catalog_checked_seconds_ago);
-      checks.catalog = { ok: age !== null && age < 600, checked_seconds_ago: age, refreshed_at: h.catalog_refreshed_at, unmapped: h.catalog_unmapped };
+      checks.catalog = {
+        ok: age !== null && age < 600,
+        checked_seconds_ago: age,
+        refreshed_at: h.catalog_refreshed_at,
+        unmapped: h.catalog_unmapped,
+      };
     } catch (err) {
       ok = false;
       checks.db = { ok: false, error: err instanceof Error ? err.name : "error" };
@@ -40,8 +80,11 @@ export async function GET(req: Request) {
     checks.db = { ok: false, error: "not configured" };
   }
   try {
-    await kv().set("health:ping", Date.now(), 60);
-    checks.kv = { ok: true, store: kvShared() ? "upstash" : isDeployed() ? "memory (rate limits use Postgres)" : "memory" };
+    await within(kv().set("health:ping", Date.now(), 60), KV_TIMEOUT_MS);
+    checks.kv = {
+      ok: true,
+      store: kvShared() ? "upstash" : isDeployed() ? "memory (rate limits use Postgres)" : "memory",
+    };
   } catch {
     checks.kv = { ok: false };
   }
@@ -53,8 +96,8 @@ export async function GET(req: Request) {
   checks.ai = { ok: true, configured: !!live, mode: live ? "live" : "mock", provider: live };
   // Both halves are needed: the site key (read at build time) renders the widget, the secret verifies its token.
   checks.turnstile = { configured: !!e.TURNSTILE_SECRET_KEY, site_key: !!e.NEXT_PUBLIC_TURNSTILE_SITE_KEY };
-  return Response.json(
-    detail ? { ok, env: e.APP_ENV, ms: Math.round(performance.now() - started), checks } : { ok },
-    { status: ok ? 200 : 503, headers: { "cache-control": "no-store" } },
-  );
+  return Response.json(detail ? { ok, env: e.APP_ENV, ms: Math.round(performance.now() - started), checks } : { ok }, {
+    status: ok ? 200 : 503,
+    headers: { "cache-control": "no-store" },
+  });
 }
