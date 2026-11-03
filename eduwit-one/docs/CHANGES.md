@@ -23,7 +23,12 @@ followed.
   (`influencer-portal/app/api/health/route.ts`, on this branch; the portal deploys from `main`, so it goes live when
   merged). The B2C CRM has no health route (Spark is probed for reachability on its home page); the B2B CRM's route,
   6.5 s a call on average, is untouched, outside this change's scope.
-- Rehearsal on staging and the production apply follow (`docs/REHEARSALS.md`, addendum here).
+- Live: Eduwit One's app (d6c509e) built at 15:32 UTC and the website (870ec27) at 15:33, both on their production
+  branches; the portal's route cherry-picked onto `main` as f02f84e at the owner's word ("push the changes to live
+  production"), built at 15:35, the live `/api/health` reporting that version. 0036 rehearsed on staging at 15:46 UTC
+  (set `d0991cda…`, `docs/REHEARSALS.md`) and applied to production at 15:47 under the dump waiver (D-090): smoke test
+  passed, WEB-02 and INF-04 at cadence 300, the four heartbeat rows carrying 300 s since the first probe of the new
+  build. The website's health answered in about a second after the change; the portal's in 1.4 s.
 
 ## 3 Nov 2026 — CE-03 lets a login-expiry alert go once the login is valid again (0035, D-132)
 
