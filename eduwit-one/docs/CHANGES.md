@@ -3,6 +3,15 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 3 Nov 2026 — The Scout integration document trimmed to what is live (D-131)
+
+- `docs/EDUWIT-SCOUT.md` rewritten: what Eduwit One reads of Eduwit Scout today (the app, CE-01 to CE-05 as the
+  database owner through `one.run_check`, the three Apps page panels, the event copy, Scout's own heartbeats), what Scout
+  provides against the first draft's seven asks, and what stays open (a dashboard heartbeat, CE-06 to CE-08 as proposals,
+  the consumer switch-over checks, fixes). Checked on production, read only: no grant to `eduwit_one_reader` on `ce` or
+  `ce_pub` exists or is needed; `catalog.changes` holds no rows, so CAT-02 and CAT-03 are idle, not blind.
+- Production database change: none.
+
 ## 2 Nov 2026 — Heartbeat names with capital letters (D-130)
 
 - `0034_heartbeat_names_mixed_case`: `one.app_report` accepts A-Z in heartbeat names, so Witty's n8n workflow heartbeat
