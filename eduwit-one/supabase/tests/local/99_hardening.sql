@@ -71,7 +71,7 @@ select pg_temp.ok(not (:'a_missing'::jsonb ->> 'ok')::boolean, 'and so is a miss
 
 -- 3. fixes, actions, audit --------------------------------------------------------------------------------------------------
 select one.ai_tool(:tq, 'worker-h', 'fixes', '{}') as f_all \gset
-select pg_temp.ok((:'f_all'::jsonb ->> 'ok')::boolean and jsonb_array_length(:'f_all'::jsonb -> 'data') = 11, 'the eleven fixes: ' || left(:'f_all', 200));
+select pg_temp.ok((:'f_all'::jsonb ->> 'ok')::boolean and jsonb_array_length(:'f_all'::jsonb -> 'data') = 12, 'the twelve fixes: ' || left(:'f_all', 200));
 select pg_temp.ok((select bool_and(f ? 'counts' and f ? 'recent' and f ? 'settings' and f ? 'mode' and f ? 'rollback')
                      from jsonb_array_elements(:'f_all'::jsonb -> 'data') f), 'each with counts, recent rows, settings, mode and rollback');
 select one.ai_tool(:tq, 'worker-h', 'fixes', '{"fix_id": "FIX-INBOX-RETRY"}') as f_one \gset

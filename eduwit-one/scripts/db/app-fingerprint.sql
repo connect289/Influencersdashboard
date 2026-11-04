@@ -3,8 +3,8 @@
 -- migration file, in the same transaction: a migration that changes any of these is rolled back whole (M8 of the second
 -- review). Left out are exactly the grants the migrations make to Eduwit One's two roles (an allow-list, B1 of the
 -- phase 7 review): the reader's SELECT on relations and on columns (D-121), USAGE on schemas, default SELECT, and
--- EXECUTE on the four health functions; the fixer's USAGE on public, b2b and b2c and EXECUTE on the ten catalogue
--- functions with their exact types; the two roles granted to the migrating user; and the one-* cron jobs. Anything else
+-- EXECUTE on the four health functions; the fixer's USAGE on public, b2b and b2c and EXECUTE on the eleven catalogue
+-- functions with their exact types (b2c.send_unstick(integer) since 0037, D-134); the two roles granted to the migrating user; and the one-* cron jobs. Anything else
 -- given to either role (another column or table privilege, another function, a membership, a role attribute) changes
 -- the fingerprint. A null ACL is read as its default, since the first grant on an object writes the owner's default
 -- entry out next to the new one. Read-only.
@@ -38,7 +38,7 @@ select pg_catalog.set_config('one.fp_' || :'fp_phase', md5(concat_ws('|',
                                          and not (a::text ~ '^"?eduwit_one_fixer"?=X/' and n.nspname || '.' || p.proname || '(' || oidvectortypes(p.proargtypes) || ')' in
                                                   ('b2b.b2c_sync_tick(integer)', 'b2b.outbox_kick()', 'b2b.outbox_retry(bigint)', 'b2c.inbox_retry(integer)', 'b2c.outbox_unstick()',
                                                    'b2c.job_call(text)', 'b2c.programme_cache_refresh(boolean)', 'public.web_outbox_retry(bigint, uuid)',
-                                                   'public.web_job_call(text, integer)', 'public.web_catalog_poll()'))), ''),
+                                                   'public.web_job_call(text, integer)', 'public.web_catalog_poll()', 'b2c.send_unstick(integer)'))), ''),
                          ';' order by p.oid::regprocedure::text))
      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname <> 'one' and n.nspname !~ '^(pg_catalog|information_schema|pg_toast|pg_temp)'),

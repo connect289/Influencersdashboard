@@ -25,10 +25,15 @@ const checkIds = new Set(
     .filter((f) => f.endsWith(".sql"))
     .flatMap((f) => [...read(`supabase/checks/${f}`).matchAll(/^-- check: (\S+)$/gm)].map((m) => must(m[1], "match"))),
 );
+// The catalogue's rows, wherever a migration added them (0019's eleven, 0037's FIX-SENDQ-B2C).
 const fixIds = new Set(
-  [...read("supabase/migrations/0019_fixes.sql").matchAll(/\('(FIX-[A-Z0-9-]+)', '(?:witty|b2b|b2c|web|one)'/g)].map(
-    (m) => must(m[1], "match"),
-  ),
+  readdirSync(new URL("supabase/migrations/", root))
+    .filter((f) => /^\d{4}_.*\.sql$/.test(f) && !f.endsWith(".rollback.sql"))
+    .flatMap((f) =>
+      [...read(`supabase/migrations/${f}`).matchAll(/\('(FIX-[A-Z0-9-]+)', '(?:witty|b2b|b2c|web|one)'/g)].map((m) =>
+        must(m[1], "match"),
+      ),
+    ),
 );
 const runbookSecrets = new Set(
   [...read("docs/RUNBOOK.md").matchAll(/`(one_[a-z0-9_]+)`/g)].map((m) => must(m[1], "match")),

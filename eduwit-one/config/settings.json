@@ -128,6 +128,11 @@
       "enabled": false,
       "per_tick": 1,
       "cooldown_min": 15
+    },
+    "FIX-SENDQ-B2C": {
+      "enabled": false,
+      "per_tick": 50,
+      "cooldown_min": 30
     }
   },
   "ai": {

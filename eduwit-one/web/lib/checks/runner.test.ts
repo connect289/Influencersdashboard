@@ -22,7 +22,28 @@ describe("one tick against the recorded fixtures", () => {
     for (const c of ["website", "influencer", "b2b-app", "spark"]) expect(heartbeat(db, c)?.ok, c).toBe(true);
     expect(result(db, "WEB-02")?.status).toBe("ok");
     expect(result(db, "INF-04")?.status).toBe("ok");
+    expect(result(db, "B2C-11")?.status).toBe("ok");
+    expect(heartbeat(db, "spark")?.detail).toMatchObject({ path: "/api/health" });
     expect(summary.probes["app-health"]?.status).toBe("ran");
+  });
+
+  it("fails B2C-11 when Spark's health says it cannot work, and keeps only the names of the parts a body reports (D-134)", async () => {
+    const db = new FakeDb(tickState());
+    const clients = mockClients();
+    clients.appHealth = {
+      mode: "mock",
+      client: {
+        health: async (url: string) =>
+          url.includes("spark")
+            ? { ok: false, status: 503, ms: 30 }
+            : { ok: true, status: 200, ms: 20, summary: { status: "degraded", failing: ["sending"] } },
+        answers: async () => ({ answered: true, status: 200, method: "HEAD", ms: 5 }),
+      },
+    };
+    await run(db, clients);
+    expect(result(db, "B2C-11")).toMatchObject({ status: "fail", value: { status: 503, path: "/api/health" } });
+    expect(heartbeat(db, "spark")).toMatchObject({ ok: false, error: "health 503", expected_interval_s: 300 });
+    expect(heartbeat(db, "website")?.detail).toMatchObject({ health: "degraded", failing: ["sending"] });
   });
 
   it("reports the website's Vercel deployment ready and Eduwit One's project as missing", async () => {

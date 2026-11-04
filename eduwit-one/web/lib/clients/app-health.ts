@@ -1,15 +1,31 @@
 import { z } from "zod";
 import { fetchJson, HttpError } from "../http.ts";
-import type { AppHealthClient } from "./types.ts";
+import type { AppHealthClient, HealthSummary } from "./types.ts";
 
-// The apps' own health endpoints (website, influencer portal, B2B app; Spark answers at "/"). Real and Mock share the
-// fixture shape: the status and the ok flag, nothing from the body.
+// The apps' own health endpoints (website, influencer portal, B2B app, Spark). Real and Mock share the fixture shape:
+// the status and the ok flag; the Real client also keeps the names of the parts a 2xx body reports as not ok.
 
 export const appHealthFixture = z.object({ ok: z.boolean(), status: z.number() });
 export type AppHealthFixture = z.infer<typeof appHealthFixture>;
 
-// The website and the B2B app answer {ok: true}; the influencer portal answers {status: "ok"} (200) or "degraded" (503).
-const healthBody = z.looseObject({ ok: z.boolean().optional(), status: z.string().optional() });
+// The website and the B2B app answer {ok: true}; the influencer portal answers {status: "ok"} (200) or "degraded" (503)
+// with boolean checks; Spark answers {ok, status: "ok" | "degraded" | "down", checks: {part: "ok" | "warn" | "bad"}} (D-134).
+const healthBody = z.looseObject({
+  ok: z.boolean().optional(),
+  status: z.string().optional(),
+  checks: z.record(z.string(), z.unknown()).optional(),
+});
+
+/** The parts a health body reports as not ok: names only (at most 20, each a plain identifier), never their detail. */
+export function healthSummary(body: z.infer<typeof healthBody> | undefined): HealthSummary | undefined {
+  if (!body || (body.status === undefined && body.checks === undefined)) return undefined;
+  const failing = Object.entries(body.checks ?? {})
+    .filter(([k, v]) => /^[a-z][a-z0-9_]{0,39}$/.test(k) && (v === false || (typeof v === "string" && v !== "ok")))
+    .map(([k]) => k)
+    .slice(0, 20);
+  const status = typeof body.status === "string" && /^[a-z_]{1,20}$/.test(body.status) ? body.status : undefined;
+  return { ...(status ? { status } : {}), failing };
+}
 
 export class RealAppHealthClient implements AppHealthClient {
   answers(url: string) {
@@ -44,7 +60,8 @@ export class RealAppHealthClient implements AppHealthClient {
         { timeoutMs: 5000, retries: 0, breakerFailures: 1_000_000, breakerCooldownMs: 0 },
       );
       const body = healthBody.safeParse(json).data;
-      return { ok: body?.ok === true || body?.status === "ok", status, ms };
+      const summary = healthSummary(body);
+      return { ok: body?.ok === true || body?.status === "ok", status, ms, ...(summary ? { summary } : {}) };
     } catch (e) {
       return { ok: false, status: e instanceof HttpError ? (e.status ?? 0) : -1, ms: Date.now() - started };
     }

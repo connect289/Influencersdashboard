@@ -97,6 +97,12 @@ begin
   insert into public.stub_calls (fn, arg) values ('b2c.programme_cache_refresh', to_jsonb(p_force));
   return 0;
 end $$;
+-- Spark's b53: marks messages stuck mid-send as failed (FIX-SENDQ-B2C, 0037); the stub says it marked three.
+create function b2c.send_unstick(p_minutes integer) returns integer language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.stub_calls (fn, arg) values ('b2c.send_unstick', to_jsonb(p_minutes));
+  return 3;
+end $$;
 create function public.web_outbox_retry(p_id bigint, p_actor uuid) returns void language plpgsql security definer set search_path = '' as $$
 begin
   update public.web_outbox set status = 'pending', attempts = 0, next_attempt_at = now(), last_error = null where id = p_id and status = 'dead';
@@ -113,11 +119,11 @@ begin
   return '{"changed": false}';
 end $$;
 revoke execute on function b2b.is_admin(), b2b.outbox_retry(bigint), b2b.outbox_kick(), b2b.b2c_sync_tick(integer), b2c.inbox_retry(integer),
-  b2c.outbox_unstick(), b2c.job_call(text), b2c.programme_cache_refresh(boolean), public.web_outbox_retry(bigint, uuid),
+  b2c.outbox_unstick(), b2c.job_call(text), b2c.programme_cache_refresh(boolean), b2c.send_unstick(integer), public.web_outbox_retry(bigint, uuid),
   public.web_job_call(text, integer), public.web_catalog_poll() from public;
 grant execute on function b2b.outbox_kick(), b2b.b2c_sync_tick(integer), b2c.inbox_retry(integer), b2c.outbox_unstick(),
-  b2c.programme_cache_refresh(boolean), public.web_outbox_retry(bigint, uuid), public.web_job_call(text, integer), public.web_catalog_poll()
-  to service_role;
+  b2c.programme_cache_refresh(boolean), b2c.send_unstick(integer), public.web_outbox_retry(bigint, uuid), public.web_job_call(text, integer),
+  public.web_catalog_poll() to service_role;
 grant execute on function b2b.is_admin(), b2b.outbox_retry(bigint) to authenticated, service_role;
 
 -- App tables with credential columns, as production has them (0031, D-121): the reader keeps SELECT on the other

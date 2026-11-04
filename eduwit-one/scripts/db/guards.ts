@@ -27,6 +27,7 @@ const FIXER_FUNCTIONS = new Map([
   ["b2c.outbox_unstick", ""],
   ["b2c.job_call", "text"],
   ["b2c.programme_cache_refresh", "boolean"],
+  ["b2c.send_unstick", "integer"],
   ["public.web_outbox_retry", "bigint,uuid"],
   ["public.web_job_call", "text,integer"],
   ["public.web_catalog_poll", ""],

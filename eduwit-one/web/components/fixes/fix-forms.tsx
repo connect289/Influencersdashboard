@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button.tsx";
 import { Field, Input, Select } from "@/components/ui/field.tsx";
 import { dryRunFix, setFix, unpauseFix } from "@/lib/actions/fixes.ts";
 
-/** The owner's switch and limits for one fix, with a reason. The database refuses a switch-on before the window ends. */
+/** The owner's switch and limits for one fix, with a reason. The database refuses a switch-on before the window ends
+ * or before the fix's own first dry run is 14 days old (D-134). */
 export function FixSwitchForm({
   fix,
   enabled,
@@ -23,7 +24,11 @@ export function FixSwitchForm({
       <input type="hidden" name="fix" value={fix} />
       <Field
         label="Switch"
-        hint={canEnable || enabled ? undefined : "On only after the observation window, with a dry run."}
+        hint={
+          canEnable || enabled
+            ? undefined
+            : "On only after the observation window, once its first dry run is 14 days old."
+        }
       >
         <Select name="enabled" defaultValue={enabled ? "on" : "off"}>
           <option value="off">off (dry runs only)</option>

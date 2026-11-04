@@ -3,13 +3,19 @@
 
 export type ClientMode = "real" | "mock" | "not_configured";
 
+/** What a JSON health body says about itself: its status word and the parts it reports as not ok (names only). */
+export type HealthSummary = { status?: string; failing: string[] };
+
 export interface AppHealthClient {
   /**
    * GET the app's health path. For a JSON health endpoint ("json_ok"), ok means a 2xx whose body says ok: true or
    * status: "ok"; for an
    * app without one ("reachable", for example Spark's "/"), ok means any 2xx answer.
    */
-  health(url: string, expect: "json_ok" | "reachable"): Promise<{ ok: boolean; status: number; ms: number }>;
+  health(
+    url: string,
+    expect: "json_ok" | "reachable",
+  ): Promise<{ ok: boolean; status: number; ms: number; summary?: HealthSummary }>;
   /**
    * Whether the route answers at the URL: HEAD, then GET when HEAD gets no such answer (FIX-WEBHOOK-REKICK). Answered
    * means, within 10 s, a 2xx or a status that shows the route is there (400, 401, 403, 405, 415, 422); a redirect, a

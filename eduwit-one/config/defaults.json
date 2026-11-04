@@ -19,7 +19,7 @@
     "website": "/api/health",
     "influencer": "/api/health",
     "b2b_app": "/api/health",
-    "spark": "/",
+    "spark": "/api/health",
     "chatwoot": "/",
     "n8n": "/"
   },

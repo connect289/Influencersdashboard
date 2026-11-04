@@ -192,7 +192,7 @@ export const OPERATE: Record<string, OperateApp> = {
     hosts: ["spark"],
     cronPrefixes: ["b2c-"],
     secrets: ["one_whatsapp_token", "one_test_runner_password", "one_test_runner_totp"],
-    fixes: ["FIX-INBOX-RETRY", "FIX-OUTBOX-B2C", "FIX-CACHE-B2C"],
+    fixes: ["FIX-INBOX-RETRY", "FIX-OUTBOX-B2C", "FIX-SENDQ-B2C", "FIX-CACHE-B2C"],
     tests: ["T-B2C-NURTURE"],
     firstTime: [
       {
@@ -230,6 +230,14 @@ export const OPERATE: Record<string, OperateApp> = {
         look: "Inbox rows in error: Spark's system health page. FIX-INBOX-RETRY applies up to 50 envelopes again, as Spark's own retry would.",
       },
       { check: "B2C-03", look: "Outbox rows stuck sending: FIX-OUTBOX-B2C unsticks them and runs the urgent sync." },
+      {
+        check: "B2C-07",
+        look: "stuck_sending: messages the app took but never recorded (its run stopped mid-send). FIX-SENDQ-B2C marks them failed, never resent; check with the student and send again from the lead screen. The other counts (pacing, quiet hours) are a person's.",
+      },
+      {
+        check: "B2C-11",
+        look: "Spark's /api/health is not ok: open it (levels per part) to see which of the configuration, database, storage, timers or the app answering them is down; Vercel's deployment and environment variables are the usual cause.",
+      },
       {
         check: "B2C-10",
         look: "A failed b2c-* job: its last message is in the incident's evidence (b2c-capacity: 'cannot extract elements from a scalar' in b2c.capacity_tick()).",

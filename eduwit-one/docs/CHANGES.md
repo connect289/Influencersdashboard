@@ -3,6 +3,25 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 4 Nov 2026 — Spark's health check and the stuck-message fix (0037, D-134); Vercel builds only what changed (D-135)
+
+- Spark (`b2c-crm`): migration `b53_health.sql` (`b2c.health()`, `send_queue.taken_at`, `b2c.send_release`,
+  `b2c.send_unstick`, `send_take` stamps `taken_at`, System health counts messages stopped mid-send), the route
+  `web/app/api/health/route.ts` with `lib/health.ts`, the proxy leaves `/api/health` to the route, and the sender
+  (`lib/sync.ts`) records outcomes ten at a time and hands back what it did not start after 40 s. Local: all ten SQL
+  suites (633 checks, `test_health.sql` 25 of them) on a fresh database with the migrations applied twice; 199 unit
+  tests; typecheck; production build.
+- Eduwit One: `0037_spark_health.sql` (B2C-11, B2C-07's `stuck_sending` and its fix, FIX-SENDQ-B2C with
+  `one.fixer_b2c_sendq()`, the per-fix two-week switch-on rule in `one.settings_check`, `health_paths.spark` =
+  `/api/health`, the fix's settings switched off) with its rollback; the probe reads Spark's health for B2C-11 and
+  records failing part names (`lib/clients/app-health.ts`); 0006 and 0007 regenerated; the guards, the fingerprint's
+  allow-list and the smoke test name `b2c.send_unstick(integer)`; `99_fixes_sendq.sql`; 99_fixes and 99_hardening
+  count twelve fixes; the Operate guide and RUNBOOK name the fix. Local migration test passed; 315 unit tests.
+- Vercel (D-135): the Ignored Build Step of the seven linked projects builds only their production branch, and only
+  when their folder changed.
+- Rollout: Spark's b53 on staging, then production; Spark's code on `main` (its production branch); 0037 rehearsed on
+  staging, then production; the fix verified end to end on staging. Recorded below as each step is done.
+
 ## 3 Nov 2026 — The apps are probed every 5 minutes and their health calls are capped (0036, D-133)
 
 - Vercel paused the account on 3 Nov for function time: 251 GB-hours in 30 days against the Hobby plan's 100, read

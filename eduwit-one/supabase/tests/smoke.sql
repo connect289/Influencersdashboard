@@ -99,7 +99,7 @@ begin
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname <> 'one' and p.proacl::text like '%eduwit_one_fixer=%'
      and p.oid::regprocedure::text not in ('b2b.b2c_sync_tick(integer)', 'b2b.outbox_kick()', 'b2b.outbox_retry(bigint)', 'b2c.inbox_retry(integer)',
-                                           'b2c.outbox_unstick()', 'b2c.job_call(text)', 'b2c.programme_cache_refresh(boolean)',
+                                           'b2c.outbox_unstick()', 'b2c.job_call(text)', 'b2c.programme_cache_refresh(boolean)', 'b2c.send_unstick(integer)',
                                            'web_outbox_retry(bigint,uuid)', 'web_job_call(text,integer)', 'web_catalog_poll()',
                                            'public.web_outbox_retry(bigint,uuid)', 'public.web_job_call(text,integer)', 'public.web_catalog_poll()');
   if v_bad is not null then raise exception 'ASSERT FAILED: the fixer may execute an app function outside the catalogue: %', v_bad; end if;

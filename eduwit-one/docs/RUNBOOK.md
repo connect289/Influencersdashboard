@@ -166,7 +166,7 @@ One has no fix for the engine and changes nothing in schema `ce`.
 
 ## Fixes
 
-Eleven auto-fixes (spec §8, `one.fixes`; Settings → Fixes shows each one with its rights, history and switch). Each is
+Twelve auto-fixes (spec §8's eleven and FIX-SENDQ-B2C of 0037, `one.fixes`; Settings → Fixes shows each one with its rights, history and switch). Each is
 `one.fix_<id>(incident, dry_run)` over one shell (D-079, D-081): the switch in Settings → Fixes, the two-week
 observation window, a cooldown, a rate limit, an action row before and after, and a check from 2 minutes later.
 
@@ -183,6 +183,7 @@ observation window, a cooldown, a rate limit, an action row before and after, an
 | FIX-OUTBOX-WEB     | WEB-01 dead or old outbox rows       | `public.web_outbox_retry` for dead rows with attempts left (not test ones), then the website's outbox worker                                                                                                                                   | EXECUTE on both                | none                                           |
 | FIX-CATALOG-POLL   | WEB-01 poll older than 600 s, CAT-02 | `public.web_catalog_poll()`                                                                                                                                                                                                                    | EXECUTE on it                  | none                                           |
 | FIX-CACHE-B2C      | CAT-01                               | `b2c.programme_cache_refresh(true)`                                                                                                                                                                                                            | EXECUTE on it                  | none                                           |
+| FIX-SENDQ-B2C      | B2C-07 `stuck_sending`               | `b2c.send_unstick(15)`: messages still sending 15 min after Spark's app took them are marked failed, never sent again (the outcome is unknown); a failed assignment WhatsApp falls back to email, one notice to Spark's admins; more than 50 opens a proposal|
 
 How they behave:
 
@@ -192,7 +193,8 @@ How they behave:
 - **Off and the window.** All ship off. For the first 14 days (`fixes.observation_days`) from the first tick that
   runs them (on production, the first after the apply; the banner on Settings → Fixes shows the dates), and whenever
   a fix is off, it only records a **dry run**: what it would have done, on which rows. A fix can be switched on only
-  after the window and only once it has a dry run of its own; the owner does it on Settings → Fixes with a reason.
+  after the window and only once its own first dry run is 14 days old (since 0037, D-134: a fix added after the window
+  started still gets its two weeks); the owner does it on Settings → Fixes with a reason.
 - **Limits.** One real run per fix per `cooldown_min`, whoever ran it (the tick, an approval, or a person calling
   `one.fix_<id>(incident, false)`); the tick's dry runs once per fix and incident per cooldown. More rows than
   `per_tick`: it does nothing and opens a (high-risk) proposal. Test rows (Witty's test phones, a test flag in a B2B

@@ -34,7 +34,7 @@ export function tickState(overrides: Partial<TickState> = {}): TickState {
     }),
     setup: {},
     checks: [
-      ...["WEB-02", "INF-04", "WEB-07", "WITTY-05"].map((id) => check(id, true, null)),
+      ...["WEB-02", "INF-04", "B2C-11", "WEB-07", "WITTY-05"].map((id) => check(id, true, null)),
       ...["WITTY-02", "WITTY-08"].map((id) => check(id, false, "setup:n8n_api")),
     ],
     heartbeats: [],

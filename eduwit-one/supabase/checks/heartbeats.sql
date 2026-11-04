@@ -39,7 +39,7 @@ select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state(
 -- severity: P1
 -- cadence_s: 60
 -- title: Heartbeat lost: Spark
--- description: Spark's /api/health, written by the app's health probe; expected every 300 s (D-133).
+-- description: Spark's /api/health (ok when Spark can work: configuration, database, storage, timers), written by the app's health probe; expected every 300 s (D-133, D-134).
 select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('spark') as s) x
 
 -- check: HB-b2b-app

@@ -102,16 +102,16 @@ select id as i_web1 from one.incidents where check_id = 'WEB-01' \gset
 select id as i_cat1 from one.incidents where check_id = 'CAT-01' \gset
 
 -- 1. The fixer's rights (spec §8, D-079) -----------------------------------------------------------------------------
-select pg_temp.ok((select count(*) = 11 from one.fixes), 'the catalogue has the eleven fixes of spec §8');
+select pg_temp.ok((select count(*) = 12 from one.fixes), 'the catalogue has the eleven fixes of spec §8 and FIX-SENDQ-B2C (0037, D-134)');
 select pg_temp.ok((select array_agg(p.proname order by p.proname) from pg_proc p where p.proowner = 'eduwit_one_fixer'::regrole)
-                  = array['fixer_b2b_outbox_retry', 'fixer_b2c_outbox', 'fixer_b2c_sync', 'fixer_catalog_poll', 'fixer_inbox_retry',
-                          'fixer_outbox_kick', 'fixer_programme_cache', 'fixer_web_outbox']::name[], 'the fixer owns exactly its eight functions');
+                  = array['fixer_b2b_outbox_retry', 'fixer_b2c_outbox', 'fixer_b2c_sendq', 'fixer_b2c_sync', 'fixer_catalog_poll', 'fixer_inbox_retry',
+                          'fixer_outbox_kick', 'fixer_programme_cache', 'fixer_web_outbox']::name[], 'the fixer owns exactly its nine functions');
 select pg_temp.ok(not exists (select 1 from pg_proc p, unnest(array['public', 'anon', 'authenticated', 'service_role', 'eduwit_one_reader']) r
                                where p.proowner = 'eduwit_one_fixer'::regrole
                                  and (r = 'public' and p.proacl is null or r <> 'public' and has_function_privilege(r, p.oid, 'EXECUTE'))),
                   'no API role, the reader or PUBLIC can call the fixer''s functions');
-select pg_temp.ok((select count(*) = 10 and bool_and(coalesce(has_function_privilege('eduwit_one_fixer', to_regprocedure(fn), 'EXECUTE'), false))
-                     from one.fixes f, unnest(f.app_functions) fn), 'the fixer can execute each of the 10 catalogue functions');
+select pg_temp.ok((select count(*) = 11 and bool_and(coalesce(has_function_privilege('eduwit_one_fixer', to_regprocedure(fn), 'EXECUTE'), false))
+                     from one.fixes f, unnest(f.app_functions) fn), 'the fixer can execute each of the 11 catalogue functions');
 select pg_temp.ok(not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
                                where n.nspname in ('public', 'b2b', 'b2c', 'one') and c.relkind in ('r', 'v', 'm', 'p')
                                  and (has_table_privilege('eduwit_one_fixer', c.oid, 'SELECT') or has_table_privilege('eduwit_one_fixer', c.oid, 'INSERT')
@@ -182,10 +182,18 @@ update one.incidents set evidence = '{"status": "fail", "value": {}}' where id =
 
 -- 4. Switched on after the window: real runs, each through the fixer, with a row before and after ------------------------
 update one.settings set value = value || jsonb_build_object('observation_started_at', now() - interval '30 days') where key = 'fixes';
+-- D-134: the window over, a fix still waits until its own first dry run is 14 days old.
+select pg_temp.ok(pg_temp.err(format($q$select one.settings_check('fixes', %L)$q$, (select value from one.settings where key = 'fixes')
+                    || jsonb_build_object('FIX-CACHE-B2C', jsonb_build_object('enabled', true, 'per_tick', 1, 'cooldown_min', 15)))) = '22023',
+                  'no switch-on before its own first dry run is 14 days old, the window long over (D-134)');
+update one.actions a set ran_at = a.ran_at - interval '15 days'
+ where a.dry_run and a.id = (select min(b.id) from one.actions b where b.fix_id = a.fix_id and b.dry_run);
+-- FIX-SENDQ-B2C has no staged incident here (99_fixes_sendq.sql tests it): every other fix goes on.
 select one.settings_put('fixes', (select value from one.settings where key = 'fixes')
-         || (select jsonb_object_agg(id, (select value from one.settings where key = 'fixes') -> id || '{"enabled": true}') from one.fixes),
+         || (select jsonb_object_agg(id, (select value from one.settings where key = 'fixes') -> id || '{"enabled": true}') from one.fixes where id <> 'FIX-SENDQ-B2C'),
        'test', 'switch every fix on after the window') as v \gset
-select pg_temp.ok((select bool_and((value -> id ->> 'enabled')::boolean) from one.settings, one.fixes where key = 'fixes'), 'every fix switched on, on evidence');
+select pg_temp.ok((select bool_and((value -> id ->> 'enabled')::boolean) from one.settings, one.fixes where key = 'fixes' and id <> 'FIX-SENDQ-B2C'),
+                  'every fix with two weeks of dry runs switched on, on evidence');
 select pg_temp.cool();
 select one.fixes_step() as step3 \gset
 select pg_temp.ok((select count(*) = 1 from public.stub_calls where fn = 'b2b.b2c_sync_tick' and arg = '200'), 'FIX-CURSOR-B2C ran b2b.b2c_sync_tick(200)');
@@ -423,7 +431,7 @@ select pg_temp.ok((select severity = 'P2' from one.incidents where id = :i_web1)
 set role authenticated;
 select pg_temp.as_engineer();
 select one.ui_fixes() as fixes \gset
-select pg_temp.ok(jsonb_array_length(:'fixes'::jsonb -> 'fixes') = 11 and not (:'fixes'::jsonb #>> '{window,running}')::boolean, 'the page lists every fix and the window');
+select pg_temp.ok(jsonb_array_length(:'fixes'::jsonb -> 'fixes') = 12 and not (:'fixes'::jsonb #>> '{window,running}')::boolean, 'the page lists every fix and the window');
 select pg_temp.ok((select bool_and((f -> 'grants_state' ->> 'ok')::boolean) from jsonb_array_elements(:'fixes'::jsonb -> 'fixes') f),
                   'every grant is in place: ' || (select string_agg((f ->> 'id') || '=' || (f ->> 'grants_state'), '; ') from jsonb_array_elements(:'fixes'::jsonb -> 'fixes') f));
 select pg_temp.ok((select (f -> 'counts' ->> 'dry_runs')::int >= 1 and jsonb_array_length(f -> 'recent') > 0

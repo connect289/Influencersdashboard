@@ -110,8 +110,9 @@ select jsonb_array_length(connectors_failing) = 0 and staff_connections_error = 
 -- kind: sql
 -- severity: P2
 -- cadence_s: 900
+-- fix: FIX-SENDQ-B2C
 -- title: Spark's sending broke a pacing or quiet-hours rule, or its queue is stuck
--- description: b2c.send_queue queued past not_before by more than 15 min; a marketing WhatsApp (campaign or journey) sent today outside 09:00 to 20:00 IST; a lead with more than 1 marketing WhatsApp today or more than 6 in 30 days; a lead with more than 2 emails today.
+-- description: b2c.send_queue queued past not_before by more than 15 min, or still sending 15 min after the app took it (stuck_sending: the app stopped before it recorded the outcome; taken_at from Spark's b53, not_before before it); a marketing WhatsApp (campaign or journey) sent today outside 09:00 to 20:00 IST; a lead with more than 1 marketing WhatsApp today or more than 6 in 30 days; a lead with more than 2 emails today. FIX-SENDQ-B2C acts on stuck_sending only (D-134).
 with mk as (
   select lead_id, created_at from b2c.wa_messages
    where direction = 'out' and status in ('sent', 'delivered', 'read') and (campaign_id is not null or journey_run_id is not null or coalesce(purpose, '') ~* 'market|campaign')
@@ -119,13 +120,14 @@ with mk as (
 today as (select (now() at time zone 'Asia/Kolkata')::date as d),
 v as (
   select (select count(*) from b2c.send_queue where status = 'queued' and not_before < now() - interval '15 minutes') as queue_stuck,
+         (select count(*) from b2c.send_queue where status = 'sending' and coalesce(taken_at, not_before) < now() - interval '15 minutes') as stuck_sending,
          (select count(*) from mk, today where (created_at at time zone 'Asia/Kolkata')::date = today.d
             and (created_at at time zone 'Asia/Kolkata')::time not between time '09:00' and time '20:00') as marketing_off_hours_today,
          (select count(*) from (select lead_id from mk, today where (created_at at time zone 'Asia/Kolkata')::date = today.d group by lead_id having count(*) > 1) x) as leads_over_1_today,
          (select count(*) from (select lead_id from mk group by lead_id having count(*) > 6) x) as leads_over_6_30d,
          (select count(*) from (select e.lead_id from b2c.emails e, today where e.direction = 'out' and (e.created_at at time zone 'Asia/Kolkata')::date = today.d
                                   group by e.lead_id having count(*) > 2) x) as leads_over_2_emails_today)
-select queue_stuck + marketing_off_hours_today + leads_over_1_today + leads_over_6_30d + leads_over_2_emails_today = 0 as ok, to_jsonb(v) as value
+select queue_stuck + stuck_sending + marketing_off_hours_today + leads_over_1_today + leads_over_6_30d + leads_over_2_emails_today = 0 as ok, to_jsonb(v) as value
   from v
 
 -- check: B2C-08
@@ -165,3 +167,12 @@ select coalesce(r.status <> 'failed', true) as ok, jsonb_build_object('at', r.st
   from (select 1) x
   left join lateral (select d.start_time, d.status, d.return_message from cron.job_run_details d join cron.job j on j.jobid = d.jobid
                       where j.jobname = 'b2c-capacity' order by d.start_time desc limit 1) r on true
+
+-- check: B2C-11
+-- app: b2c
+-- kind: http
+-- severity: P1
+-- cadence_s: 300
+-- open_after: 2
+-- title: Spark's /api/health is not ok
+-- description: GET <hosts.spark>/api/health not ok twice in a row: Spark's configuration, its database or file storage (each within 3 s), its timers or the app answering them is down. The body's levels name the part (Spark's b53 and lib/health.ts); a queue, connector or cache that needs a look leaves it ok and is B2C-02 to B2C-09's. Run by the app's health probe every 5 minutes, which also writes heartbeat spark (D-134).
