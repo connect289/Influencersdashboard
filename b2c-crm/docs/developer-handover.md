@@ -200,6 +200,12 @@ GitHub Actions `.github/workflows/b2c-crm-ci.yml` runs typecheck, unit tests, `n
 every change under `b2c-crm/web`; Dependabot proposes updates weekly. Keep both green. Security incidents:
 `docs/breach-runbook.md`.
 
+**Production timers registered (4 Nov 2026, on the owner's word).** The deploy script's step 5 was done by hand, in the
+order that never refuses a timer call: a new `B2C_INTERNAL_KEY` (64 hex characters, sensitive) set on Vercel
+`eduwit-spark`, production redeployed (03:21 UTC), then `b2c.app_deploy_set('https://spark.eduwit.in', <the same key>)`
+on production. The key was never printed; it lives only in Vercel and Vault. The timers' calls answer 200 from 03:24
+UTC; `LIVE_MODE` stays off, so messages are still dry runs until go-live (step 12).
+
 **Health (4 Nov 2026, migration `b53`).** `GET /api/health` answers 200 when Spark can work (its configuration, the
 database and file storage within 3 seconds each, the timers and the app answering them) and 503 when it cannot; the
 body gives each part a level (`ok`, `warn`, `bad`), and the counts behind them with the `x-internal-key` header (the

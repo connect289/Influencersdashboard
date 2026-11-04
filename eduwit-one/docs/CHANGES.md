@@ -3,6 +3,20 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 4 Nov 2026 — Spark's timers registered on production; the old B2B referral function removed
+
+On the owner's "Start registering Spark's timer in production" and "Remove old B2B referral function".
+- Spark: the deploy script's registration step, by hand and in the safe order: a new `B2C_INTERNAL_KEY` (sensitive) on
+  Vercel `eduwit-spark`, production redeployed (`dpl_DHfPUxeg…`, 03:21 UTC; the project's build rule cleared for that
+  one redeploy and restored, checked equal), then `b2c.app_deploy_set('https://spark.eduwit.in', key)` on production.
+  The key went from a mode-600 scratch file to both places and the file was deleted; it was never printed. From 03:24
+  UTC the timers' calls answer 200, Spark's `/api/health` reads "ok" in every part, and PLAT-05's open P1 (Spark's
+  base URL and `b2c_internal_key` missing) clears on its next runs. `LIVE_MODE` stays off.
+- B2B: `b2b-crm/supabase/pending/drop_api_referral_outcomes_v1.sql` run on production after a read-only check that the
+  deployed B2B web calls only `api_referral_outcomes_v2` and no database function calls the old one; the old
+  function's exact definition and grants were saved first. `/v1/referrals/{code}/outcomes` still answers (401 without
+  its key, as designed) and the B2B health is 200.
+
 ## 4 Nov 2026 — Spark's health check and the stuck-message fix (0037, D-134); Vercel builds only what changed (D-135)
 
 - Spark (`b2c-crm`): migration `b53_health.sql` (`b2c.health()`, `send_queue.taken_at`, `b2c.send_release`,
