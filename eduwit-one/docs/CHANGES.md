@@ -19,8 +19,25 @@ followed.
   count twelve fixes; the Operate guide and RUNBOOK name the fix. Local migration test passed; 315 unit tests.
 - Vercel (D-135): the Ignored Build Step of the seven linked projects builds only their production branch, and only
   when their folder changed.
-- Rollout: Spark's b53 on staging, then production; Spark's code on `main` (its production branch); 0037 rehearsed on
-  staging, then production; the fix verified end to end on staging. Recorded below as each step is done.
+- Rollout, 4 Nov (UTC). Spark's b53 on staging (02:19; `test_health` 25 of 25, rolled back; `test_completion` and
+  `test_features` stop on staging's own B2B and catalogue data, as before, and pass locally) and production (02:20,
+  after the 00:51 backup). Production's report said "down": its Spark timers are not yet registered (no base URL or
+  timer key; PLAT-05's open P1 says so), so b53 was amended to call that a warning, as Spark's System health does, and
+  applied again to both (`test_health` 26 of 26 on staging). Spark's commits cherry-picked to `main` (3c69d1c);
+  spark.eduwit.in and the staging site answered `/api/health` 200, "degraded" with every core part ok.
+- On the owner's "Merge": the branch merged into `main` (47f0e4d) after checking that every migration it carries for
+  the B2B CRM, Spark and the portal is on production since 31 Oct (D-122) and that each app builds and passes its tests
+  on the merged tree (B2B 454, Spark 199, portal 3,676 and both builds). The portal, Spark, its staging site and the
+  B2B CRM deployed it; each answers its health route. `b2b-crm/supabase/pending/drop_api_referral_outcomes_v1.sql`
+  is now due (the deployed B2B web calls only `api_referral_outcomes_v2`; no database function calls the old one,
+  checked read only) and waits for the owner's confirmation, as every drop does (D-031).
+- 0037 rehearsed on staging at 02:39 (set `ee27ac47…`) and applied to production at 02:41 under the dump waiver
+  (D-090); smoke test passed. The fix proven end to end on staging against Spark's real `send_unstick`, rolled back:
+  B2C-07 failed on one planted stuck test message and opened an incident, the dry run planned one message, the fixer's
+  run marked it failed (not resent, one admin notice), and B2C-07 then passed.
+- Vercel (D-135) verified on today's pushes: other branches' pushes are skipped, and only projects whose folder changed
+  build. The website project still records a failed deployment for pushes to other branches: Vercel checks that its
+  folder (`website/web`, on its own branch only) exists before the skip rule runs; nothing is built or billed.
 
 ## 3 Nov 2026 — The apps are probed every 5 minutes and their health calls are capped (0036, D-133)
 
