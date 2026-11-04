@@ -111,16 +111,31 @@ begin
     j::text !~ '9100009993|@example\.com|HL Student|993101|aaaaaaaa-', null);
   insert into r (name, ok, detail) values ('health_stuck_cleared_failed_counted',
     (j #>> '{checks,sending,stuck_sending}')::int = 0 and (j #>> '{checks,sending,failed_24h}')::int >= 2, j -> 'checks' ->> 'sending');
-  -- the timers not pointed at the site: the app part is bad, so Spark is down
+  -- the timers not yet pointed at the site (before the deploy script): a warning, as on System health, not down
   update b2c.settings set value = value || '{"base_url": null}' where key = 'app';
   j := b2c.health();
-  insert into r (name, ok, detail) values ('health_down_when_not_pointed',
-    not (j ->> 'ok')::boolean and j ->> 'status' = 'down' and j #>> '{checks,app,level}' = 'bad' and not (j #>> '{checks,app,pointed}')::boolean, j -> 'checks' ->> 'app');
+  insert into r (name, ok, detail) values ('health_not_pointed_is_a_warning',
+    (j ->> 'ok')::boolean and j ->> 'status' = 'degraded' and j #>> '{checks,app,level}' = 'warn' and not (j #>> '{checks,app,pointed}')::boolean, j -> 'checks' ->> 'app');
+  -- no timers at all: Spark is down (only on the local copy, which has no run history to keep)
+  if to_regclass('cron.job_run_details') is null then
+    delete from cron.job where jobname like 'b2c-%';
+    j := b2c.health();
+    insert into r (name, ok, detail) values ('health_down_without_timers',
+      not (j ->> 'ok')::boolean and j ->> 'status' = 'down' and j #>> '{checks,timers,level}' = 'bad', j -> 'checks' ->> 'timers');
+  else
+    insert into r (name, ok, detail) values ('health_down_without_timers', true, 'judged on the local copy only');
+  end if;
   update b2c.settings set value = value || '{"base_url": "https://spark.example.test"}' where key = 'app';
-  insert into vault.secrets_store (name, decrypted_secret) values ('b2c_internal_key', 'k-test-health') on conflict (name) do update set decrypted_secret = excluded.decrypted_secret;
+  -- The local stub's Vault is a plain table; a Supabase project (staging) already holds the timers' key.
+  if to_regclass('vault.secrets_store') is not null then
+    insert into vault.secrets_store (name, decrypted_secret) values ('b2c_internal_key', 'k-test-health-0123456789abcdef0123')
+    on conflict (name) do update set decrypted_secret = excluded.decrypted_secret;
+  end if;
   j := b2c.health();
-  insert into r (name, ok, detail) values ('health_pointed', (j #>> '{checks,app,pointed}')::boolean and j #>> '{checks,app,level}' <> 'bad', j -> 'checks' ->> 'app');
-  insert into r (name, ok, detail) values ('health_never_shows_the_key', j::text !~ 'k-test-health', null);
+  insert into r (name, ok, detail) values ('health_pointed',
+    (j #>> '{checks,app,pointed}')::boolean = exists (select 1 from vault.decrypted_secrets where name = 'b2c_internal_key'), j -> 'checks' ->> 'app');
+  insert into r (name, ok, detail) values ('health_never_shows_the_key',
+    coalesce((select position(s.decrypted_secret in j::text) = 0 from vault.decrypted_secrets s where s.name = 'b2c_internal_key'), true), null);
   -- a connector whose last answer was an error is named by its key
   insert into b2c.connector_status (key, last_ok_at, last_error_at, last_error) values ('whatsapp', now() - interval '1 hour', now(), 'HTTP 401 for 910000999301')
   on conflict (key) do update set last_ok_at = excluded.last_ok_at, last_error_at = excluded.last_error_at, last_error = excluded.last_error;

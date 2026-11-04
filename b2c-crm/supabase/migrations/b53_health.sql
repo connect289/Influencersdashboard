@@ -5,8 +5,10 @@
 --    level (ok, warn, bad). Counts, ages, timer names and connector keys only: no student, phone, email or lead id. It
 --    reads at most the newest 5,000 timer runs (cron.job_run_details has no index but its primary key; about three
 --    hours of runs) and the last 600 timer calls, so one call costs a few milliseconds. "ok" is false when a core part
---    is bad (no timers, the minute timer silent for 10 minutes, the timers not pointed at the site, or no timer call
---    answered in 15 minutes); the route adds the configuration, the database and file storage.
+--    is bad (no timers, the minute timer silent for 10 minutes, or timer calls made in the last 15 minutes and none
+--    answered); the route adds the configuration, the database and file storage. Timers not yet pointed at the site
+--    (before the deploy script's b2c.app_deploy_set) are a warning, as on the System health page; Eduwit One's PLAT-05
+--    reports that step.
 -- 2. Sending: b2c.send_take took up to 50 messages, marked them "sending" and the app recorded their outcomes in one call
 --    at the end. A run that ended before that call (the 60-second limit on a busy minute, a crash) left every message of
 --    the batch "sending" for ever: never sent again, never reported. Now:
@@ -124,7 +126,7 @@ begin
                    from ids left join net._http_response r on r.id = ids.id$q$ into v_calls;
   end if;
   v_app := v_calls || jsonb_build_object('pointed', v_base is not null and v_keyed,
-    'level', case when v_base is null or not v_keyed then 'bad'
+    'level', case when v_base is null or not v_keyed then 'warn'
                   when to_regclass('net._http_response') is null then 'warn'
                   when (v_calls ->> 'calls_15m')::int > 0 and (v_calls ->> 'ok_15m')::int = 0 then 'bad'
                   when (v_calls ->> 'failed_1h')::int > 0 or (v_calls ->> 'unanswered_1h')::int > 0 then 'warn' else 'ok' end);
