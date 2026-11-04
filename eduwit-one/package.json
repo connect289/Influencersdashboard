@@ -1,0 +1,26 @@
+{
+  "name": "eduwit-one-tooling",
+  "private": true,
+  "type": "module",
+  "description": "Scripts for Eduwit One (preflight, database rehearsal). The app itself lives in web/.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "preflight": "node scripts/preflight.ts --merge docs/preflight-connector.json --setup supabase/seed/setup.json --md docs/PREFLIGHT-table.md",
+    "typecheck": "tsc -p scripts/tsconfig.json",
+    "test": "node --test scripts/db/guards.test.ts scripts/db/gen-checks.test.ts scripts/db/gen-tests.test.ts scripts/db/reader-columns.test.ts",
+    "db:guards": "node scripts/db/guards.ts",
+    "db:local-test": "scripts/db/local-test.sh",
+    "db:seed-check": "node scripts/db/gen-seed.ts --check",
+    "db:checks": "node scripts/db/gen-checks.ts",
+    "db:tests": "node scripts/db/gen-tests.ts"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.13",
+    "@types/pg": "8.15.5",
+    "pg": "8.16.3",
+    "playwright-core": "1.56.1",
+    "typescript": "5.9.3"
+  }
+}

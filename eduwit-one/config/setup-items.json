@@ -1,0 +1,458 @@
+{
+  "$comment": "The Setup checklist (spec §15). One entry per deferrable item: who fills it, where the value lives, and which checks, tests, fixes and heartbeats it unblocks. scripts/preflight.ts writes a status per item into supabase/seed/setup.json; migration 0007 loads that into one.settings.setup; the Setup page (phase 4) renders this list with a validate button per item.",
+  "items": [
+    {
+      "id": "github",
+      "title": "Monorepo access",
+      "who": "owner",
+      "stores": "connector",
+      "unblocks": [
+        "build"
+      ],
+      "how": "The monorepo connector the build session uses. Nothing to fill in the app.",
+      "validate": null
+    },
+    {
+      "id": "supabase_prod",
+      "title": "Production database read (connector)",
+      "who": "owner",
+      "stores": "connector",
+      "unblocks": [
+        "all SQL checks"
+      ],
+      "how": "The build session's read access to the production database (connector). Nothing to fill in the app.",
+      "validate": null
+    },
+    {
+      "id": "supabase_prod_dump",
+      "title": "Production connection string for pg_dump and psql apply",
+      "who": "owner",
+      "stores": "env:ONE_PROD_DB_URL (build session only)",
+      "unblocks": [
+        "phase 1 production apply"
+      ],
+      "how": "A production connection string on a machine with pg_dump 17, for the full dump before each apply. See docs/RUNBOOK-database.md step 3.",
+      "validate": null
+    },
+    {
+      "id": "supabase_staging",
+      "title": "Staging project for rehearsals",
+      "who": "owner",
+      "stores": "connector",
+      "unblocks": [
+        "scripts/db/rehearse.sh"
+      ],
+      "how": "Staging project access for the rehearsal (docs/RUNBOOK-database.md step 2).",
+      "validate": null
+    },
+    {
+      "id": "supabase_advisors",
+      "title": "Supabase security advisors and logs",
+      "who": "owner",
+      "stores": "connector",
+      "unblocks": [
+        "PLAT-06"
+      ],
+      "how": "Supabase security advisors. PLAT-06 computes the ERROR-level lints in SQL; the WARN ones need a Management API token later.",
+      "validate": null
+    },
+    {
+      "id": "n8n_api",
+      "title": "n8n base URL and API key for the app",
+      "who": "developer",
+      "stores": "vault:one_n8n_key + settings.hosts.n8n",
+      "unblocks": [
+        "WITTY-02",
+        "WITTY-08",
+        "FIX-N8N-RETRY",
+        "FIX-CACHE-W2",
+        "HB n8n:PKPs7tXg9bej8AgX",
+        "HB n8n:instance",
+        "T-WITTY-QUALIFY"
+      ],
+      "how": "n8n → Settings → n8n API → Create an API key. Save it here as one_n8n_key; the base URL is Settings → Hosts → n8n.",
+      "validate": "n8n"
+    },
+    {
+      "id": "lightsail",
+      "title": "AWS Lightsail read access (n8n and Chatwoot server)",
+      "who": "developer",
+      "stores": "vercel env ONE_AWS_*",
+      "unblocks": [
+        "HB lightsail:n8n-chatwoot"
+      ],
+      "how": "An AWS access key that can read the Lightsail instance running n8n and Chatwoot (read-only IAM policy), in the region of the server.",
+      "validate": null
+    },
+    {
+      "id": "chatwoot",
+      "title": "Chatwoot API token and account id",
+      "who": "developer",
+      "stores": "vault:one_chatwoot_token + settings.chatwoot.account_id",
+      "unblocks": [
+        "WITTY-03",
+        "WITTY-05",
+        "HB chatwoot",
+        "T-WITTY-TURN"
+      ],
+      "how": "Chatwoot → Profile settings → Access token. Save it as one_chatwoot_token; the account id is in Settings → Chatwoot.",
+      "validate": "chatwoot"
+    },
+    {
+      "id": "vercel",
+      "title": "Vercel token for the eduwit team",
+      "who": "developer",
+      "stores": "vault:one_vercel_token",
+      "unblocks": [
+        "WEB-07",
+        "HB vercel:website",
+        "HB vercel:one"
+      ],
+      "how": "Vercel → Account settings → Tokens → Create, scoped to the eduwit team, read access. Save it as one_vercel_token.",
+      "validate": "vercel"
+    },
+    {
+      "id": "spark_job_key",
+      "title": "Spark base URL and b2c_internal_key (b2c.app_deploy_set)",
+      "who": "developer",
+      "stores": "b2c.settings app.base_url + vault:b2c_internal_key",
+      "unblocks": [
+        "PLAT-05 (b2c part)",
+        "HB spark",
+        "FIX-OUTBOX-B2C"
+      ],
+      "how": "Spark's own setting, filled in Spark: select b2c.app_deploy_set('https://spark.eduwit.in', '<B2C_INTERNAL_KEY from Vercel eduwit-spark>'). Eduwit One only reads it (PLAT-05).",
+      "validate": "plat05"
+    },
+    {
+      "id": "b2b_app",
+      "title": "B2B CRM host and a read API key (target: referrals-only)",
+      "who": "developer",
+      "stores": "settings.hosts.b2b_app + vault:one_b2b_read_key",
+      "unblocks": [
+        "HB b2b-app",
+        "Apps / B2B deep links"
+      ],
+      "how": "The B2B CRM host (Settings → Hosts → b2b_app) and a referrals-only API key from the B2B CRM's Settings → API keys, saved as one_b2b_read_key.",
+      "validate": "health:b2b_app"
+    },
+    {
+      "id": "website_health",
+      "title": "Website public health endpoint",
+      "who": "developer",
+      "stores": "settings.hosts.website",
+      "unblocks": [
+        "WEB-02",
+        "HB website"
+      ],
+      "how": "The website's address (Settings → Hosts → website). Its /api/health must answer.",
+      "validate": "health:website"
+    },
+    {
+      "id": "influencer_portal",
+      "title": "Influencer portal host and health endpoint",
+      "who": "developer",
+      "stores": "settings.hosts.influencer",
+      "unblocks": [
+        "INF-04",
+        "HB influencer"
+      ],
+      "how": "The influencer portal's address (Settings → Hosts → influencer). Its /api/health must answer.",
+      "validate": "health:influencer"
+    },
+    {
+      "id": "whatsapp",
+      "title": "WhatsApp system-user token and WABA ids",
+      "who": "developer",
+      "stores": "vault:one_whatsapp_token + settings.whatsapp.waba_ids",
+      "unblocks": [
+        "B2C-06 (template and quality parts)",
+        "HB whatsapp:witty",
+        "HB whatsapp:b2c"
+      ],
+      "how": "Meta Business → System users → generate a token with whatsapp_business_management, saved as one_whatsapp_token; the WABA ids go in Settings → WhatsApp.",
+      "validate": "whatsapp"
+    },
+    {
+      "id": "meta",
+      "title": "Meta ad-account read token",
+      "who": "developer",
+      "stores": "vault:one_meta_token",
+      "unblocks": [
+        "HB meta",
+        "Marketing spend tiles"
+      ],
+      "how": "A Meta ad-account read token, saved as one_meta_token, for the spend tiles on the Marketing page.",
+      "validate": null
+    },
+    {
+      "id": "email",
+      "title": "Email provider for alerts (Resend)",
+      "who": "developer",
+      "stores": "vault:one_email_key",
+      "unblocks": [
+        "alert delivery",
+        "T-ALERT"
+      ],
+      "how": "Resend → API keys → Create (sending access, domain eduwit.in), saved as one_email_key. Validate sends a test email to the P1 inbox.",
+      "validate": "email"
+    },
+    {
+      "id": "uptimerobot",
+      "title": "UptimeRobot read-only API key (external watchdog)",
+      "who": "developer",
+      "stores": "vault:one_uptimerobot_key",
+      "unblocks": [
+        "watchdog for one:tick and one:app",
+        "HB from external monitors"
+      ],
+      "how": "UptimeRobot → Integrations & API → Main API key (read-only is enough), saved as one_uptimerobot_key.",
+      "validate": "uptimerobot"
+    },
+    {
+      "id": "ai_key",
+      "title": "Anthropic API key for the AI layer (Claude only)",
+      "who": "owner",
+      "stores": "vault:one_anthropic_key",
+      "unblocks": [
+        "classify",
+        "triage",
+        "explain",
+        "propose_fix",
+        "propose_feature",
+        "brief",
+        "ask",
+        "test_author"
+      ],
+      "how": "An Anthropic API key from the Claude Console (console.anthropic.com → API keys), saved here as one_anthropic_key. Claude only (owner, 24 Oct). The model and price of each tier are in Settings → AI; a model without a price is never called. Validate checks every tier's model, and the refusal fallback, with a free model lookup.",
+      "validate": "ai"
+    },
+    {
+      "id": "sentry",
+      "title": "Sentry",
+      "who": "owner",
+      "stores": "none",
+      "unblocks": [],
+      "how": "Not used: monitoring is UptimeRobot (owner, 23 Oct).",
+      "validate": null
+    },
+    {
+      "id": "alerts_p1_inbox",
+      "title": "P1 email inbox",
+      "who": "owner",
+      "stores": "settings.alerts.p1.email",
+      "unblocks": [
+        "P1 delivery"
+      ],
+      "how": "Where P1 alerts go. Settings → Alerts → P1 email (owner only). Validate sends a test email.",
+      "validate": "email"
+    },
+    {
+      "id": "alerts_second_contact",
+      "title": "Second P1 contact (60 min unacknowledged)",
+      "who": "owner",
+      "stores": "settings.alerts.escalation.second_contact",
+      "unblocks": [
+        "second-level escalation"
+      ],
+      "how": "Who gets the 60-minute escalation. Settings → Alerts → second contact (owner only).",
+      "validate": null
+    },
+    {
+      "id": "developer_contact",
+      "title": "Developer email and GitHub handle",
+      "who": "owner",
+      "stores": "settings.alerts.developer_email",
+      "unblocks": [
+        "developer-tagged alerts",
+        "GitHub issues"
+      ],
+      "how": "Who gets developer-tagged alerts (failing function, migration drift, privilege audit, Vercel build). Settings → Alerts → developer email.",
+      "validate": null
+    },
+    {
+      "id": "test_whatsapp_number",
+      "title": "Real test WhatsApp number in w2_trusted (is_test), with its own sender",
+      "who": "developer",
+      "stores": "settings.test_identities.whatsapp_number + settings.test_identities.whatsapp_phone_number_id + settings.test_identities.witty_number + vault:one_test_wa_token",
+      "unblocks": [
+        "T-WITTY-TURN"
+      ],
+      "how": "Add the test number to w2_trusted with is_test = true (Witty's admin). Register it on a WhatsApp Business account Eduwit One may send from: Settings → test_identities: whatsapp_number (digits), whatsapp_phone_number_id (the sender's Graph id), witty_number (Witty's number, digits); paste the sender's token here. WhatsApp lets a business number send free text only within 24 hours of the other side's last message: Witty's replies keep that window open while T-WITTY-TURN runs; after a longer pause, send one message to the test number from Witty's side, or the send step fails.",
+      "validate": "test_whatsapp"
+    },
+    {
+      "id": "test_mailbox",
+      "title": "Test mailbox that receives website codes and alert tests",
+      "who": "developer",
+      "stores": "settings.test_identities.mailbox + vault:one_test_mailbox_key",
+      "unblocks": [
+        "T-WEB-ENQUIRY",
+        "T-ALERT"
+      ],
+      "how": "A mailbox the tests can read, for enquiry and alert journeys. Settings → Test identities, key as one_test_mailbox_key.",
+      "validate": null
+    },
+    {
+      "id": "test_preview_url",
+      "title": "Website preview URL with Turnstile test keys",
+      "who": "developer",
+      "stores": "settings.test_identities.website_preview_url",
+      "unblocks": [
+        "T-WEB-ENQUIRY",
+        "T-WEB-ADVISOR"
+      ],
+      "how": "A website preview deployment the tests may submit forms to. Settings → Test identities.",
+      "validate": null
+    },
+    {
+      "id": "test_spark_user",
+      "title": "Spark user marked is_test_user (the test runner login can be it)",
+      "who": "developer",
+      "stores": "settings.test_identities.spark_test_user_email",
+      "unblocks": [
+        "T-HANDOFF",
+        "T-B2C-NURTURE"
+      ],
+      "how": "The test runner login (test_runner_user) covers this when it is a Spark admin with is_test_user; Spark gives test leads only to test users or admins.",
+      "validate": null
+    },
+    {
+      "id": "test_b2b_intake_key",
+      "title": "B2B API key scoped to intake for test leads",
+      "who": "developer",
+      "stores": "vault:one_b2b_intake_key",
+      "unblocks": [
+        "T-B2B-INTAKE",
+        "T-B2B-PUSH",
+        "T-HANDOFF"
+      ],
+      "how": "A B2B CRM intake-only API key for test leads, saved as one_b2b_intake_key.",
+      "validate": "b2b_intake"
+    },
+    {
+      "id": "test_partner",
+      "title": "Test partner with a sandbox endpoint and an inbound secret",
+      "who": "developer",
+      "stores": "settings.test_identities.partner_slug + vault:one_test_partner_secret",
+      "unblocks": [
+        "T-B2B-PUSH"
+      ],
+      "how": "In the B2B CRM add a partner used only for tests, with test_endpoint set to a sandbox you control (https) and an inbound secret; it must be the only partner with a test_endpoint, or the push test refuses to run. Settings → test_identities.partner_slug; paste the inbound secret here.",
+      "validate": "test_partner"
+    },
+    {
+      "id": "test_creator",
+      "title": "Test creator with a known referral code",
+      "who": "developer",
+      "stores": "settings.test_identities.creator_referral_code",
+      "unblocks": [
+        "T-INFLUENCER"
+      ],
+      "how": "An influencer-portal creator marked as a test creator, with a referral code. Settings → Test identities.",
+      "validate": null
+    },
+    {
+      "id": "test_rows_agreement",
+      "title": "Owner agreement to create and purge test rows in production",
+      "who": "owner",
+      "stores": "docs/DECISIONS.md",
+      "unblocks": [
+        "all synthetic tests"
+      ],
+      "how": "Agreed on 23 Oct: test rows may be created in production under the is_test conventions and purged nightly.",
+      "validate": null
+    },
+    {
+      "id": "brand_assets",
+      "title": "Eduwit logo and colour palette",
+      "who": "owner",
+      "stores": "web/public/brand",
+      "unblocks": [
+        "UI theme",
+        "alert email wordmark"
+      ],
+      "how": "The Eduwit logo and palette. An SVG wordmark would replace the PNGs (question Q6).",
+      "validate": null
+    },
+    {
+      "id": "supabase_api_schema",
+      "title": "Expose schema one in the Supabase API (Project settings → Data API → Exposed schemas: add one)",
+      "who": "owner",
+      "stores": "supabase project setting",
+      "unblocks": [
+        "the app's reads and writes",
+        "HTTP probes",
+        "/api/watchdog"
+      ],
+      "how": "Supabase → Project settings → Data API → Exposed schemas: add one, save. The app and this page read through it.",
+      "validate": "api_schema"
+    },
+    {
+      "id": "one_app_env",
+      "title": "Eduwit One app environment: ONE_SUPABASE_URL, ONE_SUPABASE_ANON_KEY, ONE_SUPABASE_SERVICE_KEY and ONE_INTERNAL_KEY in Vercel; the same key as Vault one_internal_key; one.settings.app.base_url; the sign-in redirect URL",
+      "who": "developer",
+      "stores": "vercel env + vault:one_internal_key + one.settings.app",
+      "unblocks": [
+        "HB one:app",
+        "HTTP probes (WEB-02, WEB-07, INF-04, WITTY-05)",
+        "PLAT-05 (one part)"
+      ],
+      "how": "Vercel project eduwit-one, Production env: ONE_SUPABASE_URL, ONE_SUPABASE_ANON_KEY, ONE_SUPABASE_SERVICE_KEY, ONE_INTERNAL_KEY (the same value as Vault one_internal_key). Then Settings → App → base_url = https://one.eduwit.in, and in Supabase → Authentication → URL configuration add https://one.eduwit.in/auth/callback.",
+      "validate": "app_link"
+    },
+    {
+      "id": "watchdog_monitor",
+      "title": "UptimeRobot keyword monitor on https://one.eduwit.in/api/watchdog with an active alert contact (docs/RUNBOOK.md)",
+      "who": "owner",
+      "stores": "uptimerobot",
+      "unblocks": [
+        "notice when Supabase, pg_cron or Vercel is down"
+      ],
+      "how": "UptimeRobot keyword monitor on https://one.eduwit.in/api/watchdog for \"ok\":true, every 5 minutes, alert contact active (docs/RUNBOOK.md).",
+      "validate": "watchdog"
+    },
+    {
+      "id": "test_runner_user",
+      "title": "Test runner login: a B2B admin with two-factor and a Spark admin, used only by the synthetic tests",
+      "who": "owner",
+      "stores": "settings.test_identities.runner_email + vault:one_test_runner_password + vault:one_test_runner_totp",
+      "unblocks": [
+        "T-B2B-INTAKE",
+        "T-B2B-PUSH",
+        "T-HANDOFF",
+        "T-B2C-NURTURE",
+        "the purge of B2B and Spark test leads"
+      ],
+      "how": "Create a Supabase user for the tests (for example tests@eduwit.in, agreed with the CRM owner, S-21). In the B2B CRM make it an admin with two-factor required and enrol a TOTP factor; in Spark make it an admin with is_test_user. Settings → test_identities.runner_email; paste its password and the TOTP secret (base32) here. Eduwit One signs in as it, with the one-time code, only to route, log and delete test leads (D-070).",
+      "validate": "test_runner"
+    },
+    {
+      "id": "test_spark_journey",
+      "title": "A Spark journey in test mode for the nurture test",
+      "who": "owner",
+      "stores": "settings.test_identities.spark_test_journey_id",
+      "unblocks": [
+        "T-B2C-NURTURE"
+      ],
+      "how": "In Spark, create a journey in test mode whose first step queues a WhatsApp message; Settings → test_identities.spark_test_journey_id.",
+      "validate": "spark_journey"
+    },
+    {
+      "id": "catalogue_engine",
+      "title": "Eduwit Scout installed in this database (schema ce)",
+      "who": "developer",
+      "stores": "none (reads schema ce of the shared database)",
+      "unblocks": [
+        "CE-01",
+        "CE-02",
+        "CE-03",
+        "CE-04",
+        "CE-05",
+        "events from ce.events"
+      ],
+      "how": "Nothing to paste. Once Eduwit Scout's migrations are applied to this database (production: after 1 Nov 2026, from the engine's own repository), press Validate: it checks that ce.heartbeat, ce.job, ce.health, ce.run and ce.events exist with the columns Eduwit One reads and that the database owner can read them, then switches on CE-01 to CE-05. The event copy from ce.events starts by itself as soon as the table exists.",
+      "validate": "engine_schema"
+    }
+  ]
+}

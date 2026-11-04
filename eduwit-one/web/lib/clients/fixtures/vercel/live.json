@@ -1,0 +1,24 @@
+{
+  "meta": {
+    "recorded": true,
+    "recorded_at": "2026-10-23T20:26:20.195Z",
+    "by": "scripts/record-fixtures.ts"
+  },
+  "data": {
+    "eduwit-website": {
+      "deployments": [
+        {
+          "uid": "dpl_3ZceAAVy2evgrXxfBqeWHPVb2Pdr",
+          "state": "READY",
+          "readyState": "READY",
+          "created": 1792656552653,
+          "url": "eduwit-website-pe9n3jm8q-eduwit.vercel.app"
+        }
+      ]
+    },
+    "eduwit-one": {
+      "deployments": [],
+      "note": "not readable: status 404"
+    }
+  }
+}

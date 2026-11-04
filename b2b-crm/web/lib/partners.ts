@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NOT_PUBLIC, outboundUrlProblem } from "./url-safety";
 import { isCrmAdapter } from "@/lib/adapters";
 import type { EffortDetail, Stage } from "@/lib/segments";
 
@@ -285,6 +286,8 @@ export function hasCriteria(c: LeadCriteria | null | undefined): boolean {
 // ---------- form ----------
 
 const https = z.string().trim().max(500).refine((v) => v === "" || /^https:\/\/[^\s/$.?#].[^\s]*$/i.test(v), "Must start with https://");
+/** M34e: an address the database pushes to: https on the public internet (b2b.url_allowed). */
+const publicHttps = https.refine((v) => v === "" || outboundUrlProblem(v) === null, NOT_PUBLIC);
 const optInt = (max: number) =>
   z.string().trim().refine((v) => v === "" || (/^\d+$/.test(v) && Number(v) <= max), `Whole number up to ${max}`)
     .transform((v) => (v === "" ? null : Number(v)));
@@ -310,8 +313,8 @@ const Base = z.object({
   logo_url: https,
   brand_color: z.string().trim().refine((v) => v === "" || /^#[0-9a-f]{6}$/i.test(v), "A colour like #0B2F5E"),
   adapter_type: z.enum(ADAPTERS),
-  api_base_url: https,
-  test_endpoint: https,
+  api_base_url: publicHttps,
+  test_endpoint: publicHttps,
   dedupe_mode: z.enum(DEDUPE_MODES),
   /** Shown only for a partner on Eduwit's API contract or a webhook that reports duplicates at once; CRM adapters confirm in the Connection tab. */
   dedupe_confirmed: z.string().optional().transform((v) => v === "on"),

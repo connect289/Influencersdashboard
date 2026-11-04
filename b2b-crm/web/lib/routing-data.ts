@@ -223,7 +223,7 @@ async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
 export const routingOverview = () => rpc<RoutingOverview>("routing_overview");
 export const routingDecision = (id: number) => rpc<StoredDecision | null>("routing_decision", { p_id: id });
 export const leadRouting = (id: number) => rpc<LeadRouting | null>("lead_routing", { p_lead_id: id });
-/** Whether an open partner allocation may be recalled (b2b.reroute_check; callable by every signed-in user, reads only). */
+/** Whether an open partner allocation may be recalled (b2b.reroute_check; Admin only since m34a, reads only). */
 export const rerouteCheck = (allocationId: number) => rpc<RerouteCheck>("reroute_check", { p_allocation_id: allocationId });
 
 export type NotPassedSummary = { by_reason: Record<string, number>; by_source: Record<string, number>; mismatch_courses: { course: string; n: number }[] };

@@ -1,4 +1,5 @@
 import "server-only";
+import { fetchChecked, hostList, hostOf, urlProblem, type FetchRules } from "@/lib/safe-fetch";
 import { adminClient } from "@/lib/supabase/admin";
 import { waConfig } from "@/lib/whatsapp";
 
@@ -46,18 +47,27 @@ export async function submitTemplate(t: TemplateRow): Promise<{ ok: boolean; err
   return { ok: true };
 }
 
+/** Where a header sample may be downloaded from: Eduwit's domains, this site, Spark's storage, and MEDIA_FETCH_HOSTS. */
+export function sampleRules(env: Record<string, string | undefined> = process.env): FetchRules {
+  const own = [hostOf(env.NEXT_PUBLIC_SITE_URL), hostOf(env.NEXT_PUBLIC_SUPABASE_URL)].filter((h): h is string => !!h);
+  return { hosts: [".eduwit.in", ...own, ...hostList(env.MEDIA_FETCH_HOSTS)], maxBytes: 16 * 1024 * 1024, timeoutMs: 20_000, maxRedirects: 3 };
+}
+
 /**
- * Meta reviews a media header from an uploaded sample: the sample link is fetched and sent through the Resumable Upload
- * API (needs WHATSAPP_APP_ID), which answers with the handle the template refers to.
+ * Meta reviews a media header from an uploaded sample: the sample link is fetched (allowed hosts only, see sampleRules)
+ * and sent through the Resumable Upload API (needs WHATSAPP_APP_ID), which answers with the handle the template refers to.
  */
-async function uploadHeaderSample(url: string, token: string, apiVersion = "v21.0"): Promise<{ ok: true; handle: string } | { ok: false; error: string }> {
+export async function uploadHeaderSample(url: string, token: string, apiVersion = "v21.0", fetcher: typeof fetchChecked = fetchChecked): Promise<{ ok: true; handle: string } | { ok: false; error: string }> {
   const app = process.env.WHATSAPP_APP_ID;
   if (!app) return { ok: false, error: "A media header needs WHATSAPP_APP_ID on the server, to upload the sample to Meta." };
+  const rules = sampleRules();
+  const problem = urlProblem(url, rules.hosts);
+  if (problem) return { ok: false, error: `The sample link cannot be used (${problem}). Put the file on eduwit.in or in Spark's storage, or have the developer add its host to MEDIA_FETCH_HOSTS.` };
   try {
-    const file = await fetch(url, { signal: AbortSignal.timeout(20_000) });
-    if (!file.ok) return { ok: false, error: `The sample link answered ${file.status}.` };
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const type = (file.headers.get("content-type") ?? "application/octet-stream").split(";")[0]!;
+    const file = await fetcher(url, rules);
+    if (file.status < 200 || file.status >= 300) return { ok: false, error: `The sample link answered ${file.status}.` };
+    const bytes = new Uint8Array(file.body);
+    const type = (file.contentType ?? "application/octet-stream").split(";")[0]!;
     const start = await fetch(`https://graph.facebook.com/${apiVersion}/${app}/uploads?file_length=${bytes.length}&file_type=${encodeURIComponent(type)}`, {
       method: "POST", headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000),
     });

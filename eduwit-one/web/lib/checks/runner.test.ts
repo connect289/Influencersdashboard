@@ -1,0 +1,210 @@
+import { describe, expect, it } from "vitest";
+import { mockClients } from "@/lib/clients/index.ts";
+import { MockN8nClient } from "@/lib/clients/n8n.ts";
+import type { Clients } from "@/lib/clients/types.ts";
+import { alertSettingsSchema, readSettings, settingsSchema } from "@/lib/state.ts";
+import { FakeDb, tickState } from "@/test/state.ts";
+import { runTick } from "./runner.ts";
+import type { Probe } from "./types.ts";
+
+const run = (db: FakeDb, clients: Clients = mockClients(), extra: Partial<Parameters<typeof runTick>[0]> = {}) =>
+  runTick({ db, clients: () => clients, requestId: "test", ...extra });
+
+const heartbeat = (db: FakeDb, component: string) => db.reports[0]?.heartbeats.find((h) => h.component === component);
+const result = (db: FakeDb, id: string) => db.reports[0]?.results.find((r) => r.check_id === id);
+
+describe("one tick against the recorded fixtures", () => {
+  it("writes one:app, the app health heartbeats and their checks in one report", async () => {
+    const db = new FakeDb(tickState());
+    const summary = await run(db);
+    expect(db.reports).toHaveLength(1);
+    expect(heartbeat(db, "one:app")?.ok).toBe(true);
+    for (const c of ["website", "influencer", "b2b-app", "spark"]) expect(heartbeat(db, c)?.ok, c).toBe(true);
+    expect(result(db, "WEB-02")?.status).toBe("ok");
+    expect(result(db, "INF-04")?.status).toBe("ok");
+    expect(result(db, "B2C-11")?.status).toBe("ok");
+    expect(heartbeat(db, "spark")?.detail).toMatchObject({ path: "/api/health" });
+    expect(summary.probes["app-health"]?.status).toBe("ran");
+  });
+
+  it("fails B2C-11 when Spark's health says it cannot work, and keeps only the names of the parts a body reports (D-134)", async () => {
+    const db = new FakeDb(tickState());
+    const clients = mockClients();
+    clients.appHealth = {
+      mode: "mock",
+      client: {
+        health: async (url: string) =>
+          url.includes("spark")
+            ? { ok: false, status: 503, ms: 30 }
+            : { ok: true, status: 200, ms: 20, summary: { status: "degraded", failing: ["sending"] } },
+        answers: async () => ({ answered: true, status: 200, method: "HEAD", ms: 5 }),
+      },
+    };
+    await run(db, clients);
+    expect(result(db, "B2C-11")).toMatchObject({ status: "fail", value: { status: 503, path: "/api/health" } });
+    expect(heartbeat(db, "spark")).toMatchObject({ ok: false, error: "health 503", expected_interval_s: 300 });
+    expect(heartbeat(db, "website")?.detail).toMatchObject({ health: "degraded", failing: ["sending"] });
+  });
+
+  it("reports the website's Vercel deployment ready and Eduwit One's project as missing", async () => {
+    const db = new FakeDb(tickState());
+    await run(db);
+    expect(heartbeat(db, "vercel:website")?.ok).toBe(true);
+    expect(result(db, "WEB-07")?.status).toBe("ok");
+    expect(heartbeat(db, "vercel:one")).toMatchObject({ ok: false, error: "deployment missing" });
+  });
+
+  it("gives WITTY-03 its Chatwoot reading and checks escalated conversations' labels", async () => {
+    const db = new FakeDb(tickState());
+    db.escalations = [{ conversation_id: 77, account_id: 1, escalated_at: new Date().toISOString() }];
+    await run(db);
+    expect(heartbeat(db, "chatwoot")?.detail).toMatchObject({ incoming_recent: expect.any(Number), window_h: 3 });
+    expect(result(db, "WITTY-05")).toMatchObject({ status: "fail", value: { missing_label: [77], subjects: ["77"] } });
+  });
+
+  it("does not run disabled checks or probe a component read moments ago", async () => {
+    const fresh = new Date(Date.now() - 30_000).toISOString();
+    const db = new FakeDb(
+      tickState({
+        heartbeats: [{ component: "website", last_ok_at: fresh, last_error_at: null, expected_interval_s: 60 }],
+        checks: [{ id: "WEB-02", enabled: true, disabled_reason: null, cadence_s: 60, last_ran_at: fresh }],
+      }),
+    );
+    await run(db);
+    expect(heartbeat(db, "website")).toBeUndefined();
+    expect(result(db, "WEB-02")).toBeUndefined();
+    expect(result(db, "WITTY-02")).toBeUndefined();
+  });
+});
+
+describe("missing configuration and failures", () => {
+  it("names what a client lacks in a failing heartbeat, never a good one, and runs none of its checks (D-049, D-108)", async () => {
+    const db = new FakeDb(tickState());
+    const missing = "one_vercel_token (in neither Vault nor the environment)";
+    const clients = {
+      ...mockClients(),
+      vercel: { mode: "not_configured" as const, client: null, missing },
+      n8n: { mode: "not_configured" as const, client: null },
+    };
+    const summary = await run(db, clients);
+    for (const c of ["vercel:website", "vercel:one"]) {
+      expect(heartbeat(db, c), c).toMatchObject({ ok: false, error: `not configured: ${missing}` });
+    }
+    expect(heartbeat(db, "n8n:instance")).toMatchObject({ ok: false, error: "not configured: the n8n client" });
+    expect(db.reports[0]?.heartbeats.filter((h) => /^(vercel|n8n):/.test(h.component) && h.ok)).toEqual([]);
+    expect(result(db, "WEB-07")).toBeUndefined();
+    expect(result(db, "WITTY-02")).toBeUndefined();
+    expect(summary.probes.vercel?.status).toBe("not_configured");
+    expect(summary.probes.n8n?.status).toBe("not_configured");
+  });
+
+  it("says once per interval that a client is not configured, like any reading", async () => {
+    const fresh = new Date(Date.now() - 30_000).toISOString();
+    const db = new FakeDb(
+      tickState({
+        heartbeats: [{ component: "vercel:website", last_ok_at: null, last_error_at: fresh, expected_interval_s: 600 }],
+      }),
+    );
+    await run(db, { ...mockClients(), vercel: { mode: "not_configured" as const, client: null, missing: "x" } });
+    expect(heartbeat(db, "vercel:website")).toBeUndefined();
+    expect(heartbeat(db, "vercel:one")).toMatchObject({ ok: false, error: "not configured: x" });
+  });
+
+  it("says a Vercel target without a project instead of skipping it silently (D-108)", async () => {
+    const s = tickState();
+    const vercel = s.settings.vercel as { team: string; projects: Record<string, string> };
+    const db = new FakeDb({
+      ...s,
+      settings: { ...s.settings, vercel: { ...vercel, projects: { website: vercel.projects.website ?? "" } } },
+    });
+    await run(db);
+    expect(heartbeat(db, "vercel:website")?.ok).toBe(true);
+    expect(heartbeat(db, "vercel:one")).toMatchObject({
+      ok: false,
+      error: "not configured: Settings → Vercel names no project for one (vercel.projects.one)",
+    });
+  });
+
+  it("marks a website that stops answering as a failed heartbeat, which HB-website turns into an incident at 3 × 300 s (D-133)", async () => {
+    const db = new FakeDb(tickState());
+    const clients = mockClients();
+    clients.appHealth = {
+      mode: "mock",
+      client: {
+        health: async () => ({ ok: false, status: 503, ms: 40 }),
+        answers: async () => ({ answered: false, status: 503, method: "GET", ms: 40 }),
+      },
+    };
+    await run(db, clients);
+    expect(heartbeat(db, "website")).toMatchObject({ ok: false, error: "health 503", expected_interval_s: 300 });
+    expect(result(db, "WEB-02")?.status).toBe("fail");
+  });
+
+  it("stops a hung probe at its deadline and still writes the rest", async () => {
+    const db = new FakeDb(tickState());
+    const hung: Probe = { name: "hung", run: () => new Promise(() => undefined) };
+    const summary = await run(db, mockClients(), { probes: [hung], probeDeadlineMs: 50 });
+    expect(summary.probes.hung).toMatchObject({ status: "error", error: "deadline" });
+    expect(heartbeat(db, "one:app")?.ok).toBe(true);
+  });
+
+  it("judges WITTY-02 from the workflow's flag, its latest start and recent errors", async () => {
+    const now = new Date();
+    const ago = (m: number) => new Date(now.getTime() - m * 60_000).toISOString();
+    const state = tickState();
+    state.checks = state.checks.map((c) => (c.id === "WITTY-02" ? { ...c, enabled: true, disabled_reason: null } : c));
+    const n8n = new MockN8nClient({
+      workflows: { default: { id: "x", name: "Witty", active: true } },
+      executions: {
+        default: {
+          data: [
+            { id: "9", status: "success", startedAt: ago(1), stoppedAt: ago(1) },
+            { id: "8", status: "error", startedAt: ago(10), stoppedAt: ago(10) },
+          ],
+        },
+      },
+    });
+    const db = new FakeDb(state);
+    await run(db, { ...mockClients(), n8n: { mode: "mock", client: n8n } }, { now });
+    expect(result(db, "WITTY-02")).toMatchObject({ status: "fail", value: { active: true, failed_15m: ["8"] } });
+    expect(heartbeat(db, `n8n:${settingsSchema.parse(state.settings).n8n.witty_workflow_id}`)?.ok).toBe(true);
+  });
+});
+
+describe("a bad settings key stops one probe, not the tick (F6)", () => {
+  const section = (state: ReturnType<typeof tickState>, key: string) =>
+    ({ ...(state.settings[key] as Record<string, unknown>) }) as Record<string, unknown>;
+
+  it("gives the n8n probe an error result naming witty.expect_nurture while the other probes run", async () => {
+    const state = tickState();
+    state.settings = { ...state.settings, witty: { ...section(state, "witty"), expect_nurture: "yes" } };
+    state.checks = state.checks.map((c) => (c.id === "WITTY-08" ? { ...c, enabled: true, disabled_reason: null } : c));
+    const db = new FakeDb(state);
+    const summary = await run(db);
+    const naming = expect.stringContaining("witty.expect_nurture");
+    expect(summary.probes.n8n).toMatchObject({ status: "error", error: naming });
+    expect(result(db, "WITTY-08")).toMatchObject({ status: "error", value: {}, error: naming });
+    expect(result(db, "WITTY-02")).toBeUndefined();
+    expect(summary.probes["app-health"]?.status).toBe("ran");
+    expect(result(db, "WEB-02")?.status).toBe("ok");
+    expect(heartbeat(db, "website")?.ok).toBe(true);
+    expect(heartbeat(db, "one:app")?.ok).toBe(true);
+  });
+
+  it("a hosts value without one stops only what reads hosts.one: the probes still run, the alert step names it", async () => {
+    const state = tickState();
+    const hosts = section(state, "hosts");
+    delete hosts.one;
+    state.settings = { ...state.settings, hosts };
+    const db = new FakeDb(state);
+    const summary = await run(db);
+    expect(summary.probes["app-health"]?.status).toBe("ran");
+    expect(result(db, "WEB-02")?.status).toBe("ok");
+    expect(Object.values(summary.probes).every((p) => p.status !== "error")).toBe(true);
+    expect(readSettings(alertSettingsSchema, state.settings)).toEqual({
+      ok: false,
+      error: expect.stringContaining("hosts.one"),
+    });
+    expect(readSettings(settingsSchema, state.settings).ok).toBe(false);
+  });
+});

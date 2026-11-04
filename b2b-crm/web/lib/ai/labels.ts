@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NOT_PUBLIC, outboundUrlProblem } from "@/lib/url-safety";
 import { EFFORT_METRIC_LABEL, EFFORT_METRICS, EFFORT_RANGE, reqNum, SLA_RANGE, WEIGHT_RANGE, type EffortMetricKey, type EffortWeights } from "../segments";
 
 /**
@@ -85,6 +86,8 @@ export type AiSettings = {
   autopilot?: { min_gain_pct: number; max_per_day: number; min_decisions?: number; min_support?: number };
   models: { regular: string; deep: string; quick: string }; daily_budget_usd: number;
   schedules: { light: boolean; hourly: boolean; nightly: boolean; weekly: boolean }; worker_url: string | null; max_turns?: number;
+  /** M34f: the worker key is saved in Vault (the value itself is never returned) */
+  worker_key_set?: boolean;
   /** US$ per million tokens, by model name (every model in use needs one). */
   prices_per_mtok?: Record<string, { in: number; out: number; cache_read?: number; cache_write?: number }>;
 };
@@ -371,7 +374,10 @@ export const AiSettingsSchema = z.object({
   min_gain_pct: reqNum("1 to 50%").pipe(z.number().min(1, "1 to 50%").max(50, "1 to 50%")).default(3),
   max_per_day: reqNum("1 to 10").pipe(z.number().int("1 to 10").min(1, "1 to 10").max(10, "1 to 10")).default(3),
   daily_budget_usd: reqNum("$0 to $200").pipe(z.number().min(0, "$0 to $200").max(200, "$0 to $200")),
-  worker_url: z.string().trim().max(300).refine((v) => v === "" || /^https:\/\/[^\s/]+(\/\S*)?$/.test(v), "Starts with https://"),
+  worker_url: z.string().trim().max(300).refine((v) => v === "" || /^https:\/\/[^\s/]+(\/\S*)?$/.test(v), "Starts with https://")
+    .refine((v) => v === "" || outboundUrlProblem(v) === null, NOT_PUBLIC),   // M34e: b2b.url_allowed
+  /** M34f: the server's AI_WORKER_KEY, which the database sends when it wakes the worker; blank keeps the saved one. */
+  worker_key: z.string().trim().max(200).refine((v) => v === "" || /^\S{20,200}$/.test(v), "Paste the whole key (AI_WORKER_KEY)").optional().default(""),
   model_regular: z.string().trim().regex(/^claude-[a-z0-9.-]{3,60}$/, "A claude-… model name"),
   model_deep: z.string().trim().regex(/^claude-[a-z0-9.-]{3,60}$/, "A claude-… model name"),
   model_quick: z.string().trim().regex(/^claude-[a-z0-9.-]{3,60}$/, "A claude-… model name"),
@@ -409,6 +415,7 @@ export function aiSettingsPayload(d: z.infer<typeof AiSettingsSchema>) {
   }
   return {
     enabled: d.enabled, mode: d.mode, daily_budget_usd: d.daily_budget_usd, worker_url: d.worker_url,
+    ...(d.worker_key ? { worker_key: d.worker_key } : {}),
     autopilot: { min_gain_pct: d.min_gain_pct, max_per_day: d.max_per_day },
     models: { regular: d.model_regular, deep: d.model_deep, quick: d.model_quick },
     schedules: { light: d.light, hourly: d.hourly, nightly: d.nightly, weekly: d.weekly },
@@ -434,6 +441,7 @@ export function setupSteps(o: Pick<AiOverview, "settings" | "worker" | "worker_k
     { label: "An API key with the AI optimiser worker scope (System → API keys), set as AI_WORKER_KEY on the server", done: o.worker_key && !!o.worker?.seen_at },
     { label: "ANTHROPIC_API_KEY set on the server (Vercel project settings)", done: !!o.worker?.has_anthropic_key },
     { label: "The worker address (the CRM's https:// address) in AI settings", done: !!o.settings.worker_url },
+    { label: "The same AI_WORKER_KEY saved as the worker key in AI settings, so the database can wake the worker", done: !!o.settings.worker_key_set },
     { label: "The optimiser switched on", done: o.settings.enabled },
   ];
 }

@@ -1,0 +1,473 @@
+{
+  "$comment": "The synthetic test catalogue (spec §10). scripts/db/gen-tests.ts turns it into migration 0015 and docs/TESTS.md. Schedules live in config/settings.json tests.schedules. needs: Setup items that must all be validated before the test runs. The journeys are in web/lib/tests/journeys; a unit test keeps their step keys equal to these.",
+  "tests": [
+    {
+      "id": "T-WITTY-TURN",
+      "app": "witty",
+      "title": "Witty answers a WhatsApp message",
+      "seam": "WhatsApp → Chatwoot → n8n → Gemini → reply",
+      "description": "A scripted message from the real test number, sent through WhatsApp from its own sender, reaches Witty through Chatwoot and n8n, and Witty answers it.",
+      "severity": "P1",
+      "timeout_s": 600,
+      "needs": [
+        "test_rows_agreement",
+        "test_whatsapp_number",
+        "chatwoot"
+      ],
+      "steps": [
+        {
+          "key": "send",
+          "title": "Send a scripted message from the test number",
+          "timeout_s": 30
+        },
+        {
+          "key": "inbox",
+          "title": "A w2_inbox row appears",
+          "timeout_s": 30
+        },
+        {
+          "key": "reply",
+          "title": "Witty replies (counselor, rewrite or fixed)",
+          "timeout_s": 20
+        },
+        {
+          "key": "verified",
+          "title": "The reply has no verify_errors",
+          "timeout_s": 5
+        },
+        {
+          "key": "chatwoot",
+          "title": "Chatwoot shows the outgoing message",
+          "timeout_s": 60
+        }
+      ],
+      "safety": "Sends only from the test number in settings.test_identities to Witty's own number: before each run WhatsApp must confirm that the sender is the test number and the recipient is Witty's number, and the test number must be in w2_trusted with is_test, so its lead is a test lead. Witty answers it on WhatsApp, which is the point.",
+      "purge": "w2_test_reset refuses numbers outside the harness range, so the test number's Witty rows stay (it is a trusted test number); a lead Witty creates for it is is_test and stays (a single scripted turn rarely makes one)."
+    },
+    {
+      "id": "T-WITTY-QUALIFY",
+      "app": "witty",
+      "title": "Witty qualifies a test student to HOT and creates the lead",
+      "seam": "Witty → w2_outbox → lead_intake → student_leads",
+      "description": "Witty's own n8n test harness (workflow 1BGAINw5XDkSHb2q) plays the scenario in settings n8n.test_harness_scenario on harness phones; one is classified HOT, its outbox row is sent, and lead_intake creates a student_leads row marked is_test. The run switches the harness on, and off again after it, passed or failed, unless someone else had it on.",
+      "severity": "P1",
+      "timeout_s": 1800,
+      "needs": [
+        "test_rows_agreement",
+        "n8n_api"
+      ],
+      "steps": [
+        {
+          "key": "start",
+          "title": "Switch the harness on and start the scenario",
+          "timeout_s": 60
+        },
+        {
+          "key": "finished",
+          "title": "The harness run is recorded (w2_test_runs)",
+          "timeout_s": 1200
+        },
+        {
+          "key": "hot",
+          "title": "A harness phone is classified HOT",
+          "timeout_s": 60
+        },
+        {
+          "key": "outbox",
+          "title": "Its w2_outbox row is sent",
+          "timeout_s": 120
+        },
+        {
+          "key": "lead",
+          "title": "A student_leads row from the harness, with lead_status and is_test",
+          "timeout_s": 120
+        }
+      ],
+      "safety": "Harness phones are 910000… and never live: nothing is sent on WhatsApp. The harness is switched off after the run whatever happened, when the run switched it on (D-072).",
+      "purge": "Nothing of its own: Witty's harness resets its phones at the start of each run."
+    },
+    {
+      "id": "T-WEB-ENQUIRY",
+      "app": "web",
+      "title": "A website enquiry is verified by email and becomes a lead",
+      "seam": "website form → email code → verification → lead_intake",
+      "description": "The enquiry form on the preview deployment, with the test mailbox, sends a code; the test reads it from the mailbox and verifies it; the website hands the lead to lead_intake.",
+      "severity": "P1",
+      "timeout_s": 900,
+      "needs": [
+        "test_rows_agreement",
+        "test_mailbox",
+        "test_preview_url"
+      ],
+      "steps": [
+        {
+          "key": "post",
+          "title": "Post the enquiry on the preview URL with the test mailbox",
+          "timeout_s": 30
+        },
+        {
+          "key": "code_sent",
+          "title": "web_gate_attempts.code_sent_at is set",
+          "timeout_s": 60
+        },
+        {
+          "key": "fetch_code",
+          "title": "The code arrives in the test mailbox",
+          "timeout_s": 120
+        },
+        {
+          "key": "verify",
+          "title": "Verify the code",
+          "timeout_s": 30
+        },
+        {
+          "key": "verified",
+          "title": "verified_at and lead_id are set",
+          "timeout_s": 120
+        },
+        {
+          "key": "lead",
+          "title": "The lead has lead_source website_form and is_test",
+          "timeout_s": 60
+        }
+      ],
+      "safety": "The enquiry form posts through Next server actions behind Turnstile, which no outside runner can call reliably; off until the website offers a test endpoint (a builder proposal).",
+      "purge": "Nothing runs.",
+      "disabled": "blocked:website-test-endpoint"
+    },
+    {
+      "id": "T-WEB-CATALOG",
+      "app": "web",
+      "title": "A catalogue change reaches website search",
+      "seam": "catalogue → website search",
+      "description": "A change to a designated test programme is picked up by the website's catalogue poll and shows in web_search with the current fee.",
+      "severity": "P2",
+      "timeout_s": 600,
+      "needs": [
+        "test_rows_agreement"
+      ],
+      "disabled": "blocked:no-safe-catalogue-write",
+      "steps": [
+        {
+          "key": "bump",
+          "title": "Touch the designated test programme",
+          "timeout_s": 30
+        },
+        {
+          "key": "refreshed",
+          "title": "web_catalog_state.refreshed_at advances",
+          "timeout_s": 120
+        },
+        {
+          "key": "searchable",
+          "title": "The programme is found by web_search with its current fee",
+          "timeout_s": 180
+        }
+      ],
+      "safety": "Would write to the shared catalogue, which Eduwit One never alters (spec §2); off until the catalogue has its own test-programme function (a builder proposal).",
+      "purge": "Nothing is created."
+    },
+    {
+      "id": "T-WEB-ADVISOR",
+      "app": "web",
+      "title": "The web advisor answers a test student",
+      "seam": "website → web advisor",
+      "description": "A session for the test student on the preview deployment gets one answer within 8 s, and its cost is recorded.",
+      "severity": "P2",
+      "timeout_s": 300,
+      "needs": [
+        "test_rows_agreement",
+        "test_preview_url"
+      ],
+      "steps": [
+        {
+          "key": "open",
+          "title": "Open an advisor session for the test student",
+          "timeout_s": 30
+        },
+        {
+          "key": "reply",
+          "title": "One message is answered within 8 s",
+          "timeout_s": 8
+        },
+        {
+          "key": "recorded",
+          "title": "turns = 1 and cost_usd is recorded",
+          "timeout_s": 30
+        }
+      ],
+      "safety": "The advisor needs a verified student session from the gate; off until the website offers a test endpoint (a builder proposal).",
+      "purge": "Nothing runs.",
+      "disabled": "blocked:website-test-endpoint"
+    },
+    {
+      "id": "T-B2B-INTAKE",
+      "app": "b2b",
+      "title": "A lead posted to the B2B API is held as a test lead",
+      "seam": "API → lead_intake → routing",
+      "description": "A lead on a fresh harness phone posted through the B2B intake API is stored with is_test, B2B routes nothing for it (its rule for test leads), and B2B's own command centre leaves it out of its lead counts.",
+      "severity": "P1",
+      "timeout_s": 600,
+      "needs": [
+        "test_rows_agreement",
+        "test_b2b_intake_key",
+        "test_runner_user"
+      ],
+      "steps": [
+        {
+          "key": "post",
+          "title": "Post a test lead through the intake API",
+          "timeout_s": 30
+        },
+        {
+          "key": "lead",
+          "title": "The lead is stored with is_test",
+          "timeout_s": 60
+        },
+        {
+          "key": "held",
+          "title": "B2B routes nothing for it",
+          "timeout_s": 60
+        },
+        {
+          "key": "no_leak",
+          "title": "B2B's command centre does not count it",
+          "timeout_s": 60
+        }
+      ],
+      "safety": "The phone is a fresh 9100009… harness number (is_test in every app); the API's answer must say is_test or the run stops.",
+      "purge": "b2b.leads_soft_delete with reason test, as the test runner."
+    },
+    {
+      "id": "T-B2B-PUSH",
+      "app": "b2b",
+      "title": "A test lead is pushed to the test partner's sandbox and its event comes back",
+      "seam": "allocation → partner sandbox → partner event back",
+      "description": "The test runner routes a test lead to the partner sandbox with B2B's own route_test_lead; it is pushed to the test partner's test endpoint, and a signed contacted event for it is applied.",
+      "severity": "P1",
+      "timeout_s": 900,
+      "needs": [
+        "test_rows_agreement",
+        "test_b2b_intake_key",
+        "test_partner",
+        "test_runner_user"
+      ],
+      "steps": [
+        {
+          "key": "post",
+          "title": "Post a test lead through the intake API",
+          "timeout_s": 30
+        },
+        {
+          "key": "route",
+          "title": "Route it to the partner sandbox, as the test runner",
+          "timeout_s": 30
+        },
+        {
+          "key": "pushed",
+          "title": "Pushed to the test partner's sandbox endpoint (2xx)",
+          "timeout_s": 300
+        },
+        {
+          "key": "event",
+          "title": "Post a signed contacted event for it",
+          "timeout_s": 30
+        },
+        {
+          "key": "activity",
+          "title": "A partner_activities call and the lead's first contact are recorded",
+          "timeout_s": 120
+        }
+      ],
+      "safety": "Runs only while the test partner is the only partner with a test endpoint (a sandbox push goes to whichever partner wins); the allocation must be the test partner's and the push a sandbox push, or the run stops.",
+      "purge": "B2B allows only junk, spam or student request for a lead with a partner, so the lead, its allocation and its phone are kept until B2B accepts test for them (proposal p5-b2b-delete-sandbox-test-leads); the phone is not handed out again while it holds them."
+    },
+    {
+      "id": "T-HANDOFF",
+      "app": "b2b",
+      "title": "A lead falls to Spark and Spark's work comes back to B2B",
+      "seam": "B2B → Spark → B2B",
+      "description": "B2B's own test hand-off (route_test_lead b2c_test) sends a test lead to Spark; Spark holds it; the test runner logs a call on it in Spark; Spark's outbox writes the activity back and B2B records the write; Spark's analytics keep it out of the real hand-offs.",
+      "severity": "P1",
+      "timeout_s": 3600,
+      "needs": [
+        "test_rows_agreement",
+        "test_b2b_intake_key",
+        "test_runner_user"
+      ],
+      "steps": [
+        {
+          "key": "post",
+          "title": "Post a test lead through the intake API",
+          "timeout_s": 30
+        },
+        {
+          "key": "handoff",
+          "title": "Hand it to Spark with B2B's test hand-off",
+          "timeout_s": 30
+        },
+        {
+          "key": "delivered",
+          "title": "integration_outbox delivers it to Spark",
+          "timeout_s": 300
+        },
+        {
+          "key": "held",
+          "title": "Spark holds it (held_by_b2c, is_test)",
+          "timeout_s": 300
+        },
+        {
+          "key": "call",
+          "title": "Log a call on it in Spark, as the test runner",
+          "timeout_s": 60
+        },
+        {
+          "key": "writeback",
+          "title": "Spark's outbox applies it and B2B records the write (2xx)",
+          "timeout_s": 1800
+        },
+        {
+          "key": "no_leak",
+          "title": "Spark's analytics keep it out of real hand-offs",
+          "timeout_s": 1800
+        }
+      ],
+      "safety": "Only a test lead on a fresh harness phone, handed off by B2B's own test path; Spark gives test leads only to test users or admins.",
+      "purge": "Spark's b2c.lead_delete with reason test, then B2B's soft delete with reason test, both as the test runner."
+    },
+    {
+      "id": "T-B2C-NURTURE",
+      "app": "b2c",
+      "title": "A Spark journey sends only to the test number",
+      "seam": "Spark journeys",
+      "description": "A test lead handed to Spark is run through the test journey with Spark's journey_test; the run advances a step and queues a send for the lead's own test phone, which Spark keeps as a dry run.",
+      "severity": "P2",
+      "timeout_s": 3600,
+      "needs": [
+        "test_rows_agreement",
+        "test_b2b_intake_key",
+        "test_runner_user",
+        "test_spark_journey"
+      ],
+      "steps": [
+        {
+          "key": "post",
+          "title": "Post a test lead through the intake API",
+          "timeout_s": 30
+        },
+        {
+          "key": "handoff",
+          "title": "Hand it to Spark with B2B's test hand-off",
+          "timeout_s": 30
+        },
+        {
+          "key": "held",
+          "title": "Spark holds it",
+          "timeout_s": 600
+        },
+        {
+          "key": "enrol",
+          "title": "Run the test journey for it, as the test runner",
+          "timeout_s": 30
+        },
+        {
+          "key": "advanced",
+          "title": "The journey run advances a step",
+          "timeout_s": 900
+        },
+        {
+          "key": "queued",
+          "title": "A send to its test phone is queued (a dry run)",
+          "timeout_s": 900
+        },
+        {
+          "key": "only_test",
+          "title": "Nothing is queued for any other address",
+          "timeout_s": 30
+        }
+      ],
+      "safety": "Spark sends nothing live for a test lead (dry run); a queued send to any address but the run's phone stops the run.",
+      "purge": "Spark's b2c.lead_delete, then B2B's soft delete, both with reason test, as the test runner."
+    },
+    {
+      "id": "T-INFLUENCER",
+      "app": "influencer",
+      "title": "A creator's link leads to an attributed lead",
+      "seam": "creator link → Witty → lead → outcomes",
+      "description": "The test creator's witty2-go link records a click and an access code; the qualify scenario on that code creates a lead with the referral code, which shows in the creator's outcomes.",
+      "severity": "P2",
+      "timeout_s": 1800,
+      "needs": [
+        "test_rows_agreement",
+        "test_creator",
+        "n8n_api"
+      ],
+      "steps": [
+        {
+          "key": "click",
+          "title": "Open the test creator's witty2-go link",
+          "timeout_s": 30
+        },
+        {
+          "key": "recorded",
+          "title": "w2_clicks and w2_access_codes rows with the code",
+          "timeout_s": 60
+        },
+        {
+          "key": "qualify",
+          "title": "Run the qualify scenario on that code",
+          "timeout_s": 600
+        },
+        {
+          "key": "referral",
+          "title": "student_leads.referral_code is set",
+          "timeout_s": 120
+        },
+        {
+          "key": "outcome",
+          "title": "b2b_referral_outcomes shows it",
+          "timeout_s": 900
+        }
+      ],
+      "safety": "Witty does not write student_leads.referral_code (Route B is not built) and b2b_referral_outcomes counts test leads, so the journey cannot pass and a test lead would show in a creator's outcomes; off until both are fixed (builder proposals).",
+      "purge": "Nothing runs.",
+      "disabled": "blocked:witty-referral-code-not-built"
+    },
+    {
+      "id": "T-ALERT",
+      "app": "one",
+      "title": "An alert email goes out and is acknowledged",
+      "seam": "Eduwit One itself",
+      "description": "A synthetic P2 incident gets a delivery to the test recipient; the email is sent and delivered; it is acknowledged and resolved.",
+      "severity": "P2",
+      "timeout_s": 900,
+      "needs": [
+        "email"
+      ],
+      "steps": [
+        {
+          "key": "open",
+          "title": "Open a synthetic P2 incident with a test delivery",
+          "timeout_s": 10
+        },
+        {
+          "key": "sent",
+          "title": "The email is sent",
+          "timeout_s": 180
+        },
+        {
+          "key": "delivered",
+          "title": "The email is delivered",
+          "timeout_s": 300
+        },
+        {
+          "key": "ack",
+          "title": "Acknowledge and resolve it",
+          "timeout_s": 10
+        }
+      ],
+      "safety": "Sends only to the test mailbox, or to Resend's test address delivered@resend.dev while none is set (D-069); the synthetic incident is kept out of the digest and the brief.",
+      "purge": "Nothing in the apps; the synthetic incident stays in Eduwit One's history, marked synthetic."
+    }
+  ]
+}

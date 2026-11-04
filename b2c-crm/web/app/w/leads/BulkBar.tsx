@@ -67,7 +67,20 @@ export function BulkBar({ people, admin, recycle, total, query, journeys, stages
       const q = new URLSearchParams(exportQuery ?? "");
       q.set("format", format);
       if (viaIds) q.set("ids", ls.join(","));
-      window.location.href = `/w/leads/export?${q}`;
+      // a POST from this page (the export refuses links and other sites)
+      const f = document.createElement("form");
+      f.method = "post";
+      f.action = "/w/leads/export";
+      for (const [k, v] of q) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = k;
+        input.value = v;
+        f.appendChild(input);
+      }
+      document.body.appendChild(f);
+      f.submit();
+      f.remove();
       return;
     }
     start(async () => {

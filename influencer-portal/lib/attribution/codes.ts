@@ -13,6 +13,15 @@ export function normalizeCode(raw: string): string | null {
   return c.length >= CODE_MIN && c.length <= CODE_MAX && CODE_RE.test(c) ? c : null;
 }
 
+/** The code from a /r/<code> path segment; text that cannot be decoded is kept as it is (normalizeCode refuses it). */
+export function decodeCodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 /** True for anything Witty would read as an access code (exactly six letters or digits). */
 export function looksLikeAccessCode(s: string): boolean {
   return /^[A-Z0-9]{6}$/i.test(s.trim());

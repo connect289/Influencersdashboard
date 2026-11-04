@@ -10,6 +10,20 @@ do $g$ begin
 end $g$;
 create temp table r (n serial, name text, ok boolean, detail text);
 grant all on r to authenticated, service_role;
+
+-- Dates: the enrolments sit in the month before last (on_day(n) is its nth day, on_day(n, k) the nth day k months later),
+-- and Amity's and Jain's refund windows are measured from today, so the same lines are due or still in their window
+-- whatever the date the checks run.
+create temp table anchor as select (date_trunc('month', current_date) - interval '2 months')::date as m;
+grant select on anchor to authenticated, service_role;
+create function pg_temp.on_day(n int, k int default 0) returns date language sql stable as $f$
+  select ((select m from anchor) + make_interval(months => k))::date + (n - 1)
+$f$;
+/* The Indian financial year of a date, as invoice numbers write it (2026-27). */
+create function pg_temp.fy(x date) returns text language sql immutable as $f$
+  select case when extract(month from x) >= 4 then to_char(x, 'YYYY') || '-' || to_char(x + interval '1 year', 'YY')
+              else to_char(x - interval '1 year', 'YYYY') || '-' || to_char(x, 'YY') end
+$f$;
 grant usage, select on sequence r_n_seq to authenticated, service_role;
 
 -- ---------- people ----------
@@ -67,10 +81,10 @@ insert into public.catalog_programs (id, university_id, level, course, program_n
 insert into b2b.partners (id, slug, name, status) values (901, 'pa', 'Partner A', 'active'), (902, 'pb', 'Partner B', 'active'), (903, 'pc', 'Partner C', 'closed');
 insert into b2b.partner_programmes (partner_id, programme_id) values (901, 11), (902, 11), (903, 11), (901, 12);
 insert into b2b.rates (scope, partner_id, programme_id, rate_type, fee_base, value, valid_from) values
-  ('partner', 901, null, 'percent', 'first_year', 20, '2026-01-01'),
-  ('partner_programme', 902, 11, 'percent', 'first_year', 25, '2026-01-01'),
-  ('partner', 902, null, 'percent', 'first_year', 15, '2026-01-01'),
-  ('partner', 903, null, 'percent', 'first_year', 50, '2026-01-01');
+  ('partner', 901, null, 'percent', 'first_year', 20, pg_temp.on_day(1, -8)),
+  ('partner_programme', 902, 11, 'percent', 'first_year', 25, pg_temp.on_day(1, -8)),
+  ('partner', 902, null, 'percent', 'first_year', 15, pg_temp.on_day(1, -8)),
+  ('partner', 903, null, 'percent', 'first_year', 50, pg_temp.on_day(1, -8));
 update b2c.settings set value = value || '{"eduwit_gstin": "07AABCE1234F1Z5", "eduwit_state_code": "07", "eduwit_address": "New Delhi"}' where key = 'money';
 
 -- ---------- rates and rights ----------
@@ -87,17 +101,24 @@ begin
   begin perform b2c.my_commission('{"user_id":"aaaaaaaa-0000-0000-0000-00000000d003"}'); e := 'read'; exception when others then e := sqlerrm; end;
   insert into r (name, ok, detail) values ('counsellor_cannot_read_anothers_commission', e = 'not allowed', e);
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000d001');
-  perform b2c.university_rate_save('{"university_id":1,"rate_type":"percent","fee_base":"first_year","value":20,"gst_inclusive":true,"valid_from":"2026-01-01","note":"Amity agreement 2026"}');
-  perform b2c.university_rate_save('{"university_id":2,"rate_type":"tiered","fee_base":"first_year","gst_inclusive":true,"valid_from":"2026-01-01","note":"Jain agreement 2026",
-    "tiers":[{"from":0,"to":7,"value":22.42},{"from":7,"to":9,"value":20.42},{"from":9,"value":18.42}]}');
-  perform b2c.university_rate_save('{"university_id":3,"rate_type":"fixed","value":10000,"gst_inclusive":false,"valid_from":"2026-01-01","note":"TOU letter"}');
-  perform b2c.university_billing_save('{"university_id":1,"legal_name":"Amity Online Ltd","gstin":"07AAACA1234B1Z2","state_code":"07","address":"Noida","refund_days":30}');
-  perform b2c.university_billing_save('{"university_id":2,"legal_name":"Jain Online","gstin":"29AAACJ1234B1Z2","state_code":"29","address":"Bengaluru"}');
-  perform b2c.commission_override_save('{"counsellor_id":"aaaaaaaa-0000-0000-0000-00000000d002","programme_id":12,"rate_type":"percent","value":10,"valid_from":"2026-09-15","reason":"agreed for Jain MBA from 15 Sep"}');
+  perform b2c.university_rate_save('{"university_id":1,"rate_type":"percent","fee_base":"first_year","value":20,"gst_inclusive":true,"note":"Amity agreement"}'::jsonb
+                                   || jsonb_build_object('valid_from', pg_temp.on_day(1, -8)));
+  perform b2c.university_rate_save('{"university_id":2,"rate_type":"tiered","fee_base":"first_year","gst_inclusive":true,"note":"Jain agreement",
+    "tiers":[{"from":0,"to":7,"value":22.42},{"from":7,"to":9,"value":20.42},{"from":9,"value":18.42}]}'::jsonb || jsonb_build_object('valid_from', pg_temp.on_day(1, -8)));
+  perform b2c.university_rate_save('{"university_id":3,"rate_type":"fixed","value":10000,"gst_inclusive":false,"note":"TOU letter"}'::jsonb
+                                   || jsonb_build_object('valid_from', pg_temp.on_day(1, -8)));
+  -- refund windows from today: Amity's ends today for e1 (the 2nd) and later for e5 and e7; Jain's ends today for e3 (the 8th)
+  -- and later for e6 (the 16th); TOU keeps the default 30 days, long past for e4
+  perform b2c.university_billing_save('{"university_id":1,"legal_name":"Amity Online Ltd","gstin":"07AAACA1234B1Z2","state_code":"07","address":"Noida"}'::jsonb
+                                      || jsonb_build_object('refund_days', current_date - pg_temp.on_day(2)));
+  perform b2c.university_billing_save('{"university_id":2,"legal_name":"Jain Online","gstin":"29AAACJ1234B1Z2","state_code":"29","address":"Bengaluru"}'::jsonb
+                                      || jsonb_build_object('refund_days', current_date - pg_temp.on_day(8)));
+  perform b2c.commission_override_save('{"counsellor_id":"aaaaaaaa-0000-0000-0000-00000000d002","programme_id":12,"rate_type":"percent","value":10,"reason":"agreed for Jain MBA from the 15th"}'::jsonb
+                                       || jsonb_build_object('valid_from', pg_temp.on_day(15)));
   perform pg_temp.as_system();
 end $x$;
 
--- ---------- September: seven enrollments ----------
+-- ---------- the month before last: seven enrollments ----------
 do $x$
 begin
   perform pg_temp.lead(900041, 'Asha Test', 'MBA', 'aaaaaaaa-0000-0000-0000-00000000d002');
@@ -107,15 +128,15 @@ begin
   perform pg_temp.lead(900045, 'Esha Test', 'MBA', 'aaaaaaaa-0000-0000-0000-00000000d003');
   perform pg_temp.lead(900046, 'Farah Test', 'MBA', 'aaaaaaaa-0000-0000-0000-00000000d002');
   perform pg_temp.lead(900047, 'Gita Test', 'MBA', 'aaaaaaaa-0000-0000-0000-00000000d002');
-  insert into en values ('e1', pg_temp.enrol(900041, 'Amity University Online', 'Online MBA', 179000, '2026-09-02'));
-  insert into en values ('e2', pg_temp.enrol(900042, 'Jain Online', 'Online MBA', 160000, '2026-09-05'));
-  insert into en values ('e3', pg_temp.enrol(900043, 'Jain', 'Online BBA', 120000, '2026-09-08'));
-  insert into en values ('e4', pg_temp.enrol(900044, 'Test Open University', 'Online MA', 100000, '2026-09-10'));
-  insert into en values ('e5', pg_temp.enrol(900045, 'Amity University Online', 'Online MBA', 179000, '2026-09-20'));
-  insert into en values ('e6', pg_temp.enrol(900046, 'Jain Online', 'Online MBA', 160000, '2026-09-16'));
-  -- Partner B raises its Amity MBA rate from 21 Sep: e1 keeps its booked rate, e7 uses the new one
-  insert into b2b.rates (scope, partner_id, programme_id, rate_type, fee_base, value, valid_from) values ('partner_programme', 902, 11, 'percent', 'first_year', 30, '2026-09-21');
-  insert into en values ('e7', pg_temp.enrol(900047, 'Amity University Online', 'Online MBA', 179000, '2026-09-25'));
+  insert into en values ('e1', pg_temp.enrol(900041, 'Amity University Online', 'Online MBA', 179000, pg_temp.on_day(2)));
+  insert into en values ('e2', pg_temp.enrol(900042, 'Jain Online', 'Online MBA', 160000, pg_temp.on_day(5)));
+  insert into en values ('e3', pg_temp.enrol(900043, 'Jain', 'Online BBA', 120000, pg_temp.on_day(8)));
+  insert into en values ('e4', pg_temp.enrol(900044, 'Test Open University', 'Online MA', 100000, pg_temp.on_day(10)));
+  insert into en values ('e5', pg_temp.enrol(900045, 'Amity University Online', 'Online MBA', 179000, pg_temp.on_day(20)));
+  insert into en values ('e6', pg_temp.enrol(900046, 'Jain Online', 'Online MBA', 160000, pg_temp.on_day(16)));
+  -- Partner B raises its Amity MBA rate from the 21st: e1 keeps its booked rate, e7 uses the new one
+  insert into b2b.rates (scope, partner_id, programme_id, rate_type, fee_base, value, valid_from) values ('partner_programme', 902, 11, 'percent', 'first_year', 30, pg_temp.on_day(21));
+  insert into en values ('e7', pg_temp.enrol(900047, 'Amity University Online', 'Online MBA', 179000, pg_temp.on_day(25)));
 end $x$;
 
 do $x$
@@ -182,12 +203,12 @@ do $x$
 declare j jsonb;
 begin
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000d001');
-  j := b2c.enrollment_refund((select id from en where k = 'e5'), '2026-10-01', 'student withdrew in week two');
+  j := b2c.enrollment_refund((select id from en where k = 'e5'), pg_temp.on_day(1, 1), 'student withdrew in week two');
   insert into r (name, ok, detail) values ('refund_inside_window_before_settlement', (j ->> 'inside_window')::boolean
     and (select sum(gross) from b2c.earnings where enrollment_id = (select id from en where k = 'e5')) = 0
     and (select bool_and(status = 'void') from b2c.commission_lines where enrollment_id = (select id from en where k = 'e5'))
     and (select sum(amount) from b2c.commission_lines where enrollment_id = (select id from en where k = 'e5')) = 0, j::text);
-  j := b2c.enrollment_refund((select id from en where k = 'e7'), '2026-11-30', 'refund after the window');
+  j := b2c.enrollment_refund((select id from en where k = 'e7'), current_date + 60, 'refund after the window');
   insert into r (name, ok, detail) values ('refund_outside_window_keeps_commission', not (j ->> 'inside_window')::boolean
     and (select sum(gross) from b2c.earnings where enrollment_id = (select id from en where k = 'e7')) = 18000
     and (pg_temp.line((select id from en where k = 'e7'))).amount = 27000, j::text);
@@ -201,11 +222,11 @@ begin
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000d001');
   begin perform b2c.period_close(2, date_trunc('month', current_date)::date); e := 'closed'; exception when others then e := sqlerrm; end;
   insert into r (name, ok, detail) values ('current_month_cannot_close', e like 'a month can be closed%', e);
-  j := b2c.period_close(2, '2026-09-01', 40);     -- 3 verified of 40 leads = 7.5%: the 20.42% tier
+  j := b2c.period_close(2, pg_temp.on_day(1), 40);     -- 3 verified of 40 leads = 7.5%: the 20.42% tier
   insert into r (name, ok, detail) values ('tier_settled_at_close', (j ->> 'conversion')::numeric = 7.5 and (j ->> 'adjustments')::int = 3
-    and (select sum(gross) from b2c.earnings where university_id = 2 and period = '2026-09-01') = 40840
+    and (select sum(gross) from b2c.earnings where university_id = 2 and period = pg_temp.on_day(1)) = 40840
     and (select gross from b2c.earnings where enrollment_id = (select id from en where k = 'e3') and kind = 'tier_adjust') = -800, j::text);
-  begin perform b2c.period_close(2, '2026-09-01', 40); e := 'closed'; exception when others then e := sqlerrm; end;
+  begin perform b2c.period_close(2, pg_temp.on_day(1), 40); e := 'closed'; exception when others then e := sqlerrm; end;
   insert into r (name, ok, detail) values ('close_once', e = 'this month is already closed', e);
   perform pg_temp.as_system();
 end $x$;
@@ -213,8 +234,8 @@ end $x$;
 -- ---------- the month matches a manual check ----------
 insert into r (name, ok, detail)
 select 'university_month_matches_manual', bool_and(ok), string_agg(detail, '; ') from (
-  select (select sum(gross) from b2c.earnings where university_id = u and period = '2026-09-01') = expect as ok,
-         u || ': ' || (select sum(gross) from b2c.earnings where university_id = u and period = '2026-09-01') || ' vs ' || expect as detail
+  select (select sum(gross) from b2c.earnings where university_id = u and period = pg_temp.on_day(1)) = expect as ok,
+         u || ': ' || (select sum(gross) from b2c.earnings where university_id = u and period = pg_temp.on_day(1)) || ' vs ' || expect as detail
     from (values (1, 36000.00), (2, 40840.00), (3, 11800.00)) v(u, expect)) s;   -- Amity: e1 + e7 (e5 refunded); Jain: 16336 + 8168 + 16336; TOU: 10000 + 18% GST
 insert into r (name, ok, detail)
 select 'counsellor_month_matches_manual',
@@ -227,15 +248,15 @@ do $x$
 declare v bigint; j jsonb; e text;
 begin
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000d001');
-  v := b2c.commission_run_prepare('2026-09-01', true);
+  v := b2c.commission_run_prepare(pg_temp.on_day(1), true);
   j := b2c.commission_run_view(v);
   insert into r (name, ok, detail) values ('run_takes_due_lines', (j -> 'totals' ->> 'amount')::numeric = 50500 and jsonb_array_length(j -> 'counsellors') = 2
     and (select (x ->> 'amount')::numeric from jsonb_array_elements(j -> 'counsellors') x where x ->> 'name' = 'Priya P3') = 37500, j -> 'totals' ->> 'amount');
-  begin perform b2c.commission_run_prepare('2026-09-01', true); e := 'made'; exception when others then e := sqlerrm; end;
+  begin perform b2c.commission_run_prepare(pg_temp.on_day(1), true); e := 'made'; exception when others then e := sqlerrm; end;
   insert into r (name, ok, detail) values ('one_draft_run', e like 'finish or cancel%', e);
   j := b2c.commission_run_approve(v);
   insert into r (name, ok, detail) values ('run_settles', (select count(*) from b2c.commission_lines where run_id = v and status <> 'settled') = 0, j::text);
-  j := b2c.enrollment_refund((select id from en where k = 'e1'), '2026-10-01', 'refund inside the window after settlement');
+  j := b2c.enrollment_refund((select id from en where k = 'e1'), pg_temp.on_day(1, 1), 'refund inside the window after settlement');
   insert into r (name, ok, detail) values ('clawback_after_settlement', exists (select 1 from b2c.commission_lines where enrollment_id = (select id from en where k = 'e1')
     and kind = 'clawback' and amount = -22500 and status = 'due' and run_id is null)
     and (select status from b2c.commission_lines where enrollment_id = (select id from en where k = 'e1') and kind = 'booking') = 'settled', j::text);
@@ -257,11 +278,12 @@ begin
   insert into r (name, ok, detail) values ('invoice_draft_from_realised', (select gross from b2c.invoices where id = v) = 40840
     and (select count(*) from b2c.invoice_lines where invoice_id = v) = 6 and (select supply from b2c.invoices where id = v) = 'inter',
     (select gross || ' ' || supply from b2c.invoices where id = v));
-  v_num := b2c.invoice_approve(v, '2026-10-05');
-  insert into r (name, ok, detail) values ('invoice_number_gapless', v_num = 'TEST-EDW/2026-27/0001' and b2c.invoice_approve(b2c.invoice_draft(1, null, true), '2026-10-05') = 'TEST-EDW/2026-27/0002', v_num);
-  j := b2c.receipt_record(jsonb_build_object('university_id', 2, 'amount', 36756, 'tds', 4084, 'reference', 'UTR-P3-1', 'received_on', '2026-10-12'));
+  v_num := b2c.invoice_approve(v, pg_temp.on_day(5, 1));
+  insert into r (name, ok, detail) values ('invoice_number_gapless', v_num = 'TEST-EDW/' || pg_temp.fy(pg_temp.on_day(5, 1)) || '/0001'
+    and b2c.invoice_approve(b2c.invoice_draft(1, null, true), pg_temp.on_day(5, 1)) = 'TEST-EDW/' || pg_temp.fy(pg_temp.on_day(5, 1)) || '/0002', v_num);
+  j := b2c.receipt_record(jsonb_build_object('university_id', 2, 'amount', 36756, 'tds', 4084, 'reference', 'UTR-P3-1', 'received_on', pg_temp.on_day(12, 1)));
   insert into r (name, ok, detail) values ('receipt_with_tds_settles_invoice', (select status from b2c.invoices where id = v) = 'paid' and (j ->> 'unallocated')::numeric = 0, j::text);
-  j := b2c.statement_import(jsonb_build_object('university_id', 2, 'period_from', '2026-09-01', 'period_to', '2026-09-30', 'file_name', 'jain-sep.csv', 'rows', jsonb_build_array(
+  j := b2c.statement_import(jsonb_build_object('university_id', 2, 'period_from', pg_temp.on_day(1), 'period_to', pg_temp.on_day(1, 1) - 1, 'file_name', 'jain-month.csv', 'rows', jsonb_build_array(
          jsonb_build_object('ref', (select id from en where k = 'e2')::text, 'student', 'Bina Test', 'amount', 16336),
          jsonb_build_object('ref', '', 'student', 'Chetan Test', 'programme', 'Online BBA', 'amount', 8000),
          jsonb_build_object('ref', '', 'student', 'Ghost Student', 'amount', 5000))));
@@ -275,7 +297,7 @@ do $x$
 declare j jsonb;
 begin
   j := b2c.money_tick();      -- first run notes the partner rates as they are
-  insert into b2b.rates (scope, partner_id, rate_type, fee_base, value, valid_from) values ('partner', 901, 'percent', 'first_year', 22, '2026-10-20');
+  insert into b2b.rates (scope, partner_id, rate_type, fee_base, value, valid_from) values ('partner', 901, 'percent', 'first_year', 22, current_date + 5);
   j := b2c.money_tick();
   insert into r (name, ok, detail) values ('partner_rate_change_noticed', (j ->> 'rate_changes')::int = 1 and exists (select 1 from b2c.events where type = 'money.partner_rate_changed'), j::text);
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000d005');
@@ -326,7 +348,7 @@ begin
   perform b2c.facts_refresh();
   insert into r (name, ok, detail) values ('facts_built', (select count(*) from b2c.fact_leads where lead_id between 900041 and 900047 and is_test and enrolled_on is not null) = 7,
     (select count(*) from b2c.fact_leads where lead_id between 900041 and 900047)::text);
-  spec := jsonb_build_object('metrics', jsonb_build_array('enrollments'), 'from', '2026-09-01', 'to', '2026-09-30', 'test', true);
+  spec := jsonb_build_object('metrics', jsonb_build_array('enrollments'), 'from', pg_temp.on_day(1), 'to', pg_temp.on_day(1, 1) - 1, 'test', true);
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000d001');
   j := b2c.analytics_run(spec);
   insert into r (name, ok, detail) values ('analytics_counts', (j -> 'rows' -> 0 ->> 'enrollments')::int = 4 and jsonb_array_length(j -> 'sql') = 1, j::text);
@@ -339,7 +361,7 @@ begin
     and (dr ->> 'count')::int = 2, j::text);
   -- every lead-count metric the Admin can use, overall and by counsellor: the drill-down has exactly as many leads
   for m in select key from b2c.metric_defs where counts_leads and 'admin' = any (roles) loop
-    spec := jsonb_build_object('metrics', jsonb_build_array(m.key), 'from', '2026-08-01', 'to', current_date, 'test', true);
+    spec := jsonb_build_object('metrics', jsonb_build_array(m.key), 'from', pg_temp.on_day(1, -1), 'to', current_date, 'test', true);
     v := coalesce((b2c.analytics_run(spec) -> 'rows' -> 0 ->> m.key)::numeric, 0);
     ids := b2c.analytics_drill_ids('aaaaaaaa-0000-0000-0000-00000000d001', 'admin', spec, m.key, '{}');
     if coalesce(array_length(ids, 1), 0) <> v then bad := bad || m.key || ' ' || v || '/' || coalesce(array_length(ids, 1), 0) || '; '; end if;
@@ -363,7 +385,7 @@ begin
   insert into r (name, ok, detail) values ('standard_widgets_run', bad = '', bad);
   -- a counsellor gets only their own leads, whatever the spec says
   perform pg_temp.as_user('aaaaaaaa-0000-0000-0000-00000000d002');
-  spec := jsonb_build_object('metrics', jsonb_build_array('enrollments', 'assigned'), 'dims', jsonb_build_array('counsellor'), 'from', '2026-08-01', 'to', current_date, 'test', true);
+  spec := jsonb_build_object('metrics', jsonb_build_array('enrollments', 'assigned'), 'dims', jsonb_build_array('counsellor'), 'from', pg_temp.on_day(1, -1), 'to', current_date, 'test', true);
   j := b2c.analytics_run(spec);
   insert into r (name, ok, detail) values ('sales_sees_only_own', (select bool_and(x -> 'k' ->> 0 = 'Priya P3') from jsonb_array_elements(j -> 'rows') x) and j ->> 'scope' = 'own leads', j::text);
   j := b2c.analytics_run(spec || '{"filters": [{"dim": "counsellor", "op": "eq", "value": "Rohan P3"}]}');

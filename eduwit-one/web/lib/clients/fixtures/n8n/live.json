@@ -1,0 +1,10 @@
+{
+  "meta": {
+    "recorded": false,
+    "source": "n8n public API v1 response shape (GET /api/v1/workflows/{id}, GET /api/v1/executions); re-recorded by the Setup page's validate button once n8n_api is filled (D-049)"
+  },
+  "data": {
+    "workflows": { "default": { "id": "default", "name": "workflow", "active": true } },
+    "executions": { "default": { "data": [{ "id": "1", "status": "success", "startedAt": null, "stoppedAt": null }] } }
+  }
+}

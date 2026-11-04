@@ -118,8 +118,13 @@ export default async function WorkspaceLeads({ searchParams }: { searchParams: P
           <Link className="btn ghost sm" href="/w/leads/duplicates">Duplicate suspects</Link>
           {admin && <Link className="btn ghost sm" href="/w/leads/flagged">Flagged</Link>}
           {admin && <Link className="btn ghost sm" href="/w/qualify">To qualify</Link>}
-          {admin && !drill && <a className="btn ghost sm" href={`/w/leads/export?${exportQuery}&format=xlsx`}><Download className="icon s" aria-hidden />Excel</a>}
-          {admin && !drill && <a className="btn ghost sm" href={`/w/leads/export?${exportQuery}&format=csv`}><Download className="icon s" aria-hidden />CSV</a>}
+          {admin && !drill && (
+            <form method="post" action="/w/leads/export" style={{ display: "contents" }}>
+              {[...new URLSearchParams(exportQuery)].map(([k, v], i) => <input key={`${k}-${i}`} type="hidden" name={k} value={v} />)}
+              <button className="btn ghost sm" type="submit" name="format" value="xlsx"><Download className="icon s" aria-hidden />Excel</button>
+              <button className="btn ghost sm" type="submit" name="format" value="csv"><Download className="icon s" aria-hidden />CSV</button>
+            </form>
+          )}
         </div>
       )}
       {res.groups && res.group_by && res.total > 0 && <GroupSummary groups={res.groups} by={res.group_by} total={res.total} />}

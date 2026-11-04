@@ -1,4 +1,5 @@
 /** Partner CRM adapters (m19): what the Admin sets per CRM and environment, and what the status read returns. */
+import { NOT_PUBLIC, outboundUrlProblem } from "./url-safety";
 
 export const CRM_ADAPTERS = ["leadsquared", "zoho", "salesforce", "hubspot", "meritto", "inhouse", "email"] as const;
 export type CrmAdapter = (typeof CRM_ADAPTERS)[number];
@@ -151,6 +152,8 @@ export function adapterProblems(spec: AdapterStatus["spec"], f: { settings: Reco
     if (v && (k === "login_url" || k === "base_url") && !/^https:\/\/[A-Za-z0-9.-]+(\/[A-Za-z0-9._/-]*)?$/.test(v)) e[`settings.${k}`] = "An https address.";
     if (v && k === "api_version" && !/^v\d{2}\.\d$/.test(v)) e[`settings.${k}`] = "Looks like v60.0.";
     if (v && (k === "create_url" || k === "poll_url") && (!HTTPS_RE.test(v) || v.length > 500)) e[`settings.${k}`] = "An https address.";
+    // M34e: the database calls these addresses, so they must be on the public internet (b2b.url_allowed)
+    if (v && ["login_url", "base_url", "create_url", "poll_url"].includes(k) && !e[`settings.${k}`] && outboundUrlProblem(v)) e[`settings.${k}`] = NOT_PUBLIC;
     if (k === "auth_type" && !(AUTH_TYPES as readonly string[]).includes(v)) e[`settings.${k}`] = "Choose one.";
     if (v && (k === "auth_name" || k === "since_param") && !/^[A-Za-z][A-Za-z0-9_-]{0,59}$/.test(v)) e[`settings.${k}`] = "Letters, digits, - and _.";
     if (v && (k === "wrap_key" || k === "record_id_path") && !PATH_RE.test(v)) e[`settings.${k}`] = "Like data or data.lead.id.";

@@ -1,0 +1,25 @@
+{
+  "meta": {
+    "recorded": true,
+    "recorded_at": "2026-10-23T20:26:19.617Z",
+    "by": "scripts/record-fixtures.ts"
+  },
+  "data": {
+    "eduwit.in": {
+      "ok": true,
+      "status": 200
+    },
+    "influencer.eduwit.in": {
+      "ok": true,
+      "status": 200
+    },
+    "crm.eduwit.in": {
+      "ok": true,
+      "status": 200
+    },
+    "spark.eduwit.in": {
+      "ok": true,
+      "status": 200
+    }
+  }
+}

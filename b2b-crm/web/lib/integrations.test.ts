@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  apiKeyFrom, B2C_DEFAULT_EVENTS, B2C_INBOUND_EVENTS, B2C_REQUIRED_EVENTS, describeEvents, endpointHealth, EndpointSchema, eventSubscribed, parseHandoffsQuery,
-  PUBLISHED_EVENTS, type EndpointRow,
+  ApiKeySchema, apiKeyFrom, B2C_DEFAULT_EVENTS, B2C_INBOUND_EVENTS, B2C_REQUIRED_EVENTS, describeEvents, endpointHealth, EndpointSchema, eventSubscribed, parseHandoffsQuery,
+  parseReferralCodes, parseReferralQuery, PUBLISHED_EVENTS, referralCodesProblem, type EndpointRow,
 } from "./integrations";
 
 const endpoint = (x: Partial<EndpointRow>): EndpointRow => ({
@@ -98,5 +98,34 @@ describe("display", () => {
     expect(endpointHealth(endpoint({ dead: 2 })).tone).toBe("danger");
     expect(endpointHealth(endpoint({ last_failure_at: "2026-10-06T11:00:00Z", last_success_at: "2026-10-06T10:00:00Z" })).label).toBe("Failing");
     expect(endpointHealth(endpoint({ last_failure_at: "2026-10-06T09:00:00Z", last_success_at: "2026-10-06T10:00:00Z" })).label).toBe("Healthy");
+  });
+});
+
+describe("M34d: referral keys read only their own codes", () => {
+  it("parses the codes typed into the key form", () => {
+    expect(parseReferralCodes(" inf001, INF002\ninf001  abc* ")).toEqual(["ABC*", "INF001", "INF002"]);
+    expect(parseReferralCodes("")).toEqual([]);
+  });
+  it("a referrals key needs at least one valid code; other keys take none", () => {
+    expect(referralCodesProblem(["referrals"], [])).toMatch(/at least one referral code/);
+    expect(referralCodesProblem(["referrals"], ["INF001", "INF*"])).toBeNull();
+    expect(referralCodesProblem(["referrals"], ["IN*"])).toMatch(/Not a referral code/);
+    expect(referralCodesProblem(["referrals"], ["*"])).toMatch(/Not a referral code/);
+    expect(referralCodesProblem(["referrals"], ["inf001"])).toMatch(/Not a referral code/);
+    expect(referralCodesProblem(["intake"], ["INF001"])).toMatch(/only to a key with the Referrals scope/);
+    expect(referralCodesProblem(["intake"], [])).toBeNull();
+  });
+  it("the key form refuses a referrals key without codes", () => {
+    const base = { name: "Influencer platform", scopes: ["referrals"], expires_days: 365, rate_per_minute: null };
+    expect(ApiKeySchema.safeParse(base).success).toBe(false);
+    const ok = ApiKeySchema.safeParse({ ...base, referral_codes: ["INF*"] });
+    expect(ok.success && ok.data.referral_codes).toEqual(["INF*"]);
+  });
+  it("the outcomes cursor is opaque: a lead id is not accepted", () => {
+    expect(parseReferralQuery(new URLSearchParams("after=338"))).toEqual({ ok: false, error: "after must be the next_after of the previous page" });
+    expect(parseReferralQuery(new URLSearchParams())).toEqual({ ok: true, q: { after: null, limit: 100 } });
+    const c = "c1.Zm9vYmFyYmF6cXV1eDEyMzQ1Ng";
+    expect(parseReferralQuery(new URLSearchParams(`after=${c}&limit=50`))).toEqual({ ok: true, q: { after: c, limit: 50 } });
+    expect(parseReferralQuery(new URLSearchParams("limit=501")).ok).toBe(false);
   });
 });
