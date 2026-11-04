@@ -1,7 +1,7 @@
 # Eduwit Spark: handover to the developer (taking it live)
 
 Version 16 October 2026. Spark is the B2C CRM: code in `b2c-crm/web` (Next.js 16), database schema `b2c` in Supabase,
-migrations `b2c-crm/supabase/migrations/b1…b43` (apply in order; all idempotent), checks in `b2c-crm/supabase/tests`.
+migrations `b2c-crm/supabase/migrations/b1…b53` (apply in order; all idempotent), checks in `b2c-crm/supabase/tests`.
 This guide is the whole path from where things stand to a working, live CRM. Do the steps in order; each says how to
 check it and how to undo it. `docs/go-live-plan.md` keeps the history; this file supersedes it for what is left.
 
@@ -199,6 +199,21 @@ The browser tests in `web/e2e` cover the screens (`npm run e2e` against a URL wi
 GitHub Actions `.github/workflows/b2c-crm-ci.yml` runs typecheck, unit tests, `npm audit` and dependency review on
 every change under `b2c-crm/web`; Dependabot proposes updates weekly. Keep both green. Security incidents:
 `docs/breach-runbook.md`.
+
+**Health (4 Nov 2026, migration `b53`).** `GET /api/health` answers 200 when Spark can work (its configuration, the
+database and file storage within 3 seconds each, the timers and the app answering them) and 503 when it cannot; the
+body gives each part a level (`ok`, `warn`, `bad`), and the counts behind them with the `x-internal-key` header (the
+timers' key). It never names a student, reads at most a few thousand timer runs, and answers from a 15-second cache.
+Eduwit One calls it every 5 minutes (check B2C-11, heartbeat `spark`). The parts: `config`, `database`, `storage`,
+`timers`, `app`, `outbox`, `inbox`, `sending`, `connectors`, `programmes`, `ai`, `jobs` (`lib/health.ts`,
+`b2c.health()`); a queue or connector that needs a look makes the status `degraded` and leaves it 200.
+
+**Messages that stop mid-send (b53).** The app records sending outcomes ten at a time, starts no send later than 40
+seconds into its run and hands the rest back (`b2c.send_release`), so a run cut short loses at most ten outcomes. A
+message still `sending` 15 minutes after it was taken (`send_queue.taken_at`) is marked failed by `b2c.send_unstick(15)`,
+never sent again (it may have gone out): an assignment WhatsApp falls back to email and the admins get one notice.
+Eduwit One's FIX-SENDQ-B2C runs it on B2C-07 once the owner switches it on (it ships off, with two weeks of dry runs).
+System health (Admin) shows them as "stopped mid-send". Checks: `supabase/tests/test_health.sql` (25).
 
 ## 12. Live
 

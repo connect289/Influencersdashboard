@@ -106,9 +106,10 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      // /v1/* (B2B and WhatsApp webhooks) and /api/internal/* (pg_cron jobs) are machine endpoints: no session, no
-      // redirects; each route authenticates its caller (HMAC signature or the internal key)
-      source: "/((?!_next/static|_next/image|favicon.ico|logo.jpg|manifest.webmanifest|sw.js|v1/|api/internal/).*)",
+      // /v1/* (B2B and WhatsApp webhooks), /api/internal/* (pg_cron jobs) and /api/health (Eduwit One, uptime checks) are
+      // machine endpoints: no session, no redirects; each route authenticates its caller (HMAC signature or the
+      // internal key), and the health route shows levels only without the key
+      source: "/((?!_next/static|_next/image|favicon.ico|logo.jpg|manifest.webmanifest|sw.js|v1/|api/internal/|api/health).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

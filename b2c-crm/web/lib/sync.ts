@@ -25,10 +25,23 @@ type SendOutcome = { ok: boolean; dry_run?: boolean; wamid?: string; id?: string
  * partner routing and new students, plus any urgent update. mode "batch" (every 15 minutes): everything else, merged to
  * one update per lead, in calls of up to 200 items. Each answer goes back to b2c.outbox_done, which decides retry,
  * conflict, refusal or success and caches the record B2B returns.
+ *
+ * Messages (b53): the run starts no send later than SEND_BUDGET_MS after it began (the route has 60 s) and hands the rest
+ * back with b2c.send_release, and it records outcomes SEND_DONE_EVERY at a time, so a run that ends early loses at most
+ * one group's outcomes. A message left "sending" all the same is marked failed by b2c.send_unstick (never resent).
  */
-export async function runSync(mode: "urgent" | "batch"): Promise<Record<string, number>> {
+export const SEND_BUDGET_MS = 40_000;
+export const SEND_DONE_EVERY = 10;
+
+export async function runSync(
+  mode: "urgent" | "batch",
+  opts: { startedAt?: number; sendBudgetMs?: number; now?: () => number } = {},
+): Promise<Record<string, number>> {
+  const now = opts.now ?? Date.now;
+  const startedAt = opts.startedAt ?? now();
+  const budget = opts.sendBudgetMs ?? SEND_BUDGET_MS;
   const db = adminClient();
-  const out: Record<string, number> = { taken: 0, ok: 0, failed: 0, sent: 0, dry_run: 0, send_failed: 0 };
+  const out: Record<string, number> = { taken: 0, ok: 0, failed: 0, sent: 0, dry_run: 0, send_failed: 0, released: 0 };
 
   if (b2b.b2bReady()) {
     const { data, error } = await db.rpc("outbox_take", { p_mode: mode, p_limit: mode === "batch" ? 2000 : 400 });
@@ -88,9 +101,22 @@ export async function runSync(mode: "urgent" | "batch"): Promise<Record<string, 
   // (counsellors', system and marketing). Dry run unless live (env and Settings, never test leads or test invoices).
   const { data: sends, error: takeError } = await db.rpc("send_take", { p_limit: 50 });
   if (takeError) throw new Error(`send_take: ${takeError.message}`);
-  const sendResults: Record<string, unknown>[] = [];
+  let pending: Record<string, unknown>[] = [];
+  const record = async () => {
+    if (!pending.length) return;
+    const batch = pending;
+    pending = [];
+    const { error } = await db.rpc("send_done", { p_results: batch });
+    if (error) throw new Error(`send_done: ${error.message}`);
+  };
+  const items = (sends ?? []) as SendItem[];
+  const unstarted: number[] = [];
   const ctx: SendContext = { db, wa: waConfig(), sa: googleSa(), userGmail: new UserGmail(db), tally: new ConnectorTally() };
-  for (const s of (sends ?? []) as SendItem[]) {
+  for (const [i, s] of items.entries()) {
+    if (now() - startedAt > budget) {
+      unstarted.push(...items.slice(i).map((x) => x.id));
+      break;
+    }
     const live = liveMode() && s.live;
     let r: SendOutcome;
     try {
@@ -98,14 +124,17 @@ export async function runSync(mode: "urgent" | "batch"): Promise<Record<string, 
     } catch (e) {
       r = { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
-    sendResults.push({ id: s.id, ok: r.ok, dry_run: r.dry_run ?? false, wamid: r.wamid, error: r.error });
+    pending.push({ id: s.id, ok: r.ok, dry_run: r.dry_run ?? false, wamid: r.wamid, error: r.error });
     if (!r.ok) out.send_failed!++;
     else if (r.dry_run) out.dry_run!++;
     else out.sent!++;
+    if (pending.length >= SEND_DONE_EVERY) await record();
   }
-  if (sendResults.length) {
-    const { error } = await db.rpc("send_done", { p_results: sendResults });
-    if (error) throw new Error(`send_done: ${error.message}`);
+  await record();
+  if (unstarted.length) {
+    const { error } = await db.rpc("send_release", { p_ids: unstarted });
+    if (error) throw new Error(`send_release: ${error.message}`);
+    out.released = unstarted.length;
   }
   await ctx.tally.report();
   return out;

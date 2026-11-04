@@ -51,6 +51,29 @@ afterEach(() => {
   delete process.env.WHATSAPP_TOKEN;
 });
 
+describe("runSync records outcomes as it goes and stops before its time limit (b53)", () => {
+  const item = (id: number) => ({ id, channel: "whatsapp", lead_id: 7, to: "919000000012", purpose: "sales", live: true, payload: { type: "text", text: `m${id}` } });
+  const calls = (fn: string) => state.rpcs.filter((r) => r.fn === fn).map((r) => r.args);
+
+  it("records outcomes ten at a time, so a run that ends early loses at most one group", async () => {
+    state.sends = Array.from({ length: 23 }, (_, i) => item(i + 1));
+    const out = await runSync("urgent");
+    expect(calls("send_done").map((a) => (a.p_results as unknown[]).length)).toEqual([10, 10, 3]);
+    expect(out).toMatchObject({ dry_run: 23, released: 0 });
+    expect(calls("send_release")).toEqual([]);
+  });
+
+  it("starts no send after the budget and hands the rest back, the attempt not counted", async () => {
+    state.sends = [1, 2, 3, 4, 5].map(item);
+    let n = 0;
+    const clock = () => (n++ < 3 ? 1_000 : 1_000 + 40_001); // the run's start and two sends inside the budget, then late
+    const out = await runSync("urgent", { now: clock });
+    expect(calls("send_done").flatMap((a) => (a.p_results as { id: number }[]).map((r) => r.id))).toEqual([1, 2]);
+    expect(calls("send_release")).toEqual([{ p_ids: [3, 4, 5] }]);
+    expect(out).toMatchObject({ dry_run: 2, released: 3 });
+  });
+});
+
 describe("runSync sends", () => {
   it("sends nothing anywhere while not live, but still renders attachments", async () => {
     state.sends = [
