@@ -30,7 +30,7 @@ export function WittyHeroOrb({ href, size = 84 }: { href: string; size?: number 
   return (
     <>
       <span ref={sentinel} className="inline-block" style={{ minHeight: size, minWidth: size }}>
-        {!docked ? <WittyOrb size={size} className="[view-transition-name:witty-orb] sm:[--orb:112px]" /> : null}
+        {!docked ? <WittyOrb size={size} className="[view-transition-name:witty-orb] sm:[--orb:128px]" /> : null}
       </span>
       {docked ? (
         <Link

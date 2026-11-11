@@ -22,10 +22,11 @@ export function TrustLine({
   return (
     <p
       className={cn(
-        "border-border bg-surface text-muted inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-[var(--radius-lg)] border px-3.5 py-1.5 text-xs backdrop-blur sm:rounded-full sm:px-4 sm:text-sm",
+        "glass text-muted inline-flex flex-wrap items-center justify-center gap-x-2.5 gap-y-0.5 rounded-[var(--radius-lg)] px-3.5 py-1.5 text-xs sm:rounded-full sm:px-4 sm:text-sm",
         className,
       )}
     >
+      <span className="live-dot" aria-hidden />
       <ShieldCheck className="text-success size-4" aria-hidden />
       <span>
         <Odometer value={universities} className="text-text font-semibold" /> partner universities

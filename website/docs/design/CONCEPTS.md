@@ -8,7 +8,7 @@ is. Preview: `/concepts` (noindex). Recordings: `docs/design/recordings/concept-
 - **Hero = Witty.** A breathing light-orb and Witty's greeting sit at the centre of a living aurora (WebGL, reacts to
   pointer, scroll and Witty's activity). The chat composer *is* the banner; starter chips below. Trust line counts up
   from live catalogue numbers.
-- Display face **Bricolage Grotesque** (variable, optical sizing) with kinetic word reveals and weight shift on hover.
+- Display face **Sora** (variable weight; D-093, replacing Bricolage Grotesque) with kinetic word reveals and weight shift on hover.
 - Finder: left facet rail (bottom sheet on phones), grouped results as floating glass cards with luminous hairlines,
   odometer counts, histogram fee slider, card → detail panel with view transitions.
 - Chat: Witty's turns render as generative components (cards assemble, fee bars fill, checks tick, comparison grid builds

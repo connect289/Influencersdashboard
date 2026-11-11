@@ -144,7 +144,7 @@ export default function StyleguidePage() {
 
         <Section id="type" title="Typography">
           <p className="text-muted max-w-2xl">
-            Display: Bricolage Grotesque (Concept A) or Roboto Flex (Concept B), variable with optical sizing. Body:
+            Display: Sora (Concept A) or Roboto Flex (Concept B), variable with optical sizing. Body:
             Inter variable. Fees and counts use tabular figures.
           </p>
           <div className="grid gap-4">

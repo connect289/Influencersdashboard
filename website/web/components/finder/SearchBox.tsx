@@ -70,16 +70,34 @@ export function SearchBox({
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];
     for (const p of data?.programmes ?? []) {
-      out.push({ kind: "programme", id: `p-${p.id}`, label: p.label, meta: `${p.full} · ${p.universities} universities`, href: `${basePath}?programme=${p.id}` });
+      out.push({
+        kind: "programme",
+        id: `p-${p.id}`,
+        label: p.label,
+        meta: `${p.full} · ${p.universities} universities`,
+        href: `${basePath}?programme=${p.id}`,
+      });
     }
     for (const g of data?.groups ?? []) {
-      out.push({ kind: "group", id: `g-${g.key}`, label: g.label, meta: `${g.universities} ${g.universities === 1 ? "university" : "universities"}`,
-        href: `${basePath}?programme=${g.programme_id}&spec=${g.spec_ids.join(",")}` });
+      out.push({
+        kind: "group",
+        id: `g-${g.key}`,
+        label: g.label,
+        meta: `${g.universities} ${g.universities === 1 ? "university" : "universities"}`,
+        href: `${basePath}?programme=${g.programme_id}&spec=${g.spec_ids.join(",")}`,
+      });
     }
     for (const u of data?.universities ?? []) {
-      out.push({ kind: "university", id: `u-${u.slug}`, label: u.label, meta: `${u.count} programmes`, href: `${basePath}?uni=${u.slug}` });
+      out.push({
+        kind: "university",
+        id: `u-${u.slug}`,
+        label: u.label,
+        meta: `${u.count} programmes`,
+        href: `${basePath}?uni=${u.slug}`,
+      });
     }
-    if (value.trim()) out.push({ kind: "query", id: "q", label: `Search for “${value.trim()}”`, meta: "Use all words" });
+    if (value.trim())
+      out.push({ kind: "query", id: "q", label: `Search for “${value.trim()}”`, meta: "Use all words" });
     return out;
   }, [data, value, basePath]);
 
@@ -89,7 +107,9 @@ export function SearchBox({
     setBusy(true);
     try {
       const res = await fetch(`/api/search/resolve?q=${encodeURIComponent(q)}`);
-      const j = res.ok ? ((await res.json()) as { qs: string; parsed: number }) : { qs: `q=${encodeURIComponent(q)}`, parsed: 0 };
+      const j = res.ok
+        ? ((await res.json()) as { qs: string; parsed: number })
+        : { qs: `q=${encodeURIComponent(q)}`, parsed: 0 };
       track("search", { query_length: q.length, parsed_filters: j.parsed });
       router.push(j.qs ? `${basePath}?${j.qs}` : basePath);
     } finally {
@@ -140,11 +160,15 @@ export function SearchBox({
           void submit(value);
         }}
         className={cn(
-          "glass hairline-lumen flex items-center gap-3 rounded-full px-5 focus-within:shadow-[var(--glow-amber)]",
-          size === "hero" ? "h-16" : "h-14",
+          "flex items-center gap-3 rounded-full px-5 focus-within:shadow-[var(--inner-light),var(--glow-azure)]",
+          size === "hero" ? "glass-strong beam h-16" : "glass hairline-lumen h-14",
         )}
       >
-        {busy ? <Loader2 className="text-subtle size-5 animate-spin" aria-hidden /> : <Search className="text-subtle size-5" aria-hidden />}
+        {busy ? (
+          <Loader2 className="text-subtle size-5 animate-spin" aria-hidden />
+        ) : (
+          <Search className="text-subtle size-5" aria-hidden />
+        )}
         <label htmlFor={`${id}-input`} className="sr-only">
           Search programmes, specialisations or universities
         </label>
@@ -172,7 +196,10 @@ export function SearchBox({
           onKeyDown={onKeyDown}
           className="text-text placeholder:text-subtle h-full min-w-0 flex-1 bg-transparent text-base outline-none [&::-webkit-search-cancel-button]:hidden"
         />
-        <button type="submit" className="bg-primary text-on-primary hidden h-10 shrink-0 items-center rounded-full px-4 text-sm font-semibold sm:inline-flex">
+        <button
+          type="submit"
+          className="bg-primary text-on-primary hidden h-10 shrink-0 items-center rounded-full px-4 text-sm font-semibold sm:inline-flex"
+        >
           Search
         </button>
       </form>

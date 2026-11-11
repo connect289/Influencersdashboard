@@ -308,7 +308,7 @@ export function WittyChat({
 
   return (
     <section
-      className={cn("glass flex min-h-[28rem] flex-col rounded-[var(--radius-2xl)]", className)}
+      className={cn("glass-strong hairline-lumen flex min-h-[28rem] flex-col rounded-[var(--radius-2xl)]", className)}
       aria-label="Chat with Witty"
     >
       <header className="border-border flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
@@ -563,7 +563,9 @@ export function WittyChat({
           maxLength={1000}
           value={input}
           disabled={gate}
-          placeholder={gate ? "Verify your email to start chatting" : "Ask Witty anything about degrees and admissions…"}
+          placeholder={
+            gate ? "Verify your email to start chatting" : "Ask Witty anything about degrees and admissions…"
+          }
           onChange={(e) => {
             setInput(e.target.value);
             presence.keystroke();
@@ -574,7 +576,7 @@ export function WittyChat({
               void send(input);
             }
           }}
-          className="bg-surface border-border text-text placeholder:text-subtle max-h-40 min-h-12 flex-1 resize-none rounded-[var(--radius-lg)] border px-4 py-3 text-base"
+          className="bg-surface border-border text-text placeholder:text-subtle hover:border-border-strong max-h-40 min-h-12 flex-1 resize-none rounded-[var(--radius-xl)] border px-5 py-3 text-base transition-[border-color,box-shadow] focus-visible:border-[var(--focus)] focus-visible:shadow-[var(--glow-azure)] focus-visible:outline-none"
         />
         <button
           type="submit"

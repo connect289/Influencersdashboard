@@ -10,24 +10,31 @@ import { SavedCount } from "./SavedCount";
  * "Ask Witty" (or "Get free counselling" while Witty is off), Account. The phone menu uses the native popover API
  * (no JavaScript: top layer, light dismiss, Escape to close).
  */
-export function SiteHeader({ advisorEnabled, hasResources = true }: { advisorEnabled: boolean; hasResources?: boolean }) {
+export function SiteHeader({
+  advisorEnabled,
+  hasResources = true,
+}: {
+  advisorEnabled: boolean;
+  hasResources?: boolean;
+}) {
   // Guides appear in the navigation once at least one is published.
   const nav = NAV.filter((n) => hasResources || n.href !== "/resources");
   const cta = advisorEnabled
     ? { href: "/witty", label: "Ask Witty" }
     : { href: "/contact#enquiry", label: "Free counselling" };
   return (
-    <header className="border-border sticky top-0 z-[var(--z-header)] border-b bg-[color-mix(in_oklab,var(--bg)_80%,transparent)] backdrop-blur-xl">
-      <div className="container-site flex h-16 items-center gap-3">
+    // A floating glass bar (D-093): the page scrolls behind and around it. Only the bar itself takes pointer events.
+    <header className="site-header pointer-events-none sticky top-0 z-[var(--z-header)] px-[var(--gutter)] pt-3">
+      <div className="glass-strong pointer-events-auto mx-auto flex h-14 max-w-[calc(var(--content-max)-2*var(--gutter))] items-center gap-3 rounded-full pr-2 pl-4 sm:pl-5">
         <Link href="/" aria-label="Eduwit home" className="shrink-0">
           <Logo height={30} priority />
         </Link>
-        <nav aria-label="Main" className="ml-6 hidden items-center gap-1 lg:flex">
+        <nav aria-label="Main" className="ml-5 hidden items-center gap-0.5 lg:flex">
           {nav.map((n) => (
             <Link
               key={n.href}
               href={n.href}
-              className="text-muted hover:bg-surface-hover hover:text-text rounded-full px-3 py-2 text-sm font-medium transition-colors"
+              className="text-muted hover:bg-surface-hover hover:text-text rounded-full px-3.5 py-2 text-sm font-medium transition-colors"
             >
               {n.label}
             </Link>
@@ -45,7 +52,7 @@ export function SiteHeader({ advisorEnabled, hasResources = true }: { advisorEna
           </Link>
           <Link
             href={cta.href}
-            className="bg-primary text-on-primary hover:bg-primary-hover inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-semibold shadow-[var(--glow-amber)] transition-colors"
+            className="bg-primary text-on-primary inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-semibold"
           >
             <Sparkles className="size-4" aria-hidden />
             {cta.label}
@@ -72,7 +79,7 @@ export function SiteHeader({ advisorEnabled, hasResources = true }: { advisorEna
         id="site-menu"
         popover="auto"
         aria-label="Menu"
-        className="site-menu glass-strong text-text m-0 ml-auto h-dvh w-[min(22rem,100vw)] p-0"
+        className="site-menu glass-strong text-text pointer-events-auto m-0 ml-auto h-dvh w-[min(22rem,100vw)] p-0"
       >
         <div className="border-border flex h-16 items-center justify-between border-b px-5">
           <Logo height={26} />

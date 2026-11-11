@@ -36,6 +36,9 @@
 - WhatsApp widget (2 Nov, owner): AiSensy snippet on the public pages (D-091, web15 applied: `whatsapp_widget_id` =
   `"aabsod"`). Its first deploy failed because the shared database stalled at 14:46 UTC (every cron job hit a startup
   timeout; connections could not authenticate within 15 s); the owner moved Supabase to Pro and raised the compute size.
+- UI redesign (10–11 Nov, owner): visual language "Horizon" (D-093): vibrant indigo palette, Sora display face, floating
+  header, cinematic hero, site-wide backdrop. UI/UX only. Checks: 222 unit tests, production build, e2e smoke/content/seo
+  on laptop (47; the "homepage with Witty off" test failed intermittently in combined runs and passes alone).
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).

@@ -16,13 +16,16 @@ export function SiteFooter({
   hasResources?: boolean;
 }) {
   return (
-    <footer className="border-border border-t pb-20 md:pb-0">
-      <div className="container-site grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+    <footer className="relative overflow-hidden pb-24 md:pb-0">
+      <hr className="rule-lumen" />
+      <div className="container-site grid gap-10 py-16 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="grid content-start gap-4">
           <Logo height={32} />
           <address className="text-muted grid gap-2 text-sm not-italic">
             <span className="text-text font-semibold">{COMPANY.name}</span>
-            <Link href="/contact" className="hover:text-text">All contact details</Link>
+            <Link href="/contact" className="hover:text-text">
+              All contact details
+            </Link>
           </address>
           {COMPANY.social.length ? (
             <ul className="flex gap-3 text-sm">
@@ -52,7 +55,14 @@ export function SiteFooter({
           ]}
         />
       </div>
-      <div className="border-border border-t">
+      {/* Decorative watermark: the brand name as a faint lit outline. */}
+      <p
+        aria-hidden
+        className="wordmark-ghost container-site pointer-events-none -mb-[0.12em] text-center text-[clamp(5rem,23vw,20rem)]"
+      >
+        Eduwit
+      </p>
+      <div className="border-border relative border-t backdrop-blur">
         <p className="container-site text-subtle py-5 text-xs">
           © {COMPANY.name}. {FEE_DISCLAIMER}
         </p>
@@ -68,7 +78,7 @@ function FooterList({ title, links }: { title: string; links: { href: string; la
       <ul className="grid gap-2 text-sm">
         {links.map((l) => (
           <li key={l.href}>
-            <Link href={l.href} className="text-muted hover:text-text">
+            <Link href={l.href} className="text-muted hover:text-text transition-colors">
               {l.label}
             </Link>
           </li>

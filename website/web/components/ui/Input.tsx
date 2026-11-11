@@ -2,7 +2,7 @@ import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type T
 import { cn } from "@/lib/utils";
 
 const base =
-  "w-full rounded-[var(--radius-md)] border border-border bg-bg-elev/60 px-3.5 text-[1rem] text-text placeholder:text-subtle transition-[border,box-shadow] duration-150 outline-none hover:border-border-strong focus-visible:border-focus focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--focus)_25%,transparent)] focus-visible:outline-none aria-[invalid=true]:border-danger disabled:opacity-60";
+  "w-full rounded-[var(--radius-md)] border border-border bg-bg-elev/60 px-4 text-[1rem] text-text shadow-[inset_0_1px_2px_rgb(0_0_0/0.18)] placeholder:text-subtle transition-[border,box-shadow,background] duration-200 outline-none hover:border-border-strong focus-visible:border-focus focus-visible:bg-bg-elev/90 focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--focus)_22%,transparent),0_0_28px_-6px_color-mix(in_oklab,var(--focus)_55%,transparent)] focus-visible:outline-none aria-[invalid=true]:border-danger disabled:opacity-60";
 
 /** Text input. 16px font so mobile browsers do not zoom on focus. */
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input(

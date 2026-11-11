@@ -23,15 +23,15 @@ export const inter = localFont({
 });
 
 /**
- * Concept A display face: Bricolage Grotesque, variable with optical sizing (spec 10.2). font-display: optional so the
- * headline (the LCP element) never waits for or re-flows on the web font (D-020).
+ * Display face: Sora, variable weight (D-093). A geometric, slightly wide face that reads as engineered rather than
+ * decorative. font-display: optional so the headline (the LCP element) never waits for or re-flows on the web font (D-020).
  */
-export const bricolage = localFont({
-  src: "../app/fonts/bricolage-opsz-latin.woff2",
-  weight: "200 800",
+export const sora = localFont({
+  src: "../app/fonts/sora-wght-latin.woff2",
+  weight: "100 800",
   style: "normal",
   display: "optional",
-  variable: "--font-bricolage",
+  variable: "--font-sora",
   adjustFontFallback: "Arial",
   declarations: [
     {
@@ -42,4 +42,4 @@ export const bricolage = localFont({
   ],
 });
 
-export const fontVariables = [bricolage.variable, inter.variable].join(" ");
+export const fontVariables = [sora.variable, inter.variable].join(" ");
