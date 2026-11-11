@@ -44,8 +44,15 @@ async function within<T>(p: Promise<T>, ms: number): Promise<T> {
 export async function GET(req: Request) {
   await connection();
   const detail = isInternal(req);
-  if (!detail && !(await rateLimit(LIMITS.beaconPerIp, ipFrom(req))).ok)
-    return Response.json({ ok: true }, { status: 429 });
+  // Without a key-value store the rate limit is a database write: it gets the same 3 s as the check and, when the
+  // database does not answer, lets the caller through to the check itself, which then reports that (D-094).
+  if (!detail) {
+    const allowed = await within(rateLimit(LIMITS.beaconPerIp, ipFrom(req)), DB_TIMEOUT_MS).then(
+      (r) => r.ok,
+      () => true,
+    );
+    if (!allowed) return Response.json({ ok: true }, { status: 429 });
+  }
   const started = performance.now();
   const e = env();
   const checks: Record<string, unknown> = {};

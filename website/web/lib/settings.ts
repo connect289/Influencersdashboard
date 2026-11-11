@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { WHATSAPP_WIDGET_ID } from "./widget-id";
 
-export const WHATSAPP_WIDGET_ID = /^[A-Za-z0-9_-]{3,40}$/;
+export { WHATSAPP_WIDGET_ID };
 
 /** Site settings and feature flags (mirror of web_settings defaults in web1_foundation). */
 export const settingsSchema = z.object({

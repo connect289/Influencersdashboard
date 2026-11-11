@@ -9,6 +9,9 @@ import { errorFields, log } from "@/lib/server/log";
  * Outbox worker endpoint, called every minute by the Supabase pg_cron job web_outbox_worker (pg_net POST with the internal
  * key, D-082). GET is kept for manual runs and for Vercel Cron should the project move to a paid plan.
  */
+// The timer's call gives up after 55 s (web_job_call); the function must not run on to the platform's ceiling.
+export const maxDuration = 60;
+
 async function handle(req: Request) {
   if (!isInternal(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   try {

@@ -46,32 +46,42 @@ async function contentPages(): Promise<{ path: string; faqs: boolean }[]> {
 const UA = "EduwitSEOChecker/1.0 Chrome-Lighthouse";
 const HUBS = ["/", "/programmes", "/universities", "/resources"];
 
+// The checker reads its own site: a few requests at a time, not hundreds at once. Fired together, every page and every
+// link became a page render and its database reads in the same second, enough to fill the site's own database gate and
+// report pages as unreachable (D-094).
+const FETCH_CONCURRENCY = 6;
+
+/** fn over every item with at most `limit` running at a time; results in the items' order. */
+async function pooled<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    for (let i = next++; i < items.length; i = next++) out[i] = await fn(items[i] as T);
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
 export async function runOnPageChecks(limit = 200): Promise<{ checked: number; average: number }> {
   const pages = (await contentPages()).slice(0, limit);
-  const fetched = await Promise.all(
-    pages.map(async (p) => {
-      const res = await fetch(siteUrl(p.path), { headers: { "user-agent": UA }, signal: AbortSignal.timeout(15000) }).catch(() => null);
-      return { ...p, status: res?.status ?? 0, facts: res?.ok ? extractFacts(p.path, await res.text()) : null };
-    }),
-  );
+  const fetched = await pooled(pages, FETCH_CONCURRENCY, async (p) => {
+    const res = await fetch(siteUrl(p.path), { headers: { "user-agent": UA }, signal: AbortSignal.timeout(15000) }).catch(() => null);
+    return { ...p, status: res?.status ?? 0, facts: res?.ok ? extractFacts(p.path, await res.text()) : null };
+  });
   const ok = fetched.filter((f) => f.facts);
   // Hub pages count as link sources (a university linked from /universities is linked) but are not scored.
-  const hubs = await Promise.all(
-    HUBS.map(async (h) => {
-      const res = await fetch(siteUrl(h), { headers: { "user-agent": UA }, signal: AbortSignal.timeout(15000) }).catch(() => null);
-      return res?.ok ? extractFacts(h, await res.text()).siteLinks : [];
-    }),
-  );
+  const hubs = await pooled(HUBS, FETCH_CONCURRENCY, async (h) => {
+    const res = await fetch(siteUrl(h), { headers: { "user-agent": UA }, signal: AbortSignal.timeout(15000) }).catch(() => null);
+    return res?.ok ? extractFacts(h, await res.text()).siteLinks : [];
+  });
   // Broken internal links: every unique internal link on the checked pages, fetched once (same-site paths only, redirects
   // not followed, so a crafted link can never make the checker fetch another host).
   const links = [...new Set(ok.flatMap((f) => f.facts!.internalLinks))].slice(0, 400);
   const status = new Map<string, number>();
-  await Promise.all(
-    links.map(async (l) => {
-      const r = await fetch(siteUrl(l), { method: "GET", redirect: "manual", headers: { "user-agent": UA }, signal: AbortSignal.timeout(15000) }).catch(() => null);
-      status.set(l, r?.status ?? 0);
-    }),
-  );
+  await pooled(links, FETCH_CONCURRENCY, async (l) => {
+    const r = await fetch(siteUrl(l), { method: "GET", redirect: "manual", headers: { "user-agent": UA }, signal: AbortSignal.timeout(15000) }).catch(() => null);
+    status.set(l, r?.status ?? 0);
+  });
   let total = 0;
   for (const f of fetched) {
     if (!f.facts) {

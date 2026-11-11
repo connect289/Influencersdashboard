@@ -9,12 +9,21 @@ import { log } from "./log";
  */
 let client: SupabaseClient | null = null;
 
+/**
+ * How long a database call may wait for its answer. The database ends a statement at 8 s, so 15 s only cuts a stalled
+ * network or connection: without it a call waited for as long as the platform let the function run (up to 300 s), which
+ * is what the health route cost on 3 Nov 2026 (D-092) and what every other route still risked (D-094). A cut call comes
+ * back as an error like any other failed request.
+ */
+const DB_CALL_TIMEOUT_MS = 15_000;
+
 export function db(): SupabaseClient {
   if (client) return client;
   const e = env();
   if (!e.SUPABASE_SECRET_KEY) throw new DbUnavailableError("SUPABASE_SECRET_KEY is not set");
   client = createClient(e.NEXT_PUBLIC_SUPABASE_URL, e.SUPABASE_SECRET_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
+    db: { timeout: DB_CALL_TIMEOUT_MS },
     global: { headers: { "x-client-info": "eduwit-website" } },
   });
   return client;
@@ -33,6 +42,7 @@ function readDb(): SupabaseClient {
   if (!e.SUPABASE_SECRET_KEY) throw new DbUnavailableError("SUPABASE_SECRET_KEY is not set");
   readClient = createClient(e.SUPABASE_READ_REPLICA_URL, e.SUPABASE_SECRET_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
+    db: { timeout: DB_CALL_TIMEOUT_MS },
     global: { headers: { "x-client-info": "eduwit-website-read" } },
   });
   return readClient;

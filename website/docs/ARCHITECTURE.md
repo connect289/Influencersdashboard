@@ -146,7 +146,7 @@ Feature flag `web_advisor_enabled` (default off, D-012).
 ## 7. Cross-cutting
 - **Key-value store:** Upstash Redis (rate limits, email-code attempt counters, hot search cache, circuit-breaker state)
   behind `KvStore`; in-memory store for dev/test; Postgres fallback limiter.
-- **Feature flags and settings:** `web_settings`, read through a `"use cache"` function with `cacheLife({ revalidate: 30 })`
+- **Feature flags and settings:** `web_settings`, read through a `"use cache"` function with the catalogue's lifetime (`cacheLife({ stale: 60, revalidate: 300, expire: 3600 })`, D-094)
   and tag `settings`; admin saves call `revalidateTag('settings')`.
 - **Observability:** `x-request-id` generated in `proxy.ts` (or accepted from Vercel's header) and propagated to logs,
   Sentry spans, DB calls (`set_config('web.request_id', …)` inside functions for logging) and the outbox payload.

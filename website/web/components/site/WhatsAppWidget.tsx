@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { WHATSAPP_WIDGET_ID } from "@/lib/settings";
+import { WHATSAPP_WIDGET_ID } from "@/lib/widget-id";
 
 export const WA_WIDGET_SRC = "https://d3mkw6s8thqya7.cloudfront.net/integration-plugin.js";
 
