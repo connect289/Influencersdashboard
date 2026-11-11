@@ -770,7 +770,7 @@
 }
 .text-gradient-lumen {
   background: var(--grade);
-  filter: drop-shadow(0 0 26px color-mix(in oklab, var(--lumen-magenta) 45%, transparent));
+  filter: drop-shadow(0 0 26px color-mix(in oklab, var(--lumen-magenta) 28%, transparent));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
