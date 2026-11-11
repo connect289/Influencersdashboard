@@ -94,8 +94,12 @@ select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state(
 -- cadence_s: 300
 -- disabled: setup:whatsapp
 -- title: Heartbeat lost: Witty's WhatsApp number
--- description: WhatsApp Cloud API phone number status and quality rating, written by the app's WhatsApp probe; expected every 900 s.
-select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('whatsapp:witty') as s) x
+-- description: WhatsApp Cloud API phone number status and quality rating, written by the app's WhatsApp probe; expected every 900 s. A line that was never set up (no number id in settings.whatsapp.phone_ids and no heartbeat ever written for it) has nothing to lose, so the check passes with configured false (D-136); once the id is entered on the Setup page, or after the line has reported even once, the usual rule applies.
+select case when x.known then (x.s ->> 'ok')::boolean else true end as ok,
+       case when x.known then x.s else jsonb_build_object('configured', false) end as value
+  from (select one.heartbeat_state('whatsapp:witty') as s,
+               (coalesce((select one.setting('whatsapp')) -> 'phone_ids' ->> 'witty', '') <> ''
+                or exists (select 1 from one.heartbeats h where h.component = 'whatsapp:witty')) as known) x
 
 -- check: HB-whatsapp:b2c
 -- app: b2c
@@ -104,8 +108,12 @@ select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state(
 -- cadence_s: 300
 -- disabled: setup:whatsapp
 -- title: Heartbeat lost: Spark's WhatsApp number
--- description: WhatsApp Cloud API phone number status and quality rating, written by the app's WhatsApp probe; expected every 900 s.
-select (s ->> 'ok')::boolean as ok, s as value from (select one.heartbeat_state('whatsapp:b2c') as s) x
+-- description: WhatsApp Cloud API phone number status and quality rating, written by the app's WhatsApp probe; expected every 900 s. A line that was never set up (no number id in settings.whatsapp.phone_ids and no heartbeat ever written for it) has nothing to lose, so the check passes with configured false (D-136); once the id is entered on the Setup page, or after the line has reported even once, the usual rule applies.
+select case when x.known then (x.s ->> 'ok')::boolean else true end as ok,
+       case when x.known then x.s else jsonb_build_object('configured', false) end as value
+  from (select one.heartbeat_state('whatsapp:b2c') as s,
+               (coalesce((select one.setting('whatsapp')) -> 'phone_ids' ->> 'b2c', '') <> ''
+                or exists (select 1 from one.heartbeats h where h.component = 'whatsapp:b2c')) as known) x
 
 -- check: HB-gemini
 -- app: witty

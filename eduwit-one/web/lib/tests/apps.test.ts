@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBreakers } from "../http.ts";
-import { jwtClaim, RealB2bApi, RealChatwootReader, RealHarness, RealRunnerApi } from "./apps.ts";
+import { jwtClaim, QUALIFY_SCENARIO, RealB2bApi, RealChatwootReader, RealHarness, RealRunnerApi } from "./apps.ts";
 import { totp } from "./totp.ts";
 
 type Call = { url: string; method: string; headers: Record<string, string>; body: string | undefined };
@@ -122,7 +122,33 @@ describe("the test runner login", () => {
 });
 
 describe("n8n and Chatwoot", () => {
-  it("starts the configured scenario under the run tag", async () => {
+  it("sends its own qualifying conversation, on its reserved harness phone, ending in a HOT check", async () => {
+    answers.push({ json: { ok: true } });
+    const h = new RealHarness("https://n8n.example", "key", {
+      workflowId: "w1",
+      webhookPath: "/webhook/h",
+      scenario: QUALIFY_SCENARIO.name,
+    });
+    expect(await h.start("one-7")).toEqual({ accepted: true });
+    const body = JSON.parse(calls[0]?.body ?? "{}") as {
+      run_tag: string;
+      only?: unknown;
+      scenarios: (typeof QUALIFY_SCENARIO)[];
+    };
+    expect(body.run_tag).toBe("one-7");
+    expect(body.only).toBeUndefined();
+    expect(body.scenarios).toHaveLength(1);
+    // A harness phone (910000 and six digits) that is outside Eduwit One's own run range (9100009).
+    expect(body.scenarios[0]?.phone).toMatch(/^910000\d{6}$/);
+    expect(body.scenarios[0]?.phone).not.toMatch(/^9100009/);
+    // Witty qualifies only with a name, a course, an email and readiness; the last turn checks the result.
+    const turns = body.scenarios[0]?.turns ?? [];
+    expect(JSON.stringify(turns)).toMatch(/MBA/);
+    expect(JSON.stringify(turns)).toMatch(/@example\.com/);
+    expect(turns.at(-1)).toMatchObject({ expect: { classification: "HOT" } });
+  });
+
+  it("starts a built-in scenario by name under the run tag", async () => {
     answers.push({ json: { ok: true } });
     const h = new RealHarness("https://n8n.example", "key", {
       workflowId: "w1",

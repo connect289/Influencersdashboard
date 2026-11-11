@@ -320,7 +320,7 @@
     "nurture_workflow_id": "XwmALPxBduLDxUBn",
     "learning_workflow_id": "pJSJIXCUykI0F5sj",
     "test_harness_webhook_path": "/webhook/witty2-test-harness-dev",
-    "test_harness_scenario": "happy_path_mba"
+    "test_harness_scenario": "one_qualify_hot"
   },
   "retention": {
     "results_days": 14,

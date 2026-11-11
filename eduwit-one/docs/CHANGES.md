@@ -3,6 +3,24 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 11 Nov 2026 — Four false alarms removed; the Witty test can pass (0038, D-136)
+
+From the evaluation the owner asked for on 10 Nov ("Check and optimise all apps ... after a thorough evaluation").
+- Found: of six open incidents, four were Eduwit One's own. T-WITTY-QUALIFY failing hourly since 2 Nov (its scenario
+  could never end HOT; Witty was healthy), ONE-01 failing ten minutes an hour (it counted that test as a slow check),
+  HB-whatsapp:b2c (Spark has no WhatsApp number to watch), PLAT-07 (58 functions to acknowledge, one click each). The
+  hourly test had also left 192 test leads in production.
+- Changed, schema `one` only: migration `0038_quiet_false_alarms.sql` (ONE-01, HB-whatsapp:witty and :b2c from their
+  sources; `one.ui_privilege_ack_schema`; the stored harness scenario), the app's own qualifying conversation on one
+  reserved harness phone (`web/lib/tests/apps.ts`), the Privileges page's per-schema button. `config/settings.json`,
+  0006, 0007 and `docs/CHECKS.md` regenerated.
+- Proof: the conversation tried by hand through n8n on 10 Nov, 17:16 UTC (HOT, outbox sent, a test lead, not routed, no
+  alert). Guards, 316 unit tests, typecheck, lint, the local migration test (new `99_quiet_alarms.sql`, eleven more
+  assertions in `99_privileges.sql`). Staging rehearsal passed on 11 Nov 08:48 UTC, set hash `668e96f5…`.
+- Production: `api-apply.sh 0038_quiet_false_alarms.sql` on 11 Nov 08:50 UTC, smoke passed (no dump: D-090).
+- Left for the owner: reading and acknowledging the 58 functions (now a few clicks), the 192 older test leads, lead
+  1218, how often the Witty test runs.
+
 ## 4 Nov 2026 — Spark's timers registered on production; the old B2B referral function removed
 
 On the owner's "Start registering Spark's timer in production" and "Remove old B2B referral function".
