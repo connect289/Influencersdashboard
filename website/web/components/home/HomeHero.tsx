@@ -4,6 +4,7 @@ import { KineticHeadline } from "@/components/concepts/KineticHeadline";
 import { TrustLine } from "@/components/concepts/TrustLine";
 import { SearchBox } from "@/components/finder/SearchBox";
 import { Atmosphere } from "@/components/fx/Atmosphere";
+import { NeuralField } from "@/components/fx/NeuralField";
 import { WittyHeroOrb } from "@/components/witty/WittyChatHead";
 import { HERO } from "@/content/home";
 import { WITTY } from "@/content/site";
@@ -28,6 +29,7 @@ export function HomeHero({
     <section className="grain relative isolate z-[1] -mt-[var(--header-h)] overflow-hidden">
       <Atmosphere variant="aurora" className="atmosphere-fade" />
       <div aria-hidden className="cine-bloom" />
+      <NeuralField />
       <div aria-hidden className="horizon-grid" />
       <div aria-hidden className="cine-vignette" />
       <div className="container-site relative flex min-h-dvh flex-col items-center justify-center gap-5 pt-[calc(var(--header-h)+2rem)] pb-12 text-center sm:gap-7 sm:pb-16">
