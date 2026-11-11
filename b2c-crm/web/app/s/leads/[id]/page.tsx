@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
 import { salesPeople, type Person } from "@/lib/people";
 import { stagesAndSubs } from "@/lib/stages";
-import type { LeadDetail, LeadRow } from "@/lib/types";
+import type { LeadDetail, LeadRow, Stage, SubStage } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Lead" };
 
@@ -20,15 +20,16 @@ export default async function SalesLeadPage({ params }: { params: Promise<{ id: 
   const me = await requireUser("sales", `/s/leads/${leadId}`);
   let d: LeadDetail;
   let today: Queue | null;
+  let stages: Stage[], subs: SubStage[], people: Person[];
   try {
-    [d, today] = await Promise.all([rpc<LeadDetail>("lead_detail", { p_lead: leadId }), rpc<Queue>("today").catch(() => null)]);
+    // The stages and the people do not depend on the lead, so they are read alongside it.
+    [d, today, { stages, subs }, people] = await Promise.all([rpc<LeadDetail>("lead_detail", { p_lead: leadId }), rpc<Queue>("today").catch(() => null), stagesAndSubs(),
+      me.role === "sales_head" || me.role === "admin" ? salesPeople(me).catch(() => [] as Person[]) : Promise.resolve([] as Person[])]);
   } catch (e) {
     if (e instanceof Error && /not allowed/.test(e.message)) notFound();
     return <Page title="Lead"><SetupError error={e} /></Page>;
   }
   if (!d?.lead) notFound();
-  const [{ stages, subs }, people] = await Promise.all([stagesAndSubs(),
-    me.role === "sales_head" || me.role === "admin" ? salesPeople(me).catch(() => [] as Person[]) : Promise.resolve([] as Person[])]);
   const queue = today?.queue.map((q) => q.lead) ?? [];
   const at = queue.findIndex((l) => l.lead_id === leadId);
   const next = at >= 0 ? queue.slice(at + 1).find((l) => l.lead_id !== leadId) ?? null : null;

@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { DB_TIMEOUT_MS, supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 /**
  * POST /v1/events/b2ccrm (contract in docs/b2c-contract.md): events from the B2C CRM — counsellor assigned, stage
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   const body = await request.text();
   if (body.length > MAX_BYTES) return Response.json({ ok: false, error: "body too large" }, { status: 413 });
 
-  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false } });
+  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false }, db: { timeout: DB_TIMEOUT_MS } });
   const { data, error } = await supabase.schema("b2b").rpc("b2ccrm_event_ingest", {
     p_body: body,
     p_timestamp: request.headers.get("x-eduwit-timestamp") ?? "",

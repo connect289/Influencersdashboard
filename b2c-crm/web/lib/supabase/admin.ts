@@ -9,7 +9,8 @@ function make() {
   if (!key) throw new Error("Missing environment variable SUPABASE_SERVICE_ROLE_KEY. See b2c-crm/web/.env.example.");
   return createClient(supabaseUrl(), key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    db: { schema: "b2c" },
+    // The database ends a call after 8 seconds; 15 s here only cuts one whose answer never arrives ({ data: null, error }, not a throw).
+    db: { schema: "b2c", timeout: 15_000 },
   });
 }
 

@@ -18,6 +18,10 @@ function smtp(): Transporter | null {
     port: Number(process.env.SMTP_PORT ?? 587),
     secure: process.env.SMTP_PORT === "465",
     auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } : undefined,
+    // nodemailer waits 2 minutes to connect and 10 minutes on a silent socket by default: longer than the every-minute job's 60 seconds.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
   });
   return transport;
 }

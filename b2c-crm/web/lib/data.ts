@@ -37,5 +37,7 @@ export function friendly(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
   if (/not allowed|permission denied|42501/i.test(msg)) return "You are not allowed to do that.";
   if (/PGRST106/.test(msg)) return "The app cannot reach its data yet (the b2c schema is not exposed).";
+  // A call cut by the client's 15-second limit (lib/supabase) comes back as "AbortError: This operation was aborted".
+  if (/^AbortError|operation was aborted/i.test(msg)) return "The database did not answer in time. Please try again.";
   return msg.length > 300 ? msg.slice(0, 300) + "…" : msg;
 }

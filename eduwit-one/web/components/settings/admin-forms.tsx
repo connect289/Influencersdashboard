@@ -3,7 +3,13 @@ import { ActionForm } from "@/components/forms/action-form.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Field, Input, Select } from "@/components/ui/field.tsx";
 import { mute, unmute } from "@/lib/actions/incidents.ts";
-import { acceptBaseline, acknowledgePrivilege, putUser, revokeDevices } from "@/lib/actions/settings.ts";
+import {
+  acceptBaseline,
+  acknowledgePrivilege,
+  acknowledgePrivileges,
+  putUser,
+  revokeDevices,
+} from "@/lib/actions/settings.ts";
 
 export function MuteForm({ apps }: { apps: Array<[string, string]> }) {
   return (
@@ -94,6 +100,19 @@ export function AckPrivilegeButton({ fn }: { fn: string }) {
       <input type="hidden" name="fn" value={fn} />
       <Button type="submit" variant="secondary" size="sm">
         Acknowledge
+      </Button>
+    </ActionForm>
+  );
+}
+
+/** The owner's shortcut for a schema whose listed functions they have read: all of them, each with its own audit row. */
+export function AckSchemaButton({ schema, count }: { schema: string; count: number }) {
+  return (
+    <ActionForm action={acknowledgePrivileges}>
+      <input type="hidden" name="schema" value={schema} />
+      <input type="hidden" name="expected" value={count} />
+      <Button type="submit" variant="secondary" size="sm">
+        Acknowledge all {count} in {schema}
       </Button>
     </ActionForm>
   );

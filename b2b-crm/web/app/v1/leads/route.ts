@@ -1,7 +1,7 @@
 import { dbFailure } from "@/lib/b2c-api";
 import { createClient } from "@supabase/supabase-js";
 import { apiKeyFrom } from "@/lib/integrations";
-import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { DB_TIMEOUT_MS, supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 /**
  * POST /v1/leads, the Intake API (contract in docs/intake-api.md). b2b.api_intake_lead checks the key (scope intake),
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   let body: unknown;
   try { body = JSON.parse(text); } catch { return Response.json({ ok: false, error: "the body is not JSON" }, { status: 400 }); }
 
-  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false } });
+  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false }, db: { timeout: DB_TIMEOUT_MS } });
   const { data, error } = await supabase.schema("b2b").rpc("api_intake_lead", { p_key: key, p_idempotency_key: idem, p_body: body });
   if (error) return dbFailure(error, "could not store the lead, try again with the same Idempotency-Key");
   const r = data as { ok: boolean; status: number; result?: object; error?: string; replayed?: boolean };

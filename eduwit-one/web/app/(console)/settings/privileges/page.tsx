@@ -1,5 +1,5 @@
 import { type Metadata } from "next";
-import { AcceptBaselineButton, AckPrivilegeButton } from "@/components/settings/admin-forms.tsx";
+import { AcceptBaselineButton, AckPrivilegeButton, AckSchemaButton } from "@/components/settings/admin-forms.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Card, CardBody, CardHeader } from "@/components/ui/card.tsx";
 import { PageError } from "@/components/ui/page-error.tsx";
@@ -26,6 +26,11 @@ export default async function PrivilegesPage() {
     return <PageError error={e} />;
   }
   const open = data.functions.filter((f) => !f.acknowledged);
+  // A schema with several new functions gets one button for all of them (D-136), so a new app does not leave PLAT-07
+  // open behind dozens of single clicks.
+  const bySchema = new Map<string, number>();
+  for (const f of open) bySchema.set(f.schema, (bySchema.get(f.schema) ?? 0) + 1);
+  const groups = [...bySchema].filter(([schema, n]) => n > 1 && /^[a-z_][a-z0-9_]*$/.test(schema));
   return (
     <>
       <PageHeader
@@ -41,6 +46,14 @@ export default async function PrivilegesPage() {
               : "New since the baseline. The owner reads what each does and acknowledges it (D-110)."
           }
         />
+        {me.role === "owner" && groups.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-sm">
+            <span className="text-fg-muted">After reading the list below:</span>
+            {groups.map(([schema, n]) => (
+              <AckSchemaButton key={schema} schema={schema} count={n} />
+            ))}
+          </div>
+        ) : null}
         {open.length === 0 ? (
           <Empty title="Nothing new" />
         ) : (

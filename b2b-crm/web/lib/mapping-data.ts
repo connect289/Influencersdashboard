@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { OverviewRow, Studio } from "@/lib/mapping";
 
@@ -10,9 +11,10 @@ export async function mappingOverview(): Promise<OverviewRow[]> {
   return (data ?? []) as OverviewRow[];
 }
 
-export async function mappingStudio(partnerId: number): Promise<Studio | null> {
+/** Memoised per request: the page and its metadata share one round trip. */
+export const mappingStudio = cache(async (partnerId: number): Promise<Studio | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase.schema("b2b").rpc("mapping_studio", { p_partner_id: partnerId });
   if (error) throw new Error(`mapping_studio failed (${error.code ?? "unknown"})`);
   return (data ?? null) as Studio | null;
-}
+});

@@ -55,6 +55,19 @@ export async function acknowledgePrivilege(_: ActionResult | undefined, form: Fo
   return act("ui_privilege_ack", { p_fn: p.data.fn }, "Acknowledged.");
 }
 
+/** Every function the page lists for one schema, in one step; the count guards against a list that changed since. */
+export async function acknowledgePrivileges(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
+  const p = z
+    .object({ schema: z.string().regex(/^[a-z_][a-z0-9_]{0,62}$/), expected: z.coerce.number().int().min(1).max(500) })
+    .safeParse(fields(form));
+  if (!p.success) return invalid(p.error.issues);
+  return act(
+    "ui_privilege_ack_schema",
+    { p_schema: p.data.schema, p_expected: p.data.expected },
+    `Acknowledged ${p.data.expected} in ${p.data.schema}.`,
+  );
+}
+
 export async function putUser(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
   const p = z
     .object({

@@ -7,7 +7,8 @@ import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
 export async function createClient() {
   const store = await cookies();
   return createServerClient(supabaseUrl(), supabasePublishableKey(), {
-    db: { schema: "b2c" },
+    // The database ends a call after 8 seconds; 15 s here only cuts one whose answer never arrives ({ data: null, error }, not a throw).
+    db: { schema: "b2c", timeout: 15_000 },
     cookies: {
       getAll: () => store.getAll(),
       setAll(toSet) {

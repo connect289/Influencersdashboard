@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { rpc } from "@/lib/data";
 import { assignable, team, type TeamMember } from "@/lib/team";
 import { stagesAndSubs } from "@/lib/stages";
-import type { LeadDetail } from "@/lib/types";
+import type { LeadDetail, Stage, SubStage } from "@/lib/types";
 import { AdminTools } from "./AdminTools";
 
 export const metadata: Metadata = { title: "Lead" };
@@ -19,13 +19,14 @@ export default async function WorkspaceLead({ params }: { params: Promise<{ id: 
   const me = await requireUser("workspace", `/w/leads/${leadId}`);
   let d: LeadDetail;
   let members: TeamMember[] = [];
+  let stages: Stage[], subs: SubStage[];
   try {
-    [d, members] = await Promise.all([rpc<LeadDetail>("lead_detail", { p_lead: leadId }), me.role === "admin" ? team() : Promise.resolve([])]);
+    // The stages do not depend on the lead, so they are read alongside it.
+    [d, members, { stages, subs }] = await Promise.all([rpc<LeadDetail>("lead_detail", { p_lead: leadId }), me.role === "admin" ? team() : Promise.resolve([]), stagesAndSubs()]);
   } catch (e) {
     return <Page title="Lead"><SetupError error={e} /></Page>;
   }
   if (!d?.lead) notFound();
-  const { stages, subs } = await stagesAndSubs();
   const people = assignable(members);
   return (
     <LeadScreen d={d} stages={stages} subs={subs} me={me} base="/w/leads"

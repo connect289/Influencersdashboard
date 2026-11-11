@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { DB_TIMEOUT_MS, supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 /**
  * Meta Lead Ads webhook (spec B4). GET answers Meta's subscription check with the verify token set on the Intake
@@ -9,7 +9,7 @@ import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
 export const dynamic = "force-dynamic";
 const MAX_BYTES = 200_000;
 
-const client = () => createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false } });
+const client = () => createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false }, db: { timeout: DB_TIMEOUT_MS } });
 
 export async function GET(request: Request) {
   const q = new URL(request.url).searchParams;

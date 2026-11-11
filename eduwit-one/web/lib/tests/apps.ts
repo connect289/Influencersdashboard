@@ -287,6 +287,25 @@ export class RealRunnerApi implements RunnerApi {
 const workflowSchema = z.object({ active: z.boolean() });
 
 /** Witty's test harness workflow: switched on only while T-WITTY-QUALIFY runs (D-072). */
+/**
+ * Eduwit One's own conversation for T-WITTY-QUALIFY (D-136). None of the harness's built-in scenarios can end HOT
+ * (happy_path_mba gives no email, so Witty rightly leaves it unqualified, and the test waited for a HOT that never
+ * came), so the test plays the shortest conversation Witty's own rule qualifies: a name, a course, an email and a wish
+ * to apply now. The phone is fixed, inside the harness range every app treats as a test (910000 and six digits) and
+ * outside Eduwit One's run range (9100009): the harness resets a phone before it plays on it, so each run clears the
+ * rows of the one before and production holds one test lead from this test, not one more every run.
+ */
+export const QUALIFY_SCENARIO = {
+  name: "one_qualify_hot",
+  phone: "910000100001",
+  turns: [
+    "Hi, I want to know about online MBA programmes",
+    "My name is Rahul Sharma. I completed my BCom in 2019 with 68%",
+    "My email is rahul.sharma@example.com",
+    { text: "I want to apply this month. What are the next steps?", expect: { classification: "HOT" } },
+  ],
+} as const;
+
 export class RealHarness implements Harness {
   private readonly base: string;
   private readonly apiKey: string;
@@ -326,7 +345,14 @@ export class RealHarness implements Harness {
       await fetchJson(
         "test_harness",
         `${this.base}${this.webhookPath}`,
-        { method: "POST", body: { run_tag: runTag, only: [this.scenario] } },
+        {
+          method: "POST",
+          // Eduwit One's own scenario travels in the request; any other name is one of the harness's built-in ones.
+          body:
+            this.scenario === QUALIFY_SCENARIO.name
+              ? { run_tag: runTag, scenarios: [QUALIFY_SCENARIO] }
+              : { run_tag: runTag, only: [this.scenario] },
+        },
         ONCE,
       );
       return { accepted: true };
@@ -454,7 +480,7 @@ export function testAppsFor(
         ? new RealHarness(env.n8nBase ?? settings.hosts.n8n, credentials.n8n, {
             workflowId: n8n.test_harness_workflow_id,
             webhookPath: n8n.test_harness_webhook_path,
-            scenario: n8n.test_harness_scenario ?? "happy_path_mba",
+            scenario: n8n.test_harness_scenario ?? QUALIFY_SCENARIO.name,
           })
         : null,
     wa:

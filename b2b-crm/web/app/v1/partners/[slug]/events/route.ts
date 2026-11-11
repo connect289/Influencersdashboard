@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { DB_TIMEOUT_MS, supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 /**
  * Partner events (spec B8.2; contract in docs/partner-api.md). The raw body goes to b2b.partner_event_ingest, which
@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const body = await request.text();
   if (body.length > MAX_BYTES) return Response.json({ ok: false, error: "body too large" }, { status: 413 });
 
-  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false } });
+  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false }, db: { timeout: DB_TIMEOUT_MS } });
   const { data, error } = await supabase.schema("b2b").rpc("partner_event_ingest", {
     p_slug: slug,
     p_body: body,

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { apiKeyFrom } from "@/lib/integrations";
-import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { DB_TIMEOUT_MS, supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 /**
  * The B2C CRM link's machine endpoints (/v1/b2c/*, contract in docs/b2c-contract.md). Every b2b.api_b2c_* function
@@ -48,7 +48,7 @@ type DbAnswer = { ok: boolean; status?: number; result?: unknown; error?: string
 
 /** Calls one b2b.api_b2c_* function and turns its answer into the HTTP response. */
 export async function callB2c(fn: string, args: Record<string, unknown>): Promise<Response> {
-  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false } });
+  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false }, db: { timeout: DB_TIMEOUT_MS } });
   const { data, error } = await supabase.schema("b2b").rpc(fn, args);
   if (error) return dbFailure(error, "the B2B CRM could not answer, try again shortly");
   const r = data as DbAnswer;

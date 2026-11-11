@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { anthropicMessages, runOnce, type Db, type Usage } from "@/lib/ai/worker";
-import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { DB_TIMEOUT_MS, supabasePublishableKey, supabaseUrl } from "@/lib/env";
 import { carriesKey } from "@/lib/worker-auth";
 
 /**
@@ -16,7 +16,7 @@ export const maxDuration = 300;
 type Answer = { ok: boolean; status?: number; result?: unknown; error?: string };
 
 function db(key: string): Db {
-  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false } });
+  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false }, db: { timeout: DB_TIMEOUT_MS } });
   const call = async <T>(fn: string, args: Record<string, unknown>): Promise<T> => {
     const { data, error } = await supabase.schema("b2b").rpc(fn, args);
     if (error) throw new Error(`${fn}: database error (${error.code ?? "unknown"})`);

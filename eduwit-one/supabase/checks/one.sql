@@ -6,7 +6,7 @@
 -- severity: P2
 -- cadence_s: 60
 -- title: Eduwit One itself is unwell: tick errors, AI backlog, failed deliveries or AI overspend
--- description: More than fix_failed_acts_max fix acts that failed, or more than ai_failed_tasks_max AI tasks that failed, in 24 h (hardening F16). A tick report in the last 10 min with an _error key (a killed check or event copy included); a tick that started 2 to 15 min ago and never finished its alert step and app call; an event source in error, killed or missing (where missing counts, D-042; m13 of the second review); a check slower than checks.slow_ms in the last 10 min (a statement timeout cannot be armed per check, D-044); more than ai_queue_max AI tasks pending or held past their 10-minute lease; a failed delivery in the last 24 h; AI spend today (one.ai_calls.cost_inr, IST) at or above one.settings.ai.daily_cap_inr, or AI work held back because the day's cap is reached or the Anthropic API credits are used up (spec §11: ONE-01 fires at 100%; phase 6 review M1; D-078). A cap of 0 means the owner switched the AI off and raises nothing. A check parked after three killed runs in a row (it tries again every checks.parked_retry_h hours until a run finishes, D-102).
+-- description: More than fix_failed_acts_max fix acts that failed, or more than ai_failed_tasks_max AI tasks that failed, in 24 h (hardening F16). A tick report in the last 10 min with an _error key (a killed check or event copy included); a tick that started 2 to 15 min ago and never finished its alert step and app call; an event source in error, killed or missing (where missing counts, D-042; m13 of the second review); a check slower than checks.slow_ms in the last 10 min (a statement timeout cannot be armed per check, D-044; the end-to-end tests are left out, a journey takes as long as its steps wait, D-136); more than ai_queue_max AI tasks pending or held past their 10-minute lease; a failed delivery in the last 24 h; AI spend today (one.ai_calls.cost_inr, IST) at or above one.settings.ai.daily_cap_inr, or AI work held back because the day's cap is reached or the Anthropic API credits are used up (spec §11: ONE-01 fires at 100%; phase 6 review M1; D-078). A cap of 0 means the owner switched the AI off and raises nothing. A check parked after three killed runs in a row (it tries again every checks.parked_retry_h hours until a run finishes, D-102).
 with v as (
   select (select count(*) from one.runs where kind = 'tick' and started_at > now() - interval '10 minutes' and report::text ~ '_error"') as tick_errors_10m,
          (select count(*) from one.runs where kind = 'tick' and finished_at is null
@@ -15,7 +15,8 @@ with v as (
            where w.last_status in ('error', 'killed')
               or (w.last_status = 'source_missing' and coalesce(((select one.setting('checks')) ->> 'source_missing_opens_incident')::boolean, true))) as event_sources_failing,
          (select coalesce(jsonb_agg(distinct r.check_id), '[]') from one.results r
-           where r.ran_at > now() - interval '10 minutes' and r.duration_ms > coalesce(((select one.setting('checks')) ->> 'slow_ms')::int, 5000)) as slow_checks,
+           where r.ran_at > now() - interval '10 minutes' and r.duration_ms > coalesce(((select one.setting('checks')) ->> 'slow_ms')::int, 5000)
+             and not exists (select 1 from one.checks t where t.id = r.check_id and t.kind = 'test')) as slow_checks,
          (select coalesce(jsonb_agg(c.id order by c.id), '[]') from one.checks c join one.check_state st on st.check_id = c.id
            where c.enabled and st.killed_count >= 3) as parked_checks,
          (select count(*) from one.ai_tasks
