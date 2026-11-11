@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { Download } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Logo } from "@/components/brand/logo";
@@ -11,14 +12,15 @@ import { createClient } from "@/lib/supabase/server";
 
 export const revalidate = 300;
 
-async function load(handle: string): Promise<MediaKit | null> {
+/** Read once per request: the page and its metadata share the answer. */
+const load = cache(async (handle: string): Promise<MediaKit | null> => {
   if (!/^[a-z0-9._]{3,30}$/i.test(handle)) return null;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("media_kit_public", { p_handle: handle });
   if (error) return null;
   const kit = mediaKitSchema.safeParse(data);
   return kit.success ? kit.data : null;
-}
+});
 
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {
   const t = await getTranslations();

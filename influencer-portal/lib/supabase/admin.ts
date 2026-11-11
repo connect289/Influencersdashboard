@@ -6,7 +6,8 @@ import { env } from "@/lib/env";
 function make() {
   return createClient<Database, "inf">(env().NEXT_PUBLIC_SUPABASE_URL, env().SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    db: { schema: "inf" },
+    // The database ends a statement at 8 s; 15 s only cuts a call whose answer never arrives (it then returns an error).
+    db: { schema: "inf", timeout: 15_000 },
   });
 }
 

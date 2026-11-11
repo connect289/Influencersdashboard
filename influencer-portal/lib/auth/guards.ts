@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import {
@@ -55,10 +56,11 @@ async function signOutWith(supabase: ServerSupabase, to: string): Promise<never>
 }
 
 /**
- * Gate for every staff page. Registers the session, requires the emailed code (or a trusted device) and an active
- * staff profile, and returns 404 when the role lacks `permission` (screens a role can't use are hidden, not disabled).
+ * The guards below do their work once per page render: a layout and its page both call the same guard, and React's
+ * cache() hands the second caller the first one's outcome (the client, `me`, or the same redirect or error). cache()
+ * only remembers within one render pass; in Server Actions and Route Handlers every call runs in full, as before.
  */
-export async function requireStaff(permission?: Permission): Promise<{ supabase: ServerSupabase; me: StaffMe }> {
+const staffSession = cache(async (): Promise<{ supabase: ServerSupabase; me: StaffMe }> => {
   const supabase = await signedInClient("/login/staff");
   let me = await fetchMe(supabase);
   if (me.kind !== "staff") redirect("/no-access");
@@ -75,15 +77,29 @@ export async function requireStaff(permission?: Permission): Promise<{ supabase:
   }
   const staff = toStaffMe(me);
   if (!staff) return signOutWith(supabase, "/no-access");
-  if (permission && !staff.permissions.has(permission)) notFound();
+  return { supabase, me: staff };
+});
+
+/** Records activity, once per render pass for a client (a layout and its page share one). */
+const touchSession = cache((supabase: ServerSupabase): void => {
   void supabase
     .rpc("session_touch")
     .then(({ error }) => error && log.warn("session_touch.failed", { error: error.message }));
-  return { supabase, me: staff };
+});
+
+/**
+ * Gate for every staff page. Registers the session, requires the emailed code (or a trusted device) and an active
+ * staff profile, and returns 404 when the role lacks `permission` (screens a role can't use are hidden, not disabled).
+ * The permission is checked on every call: a layout and its page ask for different ones.
+ */
+export async function requireStaff(permission?: Permission): Promise<{ supabase: ServerSupabase; me: StaffMe }> {
+  const session = await staffSession();
+  if (permission && !session.me.permissions.has(permission)) notFound();
+  touchSession(session.supabase);
+  return session;
 }
 
-/** Gate for every creator page. Links the account on first sign-in and registers the session. */
-export async function requireCreator(): Promise<{ supabase: ServerSupabase; me: CreatorMe }> {
+const creatorSession = cache(async (): Promise<{ supabase: ServerSupabase; me: CreatorMe }> => {
   const supabase = await signedInClient("/login");
   let me = await fetchMe(supabase);
   if (me.kind === "staff") redirect("/admin");
@@ -100,14 +116,16 @@ export async function requireCreator(): Promise<{ supabase: ServerSupabase; me: 
   if (me.session?.revoked) return signOutWith(supabase, "/login?reason=revoked");
   const creator = toCreatorMe(me);
   if (!creator || !me.session?.verified) return signOutWith(supabase, "/no-access?portal=creator");
-  void supabase
-    .rpc("session_touch")
-    .then(({ error }) => error && log.warn("session_touch.failed", { error: error.message }));
+  touchSession(supabase);
   return { supabase, me: creator };
+});
+
+/** Gate for every creator page. Links the account on first sign-in and registers the session. */
+export async function requireCreator(): Promise<{ supabase: ServerSupabase; me: CreatorMe }> {
+  return creatorSession();
 }
 
-/** Gate for every agency page. Membership is linked at sign-in; this only registers the session. */
-export async function requireAgency(): Promise<{ supabase: ServerSupabase; me: AgencyMe }> {
+const agencySession = cache(async (): Promise<{ supabase: ServerSupabase; me: AgencyMe }> => {
   const supabase = await signedInClient("/login");
   let me = await fetchMe(supabase);
   if (me.kind === "staff") redirect("/admin");
@@ -119,10 +137,13 @@ export async function requireAgency(): Promise<{ supabase: ServerSupabase; me: A
   if (me.session?.revoked) return signOutWith(supabase, "/login?reason=revoked");
   const agency = toAgencyMe(me);
   if (!agency || !me.session?.verified) return signOutWith(supabase, "/no-access?portal=creator");
-  void supabase
-    .rpc("session_touch")
-    .then(({ error }) => error && log.warn("session_touch.failed", { error: error.message }));
+  touchSession(supabase);
   return { supabase, me: agency };
+});
+
+/** Gate for every agency page. Membership is linked at sign-in; this only registers the session. */
+export async function requireAgency(): Promise<{ supabase: ServerSupabase; me: AgencyMe }> {
+  return agencySession();
 }
 
 /** Throwing variant for server actions and route handlers (no redirects). */

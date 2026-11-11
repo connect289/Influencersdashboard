@@ -3,6 +3,70 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 11 Nov 2026 — The portal's minute timers call the app only when there is work (portal D-194)
+
+- Found: the influencer portal was called about 4,000 times a day with almost no human traffic; 2,880 of those were
+  its two minute timers, one claiming from an empty job queue and one being told that lead sync is off.
+- Changed (schema `inf` only, migration `20261111000100_inf_timer_guards.sql`): `inf.cron_dispatch` first asks whether
+  a job is claimable (the job runner's own rule) and, for lead sync, calls every minute only while a real sweep ran in
+  the last 24 hours, otherwise on the quarter-hour. So with lead sync off: 96 calls a day, not 1,440; when the owner
+  switches it on, the first sweep starts within 15 minutes and the minute cadence resumes by itself. In the app: the
+  page guards run once per page instead of twice (the permission check still runs every time), database calls end at
+  15 s, the tracking redirect at 10 s, and the public media kit reads its data once.
+- Proof: the portal has no staging copy (its rule), so: 15 assertions on a throwaway local Postgres with the migration
+  applied twice; the migration inside a rolled-back transaction on production (no job claimable, lead sync due only on
+  the quarter-hour, neither function callable by the public roles); a pgTAP file of 40 assertions for the portal's own
+  local stack. 3,689 unit tests (13 new for the guards), typecheck and lint pass.
+- Production: applied on 11 Nov 14:23 UTC (backup of 00:51 UTC), recorded in the migration history as the earlier
+  portal migrations are. The app code deploys from `main`.
+
+## 11 Nov 2026 — The apps after the evaluation: what was fixed and shipped (B2B, Spark, website, Scout)
+
+One read-only performance review per app (10 Nov), each claim checked in the code or measured before anything changed;
+every database change went to staging first, and production had its nightly backup of 11 Nov 00:51 UTC.
+- **Proved after 0038:** the 09:00 UTC run of T-WITTY-QUALIFY passed all five steps in 33 s (it had failed every hour
+  since 2 Nov, after 85 s); its test lead is marked `is_test` and unrouted, and replaced the one before. T-WITTY-QUALIFY
+  and HB-whatsapp:b2c closed by themselves.
+- **Scout (its repo, T-129):** PLAT-01 opened on 10 Nov 21:55 UTC: Scout's nightly `ce-prune-claims` ran into the
+  two-minute statement limit on its first night with real work. The same rule rewritten so the database can hash it
+  (1.1 s on production instead of a timeout), at most 50,000 claims a run. Staging first (rolled-back proof, then for
+  real), production after: 115,878 of 200,709 claims pruned in three runs, all 28,468 facts with their evidence. The
+  incident closes at tonight's 21:50 UTC run, the first scheduled one under the new function.
+- **B2B CRM (`m34h`, code on `main`):** `/api/health` bounded (10 s, 3 s database read, 15 s cache); every server-side
+  database call ends at 15 s; a dashboard with a period or filter in its URL is computed once, not twice; four
+  indexes for the two timers that read whole tables every minute. 460 unit tests and the build pass.
+- **Spark (`b54`, code on `main`):** the same 15 s limit, with a plain message when it cuts a call; the mailer no
+  longer waits up to ten minutes on a silent mail server; seven indexes for the minute timers and the navigation
+  counts (one candidate left out: it measured slower); the lead screen's reads run together. 199 unit tests, the
+  build and the local database suites pass.
+- **Website (its branch, D-094):** every page was regenerated every 30 seconds and re-rendered on demand after five
+  quiet minutes, because the root layout's settings had that cache lifetime; all 50 prerendered routes now read
+  5 minutes and 1 hour (checked in the build's manifest and live: `/about` answers from cache). Database calls end at
+  15 s, the outbox route at 60 s, and the daily SEO check fetches six URLs at a time instead of several hundred.
+  Rebased onto another session's redesign commit pushed minutes earlier; 222 tests pass on the combined code.
+- **Live and checked (09:10 UTC):** B2B `/api/health` answers in about a second and its second call comes from the
+  15-second cache (it took 2.7 s on 10 Nov and averaged 6.5 s during the stalls); Spark's health reports every part ok
+  on the new build; the merge to `main` is `17bddb6`. The portal's part (its two minute timers) follows in its own
+  entry.
+- **Measured and left alone:** the website's idle-skip for its minute timer was already live; Spark's idle timer calls
+  cost about 0.1 GB-hours a day per site, not worth diverging staging from production; Scout's storage alert no longer
+  fires (its budget setting was raised by its own session).
+- **Left for later, because each changes results that must be proven equal first** (none matters at today's volumes;
+  all were found by reading the code at the scale the apps are designed for):
+  - B2B: the lead list counts its filter options in 15 passes over the lead table per render; the duplicates page
+    compares every lead with every other; the home screen and pool call a function per row.
+  - Spark: Today computes the whole team's leaderboard for a closed panel; an analytics dashboard runs one request
+    per widget, one after another; the lead list evaluates its wide view for every matching lead and exports repeat
+    that per 500 rows; journey enrolment tests every pooled lead each minute (`may_message` per lead is the cost).
+  - Portal: the staff leads list materialises every lead per view; the creator home reads every ledger line to show
+    four totals; three client bundles could load on demand; after go-live the lead sweep rewrites its newest lead
+    every minute.
+  - Website: the proxy waits for the redirect map when its copy is a minute old; without a shared key-value store
+    each public API request costs a database write (needs an Upstash account: the owner's).
+  - Scout: a re-read rewrites every claim twice (about 80 to 100 MB of churn a pass); a second worker started while
+    another holds the portal login idles until its limit instead of leaving (about 200 billed minutes on 3 Nov);
+    the AI review's cacheable prompt part is placed where it cannot be reused.
+
 ## 11 Nov 2026 — Four false alarms removed; the Witty test can pass (0038, D-136)
 
 From the evaluation the owner asked for on 10 Nov ("Check and optimise all apps ... after a thorough evaluation").

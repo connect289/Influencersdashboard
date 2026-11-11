@@ -13,7 +13,8 @@ export async function createClient() {
   const store = await cookies();
   const ctx = await requestContext();
   return createServerClient<Database, "inf">(publicEnv.supabaseUrl, publicEnv.supabaseKey, {
-    db: { schema: "inf" },
+    // The database ends a statement at 8 s; 15 s only cuts a call whose answer never arrives (it then returns an error).
+    db: { schema: "inf", timeout: 15_000 },
     global: { headers: forwardedHeaders(ctx) },
     cookies: {
       getAll: () => store.getAll(),
