@@ -2,7 +2,7 @@ import { dbFailure } from "@/lib/b2c-api";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { apiKeyFrom } from "@/lib/integrations";
-import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { DB_TIMEOUT_MS, supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 /**
  * POST /v1/leads/{id}/route-to-partners (docs/b2c-contract.md §3.2): the B2C CRM hands a lead it holds back to the routing
@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const b = Body.safeParse(json);
   if (!b.success) return Response.json({ ok: false, error: "a reason (3 to 300 characters) is required", error_code: "invalid" }, { status: 422 });
 
-  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false } });
+  const supabase = createClient(supabaseUrl(), supabasePublishableKey(), { auth: { persistSession: false, autoRefreshToken: false }, db: { timeout: DB_TIMEOUT_MS } });
   const { data, error } = await supabase.schema("b2b").rpc("api_route_to_partners", { p_key: key, p_lead_id: Number(id), p_reason: b.data.reason });
   if (error) return dbFailure(error, "could not route the lead, try again");
   const r = data as RouteAnswer;

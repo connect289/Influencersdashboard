@@ -1,12 +1,13 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { DB_TIMEOUT_MS, supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 /** Supabase client acting as the signed-in user (RLS applies). Create one per request. */
 export async function createClient() {
   const store = await cookies();
   return createServerClient(supabaseUrl(), supabasePublishableKey(), {
+    db: { timeout: DB_TIMEOUT_MS },
     cookies: {
       getAll: () => store.getAll(),
       setAll(toSet) {

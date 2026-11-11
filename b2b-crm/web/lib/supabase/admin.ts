@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
-import { supabaseUrl } from "@/lib/env";
+import { DB_TIMEOUT_MS, supabaseUrl } from "@/lib/env";
 
 let client: ReturnType<typeof make> | null = null;
 
@@ -9,7 +9,7 @@ function make() {
   if (!key) throw new Error("Missing environment variable SUPABASE_SERVICE_ROLE_KEY. See b2b-crm/web/.env.example.");
   return createClient(supabaseUrl(), key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    db: { schema: "b2b" },
+    db: { schema: "b2b", timeout: DB_TIMEOUT_MS },
   });
 }
 

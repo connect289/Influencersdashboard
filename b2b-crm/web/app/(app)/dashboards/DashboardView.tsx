@@ -2,18 +2,20 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/Card";
 import { WidgetCard } from "@/components/charts/WidgetView";
-import { dashboardFilterDims, viewParams } from "@/lib/analytics";
+import { dashboardFilterDims, PERIODS, viewParams, type Period } from "@/lib/analytics";
 import { dashboardData, metricCatalogue } from "@/lib/analytics-data";
 import { relativeTime } from "@/lib/format";
 import { DashboardActions, DashboardControls } from "./DashboardClient";
 
 /** Renders the dashboard with the shared widget grid; used by the dashboard page and the home screen. */
 export async function DashboardView({ id, sp, home }: { id: number; sp: Record<string, string | string[] | undefined>; home?: boolean }) {
-  const first = await dashboardData(id);
-  const v = viewParams(sp, first.dashboard.period);
-  const d = v.period === first.dashboard.period && !v.filters ? first : await dashboardData(id, v.period, v.filters);
+  // One call: the URL's period (when it is a known one) and filters (when they parse), else null. For a null the database
+  // uses the dashboard's own (b2b.dashboard_render: coalesce(p_period, d.period), coalesce(p_filters, d.filters)), and the
+  // dashboard row it returns is the same whatever is passed, so nothing has to be read first.
+  const period = PERIODS.includes(sp.period as Period) ? (sp.period as Period) : null;
+  const [d, cat] = await Promise.all([dashboardData(id, period, viewParams(sp, "30d").filters), metricCatalogue()]);
+  const v = viewParams(sp, d.dashboard.period);
   const filters = v.filters ?? d.dashboard.filters;
-  const cat = await metricCatalogue();
   const dims = dashboardFilterDims(d.dashboard.widgets, cat.metrics);
   return (
     <>

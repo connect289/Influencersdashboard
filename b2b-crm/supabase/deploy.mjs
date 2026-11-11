@@ -30,6 +30,7 @@ const files = [
   'migrations/m33g_revoke_legacy_stage_function.sql', 'migrations/m34a_definer_helper_access.sql', 'migrations/m34b_ml_training_skipped.sql',
   'migrations/m34c_auth_failure_log_throttle.sql', 'migrations/m34d_referral_outcomes_scoped.sql', 'migrations/m34e_outbound_url_guard.sql',
   'migrations/m34f_ai_worker_auth.sql', 'migrations/m34g_anonymise_internal_path.sql',
+  'migrations/m34h_timer_scan_indexes.sql',
 ];
 const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
 await client.connect();
