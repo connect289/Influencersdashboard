@@ -37,7 +37,7 @@ export function HomeHero({
         <KineticHeadline
           text={advisorEnabled ? HERO.advisorHeadline : HERO.headline}
           accentLast={advisorEnabled ? 1 : 2}
-          className="text-text headline-bloom max-w-5xl text-[length:var(--text-5xl)]"
+          className="text-text headline-bloom max-w-6xl text-[clamp(2.75rem,6.6vw,6rem)]"
         />
         {advisorEnabled ? (
           <>

@@ -37,8 +37,9 @@
   --lumen-azure: #4c9bff;
   --lumen-ice: #8fdcff;
   --lumen-indigo: #2a3a8f;
-  --lumen-cyan: #5ee7ff;
-  --lumen-violet: #9a8cff;
+  --lumen-cyan: #00f0ff;
+  --lumen-violet: #7c4dff;
+  --lumen-magenta: #ff2bd6;
 
   /* ---------- Type ---------- */
   --font-display: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
@@ -157,47 +158,46 @@
   color-scheme: dark;
   --show-dark: inline-flex;
   --show-light: none;
-  --bg: #070a1f;
-  --bg-elev: #0d1233;
-  --bg-sunken: #05071a;
-  --surface: rgb(26 33 82 / 0.5); /* translucent panel; solid fallback below */
-  --surface-solid: #131a47;
-  --surface-hover: rgb(44 56 128 / 0.6);
-  --surface-strong: rgb(14 19 54 / 0.82);
-  --sheen: linear-gradient(180deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0) 40%);
-  --border: rgb(160 172 255 / 0.16);
-  --border-strong: rgb(170 182 255 / 0.34);
+  --bg: #030306;
+  --bg-elev: #0a0a12;
+  --bg-sunken: #000000;
+  --surface: rgb(20 20 32 / 0.55); /* translucent panel; solid fallback below */
+  --surface-solid: #0e0e18;
+  --surface-hover: rgb(38 38 60 / 0.65);
+  --surface-strong: rgb(8 8 16 / 0.86);
+  --sheen: linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 40%);
+  --border: rgb(255 255 255 / 0.1);
+  --border-strong: rgb(255 255 255 / 0.22);
   --hairline-lumen: linear-gradient(
     135deg,
-    rgb(255 190 70 / 0.95),
-    rgb(255 94 126 / 0.55) 28%,
-    rgb(143 107 255 / 0.5) 55%,
-    rgb(56 214 255 / 0.55) 82%,
-    rgb(255 255 255 / 0.08)
+    rgb(0 240 255 / 0.95),
+    rgb(124 77 255 / 0.6) 38%,
+    rgb(255 43 214 / 0.8) 70%,
+    rgb(255 255 255 / 0.1)
   );
   /* Site-wide backdrop: three soft light sources and a fading grid (globals.css, body::before / ::after). */
-  --backdrop-1: rgb(255 150 30 / 0.24);
-  --backdrop-2: rgb(20 170 255 / 0.24);
-  --backdrop-3: rgb(150 70 255 / 0.28);
-  --grid-line: rgb(150 165 255 / 0.07);
-  --numeral-stroke: rgb(255 190 70 / 0.95);
+  --backdrop-1: rgb(255 30 200 / 0.24);
+  --backdrop-2: rgb(0 220 255 / 0.22);
+  --backdrop-3: rgb(110 60 255 / 0.3);
+  --grid-line: rgb(0 240 255 / 0.075);
+  --numeral-stroke: rgb(0 240 255 / 0.95);
 
-  --text: #f3f5ff;
-  --text-muted: #b7bfe4;
-  --text-subtle: #939cc9;
-  --text-inverse: #070a1f;
+  --text: #f5f7ff;
+  --text-muted: #b6bace;
+  --text-subtle: #9095ad;
+  --text-inverse: #030306;
 
   --primary: #ffad0d;
   --primary-hover: #ffc233;
   --on-primary: #1a1000;
   --primary-2: #ff6f1f; /* the warm end of a primary action's gradient */
-  --grade: linear-gradient(100deg, #ffd23f, #ff8a1f 30%, #ff4d8d 64%, #a56bff); /* headline accent: amber to violet */
-  --vignette: rgb(3 4 20 / 0.6);
-  --scrim: rgb(7 10 31 / 0.5);
+  --grade: linear-gradient(100deg, #00f0ff, #7c8cff 42%, #ff2bd6); /* headline accent: amber to violet */
+  --vignette: rgb(0 0 0 / 0.72);
+  --scrim: rgb(3 3 6 / 0.5);
   --secondary: #1d6bc0;
   --on-secondary: #ffffff;
-  --accent: #6fd0ff;
-  --accent-soft: rgb(56 190 255 / 0.16);
+  --accent: #3df0ff;
+  --accent-soft: rgb(0 240 255 / 0.13);
   --amber-soft: rgb(255 173 13 / 0.16);
   --amber-text: #ffc857;
 
@@ -207,26 +207,27 @@
   --warning-soft: rgb(255 196 77 / 0.12);
   --danger: #ff8a8a;
   --danger-soft: rgb(255 138 138 / 0.12);
-  --info: #7fe0ff;
+  --info: #3df0ff;
 
   --focus: #ffc94d;
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
 
-  --shadow-1: 0 1px 2px rgb(3 4 20 / 0.6);
-  --shadow-2: 0 12px 32px -12px rgb(3 4 20 / 0.7), 0 2px 6px rgb(3 4 20 / 0.4);
-  --shadow-3: 0 32px 80px -20px rgb(3 4 20 / 0.85), 0 10px 24px -10px rgb(3 4 20 / 0.55);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.7);
+  --shadow-2: 0 12px 32px -12px rgb(0 0 0 / 0.8), 0 2px 6px rgb(0 0 0 / 0.5);
+  --shadow-3: 0 32px 80px -20px rgb(0 0 0 / 0.9), 0 10px 24px -10px rgb(0 0 0 / 0.6);
   --shadow-lift:
-    0 24px 60px -18px rgb(3 4 20 / 0.8), 0 0 0 1px rgb(170 182 255 / 0.22), 0 0 64px -10px rgb(143 107 255 / 0.6);
-  --inner-light: inset 0 1px 0 rgb(255 255 255 / 0.13), inset 0 30px 46px -36px rgb(160 150 255 / 0.3);
+    0 24px 60px -18px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(0 240 255 / 0.35), 0 0 70px -8px rgb(255 43 214 / 0.55),
+    0 0 40px -10px rgb(0 240 255 / 0.5);
+  --inner-light: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 30px 46px -36px rgb(0 240 255 / 0.22);
   --glow-amber: 0 0 0 1px rgb(255 200 90 / 0.5), 0 10px 40px -6px rgb(255 130 20 / 0.75);
-  --glow-azure: 0 0 0 1px rgb(100 210 255 / 0.45), 0 10px 40px -6px rgb(60 150 255 / 0.65);
+  --glow-azure: 0 0 0 1px rgb(0 240 255 / 0.55), 0 0 44px -4px rgb(0 240 255 / 0.6);
   --button-light: inset 0 1px 0 rgb(255 255 255 / 0.55), inset 0 -1px 0 rgb(0 0 0 / 0.18);
   --grain-opacity: 0.05;
 
-  --aurora-1: #ff9d14;
-  --aurora-2: #1f8fff;
-  --aurora-3: #7a35ff;
-  --aurora-base: #070a1f;
+  --aurora-1: #ff2bd6;
+  --aurora-2: #00d9ff;
+  --aurora-3: #6a35ff;
+  --aurora-base: #030306;
   --skeleton: linear-gradient(
     100deg,
     rgb(255 255 255 / 0.04) 30%,

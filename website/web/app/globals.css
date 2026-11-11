@@ -306,7 +306,7 @@
         var(--lumen-cyan) 72%,
         var(--lumen-amber) 81%,
         #fff 85%,
-        #ff5e7e 90%,
+        var(--lumen-magenta) 90%,
         transparent 98%
       ),
       var(--hairline-lumen);
@@ -423,12 +423,7 @@
     margin-right: 0.7em;
     vertical-align: middle;
     translate: 0 -0.08em;
-    background: linear-gradient(
-      90deg,
-      var(--primary),
-      #ff5e7e 60%,
-      color-mix(in oklab, var(--lumen-violet) 70%, transparent)
-    );
+    background: linear-gradient(90deg, var(--lumen-cyan), var(--lumen-magenta));
   }
 }
 @utility verified-shimmer {
@@ -539,13 +534,13 @@
     transparent,
     color-mix(in oklab, var(--lumen-cyan) 70%, transparent) 30%,
     #fff 50%,
-    color-mix(in oklab, var(--lumen-amber) 80%, transparent) 68%,
+    color-mix(in oklab, var(--lumen-magenta) 85%, transparent) 70%,
     transparent
   );
   box-shadow:
     0 0 18px 2px color-mix(in oklab, var(--lumen-cyan) 55%, transparent),
     0 0 70px 10px color-mix(in oklab, var(--aurora-2) 45%, transparent);
-  opacity: 0.55;
+  opacity: 0.75;
   animation: flare 9s var(--ease-in-out) infinite alternate;
 }
 @keyframes flare {
@@ -775,6 +770,7 @@
 }
 .text-gradient-lumen {
   background: var(--grade);
+  filter: drop-shadow(0 0 26px color-mix(in oklab, var(--lumen-magenta) 45%, transparent));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -785,7 +781,7 @@
   background: linear-gradient(
     170deg,
     var(--numeral-stroke),
-    #ff5e7e 45%,
+    var(--lumen-magenta) 45%,
     color-mix(in oklab, var(--lumen-violet) 30%, transparent) 88%
   );
   -webkit-background-clip: text;
@@ -970,4 +966,16 @@
 /* Consent already stored: hide the server-rendered banner before first paint (boot script sets data-consent). */
 html[data-consent] .consent-banner {
   display: none;
+}
+
+/* Light theme: no neon glow under gradient text. */
+[data-theme="light"] .text-gradient-lumen {
+  filter: none;
+}
+/* Neon edge on glass cards that carry the luminous hairline (dark theme): a faint coloured halo at rest. */
+[data-theme="dark"] .hairline-lumen {
+  box-shadow:
+    var(--inner-light),
+    var(--shadow-2),
+    0 0 46px -18px color-mix(in oklab, var(--lumen-cyan) 70%, transparent);
 }
