@@ -158,16 +158,16 @@
   color-scheme: dark;
   --show-dark: inline-flex;
   --show-light: none;
-  --bg: #070b16;
-  --bg-elev: #0c1322;
-  --bg-sunken: #04070e;
-  --surface: rgb(18 28 50 / 0.55); /* translucent panel; solid fallback below */
-  --surface-solid: #101a30;
-  --surface-hover: rgb(30 46 80 / 0.65);
-  --surface-strong: rgb(9 15 28 / 0.86);
+  --bg: #111d38;
+  --bg-elev: #182746;
+  --bg-sunken: #0c1529;
+  --surface: rgb(34 52 92 / 0.55); /* translucent panel; solid fallback below */
+  --surface-solid: #1c2c50;
+  --surface-hover: rgb(50 74 124 / 0.65);
+  --surface-strong: rgb(20 33 62 / 0.88);
   --sheen: linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 40%);
-  --border: rgb(200 215 255 / 0.1);
-  --border-strong: rgb(200 215 255 / 0.22);
+  --border: rgb(210 222 255 / 0.14);
+  --border-strong: rgb(210 222 255 / 0.3);
   --hairline-lumen: linear-gradient(
     135deg,
     rgb(243 201 105 / 0.9),
@@ -176,24 +176,24 @@
     rgb(255 255 255 / 0.06)
   );
   /* Site-wide backdrop: three soft light sources and a fading grid (globals.css, body::before / ::after). */
-  --backdrop-1: rgb(233 185 73 / 0.13);
-  --backdrop-2: rgb(40 100 220 / 0.2);
-  --backdrop-3: rgb(30 60 160 / 0.22);
+  --backdrop-1: rgb(233 185 73 / 0.16);
+  --backdrop-2: rgb(70 130 240 / 0.24);
+  --backdrop-3: rgb(60 100 210 / 0.24);
   --grid-line: rgb(200 215 255 / 0.05);
   --numeral-stroke: rgb(243 201 105 / 0.95);
 
-  --text: #f4f1ea;
-  --text-muted: #b3bbcb;
-  --text-subtle: #8b95aa;
-  --text-inverse: #070b16;
+  --text: #f7f4ee;
+  --text-muted: #cdd3e0;
+  --text-subtle: #aab3c8;
+  --text-inverse: #111d38;
 
   --primary: #f2b233;
   --primary-hover: #ffc955;
   --on-primary: #1a1200;
   --primary-2: #d98e04; /* the warm end of a primary action's gradient */
   --grade: linear-gradient(100deg, #fff3d1, #f3c969 45%, #e0a02a); /* headline accent: amber to violet */
-  --vignette: rgb(2 4 10 / 0.65);
-  --scrim: rgb(7 11 22 / 0.5);
+  --vignette: rgb(6 12 28 / 0.5);
+  --scrim: rgb(17 29 56 / 0.5);
   --secondary: #1d6bc0;
   --on-secondary: #ffffff;
   --accent: #8fb8ff;
@@ -212,9 +212,9 @@
   --focus: #ffc94d;
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
 
-  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.7);
-  --shadow-2: 0 12px 32px -12px rgb(0 0 0 / 0.8), 0 2px 6px rgb(0 0 0 / 0.5);
-  --shadow-3: 0 32px 80px -20px rgb(0 0 0 / 0.9), 0 10px 24px -10px rgb(0 0 0 / 0.6);
+  --shadow-1: 0 1px 2px rgb(4 9 22 / 0.5);
+  --shadow-2: 0 12px 32px -12px rgb(4 9 22 / 0.6), 0 2px 6px rgb(4 9 22 / 0.35);
+  --shadow-3: 0 32px 80px -20px rgb(4 9 22 / 0.7), 0 10px 24px -10px rgb(4 9 22 / 0.45);
   --shadow-lift:
     0 24px 60px -18px rgb(0 0 0 / 0.8), 0 0 0 1px rgb(243 201 105 / 0.32), 0 0 60px -12px rgb(60 110 230 / 0.5);
   --inner-light: inset 0 1px 0 rgb(255 255 255 / 0.1), inset 0 30px 46px -36px rgb(120 160 255 / 0.18);
@@ -226,7 +226,7 @@
   --aurora-1: #f0b040;
   --aurora-2: #1f5fd0;
   --aurora-3: #0b2a70;
-  --aurora-base: #070b16;
+  --aurora-base: #111d38;
   --skeleton: linear-gradient(
     100deg,
     rgb(255 255 255 / 0.04) 30%,

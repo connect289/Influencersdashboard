@@ -14,16 +14,16 @@ export function contrast(a: string, b: string): number {
 
 /** Text/background pairs that must meet WCAG AA (4.5:1 body, 3:1 large/UI). Kept in sync with app/tokens.css. */
 export const CONTRAST_PAIRS: { theme: "dark" | "light"; name: string; fg: string; bg: string; min: number }[] = [
-  { theme: "dark", name: "text on bg", fg: "#f4f1ea", bg: "#070b16", min: 4.5 },
-  { theme: "dark", name: "muted on bg", fg: "#b3bbcb", bg: "#070b16", min: 4.5 },
-  { theme: "dark", name: "subtle on bg", fg: "#8b95aa", bg: "#070b16", min: 4.5 },
-  { theme: "dark", name: "muted on surface", fg: "#b3bbcb", bg: "#101a30", min: 4.5 },
-  { theme: "dark", name: "subtle on surface", fg: "#8b95aa", bg: "#101a30", min: 4.5 },
+  { theme: "dark", name: "text on bg", fg: "#f7f4ee", bg: "#111d38", min: 4.5 },
+  { theme: "dark", name: "muted on bg", fg: "#cdd3e0", bg: "#111d38", min: 4.5 },
+  { theme: "dark", name: "subtle on bg", fg: "#aab3c8", bg: "#111d38", min: 4.5 },
+  { theme: "dark", name: "muted on surface", fg: "#cdd3e0", bg: "#1c2c50", min: 4.5 },
+  { theme: "dark", name: "subtle on surface", fg: "#aab3c8", bg: "#1c2c50", min: 4.5 },
   { theme: "dark", name: "on-primary on primary", fg: "#1a1200", bg: "#f2b233", min: 4.5 },
-  { theme: "dark", name: "accent on bg", fg: "#8fb8ff", bg: "#070b16", min: 4.5 },
-  { theme: "dark", name: "amber text on bg", fg: "#f3c969", bg: "#070b16", min: 4.5 },
-  { theme: "dark", name: "success on bg", fg: "#2fe6a7", bg: "#070b16", min: 4.5 },
-  { theme: "dark", name: "danger on bg", fg: "#ff8a8a", bg: "#070b16", min: 4.5 },
+  { theme: "dark", name: "accent on bg", fg: "#8fb8ff", bg: "#111d38", min: 4.5 },
+  { theme: "dark", name: "amber text on bg", fg: "#f3c969", bg: "#111d38", min: 4.5 },
+  { theme: "dark", name: "success on bg", fg: "#2fe6a7", bg: "#111d38", min: 4.5 },
+  { theme: "dark", name: "danger on bg", fg: "#ff8a8a", bg: "#111d38", min: 4.5 },
   { theme: "light", name: "text on bg", fg: "#0d1526", bg: "#f7f5ef", min: 4.5 },
   { theme: "light", name: "muted on bg", fg: "#444d60", bg: "#f7f5ef", min: 4.5 },
   { theme: "light", name: "subtle on bg", fg: "#5f6779", bg: "#f7f5ef", min: 4.5 },
@@ -35,6 +35,6 @@ export const CONTRAST_PAIRS: { theme: "dark" | "light"; name: string; fg: string
   { theme: "light", name: "danger on white", fg: "#c2281d", bg: "#ffffff", min: 4.5 },
   { theme: "light", name: "warning on warning-soft", fg: "#8a5a00", bg: "#fff4dc", min: 4.5 },
   { theme: "light", name: "text on concept-B bg", fg: "#0d1526", bg: "#fbfaf7", min: 4.5 },
-  { theme: "dark", name: "focus ring on bg (UI)", fg: "#ffc94d", bg: "#070b16", min: 3 },
+  { theme: "dark", name: "focus ring on bg (UI)", fg: "#ffc94d", bg: "#111d38", min: 3 },
   { theme: "light", name: "focus ring on bg (UI)", fg: "#0f4fb0", bg: "#f7f5ef", min: 3 },
 ];

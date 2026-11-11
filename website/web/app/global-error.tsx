@@ -8,7 +8,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
         style={{
           margin: 0,
           fontFamily: "system-ui, sans-serif",
-          background: "#070b16",
+          background: "#111d38",
           color: "#eaf1fb",
           display: "grid",
           minHeight: "100vh",
