@@ -2,7 +2,6 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, PhoneCall, Phone } from "lucide-react";
-import QRCode from "qrcode";
 import { toast } from "sonner";
 import { Sheet } from "@/components/ui/Sheet";
 import { callLog, numberCopied } from "@/app/s/actions";
@@ -151,7 +150,9 @@ function DeskDialer({ leadId, call }: { leadId: number; call: Open }) {
   const display = "+" + call.number.replace(/\D/g, "");
   useEffect(() => {
     let live = true;
-    QRCode.toString(call.tel, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#052244", light: "#FFFFFF" } }).then((s) => live && setSvg(s)).catch(() => undefined);
+    // Loaded here, not at the top of the file: only this desktop sheet draws a QR code, and every Call button shares the file.
+    import("qrcode").then(({ default: QRCode }) => QRCode.toString(call.tel, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#052244", light: "#FFFFFF" } }))
+      .then((s) => live && setSvg(s)).catch(() => undefined);
     return () => { live = false; };
   }, [call.tel]);
   async function copy() {

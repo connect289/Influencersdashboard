@@ -1,7 +1,7 @@
 # Eduwit Spark: handover to the developer (taking it live)
 
 Version 16 October 2026. Spark is the B2C CRM: code in `b2c-crm/web` (Next.js 16), database schema `b2c` in Supabase,
-migrations `b2c-crm/supabase/migrations/b1…b53` (apply in order; all idempotent), checks in `b2c-crm/supabase/tests`.
+migrations `b2c-crm/supabase/migrations/b1…b54` (apply in order; all idempotent), checks in `b2c-crm/supabase/tests`.
 This guide is the whole path from where things stand to a working, live CRM. Do the steps in order; each says how to
 check it and how to undo it. `docs/go-live-plan.md` keeps the history; this file supersedes it for what is left.
 
@@ -213,6 +213,16 @@ timers' key). It never names a student, reads at most a few thousand timer runs,
 Eduwit One calls it every 5 minutes (check B2C-11, heartbeat `spark`). The parts: `config`, `database`, `storage`,
 `timers`, `app`, `outbox`, `inbox`, `sending`, `connectors`, `programmes`, `ai`, `jobs` (`lib/health.ts`,
 `b2c.health()`); a queue or connector that needs a look makes the status `degraded` and leaves it 200.
+
+**Calls that never hang (11 Nov 2026, migration `b54`).** Every server-side Supabase client gives a Data API call 15
+seconds (`db: { timeout }` in `web/lib/supabase`); the database itself ends a statement at 8, so this only cuts a call
+whose answer never arrives, and the person sees "The database did not answer in time. Please try again." The mailer
+gives a mail server 10 seconds to connect and 20 on a silent socket (nodemailer's defaults are 2 and 10 minutes, longer
+than the every-minute job's 60 seconds). `b54` adds seven indexes for the every-minute timers and the navigation
+counts (`outbox_unstick`, `reminder_tick`, `brief_due_take`, `sla_tick`, `recordings_expired`, the commission sum per
+lead, unread conversations and unread alerts), each checked with EXPLAIN on 60,000 to 100,000 local rows. One tried
+and left out: `journey_runs (lead_id, entered_at)` made `journey_enroll_tick` slower; that tick's cost is
+`may_message` per pooled lead, which is the next thing to rework when the pool grows.
 
 **Messages that stop mid-send (b53).** The app records sending outcomes ten at a time, starts no send later than 40
 seconds into its run and hands the rest back (`b2c.send_release`), so a run cut short loses at most ten outcomes. A
