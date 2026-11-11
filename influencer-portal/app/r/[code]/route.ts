@@ -2,6 +2,8 @@ import { type NextRequest } from "next/server";
 import { resolveRedirect } from "@/lib/attribution/redirect";
 
 export const dynamic = "force-dynamic";
+// A redirect that waits on a stalled database must not run on to the platform's ceiling.
+export const maxDuration = 10;
 
 async function handle(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;

@@ -3,6 +3,23 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 11 Nov 2026 — The portal's minute timers call the app only when there is work (portal D-194)
+
+- Found: the influencer portal was called about 4,000 times a day with almost no human traffic; 2,880 of those were
+  its two minute timers, one claiming from an empty job queue and one being told that lead sync is off.
+- Changed (schema `inf` only, migration `20261111000100_inf_timer_guards.sql`): `inf.cron_dispatch` first asks whether
+  a job is claimable (the job runner's own rule) and, for lead sync, calls every minute only while a real sweep ran in
+  the last 24 hours, otherwise on the quarter-hour. So with lead sync off: 96 calls a day, not 1,440; when the owner
+  switches it on, the first sweep starts within 15 minutes and the minute cadence resumes by itself. In the app: the
+  page guards run once per page instead of twice (the permission check still runs every time), database calls end at
+  15 s, the tracking redirect at 10 s, and the public media kit reads its data once.
+- Proof: the portal has no staging copy (its rule), so: 15 assertions on a throwaway local Postgres with the migration
+  applied twice; the migration inside a rolled-back transaction on production (no job claimable, lead sync due only on
+  the quarter-hour, neither function callable by the public roles); a pgTAP file of 40 assertions for the portal's own
+  local stack. 3,689 unit tests (13 new for the guards), typecheck and lint pass.
+- Production: applied on 11 Nov 14:23 UTC (backup of 00:51 UTC), recorded in the migration history as the earlier
+  portal migrations are. The app code deploys from `main`.
+
 ## 11 Nov 2026 — The apps after the evaluation: what was fixed and shipped (B2B, Spark, website, Scout)
 
 One read-only performance review per app (10 Nov), each claim checked in the code or measured before anything changed;

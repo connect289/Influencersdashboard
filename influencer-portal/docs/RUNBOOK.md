@@ -62,7 +62,9 @@ pgTAP, Playwright) on the release commit.
    finance, content, notifications, retention), tiers (G-29), staff accounts and roles.
 5. **Providers.** Configure email (and WhatsApp templates), send a test from Communication → Templates, then
    `LIVE_MODE=on` (G-23).
-6. **Live leads (separate approval, G-14).** `LEAD_SYNC=on`, watch one sweep, run the backfill.
+6. **Live leads (separate approval, G-14).** `LEAD_SYNC=on`, watch one sweep, run the backfill. While lead sync is
+   off its timer calls the app only on the quarter-hour (D-194), so after the switch the first sweep starts within 15
+   minutes (or call `/api/internal/lead-sync` once by hand); from then on it runs every minute by itself.
 
 **Rollback.** The portal only adds the `inf` schema, its buckets and its cron jobs; nothing shared is changed. To stop
 the portal: set `LIVE_MODE=off` and `LEAD_SYNC=off` and redeploy (no email, WhatsApp or lead reads), or unschedule the
@@ -111,7 +113,8 @@ project; never drop `inf` on the live project while Finance records exist in it.
 - **Deliverable files** live in the private `inf-deliverables` bucket under `<deliverable id>/`; brief assets in
   `inf-briefs` under `<brief id>/`. Links are signed for an hour after an access check.
 - **Dormancy** runs inside the nightly `inf-nightly` job (`inf.nightly_prune()` → `inf.creators_flag_dormant()`).
-- **Lead sweep** (`inf-lead-sync`, every minute, only with `LEAD_SYNC=on`): reads new and changed leads read-only,
+- **Lead sweep** (`inf-lead-sync`, every minute, only with `LEAD_SYNC=on`; on the quarter-hour only until a sweep has
+  run, D-194): reads new and changed leads read-only,
   applies the rules and refreshes the masked creator feed. A warning `leads.stage_unmapped` means a CRM stage no rule
   maps: add a stage rule. `leads.sweep_failed` returns 503 and the next minute retries from the same watermark. After a
   rule or settings change, re-run a date range from Leads → Tools (manual decisions are kept).

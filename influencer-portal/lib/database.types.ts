@@ -3133,6 +3133,9 @@ isOneToOne: false
 "cron_dispatch":
 { Args: { "p_path": string }; Returns: undefined
                            },
+"cron_dispatch_due":
+{ Args: { "p_at": string,"p_path": string }; Returns: boolean
+                           },
 "current_agency_id":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
