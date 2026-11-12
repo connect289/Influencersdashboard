@@ -1,0 +1,49 @@
+This notice explains how Eduwit Learning Services ("Eduwit", "we"), Ghaziabad, Uttar Pradesh, India, handles the personal data of creators and agency members who use the Eduwit creator platform at influencer.eduwit.in, in line with India's Digital Personal Data Protection Act, 2023. Eduwit decides why and how this data is used. Contact: connect@eduwit.in.
+
+1. What we collect
+- Account and profile: your name, email address, phone number, social media handles and profile links, the audience and niche details you add, your photo, and your media kit.
+- Tax and payment (KYC): your PAN, bank account number and IFSC, your GSTIN if you have one, your billing address and any documents you upload to verify them. PAN and bank account numbers are stored encrypted; only authorised finance staff can view them, and every view is recorded.
+- Work on the platform: your applications, deals, contracts and signatures (time, device and IP address), briefs, the content you submit, messages with our team, and your earnings, payouts and tax records.
+- Usage and security: sign-in records, device and browser details, IP address, and actions in your account.
+- Links you share: clicks on your referral links. The details of a click (such as the IP address) are anonymised after 90 days.
+
+2. Why we use it
+- To run your account and the deals, contracts, content reviews and messages that go with them.
+- To credit you with the enquiries your links bring in and to calculate your earnings.
+- To pay you, deduct and report tax (TDS and GST), and keep accounts as the law requires.
+- To keep the platform secure and to detect and prevent fraud.
+- To tell you about your account (new offers, contracts to sign, content feedback, payouts) by email and, once you agree to it, by WhatsApp.
+We use your data only for these purposes. We do not sell it, and we do not use it to market other products to you without your consent.
+
+3. Students
+Students who enquire through your links are handled under Eduwit's own privacy commitments to them. You see only limited, masked information about them (never their phone number or email address).
+
+4. Who can see your data
+- Eduwit staff, each only for the parts their role needs.
+- An agency, only if you give it access to your account, and only within that access.
+- Our bank, to make your payouts, and tax authorities, where the law requires.
+- Service providers who run parts of the platform for us under contract, such as cloud hosting and database providers and email and messaging providers. They may only use the data to provide their service to us.
+- Courts or authorities, where the law requires.
+Some service providers may process data outside India, as the law permits.
+
+5. How long we keep it
+- Your account and profile: while your account is open, and afterwards only as long as needed for the purposes above or the law.
+- Financial, tax and contract records: at least 8 years, as Indian law requires. These are kept even if you ask us to delete your account.
+- The record of actions taken in the platform (audit log): 8 years.
+- Sign-in records: 1 year. Referral link click details: anonymised after 90 days.
+
+6. Your rights
+You can ask to see a summary of the personal data we hold about you, to correct or complete it, and to erase it (except records the law requires us to keep). You can withdraw a consent you have given, such as for WhatsApp messages, at any time; this does not affect what was done before. You can also nominate someone to exercise these rights on your behalf if you die or are unable to act.
+Make a request from Account, then Privacy, in the platform, or by writing to connect@eduwit.in. We will respond within 30 days.
+
+7. Security
+We protect your data with encryption, one-time sign-in codes, role-based access for staff and a record of every sensitive action. If a breach affects your data, we will tell you and the Data Protection Board of India as the law requires.
+
+8. Age
+The platform is for people aged 18 or over. We do not knowingly collect data from anyone younger.
+
+9. Complaints
+Write to us first at connect@eduwit.in and we will try to resolve it. If you are not satisfied, you may complain to the Data Protection Board of India.
+
+10. Changes to this notice
+We may update this notice. The new version is shown to you on your next sign-in.
