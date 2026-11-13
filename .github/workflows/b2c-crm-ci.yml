@@ -6,11 +6,13 @@ on:
   pull_request:
     paths:
       - "b2c-crm/web/**"
+      - "b2c-crm/supabase/**"
       - ".github/workflows/b2c-crm-ci.yml"
   push:
     branches: [main]
     paths:
       - "b2c-crm/web/**"
+      - "b2c-crm/supabase/**"
       - ".github/workflows/b2c-crm-ci.yml"
 
 permissions:
@@ -47,6 +49,25 @@ jobs:
       # (Playwright, Vitest, types) are not shipped and are left to Dependabot.
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+
+  sql:
+    name: Migrations and SQL suites (local PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: b2c-crm/supabase
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # The runner image ships PostgreSQL server binaries (not running); install them only if an image ever drops them.
+      - name: PostgreSQL binaries
+        run: ls /usr/lib/postgresql/*/bin/initdb || (sudo apt-get update && sudo apt-get install -y postgresql)
+      # Every migration applied in order and then re-applied, then every tests/test_*.sql; a row with ok = false fails
+      # the job. Offline: nothing leaves the runner.
+      - name: Local SQL test
+        run: ./local-test.sh
 
   dependency-review:
     name: Dependency review
