@@ -42,8 +42,9 @@
 - Privacy requests (13 Nov, audit finding H5, D-096): deletion and copy-of-data requests are fulfilled in Admin →
   Privacy requests instead of only marked done. `20261113170000_web17_privacy_requests.sql`: the copy as one JSON
   download, the website's own data erased on an explicit, confirmed, audited step, and a per-request checklist (website,
-  Spark, B2B) for the lead, which each CRM's admin erases there. **Not applied to staging or production yet** (migration
-  first, then the deployment). Checks: `97_web_privacy_requests` 85 checks (local and replica), 255 unit tests,
+  Spark, B2B) for the lead, which each CRM's admin erases there. **Applied to production 13 Nov 2026, about 23:30 UTC**, after a
+  dry run there in a rolled-back transaction (staging holds no website tables; the checks ran on the local replica of
+  production). No privacy request existed at the time. The deployment follows the migration. Checks: `97_web_privacy_requests` 85 checks (local and replica), 255 unit tests,
   `e2e/privacy.spec.ts`.
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
