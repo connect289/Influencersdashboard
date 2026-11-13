@@ -105,12 +105,16 @@ export function AckPrivilegeButton({ fn }: { fn: string }) {
   );
 }
 
-/** The owner's shortcut for a schema whose listed functions they have read: all of them, each with its own audit row. */
-export function AckSchemaButton({ schema, count }: { schema: string; count: number }) {
+/**
+ * The owner's shortcut for a schema whose listed functions they have read: all of them, each with its own audit row.
+ * `hash` fingerprints the list shown (lib/settings/privileges.ts); the database refuses a list that changed since.
+ */
+export function AckSchemaButton({ schema, count, hash }: { schema: string; count: number; hash: string }) {
   return (
     <ActionForm action={acknowledgePrivileges}>
       <input type="hidden" name="schema" value={schema} />
       <input type="hidden" name="expected" value={count} />
+      <input type="hidden" name="hash" value={hash} />
       <Button type="submit" variant="secondary" size="sm">
         Acknowledge all {count} in {schema}
       </Button>

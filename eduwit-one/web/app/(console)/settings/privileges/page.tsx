@@ -6,6 +6,7 @@ import { PageError } from "@/components/ui/page-error.tsx";
 import { Empty, PageHeader } from "@/components/ui/state.tsx";
 import { ist } from "@/lib/format.ts";
 import { requireUser } from "@/lib/session.ts";
+import { privilegeListHash } from "@/lib/settings/privileges.ts";
 import { ui } from "@/lib/ui/api.ts";
 import { privilegesSchema } from "@/lib/ui/schemas.ts";
 
@@ -28,9 +29,10 @@ export default async function PrivilegesPage() {
   const open = data.functions.filter((f) => !f.acknowledged);
   // A schema with several new functions gets one button for all of them (D-136), so a new app does not leave PLAT-07
   // open behind dozens of single clicks.
-  const bySchema = new Map<string, number>();
-  for (const f of open) bySchema.set(f.schema, (bySchema.get(f.schema) ?? 0) + 1);
-  const groups = [...bySchema].filter(([schema, n]) => n > 1 && /^[a-z_][a-z0-9_]*$/.test(schema));
+  // The button carries the count and the hash of the list shown (D-137), so nothing that appeared since is swept in unread.
+  const bySchema = new Map<string, string[]>();
+  for (const f of open) bySchema.set(f.schema, [...(bySchema.get(f.schema) ?? []), f.fn]);
+  const groups = [...bySchema].filter(([schema, fns]) => fns.length > 1 && /^[a-z_][a-z0-9_]*$/.test(schema));
   return (
     <>
       <PageHeader
@@ -49,8 +51,8 @@ export default async function PrivilegesPage() {
         {me.role === "owner" && groups.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-sm">
             <span className="text-fg-muted">After reading the list below:</span>
-            {groups.map(([schema, n]) => (
-              <AckSchemaButton key={schema} schema={schema} count={n} />
+            {groups.map(([schema, fns]) => (
+              <AckSchemaButton key={schema} schema={schema} count={fns.length} hash={privilegeListHash(fns)} />
             ))}
           </div>
         ) : null}

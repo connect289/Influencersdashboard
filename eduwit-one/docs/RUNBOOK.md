@@ -83,11 +83,13 @@ purpose overrides Vault, D-059).
 
 ## Who may change what
 
-Engineers read everything, acknowledge, resolve, mute, ask, and change thresholds, the check runner, test schedules,
-Witty's expectations and the analytics funnel. The owner also: every other setting (where credentials, alerts and codes
-go, AI spend, retention, sign-in), users, Setup secrets, fix and config proposals and anything touching security,
-acknowledging a new API-executable function on Settings → Privileges (D-110), and switching off or downgrading a P1,
-security, integrity, money or consent check (D-065).
+Engineers read everything, acknowledge, resolve, mute, ask, and change the check runner, test schedules, Witty's
+expectations and the analytics funnel. The owner also: the thresholds (sixteen P1 checks read them, so loosening one
+can silence a P1: D-137), every other setting (where credentials, alerts and codes go, AI spend, retention, sign-in),
+users, Setup secrets, fix and config proposals and anything touching security, acknowledging a new API-executable
+function on Settings → Privileges (D-110), and switching off or downgrading a P1, security, integrity, money or consent
+check (D-065). A setting is saved over the version the page loaded: if someone else saved in between, the page says so
+and nothing is saved; reload and make the change again (D-137).
 
 ## Proposals
 

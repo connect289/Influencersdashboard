@@ -8,7 +8,13 @@ import { CHAT_TOOLS, DB_READ_TOOLS, toolByName, toolDefinition, toolsFor, type A
 
 const grants = readFileSync(new URL("../../../../supabase/migrations/0011_ui_write.sql", import.meta.url), "utf8")
   .concat(readFileSync(new URL("../../../../supabase/migrations/0019_fixes.sql", import.meta.url), "utf8"))
-  .concat(readFileSync(new URL("../../../../supabase/migrations/0020_hardening.sql", import.meta.url), "utf8"));
+  .concat(readFileSync(new URL("../../../../supabase/migrations/0020_hardening.sql", import.meta.url), "utf8"))
+  .concat(
+    readFileSync(
+      new URL("../../../../supabase/migrations/0039_settings_owner_and_versions.sql", import.meta.url),
+      "utf8",
+    ),
+  );
 
 const acts = CHAT_TOOLS.filter((t): t is ActTool => t.kind === "act");
 

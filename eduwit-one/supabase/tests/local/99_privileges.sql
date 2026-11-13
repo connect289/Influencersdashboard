@@ -75,30 +75,37 @@ select pg_temp.ok(exists (select 1 from one.audit a where a.id > (select id from
                             and a.target = 'function:public.audit_probe_new()' and a.actor = 'connect@eduwit.in' and a.request_id = 'req-0030'),
                   'and in the audit');
 
--- 3. A schema's new functions in one step (0038) ----------------------------------------------------------------------------
+-- 3. A schema's new functions in one step (0038), exactly the list the page showed (0039, D-137) -----------------------------
 insert into one.privilege_baseline (fn, schema, roles, acknowledged) values
   ('audit_probe_s.a()', 'audit_probe_s', '{authenticated}', false), ('audit_probe_s.b(text)', 'audit_probe_s', '{authenticated}', false),
   ('audit_probe_s.old()', 'audit_probe_s', '{authenticated}', true), ('audit_probe_t.c()', 'audit_probe_t', '{anon}', false);
 update one.privilege_baseline set acknowledged_by = 'earlier@eduwit.in' where fn = 'audit_probe_s.old()';
 update t_audit set id = (select coalesce(max(id), 0) from one.audit);
+-- What the page sends: the md5 of the listed functions, sorted bytewise and joined with commas (web/lib/settings/privileges.ts).
+select md5('audit_probe_s.a(),audit_probe_s.b(text)') as h_shown, md5('audit_probe_s.a(),audit_probe_s.x(text)') as h_other \gset
+select pg_temp.ok(:'h_shown' = '72d071b226ab708adf5634bc36e65ec9', 'the same hash as the page''s (web/lib/settings/privileges.test.ts)');
 set role anon;
-select pg_temp.ok(pg_temp.err($q$select one.ui_privilege_ack_schema('audit_probe_s', 2)$q$) = '42501', 'anon cannot acknowledge a schema');
+select pg_temp.ok(pg_temp.err(format('select one.ui_privilege_ack_schema(%L, 2, %L)', 'audit_probe_s', :'h_shown')) = '42501', 'anon cannot acknowledge a schema');
 reset role;
 set role authenticated;
 select pg_temp.as_stranger();
-select pg_temp.ok(pg_temp.err($q$select one.ui_privilege_ack_schema('audit_probe_s', 2)$q$) = '42501', 'nor a stranger');
+select pg_temp.ok(pg_temp.err(format('select one.ui_privilege_ack_schema(%L, 2, %L)', 'audit_probe_s', :'h_shown')) = '42501', 'nor a stranger');
 select pg_temp.as_engineer();
-select pg_temp.ok(pg_temp.err($q$select one.ui_privilege_ack_schema('audit_probe_s', 2)$q$) = '42501', 'nor an engineer');
+select pg_temp.ok(pg_temp.err(format('select one.ui_privilege_ack_schema(%L, 2, %L)', 'audit_probe_s', :'h_shown')) = '42501', 'nor an engineer');
 select pg_temp.as_owner();
-select pg_temp.ok(pg_temp.err($q$select one.ui_privilege_ack_schema('audit_probe_s', 3)$q$) = '22023', 'a count that differs from the list is refused');
-select pg_temp.ok(pg_temp.err($q$select one.ui_privilege_ack_schema('audit_probe_s', null)$q$) = '22023', 'and so is no count');
-select pg_temp.ok(pg_temp.err($q$select one.ui_privilege_ack_schema('audit_probe_none', 1)$q$) = '22023', 'and a schema with nothing to acknowledge');
+select pg_temp.ok(pg_temp.err(format('select one.ui_privilege_ack_schema(%L, 3, %L)', 'audit_probe_s', :'h_shown')) = '22023', 'a count that differs from the list is refused');
+select pg_temp.ok(pg_temp.err(format('select one.ui_privilege_ack_schema(%L, null, %L)', 'audit_probe_s', :'h_shown')) = '22023', 'and so is no count');
+select pg_temp.ok(pg_temp.err(format('select one.ui_privilege_ack_schema(%L, 2, %L)', 'audit_probe_s', :'h_other')) = '22023',
+                  'the same count with another function in the list is refused (0039)');
+select pg_temp.ok(pg_temp.err($q$select one.ui_privilege_ack_schema('audit_probe_s', 2, null)$q$) = '22023', 'and so is no hash');
+select pg_temp.ok(pg_temp.err($q$select one.ui_privilege_ack_schema('audit_probe_s', 2)$q$) = '42883', 'the count-only form is gone (0039)');
+select pg_temp.ok(pg_temp.err(format('select one.ui_privilege_ack_schema(%L, 1, %L)', 'audit_probe_none', :'h_shown')) = '22023', 'and a schema with nothing to acknowledge');
 reset role;
 select pg_temp.ok((pg_temp.q($q$select count(*) filter (where acknowledged) = 1 as v from one.privilege_baseline where schema like 'audit_probe_%'$q$) ->> 'v')::boolean,
                   'the refused calls changed nothing');
 set role authenticated;
 select pg_temp.as_owner();
-select pg_temp.ok((one.ui_privilege_ack_schema('audit_probe_s', 2, 'req-0038') ->> 'acknowledged')::int = 2, 'the owner acknowledges the two listed');
+select pg_temp.ok((one.ui_privilege_ack_schema('audit_probe_s', 2, upper(:'h_shown'), 'req-0038') ->> 'acknowledged')::int = 2, 'the owner acknowledges the two listed');
 reset role;
 select pg_temp.ok((pg_temp.q($q$select bool_and(acknowledged and acknowledged_by = 'connect@eduwit.in') as v from one.privilege_baseline where fn in ('audit_probe_s.a()', 'audit_probe_s.b(text)')$q$) ->> 'v')::boolean,
                   'both recorded with the owner''s name');

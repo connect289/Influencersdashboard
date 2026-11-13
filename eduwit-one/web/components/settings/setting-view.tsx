@@ -56,6 +56,7 @@ export async function SettingView({ name, from, base, id }: { name: string; from
               key={restoring ? `v${restoring.version}` : "current"}
               name={key}
               value={JSON.stringify(restoring ? restoring.value : s.value, null, 2)}
+              version={s.version}
               readOnly={s.owner_only && me.role !== "owner"}
             />
           </CardBody>

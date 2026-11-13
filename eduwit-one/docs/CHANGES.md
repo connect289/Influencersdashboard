@@ -3,6 +3,30 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 13 Nov 2026 — The audit's fixes: thresholds are the owner's, settings saves compare versions, the watchdog never answers 429 (0039, D-137)
+
+- Found (verified audit, fixes approved by the owner): engineers could loosen the thresholds sixteen P1 checks read,
+  by a save or a restore; two saves of one setting from the same version kept only the second, silently; the schema
+  acknowledgement compared only the count; `/api/watchdog` answered 429 `{"ok":false}` past 20 requests a minute, so
+  anyone could make the uptime monitor report "down"; no database call had a client time limit; the chat dropped a
+  call's cost when recording it failed; `/api/internal/tests/run` threw on a bad setting.
+- Changed, schema `one` only: migration `0039_settings_owner_and_versions.sql` (`one.setting_owner_only` without
+  `thresholds`; `one.ui_settings_put(..., p_expected_version)`, 40001 on a stale version;
+  `one.ui_privilege_ack_schema(schema, expected, hash, request_id)`), with its rollback. App: the settings form sends
+  the version it loaded and shows "Someone else changed this setting — reload and try again"; the Privileges button
+  sends the md5 of the list it showed (`lib/settings/privileges.ts`); the watchdog serves its cached verdict past the
+  read limit (`lib/watchdog.ts`); every Supabase client and the middleware stop at 15 s (`lib/fetch-timeout.ts`); the
+  chat keeps and resends an unrecorded call, then logs `chat.calls_unrecorded`; the tests route answers a logged 500;
+  `instrumentation.ts` writes one masked `app.error` line per server error. RUNBOOK "Who may change what" updated.
+- Proof: guards, root tests (33; two stale ones fixed: 0028's ONE-01 versus 0006 after 0038's edits, and `p_hash` in
+  the reader's own-name list), 349 web unit tests and 3 skipped (new: fetch timeout, watchdog gate, settings actions,
+  error mapping, chat cost, tests route, request errors, list hash), typecheck, lint, the local migration test with
+  the new `99_settings_owner.sql` and the updated `80_ui_api.sql`, `95_review4.sql` and `99_privileges.sql`; new
+  fingerprint.
+- Production: not applied. Staging rehearsal, `api-apply.sh 0039_settings_owner_and_versions.sql` and the app deploy
+  are the next steps (the app's new calls need 0039: deploy after it is applied).
+
+- Production: rehearsed on staging (REHEARSAL PASSED d933ee64…, after staging's B2B job history was pruned to 7 days and B2B m33a–m33d and m33f were brought onto staging; the smoke tick had timed out on 2.27 million history rows), applied with api-apply.sh on 13 Nov 12:15 UTC without a dump (D-090; nightly backup of 13 Nov 00:50 UTC); smoke passed. The app deploys from `main` after the migration, as 0039's new arguments require.
 ## 12 Nov 2026 — Owner set-up items and clean-up done on the owner's word
 
 Production had its nightly backup of 12 Nov 00:50 UTC; Supabase and Vercel are both on Pro (checked).

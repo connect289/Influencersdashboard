@@ -4,9 +4,19 @@ import { act, fields, invalid, type ActionResult } from "./act.ts";
 
 const reason = z.string().trim().min(3, "Give a reason of at least 3 characters.").max(500);
 
-/** A whole settings value, edited as JSON, saved as a new version with a reason. */
+/**
+ * A whole settings value, edited as JSON, saved as a new version with a reason, over the version the page loaded: if
+ * someone else saved in between, the database refuses and the person reloads (D-137).
+ */
 export async function saveSetting(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
-  const p = z.object({ key: z.string().regex(/^[a-z_]{2,40}$/), value: z.string(), reason }).safeParse(fields(form));
+  const p = z
+    .object({
+      key: z.string().regex(/^[a-z_]{2,40}$/),
+      value: z.string(),
+      reason,
+      expected_version: z.coerce.number().int().min(1).optional(),
+    })
+    .safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
   let value: unknown;
   try {
@@ -18,7 +28,12 @@ export async function saveSetting(_: ActionResult | undefined, form: FormData): 
     return { ok: false, error: "A setting is a JSON object." };
   return act(
     "ui_settings_put",
-    { p_key: p.data.key, p_value: value, p_reason: p.data.reason },
+    {
+      p_key: p.data.key,
+      p_value: value,
+      p_reason: p.data.reason,
+      ...(p.data.expected_version ? { p_expected_version: p.data.expected_version } : {}),
+    },
     "Saved as a new version.",
   );
 }
@@ -55,15 +70,22 @@ export async function acknowledgePrivilege(_: ActionResult | undefined, form: Fo
   return act("ui_privilege_ack", { p_fn: p.data.fn }, "Acknowledged.");
 }
 
-/** Every function the page lists for one schema, in one step; the count guards against a list that changed since. */
+/**
+ * Every function the page lists for one schema, in one step; the count and the hash of the list the page showed guard
+ * against a list that changed since (D-136, D-137).
+ */
 export async function acknowledgePrivileges(_: ActionResult | undefined, form: FormData): Promise<ActionResult> {
   const p = z
-    .object({ schema: z.string().regex(/^[a-z_][a-z0-9_]{0,62}$/), expected: z.coerce.number().int().min(1).max(500) })
+    .object({
+      schema: z.string().regex(/^[a-z_][a-z0-9_]{0,62}$/),
+      expected: z.coerce.number().int().min(1).max(500),
+      hash: z.string().regex(/^[0-9a-f]{32}$/),
+    })
     .safeParse(fields(form));
   if (!p.success) return invalid(p.error.issues);
   return act(
     "ui_privilege_ack_schema",
-    { p_schema: p.data.schema, p_expected: p.data.expected },
+    { p_schema: p.data.schema, p_expected: p.data.expected, p_hash: p.data.hash },
     `Acknowledged ${p.data.expected} in ${p.data.schema}.`,
   );
 }

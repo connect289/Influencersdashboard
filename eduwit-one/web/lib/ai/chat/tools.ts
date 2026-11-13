@@ -375,7 +375,7 @@ const ACT: ActTool[] = [
   act({
     name: "put_setting",
     description:
-      "Replace one settings key with a whole new value (versioned; Settings shows every version and can restore one). Read the current value first (the setup or app_status tools, or ask the person). Keys that touch alerts, fixes, access or money need the owner.",
+      "Replace one settings key with a whole new value (versioned; Settings shows every version and can restore one). Read the current value first (the setup or app_status tools, or ask the person). Thresholds and keys that touch alerts, fixes, access or money need the owner.",
     input: z.object({
       key: z.string().regex(/^[a-z_]{2,40}$/),
       value: z.record(z.string(), z.unknown()),

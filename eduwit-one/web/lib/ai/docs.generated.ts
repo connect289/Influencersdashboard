@@ -3,7 +3,7 @@
 
 import type { DocSection } from "./docs-source.ts";
 
-export const DOCS_VERSION = "c1682880a0";
+export const DOCS_VERSION = "f973fc7fbd";
 export const DOCS: DocSection[] = [
   {
     "file": "RUNBOOK",
@@ -33,7 +33,7 @@ export const DOCS: DocSection[] = [
   {
     "file": "RUNBOOK",
     "title": "Who may change what",
-    "text": "Engineers read everything, acknowledge, resolve, mute, ask, and change thresholds, the check runner, test schedules,\nWitty's expectations and the analytics funnel. The owner also: every other setting (where credentials, alerts and codes\ngo, AI spend, retention, sign-in), users, Setup secrets, fix and config proposals and anything touching security,\nacknowledging a new API-executable function on Settings → Privileges (D-110), and switching off or downgrading a P1,\nsecurity, integrity, money or consent check (D-065)."
+    "text": "Engineers read everything, acknowledge, resolve, mute, ask, and change the check runner, test schedules, Witty's\nexpectations and the analytics funnel. The owner also: the thresholds (sixteen P1 checks read them, so loosening one\ncan silence a P1: D-137), every other setting (where credentials, alerts and codes go, AI spend, retention, sign-in),\nusers, Setup secrets, fix and config proposals and anything touching security, acknowledging a new API-executable\nfunction on Settings → Privileges (D-110), and switching off or downgrading a P1, security, integrity, money or consent\ncheck (D-065). A setting is saved over the version the page loaded: if someone else saved in between, the page says so\nand nothing is saved; reload and make the change again (D-137)."
   },
   {
     "file": "RUNBOOK",

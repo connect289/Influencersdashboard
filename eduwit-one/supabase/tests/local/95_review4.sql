@@ -51,7 +51,7 @@ select pg_temp.ok(pg_temp.err($q$select one.ui_settings_put('vendors', '{"resend
 select pg_temp.ok(pg_temp.err($q$select one.ui_settings_put('app', '{"base_url": "https://evil.test"}', 'reroute')$q$) = '42501', 'app.base_url is the owner''s');
 select pg_temp.ok(pg_temp.err($q$select one.ui_settings_put('hosts', '{"n8n": "https://evil.test"}', 'reroute')$q$) = '42501', 'hosts are the owner''s');
 select pg_temp.ok(pg_temp.err($q$select one.ui_settings_put('ai', '{"daily_cap_inr": 100000}', 'spend more')$q$) = '42501', 'the AI spend cap is the owner''s');
-select pg_temp.ok((select bool_and((s ->> 'owner_only')::boolean = (s ->> 'key' not in ('thresholds', 'checks', 'tests', 'witty', 'analytics')))
+select pg_temp.ok((select bool_and((s ->> 'owner_only')::boolean = (s ->> 'key' not in ('checks', 'tests', 'witty', 'analytics')))
                      from jsonb_each(one.ui_settings()) e, lateral (select e.value || jsonb_build_object('key', e.key) as s) x),
                   'the Settings page marks every other key owner-only');
 reset role;
@@ -172,7 +172,7 @@ select pg_temp.ok((select bool_and(provolatile = 's') from pg_proc where oid in 
 -- m8: saving the current value again is not a new version, and says so -----------------------------------------------------
 select value::text as thr_now from one.settings where key = 'thresholds' \gset
 set role authenticated;
-select pg_temp.as_engineer();
+select pg_temp.as_owner();
 select pg_temp.ok(pg_temp.err(format('select one.ui_settings_put(%L, %L, %L)', 'thresholds', :'thr_now', 'same again')) = '22023', 'nothing changed, nothing saved');
 reset role;
 

@@ -107,6 +107,7 @@ const OWN = new Map([
   ["salt", "one.email_codes (schema one)"],
   ["v_salt", "a variable"],
   ["p_token", "a parameter"],
+  ["p_hash", "a parameter of one.ui_privilege_ack_schema: the md5 of the function names the page showed (0039)"],
   ["v_token", "a variable"],
   ["create_secret", "vault.create_secret()"],
   ["update_secret", "vault.update_secret()"],

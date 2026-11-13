@@ -92,8 +92,8 @@ select jsonb_set(value, '{escalation,resend_min}', '20')::text as al_timing, jso
 select value::text as fixes from one.settings where key = 'fixes' \gset
 set role authenticated;
 select pg_temp.as_engineer();
-select pg_temp.ok((one.ui_settings_put('thresholds', :'thr', 'cron jobs are slower on Sundays') ->> 'version')::int >= 2,
-                  'the engineer changes a threshold');
+select pg_temp.ok(pg_temp.err(format('select one.ui_settings_put(%L, %L, %L)', 'thresholds', :'thr', 'cron jobs are slower on Sundays')) = '42501',
+                  'the thresholds are the owner''s (0039, D-137)');
 select pg_temp.ok(pg_temp.err($q$select one.ui_settings_put('thresholds', '{"job_silent_min": 25}', '')$q$) = '22023', 'a change needs a reason');
 select pg_temp.ok(pg_temp.err(format('select one.ui_settings_put(%L, %L, %L)', 'alerts', :'al_timing', 'slower reminders')) = '42501',
                   'but not the alerts, timing included (security review S7)');
@@ -103,6 +103,8 @@ select pg_temp.ok(pg_temp.err(format('select one.ui_settings_put(%L, %L, %L)', '
 select pg_temp.ok(pg_temp.err($q$select one.ui_settings_put('setup', '{}', 'wipe it')$q$) = '42501' or pg_temp.err($q$select one.ui_settings_put('setup', '{}', 'wipe it')$q$) = '22023',
                   'the Setup statuses are not edited as a setting');
 select pg_temp.as_owner();
+select pg_temp.ok((one.ui_settings_put('thresholds', :'thr', 'cron jobs are slower on Sundays') ->> 'version')::int >= 2,
+                  'the owner changes a threshold');
 select pg_temp.ok((one.ui_settings_put('alerts', :'al_timing', 'faster reminders') ->> 'ok')::boolean, 'the owner changes the escalation timing');
 select pg_temp.ok((one.ui_settings_put('alerts', :'al_second', 'second contact named') ->> 'ok')::boolean,
                   'and recipients');
