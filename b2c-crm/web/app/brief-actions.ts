@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { AiUnavailable } from "@/lib/ai";
 import { writeBrief } from "@/lib/analytics-ai";
-import { assertUser } from "@/lib/auth";
+import { allowed } from "@/lib/auth";
 import { act, friendly, rpc, type ActionResult } from "@/lib/data";
 
 /** Brief before you call (spec B8.3). Reading checks the person may see the lead; writing runs only after that check. */
@@ -10,12 +10,15 @@ export type Brief = { lines: { text: string; source: string }[]; written_at: str
 const id = z.coerce.number().int().positive();
 
 export async function briefGet(lead: number): Promise<ActionResult<Brief>> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   return act(() => rpc<Brief>("brief_get", { p_lead: id.parse(lead) }));
 }
 
 export async function briefRefresh(lead: number): Promise<ActionResult<Brief>> {
-  const me = await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
+  const me = gate.me;
   const l = id.parse(lead);
   try {
     const now = await rpc<Brief>("brief_get", { p_lead: l });   // raises unless this person may see the lead

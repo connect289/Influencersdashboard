@@ -1,5 +1,5 @@
 "use server";
-import { assertUser } from "@/lib/auth";
+import { allowed } from "@/lib/auth";
 import { act, rpc, type ActionResult } from "@/lib/data";
 import { maskPhone } from "@/lib/format";
 import type { LeadRow } from "@/lib/types";
@@ -8,7 +8,8 @@ export type LeadHit = { lead_id: number; name: string | null; phone: string | nu
 
 /** The search box behind ⌘K: the same lead search as the Leads page (name, any phone, email, application ID), eight hits. */
 export async function searchLeads(q: string): Promise<ActionResult<LeadHit[]>> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   const text = String(q ?? "").trim().slice(0, 80);
   if (text.length < 2) return { ok: true, data: [] };
   return act(async () => {

@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { assertUser } from "@/lib/auth";
+import { allowed, assertUser } from "@/lib/auth";
 import { act, rpc, type ActionResult } from "@/lib/data";
 
 export type Article = {
@@ -12,7 +12,8 @@ export type Reader = { user_id: string; name: string; role: string; total: numbe
 
 /** The person's guide (the Admin: all three, or one). */
 export async function guidesList(role?: "sales" | "marketing" | "admin", archived = false): Promise<ActionResult<Article[]>> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   return act(() => rpc<Article[]>("guides", { p_role: role ?? null, p_archived: archived }));
 }
 
@@ -29,7 +30,8 @@ const saveSchema = z.object({
 });
 
 export async function guideSave(input: z.input<typeof saveSchema>): Promise<ActionResult<number>> {
-  await assertUser(["admin"]);
+  const gate = await allowed(["admin"]);
+  if (!gate.ok) return gate;
   const p = saveSchema.safeParse(input);
   if (!p.success) return { ok: false, error: "Give the article a title and text; screens look like /s/leads or /s/leads/*." };
   const r = await act(() => rpc<number>("guide_save", { p: p.data }), "Article saved.");
@@ -39,6 +41,7 @@ export async function guideSave(input: z.input<typeof saveSchema>): Promise<Acti
 }
 
 export async function guideReaders(): Promise<ActionResult<Reader[]>> {
-  await assertUser(["admin"]);
+  const gate = await allowed(["admin"]);
+  if (!gate.ok) return gate;
   return act(() => rpc<Reader[]>("guide_readers"));
 }

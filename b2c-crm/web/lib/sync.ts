@@ -18,7 +18,8 @@ const b2bDown = (status: number) => status === 0 || status === 401 || status ===
 const MEDIA_LINK_SECONDS = 15 * 60;
 
 type SendItem = { id: number; channel: "whatsapp" | "email"; lead_id: number | null; to: string; payload: Record<string, unknown>; purpose: string | null; live: boolean };
-type SendOutcome = { ok: boolean; dry_run?: boolean; wamid?: string; id?: string; error?: string };
+/** retry: false: the message may have gone out (lib/whatsapp.ts), so b2c.send_done fails it without queueing it again. */
+type SendOutcome = { ok: boolean; dry_run?: boolean; wamid?: string; id?: string; error?: string; retry?: boolean };
 
 /**
  * The B2C → B2B sync (decision K2, K14). mode "urgent" (every minute): events (consent, opt-out, erasure, assignments),
@@ -124,7 +125,7 @@ export async function runSync(
     } catch (e) {
       r = { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
-    pending.push({ id: s.id, ok: r.ok, dry_run: r.dry_run ?? false, wamid: r.wamid, error: r.error });
+    pending.push({ id: s.id, ok: r.ok, dry_run: r.dry_run ?? false, wamid: r.wamid, error: r.error, ...(r.retry === false ? { retry: false } : {}) });
     if (!r.ok) out.send_failed!++;
     else if (r.dry_run) out.dry_run!++;
     else out.sent!++;

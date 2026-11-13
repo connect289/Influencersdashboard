@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { assertUser } from "@/lib/auth";
+import { allowed, assertUser } from "@/lib/auth";
 import { lookupByPhone, b2bReady } from "@/lib/b2b";
 import { textToHtml } from "@/lib/compose";
 import { act, rpc, type ActionResult } from "@/lib/data";
@@ -23,7 +23,8 @@ function done(leadId?: number) {
 
 /** Records the tap and returns the number to dial (b2c.call_tap). The log sheet opens next. */
 export async function callTap(leadId: number, contactId?: number): Promise<ActionResult<{ call_id: number; number: string; tel: string }>> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   return act(() => rpc("call_tap", { p_lead: id.parse(leadId), p_contact: contactId ?? null }));
 }
 
@@ -35,7 +36,8 @@ const callLogSchema = z.object({
 
 /** Logs the call's outcome; the next follow-up is required (spec B8.3). Stage moves automatically from New / Could Not Connect. */
 export async function callLog(input: z.input<typeof callLogSchema>, leadId: number): Promise<ActionResult<{ moved_to: string | null; sub_stage: string | null }>> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const p = callLogSchema.safeParse(input);
   if (!p.success) return { ok: false, error: "Choose the outcome and the next follow-up." };
   const r = await act(() => rpc<{ moved_to: string | null; sub_stage: string | null }>("call_log", {
@@ -54,7 +56,8 @@ const stageSchema = z.object({
 });
 
 export async function setStage(input: z.input<typeof stageSchema>): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const p = stageSchema.safeParse(input);
   if (!p.success) return { ok: false, error: "Choose a stage and a sub-stage." };
   const r = await act(() => rpc("set_stage", {
@@ -68,7 +71,8 @@ export async function setStage(input: z.input<typeof stageSchema>): Promise<Acti
 // ---------- follow-ups ----------
 
 export async function taskAdd(leadId: number, kind: string, title: string, due: string, note?: string): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   if (!iso.safeParse(due).success) return { ok: false, error: "Pick a date and time." };
   const r = await act(() => rpc("task_add", { p_lead: id.parse(leadId), p_kind: kind, p_title: title.slice(0, 200), p_due: due, p_note: note?.slice(0, 1000) || null }), "Follow-up added.");
   done(leadId);
@@ -76,7 +80,8 @@ export async function taskAdd(leadId: number, kind: string, title: string, due: 
 }
 
 export async function taskDone(taskId: number, outcome: string, next: string | null, nextKind = "call", nextNote?: string, leadId?: number): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   if (next && !iso.safeParse(next).success) return { ok: false, error: "Pick a date and time for the next follow-up." };
   const r = await act(() => rpc("task_done", { p_task: id.parse(taskId), p_outcome: outcome.slice(0, 300), p_next_due: next, p_next_kind: nextKind, p_next_note: nextNote || null }), "Done.");
   done(leadId);
@@ -84,7 +89,8 @@ export async function taskDone(taskId: number, outcome: string, next: string | n
 }
 
 export async function taskMove(taskId: number, due: string, leadId?: number): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   if (!iso.safeParse(due).success) return { ok: false, error: "Pick a date and time." };
   const r = await act(() => rpc("task_move", { p_task: id.parse(taskId), p_due: due }), "Moved.");
   done(leadId);
@@ -94,14 +100,16 @@ export async function taskMove(taskId: number, due: string, leadId?: number): Pr
 // ---------- notes, contacts, profile ----------
 
 export async function addNote(leadId: number, body: string): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("add_note", { p_lead: id.parse(leadId), p_body: body.slice(0, 4000), p_internal: false }), "Note added.");
   done(leadId);
   return r;
 }
 
 export async function addContact(leadId: number, kind: "phone" | "email", value: string, label: string, primary: string[]): Promise<ActionResult<{ duplicate_of_lead: number | null }>> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<{ duplicate_of_lead: number | null }>("add_contact", {
     p_lead: id.parse(leadId), p_kind: kind, p_value: value.slice(0, 254), p_label: label || "alternate", p_primary: primary,
   }), "Contact added.");
@@ -110,7 +118,8 @@ export async function addContact(leadId: number, kind: "phone" | "email", value:
 }
 
 export async function setPrimary(contactId: number, forWhat: string[], leadId: number): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("set_primary", { p_contact: id.parse(contactId), p_for: forWhat }), "Primary changed.");
   done(leadId);
   return r;
@@ -118,14 +127,16 @@ export async function setPrimary(contactId: number, forWhat: string[], leadId: n
 
 /** Profile corrections and cross-sell (b2c.correct_lead keeps the field history; a programme change needs a reason). */
 export async function correctLead(leadId: number, fields: Record<string, string | number | null>, reason?: string): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("correct_lead", { p_lead: id.parse(leadId), p_fields: fields, p_reason: reason || null }), "Saved. It reaches the master lead table with the next sync.");
   done(leadId);
   return r;
 }
 
 export async function handBack(leadId: number, reason: string): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("hand_back", { p_lead: id.parse(leadId), p_reason: reason }), "Handed back.");
   done();
   return r;
@@ -134,7 +145,8 @@ export async function handBack(leadId: number, reason: string): Promise<ActionRe
 // ---------- WhatsApp ----------
 
 export async function waTemplate(leadId: number, templateId: number): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("wa_queue_template", { p_lead: id.parse(leadId), p_template: id.parse(templateId), p_extra: {} }), "Template queued.");
   revalidatePath("/s/inbox");
   done(leadId);
@@ -142,7 +154,8 @@ export async function waTemplate(leadId: number, templateId: number): Promise<Ac
 }
 
 export async function waText(leadId: number, text: string): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("wa_queue_text", { p_lead: id.parse(leadId), p_text: text.slice(0, 4096) }), "Message queued.");
   revalidatePath("/s/inbox");
   done(leadId);
@@ -157,7 +170,8 @@ export async function waRead(leadId: number): Promise<void> {
 // ---------- applications and enrolment ----------
 
 export async function applicationSave(input: Record<string, unknown>): Promise<ActionResult<number>> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const leadId = id.parse(input.lead_id);
   const r = await act(() => rpc<number>("application_save", { p: input }), "Application saved.");
   done(leadId);
@@ -183,7 +197,8 @@ async function uploadDoc(leadId: number, file: File): Promise<string> {
 
 /** Records an enrolment: fee, date and proof are required (spec B11). The Admin then verifies it. */
 export async function enrollmentRecord(form: FormData): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const leadId = id.parse(form.get("lead_id"));
   const r = await act(async () => {
     const path = await uploadDoc(leadId, form.get("proof") as File);
@@ -200,7 +215,8 @@ export async function enrollmentRecord(form: FormData): Promise<ActionResult> {
 }
 
 export async function documentAdd(form: FormData): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const leadId = id.parse(form.get("lead_id"));
   const r = await act(async () => {
     const file = form.get("file") as File;
@@ -221,7 +237,8 @@ export async function documentAdd(form: FormData): Promise<ActionResult> {
  * re-engaged to this counsellor; with another counsellor → refused; otherwise the student goes in through the Intake API.
  */
 export async function newLead(input: { phone: string; name?: string; email?: string; course?: string; city?: string; notes?: string }): Promise<ActionResult<{ outcome: string; lead_id?: number; owner?: string }>> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const digits = input.phone.replace(/\D/g, "");
   if (digits.length < 10 || digits.length > 13) return { ok: false, error: "Enter a valid phone number." };
   let existing: Record<string, unknown> | null = null;
@@ -245,14 +262,16 @@ export async function newLead(input: { phone: string; name?: string; email?: str
 // ---------- me ----------
 
 export async function setAway(minutes: number): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("set_away", { p_minutes: Math.max(0, Math.min(1440, Math.round(minutes))) }), minutes > 0 ? "You are away. New leads go to others." : "You are working.");
   done();
   return r;
 }
 
 export async function emailTemplateSave(input: Record<string, unknown>): Promise<ActionResult<number>> {
-  await assertUser([...SALES, "marketing"]);
+  const gate = await allowed([...SALES, "marketing"]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<number>("email_template_save", { p: input }), "Template saved.");
   revalidatePath("/s/me");
   return r;
@@ -270,7 +289,9 @@ export type ComposeTemplate = { id: number; name: string; category: string; subj
 
 /** The sales templates the composer offers: recommended first, then the most used. Hidden ones only to their author. */
 export async function emailTemplatesList(): Promise<ActionResult<ComposeTemplate[]>> {
-  const me = await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
+  const me = gate.me;
   const supabase = await createClient();
   const { data, error } = await supabase.from("sales_email_templates").select("id, owner_id, name, category, subject, body, recommended, hidden")
     .is("deleted_at", null).order("recommended", { ascending: false }).order("uses", { ascending: false }).limit(200);
@@ -283,7 +304,8 @@ const emailSchema = z.object({ lead: id, subject: z.string().trim().min(1).max(3
 
 /** Queues the email (b2c.email_queue); the sync job sends it through Gmail, or records "test mode, not sent". */
 export async function emailSend(input: z.input<typeof emailSchema>): Promise<ActionResult<number>> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const p = emailSchema.safeParse(input);
   if (!p.success) return { ok: false, error: "Write a subject and a message." };
   if (/\{\{\s*[a-z_]+\s*\}\}/.test(p.data.subject + p.data.text)) return { ok: false, error: "Fill in or remove the {{…}} placeholders first." };
@@ -303,7 +325,8 @@ export type FitRow = {
 export type Fit = { interest: Record<string, string | null>; rows: FitRow[] };
 
 export async function programmeFit(leadId: number): Promise<ActionResult<Fit>> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   return act(() => rpc<Fit>("programme_fit", { p_lead: id.parse(leadId), p_limit: 12 }));
 }
 
@@ -314,7 +337,8 @@ const shareSchema = z.object({
 
 /** WhatsApp (inside the 24-hour window) or email first, then the share is recorded; a call or meeting is only recorded. */
 export async function programmeShare(input: z.input<typeof shareSchema>): Promise<ActionResult> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const p = shareSchema.safeParse(input);
   if (!p.success) return { ok: false, error: "Choose one to three programmes and how you shared them." };
   const { lead, programmes, channel, text, subject, note } = p.data;
@@ -333,7 +357,8 @@ export async function programmeShare(input: z.input<typeof shareSchema>): Promis
 export type WittyMessage = { id: number; phone: string; direction: string; kind: string | null; content: string | null; at: string; sent: boolean | null };
 
 export async function wittyTranscript(leadId: number): Promise<ActionResult<WittyMessage[]>> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   return act(() => rpc<WittyMessage[]>("witty_transcript", { p_lead: id.parse(leadId), p_limit: 300 }));
 }
 
@@ -360,7 +385,8 @@ const viewSchema = z.object({
 
 /** Saves (or hides) one of the person's views; the database runs it once first, so a broken view is never saved. */
 export async function viewSave(input: z.input<typeof viewSchema>): Promise<ActionResult<number>> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   const p = viewSchema.safeParse(input);
   if (!p.success) return { ok: false, error: "Name the view and check its conditions." };
   const r = await act(() => rpc<number>("view_save", { p: { ...p.data, group_by: p.data.group_by === undefined ? undefined : p.data.group_by ?? "" } }),
@@ -371,7 +397,8 @@ export async function viewSave(input: z.input<typeof viewSchema>): Promise<Actio
 
 /** The view a person's Leads page opens on (b2c.view_pin); null unpins. */
 export async function viewPin(role: "sales" | "workspace", viewId: number | null): Promise<ActionResult> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("view_pin", { p_role: role, p_view: viewId === null ? null : id.parse(viewId) }), viewId === null ? "Unpinned." : "Pinned: the Leads page opens on this view.");
   revalidatePath(role === "sales" ? "/s/leads" : "/w/leads");
   return r;
@@ -381,7 +408,8 @@ export async function viewPin(role: "sales" | "workspace", viewId: number | null
 
 /** The details a counsellor (with the To qualify task) or the Admin collected; the lead goes back to B2B routing. */
 export async function qualifyRecord(leadId: number, answers: Record<string, string>): Promise<ActionResult<{ recorded: Record<string, string> }>> {
-  await assertUser([...SALES]);
+  const gate = await allowed([...SALES]);
+  if (!gate.ok) return gate;
   const clean = cleanAnswers(answers);
   if (Object.keys(clean).length === 0) return { ok: false, error: "Answer at least one question." };
   const r = await act(() => rpc<{ recorded: Record<string, string> }>("qualify_record", { p_lead: id.parse(leadId), p_answers: clean }),

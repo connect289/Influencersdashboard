@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { friendly } from "@/lib/data";
 import { ALLOWED_DOMAIN } from "@/lib/env";
 import { clientIp, DEVICE_COOKIE } from "@/lib/security";
 import { adminClient } from "@/lib/supabase/admin";
@@ -73,14 +74,37 @@ export async function requireUser(area: Area, next = "/"): Promise<Me> {
   return me;
 }
 
+export const SIGNED_OUT = "You were signed out. Sign in again.";
+
+/** A server action called by a session that has ended (expired, signed out, or signed out from another device). */
+export class SignedOutError extends Error {
+  constructor() {
+    super(SIGNED_OUT);
+    this.name = "SignedOutError";
+  }
+}
+
 /** For server actions: throws instead of redirecting, so a forged call can never proceed. */
 export async function assertUser(roles?: Role[]): Promise<Me> {
   const result = await getMe();
   if ("setupError" in result) throw new Error("not allowed");
   const { me } = result;
-  if (!me.user_id || !me.active || !me.role || !me.checked || me.revoked) throw new Error("not allowed");
+  if (!me.user_id || me.revoked) throw new SignedOutError();
+  if (!me.active || !me.role || !me.checked) throw new Error("not allowed");
   if (roles && !roles.includes(me.role)) throw new Error("not allowed");
   return me;
+}
+
+/**
+ * For server actions that answer with an ActionResult: the person, or the error result to return as it is ("You were
+ * signed out. Sign in again.", "You are not allowed to do that."), so an ended session never throws away a form.
+ */
+export async function allowed(roles?: Role[]): Promise<{ ok: true; me: Me } | { ok: false; error: string }> {
+  try {
+    return { ok: true, me: await assertUser(roles) };
+  } catch (e) {
+    return { ok: false, error: friendly(e) };
+  }
 }
 
 /** A trusted-device cookie marks this session checked (b2c.device_trust_check records it). */

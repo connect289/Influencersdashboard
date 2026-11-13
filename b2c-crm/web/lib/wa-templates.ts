@@ -95,7 +95,11 @@ export async function syncTemplates(force = false): Promise<{ synced: number; sk
   let n = 0;
   for (let page = 0; url && page < 10; page++) {
     const res: Response = await fetch(url, { headers: { authorization: `Bearer ${cfg.token}` }, signal: AbortSignal.timeout(20_000) });
-    const b = (await res.json()) as { data?: { name: string; language: string; status: string; id: string; rejected_reason?: string }[]; paging?: { next?: string } };
+    const b = (await res.json().catch(() => ({}))) as {
+      data?: { name: string; language: string; status: string; id: string; rejected_reason?: string }[]; paging?: { next?: string }; error?: { message?: string; code?: number };
+    };
+    // a refused list (expired token, wrong account) is a failed sync, so the WhatsApp connector shows it (reconcile)
+    if (!res.ok) throw new Error(`the template list was refused: ${b.error?.message ? `${b.error.code ?? res.status}: ${b.error.message}` : `HTTP ${res.status}`}`);
     for (const t of b.data ?? []) {
       await db.rpc("wa_template_status", { p_name: t.name, p_language: t.language, p_status: t.status, p_meta_id: t.id, p_reason: t.rejected_reason && t.rejected_reason !== "NONE" ? t.rejected_reason : null });
       n++;

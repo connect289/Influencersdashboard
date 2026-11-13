@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { assertUser } from "@/lib/auth";
+import { allowed } from "@/lib/auth";
 import { act, rpc, type ActionResult } from "@/lib/data";
 import { statementRows } from "@/lib/statement-csv";
 
@@ -13,7 +13,8 @@ const reason = z.string().trim().min(3, "Give a reason.").max(300);
 const done = (...paths: string[]) => { for (const p of ["/w/money", ...paths]) revalidatePath(p); };
 
 async function admin<T>(run: () => Promise<T>, notice?: string, ...paths: string[]): Promise<ActionResult<T>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(run, notice);
   done(...paths);
   return r;
@@ -83,7 +84,8 @@ export async function receiptRecord(p: z.input<typeof ReceiptSchema>) {
   return admin(() => rpc("receipt_record", { p: v.data }), "Receipt recorded.");
 }
 export async function statementUpload(university: number, from: string, to: string, fileName: string, csv: string) {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   if (csv.length > 2_000_000) return { ok: false as const, error: "The file is too large (2 MB at most)." };
   const { rows, missing } = statementRows(csv);
   if (missing.length) return { ok: false as const, error: `The file needs ${missing.join(" and ")}.` };
@@ -130,7 +132,8 @@ const TargetSchema = z.object({
   applications: z.coerce.number().int().min(0).nullable(), enrollments: z.coerce.number().int().min(0).nullable(), commission: z.coerce.number().min(0).nullable(),
 });
 export async function targetSave(user: string, month: string, p: Record<string, string>) {
-  await assertUser(["admin", "sales_head"]);
+  const gate = await allowed(["admin", "sales_head"]);
+  if (!gate.ok) return gate;
   const clean = Object.fromEntries(Object.keys(TargetSchema.shape).map((k) => [k, p[k] === "" || p[k] === undefined ? null : p[k]]));
   const v = TargetSchema.safeParse(clean);
   if (!v.success) return { ok: false as const, error: "Targets are whole numbers of zero or more." };

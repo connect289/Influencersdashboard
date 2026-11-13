@@ -3,6 +3,32 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 12 Nov 2026 — Owner set-up items and clean-up done on the owner's word
+
+Production had its nightly backup of 12 Nov 00:50 UTC; Supabase and Vercel are both on Pro (checked).
+- **B2B CRM student messages:** Meta approved `eduwit_partner_assigned` (EN, HI) and `eduwit_partner_changed` (EN,
+  HI), so all eight `b2b.message_templates` rows (accepted and reroute_update; email and WhatsApp; EN and HI) are
+  active. Done as `b2b.template_save` does (status, version + 1, one `template.saved` event per row), because that
+  function needs a signed-in admin.
+- **Influencer portal:** `LIVE_MODE=on` in Vercel production and redeployed (portal D-196), after the owner recorded
+  counsel's and the CA's confirmations in its settings. Email goes out through Resend; WhatsApp stays on the mock
+  provider and `LEAD_SYNC` stays off. The queue was empty beforehand.
+- **Old Witty test leads:** 213 leads left by the old harness scenarios (2 to 11 Nov, `is_test`, harness range, no
+  partner, enrollment or Spark row) soft-deleted as `b2b.leads_soft_delete(ids, 'test')` does: `deleted_at` set, a
+  `b2b.lead_deletions` row and a `lead.deleted` event each, one batch; restorable from the CRM's recycle bin. Kept: the
+  current test's lead on its fixed number (D-136 reuses it, so no new leads pile up) and one older test lead of 5 Oct.
+  Why the purge never removed them: those runs recorded no phones in `artefacts`, so `one.test_purge_due` found no
+  leads and marked the runs purged; with the fixed number since D-136 this no longer leaves anything behind.
+- **n8n:** archived the old CRM's two switched-off workflows ("Eduwit CRM · Partner Sync Worker", "Eduwit CRM ·
+  Jobs"). Four old switched-off drafts ("My workflow", "My workflow 2", "My workflow 3", "eduwitcopy") are closed to
+  the API: the owner archives them in n8n. Kept on purpose: "Meta Leads to WhatsApp Alert" and "WhatsApp Ad Leads to
+  Sheet" (the only path for ad leads until Meta lead ads are connected to the CRM); the Witty test harness (used by
+  T-WITTY-QUALIFY); "Learning Loop (Claude)" and "Nurture Worker" (off already; an AI use and a Witty feature, the
+  owner's call).
+- **Old CRM site:** the Vercel project `eduwit-crm` (eduwit-crm.vercel.app, no repository, last deployed 2 Oct, still
+  showing a sign-in page against the production database) is paused: it answers 503. Undo: Vercel → project →
+  Settings → Resume. `eduwit-b2c-crm` stays: it is Spark's staging site.
+
 ## 11 Nov 2026 — The portal's minute timers call the app only when there is work (portal D-194)
 
 - Found: the influencer portal was called about 4,000 times a day with almost no human traffic; 2,880 of those were

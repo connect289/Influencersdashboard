@@ -3,7 +3,8 @@ import { exportColumns, exportFile, type ExportFormat } from "@/lib/lead-export"
 import { adminClient } from "@/lib/supabase/admin";
 
 /**
- * The leads side of the every-minute job (b40): files of erased students removed through the storage API, and large
+ * The leads side of the every-minute job (b40): files of erased students (documents, recordings and WhatsApp files, b55)
+ * and expired exports (bucket b2c-exports, queued by b2c.export_take, b55) removed through the storage API, and large
  * exports written to the private bucket for an expiring link. Each part fails on its own.
  */
 export async function runLeadJobs(): Promise<Record<string, unknown>> {
