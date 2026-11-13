@@ -65,7 +65,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        description="Every change is versioned with a reason and takes effect within a minute, without a deploy. Engineers tune thresholds, checks, tests and the funnel; everything that decides where a credential, an alert or a code goes is the owner's."
+        description="Every change is versioned with a reason and takes effect within a minute, without a deploy. Engineers tune the check runner, tests and the funnel; the thresholds, and everything that decides where a credential, an alert or a code goes, are the owner's."
       />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {pages.map((s) => (

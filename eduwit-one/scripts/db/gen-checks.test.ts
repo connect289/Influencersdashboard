@@ -233,10 +233,18 @@ const seedStatement = (text: string, id: string) => {
   return lines.slice(a, b + 1).join("\n");
 };
 
-test("0028 re-seeds ONE-01 with the statement 0006 carries (D-102)", () => {
+// 0038 changed ONE-01 after 0028 (tests left out of slow_checks, D-136) with an update, not a re-seed: 0006 carries
+// 0028's statement plus exactly those two edits, both in 0038.
+test("0028 re-seeds ONE-01 with the statement 0006 carries, but for 0038's two edits (D-102, D-136)", () => {
+  const descriptionEdit = "; the end-to-end tests are left out, a journey takes as long as its steps wait, D-136";
+  const sqlEdit = "\n             and not exists (select 1 from one.checks t where t.id = r.check_id and t.kind = 'test')";
+  const in0038 = migrationText("0038_quiet_false_alarms.sql");
+  assert.ok(in0038.includes(descriptionEdit) && in0038.includes(sqlEdit), "0038 carries both edits");
+  const now = seedStatement(migrationText("0006_seed_checks.sql"), "ONE-01");
+  assert.ok(now.includes(descriptionEdit) && now.includes(sqlEdit), "and 0006 too");
   assert.equal(
     seedStatement(migrationText("0028_parked_checks_recover.sql"), "ONE-01"),
-    seedStatement(migrationText("0006_seed_checks.sql"), "ONE-01"),
+    now.replace(descriptionEdit, "").replace(sqlEdit, ""),
   );
 });
 

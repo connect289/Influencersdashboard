@@ -4,21 +4,27 @@ import { Button } from "@/components/ui/button.tsx";
 import { Field, Input, Textarea } from "@/components/ui/field.tsx";
 import { saveSetting } from "@/lib/actions/settings.ts";
 
-/** A whole setting as JSON, saved as a new version with a reason. The database validates the shape and the role. */
+/**
+ * A whole setting as JSON, saved as a new version with a reason. The database validates the shape and the role, and
+ * refuses the save when `version` (the one this page loaded) is no longer current: someone else saved in between (D-137).
+ */
 export function SettingEditor({
   name,
   value,
+  version,
   readOnly,
   hint,
 }: {
   name: string;
   value: string;
+  version: number;
   readOnly: boolean;
   hint?: string;
 }) {
   return (
     <ActionForm action={saveSetting}>
       <input type="hidden" name="key" value={name} />
+      <input type="hidden" name="expected_version" value={version} />
       <Field label="Value (JSON)" hint={hint}>
         <Textarea
           name="value"

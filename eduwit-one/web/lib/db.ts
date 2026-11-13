@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { bootEnv } from "./env.ts";
 import { tickStateSchema, type Report, type TickState } from "./state.ts";
+import { fetchWithTimeout } from "./fetch-timeout.ts";
 
 // The app's only door to the database (spec §5): the service role, schema one, and the functions of migration 0008.
 // PostgREST must expose schema one for these calls (Setup item supabase_api_schema, D-047).
@@ -65,7 +66,11 @@ export type Watchdog = z.infer<typeof watchdogSchema>;
 type OneClient = ReturnType<typeof createOneClient>;
 
 function createOneClient(url: string, key: string) {
-  return createClient(url, key, { db: { schema: "one" }, auth: { persistSession: false, autoRefreshToken: false } });
+  return createClient(url, key, {
+    db: { schema: "one" },
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: fetchWithTimeout() },
+  });
 }
 
 export class SupabaseOneDb implements OneDb {

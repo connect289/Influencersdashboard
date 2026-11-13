@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DbError } from "../../db.ts";
+import { log } from "../../log.ts";
 import { UiError } from "../../ui/api.ts";
 import { ModelError } from "../client.ts";
 import type { AiDb, CallRecord } from "../db.ts";
@@ -157,6 +158,8 @@ function toolText(
 
 class Budget {
   readonly calls: CallRecord[] = [];
+  /** Calls the database has not recorded yet (their recording failed): sent again with the next one and at the end. */
+  readonly unrecorded: CallRecord[] = [];
   spentInr = 0;
   remainingInr: number;
   private readonly ai: AiSettings;
@@ -199,13 +202,36 @@ class Budget {
     }
   }
 
+  /**
+   * Records a call as it ends, with any earlier call whose recording failed, so a call's cost is never dropped (as the
+   * worker's TaskCalls keeps them, review M6; D-137). Until the database has it, its cost comes off what is left here.
+   */
   async record(deps: ChatDeps, task: number, c: CallRecord) {
     this.calls.push(c);
     this.spentInr += c.cost_inr ?? 0;
+    const batch = [...this.unrecorded, c];
     try {
-      this.remainingInr = (await deps.ai.recordCalls(task, deps.holder, [c])).remaining_inr;
+      this.remainingInr = (await deps.ai.recordCalls(task, deps.holder, batch)).remaining_inr;
+      this.unrecorded.length = 0;
     } catch {
+      this.unrecorded.push(c);
       this.remainingInr -= c.cost_inr ?? 0;
+    }
+  }
+
+  /** The turn's last try for calls still unrecorded, before the turn is stored; what still fails is logged. */
+  async flush(deps: ChatDeps, task: number) {
+    if (this.unrecorded.length === 0) return;
+    try {
+      await deps.ai.recordCalls(task, deps.holder, [...this.unrecorded]);
+      this.unrecorded.length = 0;
+    } catch (e) {
+      log("error", "chat.calls_unrecorded", {
+        task,
+        calls: this.unrecorded.length,
+        cost_inr: Math.round(this.unrecorded.reduce((n, x) => n + (x.cost_inr ?? 0), 0) * 100) / 100,
+        error: e instanceof DbError ? e.message : "error",
+      });
     }
   }
 }
@@ -484,6 +510,7 @@ export async function runTurn(
     }
   } catch (e) {
     const message = e instanceof Stop ? e.message : "the turn failed";
+    await budget.flush(deps, turn.task_id);
     assistant.text = texts.join("\n\n");
     assistant.meta = {
       model,
@@ -494,6 +521,7 @@ export async function runTurn(
     };
     return finish("failed", message);
   }
+  await budget.flush(deps, turn.task_id);
   assistant.text = texts.join("\n\n") || "(no answer)";
   assistant.meta = {
     model,

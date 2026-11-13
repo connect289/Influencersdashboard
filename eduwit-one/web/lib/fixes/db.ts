@@ -3,12 +3,17 @@ import { createClient } from "@supabase/supabase-js";
 import { DbError } from "../db.ts";
 import { bootEnv } from "../env.ts";
 import { claimSchema, type FixRun, type FixesDb, reportSchema } from "./run.ts";
+import { fetchWithTimeout } from "../fetch-timeout.ts";
 
 // The app's side of its two fixes (migration 0019), with the service role like lib/db.ts: the runs the database queued
 // for the app, and the app's report on each.
 
 function createFixesClient(url: string, key: string) {
-  return createClient(url, key, { db: { schema: "one" }, auth: { persistSession: false, autoRefreshToken: false } });
+  return createClient(url, key, {
+    db: { schema: "one" },
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: fetchWithTimeout() },
+  });
 }
 
 export class SupabaseFixesDb implements FixesDb {

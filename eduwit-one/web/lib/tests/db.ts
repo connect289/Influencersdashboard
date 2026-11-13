@@ -6,6 +6,7 @@ import { bootEnv } from "../env.ts";
 import { type DueRun, parseDue, type PurgeDb } from "./purge.ts";
 import type { TestRow, TestsDb, TestsState } from "./runner.ts";
 import type { Run } from "./types.ts";
+import { fetchWithTimeout } from "../fetch-timeout.ts";
 
 // The test runner's door to schema one (migrations 0014 and 0016), with the service role like lib/db.ts: the run
 // bookkeeping, the seams (one.test_fact, one.test_act) through which a journey reads and acts on the apps, and the purge.
@@ -74,7 +75,11 @@ export interface TestSeams {
 const record = z.record(z.string(), z.unknown());
 
 function createTestsClient(url: string, key: string) {
-  return createClient(url, key, { db: { schema: "one" }, auth: { persistSession: false, autoRefreshToken: false } });
+  return createClient(url, key, {
+    db: { schema: "one" },
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: fetchWithTimeout() },
+  });
 }
 
 export class SupabaseTestsDb implements TestsDb, TestSeams, PurgeDb {

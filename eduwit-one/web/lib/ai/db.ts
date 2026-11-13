@@ -4,6 +4,7 @@ import { z } from "zod";
 import { DbError } from "../db.ts";
 import { bootEnv } from "../env.ts";
 import { TASK_KINDS, TIERS } from "./models.ts";
+import { fetchWithTimeout } from "../fetch-timeout.ts";
 
 // The AI worker's door to the database (migration 0018): the service role and the five ai_* functions. The claim
 // carries the task, the settings, today's budget and the data the task may read, already redacted by the database.
@@ -62,7 +63,11 @@ export interface AiDb {
 }
 
 function createAiClient(url: string, key: string) {
-  return createClient(url, key, { db: { schema: "one" }, auth: { persistSession: false, autoRefreshToken: false } });
+  return createClient(url, key, {
+    db: { schema: "one" },
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: fetchWithTimeout() },
+  });
 }
 
 export class SupabaseAiDb implements AiDb {

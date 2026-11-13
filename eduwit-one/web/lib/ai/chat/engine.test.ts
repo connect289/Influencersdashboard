@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CallRecord } from "../db.ts";
 import { ModelError } from "../client.ts";
 import { ScriptedChatClient, type ChatRequest } from "./client.ts";
@@ -77,7 +77,15 @@ class FakeAi {
     this.reserved.push(amount);
     return { ok: !this.refuse, remaining_inr: this.refuse ? 0.5 : this.remaining - amount };
   }
+  /** How many recordCalls attempts fail before they succeed (the database did not answer). */
+  failRecords = 0;
+  recordAttempts: number[] = [];
   async recordCalls(_t: number, _h: string, calls: CallRecord[]) {
+    this.recordAttempts.push(calls.length);
+    if (this.failRecords > 0) {
+      this.failRecords--;
+      throw new Error("the database did not answer");
+    }
     this.recorded.push(...calls);
     this.remaining -= calls.reduce((n, c) => n + (c.cost_inr ?? 0), 0);
     return { remaining_inr: this.remaining };
@@ -285,6 +293,48 @@ describe("a turn that answers", () => {
     expect(acts).toEqual([]);
     expect(chat.proposed.map((p) => p.tool)).toEqual(["validate_setup", "rerun_deep", "regenerate_brief"]);
     expect(JSON.stringify((model.requests[1] as ChatRequest).messages.at(-1)?.content)).toContain("has not run");
+  });
+});
+
+describe("a call's cost is never dropped (D-137)", () => {
+  it("records a call whose recording failed with the next one", async () => {
+    const model = new ScriptedChatClient([
+      { blocks: [toolUse("t1", "incidents", { status: "open" })], usage },
+      { text: "One incident is open.", usage },
+    ]);
+    const r = run(model);
+    r.aiDb.failRecords = 1;
+    await r.go();
+    expect(r.aiDb.recordAttempts).toEqual([1, 2]);
+    expect(r.aiDb.recorded.map((c) => c.purpose)).toEqual(["chat:1", "chat:2"]);
+    expect(r.chat.finished[0]?.status).toBe("done");
+  });
+
+  it("tries once more before the turn is stored", async () => {
+    const model = new ScriptedChatClient([{ text: "Nothing is open.", usage }]);
+    const r = run(model);
+    r.aiDb.failRecords = 1;
+    await r.go();
+    expect(r.aiDb.recordAttempts).toEqual([1, 1]);
+    expect(r.aiDb.recorded.map((c) => c.purpose)).toEqual(["chat:1"]);
+  });
+
+  it("logs what still cannot be recorded, with the count and the cost, and still stores the turn", async () => {
+    const model = new ScriptedChatClient([{ text: "Nothing is open.", usage }]);
+    const r = run(model);
+    r.aiDb.failRecords = 5;
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((l: unknown) => void lines.push(String(l)));
+    try {
+      await r.go();
+    } finally {
+      spy.mockRestore();
+    }
+    expect(r.aiDb.recorded).toEqual([]);
+    const line = JSON.parse(lines.find((l) => l.includes("chat.calls_unrecorded")) ?? "{}") as Record<string, unknown>;
+    expect(line).toMatchObject({ level: "error", event: "chat.calls_unrecorded", task: 99, calls: 1 });
+    expect(line.cost_inr).toBeGreaterThan(0);
+    expect(r.chat.finished[0]?.status).toBe("done");
   });
 });
 

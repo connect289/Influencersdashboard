@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { DB_TIMEOUT_MS, fetchWithTimeout } from "./lib/fetch-timeout.ts";
 import {
   buildCsp,
   DEFAULT_IDLE_SECONDS,
@@ -43,6 +44,8 @@ async function idleSeconds(url: string, key: string, token: string | undefined):
       },
       body: "{}",
       cache: "no-store",
+      // A stalled database does not hold every page (D-137): past 15 s this is an error, and the last known value stays.
+      signal: AbortSignal.timeout(DB_TIMEOUT_MS),
     });
     const hours = res.ok ? Number(((await res.json()) as { idle_hours?: unknown }).idle_hours) : NaN;
     if (Number.isFinite(hours) && hours > 0 && hours <= 720) idlePolicy.seconds = Math.round(hours * 3600);
@@ -97,6 +100,8 @@ export async function middleware(request: NextRequest) {
   }
 
   const supabase = createServerClient(url, key, {
+    // Past 15 s the session cannot be read, which counts as signed out (D-137), as any other failure here does.
+    global: { fetch: fetchWithTimeout() },
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll(toSet, headers) {
