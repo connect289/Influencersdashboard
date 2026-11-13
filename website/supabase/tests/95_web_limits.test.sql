@@ -76,9 +76,11 @@ insert into r select (select student_name = 'Meera Iyer' and interested_course =
 insert into r select (public.web_callback_request((select student from g where k = 'l-other'), (select (val->'session'->>'id')::uuid from v where k = 'w-open'),
   ((now() at time zone 'Asia/Kolkata')::date + 1), 'morning') ->> 'ok')::boolean
   and (select preferred_counseling_time like 'Callback %morning%' from public.student_leads where whatsapp_number = '919876522201'), 'callback fills an empty preferred time';
--- an opt-out from the website still applies (it only ever reduces contact)
+-- an opt-out from this account does not reach someone else's lead: it waits for a counsellor (web16, D-095)
 select public.web_consent_withdraw((select student from g where k = 'l-other'), array['sales', 'partner_share']);
-insert into r select (select is_opted_out from public.student_leads where whatsapp_number = '919876522201'), 'opt-out still reaches the lead';
+insert into r select (select not coalesce(is_opted_out, false) from public.student_leads where whatsapp_number = '919876522201')
+  and exists (select 1 from public.web_deletion_requests where student_id = (select student from g where k = 'l-other') and kind = 'opt_out' and status = 'open'),
+  'opt-out of a lead tied to another email waits for a counsellor';
 
 -- the same student (same confirmed email) behaves as before: trusted, details updated
 select public.lead_intake('{"phone":"919876522202","source_system":"witty","event_type":"lead.created","is_test":true,

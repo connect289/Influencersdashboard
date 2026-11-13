@@ -5,7 +5,7 @@ import { CONSENT } from "@/content/consent";
 import { allowed, CONSENT_COOKIE, parseConsent } from "@/lib/consent";
 import { attributionToLead, decodeTouch } from "@/lib/attribution";
 import { junkScore } from "@/lib/forms/junk";
-import { cleanName, normaliseEmail, normaliseIndianMobile } from "@/lib/forms/validate";
+import { canonicalEmail, cleanName, normaliseEmail, normaliseIndianMobile } from "@/lib/forms/validate";
 import { rpc } from "./db";
 import { email } from "./email";
 import { verificationCodeEmail } from "./email/templates";
@@ -115,17 +115,18 @@ const err = (reason: string): { status: "error"; reason: string; message: string
 });
 
 /**
- * The database refuses new codes above the site-wide hourly ceiling (web_settings code_send_hourly_cap, web14). The
- * first refusal on a server instance in any 10 minutes is logged as an error (the alert), the rest as warnings.
+ * The database refuses new codes above the site-wide ceilings (web_settings code_send_hourly_cap, web14, and
+ * code_send_daily_cap, web16; `cap` says which). The first refusal on a server instance in any 10 minutes is logged as
+ * an error (the alert), the rest as warnings; the database also counts them for /api/health.
  */
 let codeCeilingAlertAt = 0;
-function codeCeilingReached(surface: Surface, requestId: string) {
+function codeCeilingReached(surface: Surface, requestId: string, cap: string | undefined) {
   const now = Date.now();
   if (now - codeCeilingAlertAt > 10 * 60_000) {
     codeCeilingAlertAt = now;
-    log("error", "gate.code_ceiling_reached", { surface, requestId });
+    log("error", "gate.code_ceiling_reached", { surface, cap: cap ?? "hourly", requestId });
   } else {
-    log("warn", "gate.code_ceiling_refused", { surface, requestId });
+    log("warn", "gate.code_ceiling_refused", { surface, cap: cap ?? "hourly", requestId });
   }
 }
 
@@ -205,7 +206,8 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
   for (const [limit, id] of [
     [LIMITS.emailCodeSendPerIp, ip],
     [LIMITS.emailCodeSendPerDevice, device],
-    [LIMITS.emailCodeSendPerEmail, emailNorm],
+    // one inbox, however the address is spelt (+tags, Gmail dots): D-095
+    [LIMITS.emailCodeSendPerEmail, canonicalEmail(emailNorm)],
   ] as const) {
     if (!(await rateLimit(limit, id)).ok) {
       log("info", "gate.rate_limited", { surface, limit: limit.name, requestId });
@@ -214,7 +216,7 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
   }
 
   const turnstile = await verifyTurnstile(input.turnstileToken, ip);
-  if (!turnstile.ok) return err("turnstile");
+  if (!turnstile.ok) return err(turnstile.unreachable ? "unavailable" : "turnstile");
 
   const context = Object.fromEntries(Object.entries(input.context ?? {}).filter(([, v]) => v !== undefined && v !== ""));
   const junk = name && phone ? junkScore({ name, phone, email: emailNorm }) : { score: 0, reasons: [] };
@@ -237,9 +239,10 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
   };
 
   try {
-    // Signed-in student with the same email: no code needed (spec 9.1A).
+    // Signed-in student with the same email: no code needed (spec 9.1A), unless the form carries a phone number other
+    // than the one on the account: that goes through the email code (D-095; the database refuses it too).
     const student = surface === "signin" ? null : await currentStudent();
-    if (student && student.email === emailNorm) {
+    if (student && student.email === emailNorm && (!student.phone || !phone || student.phone === phone)) {
       const r = await rpc<{ ok: boolean; reason?: string; status?: string; attempt_id: string; session_id?: string }>(
         "web_gate_start_trusted",
         { p: payload, p_student: student.studentId },
@@ -253,11 +256,11 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
     }
 
     const code = newCode();
-    const r = await rpc<{ ok: boolean; reason?: string; status?: string; attempt_id?: string }>("web_gate_start", {
+    const r = await rpc<{ ok: boolean; reason?: string; cap?: string; status?: string; attempt_id?: string }>("web_gate_start", {
       p: { ...payload, code_hash: codeHash(payload.idempotency_key, code) },
     });
     if (!r.ok) {
-      if (r.reason === "site_busy") codeCeilingReached(surface, requestId);
+      if (r.reason === "site_busy") codeCeilingReached(surface, requestId, r.cap);
       else log("info", "gate.refused", { surface, reason: r.reason, requestId });
       return err(r.reason ?? "unavailable");
     }
@@ -292,12 +295,12 @@ export async function resendCode(attemptId: string): Promise<StartOutcome> {
     const info = await attemptInfo(attemptId);
     if (!info) return err("expired");
     const code = newCode();
-    const r = await rpc<{ ok: boolean; reason?: string; resend_in?: number; email?: string }>("web_gate_resend", {
+    const r = await rpc<{ ok: boolean; reason?: string; cap?: string; resend_in?: number; email?: string }>("web_gate_resend", {
       p_attempt: attemptId,
       p_code_hash: codeHash(info.key, code),
     });
     if (!r.ok) {
-      if (r.reason === "site_busy") codeCeilingReached(info.surface, requestId);
+      if (r.reason === "site_busy") codeCeilingReached(info.surface, requestId, r.cap);
       return r.reason === "too_soon" ? { ...err("too_soon") } : err(r.reason ?? "unavailable");
     }
     await verifier.sendCode(info.email, code, info.surface === "signin" ? "signin" : "verify", `code:${attemptId}:${code}`);
@@ -317,7 +320,7 @@ export async function verifyCode(attemptId: string, code: string): Promise<Verif
     const info = await attemptInfo(attemptId);
     if (!info) return { status: "expired", message: MESSAGES.expired! };
     // Per email too, so cycling resends from many IPs cannot multiply the guesses on one address.
-    if (!(await rateLimit(LIMITS.emailCodeVerifyPerEmail, info.email)).ok) return { status: "error", message: MESSAGES.rate_limited! };
+    if (!(await rateLimit(LIMITS.emailCodeVerifyPerEmail, canonicalEmail(info.email))).ok) return { status: "error", message: MESSAGES.rate_limited! };
     const r = await rpc<{ ok: boolean; reason?: string; status?: string; attempts_left?: number; session_id?: string; lead_id?: number | null }>(
       "web_gate_verify",
       { p_attempt: attemptId, p_code_hash: codeHash(info.key, code), p_ua_hash: hashId(userAgent) },

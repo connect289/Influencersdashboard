@@ -19,6 +19,21 @@ export function normaliseEmail(input: string): string | null {
   return e.length <= 254 && EMAIL.test(e) ? e : null;
 }
 
+/**
+ * The inbox an address reaches, for counting codes per inbox (D-095): lower case, no +tag, and for Gmail no dots and
+ * googlemail.com as gmail.com. Never stored or emailed; the same rule as web_email_canonical() in the database.
+ */
+export function canonicalEmail(input: string): string {
+  const e = input.trim().toLowerCase();
+  const at = e.indexOf("@");
+  if (at < 0) return e;
+  const local = e.slice(0, at);
+  const domain = e.slice(at + 1).split("@")[0]!;
+  const untagged = local.split("+")[0] || local;
+  if (domain === "gmail.com" || domain === "googlemail.com") return `${untagged.replace(/\./g, "") || local}@gmail.com`;
+  return `${untagged}@${domain}`;
+}
+
 export function cleanName(input: string): string | null {
   const n = input.replace(/\s+/g, " ").trim();
   if (n.length < 2 || n.length > 80) return null;

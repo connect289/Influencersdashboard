@@ -1,11 +1,16 @@
 /**
- * Validation of the site-wide ceilings an admin can change (web14: code_send_hourly_cap, web_advisor_daily_cap). The
+ * Validation of the site-wide ceilings an admin can change (web14: code_send_hourly_cap, web_advisor_daily_cap; web16:
+ * code_send_daily_cap). The
  * database enforces them and keeps them super-admin only; this only gives the editor a clear message.
  */
 export function ceilingError(key: string, value: unknown): string | null {
   if (key === "code_send_hourly_cap") {
     const ok = typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 1_000_000;
     return ok ? null : "Use a whole number of codes per hour (0 stops all sends).";
+  }
+  if (key === "code_send_daily_cap") {
+    const ok = typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 1_000_000;
+    return ok ? null : "Use a whole number of codes per 24 hours (0 stops all sends).";
   }
   if (key === "web_advisor_daily_cap") {
     const v = value as { turns?: unknown; cost_usd?: unknown } | null;

@@ -27,6 +27,7 @@ async function View() {
                 <span className={r.status === "open" ? "text-amber-text font-medium" : "text-muted"}>{r.status}</span>
                 {r.processed_by ? <span className="text-muted"> by {r.processed_by}</span> : null}
               </p>
+              {r.note ? <p className="text-muted mt-1">{r.note}</p> : null}
               {r.status === "open" && hasRole(s, "super_admin") ? (
                 <form action={privacyDoneAction} className="mt-2 flex flex-wrap items-center gap-2">
                   <input type="hidden" name="id" value={r.id} />

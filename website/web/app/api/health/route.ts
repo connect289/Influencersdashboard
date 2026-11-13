@@ -6,6 +6,7 @@ import { isInternal } from "@/lib/server/internal-auth";
 import { kv, kvShared } from "@/lib/server/kv";
 import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
 import { ipFrom } from "@/lib/server/request";
+import { codesCheck } from "@/lib/health";
 
 // A health call never outlives the caller's patience: Eduwit One gives up after 5 s, and a function that kept waiting
 // on a slow database ran up to Vercel's 300 s ceiling and was billed for it (29 and 31 Oct, 1 Nov 2026; the Vercel
@@ -67,9 +68,13 @@ export async function GET(req: Request) {
       checks.outbox = {
         ok: Number(h.outbox_dead) === 0 && oldest < 600,
         dead: h.outbox_dead,
+        dead_by_kind: h.outbox_dead_by_kind ?? {},
+        dead_latest_at: h.outbox_dead_latest_at ?? null,
         pending: h.outbox_pending,
         oldest_pending_seconds: oldest,
       };
+      // Verification codes against the site-wide ceilings (D-086, D-095): a refusal means visitors could not get a code.
+      checks.codes = codesCheck(h.codes);
       // Catalogue sync (D-081): the poll runs every minute; over 10 minutes without a check means it has stopped.
       const age = h.catalog_checked_seconds_ago == null ? null : Number(h.catalog_checked_seconds_ago);
       checks.catalog = {

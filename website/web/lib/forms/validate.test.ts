@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanName, normaliseEmail, normaliseIndianMobile, validateAcademic, validateContact, validatePreferences } from "./validate";
+import { canonicalEmail, cleanName, normaliseEmail, normaliseIndianMobile, validateAcademic, validateContact, validatePreferences } from "./validate";
 
 describe("form validation", () => {
   it("normalises Indian mobiles", () => {
@@ -30,5 +30,16 @@ describe("form validation", () => {
     const p = { intake: "", budget: "", emi: "" as const, universities: [], city: "", state: "", contactMode: "call" as const, bestTime: "", questions: "" };
     expect(validatePreferences(p, true).universities).toBeDefined();
     expect(validatePreferences(p, false)).toEqual({});
+  });
+  it("canonical inbox for counting codes (D-095, same rule as web_email_canonical)", () => {
+    expect(canonicalEmail(" J.Doe+news@GoogleMail.com ")).toBe("jdoe@gmail.com");
+    expect(canonicalEmail("j.d.o.e@gmail.com")).toBe("jdoe@gmail.com");
+    expect(canonicalEmail("a.b+x@yahoo.com")).toBe("a.b@yahoo.com");
+    expect(canonicalEmail("asha@example.com")).toBe("asha@example.com");
+    expect(canonicalEmail("+x@yahoo.com")).toBe("+x@yahoo.com");
+    expect(canonicalEmail("..+x@gmail.com")).toBe("..+x@gmail.com");
+    expect(canonicalEmail("no-at-sign")).toBe("no-at-sign");
+    // the stored address keeps its tag
+    expect(normaliseEmail("Asha+Fees@Example.com")).toBe("asha+fees@example.com");
   });
 });

@@ -85,7 +85,11 @@ export async function withdrawConsentAction(_prev: AccountActionState, form: For
   if (!s) return { error: "Your session has ended. Please sign in again." };
   const which = String(form.get("purpose") ?? "") as keyof typeof PURPOSES;
   if (!(which in PURPOSES)) return { error: "Choose what to withdraw." };
+  if (!(await rateLimit(LIMITS.consentPerStudent, `consent:${s.studentId}`)).ok)
+    return { error: "You've made several changes today. Please try again tomorrow, or contact us on WhatsApp." };
   try {
+    // Contact consent opts out only this account's own lead; for a number whose lead is someone else's, a counsellor
+    // confirms first (web16, D-095). The answer is the same either way, so it never tells whose number it is.
     await rpc("web_consent_withdraw", { p_student: s.studentId, p_purposes: PURPOSES[which] });
     return {
       ok:

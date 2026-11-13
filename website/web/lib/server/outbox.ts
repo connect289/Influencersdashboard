@@ -5,15 +5,19 @@ import { errorFields, log } from "./log";
 
 /**
  * Outbox worker (spec 3A "never lose a lead"): claims due jobs, runs the handler for each kind, and marks them done or
- * failed (the database applies backoff and the dead-letter state). Handlers must be idempotent.
+ * failed (the database applies backoff and the dead-letter state). Handlers must be idempotent; a step that cannot be
+ * made idempotent by the provider (an SMTP email) goes through `onceOnly`, which records it on the job as soon as it has
+ * happened, so a retry after a lost "done" skips it (D-095).
  */
-interface OutboxJob {
+export interface OutboxJob {
   id: number;
   kind: string;
   dedupe_key: string;
   payload: Record<string, unknown>;
   attempts: number;
   request_id: string | null;
+  /** Steps already done on an earlier attempt (web16). */
+  sent_steps?: string[] | null;
 }
 
 type Handler = (job: OutboxJob) => Promise<void>;
@@ -27,6 +31,24 @@ const handlers: Record<string, Handler> = {
 
 export function registerOutboxHandler(kind: string, handler: Handler) {
   handlers[kind] = handler;
+}
+
+/**
+ * Runs `step` of a job at most once across retries: skipped when an earlier attempt recorded it, recorded right after it
+ * succeeds. If recording fails the job still goes on (the step happened); only then can a later retry repeat it.
+ */
+export async function onceOnly(job: OutboxJob, step: string, run: () => Promise<unknown>): Promise<void> {
+  if (job.sent_steps?.includes(step)) {
+    log("info", "outbox.step_already_done", { id: job.id, kind: job.kind, step });
+    return;
+  }
+  await run();
+  try {
+    await rpc("web_outbox_mark_sent", { p_id: job.id, p_step: step });
+    job.sent_steps = [...(job.sent_steps ?? []), step];
+  } catch (err) {
+    log("warn", "outbox.mark_sent_failed", { id: job.id, kind: job.kind, step, ...errorFields(err) });
+  }
 }
 
 export async function runOutbox(limit = 20): Promise<{ claimed: number; done: number; failed: number }> {

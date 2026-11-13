@@ -31,6 +31,8 @@ export const settingsSchema = z.object({
     .default({ max_tokens_per_session: 60000, turn_timeout_ms: 20000, max_turns_per_session: 40 }),
   /** Site-wide ceilings (web14; enforced in the database, super-admin only). */
   code_send_hourly_cap: z.number().int().min(0).default(200),
+  /** In any 24 hours (web16, D-095): below the sending mailbox's daily quota. */
+  code_send_daily_cap: z.number().int().min(0).default(1500),
   web_advisor_daily_cap: z
     .object({ turns: z.number().min(0), cost_usd: z.number().min(0) })
     .default({ turns: 2000, cost_usd: 25 }),

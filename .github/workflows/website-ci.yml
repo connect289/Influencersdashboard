@@ -9,7 +9,8 @@ on:
       - "website/**"
       - ".github/workflows/website-ci.yml"
   push:
-    branches: [main]
+    # production deploys from claude/inspiring-babbage-8asj1y (D-095)
+    branches: [main, claude/inspiring-babbage-8asj1y]
     paths:
       - "website/**"
       - ".github/workflows/website-ci.yml"

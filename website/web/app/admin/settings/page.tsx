@@ -65,6 +65,14 @@ async function Settings() {
           help="Above it, forms and Witty ask people to try again a little later and an alert is logged. Raise it for a big campaign; 0 stops all sends."
         />
         <SettingForm
+          name="code_send_daily_cap"
+          label="Verification codes per 24 hours, whole site"
+          kind="number"
+          value={v.code_send_daily_cap}
+          disabled={!admin}
+          help="Keep it below the sending mailbox's daily quota (about 2,000 for Gmail), leaving room for confirmations and staff codes. Above it, people are asked to try again later and an alert is logged."
+        />
+        <SettingForm
           name="web_advisor_daily_cap"
           label="Witty per day (India time), whole site"
           kind="json"

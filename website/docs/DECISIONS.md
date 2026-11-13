@@ -695,3 +695,35 @@ these at the end (spec Section 0).
 - **Revision 2 (owner: neon "too odd"; wants "classic yet ultramodern"):** both themes move to ink-navy, champagne gold and ivory with one sapphire accent, the logo's own colours. Dark base `#070b16`, text ivory `#f4f1ea`, gold `#f3c969`/`#f2b233`; light base warm ivory `#f7f5ef` with navy primary `#0b2f6b`. The cyan/magenta/violet lights are gone (`--lumen-cyan`, `--lumen-violet`, `--lumen-magenta` now hold ice blue, sapphire and gold). Layout and effects are unchanged.
 - **Revision 3 (owner: "make the background lighter", contrast must stay strong):** the dark base lifts from `#070b16` to royal navy `#111d38` (cards `#1c2c50`); muted and subtle text were lightened with it (`#cdd3e0`, `#aab3c8`). Measured: text 15.2:1 and muted 11.1:1 on the page, subtle 6.5:1 on a card.
 - **Revision 4 (owner chose palette 6, "Graphite & Amber", from a board of six):** dark base graphite `#0e0e10`, cards `#1a1a1e`, text `#f5f5f7`, brand amber `#f3a503` as the only colour, platinum for secondary light; the light theme is the same idea inverted (`#f5f5f7` with graphite actions). Background graphics, also asked for: an education-and-AI line-art tile (`public/brand/pattern-edu-ai.svg`: graduation cap, book, neural network, chip, atom, bulb, chat, certificate) used as a CSS mask on the fixed backdrop and kept to the screen's sides; and `components/fx/NeuralField.tsx`, a static SVG neural network with travelling signals behind the hero. Witty's orb is unchanged.
+
+## Website audit follow-up (owner approval, 13 Nov 2026)
+
+### D-095 · Opt-outs only for the student's own lead, a daily code ceiling, and six smaller fixes (web16)
+- **Opt-outs (MEDIUM):** a signed-in student could type another person's phone into a form (the no-code path replaced
+  the account's number) and then withdraw contact consent, which opted that person's lead out. Now
+  `web_gate_start_trusted` refuses a number other than the one on the account (`phone_changed`) and `gate.ts` sends an
+  email code instead; and `web_consent_withdraw` opts the lead out only when `web_lead_tie()` (D-087's rule, now one
+  function shared with `web_lead_intake`) says the lead is this student's. Otherwise an `opt_out` request with the reason
+  waits in Admin → Privacy requests (the note is now shown there) for a counsellor to confirm with the lead. The student
+  sees the same answer either way, so it never tells whose number it is. Withdrawals are limited to 10 a day per student.
+- **Code ceiling (MEDIUM):** `code_send_daily_cap` (default 1,500 in any 24 hours, super admin only, Admin → Flags and
+  settings) next to the hourly 200, below the Gmail mailbox's ~2,000 a day; refusals answer `site_busy` with `cap`
+  hourly/daily, are logged (`gate.code_ceiling_reached`) and counted per hour in `web_code_cap_hits`. The 5-per-hour
+  limit per address counts the inbox (`web_email_canonical` / `canonicalEmail`: lower case, no +tag, Gmail without dots,
+  googlemail.com = gmail.com), in the database and in the app's limiter; the address is stored and emailed as typed.
+- **Smaller fixes:** `/api/offerings` and `/api/offerings/[id]` use the search rate limit; the batch de-duplicates and caps
+  ids (100) and caches on the sorted set, answering in the caller's order. Outbox emails run through `onceOnly`: a sent
+  email is recorded on the job (`web_outbox.sent_steps`) right away, so a retry after a lost "done" does not send it
+  again. Witty shows links only in a finished reply (after the verifier), never in streaming tokens. Turnstile fails open
+  on a Cloudflare network error or 5xx only with the shared store (Upstash) and at most 5 such passes per IP an hour;
+  otherwise the visitor is asked to try again. A query the normaliser empties but that has letters (Devanagari, Tamil)
+  matches nothing instead of every programme.
+- **Operations:** website CI also runs on pushes to `claude/inspiring-babbage-8asj1y` (the production branch).
+  `/api/health`'s internal detail adds `outbox.dead_by_kind`, `outbox.dead_latest_at` and `checks.codes` (codes in the
+  last hour and 24 hours, both ceilings, `at_cap`, refusals in 24 hours; `ok` false at a ceiling or after a refusal), for
+  Eduwit One to alert on. `onRequestError` writes one scrubbed JSON line (`lib/security/request-error.ts`: message and
+  path scrubbed, no query, headers or body).
+- **Not done (needs the owner):** sending codes through Resend instead of the Gmail mailbox. The adapter exists
+  (`EMAIL_PROVIDER=resend`) but is one provider for all mail and needs a Resend account, a verified sending domain and
+  `RESEND_API_KEY`; Resend also honours the outbox's idempotency keys.
+- **To change:** the settings; or the web16 rollback (`supabase/rollbacks/20261113100000_web16_audit_fixes.rollback.sql`).

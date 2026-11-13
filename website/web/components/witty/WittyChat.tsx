@@ -44,6 +44,8 @@ interface ChatMsg {
   cards?: OfferingCard[];
   chips?: string[];
   streaming?: boolean;
+  /** The server's final reply (after the verifier's replace, if any) or a stored one: links may be shown (D-095). */
+  verified?: boolean;
   rating?: number | null;
   error?: string;
   retry?: { text: string; messageId: string };
@@ -118,6 +120,7 @@ export function WittyChat({
         text: m.text,
         chips: m.chips,
         rating: m.rating,
+        verified: true,
       })),
     );
     return b;
@@ -215,7 +218,14 @@ export function WittyChat({
               final = e.text;
               patchLast((m) => ({ ...m, text: e.text }));
             } else if (e.type === "done") {
-              patchLast((m) => ({ ...m, id: e.messageId, chips: e.chips, streaming: false, route: e.route }));
+              patchLast((m) => ({
+                ...m,
+                id: e.messageId,
+                chips: e.chips,
+                streaming: false,
+                verified: true,
+                route: e.route,
+              }));
               if (e.handoff) track("counsellor_click", { surface: "witty", channel: "handoff" });
             } else if (e.type === "error") {
               patchLast((m) => ({ ...m, streaming: false, error: e.message, retry: { text: message, messageId } }));
@@ -472,7 +482,7 @@ export function WittyChat({
               ) : null}
               {m.text || m.streaming ? (
                 <div className="bg-surface border-border max-w-[85%] rounded-[var(--radius-lg)] rounded-tl-sm border px-4 py-3 text-sm leading-relaxed">
-                  {m.text ? <RichText text={m.text} /> : <TypingDots />}
+                  {m.text ? <RichText text={m.text} links={!!m.verified} /> : <TypingDots />}
                 </div>
               ) : null}
               {m.route === "opt_out" ? (

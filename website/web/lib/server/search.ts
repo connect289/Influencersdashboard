@@ -63,11 +63,34 @@ export async function offeringDetails(id: number, qual?: string): Promise<Offeri
   return rpcRead<OfferingDetails | null>("web_offering_details", { p_id: id, p_qual: qual ?? null });
 }
 
-export async function offeringCards(ids: number[], qual?: string): Promise<OfferingCard[]> {
+/** Most cards in one request (the shortlist holds up to 200 ids; the API serves the first 100). */
+export const MAX_OFFERING_CARDS = 100;
+
+/**
+ * Valid ids, de-duplicated and capped, in the caller's order; and the same set sorted, which is what the cache is keyed
+ * on, so the same shortlist in any order (or with repeats) is one cache entry, not many (D-095).
+ */
+export function offeringIdSet(ids: readonly number[], max = MAX_OFFERING_CARDS): { ordered: number[]; key: number[] } {
+  const ordered = [...new Set(ids.filter((n) => Number.isSafeInteger(n) && n > 0))].slice(0, max);
+  return { ordered, key: [...ordered].sort((a, b) => a - b) };
+}
+
+async function offeringCardsCached(sortedIds: number[], qual: string | null): Promise<OfferingCard[]> {
   "use cache: remote";
   catalogCache();
-  if (!dbConfigured() || ids.length === 0) return [];
-  return rpcRead<OfferingCard[]>("web_offering_cards", { p_ids: ids.slice(0, 100), p_qual: qual ?? null });
+  if (!dbConfigured() || sortedIds.length === 0) return [];
+  return rpcRead<OfferingCard[]>("web_offering_cards", { p_ids: sortedIds, p_qual: qual });
+}
+
+/** Cards for these offerings in the order asked (hidden ones skipped). */
+export async function offeringCards(ids: number[], qual?: string): Promise<OfferingCard[]> {
+  const { ordered, key } = offeringIdSet(ids);
+  if (ordered.length === 0) return [];
+  const byId = new Map((await offeringCardsCached(key, qual ?? null)).map((c) => [c.id, c]));
+  return ordered.flatMap((id) => {
+    const c = byId.get(id);
+    return c ? [c] : [];
+  });
 }
 
 export async function compareOfferings(ids: number[], qual?: string): Promise<OfferingDetails[]> {

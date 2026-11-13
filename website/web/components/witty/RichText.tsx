@@ -2,14 +2,16 @@ import { Fragment } from "react";
 
 /**
  * Markdown-lite for Witty's replies: paragraphs, "- " / "• " bullets, **bold** / *bold*, and bare https links (brochures).
- * Builds React nodes (no HTML injection).
+ * Builds React nodes (no HTML injection). Links only in a finished, verified reply (`links`): while a reply streams, its
+ * tokens have not been through the verifier yet (its "replace" event may still change them), so a URL there stays
+ * plain text (D-095).
  */
-function inline(text: string, key: string) {
+function inline(text: string, key: string, links: boolean) {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|https:\/\/\S+)/g).filter(Boolean);
   return parts.map((p, i) => {
     if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={`${key}-${i}`}>{p.slice(2, -2)}</strong>;
     if (/^\*[^*]+\*$/.test(p)) return <strong key={`${key}-${i}`}>{p.slice(1, -1)}</strong>;
-    if (/^https:\/\//.test(p))
+    if (links && /^https:\/\//.test(p))
       return (
         <a key={`${key}-${i}`} href={p.replace(/[).,]+$/, "")} target="_blank" rel="noopener noreferrer" className="text-accent underline underline-offset-4">
           Brochure
@@ -19,7 +21,7 @@ function inline(text: string, key: string) {
   });
 }
 
-export function RichText({ text }: { text: string }) {
+export function RichText({ text, links = false }: { text: string; links?: boolean }) {
   const blocks = text.split(/\n{2,}/);
   return (
     <>
@@ -30,7 +32,7 @@ export function RichText({ text }: { text: string }) {
           return (
             <ul key={bi} className="my-2 grid list-disc gap-1 pl-5">
               {lines.filter((l) => l.trim()).map((l, li) => (
-                <li key={li}>{inline(l.replace(/^\s*[-•]\s+/, ""), `${bi}-${li}`)}</li>
+                <li key={li}>{inline(l.replace(/^\s*[-•]\s+/, ""), `${bi}-${li}`, links)}</li>
               ))}
             </ul>
           );
@@ -40,7 +42,7 @@ export function RichText({ text }: { text: string }) {
             {lines.map((l, li) => (
               <Fragment key={li}>
                 {li ? <br /> : null}
-                {inline(l, `${bi}-${li}`)}
+                {inline(l, `${bi}-${li}`, links)}
               </Fragment>
             ))}
           </p>

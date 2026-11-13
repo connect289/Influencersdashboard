@@ -119,6 +119,7 @@ const SETTING_KEYS = new Set([
   "application_form",
   "business_hours",
   "code_send_hourly_cap",
+  "code_send_daily_cap",
   "web_advisor_daily_cap",
 ]);
 

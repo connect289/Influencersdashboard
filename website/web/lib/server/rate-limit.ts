@@ -60,6 +60,10 @@ export const LIMITS = {
   chatTurnPerIp: { name: "chat_ip", limit: 120, windowSeconds: 3600, failClosed: true },
   callbackPerStudent: { name: "callback_student", limit: 3, windowSeconds: 86400, failClosed: true },
   savePerStudent: { name: "save_student", limit: 60, windowSeconds: 3600 },
+  /** Consent withdrawals reach the shared CRM (an opt-out), D-095. */
+  consentPerStudent: { name: "consent_student", limit: 10, windowSeconds: 86400, failClosed: true },
+  /** Attempts let through while Cloudflare Turnstile is unreachable (only with the shared store), D-095. */
+  turnstileUnreachablePerIp: { name: "turnstile_down_ip", limit: 5, windowSeconds: 3600, failClosed: true },
   searchPerIp: { name: "search_ip", limit: 600, windowSeconds: 600 },
   beaconPerIp: { name: "beacon_ip", limit: 300, windowSeconds: 600 },
 } satisfies Record<string, Limit>;

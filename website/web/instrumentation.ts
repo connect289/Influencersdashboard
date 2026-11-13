@@ -28,27 +28,11 @@ export async function register() {
   }
 }
 
+// Every unhandled server error: one structured, PII-free log line (no external service needed, D-095); Sentry too when
+// SENTRY_DSN is set.
 export const onRequestError: Instrumentation.onRequestError = async (err, request, context) => {
-  const message = err instanceof Error ? err.message : String(err);
-  const digest =
-    typeof err === "object" && err !== null && "digest" in err
-      ? String((err as { digest: unknown }).digest)
-      : undefined;
-  const { scrubString } = await import("./lib/security/scrub");
-  console.error(
-    JSON.stringify({
-      t: new Date().toISOString(),
-      level: "error",
-      event: "request.error",
-      message: scrubString(message),
-      digest,
-      path: request.path.split("?")[0],
-      method: request.method,
-      requestId: (request.headers["x-request-id"] as string | undefined) ?? undefined,
-      route: context.routePath,
-      kind: context.routeType,
-    }),
-  );
+  const { requestErrorLine } = await import("./lib/security/request-error");
+  console.error(requestErrorLine(err, request, context));
   if (process.env.SENTRY_DSN) {
     const Sentry = await import("@sentry/nextjs");
     Sentry.captureRequestError(err, request, context);

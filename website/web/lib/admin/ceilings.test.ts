@@ -14,6 +14,12 @@ describe("site-wide ceilings (web14)", () => {
     for (const bad of [null, [], { turns: 10 }, { turns: -1, cost_usd: 5 }, { turns: 10, cost_usd: "5" }])
       expect(ceilingError("web_advisor_daily_cap", bad)).toMatch(/turns/);
   });
+  it("accept whole numbers of codes per 24 hours (web16), default 1,500", () => {
+    expect(ceilingError("code_send_daily_cap", 1500)).toBeNull();
+    for (const bad of [-1, 2.5, "1500"]) expect(ceilingError("code_send_daily_cap", bad)).toMatch(/24 hours/);
+    expect(DEFAULT_SETTINGS.code_send_daily_cap).toBe(1500);
+    expect(parseSettings({ code_send_daily_cap: "lots" }).code_send_daily_cap).toBe(1500);
+  });
   it("leave other settings alone", () => {
     expect(ceilingError("announcement", null)).toBeNull();
   });

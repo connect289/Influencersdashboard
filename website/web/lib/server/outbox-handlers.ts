@@ -5,32 +5,37 @@ import { email } from "./email";
 import { catalogUnmappedEmail, privacyRequestEmail, submissionConfirmationEmail } from "./email/templates";
 import { siteUrl } from "./env";
 import { log } from "./log";
-import { registerOutboxHandler } from "./outbox";
+import { onceOnly, registerOutboxHandler } from "./outbox";
 import { getSettings } from "./settings";
 
 /**
  * Side-effect handlers for the transactional outbox (spec 3A): confirmation emails and Conversions API events. Each is
- * idempotent: email providers receive the job's dedupe key as their idempotency key; CAPI de-duplicates on event_id.
+ * idempotent: email providers receive the job's dedupe key as their idempotency key (Resend honours it, SMTP does not,
+ * so every email is also sent through `onceOnly`, D-095); CAPI de-duplicates on event_id.
  */
 type Attribution = { ad_consent?: boolean; click_ids?: Record<string, string>; landing_url?: string };
 
 registerOutboxHandler("email_confirmation", async (job) => {
   const p = job.payload as { kind: string; reference?: string; email: string; name?: string; request?: string; context?: { programme_label?: string } };
   if (p.kind === "privacy_request") {
-    await email().send(p.email, privacyRequestEmail({ name: p.name, request: p.request ?? "delete" }), { idempotencyKey: job.dedupe_key });
+    await onceOnly(job, "email", () =>
+      email().send(p.email, privacyRequestEmail({ name: p.name, request: p.request ?? "delete" }), { idempotencyKey: job.dedupe_key }),
+    );
     return;
   }
   const settings = await getSettings();
-  await email().send(
-    p.email,
-    submissionConfirmationEmail({
-      kind: p.kind === "application" ? "application" : "enquiry",
-      name: p.name,
-      reference: p.reference ?? "",
-      programme: p.context?.programme_label,
-      whatsappHref: whatsappLink(settings.counsellor_whatsapp, `Hi Eduwit, my reference is ${p.reference}.`),
-    }),
-    { idempotencyKey: job.dedupe_key },
+  await onceOnly(job, "email", () =>
+    email().send(
+      p.email,
+      submissionConfirmationEmail({
+        kind: p.kind === "application" ? "application" : "enquiry",
+        name: p.name,
+        reference: p.reference ?? "",
+        programme: p.context?.programme_label,
+        whatsappHref: whatsappLink(settings.counsellor_whatsapp, `Hi Eduwit, my reference is ${p.reference}.`),
+      }),
+      { idempotencyKey: job.dedupe_key },
+    ),
   );
 });
 
@@ -56,7 +61,9 @@ async function capiJob(name: "Lead" | "SubmitApplication", payload: Record<strin
 registerOutboxHandler("catalog_alert", async (job) => {
   const p = job.payload as { to?: string[]; count: number; total_unmapped: number; examples?: { programme?: string; course?: string; university?: string }[] };
   const msg = catalogUnmappedEmail({ count: p.count, total: p.total_unmapped, examples: p.examples ?? [], adminUrl: siteUrl("/admin/taxonomy") });
-  for (const to of p.to ?? []) await email().send(to, msg, { idempotencyKey: `${job.dedupe_key}:${to}` });
+  // One step per recipient (by position, so no address is written to the job), so a retry mails only those not yet mailed.
+  for (const [i, to] of (p.to ?? []).entries())
+    await onceOnly(job, `email:${i}`, () => email().send(to, msg, { idempotencyKey: `${job.dedupe_key}:${to}` }));
   log("info", "catalog.unmapped_alert_sent", { count: p.count, recipients: (p.to ?? []).length });
 });
 
