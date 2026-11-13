@@ -2,6 +2,7 @@ import "server-only";
 import { siteUrl } from "@/lib/env";
 import { googleSa, mailbox, sendGmail, signedJwt } from "@/lib/gmail";
 import { plainText, replyOnly } from "@/lib/gmail-inbox";
+import { handBack, JobBudget, whileTime } from "@/lib/job-budget";
 import { sendMail } from "@/lib/mail";
 import { adminClient } from "@/lib/supabase/admin";
 import { statusFromReply, supportEmail, ticketFromSubject, type MailRow } from "@/lib/support";
@@ -11,15 +12,16 @@ import { supportToken } from "@/lib/support-token";
  * Support tickets ↔ the developer (b31). Out: every message from the CRM side is emailed to the developer with its
  * screenshots, from the support mailbox when one is set (so answers come back to it), else by SMTP. In: answers in the
  * support mailbox carrying [SUP-…] in the subject, from a developer address, are added to the ticket with any
- * "Status:" line applied. The signed link in each email works too, without a mailbox.
+ * "Status:" line applied. The signed link in each email works too, without a mailbox. In the every-minute job, when the
+ * job's time is up (lib/job-budget.ts) the messages not started are handed back, their attempt not counted.
  */
-export async function sendSupportMail(limit = 10): Promise<number> {
+export async function sendSupportMail(limit = 10, budget: JobBudget = new JobBudget()): Promise<number> {
   const db = adminClient();
   const { data, error } = await db.rpc("support_mail_take", { p_limit: limit });
   if (error) throw new Error(error.message);
   const sa = googleSa();
   let n = 0;
-  for (const r of (data ?? []) as MailRow[]) {
+  const unstarted = await whileTime(budget, (data ?? []) as MailRow[], async (r) => {
     try {
       const files = [];
       for (const a of r.attachments ?? []) {
@@ -40,7 +42,8 @@ export async function sendSupportMail(limit = 10): Promise<number> {
     } catch (e) {
       await db.rpc("support_mail_done", { p_message: r.message_id, p_error: e instanceof Error ? e.message : String(e) });
     }
-  }
+  });
+  await handBack(db, budget, "support", "support_mail", unstarted.map((r) => r.message_id));
   return n;
 }
 

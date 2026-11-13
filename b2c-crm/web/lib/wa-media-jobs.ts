@@ -1,5 +1,6 @@
 import "server-only";
 import { reportConnector } from "@/lib/connector-status";
+import { handBack, JobBudget, whileTime } from "@/lib/job-budget";
 import { adminClient } from "@/lib/supabase/admin";
 import { baseMime, MEDIA_BUCKET, MEDIA_MAX_BYTES, mediaAllowed, mediaDownload, mediaInfo, mediaPath, waConfig, type InboundMedia } from "@/lib/whatsapp";
 
@@ -9,16 +10,17 @@ import { baseMime, MEDIA_BUCKET, MEDIA_MAX_BYTES, mediaAllowed, mediaDownload, m
  * private bucket at leads/<lead_id>/wa/<message_id>-<name>, then b2c.wa_media_stored records the path (counsellors open
  * it by signed link and attach it to the application checklist). The bucket takes PDFs and images up to 4 MB; any other
  * file (voice notes, videos, Word files) is not downloaded and keeps an error the inbox shows. Without the WhatsApp
- * configuration nothing is taken, so no attempt is spent.
+ * configuration nothing is taken, so no attempt is spent. When the job's time is up (lib/job-budget.ts) no further file
+ * is started and the messages not started are handed back, their attempt not counted.
  */
-export async function runWaMediaJobs(limit = 10): Promise<{ stored: number; failed: number; skipped?: string }> {
+export async function runWaMediaJobs(limit = 10, budget: JobBudget = new JobBudget()): Promise<{ stored: number; failed: number; released?: number; skipped?: string }> {
   const cfg = waConfig();
   if (!cfg) return { stored: 0, failed: 0, skipped: "WhatsApp is not configured" };
   const db = adminClient();
   const { data, error } = await db.rpc("wa_media_take", { p_limit: limit });
   if (error) throw new Error(`wa_media_take: ${error.message}`);
   let stored = 0, failed = 0, graphOk = 0, graphFailed = 0, lastError = "";
-  for (const m of (data ?? []) as { id: number; lead_id: number; media: Partial<InboundMedia> & Record<string, unknown> }[]) {
+  const unstarted = await whileTime(budget, (data ?? []) as { id: number; lead_id: number; media: Partial<InboundMedia> & Record<string, unknown> }[], async (m) => {
     let path: string | null = null, err: string | null = null;
     try {
       if (!m.media?.id) throw new Error("no media id");
@@ -46,8 +48,9 @@ export async function runWaMediaJobs(limit = 10): Promise<{ stored: number; fail
     if (doneError) throw new Error(`wa_media_stored: ${doneError.message}`);
     if (err) failed++;
     else stored++;
-  }
+  });
+  const released = await handBack(db, budget, "media", "wa_media", unstarted.map((m) => m.id));
   if (graphOk) await reportConnector("whatsapp", true, { media: { fetched: graphOk, at: new Date().toISOString() } });
   if (graphFailed) await reportConnector("whatsapp", false, null, `media download: ${lastError}`);
-  return { stored, failed };
+  return { stored, failed, ...(released ? { released } : {}) };
 }

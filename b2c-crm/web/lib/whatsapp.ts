@@ -49,10 +49,12 @@ export function messageBody(to: string, p: WaPayload, mediaLink?: string | null)
 }
 
 /**
- * retry: false means the message may have reached Meta (no answer in time, the connection dropped after the request
- * went out, or a 5xx): b2c.send_done marks it failed and never queues it again, so a student is never sent it twice.
+ * retry: false means b2c.send_done marks the message failed and never queues it again, for one of two reasons: it may
+ * have reached Meta (no answer in time, the connection dropped after the request went out, or a 5xx), so a student is
+ * never sent it twice; or Meta refused it for good (classifyWaError: "final"), so trying again cannot help. connector:
+ * Meta refused Spark's connection, not this message; the message is tried again as any failure is.
  */
-export type SendResult = { ok: boolean; dry_run?: boolean; wamid?: string; error?: string; retry?: boolean };
+export type SendResult = { ok: boolean; dry_run?: boolean; wamid?: string; error?: string; retry?: boolean; connector?: boolean };
 
 const MAYBE_SENT = "it may have gone out, so it is not sent again automatically; check with the student and send again if it did not arrive";
 
@@ -62,6 +64,74 @@ const NOT_SENT_CODES = /^(ENOTFOUND|EAI_AGAIN|ECONNREFUSED|EHOSTUNREACH|ENETUNRE
 export function failedBeforeSending(e: unknown): boolean {
   const cause = (e as { cause?: { code?: unknown } } | null)?.cause;
   return typeof cause?.code === "string" && NOT_SENT_CODES.test(cause.code);
+}
+
+/** The error object of a Graph API answer (WhatsApp Cloud API). */
+export type MetaError = { message?: string; code?: number; error_subcode?: number; error_data?: { details?: string } };
+
+/**
+ * What a 4xx answer from Meta means for the message that was being sent:
+ *   final      Meta will never accept this message as it is: failed at once, with the reason (retry: false);
+ *   connector  Meta is refusing Spark's connection (the token, a permission, the account or the number), not the
+ *              message: reported on the WhatsApp connector; the message is tried again as before;
+ *   retry      everything else, rate limits included: tried again as before (b2c.send_done, five attempts).
+ * Decided by Meta's error code (the "code" of the answer's error object, as in Meta's WhatsApp Cloud API error list),
+ * then by the HTTP status when the code is not one of these. Only codes whose meaning leaves no doubt are final; a code
+ * that is not listed is tried again. A 5xx never comes here: sendWhatsApp treats it as "may have gone out".
+ */
+const WA_FINAL: Record<number, string> = {
+  100: "a part of the message is not valid",                                                                      // Invalid parameter (with subcode 33 it is the connection: below)
+  130472: "WhatsApp held it back as part of an experiment it is running on this number",                          // User's number is part of an experiment
+  130497: "WhatsApp does not let this account message people in that country",                                    // Business account is restricted from messaging users in this country
+  131008: "a required part of the message is missing",                                                            // Required parameter is missing
+  131009: "a value in the message is not valid (often the phone number)",                                         // Parameter value is not valid
+  131021: "the number is the sending number itself",                                                              // Recipient cannot be sender
+  131026: "the number cannot receive it (not on WhatsApp, or it has not accepted WhatsApp's current terms)",      // Message undeliverable
+  131030: "the number is not on the allowed list of a test WhatsApp account",                                     // Recipient phone number not in allowed list
+  131047: "more than 24 hours have passed since the student last wrote, so only an approved template can be sent", // Re-engagement message
+  131049: "WhatsApp chose not to deliver this marketing message to this person for now",                          // Meta chose not to deliver (per-person marketing limit)
+  131050: "the person has stopped marketing messages from this number in WhatsApp",                               // User has stopped marketing messages
+  131051: "WhatsApp does not support this type of message",                                                       // Unsupported message type
+  132000: "the template was sent with the wrong number of values",                                                // Template param count mismatch
+  132001: "the template does not exist in this language or is not approved",                                      // Template does not exist
+  132005: "the template with its values is too long",                                                             // Template hydrated text too long
+  132007: "the template's text breaks WhatsApp's format rules",                                                   // Template format character policy violated
+  132012: "a template value has the wrong format",                                                                // Template parameter format mismatch
+  132015: "WhatsApp has paused the template for low quality",                                                     // Template is paused
+  132016: "WhatsApp has disabled the template for low quality",                                                   // Template is disabled
+};
+const WA_CONNECTOR: Record<number, string> = {
+  0: "WhatsApp could not check the access token",                                                                 // AuthException
+  10: "the access token has no permission for this",                                                              // Permission denied
+  33: "the business phone number does not exist any more",                                                        // Parameter value is not valid (number deleted)
+  190: "the access token has expired or is no longer valid",                                                      // Access token has expired
+  368: "WhatsApp has blocked the account for a while for breaking its policies",                                  // Temporarily blocked for policies violations
+  131005: "the access token has no permission to send from this number",                                          // Access denied
+  131031: "WhatsApp has locked the account",                                                                      // Account has been locked
+  131037: "the number's display name is not approved yet",                                                        // Display name approval needed
+  131042: "there is a payment problem on the WhatsApp account",                                                   // Business eligibility payment issue
+  131048: "WhatsApp is limiting how many messages this number may send (spam rate limit)",                        // Spam rate limit hit
+  133006: "the phone number must be verified again",                                                              // Phone number re-verification needed
+  133010: "the phone number is not registered with WhatsApp",                                                     // Phone number not registered
+};
+/** Rate limits that pass by themselves: 4 the app's calls, 80007 the account's, 130429 throughput, 131056 this pair of numbers. */
+const WA_THROTTLED = new Set([4, 80007, 130429, 131056]);
+
+export function classifyWaError(status: number, e?: MetaError | null): { kind: "final" | "retry" | "connector"; reason?: string } {
+  const code = typeof e?.code === "number" ? e.code : null;
+  if (code !== null) {
+    // 100 with subcode 33: "object does not exist or cannot be loaded": the phone number id, or the token's access to it
+    if (code === 100 && e?.error_subcode === 33) return { kind: "connector", reason: "the phone number id is wrong, or the access token may not use it" };
+    if (WA_THROTTLED.has(code)) return { kind: "retry" };
+    const final = WA_FINAL[code];
+    if (final) return { kind: "final", reason: final };
+    const connector = WA_CONNECTOR[code] ?? (code >= 200 && code <= 299 ? "the access token lacks a permission" : undefined); // 200–299: API permission
+    if (connector) return { kind: "connector", reason: connector };
+  }
+  if (status === 429) return { kind: "retry" };
+  if (status === 401) return { kind: "connector", reason: "the access token was refused" };
+  if (status === 403) return { kind: "connector", reason: "WhatsApp does not allow this account or token to send" };
+  return { kind: "retry" };
 }
 
 export async function sendWhatsApp(cfg: WaConfig | null, to: string, p: WaPayload, live: boolean, mediaLink?: string | null, fetchImpl: typeof fetch = fetch): Promise<SendResult> {
@@ -80,10 +150,16 @@ export async function sendWhatsApp(cfg: WaConfig | null, to: string, p: WaPayloa
       body,
       signal: AbortSignal.timeout(15_000),
     });
-    const b = (await res.json().catch(() => ({}))) as { messages?: { id: string }[]; error?: { message?: string; code?: number } };
+    const b = (await res.json().catch(() => ({}))) as { messages?: { id: string }[]; error?: MetaError };
     if (!res.ok) {
       const error = b.error?.message ? `${b.error.code ?? res.status}: ${b.error.message}` : `HTTP ${res.status}`;
-      return res.status >= 500 ? { ok: false, retry: false, error: `WhatsApp answered ${error}; ${MAYBE_SENT}` } : { ok: false, error };
+      if (res.status >= 500) return { ok: false, retry: false, error: `WhatsApp answered ${error}; ${MAYBE_SENT}` };
+      const refusal = classifyWaError(res.status, b.error);
+      const detail = b.error?.error_data?.details;
+      const said = `${error}${detail && detail !== b.error?.message ? ` (${detail})` : ""}`.slice(0, 300);
+      if (refusal.kind === "final") return { ok: false, retry: false, error: `WhatsApp refused it: ${refusal.reason}. It is not sent again automatically. (${said})` };
+      if (refusal.kind === "connector") return { ok: false, connector: true, error: `WhatsApp refused Spark's connection, not this message: ${refusal.reason}. (${said})` };
+      return { ok: false, error };
     }
     return { ok: true, wamid: b.messages?.[0]?.id };
   } catch (e) {
