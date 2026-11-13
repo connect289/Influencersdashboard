@@ -14,6 +14,13 @@ const schema = z
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
     NEXT_PUBLIC_SITE_URL: z.url(),
     INF_INTERNAL_API_KEY: z.string().min(32, "INF_INTERNAL_API_KEY must be at least 32 characters"),
+    // Signs the unsubscribe links in emails. Optional: without it emails are sent without the link (see envWarnings).
+    // A value shorter than 32 characters is too weak to sign with and counts as not set: the app keeps running and
+    // the warning says so, because a typing mistake here must not take the portal down.
+    UNSUBSCRIBE_SECRET: z.preprocess(
+      (v) => (typeof v === "string" && v.length < 32 ? undefined : v),
+      z.string().optional(),
+    ),
     STAFF_GOOGLE_HD: z
       .string()
       .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i)
@@ -98,6 +105,16 @@ export function urlProjectRef(url: string): string | null {
 export function envProblems(source: Record<string, string | undefined>): string[] {
   const result = schema.safeParse(source);
   return result.success ? [] : result.error.issues.map((i) => `${i.path.join(".") || "(env)"}: ${i.message}`);
+}
+
+/**
+ * Recommended values that are missing, one "NAME: consequence" per line (names only, never values). The environment
+ * is still valid: the app runs, with the stated gap. Shown by /api/health and the staff overview and System status.
+ */
+export function envWarnings(e: Pick<ServerEnv, "UNSUBSCRIBE_SECRET">): string[] {
+  return e.UNSUBSCRIBE_SECRET
+    ? []
+    : ["UNSUBSCRIBE_SECRET: not set or shorter than 32 characters, so emails are sent without an unsubscribe link"];
 }
 
 /** Parses an environment object. Exported for tests; the app uses `env()`. Error messages name variables, never values. */

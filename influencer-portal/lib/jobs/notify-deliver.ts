@@ -2,10 +2,12 @@ import "server-only";
 import { z } from "zod";
 import { env } from "@/lib/env";
 import { log, errorMessage } from "@/lib/log";
-import { composeEmail, composeWhatsApp, type Template } from "@/lib/notify/compose";
+import { eventDef, type Audience } from "@/lib/notify/catalogue";
+import { absolute, composeEmail, composeWhatsApp, type Template } from "@/lib/notify/compose";
 import { emailProvider } from "@/lib/notify/email";
 import { inQuietHours, sendAfterQuiet } from "@/lib/notify/quiet";
 import { ProviderError } from "@/lib/notify/types";
+import { SETTINGS_PATHS, unsubscribeLinks } from "@/lib/notify/unsubscribe";
 import { whatsAppProvider } from "@/lib/notify/whatsapp";
 import { SETTINGS } from "@/lib/settings/registry";
 import { adminClient } from "@/lib/supabase/admin";
@@ -26,8 +28,11 @@ interface Outcome {
   error?: string;
 }
 
-/** The recipient's name and WhatsApp number (creators only have one on file). */
-async function recipient(db: Db, userId: string): Promise<{ name: string; phone: string | null }> {
+/** The recipient's name, WhatsApp number (creators only have one on file) and portal (null when they have none). */
+async function recipient(
+  db: Db,
+  userId: string,
+): Promise<{ name: string; phone: string | null; audience: Audience | null }> {
   const [staff, creator, member] = await Promise.all([
     db.from("staff_profiles").select("full_name").eq("user_id", userId).maybeSingle(),
     db.from("creator_accounts").select("creators(display_name, phone_e164)").eq("user_id", userId).maybeSingle(),
@@ -35,7 +40,8 @@ async function recipient(db: Db, userId: string): Promise<{ name: string; phone:
   ]);
   const c = creator.data?.creators;
   const name = staff.data?.full_name ?? c?.display_name ?? member.data?.full_name ?? "there";
-  return { name: name.split(" ")[0] ?? name, phone: c?.phone_e164 ?? null };
+  const audience = staff.data ? "staff" : creator.data ? "creator" : member.data ? "agency" : null;
+  return { name: name.split(" ")[0] ?? name, phone: c?.phone_e164 ?? null, audience };
 }
 
 async function templateFor(db: Db, event: string, channel: "email" | "whatsapp"): Promise<Template | null> {
@@ -49,14 +55,16 @@ async function templateFor(db: Db, event: string, channel: "email" | "whatsapp")
  * when there is one. Idempotent: only rows still 'queued' are sent. Nothing leaves the system unless LIVE_MODE=on
  * (rows are marked skipped with the reason). WhatsApp needs an approved provider template for the event and the
  * creator's number; otherwise that copy is skipped with the reason. During quiet hours (setting notifications.delivery)
- * the WhatsApp copy waits and the job runs again when they end.
+ * the WhatsApp copy waits and the job runs again when they end. An email a person can turn off carries a signed
+ * unsubscribe link and the one-click headers (D-198); a required notice says it is required instead. Without
+ * UNSUBSCRIBE_SECRET the email is sent without the link.
  */
 export const notifyDeliver: JobHandler = async (job) => {
   const { notification_id } = payloadSchema.parse(job.payload);
   const db = adminClient();
   const { data: n, error } = await db
     .from("notifications")
-    .select("id, user_id, event, title, body, link, data")
+    .select("id, user_id, event, title, body, link, data, mandatory")
     .eq("id", notification_id)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -129,8 +137,20 @@ export const notifyDeliver: JobHandler = async (job) => {
     const user = await db.auth.admin.getUserById(n.user_id);
     const to = user.data.user?.email;
     if (!to) return { status: "failed", error: "no_email" };
-    const mail = composeEmail(facts, await templateFor(db, n.event, "email"), who.name, site);
-    const sent = await emailProvider().send({ ...mail, to, idempotencyKey: `delivery:${d.id.toString()}` });
+    // Required: the sender or the catalogue marked the notification mandatory (what Settings cannot switch off).
+    const required = n.mandatory || eventDef(n.event)?.mandatory === true;
+    const links = unsubscribeLinks(env().UNSUBSCRIBE_SECRET, site, n.user_id, n.event, required);
+    const mail = composeEmail(facts, await templateFor(db, n.event, "email"), who.name, site, {
+      settingsUrl: who.audience ? absolute(SETTINGS_PATHS[who.audience], site) : null,
+      unsubscribeUrl: links?.pageUrl ?? null,
+      required,
+    });
+    const sent = await emailProvider().send({
+      ...mail,
+      to,
+      idempotencyKey: `delivery:${d.id.toString()}`,
+      ...(links ? { listUnsubscribeUrl: links.oneClickUrl } : {}),
+    });
     return { status: "sent", provider: sent.provider, ref: sent.id ?? undefined };
   };
 

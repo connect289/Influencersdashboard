@@ -96,6 +96,7 @@ export const ALL_STAFF: Guide = {
           list: [
             "You are told about work that is yours: applications on campaigns you own, creators' replies on your deals, messages on your deals and contracts, @mentions, tasks, fraud flags (if you review them) and the daily queues (reviews waiting more than a day, negotiations with no answer for three days).",
             "In [notification settings](/admin/notifications/settings) choose email per notification, and how often you get the **digest** of the queues (every morning by default; weekly or off if you prefer).",
+            "Every email that can be turned off, yours and the ones creators and agencies get, ends with a **Stop these emails** link, and mail apps show an **Unsubscribe** button for it. It works without signing in and turns off email for that kind of notification only (or the digest); the choice shows in the person's notification settings, where they can switch it back on, and in their consent history. Required notices (contracts, payments, KYC, privacy requests) carry no link and keep arriving. If a creator says they stopped getting an email, this is the first thing to check with them.",
             "Until the Super Admin turns on live sending, emails and WhatsApp messages stay inside the system.",
           ],
         },
@@ -373,7 +374,7 @@ export const SUPER_ADMIN: Guide = {
       blocks: [
         {
           list: [
-            "[System status](/admin/system): the job queue (notifications, deal creation after accepted offers…), scheduled tasks and sending providers. A job that keeps failing is retried with back-off, and a job that stops while running (for example it timed out) is retried while it has attempts left. When a job gives up, everyone who can open System status gets a notification in the app, and the job is listed under **Jobs that gave up**; fix the cause and retry it there. Queued emails or WhatsApp messages of a delivery job that gave up are marked failed.",
+            "[System status](/admin/system): the job queue (notifications, deal creation after accepted offers…), scheduled tasks and sending providers. **Unsubscribe links** should read on; if it reads secret missing, emails are going out without the link and the developer must add the signing secret to the deployment (the setup list on the overview shows the same). A job that keeps failing is retried with back-off, and a job that stops while running (for example it timed out) is retried while it has attempts left. When a job gives up, everyone who can open System status gets a notification in the app, and the job is listed under **Jobs that gave up**; fix the cause and retry it there. Queued emails or WhatsApp messages of a delivery job that gave up are marked failed.",
             "[Audit log](/admin/audit): filter by person, record type, action, record id and date; select a record id to see that record's whole history. PAN and bank numbers are redacted in the log itself.",
           ],
         },

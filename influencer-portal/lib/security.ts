@@ -95,6 +95,7 @@ export const RATE_LIMITS = {
   signup_email: [3, 3600],
   redirect: [120, 60],
   public_api: [60, 60],
+  unsubscribe: [60, 60],
   internal: [600, 60],
 } as const satisfies Record<string, readonly [number, number]>;
 export type RateScope = keyof typeof RATE_LIMITS;

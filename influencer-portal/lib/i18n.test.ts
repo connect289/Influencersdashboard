@@ -83,6 +83,8 @@ import { RECEIPT_STATUSES } from "@/lib/ledger/schemas";
 import { LEDGER_DB_ERRORS } from "@/lib/ledger/schemas";
 import { OBLIGATION_KINDS } from "@/lib/compliance/obligations";
 import { ERASED, RETAINED } from "@/lib/privacy/plan";
+import { EVENT_KEYS } from "@/lib/notify/catalogue";
+import { UNSUBSCRIBE_CATEGORIES } from "@/lib/notify/unsubscribe";
 import { myRequest } from "@/lib/privacy/data";
 import { RECOMMENDATION_CODES } from "@/lib/scorecards/recommend";
 import { INSIGHT_DB_ERRORS } from "@/lib/scorecards/schemas";
@@ -317,6 +319,11 @@ describe("messages", () => {
       ...INVOICE_PROBLEMS.map((x) => `earnings.invoice.problems.${x}`),
     ];
     for (const k of keys) expect(has(k), k).toBe(true);
+  });
+
+  it("names every kind of email an unsubscribe link can stop, and every notification settings and consents list", () => {
+    for (const c of UNSUBSCRIBE_CATEGORIES) expect(has(`unsubscribe.categories.${c}`), c).toBe(true);
+    for (const k of EVENT_KEYS) expect(has(`notifications.events.${k.replace(/\./g, "_")}`), k).toBe(true);
   });
 
   it("labels every scorecard part, tier rule, recommendation, obligation and privacy value", () => {

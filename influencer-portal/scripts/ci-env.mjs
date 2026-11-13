@@ -9,6 +9,7 @@ const lines = {
   SUPABASE_SERVICE_ROLE_KEY: status.SECRET_KEY,
   NEXT_PUBLIC_SITE_URL: "http://localhost:3200",
   INF_INTERNAL_API_KEY: "ci-internal-key-0123456789abcdef0123456789abcdef",
+  UNSUBSCRIBE_SECRET: "ci-unsubscribe-key-0123456789abcdef0123456789abcdef",
   NEXT_PUBLIC_AUTH_GOOGLE: "off",
   LIVE_MODE: "off",
   LEAD_SYNC: "on",

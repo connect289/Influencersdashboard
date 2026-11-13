@@ -4,7 +4,7 @@
 // approved provider template; without one the WhatsApp copy is skipped. Pure.
 import { allowedVars } from "./catalogue";
 import { renderHtml, renderText, whatsappParams } from "./render";
-import { escapeHtml, notificationLayout } from "./templates";
+import { escapeHtml, notificationFooterText, notificationLayout, type NotificationFooter } from "./templates";
 import type { EmailMessage, WhatsAppTemplateMessage } from "./types";
 
 export interface NotificationFacts {
@@ -43,14 +43,22 @@ export function absolute(link: string | null, siteUrl: string): string | null {
   return `${siteUrl.replace(/\/$/, "")}${link}`;
 }
 
+/**
+ * The email copy. `footer` says what the footer offers: the link that stops this kind of email, or that the notice is
+ * required, and the recipient's notification settings (D-198). Without it the footer names the settings only.
+ */
 export function composeEmail(
   n: NotificationFacts,
   template: Template | null,
   recipientName: string,
   siteUrl: string,
+  footer?: NotificationFooter,
 ): Omit<EmailMessage, "to"> {
   const vars = notificationVars(n, recipientName, siteUrl);
   const link = absolute(n.link, siteUrl);
+  const footerText = footer ? notificationFooterText(footer) : "";
+  const withFooter = (parts: string[]) =>
+    [parts.filter(Boolean).join("\n\n"), footerText ? `-- \n${footerText}` : ""].filter(Boolean).join("\n\n");
   if (template) {
     const subject =
       renderText(template.subject ?? n.title, vars)
@@ -59,8 +67,8 @@ export function composeEmail(
     const text = renderText(template.body, vars).text;
     return {
       subject: subject.slice(0, 200),
-      html: notificationLayout(subject, renderHtml(template.body, vars).text, link, "Open in the portal"),
-      text: [text, link && !template.body.includes("{{link}}") ? link : ""].filter(Boolean).join("\n\n"),
+      html: notificationLayout(subject, renderHtml(template.body, vars).text, link, "Open in the portal", footer),
+      text: withFooter([text, link && !template.body.includes("{{link}}") ? link : ""]),
     };
   }
   const body = n.body ?? "";
@@ -71,8 +79,9 @@ export function composeEmail(
       body ? `<p>${escapeHtml(body).replace(/\n/g, "<br>")}</p>` : "",
       link,
       "Open in the portal",
+      footer,
     ),
-    text: [body, link ?? ""].filter(Boolean).join("\n\n"),
+    text: withFooter([body, link ?? ""]),
   };
 }
 

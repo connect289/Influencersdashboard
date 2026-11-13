@@ -96,6 +96,11 @@ export default async function SystemPage() {
               {stat(t("system.providers.email"), e.EMAIL_PROVIDER)}
               {stat(t("system.providers.whatsapp"), e.WHATSAPP_PROVIDER)}
               {stat(t("system.providers.liveMode"), e.LIVE_MODE)}
+              {stat(
+                t("system.providers.unsubscribe"),
+                e.UNSUBSCRIBE_SECRET ? t("system.providers.unsubscribeOn") : t("system.providers.unsubscribeMissing"),
+                !e.UNSUBSCRIBE_SECRET,
+              )}
               {stat(t("system.deliveries.failed"), s.deliveries.failed_24h, s.deliveries.failed_24h > 0)}
             </dl>
           </Card>

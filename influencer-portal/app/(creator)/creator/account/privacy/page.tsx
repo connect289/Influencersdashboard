@@ -60,7 +60,9 @@ export default async function CreatorPrivacyPage() {
                     · {t(`notifications.channels.${c.channel}`)}
                   </span>
                   <span className="text-muted">
-                    {c.granted ? t("privacy.consents.on") : t("privacy.consents.off")} · {formatDateTime(c.created_at)}
+                    {c.granted ? t("privacy.consents.on") : t("privacy.consents.off")}
+                    {c.source === "unsubscribe_link" ? ` (${t("privacy.consents.viaLink")})` : ""} ·{" "}
+                    {formatDateTime(c.created_at)}
                   </span>
                 </li>
               ))}

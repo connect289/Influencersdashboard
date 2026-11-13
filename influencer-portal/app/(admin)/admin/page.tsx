@@ -100,6 +100,12 @@ export default async function AdminOverview() {
     hint: t("overview.checks.whatsappHint"),
   });
   checks.push({
+    key: "unsubscribe",
+    done: Boolean(e.UNSUBSCRIBE_SECRET),
+    label: t("overview.checks.unsubscribe"),
+    hint: t("overview.checks.unsubscribeHint"),
+  });
+  checks.push({
     key: "live",
     done: e.LIVE_MODE === "on",
     label: t("overview.checks.live"),

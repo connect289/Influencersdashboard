@@ -6,9 +6,12 @@ import { ProviderError } from "@/lib/notify/types";
 const h = vi.hoisted(() => ({
   results: [] as { p_id: number; p_status: string; p_error?: string }[],
   resultError: null as null | { message: string },
-  sends: [] as { to: string; idempotencyKey?: string }[],
+  sends: [] as { to: string; idempotencyKey?: string; html?: string; text?: string; listUnsubscribeUrl?: string }[],
   sendError: null as Error | null,
   liveMode: "on",
+  event: "payout.paid",
+  mandatory: true,
+  secret: undefined as string | undefined,
 }));
 
 function query(result: unknown) {
@@ -30,7 +33,8 @@ vi.mock("@/lib/supabase/admin", () => ({
           data: {
             id: "11111111-1111-4111-8111-111111111111",
             user_id: "22222222-2222-4222-8222-222222222222",
-            event: "payout.paid",
+            event: h.event,
+            mandatory: h.mandatory,
             title: "Paid",
             body: "Your payout was paid.",
             link: "/creator/earnings",
@@ -39,6 +43,8 @@ vi.mock("@/lib/supabase/admin", () => ({
           error: null,
         });
       if (table === "notification_deliveries") return query({ data: [{ id: 7, channel: "email" }], error: null });
+      if (table === "creator_accounts")
+        return query({ data: { creators: { display_name: "Riya Sen", phone_e164: null } }, error: null });
       return query({ data: null, error: null });
     },
     rpc: (name: string, args: { p_id: number; p_status: string; p_error?: string }) => {
@@ -52,12 +58,12 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 vi.mock("@/lib/env", () => ({
-  env: () => ({ LIVE_MODE: h.liveMode, NEXT_PUBLIC_SITE_URL: "https://portal.example" }),
+  env: () => ({ LIVE_MODE: h.liveMode, NEXT_PUBLIC_SITE_URL: "https://portal.example", UNSUBSCRIBE_SECRET: h.secret }),
 }));
 vi.mock("@/lib/notify/email", () => ({
   emailProvider: () => ({
     name: "mock",
-    send: (m: { to: string; idempotencyKey?: string }) => {
+    send: (m: (typeof h.sends)[number]) => {
       if (h.sendError) return Promise.reject(h.sendError);
       h.sends.push(m);
       return Promise.resolve({ provider: "mock", id: "m-1" });
@@ -70,6 +76,7 @@ vi.mock("@/lib/log", () => ({
   errorMessage: (e: unknown) => (e instanceof Error ? e.message : String(e)),
 }));
 
+import { verifyUnsubscribe } from "@/lib/notify/unsubscribe";
 import { notifyDeliver } from "./notify-deliver";
 
 const job = {
@@ -86,6 +93,9 @@ beforeEach(() => {
   h.sends = [];
   h.sendError = null;
   h.liveMode = "on";
+  h.event = "payout.paid";
+  h.mandatory = true;
+  h.secret = undefined;
 });
 
 describe("notify.deliver", () => {
@@ -118,5 +128,54 @@ describe("notify.deliver", () => {
     h.sendError = new ProviderError("HTTP 422: invalid address", false);
     await notifyDeliver(job);
     expect(h.results).toEqual([expect.objectContaining({ p_id: 7, p_status: "failed" })]);
+  });
+
+  // Unsubscribe links (D-198).
+  const SECRET = "unit-test-unsubscribe-secret-0123456789abcdef";
+  const USER = "22222222-2222-4222-8222-222222222222";
+
+  it("an email a person can turn off carries the signed link and the one-click address", async () => {
+    h.event = "campaign.invited";
+    h.mandatory = false;
+    h.secret = SECRET;
+    await notifyDeliver(job);
+    const sent = h.sends[0];
+    const oneClick = sent?.listUnsubscribeUrl ?? "";
+    expect(oneClick).toMatch(/^https:\/\/portal\.example\/unsubscribe\/v1\.[\w-]+\.[\w-]+\/one-click$/);
+    const token = oneClick.split("/").at(-2) ?? "";
+    expect(verifyUnsubscribe(SECRET, token)).toEqual({ userId: USER, category: "campaigns" });
+    expect(sent?.html).toContain(`href="https://portal.example/unsubscribe/${token}"`);
+    expect(sent?.text).toContain(`Stop these emails: https://portal.example/unsubscribe/${token}`);
+    expect(sent?.html).toContain('href="https://portal.example/creator/notifications/settings"');
+    expect(h.results).toEqual([expect.objectContaining({ p_id: 7, p_status: "sent" })]);
+  });
+
+  it("a required notice carries no link and says it is required", async () => {
+    h.secret = SECRET;
+    await notifyDeliver(job);
+    expect(h.sends[0]).not.toHaveProperty("listUnsubscribeUrl");
+    expect(h.sends[0]?.html).not.toContain("/unsubscribe/");
+    expect(h.sends[0]?.html).toContain("This is a required notice");
+    expect(h.results).toEqual([expect.objectContaining({ p_id: 7, p_status: "sent" })]);
+  });
+
+  it("a notification the sender marked required carries no link either", async () => {
+    h.event = "campaign.invited";
+    h.mandatory = true;
+    h.secret = SECRET;
+    await notifyDeliver(job);
+    expect(h.sends[0]).not.toHaveProperty("listUnsubscribeUrl");
+    expect(h.sends[0]?.html).not.toContain("/unsubscribe/");
+  });
+
+  it("without the signing secret the email is still sent, without the link", async () => {
+    h.event = "campaign.invited";
+    h.mandatory = false;
+    await notifyDeliver(job);
+    expect(h.sends).toHaveLength(1);
+    expect(h.sends[0]).not.toHaveProperty("listUnsubscribeUrl");
+    expect(h.sends[0]?.html).not.toContain("/unsubscribe/");
+    expect(h.sends[0]?.html).not.toContain("required notice");
+    expect(h.results).toEqual([expect.objectContaining({ p_id: 7, p_status: "sent" })]);
   });
 });

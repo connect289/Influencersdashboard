@@ -13,7 +13,8 @@ if (!/@(127\.0\.0\.1|localhost|postgres|db)(:\d+)?\//.test(dbUrl)) {
 const dir = join(import.meta.dirname, "..", "supabase", "tests");
 const filter = process.argv[2];
 const files = readdirSync(dir)
-  .filter((f) => f.endsWith(".sql") && (!filter || f.includes(filter)))
+  // *.http.sql files are self-contained checks for an HTTP SQL API (they end with an error on purpose), not pgTAP.
+  .filter((f) => f.endsWith(".sql") && !f.endsWith(".http.sql") && (!filter || f.includes(filter)))
   .sort();
 
 let failedFiles = 0;

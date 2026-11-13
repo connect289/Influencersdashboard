@@ -27,6 +27,8 @@ export const consentRow = z.object({
   channel: z.enum(["email", "whatsapp"]),
   granted: z.boolean(),
   detail: z.string().nullable(),
+  /** How the choice was made: on the settings page, or from the unsubscribe link in an email. */
+  source: z.enum(["settings", "unsubscribe_link"]).catch("settings"),
   created_at: z.string(),
 });
 export type ConsentRow = z.infer<typeof consentRow>;
