@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mediaAllowed, mediaDownload, mediaInfo, mediaPath, messageBody, parseWebhook, safeFileName, sendWhatsApp, verifyMetaSignature } from "./whatsapp";
+import { classifyWaError, mediaAllowed, mediaDownload, mediaInfo, mediaPath, messageBody, parseWebhook, safeFileName, sendWhatsApp, verifyMetaSignature } from "./whatsapp";
 
 describe("WhatsApp Cloud API", () => {
   it("builds a template message with body parameters", () => {
@@ -160,13 +160,85 @@ describe("an ambiguous send is never repeated (b55)", () => {
     expect(r).toMatchObject({ ok: false, retry: false });
   });
 
-  it("keeps a 4xx and a failure before the request left as ordinary failures", async () => {
-    const bad = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(400, { error: { message: "Invalid parameter", code: 100 } }));
-    expect(bad).toEqual({ ok: false, error: "100: Invalid parameter" });
+  it("keeps a 4xx Meta does not explain and a failure before the request left as ordinary failures", async () => {
+    const bad = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(400, { error: { message: "Generic user error", code: 135000 } }));
+    expect(bad).toEqual({ ok: false, error: "135000: Generic user error" });
+    const plain = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(400, {}));
+    expect(plain).toEqual({ ok: false, error: "HTTP 400" });
     const dns = await sendWhatsApp(cfg, "919000000012", text, true, null, throws(new TypeError("fetch failed", { cause: Object.assign(new Error("getaddrinfo ENOTFOUND"), { code: "ENOTFOUND" }) })));
     expect(dns).toEqual({ ok: false, error: "fetch failed" });
     const noLink = await sendWhatsApp(cfg, "919000000012", { type: "media", media_kind: "image", path: "leads/7/a.png" }, true, null, answer(200, {}));
     expect(noLink).toEqual({ ok: false, error: "a media message needs an https link" });
+  });
+});
+
+describe("what a refusal from Meta means for the message (b56)", () => {
+  const cfg = { phoneNumberId: "123", token: "t", apiVersion: "v21.0" };
+  const text = { type: "text" as const, text: "hi" };
+  const answer = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+
+  // [HTTP status, Meta code, subcode, what Spark does]
+  const table: [number, number | null, number | null, "final" | "retry" | "connector"][] = [
+    // this message will never be accepted: failed at once
+    [400, 100, null, "final"], [400, 130472, null, "final"], [403, 130497, null, "final"], [400, 131008, null, "final"], [400, 131009, null, "final"],
+    [400, 131021, null, "final"], [400, 131026, null, "final"], [400, 131030, null, "final"], [400, 131047, null, "final"], [400, 131049, null, "final"],
+    [400, 131050, null, "final"], [400, 131051, null, "final"], [400, 132000, null, "final"], [404, 132001, null, "final"], [400, 132005, null, "final"],
+    [400, 132007, null, "final"], [400, 132012, null, "final"], [400, 132015, null, "final"], [400, 132016, null, "final"],
+    // rate limits pass by themselves: tried again, whatever status they come with
+    [429, 4, null, "retry"], [400, 4, null, "retry"], [429, 80007, null, "retry"], [400, 80007, null, "retry"], [429, 130429, null, "retry"], [400, 130429, null, "retry"],
+    [429, 131056, null, "retry"], [400, 131056, null, "retry"], [429, null, null, "retry"],
+    // not understood, or Meta's own doubt: tried again, as before
+    [400, null, null, "retry"], [404, null, null, "retry"], [400, 1, null, "retry"], [400, 131052, null, "retry"], [400, 131053, null, "retry"], [400, 135000, null, "retry"],
+    [400, 999999, null, "retry"], [408, null, null, "retry"],
+    // the token, a permission, the account or the number: the connector's problem, never the message's
+    [401, 190, null, "connector"], [400, 190, null, "connector"], [401, 0, null, "connector"], [403, 10, null, "connector"], [403, 200, null, "connector"],
+    [403, 299, null, "connector"], [400, 100, 33, "connector"], [400, 33, null, "connector"], [403, 368, null, "connector"], [403, 131005, null, "connector"],
+    [403, 131031, null, "connector"], [400, 131037, null, "connector"], [400, 131042, null, "connector"], [429, 131048, null, "connector"], [400, 131048, null, "connector"],
+    [400, 133006, null, "connector"], [400, 133010, null, "connector"], [401, null, null, "connector"], [403, null, null, "connector"], [403, 999999, null, "connector"],
+  ];
+
+  it.each(table)("HTTP %i, code %s, subcode %s: %s", (status, code, subcode, kind) => {
+    const r = classifyWaError(status, code === null ? null : { code, ...(subcode === null ? {} : { error_subcode: subcode }) });
+    expect(r.kind).toBe(kind);
+    if (kind === "retry") expect(r.reason).toBeUndefined();
+    else expect(r.reason).toMatch(/\S{3}/); // a final or connector answer always says why, in words
+  });
+
+  it("codes next to the permission range are not taken for it", () => {
+    expect(classifyWaError(400, { code: 199 }).kind).toBe("retry");
+    expect(classifyWaError(400, { code: 300 }).kind).toBe("retry");
+  });
+
+  it("fails a refused message at once (retry: false) with the reason, Meta's code and its detail", async () => {
+    const r = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(400, { error: { message: "(#131047) Re-engagement message", code: 131047,
+      error_data: { messaging_product: "whatsapp", details: "Message failed to send because more than 24 hours have passed since the customer last replied to this number." } } }));
+    expect(r).toEqual({ ok: false, retry: false, error: "WhatsApp refused it: more than 24 hours have passed since the student last wrote, so only an approved template can be sent. "
+      + "It is not sent again automatically. (131047: (#131047) Re-engagement message (Message failed to send because more than 24 hours have passed since the customer last replied to this number.))" });
+    const paused = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(400, { error: { message: "Template is paused", code: 132015 } }));
+    expect(paused).toMatchObject({ ok: false, retry: false, error: expect.stringMatching(/paused the template.*\(132015: Template is paused\)$/) });
+    expect(paused).not.toHaveProperty("connector");
+  });
+
+  it("leaves a rate limit to be tried again, exactly as any failure was before", async () => {
+    const r = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(429, { error: { message: "Rate limit hit", code: 130429 } }));
+    expect(r).toEqual({ ok: false, error: "130429: Rate limit hit" });
+  });
+
+  it("marks an expired token as the connector's problem and leaves the message to be tried again", async () => {
+    const r = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(401, { error: { message: "Error validating access token: Session has expired", code: 190, error_subcode: 463 } }));
+    expect(r).toEqual({ ok: false, connector: true, error: "WhatsApp refused Spark's connection, not this message: the access token has expired or is no longer valid. (190: Error validating access token: Session has expired)" });
+    expect(r).not.toHaveProperty("retry");
+  });
+
+  it("still treats a 5xx as maybe sent, whatever its code", async () => {
+    const r = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(500, { error: { message: "Something went wrong", code: 131000 } }));
+    expect(r).toMatchObject({ ok: false, retry: false, error: expect.stringMatching(/may have gone out/) });
+    expect(r).not.toHaveProperty("connector");
+  });
+
+  it("keeps a long answer from Meta within what the failure column shows", async () => {
+    const r = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(400, { error: { message: "x".repeat(900), code: 131026 } }));
+    expect(r.error!.length).toBeLessThan(480);
   });
 });
 

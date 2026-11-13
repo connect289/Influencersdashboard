@@ -1,7 +1,7 @@
 # Eduwit Spark: handover to the developer (taking it live)
 
 Version 16 October 2026. Spark is the B2C CRM: code in `b2c-crm/web` (Next.js 16), database schema `b2c` in Supabase,
-migrations `b2c-crm/supabase/migrations/b1…b55` (apply in order; all idempotent), checks in `b2c-crm/supabase/tests`.
+migrations `b2c-crm/supabase/migrations/b1…b56` (apply in order; all idempotent), checks in `b2c-crm/supabase/tests`.
 This guide is the whole path from where things stand to a working, live CRM. Do the steps in order; each says how to
 check it and how to undo it. `docs/go-live-plan.md` keeps the history; this file supersedes it for what is left.
 
@@ -248,6 +248,34 @@ connector show the error. In the Inbox the Admin can read a conversation from a 
 (read-only, "waiting for the CRM to route this lead"). Webhook events for other numbers on the same Meta account are
 ignored (`WHATSAPP_PHONE_NUMBER_ID`). Checks: `supabase/tests/test_hardening_2026_11.sql` (25).
 
+**One deadline per job; a refusal from Meta is final (13 Nov 2026, migration `b56`).** Two more fixes from the November
+audit. *Jobs.* The every-minute call ran its jobs one after another inside the platform's 60 seconds, so a slow job
+early in the list left the later ones cut off part-way. Each job now has its own deadline (`web/lib/job-budget.ts`),
+worked out when it starts from the time really left: the 60 seconds, less 10 kept free at the end (the timer listens
+for 55), less a share kept for every job still to come. The order is by urgency (`web/lib/sync-jobs.ts`): messages,
+what must reach the B2B CRM at once, phone alerts, replies waiting for their class, files students sent, files of
+erased students, support mail, recordings and calendars, large exports, analytics. A job with no time left is not
+started and is reported as skipped; a job that runs out of time between two items stops there, records what it did and
+hands back what it had taken but not started, with no attempt spent (`b2c.send_release` for messages,
+`b2c.job_release(kind, ids)` for the other queues), so it is due again a minute later. A brief or the daily insights
+start only with time for Claude to answer (10 and 20 seconds). Messages may start until 36 seconds into the minute run
+(35 in the 15-minute run; it was 40), which leaves the B2B sync its share; the B2B sync now also stops at its deadline
+instead of running on. The call's answer lists every job under `jobs`: `ran`, `skipped`, `stopped_early` or `failed`,
+its milliseconds and the parts that stopped; the fields it had before are unchanged. *Refusals.* When Meta answers a
+WhatsApp send with a refusal that cannot succeed on a second try (the number is not on WhatsApp, the template is not
+approved, paused or wrongly filled, the 24-hour window has closed, the person stopped marketing messages), the message
+is failed at once with the reason in words and Meta's code, shown where failed messages already show (the
+conversation, the queue, the admins' notice); before, it was sent again up to five times. Rate limits are tried again
+as before. A refusal of Spark's connection itself (an expired token, a missing permission, a locked or restricted
+account or number) is reported on the WhatsApp connector, the message is tried again as before, and the WhatsApp
+messages left in that run are handed back uncounted, so one broken connection does not cost a whole batch an attempt.
+The codes and what each means are listed in `web/lib/whatsapp.ts` (`classifyWaError`); a code that is not listed is
+tried again. This part needed no database change: `b2c.send_done` already fails a result marked `"retry": false`
+(`b55`). Apply `b56` before deploying this version of the app: a job that runs out of time calls `b2c.job_release`.
+Checks: `supabase/tests/test_job_budget_2026_11.sql` (29); the same checks for an HTTP SQL API, to send with
+the migration in one transaction that is rolled back: `supabase/tests/b56.http.sql` (ends with
+`TESTRESULT total=29 failed=0`).
+
 ## 12. Live
 
 `LIVE_MODE=on` in Vercel (Redeploy), then Workspace → Settings → live mode on. Un-pause journeys one by one.
@@ -266,8 +294,9 @@ production.
   pooled lead; the database view of overdue tasks assumes an active lead.
 - `nurture_overview` reports partner-lost sub-stage names in lower case.
 - `qualify_assign(request, null)` with no task yet creates a task without an owner (the Admin assigns it from the queue).
-- Spark's background jobs run inside the every-minute `/api/internal/sync` call; a Vercel function's 60-second limit means
-  a very large export (>10,000 rows) is written in several runs. `export_take` retries a run that died part-way.
+- Spark's background jobs run inside the every-minute `/api/internal/sync` call, each to its own deadline inside a Vercel
+  function's 60 seconds (`b56`). An export that cannot be read within one run is recorded as not finished and tried
+  again, three times at most; `export_take` also retries a run that died part-way.
 - The health row "The app answering the timers" counts only Spark's own timer calls (`b46`); the production database is
   shared, so the B2B CRM's test ping to Spark (one 503 before its signing secret matched, on 16 Oct) no longer turns it red.
 - Playwright from a network that proxies outbound traffic can report `502` on static files; run the browser tests locally

@@ -3,13 +3,15 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { reportConnector } from "@/lib/connector-status";
+import { JobBudget } from "@/lib/job-budget";
 import { adminClient } from "@/lib/supabase/admin";
 
 /**
  * Reply classification, the Claude step (spec B6.6): the keyword rules in the database decide first; what they cannot
  * decide comes here. Only the reply text and the course interest are sent: no name, phone or email. Below 0.8
  * confidence the database sends the reply to the Replies inbox. Without ANTHROPIC_API_KEY nothing is sent and the
- * replies go to the inbox after 10 minutes.
+ * replies go to the inbox after 10 minutes. When the job's time is up (lib/job-budget.ts) no further reply is started:
+ * what was classified is recorded and the rest waits for the next run, a minute later (taking a reply claims nothing).
  */
 const Result = z.object({
   class: z.enum(["positive", "question", "negative", "opt_out", "other"]),
@@ -25,7 +27,7 @@ Classes:
 - other: greetings, thanks, emojis, unclear.
 Give confidence between 0 and 1. Be conservative: use below 0.8 when unsure.`;
 
-export async function runClassify(): Promise<{ classified: number; skipped?: string }> {
+export async function runClassify(budget: JobBudget = new JobBudget()): Promise<{ classified: number; skipped?: string }> {
   if (!process.env.ANTHROPIC_API_KEY) return { classified: 0, skipped: "ANTHROPIC_API_KEY is not set" };
   const db = adminClient();
   const { data, error } = await db.rpc("reply_classify_take", { p_limit: 20 });
@@ -38,6 +40,10 @@ export async function runClassify(): Promise<{ classified: number; skipped?: str
   const results: { id: number; class: string; confidence: number; model: string }[] = [];
   let answered = 0, apiError = "";
   for (const it of items) {
+    if (!budget.hasTime()) {
+      budget.stopEarly("classify");
+      break;
+    }
     try {
       const res = await client.messages.parse({
         model,

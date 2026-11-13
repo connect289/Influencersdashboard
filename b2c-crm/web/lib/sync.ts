@@ -6,6 +6,7 @@ import { liveMode, siteUrl } from "@/lib/env";
 import { marketingEmail } from "@/lib/marketing-email";
 import { googleSa, sendGmail, type GmailMessage, type MailAttachment } from "@/lib/gmail";
 import { UserGmail } from "@/lib/gmail-user";
+import { handBack, JobBudget, whileTime } from "@/lib/job-budget";
 import { parseAttachments, renderAttachment } from "@/lib/money-pdf";
 import { salesEmail } from "@/lib/sales-email";
 import { adminClient } from "@/lib/supabase/admin";
@@ -18,8 +19,11 @@ const b2bDown = (status: number) => status === 0 || status === 401 || status ===
 const MEDIA_LINK_SECONDS = 15 * 60;
 
 type SendItem = { id: number; channel: "whatsapp" | "email"; lead_id: number | null; to: string; payload: Record<string, unknown>; purpose: string | null; live: boolean };
-/** retry: false: the message may have gone out (lib/whatsapp.ts), so b2c.send_done fails it without queueing it again. */
-type SendOutcome = { ok: boolean; dry_run?: boolean; wamid?: string; id?: string; error?: string; retry?: boolean };
+/**
+ * retry: false: b2c.send_done fails the message without queueing it again, because it may have gone out or because Meta
+ * refused it for good (lib/whatsapp.ts). connector: Meta refused Spark's connection, not the message.
+ */
+type SendOutcome = { ok: boolean; dry_run?: boolean; wamid?: string; id?: string; error?: string; retry?: boolean; connector?: boolean };
 
 /**
  * The B2C → B2B sync (decision K2, K14). mode "urgent" (every minute): events (consent, opt-out, erasure, assignments),
@@ -27,79 +31,80 @@ type SendOutcome = { ok: boolean; dry_run?: boolean; wamid?: string; id?: string
  * one update per lead, in calls of up to 200 items. Each answer goes back to b2c.outbox_done, which decides retry,
  * conflict, refusal or success and caches the record B2B returns.
  *
- * Messages (b53): the run starts no send later than SEND_BUDGET_MS after it began (the route has 60 s) and hands the rest
- * back with b2c.send_release, and it records outcomes SEND_DONE_EVERY at a time, so a run that ends early loses at most
- * one group's outcomes. A message left "sending" all the same is marked failed by b2c.send_unstick (never resent).
+ * When the job's time is up (lib/job-budget.ts) no further call is started: the answers so far are recorded and the
+ * items not started are handed back (b2c.job_release, the attempt not counted) for the next run.
  */
-export const SEND_BUDGET_MS = 40_000;
-export const SEND_DONE_EVERY = 10;
-
-export async function runSync(
-  mode: "urgent" | "batch",
-  opts: { startedAt?: number; sendBudgetMs?: number; now?: () => number } = {},
-): Promise<Record<string, number>> {
-  const now = opts.now ?? Date.now;
-  const startedAt = opts.startedAt ?? now();
-  const budget = opts.sendBudgetMs ?? SEND_BUDGET_MS;
+export async function runOutbox(mode: "urgent" | "batch", budget: JobBudget = new JobBudget()): Promise<Record<string, number>> {
+  const out: Record<string, number> = { taken: 0, ok: 0, failed: 0, outbox_released: 0 };
+  if (!b2b.b2bReady()) return out;
   const db = adminClient();
-  const out: Record<string, number> = { taken: 0, ok: 0, failed: 0, sent: 0, dry_run: 0, send_failed: 0, released: 0 };
+  const { data, error } = await db.rpc("outbox_take", { p_mode: mode, p_limit: mode === "batch" ? 2000 : 400 });
+  if (error) throw new Error(`outbox_take: ${error.message}`);
+  const items = (data ?? []) as OutboxItem[];
+  out.taken = items.length;
+  const results: DoneResult[] = [];
+  // connector health: whether the B2B CRM answered at all (a refused or conflicting item is the item's problem)
+  let calls = 0, down = 0, downError = "";
+  const seen = <T extends b2b.B2bAnswer>(r: T): T => {
+    calls++;
+    if (b2bDown(r.status)) { down++; downError = `HTTP ${r.status}${r.body.error ? `: ${String(r.body.error)}` : ""}`; }
+    return r;
+  };
+  const one = (o: OutboxItem): Promise<b2b.B2bAnswer> => {
+    if (o.kind === "event") return b2b.postEvent(o.body);
+    if (o.kind === "route") return b2b.routeToPartners(o.lead_id!, String(o.body.reason ?? ""));
+    if (o.kind === "intake") return b2b.intake(intakeBody(o.body, o.occurred_at), o.request_id);
+    if (o.kind === "update") return b2b.patchLead(o.lead_id!, o.request_id, (o.body.set as Record<string, unknown>) ?? {}, o.actor);
+    return b2b.postActivity(o.lead_id!, o.request_id, o.body, o.actor);
+  };
 
-  if (b2b.b2bReady()) {
-    const { data, error } = await db.rpc("outbox_take", { p_mode: mode, p_limit: mode === "batch" ? 2000 : 400 });
-    if (error) throw new Error(`outbox_take: ${error.message}`);
-    const items = (data ?? []) as OutboxItem[];
-    out.taken = items.length;
-    const results: DoneResult[] = [];
-    // connector health: whether the B2B CRM answered at all (a refused or conflicting item is the item's problem)
-    let calls = 0, down = 0, downError = "";
-    const seen = <T extends b2b.B2bAnswer>(r: T): T => {
-      calls++;
-      if (b2bDown(r.status)) { down++; downError = `HTTP ${r.status}${r.body.error ? `: ${String(r.body.error)}` : ""}`; }
-      return r;
-    };
-
-    for (const o of items.filter((i) => i.kind === "event")) {
-      const r = seen(await b2b.postEvent(o.body));
-      results.push(singleDone(o, r.status, r.body));
-    }
-    for (const o of items.filter((i) => i.kind === "route")) {
-      const r = seen(await b2b.routeToPartners(o.lead_id!, String(o.body.reason ?? "")));
-      results.push(singleDone(o, r.status, r.body));
-    }
-    for (const o of items.filter((i) => i.kind === "intake")) {
-      const r = seen(await b2b.intake(intakeBody(o.body, o.occurred_at), o.request_id));
-      results.push(singleDone(o, r.status, r.body));
-    }
-    const writes = items.filter((i) => i.kind === "update" || i.kind === "activity");
-    if (mode === "urgent") {
-      for (const o of writes) {
-        const r = seen(o.kind === "update"
-          ? await b2b.patchLead(o.lead_id!, o.request_id, (o.body.set as Record<string, unknown>) ?? {}, o.actor)
-          : await b2b.postActivity(o.lead_id!, o.request_id, o.body, o.actor));
-        results.push(singleDone(o, r.status, r.body));
-      }
-    } else {
-      for (const part of chunks(writes, 200)) {
-        const r = seen(await b2b.batch(part.map(toBatchItem)));
-        results.push(...batchDone(part, r.status, r.body));
-      }
-    }
-    if (calls) {
-      const detail = { outbox: { mode, calls, failed: down, at: new Date().toISOString() } };
-      if (calls > down) await reportConnector("b2b", true, detail);
-      if (down) await reportConnector("b2b", false, detail, downError);
-    }
-
-    if (results.length) {
-      const { error: doneError } = await db.rpc("outbox_done", { p_results: results });
-      if (doneError) throw new Error(`outbox_done: ${doneError.message}`);
-    }
-    out.ok = results.filter((r) => r.ok).length;
-    out.failed = results.length - out.ok;
+  // events first, then partner routing, new students, and the writes (one by one when urgent, 200 a call in the batch)
+  const first = (["event", "route", "intake"] as const).flatMap((k) => items.filter((i) => i.kind === k));
+  const writes = items.filter((i) => i.kind === "update" || i.kind === "activity");
+  const unstarted = await whileTime(budget, mode === "urgent" ? [...first, ...writes] : first, async (o) => {
+    const r = seen(await one(o));
+    results.push(singleDone(o, r.status, r.body));
+  });
+  if (mode === "batch") {
+    const parts = await whileTime(budget, chunks(writes, 200), async (part) => {
+      const r = seen(await b2b.batch(part.map(toBatchItem)));
+      results.push(...batchDone(part, r.status, r.body));
+    });
+    unstarted.push(...parts.flat());
+  }
+  if (calls) {
+    const detail = { outbox: { mode, calls, failed: down, at: new Date().toISOString() } };
+    if (calls > down) await reportConnector("b2b", true, detail);
+    if (down) await reportConnector("b2b", false, detail, downError);
   }
 
-  // Messages: WhatsApp (students inside or outside the window, and staff alerts to a person's own number) and email
-  // (counsellors', system and marketing). Dry run unless live (env and Settings, never test leads or test invoices).
+  if (results.length) {
+    const { error: doneError } = await db.rpc("outbox_done", { p_results: results });
+    if (doneError) throw new Error(`outbox_done: ${doneError.message}`);
+  }
+  out.ok = results.filter((r) => r.ok).length;
+  out.failed = results.length - out.ok;
+  out.outbox_released = await handBack(db, budget, "outbox", "outbox", unstarted.map((o) => o.id));
+  return out;
+}
+
+/**
+ * Messages: WhatsApp (students inside or outside the window, and staff alerts to a person's own number) and email
+ * (counsellors', system and marketing). Dry run unless live (env and Settings, never test leads or test invoices).
+ *
+ * b53: outcomes are recorded SEND_DONE_EVERY at a time, so a run that ends early loses at most one group's outcomes, and
+ * no send is started after the job's deadline (at least 20 seconds before the limit: a send has 15 to answer, then its
+ * outcome is recorded); the rest is handed back with b2c.send_release. A message left "sending" all the same is marked failed by b2c.send_unstick
+ * (never resent). When Meta refuses Spark's connection itself (an expired token, a locked or restricted account), the
+ * WhatsApp messages left in this run are not tried: they are handed back too, the attempt not counted, so one broken
+ * connection does not cost every message in the batch an attempt.
+ */
+export const SEND_DONE_EVERY = 10;
+
+export async function runSends(budget: JobBudget = new JobBudget()): Promise<Record<string, number>> {
+  // released: handed back in all; held: of those, the ones not tried because Meta refused the connection
+  const out: Record<string, number> = { sent: 0, dry_run: 0, send_failed: 0, released: 0, held: 0 };
+  const db = adminClient();
   const { data: sends, error: takeError } = await db.rpc("send_take", { p_limit: 50 });
   if (takeError) throw new Error(`send_take: ${takeError.message}`);
   let pending: Record<string, unknown>[] = [];
@@ -112,19 +117,27 @@ export async function runSync(
   };
   const items = (sends ?? []) as SendItem[];
   const unstarted: number[] = [];
+  let waRefused = false;
   const ctx: SendContext = { db, wa: waConfig(), sa: googleSa(), userGmail: new UserGmail(db), tally: new ConnectorTally() };
   for (const [i, s] of items.entries()) {
-    if (now() - startedAt > budget) {
+    if (!budget.hasTime()) {
+      budget.stopEarly("sends");
       unstarted.push(...items.slice(i).map((x) => x.id));
       break;
     }
     const live = liveMode() && s.live;
+    if (waRefused && live && s.channel === "whatsapp") {
+      unstarted.push(s.id);
+      out.held!++;
+      continue;
+    }
     let r: SendOutcome;
     try {
       r = s.channel === "whatsapp" ? await sendWa(ctx, s, live) : await sendEmail(ctx, s, live);
     } catch (e) {
       r = { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
+    if (r.connector) waRefused = true;
     pending.push({ id: s.id, ok: r.ok, dry_run: r.dry_run ?? false, wamid: r.wamid, error: r.error, ...(r.retry === false ? { retry: false } : {}) });
     if (!r.ok) out.send_failed!++;
     else if (r.dry_run) out.dry_run!++;
