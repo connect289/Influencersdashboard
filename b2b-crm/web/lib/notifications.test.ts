@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SettingsSchema, TemplateSchema, channelBlockers, renderTemplate, settingsPayload, unknownVariables, type NotificationsOverview } from "./notifications";
+import { SettingsSchema, TemplateSchema, channelBlockers, mayHaveBeenSent, renderTemplate, settingsPayload, unknownVariables, type NotificationsOverview } from "./notifications";
 
 const settings = {
   quiet_start: "08:00", quiet_end: "21:00", support_contact: "support@eduwit.in", unsubscribe_url: "", wa_phone_number_id: "123456789012",
@@ -55,5 +55,15 @@ describe("channel readiness", () => {
   it("lists what blocks each channel", () => {
     expect(channelBlockers(o, "email")).toEqual(["Add Eduwit's support contact in Providers."]);
     expect(channelBlockers(o, "whatsapp")).toHaveLength(4);
+  });
+});
+
+describe("mayHaveBeenSent (M34i)", () => {
+  it("flags the error notify_tick writes when an unclear answer is not sent again", () => {
+    expect(mayHaveBeenSent("may have been sent (no answer from the provider), so it is not sent again automatically: check with the student before Send again")).toBe(true);
+    expect(mayHaveBeenSent("may have been sent (HTTP 502: Bad Gateway), so it is not sent again automatically: check with the student before Send again")).toBe(true);
+  });
+  it("leaves clear failures and empty errors alone", () => {
+    for (const e of ["HTTP 400: invalid recipient", "email provider is not configured", "", null, undefined]) expect(mayHaveBeenSent(e)).toBe(false);
   });
 });

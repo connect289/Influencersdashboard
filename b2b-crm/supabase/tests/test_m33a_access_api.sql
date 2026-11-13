@@ -13,10 +13,11 @@ create function pg_temp.claims(p_sub text, p_email text) returns void language s
 create function pg_temp.err(p_sql text) returns text language plpgsql as $f$
 begin execute p_sql; return 'ok'; exception when others then return sqlstate || ' ' || sqlerrm; end $f$;
 
-insert into auth.users (id, email, aud, role) values
-  ('aaaaaaaa-0000-0000-0000-0000000000e1', 'm33-admin@test.local', 'authenticated', 'authenticated'),
-  ('aaaaaaaa-0000-0000-0000-0000000000e2', 'm33-viewer@test.local', 'authenticated', 'authenticated'),
-  ('aaaaaaaa-0000-0000-0000-0000000000e3', 'm33-second@test.local', 'authenticated', 'authenticated');
+-- confirmed addresses: team_invite_accept refuses an unconfirmed one (m34i)
+insert into auth.users (id, email, aud, role, email_confirmed_at) values
+  ('aaaaaaaa-0000-0000-0000-0000000000e1', 'm33-admin@test.local', 'authenticated', 'authenticated', now()),
+  ('aaaaaaaa-0000-0000-0000-0000000000e2', 'm33-viewer@test.local', 'authenticated', 'authenticated', now()),
+  ('aaaaaaaa-0000-0000-0000-0000000000e3', 'm33-second@test.local', 'authenticated', 'authenticated', now());
 insert into b2b.app_users (user_id, email) values ('aaaaaaaa-0000-0000-0000-0000000000e1', 'm33-admin@test.local');
 
 -- ---------- the team ----------

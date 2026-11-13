@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { formatDateTime, relativeTime } from "@/lib/format";
-import { CHANNEL_LABEL, STATUS_LABEL, STATUS_TONE, type LogRow } from "@/lib/notifications";
+import { CHANNEL_LABEL, mayHaveBeenSent, STATUS_LABEL, STATUS_TONE, type LogRow } from "@/lib/notifications";
 import { retryNotification } from "./actions";
 
 /** The latest 100 messages; recipients are masked by the database. Failed or cancelled ones can be sent again once. */
@@ -43,6 +43,7 @@ export function SendLog({ rows }: { rows: LogRow[] }) {
                   <td className="px-3 py-2">
                     <span className="flex flex-wrap items-center gap-1.5">
                       <Badge tone={STATUS_TONE[r.status] ?? "neutral"}>{STATUS_LABEL[r.status] ?? r.status}</Badge>
+                      {r.status === "failed" && mayHaveBeenSent(r.error) && <Badge tone="warning">May have been sent</Badge>}
                       {r.error && <span className="max-w-[280px] truncate text-subtle" title={r.error}>{r.error}</span>}
                     </span>
                   </td>
@@ -71,6 +72,9 @@ export function SendLog({ rows }: { rows: LogRow[] }) {
       >
         {open && <p>{CHANNEL_LABEL[open.channel]} to {open.lead_name || `lead #${open.lead_id}`}, at the next slot inside quiet hours. It is still skipped if the student has opted out,
           the partner no longer holds the lead or the channel is switched off.</p>}
+        {open && open.status === "failed" && mayHaveBeenSent(open.error) && (
+          <p className="mt-2 text-warning">The provider gave no clear answer last time, so the student may already have this message. Check with the student before you send it again.</p>
+        )}
       </ConfirmDialog>
     </>
   );

@@ -23,8 +23,12 @@ This folder is the B2B CRM only. The influencer dashboard lives elsewhere in thi
 - `00000000000000_baseline.sql`: production's `public` schema on 6 Oct 2026, generated from the catalog. Reference only and the
   starting point for staging; never applied to production.
 - Every later file: applied to **staging first**, checked, then applied to production with Vikas's approval for that step.
-  `supabase/deploy.mjs` (or `deploy.sh`) applies every file from `m24a` to `m33e` that the database has not recorded yet,
+  `supabase/deploy.mjs` (or `deploy.sh`) applies every file from `m24a` to `m34i` that the database has not recorded yet,
   in order, with the `b2b-*` cron jobs paused; `node deploy.mjs` with `DATABASE_URL` in the shell.
+- `supabase/local-test.sh`: the offline check. It starts a throwaway PostgreSQL on a private socket (no Supabase project),
+  loads stubs of auth, storage, cron, pg_net, Vault and pgmq (`tests/local/00_platform_stubs.sql`), applies the baseline
+  and every migration in deploy order, re-applies m24 onwards (each must re-apply cleanly) and runs the SQL files in
+  `tests/local-suite.txt` (each builds its own fixtures and rolls back). CI runs it on every change under `supabase/`.
 - Handover and go-live order: `docs/HANDOVER.md`.
 - Feature notes: `docs/b2b-design.md` (what was built and why, per release), `docs/go-live-setup.md` (every manual step),
   `docs/operations.md` (runbook), `docs/b2c-contract.md`, `docs/partner-api.md`, `docs/intake-api.md`, `docs/referral-api.md`.
@@ -37,6 +41,33 @@ This folder is the B2B CRM only. The influencer dashboard lives elsewhere in thi
   - `m30b_fact_views.sql`: staging catch-up that rebuilds `fact_sla`, `fact_invoices` and `fact_sync` with the fixed m27a
     definitions (m27a creates them only if missing). Staging now; production does not need it once the fixed m27a is
     applied (running it is harmless).
+
+### Changes after go-live
+
+- **m34i (13 Nov 2026, audit hardening; approved by Vikas; not yet applied to staging or production).** Apply before the
+  web release that ships with it (the web app calls the new `sign_in_locked(email, ip, step)`).
+  - A partner push that timed out (or got a 5xx or a cut connection) and was retried, answered "already exists", was read
+    as a duplicate: the lead went to a second partner and the first partner's commission was lost. `apply_duplicate` now
+    counts it as created (the partner's record id kept), sets the spot check and raises `alert.push_retry_duplicate`,
+    never re-routing; also when the claim names the allocation's own reference or record. A record more than 5 minutes
+    older than the first unanswered attempt, or an earlier clear 4xx / DNS failure, is still a duplicate. The rule "may
+    the request have reached the provider" is one function, `http_maybe_delivered`.
+  - Sign-in lockout per email and client IP, so a stranger's wrong passwords cannot lock the Admin out; the code step
+    after a correct password counts only failed codes; `locked` is logged at most once a minute per email; a malformed IP
+    is stored as null.
+  - A partner event that arrived before its record id was saved, stored as an error, is applied when the partner retries
+    it (same `event_id`) instead of being answered "already received".
+  - Money dates ("today" in receipts, enrolments, refunds and manual adjustments) are India's date, not UTC's.
+  - `receipt_apply` refuses a receipt voided after the caller checked it.
+  - Student messages: an unclear provider answer (no answer, timeout, 5xx, cut connection) is no longer re-sent
+    automatically for WhatsApp or Brevo; the message is failed as "may have been sent" and alerted, and the send log asks
+    the Admin to check with the student before Send again. Resend keeps its automatic retry (Idempotency-Key `notify-<id>`).
+  - Team invitations are accepted only for a confirmed email address.
+  - Web: `requireAdmin` / `assertAdmin` apply the 12-hour idle rule on the server too (a request can skip the proxy);
+    `instrumentation.ts` logs failed requests as one JSON line without personal data (no messages, query strings or
+    headers; the route pattern, not the path).
+  - Checks: `tests/test_m34i_hardening.sql` (35 rows) in `local-test.sh`; unit tests for the lockout, idle rule,
+    request-error log line and the "may have been sent" flag.
 
 Rules that keep Witty (the live WhatsApp bot) safe:
 

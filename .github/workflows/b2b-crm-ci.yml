@@ -1,17 +1,21 @@
-# Eduwit B2B CRM (b2b-crm/web): typecheck, unit tests, build and dependency scanning (estate audit, 30 Oct 2026: the
-# B2B CRM was the only app without CI). Runs on pull requests and pushes that touch the web app. No secrets are used:
-# the unit tests mock every network call, and the build reads no environment values.
+# Eduwit B2B CRM: typecheck, unit tests, build and dependency scanning of b2b-crm/web (estate audit, 30 Oct 2026: the
+# B2B CRM was the only app without CI), and the database migrations and SQL suites on a throwaway local PostgreSQL (M34i).
+# Runs on pull requests and pushes that touch the web app or b2b-crm/supabase. No secrets are used and no Supabase project
+# is reached: the unit tests mock every network call, the build reads no environment values, and local-test.sh starts its
+# own server on a private socket with stubs of the Supabase platform.
 name: b2b-crm CI
 
 on:
   pull_request:
     paths:
       - "b2b-crm/web/**"
+      - "b2b-crm/supabase/**"
       - ".github/workflows/b2b-crm-ci.yml"
   push:
     branches: [main]
     paths:
       - "b2b-crm/web/**"
+      - "b2b-crm/supabase/**"
       - ".github/workflows/b2b-crm-ci.yml"
 
 permissions:
@@ -52,6 +56,25 @@ jobs:
       # critical Next.js advisory that nothing had flagged). Dev-only tools are left to Dependabot.
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+
+  sql:
+    name: Migrations and SQL suites (local PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: b2b-crm/supabase
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # The runner image ships PostgreSQL server binaries (not running); install them only if an image ever drops them.
+      - name: PostgreSQL binaries
+        run: ls /usr/lib/postgresql/*/bin/initdb || (sudo apt-get update && sudo apt-get install -y postgresql)
+      # Every migration applied in deploy order and then re-applied, then every file in tests/local-suite.txt; a row with
+      # ok = false fails the job. Offline: nothing leaves the runner.
+      - name: Local SQL test
+        run: ./local-test.sh
 
   dependency-review:
     name: Dependency review
