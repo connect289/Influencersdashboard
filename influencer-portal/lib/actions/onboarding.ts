@@ -4,10 +4,9 @@ import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { fetchMe } from "@/lib/auth/guards";
-import { env } from "@/lib/env";
+import { istToday } from "@/lib/format";
+import { enqueueMany } from "@/lib/jobs/fan-out";
 import { errorMessage, log } from "@/lib/log";
-import { emailProvider } from "@/lib/notify/email";
-import { creatorInviteEmail } from "@/lib/notify/templates";
 import { adminClient } from "@/lib/supabase/admin";
 import { createClient, type ServerSupabase } from "@/lib/supabase/server";
 import { fail, type ActionResult } from "./result";
@@ -21,7 +20,8 @@ async function session(kind: "staff" | "creator"): Promise<ServerSupabase | null
 
 /**
  * Invite creators to the portal. The database marks them invited and returns who qualified (email present, no account
- * yet, not blocked); then each gets an auth account (so the email code works) and the invitation email.
+ * yet, not blocked); each then gets a creator.invite job (lib/jobs/creator-invite.ts) that creates their sign-in
+ * account and sends the email, so a large selection never runs long in the action and a failed email is retried.
  */
 export async function inviteCreators(ids: string[]): Promise<ActionResult<{ invited: number }>> {
   const t = await getTranslations();
@@ -31,31 +31,19 @@ export async function inviteCreators(ids: string[]): Promise<ActionResult<{ invi
   if (!supabase) return fail(t("errors.sessionEnded"));
   const { data, error } = await supabase.rpc("creators_invite", { p_ids: list.data });
   if (error) return fail(error.code === "42501" ? t("errors.forbidden") : t("errors.generic"));
-  const admin = adminClient();
-  let mailFailures = 0;
-  for (const c of data) {
-    const existing = (await admin.rpc("auth_user_id_by_email", { p_email: c.email })).data;
-    if (!existing) {
-      const created = await admin.auth.admin.createUser({
-        email: c.email,
-        email_confirm: true,
-        user_metadata: { full_name: c.display_name },
-      });
-      if (created.error) {
-        log.error("invite.create_user_failed", { error: created.error.message });
-        mailFailures++;
-        continue;
-      }
-    }
-    try {
-      await emailProvider().send({
-        ...creatorInviteEmail(`${env().NEXT_PUBLIC_SITE_URL}/login`, c.display_name),
-        to: c.email,
-      });
-    } catch (e) {
-      log.error("invite.mail_failed", { error: errorMessage(e) });
-      mailFailures++;
-    }
+  const date = istToday();
+  try {
+    await enqueueMany(
+      adminClient(),
+      data.map((c) => ({
+        kind: "creator.invite",
+        payload: { creator_id: c.creator_id, date },
+        idemKey: `creator_invite:${c.creator_id}:${date}`,
+      })),
+    );
+  } catch (e) {
+    log.error("invite.queue_failed", { error: errorMessage(e) });
+    return fail(t("errors.generic"));
   }
   revalidatePath("/admin/creators", "layout");
   const skipped = list.data.length - data.length;
@@ -63,9 +51,7 @@ export async function inviteCreators(ids: string[]): Promise<ActionResult<{ invi
     ok: true,
     data: { invited: data.length },
     message:
-      data.length === 0
-        ? t("onboarding.invite.none")
-        : t("onboarding.invite.sent", { count: data.length, skipped, failed: mailFailures }),
+      data.length === 0 ? t("onboarding.invite.none") : t("onboarding.invite.queued", { count: data.length, skipped }),
   };
 }
 

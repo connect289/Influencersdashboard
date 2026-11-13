@@ -373,7 +373,7 @@ export const SUPER_ADMIN: Guide = {
       blocks: [
         {
           list: [
-            "[System status](/admin/system): the job queue (notifications, deal creation after accepted offers…), scheduled tasks and sending providers. A job that keeps failing is retried with back-off; you can retry a dead job by hand.",
+            "[System status](/admin/system): the job queue (notifications, deal creation after accepted offers…), scheduled tasks and sending providers. A job that keeps failing is retried with back-off, and a job that stops while running (for example it timed out) is retried while it has attempts left. When a job gives up, everyone who can open System status gets a notification in the app, and the job is listed under **Jobs that gave up**; fix the cause and retry it there. Queued emails or WhatsApp messages of a delivery job that gave up are marked failed.",
             "[Audit log](/admin/audit): filter by person, record type, action, record id and date; select a record id to see that record's whole history. PAN and bank numbers are redacted in the log itself.",
           ],
         },
@@ -468,7 +468,7 @@ export const INFLUENCER_MANAGER: Guide = {
           list: [
             "**Log outreach** (channel, outcome, notes) and set a follow-up date; overdue follow-ups appear on your Overview.",
             "**Add tasks** for yourself or a colleague.",
-            "**Invite** the creator to sign up; they get an email and land in the onboarding wizard.",
+            "**Invite** the creator to sign up; they get an email within a few minutes (each invitation is sent by a background job and retried if sending fails) and land in the onboarding wizard.",
             "**Start a deal** from the Deals tab.",
             "Download the **media kit** (PDF) to share with partners.",
             "Check the **Scorecard** and **Compliance** tabs before a renewal (see [Scorecards](#scorecards)).",
@@ -664,6 +664,9 @@ export const INFLUENCER_MANAGER: Guide = {
         },
         {
           p: "For each request choose **Accept**, **Counter** (your own wording or numbers, with a message) or **Decline** (with a reason). Accepting or countering creates a new contract version straight away; for compensation, the deal's terms change first and the contract is regenerated from them, so the deal stays the single source of truth.",
+        },
+        {
+          p: "A compensation decision is final once made: a second click, or a colleague deciding at the same time, is refused. If the contract could not be generated afterwards (for example a detail is missing), the request shows **Terms accepted, contract generation failed**. The deal already has the new terms; fix the cause and click **Retry generation** (or **Regenerate**). Retrying never changes the deal again, and the contract can't be marked ready to sign until it carries the new terms.",
         },
         {
           p: "The **Versions** tab compares any two versions section by section. When every request is answered, click **Mark ready to sign**.",
@@ -942,7 +945,8 @@ export const FINANCE: Guide = {
             "Open [KYC](/admin/kyc) to see creators waiting for review.",
             "Check the PAN, the name on the PAN and the bank account against the uploaded proof.",
             "Use **Reveal** to see a full number when you need it. You must give a reason; every reveal is recorded in the audit log.",
-            "**Verify**, or send it back with a note. If a creator later changes their PAN or bank details, the KYC returns to the queue.",
+            "**Verify**, or send it back with a note. If a creator later changes their PAN, bank account, IFSC or account holder name, the KYC returns to the queue.",
+            "While a creator has a payout in a draft, approved or processing batch, nobody can change their bank account, IFSC or account holder name. Pay or remove that payout first.",
           ],
         },
         { warning: "Never copy full PAN or bank numbers into messages, tasks or notes." },
@@ -1032,7 +1036,7 @@ export const FINANCE: Guide = {
             "Creators who cannot be paid yet are listed as skipped with the reason: KYC not verified, below the minimum payout, waiting for tax confirmation, or a contract that names an agency as payee. Debits net against credits; a negative total is carried forward.",
             "Remove any payout you don't want in this run (its lines go back to payable).",
             "**Approve** the batch. With two-person approval on (Settings → Finance → Payouts) a second, different person must approve too. Payouts that need a GST invoice must have an accepted invoice first.",
-            "Download the **bank file** and upload it to the bank's bulk payment portal. The file is built when you download it and never stored.",
+            "Download the **bank file** and upload it to the bank's bulk payment portal. The file is built when you download it and never stored. It pays the bank account that was verified when the batch was made: if a creator's KYC is no longer verified, or their bank details changed since, the download is refused and names the payouts. Verify the KYC again, or take the payout out (remove it from a draft batch, cancel an approved batch, mark it failed once processing).",
             "When the bank confirms, **Mark paid** one payout with its UTR and date, or upload the bank's response file to mark many at once. A failed payment is marked **Failed** and its lines return to payable.",
           ],
         },

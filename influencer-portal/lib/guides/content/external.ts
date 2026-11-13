@@ -47,7 +47,7 @@ export const CREATOR: Guide = {
           },
         },
         {
-          p: "After approval you can keep your [profile](/creator/profile) and [KYC](/creator/kyc) up to date. If you change your PAN or bank account, Eduwit checks it again before the next payout.",
+          p: "After approval you can keep your [profile](/creator/profile) and [KYC](/creator/kyc) up to date. If you change your PAN, bank account or account holder name, Eduwit checks it again before the next payout. While a payout to you is being prepared or sent, your bank details can't be changed; change them once it has been paid.",
         },
       ],
     },

@@ -1,5 +1,8 @@
 # Eduwit Influencer Portal: typecheck, lint, unit tests, build, database tests (pgTAP on a local Supabase) and the
 # Playwright journeys. No secrets: everything runs against a throwaway local Supabase stack in the runner.
+# Production deploys from main, and work reaches main by merging pushed branches (claude/*, hardening/*, through the
+# local main-deploy branch) without a pull request, so every job also runs on pushes to those branches: pgTAP and the
+# journeys pass before the merge, not only after the deploy (D-197).
 name: influencer-portal CI
 
 on:
@@ -8,7 +11,7 @@ on:
       - "influencer-portal/**"
       - ".github/workflows/influencer-portal-ci.yml"
   push:
-    branches: [main]
+    branches: [main, main-deploy, "claude/**", "hardening/**"]
     paths:
       - "influencer-portal/**"
       - ".github/workflows/influencer-portal-ci.yml"

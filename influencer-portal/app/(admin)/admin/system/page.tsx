@@ -38,6 +38,7 @@ interface JobRow {
   run_at: string;
   last_error: string | null;
   created_at: string;
+  finished_at: string | null;
 }
 
 export async function generateMetadata() {
@@ -48,12 +49,14 @@ export async function generateMetadata() {
 export default async function SystemPage() {
   const { supabase } = await requireStaff("system.read");
   const t = await getTranslations();
-  const [status, jobs] = await Promise.all([
+  const [status, jobs, dead] = await Promise.all([
     supabase.rpc("system_status"),
     supabase.rpc("jobs_recent", { p_status: undefined, p_limit: 50 }),
+    supabase.rpc("jobs_recent", { p_status: "dead", p_limit: 20 }),
   ]);
   const s = status.data as Status | null;
   const rows = (jobs.data ?? []) as JobRow[];
+  const deadRows = (dead.data ?? []) as JobRow[];
   const e = env();
   const stat = (label: string, value: number | string, danger = false) => (
     <div className="rounded-xl bg-surface-2 p-3">
@@ -64,7 +67,7 @@ export default async function SystemPage() {
   return (
     <>
       <PageHeader title={t("nav.admin.system")} description={t("system.subtitle")} />
-      {status.error || jobs.error ? (
+      {status.error || jobs.error || dead.error ? (
         <ErrorState title={t("errors.loadFailed")} description={t("errors.tryAgain")} />
       ) : null}
       {s ? (
@@ -121,6 +124,31 @@ export default async function SystemPage() {
             )}
           </Card>
         </div>
+      ) : null}
+      {deadRows.length > 0 ? (
+        <section className="mt-8" aria-labelledby="dead-jobs">
+          <h2 id="dead-jobs" className="mb-1 text-base font-semibold text-danger">
+            {t("system.deadJobs")}
+          </h2>
+          <p className="mb-3 text-sm text-muted">{t("system.deadJobsHint")}</p>
+          <Card className="p-0 md:p-0">
+            <ul className="divide-y divide-line">
+              {deadRows.map((j) => (
+                <li key={j.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm">
+                  <span className="tabular text-muted">#{j.id}</span>
+                  <span className="font-mono text-xs">{j.kind}</span>
+                  <span className="text-muted">
+                    {t("system.deadAt")} {j.finished_at ? formatRelative(j.finished_at) : "—"}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-muted" title={j.last_error ?? undefined}>
+                    {j.last_error ?? "—"}
+                  </span>
+                  <RetryButton id={j.id} />
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
       ) : null}
       <h2 className="mt-8 mb-3 text-base font-semibold">{t("system.recentJobs")}</h2>
       {rows.length === 0 && !jobs.error ? <EmptyState title={t("system.noJobs")} /> : null}

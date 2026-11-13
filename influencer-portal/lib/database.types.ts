@@ -1741,14 +1741,14 @@ isOneToOne: false
                   ]
                 },"payouts": {
                   Row: {
-                    "advice_path": string | null,"batch_id": string,"created_at": string,"creator_id": string,"eduwit_tds_paise": number,"gross_paise": number,"gst_base_paise": number,"gst_paise": number,"id": string,"needs_invoice": boolean,"net_paise": number,"paid_on": string | null,"payee": string,"ref": string,"sections": NonNullable<Json>,"status": string,"status_reason": string | null,"tds_paise": number,"updated_at": string,"utr": string | null
+                    "advice_path": string | null,"bank_fingerprint": string | null,"bank_last4": string | null,"batch_id": string,"created_at": string,"creator_id": string,"eduwit_tds_paise": number,"gross_paise": number,"gst_base_paise": number,"gst_paise": number,"id": string,"needs_invoice": boolean,"net_paise": number,"paid_on": string | null,"payee": string,"ref": string,"sections": NonNullable<Json>,"status": string,"status_reason": string | null,"tds_paise": number,"updated_at": string,"utr": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "advice_path"?: string | null,"batch_id": string,"created_at"?: string,"creator_id": string,"eduwit_tds_paise"?: number,"gross_paise": number,"gst_base_paise"?: number,"gst_paise"?: number,"id"?: string,"needs_invoice"?: boolean,"net_paise": number,"paid_on"?: string | null,"payee"?: string,"ref": string,"sections"?: NonNullable<Json>,"status"?: string,"status_reason"?: string | null,"tds_paise"?: number,"updated_at"?: string,"utr"?: string | null
+                    "advice_path"?: string | null,"bank_fingerprint"?: string | null,"bank_last4"?: string | null,"batch_id": string,"created_at"?: string,"creator_id": string,"eduwit_tds_paise"?: number,"gross_paise": number,"gst_base_paise"?: number,"gst_paise"?: number,"id"?: string,"needs_invoice"?: boolean,"net_paise": number,"paid_on"?: string | null,"payee"?: string,"ref": string,"sections"?: NonNullable<Json>,"status"?: string,"status_reason"?: string | null,"tds_paise"?: number,"updated_at"?: string,"utr"?: string | null
                   }
                   Update: {
-                    "advice_path"?: string | null,"batch_id"?: string,"created_at"?: string,"creator_id"?: string,"eduwit_tds_paise"?: number,"gross_paise"?: number,"gst_base_paise"?: number,"gst_paise"?: number,"id"?: string,"needs_invoice"?: boolean,"net_paise"?: number,"paid_on"?: string | null,"payee"?: string,"ref"?: string,"sections"?: NonNullable<Json>,"status"?: string,"status_reason"?: string | null,"tds_paise"?: number,"updated_at"?: string,"utr"?: string | null
+                    "advice_path"?: string | null,"bank_fingerprint"?: string | null,"bank_last4"?: string | null,"batch_id"?: string,"created_at"?: string,"creator_id"?: string,"eduwit_tds_paise"?: number,"gross_paise"?: number,"gst_base_paise"?: number,"gst_paise"?: number,"id"?: string,"needs_invoice"?: boolean,"net_paise"?: number,"paid_on"?: string | null,"payee"?: string,"ref"?: string,"sections"?: NonNullable<Json>,"status"?: string,"status_reason"?: string | null,"tds_paise"?: number,"updated_at"?: string,"utr"?: string | null
                   }
                   Relationships: [
                     {
@@ -3016,6 +3016,9 @@ isOneToOne: false
 "contract_notify":
 { Args: { "p_body": string,"p_contract": string,"p_event": string,"p_title": string,"p_to": string }; Returns: undefined
                            },
+"contract_notify_keyed":
+{ Args: { "p_body": string,"p_contract": string,"p_event": string,"p_key": string,"p_title": string,"p_to": string }; Returns: undefined
+                           },
 "contract_send":
 { Args: { "p_contract": string }; Returns: undefined
                            },
@@ -3197,7 +3200,7 @@ isOneToOne: false
 { Args: { "p": Json,"p_deal": string }; Returns: undefined
                            },
 "deal_version_from_counter":
-{ Args: { "p_config": Json,"p_request": string }; Returns: string
+{ Args: { "p_base_version"?: string,"p_config": Json,"p_note"?: string,"p_request": string,"p_status"?: string }; Returns: string
                            },
 "deal_version_json":
 { Args: { "v": Omit<Database["inf"]['Tables']["deal_versions"]['Row'], Database["inf"]['Tables']["deal_versions"]['ComputedFields']> }; Returns: Json
@@ -3372,6 +3375,9 @@ isOneToOne: false
         isOneToOne: false
         isSetofReturn: true
       } },
+"job_dead_record":
+{ Args: { "p_error": string,"p_job_id": number }; Returns: undefined
+                           },
 "job_enqueue":
 { Args: { "p_idem_key"?: string,"p_kind": string,"p_max_attempts"?: number,"p_payload": Json,"p_run_at"?: string }; Returns: number
                            },
@@ -3380,6 +3386,9 @@ isOneToOne: false
                            },
 "job_retry":
 { Args: { "p_id": number }; Returns: boolean
+                           },
+"jobs_reap_stale":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "jobs_recent":
 { Args: { "p_limit"?: number,"p_status"?: string }; Returns: {
@@ -3391,6 +3400,9 @@ isOneToOne: false
                            },
 "json_schema_errors":
 { Args: { "p_path"?: string,"p_schema": Json,"p_value": Json }; Returns: (string)[]
+                           },
+"kyc_bank_fingerprint":
+{ Args: { "p_creator": string }; Returns: string
                            },
 "kyc_queue":
 { Args: Record<PropertyKey, never>; Returns: {

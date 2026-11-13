@@ -180,6 +180,7 @@ export const KYC_DB_ERRORS = {
   invalid_gstin: "kyc.errors.gstin",
   invalid_gst_status: "errors.invalidInput",
   gstin_pan_mismatch: "kyc.errors.gstinPan",
+  bank_locked: "kyc.errors.bankLocked",
 } as const;
 
 /** Validation codes from kycInput (issue messages), mapped to message keys. */

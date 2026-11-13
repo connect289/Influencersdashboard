@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { fetchMe } from "@/lib/auth/guards";
-import { applyCounter, counterTerms, type ApplyError } from "@/lib/contracts/counter";
+import { applyCounter, awaitsGeneration, counterTerms, type ApplyError } from "@/lib/contracts/counter";
 import { loadContract, loadContractSource } from "@/lib/contracts/data";
 import { richDoc } from "@/lib/contracts/doc";
 import { generateVersion, type GenerateResult, type Resolution } from "@/lib/contracts/generate";
@@ -345,9 +345,10 @@ export async function decideClauseRequest(input: ClauseDecisionInput): Promise<A
 }
 
 /**
- * Accept a compensation counter-offer as proposed, or counter it with other values. Either way the deal's terms are
- * replaced by a new accepted version and the contract is regenerated from it, so every number in the contract still
- * comes from the deal.
+ * Accept a compensation counter-offer as proposed, or counter it with other values. The database replaces the deal's
+ * terms with a new accepted version and marks the request decided in one locked step (deciding twice is refused, and
+ * so are terms that moved meanwhile); the contract is then regenerated from the new terms, so every number in it still
+ * comes from the deal. If that generation fails the terms stay agreed and the request offers "Retry generation".
  */
 export async function decideCompRequest(input: CompDecisionInput): Promise<ActionResult<{ missing: string[] }>> {
   const t = await getTranslations();
@@ -369,26 +370,53 @@ export async function decideCompRequest(input: CompDecisionInput): Promise<Actio
   const { error } = await supabase.rpc("deal_version_from_counter", {
     p_request: v.requestId,
     p_config: applied.config,
+    p_status: v.decision,
+    p_note: v.decision === "countered" ? v.note : undefined,
+    p_base_version: src.deal.current_version_id ?? undefined,
   });
   if (error) return dbFail(error, t);
   const r = await generateVersion(supabase, v.contractId, {
     note:
       v.decision === "accepted" ? t("contracts.requests.compAcceptedNote") : t("contracts.requests.compCounteredNote"),
-    resolve: [
-      {
-        id: v.requestId,
-        status: v.decision,
-        note: v.decision === "countered" ? v.note : undefined,
-      },
-    ],
   });
   refresh(v.contractId);
   revalidatePath(`/admin/deals/${found.contract.deal_id}`);
+  if (!r.ok) return generationFailed(r, t);
   return generated(
     r,
     t,
     v.decision === "accepted" ? t("contracts.requests.accepted") : t("contracts.requests.countered"),
   );
+}
+
+/** The terms were agreed but the contract could not be generated: say so, with the reason, and point to the retry. */
+function generationFailed(r: Extract<GenerateResult, { ok: false }>, t: T): ActionResult<never> {
+  const reason = generateFail(r, t);
+  return fail(t("contracts.requests.generationFailed", { reason: reason.ok ? "" : reason.error }));
+}
+
+/**
+ * Retry generating the contract after an agreed counter-offer whose generation failed. Builds a new version from the
+ * deal's terms in force (which already carry the counter-offer); it never writes another deal version.
+ */
+export async function retryCounterGeneration(
+  contractId: string,
+  requestId: string,
+): Promise<ActionResult<{ missing: string[] }>> {
+  const t = await getTranslations();
+  if (!uuid.safeParse(contractId).success || !uuid.safeParse(requestId).success) return fail(t("errors.invalidInput"));
+  const supabase = await signedIn();
+  if (!supabase) return fail(t("errors.sessionEnded"));
+  const c = await loadContract(supabase, contractId);
+  const req = c?.requests.find((x) => x.id === requestId);
+  if (!c || !req || !awaitsGeneration(req)) return fail(t("contracts.errors.nothingToRetry"));
+  const r = await generateVersion(supabase, contractId, {
+    note:
+      req.status === "accepted" ? t("contracts.requests.compAcceptedNote") : t("contracts.requests.compCounteredNote"),
+  });
+  refresh(contractId);
+  if (!r.ok) return generationFailed(r, t);
+  return generated(r, t, t("contracts.regenerated"));
 }
 
 // ---------------------------------------------------------------------------------------------------------------

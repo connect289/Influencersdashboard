@@ -19,6 +19,12 @@ const template = z.object({
 });
 
 type Db = ReturnType<typeof adminClient>;
+interface Outcome {
+  status: "sent" | "skipped" | "failed";
+  provider?: string;
+  ref?: string;
+  error?: string;
+}
 
 /** The recipient's name and WhatsApp number (creators only have one on file). */
 async function recipient(db: Db, userId: string): Promise<{ name: string; phone: string | null }> {
@@ -63,18 +69,22 @@ export const notifyDeliver: JobHandler = async (job) => {
   const queued = (rows ?? []) as { id: number; channel: "email" | "whatsapp" }[];
   if (queued.length === 0) return;
 
-  const result = (
+  // Every outcome is written back; a write that fails fails the job, so a sent copy is never left looking queued
+  // (the retry re-sends with the same idempotency key, which the provider answers without sending twice).
+  const result = async (
     id: number,
     status: "sent" | "skipped" | "failed" | "queued",
     extra: { provider?: string; ref?: string; error?: string } = {},
-  ) =>
-    db.rpc("delivery_result", {
+  ): Promise<void> => {
+    const { error: e } = await db.rpc("delivery_result", {
       p_id: id,
       p_status: status,
       p_provider: extra.provider,
       p_ref: extra.ref,
       p_error: extra.error,
     });
+    if (e) throw new Error(`could not record delivery ${id.toString()} as ${status}: ${e.message}`);
+  };
 
   if (env().LIVE_MODE !== "on") {
     for (const d of queued) await result(d.id, "skipped", { error: "live_mode_off" });
@@ -95,39 +105,40 @@ export const notifyDeliver: JobHandler = async (job) => {
     .parse((await db.rpc("setting", { p_key: "notifications.delivery" })).data);
   const now = new Date();
   const quiet = inQuietHours(now, delivery.quiet_hours_start, delivery.quiet_hours_end);
+
+  /** Sends one copy. Null: nothing to record now (the WhatsApp copy waits for the end of quiet hours). */
+  const deliverOne = async (d: (typeof queued)[number]): Promise<Outcome | null> => {
+    if (d.channel === "whatsapp") {
+      if (quiet) {
+        // Quiet hours: the WhatsApp copy stays queued and this job runs again when they end.
+        const at = sendAfterQuiet(now, delivery.quiet_hours_start, delivery.quiet_hours_end);
+        const { error: e } = await db.rpc("job_enqueue", {
+          p_kind: "notify.deliver",
+          p_payload: { notification_id },
+          p_run_at: at.toISOString(),
+          p_idem_key: `notify:${notification_id}:after-quiet:${at.toISOString()}`,
+        });
+        if (e) throw new Error(`could not schedule the after-quiet delivery: ${e.message}`);
+        return null;
+      }
+      const msg = composeWhatsApp(facts, await templateFor(db, n.event, "whatsapp"), who.name, who.phone, site);
+      if (!msg) return { status: "skipped", error: who.phone ? "no_template" : "no_number" };
+      const sent = await whatsAppProvider().sendTemplate(msg);
+      return { status: "sent", provider: sent.provider, ref: sent.id ?? undefined };
+    }
+    const user = await db.auth.admin.getUserById(n.user_id);
+    const to = user.data.user?.email;
+    if (!to) return { status: "failed", error: "no_email" };
+    const mail = composeEmail(facts, await templateFor(db, n.event, "email"), who.name, site);
+    const sent = await emailProvider().send({ ...mail, to, idempotencyKey: `delivery:${d.id.toString()}` });
+    return { status: "sent", provider: sent.provider, ref: sent.id ?? undefined };
+  };
+
   let retryable: Error | null = null;
   for (const d of queued) {
+    let outcome: Outcome | null;
     try {
-      if (d.channel === "whatsapp") {
-        if (quiet) {
-          // Quiet hours: the WhatsApp copy stays queued and this job runs again when they end.
-          const at = sendAfterQuiet(now, delivery.quiet_hours_start, delivery.quiet_hours_end);
-          await db.rpc("job_enqueue", {
-            p_kind: "notify.deliver",
-            p_payload: { notification_id },
-            p_run_at: at.toISOString(),
-            p_idem_key: `notify:${notification_id}:after-quiet:${at.toISOString()}`,
-          });
-          continue;
-        }
-        const msg = composeWhatsApp(facts, await templateFor(db, n.event, "whatsapp"), who.name, who.phone, site);
-        if (!msg) {
-          await result(d.id, "skipped", { error: who.phone ? "no_template" : "no_number" });
-          continue;
-        }
-        const sent = await whatsAppProvider().sendTemplate(msg);
-        await result(d.id, "sent", { provider: sent.provider, ref: sent.id ?? undefined });
-        continue;
-      }
-      const user = await db.auth.admin.getUserById(n.user_id);
-      const to = user.data.user?.email;
-      if (!to) {
-        await result(d.id, "failed", { error: "no_email" });
-        continue;
-      }
-      const mail = composeEmail(facts, await templateFor(db, n.event, "email"), who.name, site);
-      const sent = await emailProvider().send({ ...mail, to, idempotencyKey: `delivery:${d.id}` });
-      await result(d.id, "sent", { provider: sent.provider, ref: sent.id ?? undefined });
+      outcome = await deliverOne(d);
     } catch (e) {
       const permanent = e instanceof ProviderError && !e.retryable;
       await result(d.id, permanent ? "failed" : "queued", {
@@ -136,7 +147,9 @@ export const notifyDeliver: JobHandler = async (job) => {
       });
       log.warn("notify.delivery_failed", { delivery: d.id, channel: d.channel, permanent });
       if (!permanent) retryable = e instanceof Error ? e : new Error(String(e));
+      continue;
     }
+    if (outcome) await result(d.id, outcome.status, outcome);
   }
   if (retryable) throw retryable;
 };
