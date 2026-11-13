@@ -3,6 +3,24 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 13 Nov 2026 — Witty honours STOP for CRM-owned chats and the shared opt-out in its follow-ups (D-138)
+
+- Found (audit of 13 Nov, fixes approved by the owner): a student who answered STOP to a CRM message sent from
+  Witty's number was not opted out, because Witty stays silent in a chat the CRM owns and returned before reading the
+  text; and Witty's follow-up looked only at its own opt-out flag, so a lead opted out in a CRM, or a number on
+  Spark's suppression list, could still get a follow-up.
+- Changed (database functions only; no table, column, grant on an existing object, cron job or n8n workflow):
+  `public.w2_try_claim` (+19 lines, CRM-owned branch only) marks the conversation opted out and opts the shared lead
+  out through `lead_intake` (`lead.opted_out`), still without replying; `public.w2_nurture_due` (+21 lines) skips a
+  conversation whose shared lead is opted out or whose number is on `b2c.suppressions`; new
+  `public.w2_is_stop_message(text)` (service role only), the same matcher as Spark's. Nothing was removed from either
+  function (checked line by line against production's definitions of the same day).
+- Checked: 59 SQL checks on staging in a rolled-back transaction, 0 failed; applied to staging; production dry run in
+  a rolled-back transaction; applied to production 13 Nov about 17:00 UTC. After: three functions present, none
+  callable by `anon`, 225 conversations still queued for follow-up, none wrongly opted out.
+- Files: `docs/reviews/hardening-2026-11-13/witty/w2_optout.sql`, `.rollback.sql`, `.test.sql`.
+- No dump before this change (owner-accepted, D-090); the rollback file restores the two functions as they were.
+
 ## 13 Nov 2026 — The audit's fixes: thresholds are the owner's, settings saves compare versions, the watchdog never answers 429 (0039, D-137)
 
 - Found (verified audit, fixes approved by the owner): engineers could loosen the thresholds sixteen P1 checks read,
