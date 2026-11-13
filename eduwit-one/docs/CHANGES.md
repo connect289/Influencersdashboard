@@ -3,6 +3,23 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 13 Nov 2026 — A fixed search path on 47 older shared functions (D-140)
+
+- Found (audit of 13 Nov, M5; Supabase's security advisor): 87 functions of schema `public` had no fixed
+  `search_path`. None is `SECURITY DEFINER` and no client role can create objects in `public`, so the exposure was
+  small.
+- Changed: `alter function … set search_path = public, extensions` on the 47 plpgsql ones (Witty's `w2_*`, the two
+  `match_*` searches, `crm_require`, the `student_leads` trigger functions). Only the setting changes; no body,
+  signature, grant or trigger. The value is what every caller already resolved to.
+- Left as they are, on purpose: the five `catalog_*` functions (the legacy catalogue is frozen until it is switched
+  off) and the 35 SQL-language helpers (`crm_mask_*`, `crm_norm_phone`, `web_norm`, `w2_is_test` and the like): a SET
+  clause stops the planner folding them into the calling query, which would slow lists and search. The advisor keeps
+  listing those 40.
+- Checked: Witty's 59 opt-out checks with the change applied (staging, rolled back); eight read functions gave
+  byte-identical results before and after on staging and on production (rolled back); applied to staging, then to
+  production 13 Nov about 17:20 UTC; the hourly Witty conversation tests of 19:00 to 22:00 UTC passed.
+- Files: `docs/reviews/hardening-2026-11-13/shared/public_search_path.sql` and `.rollback.sql`.
+
 ## 13 Nov 2026 — Witty honours STOP for CRM-owned chats and the shared opt-out in its follow-ups (D-138)
 
 - Found (audit of 13 Nov, fixes approved by the owner): a student who answered STOP to a CRM message sent from
