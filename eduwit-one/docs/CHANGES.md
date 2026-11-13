@@ -26,6 +26,7 @@ followed.
 - Production: not applied. Staging rehearsal, `api-apply.sh 0039_settings_owner_and_versions.sql` and the app deploy
   are the next steps (the app's new calls need 0039: deploy after it is applied).
 
+- Production: rehearsed on staging (REHEARSAL PASSED d933ee64…, after staging's B2B job history was pruned to 7 days and B2B m33a–m33d and m33f were brought onto staging; the smoke tick had timed out on 2.27 million history rows), applied with api-apply.sh on 13 Nov 12:15 UTC without a dump (D-090; nightly backup of 13 Nov 00:50 UTC); smoke passed. The app deploys from `main` after the migration, as 0039's new arguments require.
 ## 12 Nov 2026 — Owner set-up items and clean-up done on the owner's word
 
 Production had its nightly backup of 12 Nov 00:50 UTC; Supabase and Vercel are both on Pro (checked).
