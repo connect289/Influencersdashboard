@@ -1,4 +1,4 @@
--- Migration 20261113000100_inf_hardening (D-197): payouts keep the bank details verified when the batch was made
+-- Migration 20261113113000_inf_hardening (D-197): payouts keep the bank details verified when the batch was made
 -- (fingerprint, refused bank file, locked KYC bank fields, holder name counts as a change); a counter-offer decision
 -- is one locked step and regeneration closes it; jobs that die while running stop and reach System status staff;
 -- nightly contract reminders are sent once per day.
