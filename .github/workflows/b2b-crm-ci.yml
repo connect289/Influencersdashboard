@@ -34,7 +34,7 @@ jobs:
       run:
         working-directory: b2b-crm/web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -65,7 +65,7 @@ jobs:
       run:
         working-directory: b2b-crm/supabase
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       # The runner image ships PostgreSQL server binaries (not running); install them only if an image ever drops them.
@@ -84,7 +84,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/dependency-review-action@v4
