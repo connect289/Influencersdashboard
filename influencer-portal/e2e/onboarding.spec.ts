@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { localEnv } from "./env";
 import { staffLogin } from "./helpers";
 import { sixDigitCode, waitForEmail } from "./mail";
 
@@ -100,14 +101,19 @@ test.describe.serial("self sign-up, onboarding and approval", () => {
     await expect(page.getByText("Nobody is waiting")).toBeVisible();
   });
 
-  test("staff invite a prospect, who receives the invitation email", async ({ page }) => {
+  test("staff invite a prospect, who receives the invitation email", async ({ page, request }) => {
     await staffLogin(page, "manager@example.test");
     await page.goto("/admin/creators?q=kabir");
     await page.getByRole("link", { name: /Kabir/ }).click();
     const since = new Date();
     await page.getByRole("button", { name: "Invite to portal" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Send invitation" }).click();
-    await expect(page.getByText(/1 invitation sent/)).toBeVisible();
+    await expect(page.getByText(/1 invitation is on the way/)).toBeVisible();
+    // The email is sent by a creator.invite job; run the job runner as pg_cron would.
+    const jobs = await request.post("/api/internal/jobs", {
+      headers: { "x-internal-key": localEnv().INF_INTERNAL_API_KEY ?? "" },
+    });
+    expect(jobs.status()).toBe(200);
     const mail = await waitForEmail("kabir.creator@example.test", since);
     expect(mail.subject).toContain("invited");
   });

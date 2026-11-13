@@ -34,7 +34,7 @@ The onboarding wizard (`/creator/onboarding`) walks you through six steps. You c
 | Compliance course | A short course on honest claims and disclosing paid partnerships, with a quiz |
 | Submit | Send your profile for review. You'll be told when you're approved, or what to change |
 
-After approval you can keep your profile (`/creator/profile`) and KYC (`/creator/kyc`) up to date. If you change your PAN or bank account, Eduwit checks it again before the next payout.
+After approval you can keep your profile (`/creator/profile`) and KYC (`/creator/kyc`) up to date. If you change your PAN, bank account or account holder name, Eduwit checks it again before the next payout. While a payout to you is being prepared or sent, your bank details can't be changed; change them once it has been paid.
 
 ### Finding and joining campaigns
 

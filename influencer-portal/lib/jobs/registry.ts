@@ -1,13 +1,14 @@
 import "server-only";
 import { contractFinalize } from "./contract-finalize";
+import { creatorInvite } from "./creator-invite";
 import { dealFromApplication } from "./deal-from-application";
-import { digestRun } from "./digest";
+import { digestPerson, digestRun } from "./digest";
 import { ledgerRun } from "./ledger";
 import { leadsBackfill, leadsRerun } from "./leads";
 import { notifyDeliver } from "./notify-deliver";
 import { payoutAdvice } from "./payout-advice";
 import { penaltiesRefresh } from "./penalties-refresh";
-import { scorecardsRun } from "./scorecards";
+import { scorecardsCreator, scorecardsRun } from "./scorecards";
 import { storageRemove } from "./storage-remove";
 import { webhookDeliver } from "./webhook-deliver";
 import type { JobHandler } from "./types";
@@ -23,7 +24,10 @@ export const JOB_HANDLERS: Record<string, JobHandler> = {
   "ledger.run": ledgerRun,
   "payout.advice": payoutAdvice,
   "digest.run": digestRun,
+  "digest.person": digestPerson,
   "webhook.deliver": webhookDeliver,
   "scorecards.run": scorecardsRun,
+  "scorecards.creator": scorecardsCreator,
   "storage.remove": storageRemove,
+  "creator.invite": creatorInvite,
 };

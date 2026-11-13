@@ -165,6 +165,8 @@ export const CONTRACT_DB_ERRORS: [RegExp, string][] = [
   [/cannot move a/i, "transition"],
   [/reason is required/i, "reason"],
   [/change request is not pending/i, "notPending"],
+  [/deal terms changed while/i, "termsChanged"],
+  [/regenerate the contract first/i, "regenerateFirst"],
   [/not negotiable/i, "notNegotiable"],
   [/already pending/i, "duplicateRequest"],
   [/comments are closed|negotiation is closed/i, "closed"],

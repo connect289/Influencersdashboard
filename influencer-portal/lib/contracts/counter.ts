@@ -171,3 +171,13 @@ export function describeCounter(config: CompConfig, changes: readonly CounterCha
     };
   });
 }
+
+/**
+ * A compensation counter-offer whose terms were agreed (accepted or countered) but whose contract version has not been
+ * generated yet: the deal already has the new terms; regenerating the contract closes it.
+ */
+export function awaitsGeneration(r: { kind: string; status: string; resolved_in_version_id: string | null }): boolean {
+  return (
+    r.kind === "compensation" && (r.status === "accepted" || r.status === "countered") && !r.resolved_in_version_id
+  );
+}

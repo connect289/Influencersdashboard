@@ -586,6 +586,9 @@
     "subtitle": "Background jobs, scheduled tasks and sending providers.",
     "dbTime": "Database time {time}",
     "recentJobs": "Recent jobs",
+    "deadJobs": "Jobs that gave up",
+    "deadJobsHint": "Staff with access to this page get a notification in the app when a job gives up. Fix the cause, then retry it.",
+    "deadAt": "Gave up",
     "noJobs": "No jobs have run yet.",
     "retry": "Retry",
     "retried": "Queued again.",
@@ -900,6 +903,7 @@
       "ifsc": "That IFSC isn't valid. It has 11 characters and the fifth is 0.",
       "gstin": "That GSTIN isn't valid.",
       "gstinPan": "The GSTIN must contain your PAN (characters 3 to 12).",
+      "bankLocked": "Bank details can't change while a payout to this account is being prepared or sent. Try again once it has been paid, or ask Eduwit Finance to take it out of the batch.",
       "proofType": "Upload a JPG, PNG, WebP or PDF up to 10 MB.",
       "uploadFailed": "The upload failed. Try again.",
       "reason": "Give a reason (at least 3 characters).",
@@ -1453,7 +1457,7 @@
       "send": "Send invitation",
       "bulk": "Invite to portal",
       "none": "Nobody could be invited (an email is needed, and they mustn't have an account already).",
-      "sent": "{count, plural, one {# invitation} other {# invitations}} sent.{skipped, plural, =0 {} other { # skipped (no email or already signed up).}}{failed, plural, =0 {} other { # emails failed.}}"
+      "queued": "{count, plural, one {# invitation is} other {# invitations are}} on the way. Each is sent within a few minutes and retried if sending fails.{skipped, plural, =0 {} other { # skipped (no email or already signed up).}}"
     }
   },
   "campaigns": {
@@ -2528,6 +2532,9 @@
       "transition": "That status change isn't possible from here.",
       "reason": "Give a reason (at least a few words).",
       "notPending": "This request has already been answered.",
+      "termsChanged": "The deal's terms changed while you were deciding. Reload the page and decide again.",
+      "regenerateFirst": "Accepted counter-offer terms aren't in the contract yet. Retry generation on the request first.",
+      "nothingToRetry": "There's nothing to generate again for this request.",
       "notNegotiable": "This clause isn't negotiable.",
       "duplicateRequest": "A request for this is already waiting for an answer.",
       "closed": "Negotiation on this contract is closed.",
@@ -2776,6 +2783,9 @@
       "counteredNote": "Eduwit's wording for {clause}",
       "compAcceptedNote": "Compensation counter-offer accepted",
       "compCounteredNote": "Compensation countered by Eduwit",
+      "generationFailed": "The new terms are agreed and saved, but the contract could not be generated: {reason} Fix the cause, then use Retry generation on the request.",
+      "awaitingGeneration": "Terms accepted, contract generation failed. The deal already has these terms; the contract will show them once it is generated again.",
+      "retryGeneration": "Retry generation",
       "reject": "Decline",
       "rejectReason": "Reason (shown to the creator)",
       "rejected": "Declined. The creator has been told.",

@@ -136,6 +136,8 @@ export const EVENTS = {
   "fraud.flagged": e("staff", S, { vars: ["creator"] }),
   "staff.negotiation_pending": e("staff", S, { vars: ["count"] }),
   "staff.review_pending": e("staff", S, { vars: ["count"] }),
+  // Operations: a background job gave up (in the app only, so a broken mail provider cannot loop; see D-197)
+  "system.job_dead": e("staff", S, { channels: [], vars: ["kind"] }),
 } as const satisfies Record<string, EventDef>;
 
 export type EventKey = keyof typeof EVENTS;

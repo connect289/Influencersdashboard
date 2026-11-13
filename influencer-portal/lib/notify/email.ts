@@ -54,11 +54,13 @@ export class SmtpEmailProvider implements EmailProvider {
   }
 }
 
+/** Server errors and rate limits are worth retrying; other 4xx answers are permanent unless `retryable` says so. */
 async function postJson(
   url: string,
   headers: Record<string, string>,
   body: unknown,
   fetchImpl: typeof fetch,
+  retryable: (status: number) => boolean = () => false,
 ): Promise<Record<string, unknown>> {
   const res = await fetchImpl(url, {
     method: "POST",
@@ -68,7 +70,10 @@ async function postJson(
   });
   const text = await res.text();
   if (!res.ok)
-    throw new ProviderError(`HTTP ${res.status}: ${text.slice(0, 300)}`, res.status >= 500 || res.status === 429);
+    throw new ProviderError(
+      `HTTP ${res.status}: ${text.slice(0, 300)}`,
+      res.status >= 500 || res.status === 429 || retryable(res.status),
+    );
   try {
     return JSON.parse(text) as Record<string, unknown>;
   } catch {
@@ -106,6 +111,9 @@ export class ResendEmailProvider implements EmailProvider {
           : {}),
       },
       this.fetchImpl,
+      // 409: a request with this idempotency key is still in progress (or was sent with other content). The send may
+      // well have happened, so it is retried with the same key, which Resend answers without sending twice.
+      (status) => status === 409,
     );
     return { provider: this.name, id: typeof r.id === "string" ? r.id : null };
   }

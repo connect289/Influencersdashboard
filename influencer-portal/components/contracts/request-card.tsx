@@ -10,8 +10,13 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/input";
 import { useAction } from "@/components/ui/use-action";
-import { decideClauseRequest, decideCompRequest, withdrawContractChange } from "@/lib/actions/contracts";
-import type { CounterItem, CounterLine } from "@/lib/contracts/counter";
+import {
+  decideClauseRequest,
+  decideCompRequest,
+  retryCounterGeneration,
+  withdrawContractChange,
+} from "@/lib/actions/contracts";
+import { awaitsGeneration, type CounterItem, type CounterLine } from "@/lib/contracts/counter";
 import { diffWords } from "@/lib/contracts/diff";
 import { plainText, type Block, type RichDoc } from "@/lib/contracts/doc";
 import { formatDateTime } from "@/lib/format";
@@ -29,6 +34,7 @@ export interface RequestView {
   status: "pending" | "accepted" | "rejected" | "countered" | "withdrawn";
   created_at: string;
   decision_note: string | null;
+  resolved_in_version_id: string | null;
 }
 
 export function WordDiff({ before, after }: { before: string; after: string }) {
@@ -257,6 +263,23 @@ export function RequestCard({
         <p className="mt-1 text-sm text-muted">
           <span className="font-medium text-ink">{t("contracts.requests.decisionLabel")}</span> {r.decision_note}
         </p>
+      ) : null}
+      {awaitsGeneration(r) ? (
+        <div role="status" className="mt-3 flex flex-col gap-2 rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+          <p>{t("contracts.requests.awaitingGeneration")}</p>
+          {canDecide ? (
+            <div>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => run(() => retryCounterGeneration(contractId, r.id))}
+              >
+                {t("contracts.requests.retryGeneration")}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       ) : null}
       {open && (canDecide || canWithdraw) ? (
         <div className="mt-3 flex flex-wrap gap-2">

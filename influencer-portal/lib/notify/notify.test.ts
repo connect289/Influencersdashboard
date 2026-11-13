@@ -45,6 +45,13 @@ describe("email providers", () => {
     expect((err as ProviderError).retryable).toBe(true);
   });
 
+  it("a Resend 409 (same idempotency key still in progress) is retried, not given up", async () => {
+    const err = await new ResendEmailProvider("x", "k", fakeFetch(409, {}, {})).send(msg).catch((e: unknown) => e);
+    expect((err as ProviderError).retryable).toBe(true);
+    const brevo = await new BrevoEmailProvider("x", "k", fakeFetch(409, {}, {})).send(msg).catch((e: unknown) => e);
+    expect((brevo as ProviderError).retryable).toBe(false);
+  });
+
   it("a 4xx is not retryable", async () => {
     const err = await new ResendEmailProvider("x", "k", fakeFetch(422, {}, {})).send(msg).catch((e: unknown) => e);
     expect((err as ProviderError).retryable).toBe(false);
