@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mediaAllowed, mediaDownload, mediaInfo, mediaPath, messageBody, parseWebhook, safeFileName, sendWhatsApp, verifyMetaSignature } from "./whatsapp";
 
 describe("WhatsApp Cloud API", () => {
@@ -136,5 +136,56 @@ describe("WhatsApp media in (C1)", () => {
     expect(seen.every((s) => s.auth === "Bearer tok")).toBe(true);
     await expect(mediaDownload(cfg, info.url, 4, fake)).rejects.toThrow(/larger/);
     await expect(mediaInfo(cfg, "../me", fake)).rejects.toThrow(/media id/);
+  });
+});
+
+describe("an ambiguous send is never repeated (b55)", () => {
+  const cfg = { phoneNumberId: "123", token: "t", apiVersion: "v21.0" };
+  const text = { type: "text" as const, text: "hi" };
+  const answer = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+  const throws = (e: unknown) => (async () => { throw e; }) as unknown as typeof fetch;
+
+  it("reports a 5xx from Meta as maybe sent (retry: false)", async () => {
+    const r = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(503, { error: { message: "Service unavailable", code: 2 } }));
+    expect(r).toMatchObject({ ok: false, retry: false, error: expect.stringMatching(/2: Service unavailable.*may have gone out/) });
+  });
+
+  it("reports no answer in time as maybe sent", async () => {
+    const r = await sendWhatsApp(cfg, "919000000012", text, true, null, throws(new DOMException("The operation timed out.", "TimeoutError")));
+    expect(r).toMatchObject({ ok: false, retry: false, error: expect.stringMatching(/^No answer from WhatsApp in time; it may have gone out/) });
+  });
+
+  it("reports a connection dropped after the request went out as maybe sent", async () => {
+    const r = await sendWhatsApp(cfg, "919000000012", text, true, null, throws(new TypeError("fetch failed", { cause: Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }) })));
+    expect(r).toMatchObject({ ok: false, retry: false });
+  });
+
+  it("keeps a 4xx and a failure before the request left as ordinary failures", async () => {
+    const bad = await sendWhatsApp(cfg, "919000000012", text, true, null, answer(400, { error: { message: "Invalid parameter", code: 100 } }));
+    expect(bad).toEqual({ ok: false, error: "100: Invalid parameter" });
+    const dns = await sendWhatsApp(cfg, "919000000012", text, true, null, throws(new TypeError("fetch failed", { cause: Object.assign(new Error("getaddrinfo ENOTFOUND"), { code: "ENOTFOUND" }) })));
+    expect(dns).toEqual({ ok: false, error: "fetch failed" });
+    const noLink = await sendWhatsApp(cfg, "919000000012", { type: "media", media_kind: "image", path: "leads/7/a.png" }, true, null, answer(200, {}));
+    expect(noLink).toEqual({ ok: false, error: "a media message needs an https link" });
+  });
+});
+
+describe("webhooks for other numbers (b55)", () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
+  const change = (id: string, wamid: string) => ({ value: { metadata: { phone_number_id: id, display_phone_number: "91 80000 00000" },
+    messages: [{ from: "919000000012", id: wamid, type: "text", text: { body: "hi" } }], statuses: [{ id: `${wamid}.out`, status: "sent", timestamp: "1760000000" }] } });
+  const body = { entry: [{ changes: [change("123", "wamid.OURS"), change("999", "wamid.OTHER")] }, { changes: [{ value: { messages: [{ from: "919000000013", id: "wamid.NOMETA", type: "text", text: { body: "x" } }] } }] }] };
+
+  it("reads only changes for Spark's own number", () => {
+    const { messages, statuses } = parseWebhook(body, "123");
+    expect(messages.map((m) => m.wamid)).toEqual(["wamid.OURS"]);
+    expect(statuses.map((s) => s.wamid)).toEqual(["wamid.OURS.out"]);
+  });
+
+  it("takes the number from WHATSAPP_PHONE_NUMBER_ID, and reads everything when it is not set", () => {
+    vi.stubEnv("WHATSAPP_PHONE_NUMBER_ID", "999");
+    expect(parseWebhook(body).messages.map((m) => m.wamid)).toEqual(["wamid.OTHER"]);
+    vi.stubEnv("WHATSAPP_PHONE_NUMBER_ID", "");
+    expect(parseWebhook(body).messages.map((m) => m.wamid)).toEqual(["wamid.OURS", "wamid.OTHER", "wamid.NOMETA"]);
   });
 });

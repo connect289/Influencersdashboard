@@ -48,23 +48,49 @@ export function messageBody(to: string, p: WaPayload, mediaLink?: string | null)
   };
 }
 
-export type SendResult = { ok: boolean; dry_run?: boolean; wamid?: string; error?: string };
+/**
+ * retry: false means the message may have reached Meta (no answer in time, the connection dropped after the request
+ * went out, or a 5xx): b2c.send_done marks it failed and never queues it again, so a student is never sent it twice.
+ */
+export type SendResult = { ok: boolean; dry_run?: boolean; wamid?: string; error?: string; retry?: boolean };
 
-export async function sendWhatsApp(cfg: WaConfig | null, to: string, p: WaPayload, live: boolean, mediaLink?: string | null): Promise<SendResult> {
+const MAYBE_SENT = "it may have gone out, so it is not sent again automatically; check with the student and send again if it did not arrive";
+
+/** Network failures that happen before the request reaches Meta (nothing was sent, so trying again is safe). */
+const NOT_SENT_CODES = /^(ENOTFOUND|EAI_AGAIN|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|UND_ERR_CONNECT_TIMEOUT|CERT_|ERR_TLS_CERT|UNABLE_TO_|DEPTH_ZERO_SELF_SIGNED|SELF_SIGNED_CERT)/;
+
+export function failedBeforeSending(e: unknown): boolean {
+  const cause = (e as { cause?: { code?: unknown } } | null)?.cause;
+  return typeof cause?.code === "string" && NOT_SENT_CODES.test(cause.code);
+}
+
+export async function sendWhatsApp(cfg: WaConfig | null, to: string, p: WaPayload, live: boolean, mediaLink?: string | null, fetchImpl: typeof fetch = fetch): Promise<SendResult> {
   if (!live) return { ok: true, dry_run: true };
   if (!cfg) return { ok: false, error: "WhatsApp is not configured (WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_TOKEN)." };
+  let body: string;
   try {
-    const res = await fetch(`https://graph.facebook.com/${cfg.apiVersion ?? "v21.0"}/${cfg.phoneNumberId}/messages`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${cfg.token}`, "content-type": "application/json" },
-      body: JSON.stringify(messageBody(to, p, mediaLink)),
-      signal: AbortSignal.timeout(15_000),
-    });
-    const body = (await res.json().catch(() => ({}))) as { messages?: { id: string }[]; error?: { message?: string; code?: number } };
-    if (!res.ok) return { ok: false, error: body.error?.message ? `${body.error.code ?? res.status}: ${body.error.message}` : `HTTP ${res.status}` };
-    return { ok: true, wamid: body.messages?.[0]?.id };
+    body = JSON.stringify(messageBody(to, p, mediaLink));
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+  try {
+    const res = await fetchImpl(`https://graph.facebook.com/${cfg.apiVersion ?? "v21.0"}/${cfg.phoneNumberId}/messages`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${cfg.token}`, "content-type": "application/json" },
+      body,
+      signal: AbortSignal.timeout(15_000),
+    });
+    const b = (await res.json().catch(() => ({}))) as { messages?: { id: string }[]; error?: { message?: string; code?: number } };
+    if (!res.ok) {
+      const error = b.error?.message ? `${b.error.code ?? res.status}: ${b.error.message}` : `HTTP ${res.status}`;
+      return res.status >= 500 ? { ok: false, retry: false, error: `WhatsApp answered ${error}; ${MAYBE_SENT}` } : { ok: false, error };
+    }
+    return { ok: true, wamid: b.messages?.[0]?.id };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (failedBeforeSending(e)) return { ok: false, error: msg };
+    const timeout = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
+    return { ok: false, retry: false, error: `${timeout ? "No answer from WhatsApp in time" : `The connection to WhatsApp failed (${msg})`}; ${MAYBE_SENT}` };
   }
 }
 
@@ -91,14 +117,19 @@ type MetaMessage = {
 type MetaMedia = { id?: string; mime_type?: string; filename?: string; caption?: string; sha256?: string };
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
-/** Flattens a Cloud API webhook into inbound messages and delivery statuses. */
-export function parseWebhook(body: unknown): { messages: Inbound[]; statuses: StatusUpdate[] } {
+/**
+ * Flattens a Cloud API webhook into inbound messages and delivery statuses. Only changes for Spark's own number are read
+ * (value.metadata.phone_number_id = WHATSAPP_PHONE_NUMBER_ID, when set): other numbers on the same Meta app or account
+ * are never taken for Spark messages.
+ */
+export function parseWebhook(body: unknown, phoneNumberId: string | undefined = process.env.WHATSAPP_PHONE_NUMBER_ID): { messages: Inbound[]; statuses: StatusUpdate[] } {
   const messages: Inbound[] = [];
   const statuses: StatusUpdate[] = [];
   const entries = (body as { entry?: { changes?: { value?: Record<string, unknown> }[] }[] })?.entry ?? [];
   for (const e of entries) {
     for (const c of e.changes ?? []) {
       const v = c.value ?? {};
+      if (phoneNumberId && String((v.metadata as { phone_number_id?: unknown } | undefined)?.phone_number_id ?? "") !== phoneNumberId) continue;
       const contacts = (v.contacts as { wa_id: string; profile?: { name?: string } }[] | undefined) ?? [];
       for (const m of (v.messages as MetaMessage[] | undefined) ?? []) {
         const name = contacts.find((x) => x.wa_id === m.from)?.profile?.name ?? null;

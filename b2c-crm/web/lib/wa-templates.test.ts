@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase/admin", () => ({ adminClient: () => ({}) }));
+const db = vi.hoisted(() => ({ rpcs: [] as { fn: string; args: Record<string, unknown> }[], upserts: [] as unknown[] }));
+vi.mock("@/lib/supabase/admin", () => ({
+  adminClient: () => ({
+    rpc: async (fn: string, args: Record<string, unknown>) => { db.rpcs.push({ fn, args }); return { data: null, error: null }; },
+    from: () => ({ upsert: async (row: unknown) => { db.upserts.push(row); return { error: null }; } }),
+  }),
+}));
 import type { fetchChecked } from "./safe-fetch";
-import { sampleRules, templateBody, uploadHeaderSample } from "./wa-templates";
+import { sampleRules, syncTemplates, templateBody, uploadHeaderSample } from "./wa-templates";
 
 describe("a media header's sample", () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
@@ -46,5 +52,29 @@ describe("Meta template body", () => {
     expect(templateBody({ ...base, header: { type: "text", text: "Fees" } }).components).toEqual([{ type: "HEADER", format: "TEXT", text: "Fees" }, { type: "BODY", text: "Hi" }]);
     expect((templateBody({ ...base, header: { type: "image", example_url: "https://x.in/a.png" } }, "4::h") as { components: unknown[] }).components[0])
       .toEqual({ type: "HEADER", format: "IMAGE", example: { header_handle: ["4::h"] } });
+  });
+});
+
+describe("the hourly template sync", () => {
+  const meta = (list: Response) => vi.fn(async (url: string) =>
+    url.includes("/message_templates") ? list : new Response(JSON.stringify({ quality_rating: "GREEN", messaging_limit_tier: "TIER_1K" })));
+  const env = () => { vi.stubEnv("WHATSAPP_PHONE_NUMBER_ID", "123"); vi.stubEnv("WHATSAPP_TOKEN", "t"); vi.stubEnv("WHATSAPP_WABA_ID", "waba"); };
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); db.rpcs = []; db.upserts = []; });
+
+  it("fails with Meta's message when the template list is refused, so the connector shows it", async () => {
+    env();
+    vi.stubGlobal("fetch", meta(new Response(JSON.stringify({ error: { message: "Error validating access token", code: 190 } }), { status: 401 })));
+    await expect(syncTemplates(true)).rejects.toThrow("the template list was refused: 190: Error validating access token");
+    expect(db.rpcs.map((r) => r.fn)).not.toContain("sync_set");
+    expect(db.rpcs.map((r) => r.fn)).not.toContain("wa_template_status");
+    expect(db.upserts).toEqual([]);
+  });
+
+  it("records each template and the quality rating when Meta answers", async () => {
+    env();
+    vi.stubGlobal("fetch", meta(new Response(JSON.stringify({ data: [{ name: "staff_alert", language: "en", status: "APPROVED", id: "1" }] }))));
+    expect(await syncTemplates(true)).toEqual({ synced: 1 });
+    expect(db.rpcs.map((r) => r.fn)).toEqual(["sync_get", "wa_template_status", "sync_set"]);
+    expect(db.upserts).toHaveLength(1);
   });
 });

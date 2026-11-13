@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { assertUser } from "@/lib/auth";
+import { allowed, assertUser } from "@/lib/auth";
 import { act, rpc, type ActionResult } from "@/lib/data";
 
 export type Snippet = { id: number; title: string; body: string; shared: boolean; uses: number; mine: boolean; author: string | null; updated_at: string };
@@ -15,7 +15,8 @@ export async function snippetsMine(): Promise<Snippet[]> {
 }
 
 export async function snippetSave(input: z.input<typeof schema>): Promise<ActionResult<number>> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   const p = schema.safeParse(input);
   if (!p.success) return { ok: false, error: "Give the snippet a name and some text (at most 1,000 characters)." };
   const r = await act(() => rpc<number>("snippet_save", { p: p.data }), p.data.id ? "Snippet saved." : "Snippet added.");
@@ -25,7 +26,8 @@ export async function snippetSave(input: z.input<typeof schema>): Promise<Action
 }
 
 export async function snippetDelete(id: number): Promise<ActionResult> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("snippet_delete", { p_id: z.coerce.number().int().positive().parse(id) }), "Snippet removed.");
   revalidatePath("/s/me");
   revalidatePath("/s/inbox");

@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { assertUser, isAllowedEmail } from "@/lib/auth";
+import { allowed, assertUser, isAllowedEmail } from "@/lib/auth";
 import { act, rpc, type ActionResult } from "@/lib/data";
 import { adminClient } from "@/lib/supabase/admin";
 
@@ -19,7 +19,8 @@ function done(path = "/w") {
 // ---------- leads (bulk) ----------
 
 export async function reassign(leads: number[], userId: string | null, reason: string): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN, "sales_head"]);
+  const gate = await allowed([...ADMIN, "sales_head"]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<number>("reassign", { p_leads: ids.parse(leads), p_user: userId ? uuid.parse(userId) : null, p_reason: reason }),
     userId ? "Reassigned." : "Sent through the allocation rules again.");
   done();
@@ -27,28 +28,32 @@ export async function reassign(leads: number[], userId: string | null, reason: s
 }
 
 export async function routeToPartners(leads: number[], reason: string): Promise<ActionResult<{ sent: number; refused: { lead_id: number; why: string }[] }>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<{ sent: number; refused: { lead_id: number; why: string }[] }>("route_to_partners", { p_leads: ids.parse(leads), p_reason: reason }));
   done();
   return r;
 }
 
 export async function deleteLeads(leads: number[], reason: string): Promise<ActionResult<{ deleted: number; kept: { lead_id: number; why: string }[] }>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<{ deleted: number; kept: { lead_id: number; why: string }[] }>("lead_delete", { p_leads: ids.parse(leads), p_reason: reason }));
   done();
   return r;
 }
 
 export async function restoreLeads(leads: number[]): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<number>("lead_restore", { p_leads: ids.parse(leads) }), "Restored.");
   done();
   return r;
 }
 
 export async function tagLeads(leads: number[], tag: string, add: boolean): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN, "marketing"]);
+  const gate = await allowed([...ADMIN, "marketing"]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<number>("tag", { p_leads: ids.parse(leads), p_tag: tag.slice(0, 40), p_add: add }), add ? "Tagged." : "Tag removed.");
   done();
   return r;
@@ -56,14 +61,16 @@ export async function tagLeads(leads: number[], tag: string, add: boolean): Prom
 
 /** Every id of the current view or search ("select all N in this view"), at most 20,000 (b2c.lead_list mode ids). */
 export async function viewIds(query: Record<string, unknown>): Promise<ActionResult<{ total: number; ids: number[] }>> {
-  await assertUser([...ADMIN, "marketing"]);
+  const gate = await allowed([...ADMIN, "marketing"]);
+  if (!gate.ok) return gate;
   const { filters, search, include_test, drill, deleted } = query;
   return act(() => rpc<{ total: number; ids: number[] }>("lead_list", { p: { filters: filters ?? {}, search: search ?? "", include_test: typeof include_test === "boolean" ? include_test : null, drill: drill ?? null, deleted: deleted === true, mode: "ids" } }));
 }
 
 /** Into a journey or out of one (b2c.bulk_journey: Marketing too); each lead is checked as if done alone. */
 export async function bulkJourney(leads: number[], action: "add" | "remove", journey: number | null): Promise<ActionResult<Refusals>> {
-  await assertUser([...ADMIN, "marketing"]);
+  const gate = await allowed([...ADMIN, "marketing"]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<Refusals>("bulk_journey", { p_leads: manyIds.parse(leads), p_action: action, p_journey: action === "add" ? id.parse(journey) : null }));
   done();
   return r;
@@ -71,7 +78,8 @@ export async function bulkJourney(leads: number[], action: "add" | "remove", jou
 
 /** One stage, sub-stage and comment for many (b2c.bulk_stage, Admin), under the stage rules. */
 export async function bulkStage(leads: number[], stage: number, sub: string | null, comment: string, nextDue: string | null): Promise<ActionResult<Refusals>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<Refusals>("bulk_stage", { p_leads: manyIds.parse(leads), p_stage: id.parse(stage), p_sub: sub || null, p_comment: comment.trim() || null, p_next_due: nextDue }));
   done();
   return r;
@@ -79,14 +87,16 @@ export async function bulkStage(leads: number[], stage: number, sub: string | nu
 
 /** Bulk delete as a background job (b2c.lead_delete_request): the typed confirmation "DELETE <n>" is checked again there. */
 export async function deleteRequest(leads: number[], reason: string, confirm: string): Promise<ActionResult<{ job_id: number; leads: number }>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<{ job_id: number; leads: number }>("lead_delete_request", { p_leads: manyIds.parse(leads), p_reason: reason, p_confirm: confirm }));
   done();
   return r;
 }
 
 export async function bulkJobUndo(job: number): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<number>("bulk_job_undo", { p_job: id.parse(job) }));
   done();
   return r.ok ? { ...r, notice: `${r.data ?? 0} leads restored.` } : r;
@@ -94,7 +104,8 @@ export async function bulkJobUndo(job: number): Promise<ActionResult<number>> {
 
 /** A 2-minute link to one of the person's ready exports (b2c.export_open logs the download). */
 export async function exportLink(exportId: number): Promise<ActionResult<string>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   return act(async () => {
     const path = await rpc<string>("export_open", { p_export: id.parse(exportId) });
     const { data, error } = await adminClient().storage.from("b2c-exports").createSignedUrl(path, 120, { download: true });
@@ -105,7 +116,8 @@ export async function exportLink(exportId: number): Promise<ActionResult<string>
 
 /** The student's erasure request (DPDP, b2c.lead_erase): cannot be undone. */
 export async function eraseLead(leadId: number, reference: string, note: string): Promise<ActionResult<{ erased: boolean; messages: number; files: number }>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<{ erased: boolean; messages: number; files: number }>("lead_erase", { p_lead: id.parse(leadId), p_reference: reference.trim().slice(0, 200), p_note: note.trim().slice(0, 300) || null }));
   done();
   return r;
@@ -113,7 +125,8 @@ export async function eraseLead(leadId: number, reference: string, note: string)
 
 /** The Admin's answer to a flagged lead (b2c.flag_review). */
 export async function flagReview(leadId: number, action: "keep" | "junk" | "cannot_serve", note: string): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("flag_review", { p_lead: id.parse(leadId), p_action: action, p_note: note.trim() || null }),
     action === "keep" ? "Kept: marketing may continue." : "Closed and sent to the master lead table.");
   done();
@@ -123,14 +136,16 @@ export async function flagReview(leadId: number, action: "keep" | "junk" | "cann
 // ---------- to qualify (b39) ----------
 
 export async function qualifyAssign(request: number, userId: string | null): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("qualify_assign", { p_request: id.parse(request), p_user: userId ? uuid.parse(userId) : null }), userId ? "Given to the counsellor." : "Taken back.");
   done("/w/qualify");
   return r;
 }
 
 export async function qualifyResend(request: number): Promise<ActionResult<{ whatsapp: number | null; email: number | null }>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<{ whatsapp: number | null; email: number | null }>("qualify_resend", { p_request: id.parse(request) }));
   done("/w/qualify");
   if (!r.ok) return r;
@@ -140,21 +155,24 @@ export async function qualifyResend(request: number): Promise<ActionResult<{ wha
 
 /** The counsellors who may answer the Replies inbox (b2c.replies_delegates_set). */
 export async function repliesDelegatesSet(users: string[]): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("replies_delegates_set", { p_users: z.array(uuid).max(50).parse(users) }), "Saved.");
   done("/w/nurture");
   return r;
 }
 
 export async function coachingNote(leadId: number, body: string): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("add_note", { p_lead: leadId, p_body: body.slice(0, 4000), p_internal: true }), "Coaching note saved (only the Admin and the sales head see it).");
   revalidatePath(`/w/leads/${leadId}`);
   return r;
 }
 
 export async function adminEditContact(contactId: number, value: string | null, remove: boolean, leadId: number): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("admin_edit_contact", { p_contact: contactId, p_value: value, p_remove: remove }), remove ? "Removed." : "Saved.");
   revalidatePath(`/w/leads/${leadId}`);
   return r;
@@ -175,7 +193,8 @@ const condition = z.object({
 
 /** The shares a performance rule would use now (b2c.perf_preview). */
 export async function perfPreview(rule: number): Promise<ActionResult<unknown>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   return act(() => rpc("perf_preview", { p_rule: z.coerce.number().int().positive().parse(rule) }));
 }
 
@@ -183,7 +202,8 @@ export async function ruleSave(input: {
   id?: number | null; name: string; enabled?: boolean; condition?: z.infer<typeof condition>; logic?: string; params?: Record<string, unknown>;
   pool_id?: number | null; fallbacks?: string[]; applies_from?: string | null;
 }): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   if (input.condition && !condition.safeParse(input.condition).success) return { ok: false, error: "The condition is not valid." };
   const r = await act(() => rpc<number>("rule_save", { p: input }), "Rule saved. It applies to the next lead.");
   done("/w/allocation");
@@ -191,49 +211,56 @@ export async function ruleSave(input: {
 }
 
 export async function rulesReorder(order: number[]): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("rules_reorder", { p_ids: ids.parse(order) }), "Order saved.");
   done("/w/allocation");
   return r;
 }
 
 export async function poolSave(input: { id?: number | null; name: string; description?: string | null; members: { user_id: string; weight: number }[] }): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<number>("pool_save", { p: input }), "Pool saved.");
   done("/w/allocation");
   return r;
 }
 
 export async function calendarSave(userId: string, patterns: { isodow: number; start: string; end: string }[]): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("calendar_save", { p_user: uuid.parse(userId), p_patterns: patterns }), "Working hours saved.");
   done("/w/allocation");
   return r;
 }
 
 export async function leaveAdd(userId: string, from: string, to: string, mode: "hold" | "reassign", afterHours: number | null, reason: string): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("leave_add", { p_user: uuid.parse(userId), p_from: from, p_to: to, p_mode: mode, p_after: afterHours, p_reason: reason || null }), "Leave added.");
   done("/w/allocation");
   return r;
 }
 
 export async function holidaySave(day: string, name: string): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("holiday_save", { p_day: day, p_name: name, p_kind: "company" }), "Holiday saved.");
   done("/w/allocation");
   return r;
 }
 
 export async function simulate(from: string, to: string): Promise<ActionResult<{ leads: number; unassigned: number; by_person: { user_id: string; name: string | null; actual: number; simulated: number }[] }>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   return act(() => rpc("simulate", { p_from: from, p_to: to }));
 }
 
 // ---------- enrolments ----------
 
 export async function enrollmentVerify(enrollmentId: number, ok: boolean, note: string): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("enrollment_verify", { p_id: enrollmentId, p_ok: ok, p_note: note || null }), ok ? "Verified." : "Sent back to the counsellor.");
   done("/w/enrollments");
   return r;
@@ -241,7 +268,8 @@ export async function enrollmentVerify(enrollmentId: number, ok: boolean, note: 
 
 /** A short-lived link to a private document, for the Admin checking an enrolment proof. */
 export async function documentLink(path: string): Promise<ActionResult<string>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   if (!/^leads\/\d+\/[0-9a-f-]+\.(pdf|jpeg|png|webp)$/.test(path)) return { ok: false, error: "Unknown document." };
   const { data, error } = await adminClient().storage.from("b2c-documents").createSignedUrl(path, 300);
   if (error || !data) return { ok: false, error: "The document could not be opened." };
@@ -264,7 +292,8 @@ const userSchema = z.object({
  * the person can sign in once active. Only the Admin.
  */
 export async function userSave(input: z.input<typeof userSchema>): Promise<ActionResult<string>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const p = userSchema.safeParse(input);
   if (!p.success) return { ok: false, error: "Check the name, email and role." };
   const email = p.data.email.toLowerCase();
@@ -286,7 +315,8 @@ export async function userSave(input: z.input<typeof userSchema>): Promise<Actio
 }
 
 export async function userDeactivate(userId: string, reason: string): Promise<ActionResult<{ reassigned: number }>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<{ reassigned: number }>("user_deactivate", { p_user: uuid.parse(userId), p_reason: reason }));
   done("/w/teams");
   return r;
@@ -295,7 +325,8 @@ export async function userDeactivate(userId: string, reason: string): Promise<Ac
 // ---------- settings ----------
 
 export async function settingSave(key: string, value: unknown, reason: string): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("set_setting", { p_key: key, p_value: value, p_reason: reason || "edited in Settings" }), "Saved.");
   done("/w/settings");
   return r;

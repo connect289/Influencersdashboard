@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { assertUser } from "@/lib/auth";
+import { allowed } from "@/lib/auth";
 import { aiConfigured } from "@/lib/ai";
 import { writeInsights } from "@/lib/analytics-ai";
 import type { Spec } from "@/lib/analytics";
@@ -40,7 +40,8 @@ const StageSchema = z.object({
   reachable_from_any: z.boolean(), active: z.boolean(), reason,
 });
 export async function stageSave(p: z.input<typeof StageSchema>): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const v = StageSchema.safeParse(p);
   if (!v.success) return { ok: false, error: v.error.issues[0]?.message ?? "Check the stage." };
   const r = await act(() => rpc("stage_save", { p: v.data }), "Stage saved.");
@@ -54,7 +55,8 @@ const SubStageSchema = z.object({
   comment_required: z.boolean(), active: z.boolean(), reason,
 });
 export async function subStageSave(p: z.input<typeof SubStageSchema>): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const v = SubStageSchema.safeParse(p);
   if (!v.success) return { ok: false, error: v.error.issues[0]?.message ?? "Check the sub-stage." };
   // a key left out keeps its value; null clears it (the function reads "" as empty)
@@ -70,7 +72,8 @@ export async function subStageSave(p: z.input<typeof SubStageSchema>): Promise<A
 // ---------- Settings: document checklists, custom fields ----------
 
 export async function checklistSave(university: string, items: string[], why: string): Promise<ActionResult> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const v = z.object({ university: z.string().trim().min(1, "Name the university (or * for the default list).").max(200), items: z.array(z.string().trim().min(1).max(120)).max(40), why: reason })
     .safeParse({ university, items, why });
   if (!v.success) return { ok: false, error: v.error.issues[0]?.message ?? "Check the list." };
@@ -84,7 +87,8 @@ const FieldSchema = z.object({
   type: z.enum(["text", "number", "date", "select", "yes_no"]), options: z.array(z.string().trim().min(1).max(60)).max(30).optional(),
 });
 export async function customFieldsSave(fields: z.input<typeof FieldSchema>[], why: string): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const v = z.object({ fields: z.array(FieldSchema).max(30, "At most 30 fields."), why: reason }).safeParse({ fields, why });
   if (!v.success) return { ok: false, error: v.error.issues[0]?.message ?? "Check the fields." };
   const clean = v.data.fields.map((f) => (f.type === "select" ? f : { key: f.key, label: f.label, type: f.type }));
@@ -96,7 +100,8 @@ export async function customFieldsSave(fields: z.input<typeof FieldSchema>[], wh
 // ---------- Lead Allocation: queues, calendar, capacity, simulation ----------
 
 export async function queueAllocate(lead: number): Promise<ActionResult<{ outcome: string; why?: string }>> {
-  await assertUser([...ADMIN, "sales_head"]);
+  const gate = await allowed([...ADMIN, "sales_head"]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<{ outcome: string; why?: string; chosen_name?: string }>("queue_allocate", { p_lead: id.parse(lead) }));
   done("/w/allocation", "/w");
   if (!r.ok) return r;
@@ -109,7 +114,8 @@ const BreakSchema = z.object({
   start: z.string().regex(/^\d{2}:\d{2}$/), end: z.string().regex(/^\d{2}:\d{2}$/), label: z.string().trim().max(40),
 }).refine((b) => b.end > b.start, "A break ends after it starts.");
 export async function breaksSave(breaks: z.input<typeof BreakSchema>[]): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const v = z.array(BreakSchema).max(50).safeParse(breaks);
   if (!v.success) return { ok: false, error: v.error.issues[0]?.message ?? "Check the breaks." };
   const r = await act(() => rpc<number>("breaks_save", { p: v.data }), "Breaks saved. Only hot leads are given during them.");
@@ -119,7 +125,8 @@ export async function breaksSave(breaks: z.input<typeof BreakSchema>[]): Promise
 
 const HolidaySchema = z.object({ day, name: z.string().trim().min(1).max(80), kind: z.enum(["national", "company"]) });
 export async function holidaysImport(rows: z.input<typeof HolidaySchema>[]): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const v = z.array(HolidaySchema).min(1, "Paste at least one holiday.").max(200, "At most 200 holidays at a time.").safeParse(rows);
   if (!v.success) return { ok: false, error: v.error.issues[0]?.message ?? "Check the list." };
   const r = await act(() => rpc<number>("holidays_import", { p: v.data }));
@@ -129,7 +136,8 @@ export async function holidaysImport(rows: z.input<typeof HolidaySchema>[]): Pro
 
 export type SimResult = { leads: number; unassigned: number; by_person: { user_id: string; name: string | null; actual: number; simulated: number }[] };
 export async function simulateWith(from: string, to: string, include: number[]): Promise<ActionResult<SimResult>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const v = z.object({ from: day, to: day, include: z.array(id).max(50) }).safeParse({ from, to, include });
   if (!v.success) return { ok: false, error: v.error.issues[0]?.message ?? "Check the dates." };
   return act(() => rpc<SimResult>("simulate", { p_from: v.data.from, p_to: v.data.to, p_include: v.data.include.length ? v.data.include : null }));
@@ -139,7 +147,8 @@ export async function simulateWith(from: string, to: string, include: number[]):
 
 /** Sends the sign-in invitation by email and starts its 7-day clock (b2c.invite_sent). */
 export async function inviteSend(userId: string): Promise<ActionResult<string>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const u = uuid.safeParse(userId);
   if (!u.success) return { ok: false, error: "Unknown person." };
   return act(async () => {
@@ -165,17 +174,20 @@ export type Devices = {
   devices: { id: string; label: string | null; created_at: string; expires_at: string; last_used_at: string | null }[];
 };
 export async function devicesOf(userId: string): Promise<ActionResult<Devices>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   return act(() => rpc<Devices>("my_devices", { p_user: uuid.parse(userId) }));
 }
 export async function signOutEverywhere(userId: string): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<number>("session_revoke", { p_session: null, p_device: null, p_user: uuid.parse(userId) }));
   done("/w/teams");
   return r.ok ? { ...r, notice: `Signed out of ${r.data ?? 0} sessions and devices.` } : r;
 }
 export async function sessionRevoke(userId: string, session: string | null, device: string | null): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<number>("session_revoke", { p_session: session ? uuid.parse(session) : null, p_device: device ? z.string().regex(/^[0-9a-f]{1,16}$/).parse(device) : null, p_user: uuid.parse(userId) }),
     session ? "Signed out." : "Device forgotten.");
   done("/w/teams");
@@ -185,7 +197,8 @@ export async function sessionRevoke(userId: string, session: string | null, devi
 // ---------- Connectors ----------
 
 export async function waTemplatesImport(): Promise<ActionResult<{ added: number; updated: number }>> {
-  await assertUser([...MKT]);
+  const gate = await allowed([...MKT]);
+  if (!gate.ok) return gate;
   const r = await importWaTemplates();
   done("/w/connectors", "/w/templates");
   if (!r.ok) return { ok: false, error: r.error };
@@ -195,13 +208,15 @@ export async function waTemplatesImport(): Promise<ActionResult<{ added: number;
 // ---------- Money ----------
 
 export async function invoiceEmail(invoice: number, note: string): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<number>("invoice_send", { p_id: id.parse(invoice), p_note: note.trim().slice(0, 500) || null }), "Queued: the invoice goes to the university's billing email with the PDF.");
   done("/w/money");
   return r;
 }
 export async function runStatementsEmail(run: number): Promise<ActionResult<number>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const r = await act(() => rpc<number>("run_statements_send", { p_run: id.parse(run) }));
   done("/w/money");
   return r.ok ? { ...r, notice: `Statements queued for ${r.data ?? 0} counsellors.` } : r;
@@ -211,13 +226,15 @@ export async function runStatementsEmail(run: number): Promise<ActionResult<numb
 
 export type TemplateVersion = { version: number; at: string; by: string | null; content: Record<string, unknown> };
 export async function templateHistory(kind: "whatsapp" | "email", template: number): Promise<ActionResult<TemplateVersion[]>> {
-  await assertUser([...MKT]);
+  const gate = await allowed([...MKT]);
+  if (!gate.ok) return gate;
   return act(() => rpc<TemplateVersion[]>("template_history", { p_kind: kind, p_id: id.parse(template) }));
 }
 
 export type TestLead = { lead_id: number; name: string | null; course: string | null; university: string | null };
 export async function testLeads(): Promise<ActionResult<TestLead[]>> {
-  await assertUser([...MKT]);
+  const gate = await allowed([...MKT]);
+  if (!gate.ok) return gate;
   return act(async () => {
     const r = await rpc<{ rows: TestLead[] }>("lead_list", { p: { filters: { all: [{ field: "is_test", op: "is_true" }] }, include_test: true, sort: { field: "handed_off_at", dir: "desc" }, limit: 50 } });
     return r.rows.map((l) => ({ lead_id: l.lead_id, name: l.name, course: l.course, university: l.university }));
@@ -226,13 +243,15 @@ export async function testLeads(): Promise<ActionResult<TestLead[]>> {
 
 export type Preview = { header?: { type: string; text?: string; example_url?: string } | null; body: string; subject?: string; params?: unknown; buttons?: { type: string; text: string }[] };
 export async function templatePreview(kind: "whatsapp" | "email", template: number, lead: number): Promise<ActionResult<Preview>> {
-  await assertUser([...MKT]);
+  const gate = await allowed([...MKT]);
+  if (!gate.ok) return gate;
   return act(() => rpc<Preview>("template_preview", { p_kind: kind, p_id: id.parse(template), p_lead: id.parse(lead) }));
 }
 
 /** Submits a WhatsApp template to Meta with its header (the shared submit reads the header too). */
 export async function waTemplateSubmitWithHeader(template: number): Promise<ActionResult> {
-  await assertUser([...MKT]);
+  const gate = await allowed([...MKT]);
+  if (!gate.ok) return gate;
   const supabase = await createClient();
   const { data: t, error } = await supabase.from("wa_templates").select("id, name, language, category, body, variables, buttons, header").eq("id", id.parse(template)).maybeSingle();
   if (error || !t) return { ok: false, error: "Template not found." };
@@ -245,7 +264,8 @@ export async function waTemplateSubmitWithHeader(template: number): Promise<Acti
 
 /** A marketing email from the block editor: the blocks are kept, the email-safe HTML is what is sent. */
 export async function emailBlocksSave(p: { id?: number; name: string; language: string; subject: string; tags: string[]; blocks: Block[]; archived?: boolean }): Promise<ActionResult<number>> {
-  await assertUser([...MKT]);
+  const gate = await allowed([...MKT]);
+  if (!gate.ok) return gate;
   const v = BlocksSchema.safeParse(p.blocks);
   if (!v.success) return { ok: false, error: v.error.issues[0]?.message ?? "Check the blocks." };
   if (!v.data.length) return { ok: false, error: "Add at least one block." };
@@ -259,7 +279,8 @@ export async function emailBlocksSave(p: { id?: number; name: string; language: 
 
 export type CampaignReply = { reply_id: number; lead_id: number; name: string | null; channel: string; text: string | null; class: string | null; status: string; at: string; variant: string | null };
 export async function campaignReplies(campaign: number): Promise<ActionResult<CampaignReply[]>> {
-  await assertUser([...MKT]);
+  const gate = await allowed([...MKT]);
+  if (!gate.ok) return gate;
   return act(() => rpc<CampaignReply[]>("campaign_replies", { p_campaign: id.parse(campaign), p_limit: 200 }));
 }
 
@@ -270,7 +291,8 @@ export type GuideImage = { path: string; caption: string };
 
 /** Uploads one screenshot to the private b2c-guides bucket and adds it to the article (b2c.guide_images_set). */
 export async function guideImageAdd(article: number, form: FormData): Promise<ActionResult<GuideImage[]>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   const a = id.safeParse(article);
   const file = form.get("file");
   const caption = String(form.get("caption") ?? "").trim().slice(0, 120);
@@ -302,7 +324,8 @@ export async function guideImageAdd(article: number, form: FormData): Promise<Ac
 }
 
 export async function guideImageRemove(article: number, index: number): Promise<ActionResult<GuideImage[]>> {
-  await assertUser([...ADMIN]);
+  const gate = await allowed([...ADMIN]);
+  if (!gate.ok) return gate;
   return act(async () => {
     const a = id.parse(article);
     const db = adminClient();
@@ -324,7 +347,9 @@ export async function guideImageRemove(article: number, index: number): Promise<
 export type InsightItem = { title: string; body: string; metric?: string; spec?: Spec };
 export type InsightRow = { id: number; day: string; kind: string; items: InsightItem[] };
 export async function insightsNow(): Promise<ActionResult<InsightRow[]>> {
-  const me = await assertUser([...MKT]);
+  const gate = await allowed([...MKT]);
+  if (!gate.ok) return gate;
+  const me = gate.me;
   if (!aiConfigured()) return { ok: false, error: "Claude is not connected (ANTHROPIC_API_KEY), so insights cannot be written." };
   try {
     const n = await writeInsights({ roleGroup: me.role === "admin" ? "admin" : "marketing", userId: me.user_id! });

@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { assertUser } from "@/lib/auth";
+import { allowed } from "@/lib/auth";
 import { act, friendly, rpc, type ActionResult } from "@/lib/data";
 import { adminClient } from "@/lib/supabase/admin";
 import { attachmentProblem, extFor } from "@/lib/support";
@@ -38,7 +38,8 @@ async function storeFiles(ticket: number, message: number, files: File[]): Promi
 const files = (f: FormData) => f.getAll("files").filter((x): x is File => x instanceof File && x.size > 0);
 
 export async function ticketCreate(f: FormData): Promise<ActionResult<{ ticket_id: number; number: string }>> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   const fs = files(f);
   const problem = attachmentProblem(fs.map((x) => ({ name: x.name, type: x.type, size: x.size })));
   if (problem) return { ok: false, error: problem };
@@ -59,7 +60,8 @@ export async function ticketCreate(f: FormData): Promise<ActionResult<{ ticket_i
 }
 
 export async function ticketReply(f: FormData): Promise<ActionResult> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   const ticket = z.coerce.number().int().positive().parse(f.get("ticket"));
   const fs = files(f);
   const problem = attachmentProblem(fs.map((x) => ({ name: x.name, type: x.type, size: x.size })));
@@ -77,7 +79,8 @@ export async function ticketReply(f: FormData): Promise<ActionResult> {
 }
 
 export async function ticketStatus(ticket: number, status: "open" | "in_progress" | "waiting" | "fixed" | "closed", note?: string): Promise<ActionResult> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   const r = await act(() => rpc("support_set_status", { p_ticket: z.coerce.number().int().positive().parse(ticket), p_status: status, p_note: note ?? null }),
     status === "closed" ? "Ticket closed." : status === "open" ? "Ticket reopened." : "Status changed.");
   await sendSupportMail(5).catch(() => 0);
@@ -87,7 +90,8 @@ export async function ticketStatus(ticket: number, status: "open" | "in_progress
 
 /** A screenshot, for someone who may see the ticket: a signed link valid for 5 minutes. */
 export async function ticketFile(path: string): Promise<ActionResult<string>> {
-  await assertUser();
+  const gate = await allowed();
+  if (!gate.ok) return gate;
   try {
     if (!(await rpc<boolean>("support_file_ok", { p_path: path }))) return { ok: false, error: "Unknown file." };
     const { data, error } = await adminClient().storage.from("b2c-support").createSignedUrl(path, 300);

@@ -104,6 +104,18 @@ describe("runSync sends", () => {
     expect(state.rpcs.find((r) => r.fn === "connector_report" && r.args.p_key === "whatsapp")?.args.p_ok).toBe(true);
   });
 
+  it("live: a send that may have gone out (5xx) is recorded with retry: false; a 4xx is not", async () => {
+    state.live = true;
+    state.sends = [1, 2].map((id) => ({ id, channel: "whatsapp", lead_id: 7, to: "919000000012", purpose: "sales", live: true, payload: { type: "text", text: `m${id}` } }));
+    let n = 0;
+    vi.stubGlobal("fetch", async () => (n++ === 0 ? new Response("{}", { status: 502 }) : new Response(JSON.stringify({ error: { message: "bad", code: 100 } }), { status: 400 })));
+    const out = await runSync("urgent");
+    expect(doneResults()[0]).toMatchObject({ id: 1, ok: false, retry: false, error: expect.stringMatching(/may have gone out/) });
+    expect(doneResults()[1]).toMatchObject({ id: 2, ok: false, error: "100: bad" });
+    expect(doneResults()[1]).not.toHaveProperty("retry");
+    expect(out.send_failed).toBe(2);
+  });
+
   it("live: refuses a file outside the lead's folder", async () => {
     state.live = true;
     state.sends = [{ id: 5, channel: "whatsapp", lead_id: 7, to: "919000000012", purpose: "sales", live: true, payload: { type: "media", media_kind: "document", path: "leads/8/x.pdf" } }];

@@ -1,7 +1,7 @@
 # Eduwit Spark: handover to the developer (taking it live)
 
 Version 16 October 2026. Spark is the B2C CRM: code in `b2c-crm/web` (Next.js 16), database schema `b2c` in Supabase,
-migrations `b2c-crm/supabase/migrations/b1…b54` (apply in order; all idempotent), checks in `b2c-crm/supabase/tests`.
+migrations `b2c-crm/supabase/migrations/b1…b55` (apply in order; all idempotent), checks in `b2c-crm/supabase/tests`.
 This guide is the whole path from where things stand to a working, live CRM. Do the steps in order; each says how to
 check it and how to undo it. `docs/go-live-plan.md` keeps the history; this file supersedes it for what is left.
 
@@ -230,6 +230,23 @@ message still `sending` 15 minutes after it was taken (`send_queue.taken_at`) is
 never sent again (it may have gone out): an assignment WhatsApp falls back to email and the admins get one notice.
 Eduwit One's FIX-SENDQ-B2C runs it on B2C-07 once the owner switches it on (it ships off, with two weeks of dry runs).
 System health (Admin) shows them as "stopped mid-send". Checks: `supabase/tests/test_health.sql` (25).
+
+**Hardening (13 Nov 2026, migration `b55`).** Fixes from the November audit. Erasing a student also removes the files
+they sent or were sent on WhatsApp and the number on those messages, and a WhatsApp file that finishes downloading after
+the erasure is deleted, not kept. An expired export's file is deleted from storage (bucket `b2c-exports`, through the same
+removal job as erased files), not only forgotten. WhatsApp STOP is checked first and understood with punctuation, emoji
+and a few words around it ("Stop.", "STOP!!", "please stop", "stop messaging me"), in Hindi too (बंद करो, मत भेजो,
+रोको) and as "unsub"; a STOP from a number Spark does not know is put on the suppression list and is no longer sent to
+the B2B CRM as a new lead; a STOP from a lead in active sales is recorded and the counsellor is told. At send time a
+message is cancelled, not sent, when its student can no longer be messaged or (for marketing) the address is
+suppressed, so nothing handed back or retried after a STOP or an erasure goes out; suppressing an address cancels the
+marketing queued to it. When Meta does not answer in time or answers with a server error, the message may have gone
+out: it is marked failed and never sent again (as with "stopped mid-send"). An enrolment can be recorded only once per
+lead and only on an active lead. A server action called after the session ended answers "You were signed out. Sign in
+again." instead of failing, so the form keeps what was typed. A refused template list from Meta makes the WhatsApp
+connector show the error. In the Inbox the Admin can read a conversation from a new number that has no lead yet
+(read-only, "waiting for the CRM to route this lead"). Webhook events for other numbers on the same Meta account are
+ignored (`WHATSAPP_PHONE_NUMBER_ID`). Checks: `supabase/tests/test_hardening_2026_11.sql` (25).
 
 ## 12. Live
 
