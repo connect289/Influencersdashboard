@@ -19,11 +19,21 @@ export class UiError extends Error {
 
 export const SETTING_CONFLICT = "Someone else changed this setting — reload and try again.";
 
+/**
+ * A refusal that names what only the owner may do (one.ui_mute on a P1 check or an app that has one, D-139) is shown
+ * as the database worded it; every other 42501 keeps the one sentence, whatever its text.
+ */
+const OWNER_ONLY = /^only the owner can /i;
+
 /** A database error code as the kind of refusal it is, and a message a person can act on. */
 export function fromDbError(error: { code?: string; message?: string }): UiError {
   switch (error.code) {
     case "42501":
-      return new UiError("not_allowed", "Your role cannot do this.", error.code);
+      return new UiError(
+        "not_allowed",
+        OWNER_ONLY.test(error.message ?? "") ? sentence(error.message) : "Your role cannot do this.",
+        error.code,
+      );
     case "P0002":
       return new UiError("not_found", sentence(error.message) || "Not found.", error.code);
     case "22023":

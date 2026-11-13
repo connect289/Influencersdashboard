@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { ASK_TOOLS } from "../schemas.ts";
-import { CHAT_TOOLS, DB_READ_TOOLS, toolByName, toolDefinition, toolsFor, type ActTool } from "./tools.ts";
+import {
+  CHAT_TOOLS,
+  DB_READ_TOOLS,
+  SETTING_TOOL,
+  toolByName,
+  toolDefinition,
+  toolsFor,
+  type ActTool,
+} from "./tools.ts";
 
 // The tool catalogue is the chat's whole reach: every act maps to a page function the migrations grant to signed-in
-// people, every read is one Ask already has, and the owner-only acts are not offered to an engineer.
+// people, every read is one Ask already has, plus the one settings key the chat reads as the signed-in person
+// (D-139), and the owner-only acts are not offered to an engineer.
 
 const grants = readFileSync(new URL("../../../../supabase/migrations/0011_ui_write.sql", import.meta.url), "utf8")
   .concat(readFileSync(new URL("../../../../supabase/migrations/0019_fixes.sql", import.meta.url), "utf8"))
@@ -30,11 +39,53 @@ describe("the tool catalogue", () => {
     }
   });
 
-  it("reads exactly what Ask reads, through the database or the app", () => {
+  it("reads what Ask reads, through the database or the app, and one settings key as the signed-in person", () => {
     const reads = CHAT_TOOLS.filter((t) => t.kind === "read").map((t) => t.name);
-    expect([...reads].sort()).toEqual([...ASK_TOOLS].sort());
+    expect([...reads].sort()).toEqual([...ASK_TOOLS, SETTING_TOOL].sort());
     for (const name of DB_READ_TOOLS) expect(ASK_TOOLS).toContain(name);
     expect(DB_READ_TOOLS.has("runbook")).toBe(false);
+    // The service role's one.ai_tool never answers it: it is read with the person's own session (D-139).
+    expect(DB_READ_TOOLS.has(SETTING_TOOL)).toBe(false);
+    expect((ASK_TOOLS as readonly string[]).includes(SETTING_TOOL)).toBe(false);
+    expect(toolByName(SETTING_TOOL)?.input.safeParse({ key: "thresholds" }).success).toBe(true);
+    expect(toolByName(SETTING_TOOL)?.input.safeParse({ key: "one.settings; drop" }).success).toBe(false);
+    expect(toolsFor("engineer").map((t) => t.name)).toContain(SETTING_TOOL);
+  });
+
+  it("saves a setting only over the version the model read (D-139)", () => {
+    const put = toolByName("put_setting") as ActTool;
+    const args = { key: "checks", value: { slow_ms: 6000 }, reason: "slower checks at night" };
+    // A card without the version is not a card: an older one cannot be confirmed either (the arguments are parsed again).
+    expect(put.input.safeParse(args).success).toBe(false);
+    expect(put.input.safeParse({ ...args, expected_version: 0 }).success).toBe(false);
+    expect(put.input.safeParse({ ...args, expected_version: "7" }).success).toBe(false);
+    const parsed = put.input.parse({ ...args, expected_version: 7 }) as Record<string, unknown>;
+    expect(put.call(parsed)).toEqual({
+      fn: "ui_settings_put",
+      args: { p_key: "checks", p_value: { slow_ms: 6000 }, p_reason: "slower checks at night", p_expected_version: 7 },
+    });
+    expect(put.summary(parsed)).toBe("Change setting checks (over version 7)");
+    expect(toolDefinition(put).input_schema.required).toContain("expected_version");
+    expect(put.description).toContain("expected_version");
+    // The function the card calls takes that argument (0039), and compares it under the row's lock.
+    expect(grants).toMatch(
+      /one\.ui_settings_put\(p_key text, p_value jsonb, p_reason text, p_request_id text default null,\s+p_expected_version integer default null\)/,
+    );
+  });
+
+  it("tells the model that muting a P1 is the owner's, and leaves the refusal to the database (0040, D-139)", () => {
+    const mute = toolByName("mute") as ActTool;
+    expect(mute.description).toMatch(/P1 check.*needs the owner/);
+    // Still offered to an engineer: any other check or app is theirs to mute, and one.ui_mute decides.
+    expect(mute.perm).toBe("operate");
+    const m0040 = readFileSync(
+      new URL("../../../../supabase/migrations/0040_owner_mutes_p1.sql", import.meta.url),
+      "utf8",
+    );
+    expect(m0040).toContain(
+      "create or replace function one.ui_mute(p_target_type text, p_target text, p_minutes integer, p_reason text, p_request_id text default null) returns jsonb",
+    );
+    expect(m0040).toContain("perform one.ui_require('owner');");
   });
 
   it("acts only through page functions the migrations grant to signed-in people", () => {
@@ -115,7 +166,12 @@ function sample(t: ActTool): Record<string, unknown> {
     },
     update_check: { id: "WITTY-04", patch: { severity: "P3" }, reason: "noisy at night" },
     update_test: { id: "T-WITTY-QUALIFY", patch: { enabled: false }, reason: "number changing" },
-    put_setting: { key: "thresholds", value: { catalogue_min: 45 }, reason: "the cache runs every 15 minutes" },
+    put_setting: {
+      key: "thresholds",
+      value: { catalogue_min: 45 },
+      expected_version: 12,
+      reason: "the cache runs every 15 minutes",
+    },
     regenerate_brief: { for_date: "2026-10-28", tier: "regular" },
     validate_setup: { item: "n8n_api" },
   };

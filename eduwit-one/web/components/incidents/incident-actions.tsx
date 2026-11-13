@@ -58,7 +58,7 @@ export function IncidentActions({ id, checkId, app, open, acknowledged }: Props)
           </Field>
           <p className="text-xs text-fg-muted">
             Incidents still record while muted; nothing is sent. When the mute ends, anything still failing alerts
-            again.
+            again. Muting a P1 check, or an app that has one, needs the owner.
           </p>
           <Button type="submit" variant="secondary">
             Mute

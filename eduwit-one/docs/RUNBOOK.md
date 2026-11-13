@@ -29,7 +29,9 @@ How Eduwit One runs, what its alerts mean, and what to do. The database steps (r
 - **Storm (ONE-STORM).** More than 10 P1s within 5 minutes send one storm email naming the top three checks. The
   individual P1s are held under it for 15 minutes, then alert one by one if still open.
 - **Mute or maintenance.** Mute a check or a whole app from the UI with a duration and a reason. Incidents still
-  record; nothing is sent. When the mute ends, anything still failing alerts again.
+  record; nothing is sent. When the mute ends, anything still failing alerts again. Muting a P1 check, or an app that
+  has a P1 check (switched on or off), is the owner's: an engineer is told "Only the owner can mute a top-priority
+  alarm" and mutes any other check or app as before. Anyone who can sign in can end a mute (D-139).
 - **A failing email.** An alert, escalation or storm email the provider refuses is tried again with a growing wait
   (2, 4, 8, 16, 32, 60, 60 minutes, eight tries in all) while its incident is open and unacknowledged; a brief or
   digest is tried twice. A delivery that failed for good counts for ONE-02 and the watchdog for 6 hours, so a revoked
@@ -83,13 +85,15 @@ purpose overrides Vault, D-059).
 
 ## Who may change what
 
-Engineers read everything, acknowledge, resolve, mute, ask, and change the check runner, test schedules, Witty's
-expectations and the analytics funnel. The owner also: the thresholds (sixteen P1 checks read them, so loosening one
-can silence a P1: D-137), every other setting (where credentials, alerts and codes go, AI spend, retention, sign-in),
-users, Setup secrets, fix and config proposals and anything touching security, acknowledging a new API-executable
-function on Settings → Privileges (D-110), and switching off or downgrading a P1, security, integrity, money or consent
-check (D-065). A setting is saved over the version the page loaded: if someone else saved in between, the page says so
-and nothing is saved; reload and make the change again (D-137).
+Engineers read everything, acknowledge, resolve, mute a check that is not a P1 or an app that has no P1 check, end
+any mute, ask, and change the check runner, test schedules, Witty's expectations and the analytics funnel. The owner
+also: the thresholds (sixteen P1 checks read them, so loosening one can silence a P1: D-137), every other setting
+(where credentials, alerts and codes go, AI spend, retention, sign-in), users, Setup secrets, fix and config proposals
+and anything touching security, acknowledging a new API-executable function on Settings → Privileges (D-110),
+switching off or downgrading a P1, security, integrity, money or consent check (D-065), and muting a P1 check or an
+app that has one (0040, D-139). A setting is saved over the version the page loaded: if someone else saved in between,
+the page says so and nothing is saved; reload and make the change again (D-137). The chat's settings card does the
+same with the version the assistant read (D-139).
 
 ## Proposals
 
@@ -324,6 +328,7 @@ rollback except 0002's, 0006's and 0023's (Eduwit Scout's), which say so.
 
 | Migration                   | Its rollback                                                                                                                                                                                                                                                  | Before you run it                                                                                                                                                                           |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0040 owner mutes a P1       | Restores 0037's `one.ui_mute` verbatim: an engineer may mute a P1 check, or an app that has one, again. Mutes made meanwhile stay and end at their time                                                                                                       | —                                                                                                                                                                                           |
 | 0031 audit hardening        | Restores 0020's `mask_text`, 0021's `ui_chat_action_propose` and 3-argument decide, 0011's `ui_user_put`, 0018's `ai_calls_add`; drops reservations and the reader narrowing (whole SELECT back per `reader_excluded_columns`). Roll the web back first       |
 | 0030 privilege ack          | Restores 0011's `one.ui_privilege_ack` verbatim: an engineer may acknowledge again                                                                                                                                                                            | —                                                                                                                                                                                           |
 | 0024 Eduwit Scout panels    | Restores 0012's `one.embed_data` verbatim: the three engine panels on the Apps page go, every other panel stays                                                                                                                                               | —                                                                                                                                                                                           |
@@ -525,14 +530,19 @@ rules, plus the ability to act, under these limits:
 - **Reads** are the fixed read-only tools Ask has (incidents, checks, tests, events, analytics, marketing, Witty's panels,
   health, cron, spend, proposals, deliveries, n8n executions, the Setup state, each app's status, the fix catalogue, the
   audit, the Operate pages and this runbook). The model never writes SQL. Contact data is masked twice (the database's
-  redaction, then `web/lib/ai/pii.ts`), the person's own message included.
+  redaction, then `web/lib/ai/pii.ts`), the person's own message included. The chat alone also reads one settings key
+  at a time (`setting`), as the signed-in person and as the Settings page shows it (never the Setup keys; secrets are
+  in Vault), masked like every tool result. Its answer carries the key's version only when the value was read whole;
+  a value with masked or left-out parts, or a very long one, is changed on its Settings page (D-139).
 - **Acts** are the console's own page functions (`one.ui_*`), run as the signed-in person with their role check and audit
   row, under the same request id. One act runs at once: a fix's dry run, which only records what the fix would do.
   Everything else (acknowledge, resolve, mute, validate a Setup item, explain again on the deep model, re-build a brief,
   run a test, switch a fix, decide a proposal, change a check, a test or a setting) first shows an **action card** in
   the chat with the exact arguments; nothing runs until **Confirm and run** is pressed, and the confirmation carries the
-  arguments the card showed, which must be the stored ones (D-115). An action's arguments cannot hold an email address
-  or a phone-shaped number. A card not decided in two hours expires. People are added and changed on Settings → Users,
+  arguments the card showed, which must be the stored ones (D-115). A settings card names the version it replaces
+  (the one the assistant read): if someone saved that setting in between, the card answers "Someone else changed this
+  setting" and saves nothing; ask again (D-139). An action's arguments cannot hold an email address or a phone-shaped
+  number. A card not decided in two hours expires. People are added and changed on Settings → Users,
   not in the chat (D-116). An engineer is not offered the owner-only acts (fix switches); the database refuses them
   anyway.
 - **Fixes on the apps** keep every rule of the fix catalogue (D-079, D-084): the chat can record a dry run and propose

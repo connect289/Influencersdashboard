@@ -13,7 +13,7 @@ import { assertUser } from "@/lib/session.ts";
 import { runValidate } from "@/lib/setup/run.ts";
 import { clientSettingsSchema, n8nSchema, readSettings } from "@/lib/state.ts";
 import { ui } from "@/lib/ui/api.ts";
-import { okSchema } from "@/lib/ui/schemas.ts";
+import { okSchema, settingsSchema } from "@/lib/ui/schemas.ts";
 
 // One turn of the command centre (D-094), streamed back as one JSON event per line. The caller is the signed-in
 // person (their session cookies; the middleware does not cover /api, so the gate is here): the turn's database calls
@@ -69,6 +69,8 @@ export async function POST(request: Request) {
             n8n,
             act: (fn, args, rid) => ui(fn, okSchema, { ...args, p_request_id: rid }),
             validateSetup: (item) => runValidate(item, me.email),
+            // As the Settings page reads them: this person's session, the database's role check (D-139).
+            readSetting: async (key) => (await ui("ui_settings", settingsSchema))[key] ?? null,
             holder: `chat-${requestId.replaceAll("-", "").slice(0, 16)}`,
             deadline: started + 150_000,
           },

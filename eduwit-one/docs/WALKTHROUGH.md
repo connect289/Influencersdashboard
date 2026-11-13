@@ -36,7 +36,8 @@ approve (step 6).
 
 - [ ] Settings → Checks: every check with its switch, severity and cadence, each change with a reason.
 - [ ] Its rule (SQL) is on any of its incidents' pages; `docs/CHECKS.md` in the repository lists them all.
-- [ ] Do not switch off a P1 check to silence it; mute it instead (step 8) or fix the cause.
+- [ ] Do not switch off a P1 check to silence it; fix the cause, or have the owner mute it for a set time (step 8):
+      muting a P1 check, or an app that has one, is the owner's (D-139).
 
 ## 5. The fixes (6 minutes)
 
@@ -80,7 +81,8 @@ approve (step 6).
 
 - [ ] Settings → Setup: each credential, who provides it and whether it is validated. To rotate one, paste the new
       value and validate (`RUNBOOK.md` → Rotating a secret).
-- [ ] Settings → Maintenance: mute an app or a check for a planned change, with a duration and a reason.
+- [ ] Settings → Maintenance: mute an app or a check for a planned change, with a duration and a reason. A P1 check,
+      or an app that has one, is muted by the owner; anyone can end a mute.
 - [ ] Settings → Users: who can sign in. "Sign out everywhere" for a lost laptop.
 - [ ] Audit: every change with who, when and the request id; export as CSV.
 

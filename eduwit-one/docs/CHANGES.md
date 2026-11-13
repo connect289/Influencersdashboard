@@ -3,6 +3,32 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 13 Nov 2026 — Muting a P1 is the owner's; the chat's settings card names the version it replaces (0040, D-139)
+
+- Found (audit of 13 Nov, finding M13; fixes approved by the owner): an engineer could mute any check or a whole app
+  for up to 7 days and again when it ended, a P1 included, while switching a P1 off, lowering it or loosening its
+  thresholds are the owner's; and the chat's `put_setting` card saved without the version check the Settings form got
+  in 0039.
+- Changed, schema `one` only: migration `0040_owner_mutes_p1.sql` redefines `one.ui_mute` (same signature and grant):
+  a P1 check, or an app that has a P1 check (switched on or off), is muted by the owner; an engineer gets 42501 "only
+  the owner can mute a top-priority alarm: …" and mutes everything else as before; `one.ui_unmute` is unchanged. No
+  table, column, check, setting or mute row changes; the rollback restores 0037's function verbatim.
+- App: the refusal is shown as worded (`lib/ui/api.ts`); both mute forms say who may mute a P1; the chat's `mute` tool
+  says so too. New chat read tool `setting` (one settings key, read as the signed-in person through `one.ui_settings`,
+  masked; a version only with a value read whole: `lib/ai/chat/setting.ts`); `put_setting` requires `expected_version`
+  and sends `p_expected_version`, so a stale card answers "Someone else changed this setting — reload and try again"
+  and saves nothing. RUNBOOK ("Who may change what", mutes, the command centre, the rollback table) and WALKTHROUGH
+  updated; `lib/ai/docs.generated.ts` regenerated.
+- Proof: the local migration test (apply, tests, full rollback, re-apply, tests) with the new `99_owner_mutes.sql`
+  (engineer refused on a P1 check, a switched-off P1 and an app with one; allowed on P2/P3 and an app without; owner
+  allowed; audit rows; the rollback file brings the old function back and the migration applies again) and
+  `80_ui_api.sql` updated (its engineer mutes a P3); new fingerprint (the functions hash only; 251 functions, 38
+  tables as before); guards and root tests; web typecheck, lint, format and unit tests (new: the setting tool, the
+  card's version, the refusal's wording). `supabase/tests/0040.http.sql` is the same proof as one plain-SQL statement
+  for the Management API: 26 checks, ending in `TESTRESULT total=… failed=…` and rolling everything back.
+- Order: none needed. The app's new call (`p_expected_version`) is 0039's, already in production; with the old app
+  and 0040 an engineer's refusal reads "Your role cannot do this"; with the new app and no 0040 mutes behave as before.
+- Not yet applied: staging rehearsal and production apply follow
 ## 13 Nov 2026 — A fixed search path on 47 older shared functions (D-140)
 
 - Found (audit of 13 Nov, M5; Supabase's security advisor): 87 functions of schema `public` had no fixed

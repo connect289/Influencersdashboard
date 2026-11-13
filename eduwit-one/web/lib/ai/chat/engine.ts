@@ -12,7 +12,16 @@ import { MAX_TOKENS } from "../schemas.ts";
 import { requestChars, type ChatBlock, type ChatMessage, type ChatModelClient } from "./client.ts";
 import type { AssistantContent, ChatDb, HistoryItem, TurnStart } from "./db.ts";
 import { looksLikeSecret } from "./secrets.ts";
-import { DB_READ_TOOLS, toolDefinition, toolsFor, type ActTool, type ChatTool, type Risk } from "./tools.ts";
+import { settingForModel, type SettingReader } from "./setting.ts";
+import {
+  DB_READ_TOOLS,
+  SETTING_TOOL,
+  toolDefinition,
+  toolsFor,
+  type ActTool,
+  type ChatTool,
+  type Risk,
+} from "./tools.ts";
 
 // One turn of the command centre (D-094). The person's message opens a turn in the database (masked, budget checked,
 // one 'chat' task held by this holder), the model is called with the conversation and the tools until it answers
@@ -47,6 +56,8 @@ export type ChatDeps = {
   act: (fn: string, args: Record<string, unknown>, requestId: string) => Promise<unknown>;
   /** Runs a Setup item's validator and records the verdict (the validate_setup act). */
   validateSetup?: (item: string) => Promise<{ ok: boolean; detail: string }>;
+  /** Reads one settings key as the signed-in person, with its version (the setting read tool, D-139). */
+  readSetting?: SettingReader;
   holder: string;
   /** Wall-clock end of this request (epoch ms). */
   deadline: number;
@@ -248,9 +259,14 @@ async function runReadTool(
         .object({ ok: z.boolean(), data: z.unknown().optional(), error: z.string().optional() })
         .parse(await deps.ai.tool(turn.task_id, deps.holder, tool.name, args));
     }
+    if (tool.name === SETTING_TOOL) {
+      if (!deps.readSetting) return { ok: false, error: "settings cannot be read here" };
+      const key = String(args.key);
+      return settingForModel(key, await deps.readSetting(key));
+    }
     return (await localReadTool(tool.name, args, deps.n8n)) ?? { ok: false, error: `unknown tool ${tool.name}` };
   } catch (e) {
-    return { ok: false, error: e instanceof DbError ? e.message : "the tool failed" };
+    return { ok: false, error: e instanceof DbError || e instanceof UiError ? e.message : "the tool failed" };
   }
 }
 

@@ -218,6 +218,92 @@ describe("a turn that answers", () => {
     expect(chat.finished[0]?.assistant.actions).toEqual([1]);
   });
 
+  it("reads a setting as the signed-in person and carries its version on the put_setting card (D-139)", async () => {
+    const model = new ScriptedChatClient([
+      { blocks: [toolUse("t1", "setting", { key: "checks" }), toolUse("t2", "setting", { key: "alerts" })], usage },
+      {
+        blocks: [
+          toolUse("t3", "put_setting", {
+            key: "checks",
+            value: { slow_ms: 6000, parked_retry_h: 6 },
+            expected_version: 7,
+            reason: "slower checks at night",
+          }),
+          // Without the version it is not a card: the arguments are refused before anything is proposed.
+          toolUse("t4", "put_setting", { key: "checks", value: { slow_ms: 6000 }, reason: "slower checks at night" }),
+        ],
+        usage,
+      },
+      { text: "I have proposed the change to checks; confirm the card to save it.", usage },
+    ]);
+    const read: string[] = [];
+    const { chat, aiDb, acts, events, go } = run(model, {
+      readSetting: async (key) => {
+        read.push(key);
+        return key === "checks"
+          ? { value: { slow_ms: 5000, parked_retry_h: 6 }, version: 7, owner_only: false }
+          : { value: { p1_inbox: "connect@eduwit.in" }, version: 3, owner_only: true };
+      },
+    });
+    await go();
+    expect(read).toEqual(["checks", "alerts"]);
+    // Not through the service role's one.ai_tool, and nothing ran.
+    expect(aiDb.tools).toEqual([]);
+    expect(acts).toEqual([]);
+    // The scripted client keeps the one messages array the turn grows: [person, tools asked, results, …].
+    const sent = (model.requests[2] as ChatRequest).messages;
+    const results = JSON.stringify(sent[2]?.content);
+    expect(results).toContain('\\"version\\":7');
+    expect(results).toContain('\\"slow_ms\\":5000');
+    // The masked value comes back without a version, so no card can be built from it.
+    expect(results).not.toContain("connect@");
+    expect(results).not.toContain('\\"version\\":3');
+    expect(results).toContain("saveable_from_chat");
+    expect(chat.proposed).toEqual([
+      {
+        tool: "put_setting",
+        args: {
+          key: "checks",
+          value: { slow_ms: 6000, parked_retry_h: 6 },
+          expected_version: 7,
+          reason: "slower checks at night",
+        },
+        summary: "Change setting checks (over version 7)",
+        risk: "high",
+      },
+    ]);
+    expect(JSON.stringify(sent[4]?.content)).toContain("arguments: expected_version");
+    expect(events.filter((e) => e.t === "tool").map((e) => (e.t === "tool" ? `${e.name}:${e.status}` : ""))).toEqual([
+      "setting:running",
+      "setting:ok",
+      "setting:running",
+      "setting:ok",
+    ]);
+  });
+
+  it("says so when a setting cannot be read (no reader, or the database refused)", async () => {
+    const script = () =>
+      new ScriptedChatClient([
+        { blocks: [toolUse("t1", "setting", { key: "checks" })], usage },
+        { text: "I could not read that setting.", usage },
+      ]);
+    const none = run(script());
+    await none.go();
+    expect(none.chat.finished[0]?.assistant.tools[0]).toMatchObject({ name: "setting", ok: false });
+    const { UiError } = await import("../../ui/api.ts");
+    const refused = run(script(), {
+      readSetting: async () => {
+        throw new UiError("not_allowed", "Your role cannot do this.", "42501");
+      },
+    });
+    await refused.go();
+    expect(refused.chat.finished[0]?.assistant.tools[0]).toMatchObject({
+      name: "setting",
+      ok: false,
+      error: "Your role cannot do this.",
+    });
+  });
+
   it("makes an acknowledgement a card the person confirms (D-107)", async () => {
     const model = new ScriptedChatClient([
       { blocks: [toolUse("t1", "acknowledge_incident", { id: 1 })], usage },
