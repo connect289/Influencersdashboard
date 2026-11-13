@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { buildCsp, IDLE_LIMIT_SECONDS, isIdleExpired, safeNext, SEEN_COOKIE } from "@/lib/security";
+import { buildCsp, IDLE_LIMIT_SECONDS, isIdleExpired, isStudentLinkPath, safeNext, SEEN_COOKIE } from "@/lib/security";
 
 /**
  * Runs before every page request:
@@ -8,6 +8,8 @@ import { buildCsp, IDLE_LIMIT_SECONDS, isIdleExpired, safeNext, SEEN_COOKIE } fr
  *  2. signs out sessions idle for 12 hours (spec B3);
  *  3. sends signed-out visitors to /login;
  *  4. sets a strict Content-Security-Policy with a fresh nonce.
+ * A student's link from an email (/u/…, M34j) gets only step 4: no session is read or refreshed, no cookie is set and it
+ * is never sent to /login.
  * This is an early, cheap check. The real gate is requireAdmin() on the server and b2b.is_admin() in the database.
  */
 
@@ -22,6 +24,16 @@ export async function proxy(request: NextRequest) {
   const isDev = process.env.NODE_ENV === "development";
   const nonce = btoa(crypto.randomUUID());
   const csp = buildCsp(nonce, new URL(url).origin, isDev);
+
+  if (isStudentLinkPath(request.nextUrl.pathname)) {
+    const headers = new Headers(request.headers);
+    headers.set("x-nonce", nonce);
+    headers.set("Content-Security-Policy", csp);
+    const res = NextResponse.next({ request: { headers } });
+    res.headers.set("Content-Security-Policy", csp);
+    res.headers.set("Cache-Control", "no-store");
+    return res;
+  }
 
   const pending: Cookie[] = [];
   let noStore: Record<string, string> = {};

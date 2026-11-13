@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCsp, clientIp, isIdleExpired, passwordProblem, safeNext } from "./security";
+import { buildCsp, clientIp, isIdleExpired, isStudentLinkPath, passwordProblem, safeNext } from "./security";
 
 describe("safeNext", () => {
   it("keeps same-origin paths", () => {
@@ -11,6 +11,14 @@ describe("safeNext", () => {
       expect(safeNext(bad as string)).toBe("/");
     }
     expect(safeNext("/" + "a".repeat(600))).toBe("/");
+  });
+});
+
+describe("isStudentLinkPath (M34j)", () => {
+  it("is true only under /u/, the links students open from an email", () => {
+    expect(isStudentLinkPath("/u/4821/0123456789abcdef0123456789abcdef01234567")).toBe(true);
+    expect(isStudentLinkPath("/u/4821/0123456789abcdef0123456789abcdef01234567/one-click")).toBe(true);
+    for (const p of ["/", "/u", "/users", "/unsubscribe", "/leads/u/1", "/login", "/v1/u/1", "//u/1"]) expect(isStudentLinkPath(p)).toBe(false);
   });
 });
 

@@ -14,3 +14,4 @@ tests/test_m34e_outbound_urls.sql
 tests/test_m34f_ai_worker_auth.sql
 tests/test_m34g_anonymise_guard.sql
 tests/test_m34i_hardening.sql
+tests/test_m34j_unsubscribe.sql

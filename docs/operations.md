@@ -83,6 +83,11 @@ back; fix forward with a new migration, or restore the backup if data was damage
   plus the audit log for that lead (System health → Audit log, lead id). Send within 30 days.
 - **Opt-out** ("stop messaging me"): Leads → the lead → Opt out, or the B2C CRM reports it. No message goes out afterwards;
   partners are told through the sync (connected CRMs) or must be emailed (email partners).
+- **Unsubscribe from emails** (m34j): the student does it alone, from the Unsubscribe link in any email from this CRM or
+  their mail app's own Unsubscribe button. It stops this CRM's emails for that enquiry at once (WhatsApp is not changed);
+  the lead's timeline shows `lead.unsubscribed` and the lead drawer lists the channel. A student who writes instead
+  ("unsubscribe me") is still opted out by hand as above. There is no self-service way back: if a student asks for emails
+  again, record the request and ask the developer to remove `email` from the lead's opted-out channels.
 - **Retention.** System health → Data protection sets two rules: erase leads idle for N months (6 to 120; empty keeps
   them), and delete test leads older than N days. The nightly job (02:15 IST) applies them, 200 erasures and 500
   deletions at most a night, and writes its last run on that screen. Leads with an enrolment, a partner still working

@@ -25,3 +25,9 @@ export const DB_TIMEOUT_MS = 15_000;
 export function siteUrl(): string {
   return required("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL).replace(/\/+$/, "");
 }
+
+/** The same, or null when it is not set: for a screen that only offers it as a default (M34j, the CRM web address). */
+export function siteUrlIfSet(): string | null {
+  const v = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
+  return v ? v : null;
+}
