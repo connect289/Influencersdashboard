@@ -4,6 +4,7 @@ import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { ceilingError } from "@/lib/admin/ceilings";
 import { entityConfig, parseEntityForm } from "@/lib/admin/entities";
+import { closeInput, fulfilInput, privacyError, systemInput } from "@/lib/admin/privacy";
 import { requireAdmin } from "@/lib/server/admin";
 import { rpc } from "@/lib/server/db";
 import { WHATSAPP_WIDGET_ID } from "@/lib/settings";
@@ -196,15 +197,83 @@ export async function setMappingAction(_prev: AdminFormState, form: FormData): P
   return { ok: "Mapping saved; the finder is updated." };
 }
 
-export async function privacyDoneAction(form: FormData): Promise<void> {
+/** What every privacy function answers: ok, or a refusal code (worded by `privacyError`). */
+type PrivacyResult = { ok: boolean; error?: string; already?: boolean; status?: string };
+
+/** Runs one privacy function for the signed-in super admin; a failed call is logged (no personal data) and answered as a refusal. */
+async function privacyRpc(
+  fn: string,
+  args: Record<string, unknown>,
+  s: { userId: string; email: string; role: string },
+): Promise<PrivacyResult> {
+  try {
+    return await rpc<PrivacyResult>(fn, { ...args, p_actor: s.userId, p_actor_email: s.email, p_role: s.role });
+  } catch (err) {
+    log("error", "admin.privacy_failed", { fn, ...errorFields(err) });
+    return { ok: false, error: "unavailable" };
+  }
+}
+
+/** Mark an opt-out request done, or reject any open request (a delete / copy request needs a note). */
+export async function privacyDoneAction(_prev: AdminFormState, form: FormData): Promise<AdminFormState> {
   const s = await requireAdmin("super_admin");
-  await rpc("web_admin_privacy_done", {
-    p_id: Number(form.get("id")),
-    p_status: String(form.get("status")),
-    p_note: String(form.get("note") ?? ""),
-    p_actor: s.userId,
-    p_actor_email: s.email,
-    p_role: s.role,
+  const p = closeInput.safeParse({ id: form.get("id"), status: form.get("status"), note: form.get("note") ?? "" });
+  if (!p.success) return { error: p.error.issues[0]?.message ?? "Check the form." };
+  const r = await privacyRpc(
+    "web_admin_privacy_done",
+    { p_id: p.data.id, p_status: p.data.status, p_note: p.data.note },
+    s,
+  );
+  if (!r.ok) return { error: privacyError(r.error) };
+  log("info", "admin.privacy_closed", { id: p.data.id, status: p.data.status, actor: s.email });
+  redirect(`/admin/privacy?ok=${p.data.status}&request=${p.data.id}`);
+}
+
+/**
+ * The explicit step on a delete / copy request (web17, D-096): erase the website's data for the account that filed it,
+ * or record that its copy was sent. Irreversible for an erasure, so the form carries a ticked confirmation; the
+ * database locks the request and a repeat changes nothing.
+ */
+export async function fulfilPrivacyAction(_prev: AdminFormState, form: FormData): Promise<AdminFormState> {
+  const s = await requireAdmin("super_admin");
+  const p = fulfilInput.safeParse({ id: form.get("id"), kind: form.get("kind"), confirm: form.get("confirm") });
+  if (!p.success) return { error: p.error.issues[0]?.message ?? "Check the form." };
+  const r = await privacyRpc("web_admin_privacy_fulfil", { p_id: p.data.id }, s);
+  if (!r.ok) return { error: privacyError(r.error) };
+  log("info", "admin.privacy_fulfilled", {
+    id: p.data.id,
+    kind: p.data.kind,
+    already: r.already === true,
+    status: r.status,
+    actor: s.email,
   });
-  redirect("/admin/privacy");
+  // With no CRM lead the request closes with this step.
+  const ok = r.already ? "already" : r.status === "done" ? "completed" : p.data.kind === "delete" ? "erased" : "sent";
+  redirect(`/admin/privacy?ok=${ok}&request=${p.data.id}`);
+}
+
+/** Tick Spark or the B2B CRM on a request's checklist after doing the work there. */
+export async function privacySystemAction(_prev: AdminFormState, form: FormData): Promise<AdminFormState> {
+  const s = await requireAdmin("super_admin");
+  const p = systemInput.safeParse({
+    id: form.get("id"),
+    system: form.get("system"),
+    state: form.get("state"),
+    note: form.get("note") ?? "",
+  });
+  if (!p.success) return { error: p.error.issues[0]?.message ?? "Check the form." };
+  const r = await privacyRpc(
+    "web_admin_privacy_system",
+    { p_id: p.data.id, p_system: p.data.system, p_state: p.data.state, p_note: p.data.note },
+    s,
+  );
+  if (!r.ok) return { error: privacyError(r.error) };
+  log("info", "admin.privacy_system", {
+    id: p.data.id,
+    system: p.data.system,
+    state: p.data.state,
+    status: r.status,
+    actor: s.email,
+  });
+  redirect(`/admin/privacy?ok=${r.status === "done" ? "completed" : "ticked"}&request=${p.data.id}`);
 }

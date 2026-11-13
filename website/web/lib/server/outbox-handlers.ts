@@ -2,9 +2,10 @@ import "server-only";
 import { whatsappLink } from "@/content/site";
 import { sendCapi } from "./capi";
 import { email } from "./email";
-import { catalogUnmappedEmail, privacyRequestEmail, submissionConfirmationEmail } from "./email/templates";
+import { catalogUnmappedEmail, privacyDoneEmail, privacyRequestEmail, submissionConfirmationEmail } from "./email/templates";
+import { rpc } from "./db";
 import { siteUrl } from "./env";
-import { log } from "./log";
+import { errorFields, log } from "./log";
 import { onceOnly, registerOutboxHandler } from "./outbox";
 import { getSettings } from "./settings";
 
@@ -21,6 +22,18 @@ registerOutboxHandler("email_confirmation", async (job) => {
     await onceOnly(job, "email", () =>
       email().send(p.email, privacyRequestEmail({ name: p.name, request: p.request ?? "delete" }), { idempotencyKey: job.dedupe_key }),
     );
+    return;
+  }
+  if (p.kind === "privacy_done") {
+    // The last email to an erased account (web17, D-096). Once it is sent the job is emptied, so the address does not
+    // stay in the queue's history; if that fails the job is retried (the email itself is not sent twice).
+    await onceOnly(job, "email", () => email().send(p.email, privacyDoneEmail(), { idempotencyKey: job.dedupe_key }));
+    try {
+      await rpc("web_outbox_scrub", { p_id: job.id });
+    } catch (err) {
+      log("warn", "outbox.scrub_failed", { id: job.id, ...errorFields(err) });
+      throw err;
+    }
     return;
   }
   const settings = await getSettings();

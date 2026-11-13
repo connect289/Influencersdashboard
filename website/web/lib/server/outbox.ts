@@ -51,6 +51,11 @@ export async function onceOnly(job: OutboxJob, step: string, run: () => Promise<
   }
 }
 
+/** True for a job whose payload was emptied because its person's data was erased (`{"erased": true}`). */
+export function isErased(job: Pick<OutboxJob, "payload">): boolean {
+  return job.payload?.erased === true;
+}
+
 export async function runOutbox(limit = 20): Promise<{ claimed: number; done: number; failed: number }> {
   const kinds = Object.keys(handlers);
   const jobs = await rpc<OutboxJob[]>("web_outbox_claim", { p_limit: limit, p_kinds: kinds });
@@ -58,7 +63,8 @@ export async function runOutbox(limit = 20): Promise<{ claimed: number; done: nu
   let failed = 0;
   for (const job of jobs ?? []) {
     try {
-      await handlers[job.kind]!(job);
+      // A job emptied by a privacy erasure (web17, D-096) has nothing left to send: it is only closed.
+      if (!isErased(job)) await handlers[job.kind]!(job);
       await rpc("web_outbox_done", { p_id: job.id });
       done++;
     } catch (err) {

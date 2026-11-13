@@ -142,6 +142,9 @@ After 14 stable days: raise the TTL back to 3600 s and retire the Hostinger site
   s05's rollback refuses once leads reference the website consent versions (deactivate instead, as it says).
 - **web14 alone** (limits of 31 Oct 2026): `supabase/rollbacks/20261031100000_web14_audit_limits.rollback.sql` (one
   transaction) restores the earlier function definitions and job commands and removes what web14 added.
+- **web17 alone** (privacy requests, 13 Nov 2026): roll the website back to the previous deployment, then
+  `supabase/rollbacks/20261113170000_web17_privacy_requests.rollback.sql` (one transaction). Requests, their status and
+  the audit log stay; the checklists go; an erasure already carried out cannot be undone.
 - **Website objects:** first `pg_dump --schema=public --table='web_*'` (keep the consent ledger, applications and
   privacy requests for DPDP), then `scripts/db/rollback-web.sql`. It refuses if any shared object depends on a website
   object, removes the website's pg_cron jobs and every `web_*` object, and leaves leads and touchpoints in the shared

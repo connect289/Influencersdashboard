@@ -727,3 +727,54 @@ these at the end (spec Section 0).
   (`EMAIL_PROVIDER=resend`) but is one provider for all mail and needs a Resend account, a verified sending domain and
   `RESEND_API_KEY`; Resend also honours the outbox's idempotency keys.
 - **To change:** the settings; or the web16 rollback (`supabase/rollbacks/20261113100000_web16_audit_fixes.rollback.sql`).
+
+### D-096 · Deletion and copy-of-data requests are carried out, with a checklist for the CRMs (web17, audit finding H5)
+- **Before:** a signed-in student could ask for their data to be deleted or sent to them (account page); the request
+  was acknowledged by email and listed in Admin → Privacy requests, where it could only be marked done. Nothing was
+  erased or assembled by the website.
+- **Decision:** a super admin fulfils each request in Admin → Privacy requests. Never automatic on filing; one explicit
+  step per request, on a locked row, and a repeat changes nothing. The requester counts as verified only while the
+  account that filed the request still exists under the same address.
+  - **Copy of data:** the admin downloads one JSON document (`web_admin_privacy_export`) and sends it from the company
+    mailbox (the email adapter has no attachments), then records it as sent. The document holds only rows tied to the
+    account by its verified sign-in (profile, consents with their text, verified forms, applications and answers, saved
+    programmes, comparisons, chats, callbacks, earlier requests). Left out: rows matched by email or phone alone (an
+    unverified form may have been typed by someone else) and internal fields (risk score, hashes, lead ids, staff notes
+    and names, Witty's working state other than the profile the student gave).
+  - **Erasure:** behind a disclosure that names what goes and a ticked confirmation. `web_privacy_erase` removes chat
+    messages and ratings, saved programmes, comparisons, callbacks, sign-in sessions and never-verified forms with the
+    address; it empties applications, verified forms and chat sessions down to kind, status and dates (funnel counts);
+    it cancels and empties queued emails and events for the address. Kept without identity: the account row as a
+    tombstone, the consent ledger (marked withdrawn), the verification log, the lead-write keys (so nothing is written
+    to a lead twice) and the request itself. The same address can sign up again as a new, empty account.
+  - **CRMs (not called from the website):** Spark's `b2c.lead_erase` needs a signed-in Spark admin session and the B2B
+    CRM's `b2b.lead_anonymise` a B2B admin (or that CRM's own engine marker); calling either from a website function
+    would mean bypassing their checks, and neither exists in the website's local database. So the request carries a
+    checklist (`web_deletion_requests.systems`: website, Spark, B2B) and the leads involved (`leads`: ids, and whether
+    D-087's rule treats each as the account's own). The admin erases (or copies) the lead in each CRM, then ticks it
+    here with a note, or marks it not applicable with a reason. The request is done only when every system is. For an
+    erasure, "B2B done" is accepted only once the account's own lead is anonymised in the shared lead table (read-only
+    check). With no lead, both are not applicable and the request closes with the website step.
+  - **Order:** an erasure waits while the account has another open request (an opt-out needs the phone number, a copy
+    needs the data). A delete / copy request can no longer be marked done by hand (`web_admin_privacy_done` answers
+    `use_fulfil`); it can be rejected with a note until the website step has run.
+  - **Last email:** when an erasure completes, one confirmation is queued to the requester's address, the request row
+    drops the address, and the outbox empties the job once it is sent (`web_outbox_scrub`). A job emptied by an erasure
+    is closed without running (`isErased`).
+- **Audit:** every step writes `web_audit_log` with the staff member, ids, kinds and counts, never the person's details
+  (`privacy.export_downloaded`, `privacy.copy_sent`, `privacy.website_erased`, `privacy.system_done` /
+  `_not_applicable`, `privacy.fulfilled`). The audit row for a closed request no longer copies the requester's address
+  or the request note (the audit log is readable by the viewer role).
+- **Shared objects:** none created or changed; `public.student_leads` is only read (ids, `anonymised_at`), through the
+  same lookups as `web_lead_tie`. No lead is written by an erasure.
+- **Verified:** SQL tests `97_web_privacy_requests` (85 checks) on the local database and on the production-schema
+  replica (all 13 files pass there; shared objects unchanged); the same checks as one batch for an HTTP SQL API
+  (`supabase/tests/web17_privacy_requests.http.sql`); typecheck, lint, 255 unit tests; `e2e/privacy.spec.ts` (download,
+  checklist, erasure, confirmation email in Mailpit). Not applied to staging or production.
+- **To apply:** the migration first, then the website deployment (the page calls the new functions).
+- **To change:** the rollback `supabase/rollbacks/20261113170000_web17_privacy_requests.rollback.sql` restores the web9
+  functions and removes the rest; an erasure already carried out cannot be undone.
+- **Open for the owner:** whether fulfilling an erasure should also opt the account's own lead out of contact at once
+  (through `lead_intake`, as withdrawing consent does), so nobody calls while the CRM steps are pending; whether the
+  confirmation email should be sent automatically; whether older `privacy.done` / `privacy.rejected` audit rows, which
+  still hold requester addresses, should be cleaned once.

@@ -5,7 +5,7 @@ vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
 const rpc = vi.fn(async (): Promise<unknown> => undefined);
 vi.mock("./db", () => ({ rpc, rpcRead: rpc, dbConfigured: () => true }));
 
-const { onceOnly } = await import("./outbox");
+const { isErased, onceOnly, registerOutboxHandler, runOutbox } = await import("./outbox");
 const job = (steps: string[] = []) => ({
   id: 7,
   kind: "email_confirmation",
@@ -37,5 +37,25 @@ describe("outbox steps that must not repeat (D-095)", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     rpc.mockRejectedValueOnce(new Error("timeout"));
     await expect(onceOnly(job(), "email", async () => ({ id: "m2" }))).resolves.toBeUndefined();
+  });
+});
+
+describe("jobs emptied by a privacy erasure (D-096)", () => {
+  it("are closed without running their handler", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const handler = vi.fn(async () => undefined);
+    registerOutboxHandler("email_confirmation", handler);
+    const erased = { ...job(), id: 8, payload: { erased: true } };
+    const live = { ...job(), id: 9, payload: { kind: "enquiry", email: "student@example.com" } };
+    expect(isErased(erased)).toBe(true);
+    expect(isErased(live)).toBe(false);
+    expect(isErased({ payload: { erased: "true" } })).toBe(false);
+    rpc.mockReset();
+    rpc.mockImplementation(async (...a: unknown[]) => (a[0] === "web_outbox_claim" ? [erased, live] : undefined));
+    await expect(runOutbox()).resolves.toEqual({ claimed: 2, done: 2, failed: 0 });
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith(live);
+    expect(rpc).toHaveBeenCalledWith("web_outbox_done", { p_id: 8 });
+    expect(rpc).toHaveBeenCalledWith("web_outbox_done", { p_id: 9 });
   });
 });

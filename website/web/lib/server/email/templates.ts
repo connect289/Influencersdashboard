@@ -94,6 +94,28 @@ export function privacyRequestEmail(o: { name?: string | null; request: string }
   return { subject, text, html };
 }
 
+/**
+ * Confirms a completed erasure. Sent to the address the request came from, after which the website keeps that address
+ * nowhere (web17, D-096); so no name, and nothing that would need the account.
+ */
+export function privacyDoneEmail(): Rendered {
+  const subject = "Your data has been deleted";
+  const done =
+    "We've completed your request to delete your data. Your account on eduwit.in has been erased, and so have the details of your enquiry in our admission systems, except records the law requires us to keep (for example of an admission or a payment).";
+  const kept =
+    "We also keep a record that consent was given and withdrawn and that this request was completed, without your contact details.";
+  const last = "This is the last email we will send to this address about your request.";
+  const text = `Hello,\n\n${done}\n\n${kept}\n\n${last} If you didn't ask for this, write to ${COMPANY.email}.\n\n${COMPANY.name} · ${COMPANY.email}`;
+  const html = layout(
+    subject,
+    `<p style="margin:0 0 12px">Hello,</p>
+<p style="margin:0 0 12px">${esc(done)}</p>
+<p style="margin:0 0 12px">${esc(kept)}</p>
+<p style="margin:0;color:#5b6b82">${esc(last)} If you didn't ask for this, write to ${esc(COMPANY.email)}.</p>`,
+  );
+  return { subject, text, html };
+}
+
 /** Staff alert: new catalogue rows the website cannot map yet (hidden from the finder until mapped; D-081). */
 export function catalogUnmappedEmail(o: { count: number; total: number; examples: { programme?: string | null; course?: string | null; university?: string | null }[]; adminUrl: string }): Rendered {
   const subject = `${o.count} new catalogue programme${o.count === 1 ? "" : "s"} need${o.count === 1 ? "s" : ""} a mapping on the website`;

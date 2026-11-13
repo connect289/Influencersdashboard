@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { verificationCodeEmail, catalogUnmappedEmail } from "./templates";
+import { verificationCodeEmail, catalogUnmappedEmail, privacyDoneEmail } from "./templates";
 
 describe("verification email", () => {
   it("puts the code in subject, text and html and states the expiry", () => {
@@ -22,5 +22,17 @@ describe("catalogue alert email", () => {
     expect(m.html).toContain("A &lt;b&gt;Uni&lt;/b&gt;");
     expect(m.html).toContain("https://eduwit.in/admin/taxonomy");
     expect(m.text).toContain("3 are waiting in total");
+  });
+});
+
+describe("erasure confirmation email (D-096)", () => {
+  it("confirms the deletion without naming the person and without promising more than was done", () => {
+    const m = privacyDoneEmail();
+    expect(m.subject).toBe("Your data has been deleted");
+    expect(m.text).toContain("Your account on eduwit.in has been erased");
+    expect(m.text).toContain("except records the law requires us to keep");
+    expect(m.text).toContain("last email");
+    expect(m.html).toContain("without your contact details");
+    expect(m.html).not.toContain("didn't ask for this, write to undefined");
   });
 });
