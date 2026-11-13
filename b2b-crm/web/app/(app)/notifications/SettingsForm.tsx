@@ -32,7 +32,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 /** Quiet hours, support contact and the two providers. Secrets go to Vault and are never shown again; leave them empty to keep them. */
-export function SettingsForm({ s, version }: { s: NotificationsOverview["settings"]; version: number }) {
+export function SettingsForm({ s, version, siteUrl }: { s: NotificationsOverview["settings"]; version: number; siteUrl: string }) {
   const [state, onSubmit, pending] = useFormAction<FormState>(saveNotificationSettings, undefined);
   const [provider, setProvider] = useState(s.email.provider ?? "resend");
   const e = state?.errors ?? {};
@@ -51,7 +51,10 @@ export function SettingsForm({ s, version }: { s: NotificationsOverview["setting
         <Row label="Eduwit support contact" hint="A staffed phone number or email, shown in every message." error={e.support_contact}>
           <input name="support_contact" defaultValue={s.support_contact ?? ""} placeholder="+91 98xxx xxxxx" className={field} aria-invalid={Boolean(e.support_contact)} />
         </Row>
-        <Row label="Unsubscribe link" hint="Optional. Without it, emails offer a reply-to-unsubscribe address." error={e.unsubscribe_url}>
+        <Row label="CRM web address" hint="Where this CRM is served. Every student email carries its own Unsubscribe link and one-click header pointing here. Save once to switch them on." error={e.site_url}>
+          <input name="site_url" type="url" inputMode="url" defaultValue={siteUrl} placeholder="https://b2b.eduwit.in" className={field} aria-invalid={Boolean(e.site_url)} />
+        </Row>
+        <Row label="Fallback unsubscribe link" hint="Optional. Used only while the CRM web address is empty; without both, emails offer a reply-to-unsubscribe address." error={e.unsubscribe_url}>
           <input name="unsubscribe_url" defaultValue={s.unsubscribe_url ?? ""} placeholder="https://eduwit.in/unsubscribe" className={field} aria-invalid={Boolean(e.unsubscribe_url)} />
         </Row>
       </Section>

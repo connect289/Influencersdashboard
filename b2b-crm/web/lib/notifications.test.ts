@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { SettingsSchema, TemplateSchema, channelBlockers, mayHaveBeenSent, renderTemplate, settingsPayload, unknownVariables, type NotificationsOverview } from "./notifications";
+import { SettingsSchema, TemplateSchema, channelBlockers, mayHaveBeenSent, renderTemplate, settingsPayload, siteUrlDefault, unknownVariables, type NotificationsOverview } from "./notifications";
 
 const settings = {
-  quiet_start: "08:00", quiet_end: "21:00", support_contact: "support@eduwit.in", unsubscribe_url: "", wa_phone_number_id: "123456789012",
+  quiet_start: "08:00", quiet_end: "21:00", support_contact: "support@eduwit.in", unsubscribe_url: "", site_url: "", wa_phone_number_id: "123456789012",
   wa_api_version: "v21.0", wa_token: "", email_provider: "resend", email_from: "Hello@Eduwit.in", email_from_name: "Team Eduwit", email_reply_to: "",
   email_api_key: "", reason: "first setup",
 };
@@ -20,6 +20,21 @@ describe("notification settings", () => {
     expect(r.success).toBe(false);
     const paths = r.success ? [] : r.error.issues.map((i) => i.path[0]);
     expect(paths).toEqual(expect.arrayContaining(["quiet_end", "wa_phone_number_id", "unsubscribe_url"]));
+  });
+  it("takes the CRM web address (M34j) as an https address without a query, and sends it without a trailing slash", () => {
+    expect(settingsPayload(SettingsSchema.parse({ ...settings, site_url: " https://b2b.eduwit.in/ " })).site_url).toBe("https://b2b.eduwit.in");
+    expect(settingsPayload(SettingsSchema.parse({ ...settings, site_url: "https://crm.example.in:8443/b2b" })).site_url).toBe("https://crm.example.in:8443/b2b");
+    expect(settingsPayload(SettingsSchema.parse(settings)).site_url).toBe(""); // empty clears it: emails fall back to the old footer
+    for (const bad of ["http://b2b.eduwit.in", "b2b.eduwit.in", "https://b2b.eduwit.in/?next=x", "https://b2b.eduwit.in/#a", "https://user:pw@b2b.eduwit.in", "javascript:alert(1)"]) {
+      const r = SettingsSchema.safeParse({ ...settings, site_url: bad });
+      expect(r.success ? [] : r.error.issues.map((i) => i.path[0])).toEqual(["site_url"]);
+    }
+  });
+  it("offers the saved address, else this deployment's own when it is https", () => {
+    expect(siteUrlDefault("https://b2b.eduwit.in", "https://other.example")).toBe("https://b2b.eduwit.in");
+    expect(siteUrlDefault(null, "https://b2b.eduwit.in/")).toBe("https://b2b.eduwit.in");
+    expect(siteUrlDefault(undefined, "http://localhost:3000")).toBe("");
+    expect(siteUrlDefault(null, null)).toBe("");
   });
   it("needs a reason and a support contact", () => {
     const r = SettingsSchema.safeParse({ ...settings, reason: "", support_contact: "x" });

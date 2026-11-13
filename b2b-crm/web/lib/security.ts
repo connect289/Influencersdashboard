@@ -23,6 +23,14 @@ export function isIdleExpired(lastSeen: string | undefined, nowSeconds: number, 
   return nowSeconds - seen > limit;
 }
 
+/**
+ * M34j: a link a student opens from an email (/u/<lead>/<token>, the unsubscribe page and its one-click address). Public:
+ * proxy.ts neither reads nor sets a session for it and never sends it to /login.
+ */
+export function isStudentLinkPath(path: string): boolean {
+  return path.startsWith("/u/");
+}
+
 /** Content-Security-Policy for one request. Scripts need the per-request nonce; nothing else may run. */
 export function buildCsp(nonce: string, supabaseOrigin: string, isDev: boolean): string {
   const wsOrigin = supabaseOrigin.replace(/^https:/, "wss:");

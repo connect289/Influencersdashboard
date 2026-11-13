@@ -22,7 +22,7 @@ const refresh = () => revalidatePath("/notifications");
 
 export type FormState = { errors?: Record<string, string>; error?: string; ok?: number } | undefined;
 
-const SETTINGS_FIELDS = ["quiet_start", "quiet_end", "support_contact", "unsubscribe_url", "wa_phone_number_id", "wa_api_version", "wa_token",
+const SETTINGS_FIELDS = ["quiet_start", "quiet_end", "support_contact", "unsubscribe_url", "site_url", "wa_phone_number_id", "wa_api_version", "wa_token",
   "email_provider", "email_from", "email_from_name", "email_reply_to", "email_api_key", "reason"] as const;
 
 export async function saveNotificationSettings(_prev: FormState, form: FormData): Promise<FormState> {

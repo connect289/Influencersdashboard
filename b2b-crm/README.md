@@ -23,7 +23,7 @@ This folder is the B2B CRM only. The influencer dashboard lives elsewhere in thi
 - `00000000000000_baseline.sql`: production's `public` schema on 6 Oct 2026, generated from the catalog. Reference only and the
   starting point for staging; never applied to production.
 - Every later file: applied to **staging first**, checked, then applied to production with Vikas's approval for that step.
-  `supabase/deploy.mjs` (or `deploy.sh`) applies every file from `m24a` to `m34i` that the database has not recorded yet,
+  `supabase/deploy.mjs` (or `deploy.sh`) applies every file from `m24a` to `m34j` that the database has not recorded yet,
   in order, with the `b2b-*` cron jobs paused; `node deploy.mjs` with `DATABASE_URL` in the shell.
 - `supabase/local-test.sh`: the offline check. It starts a throwaway PostgreSQL on a private socket (no Supabase project),
   loads stubs of auth, storage, cron, pg_net, Vault and pgmq (`tests/local/00_platform_stubs.sql`), applies the baseline
@@ -68,6 +68,30 @@ This folder is the B2B CRM only. The influencer dashboard lives elsewhere in thi
     headers; the route pattern, not the path).
   - Checks: `tests/test_m34i_hardening.sql` (35 rows) in `local-test.sh`; unit tests for the lockout, idle rule,
     request-error log line and the "may have been sent" flag.
+- **m34j (13 Nov 2026, audit finding M6: unsubscribe links; approved by Vikas; not yet applied to staging or
+  production).** A student's email from the CRM offered only a reply-to "Unsubscribe" that a person had to process, and
+  no `List-Unsubscribe` header. Withdrawing consent must be as easy as giving it (DPDP Act), and Gmail and Yahoo ask bulk
+  senders for one-click unsubscribe (RFC 8058).
+  - Every student email now carries the student's own link, `<CRM web address>/u/<lead>/<token>`, in the footer and the
+    text part, and the headers `List-Unsubscribe: <…/one-click>, <mailto:…>` and
+    `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (Resend and Brevo). The token is an HMAC per lead and channel
+    under a key the migration creates inside Vault (`b2b_unsubscribe_key`); the key is never in a table, a file or a
+    function result.
+  - The page shows one button and changes nothing when it is merely opened (mail scanners open links). The button, or the
+    mail provider's one-click POST, calls `b2b.unsubscribe` (service role only): it adds `email` to the lead's
+    `opted_out_channels` (and the lead it was merged into), cancels the lead's due emails, logs `lead.unsubscribed` and
+    tells the B2C link. WhatsApp and `is_opted_out` are untouched. A repeat changes nothing. A token that is not that
+    lead's gets the same answer as a valid one, so the page says nothing about which leads exist; no student data is shown.
+    Limits per minute (60 per caller address, 10 per lead, 600 in total; setting `api_limits.unsubscribe`) answer `429`
+    with `Retry-After`; caller addresses are stored only as keyed hashes, for an hour.
+  - `notify_tick` cancels a due message when the student opted out of its channel (queueing already skipped it).
+  - **Set-up after both the migration and the web release are live (their order does not matter):** Notifications →
+    Providers → **CRM web address** (offered from `NEXT_PUBLIC_SITE_URL`) → Save. Until then emails keep the old footer
+    and a mailto-only `List-Unsubscribe`. The Overview's email card shows the step as done. To switch the links off
+    again, clear the field and save; keep the web route, links in emails already sent must keep working.
+  - Checks: `tests/test_m34j_unsubscribe.sql` (75 rows) in `local-test.sh`; `tests/m34j.http.sql` for an HTTP SQL API
+    (one request with the migration, never runs the sender, ends with `TESTRESULT …` and rolls back); unit tests for the
+    link and one-click input checks, the confirm action, the public-path rule and the settings field.
 
 Rules that keep Witty (the live WhatsApp bot) safe:
 

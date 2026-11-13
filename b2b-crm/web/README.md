@@ -58,6 +58,13 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
   partner's hold window and then accepts. Duplicates and rejections move the lead to the next partner; late duplicate
   claims become commission disputes. Partners report back to `POST /v1/partners/{slug}/events` (HMAC-signed). The
   partner page's Connection tab holds the API credential, the signing secret (shown once), pushes, events and disputes.
+- Unsubscribe link (`/u/[lead]/[token]`, `supabase/migrations/m34j_unsubscribe.sql`): the one public page for students.
+  Every student email carries the student's own link and the one-click `List-Unsubscribe` headers once Notifications →
+  Providers → **CRM web address** is saved. Opening the link shows a confirm button and changes nothing (mail scanners
+  open links); the button, or the mail provider's `POST /u/{lead}/{token}/one-click` (RFC 8058: no cookies, body
+  `List-Unsubscribe=One-Click`), stops this CRM's emails for that enquiry. A token that is not that lead's is answered
+  like a valid one, no student data is shown, the page is never indexed and `proxy.ts` reads no session for `/u/`.
+  Too many requests: `429` with `Retry-After`; database not answering: `503` (the provider retries).
 - Notifications (`/notifications`, `supabase/migrations/*_m9*.sql`): once a partner accepts a lead, the student gets
   one WhatsApp message (an approved template sent through Meta's Cloud API from Eduwit's number) and one email
   (Resend or Brevo), inside quiet hours, in Hindi or English, naming the partner and when it will call. Never to test
@@ -128,7 +135,7 @@ Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Supabase Auth. Des
 | Database | RLS `(select b2b.is_admin())` on every `b2b` table; Admin functions re-check `b2b.is_admin()` |
 
 The service-role key is used only for the signed-out steps: logging attempts, the lockout check and the reset-link
-allowlist check (`lib/auth.ts`).
+allowlist check (`lib/auth.ts`), and a student's unsubscribe from an email link (`lib/unsubscribe.ts`).
 
 ## Run locally
 

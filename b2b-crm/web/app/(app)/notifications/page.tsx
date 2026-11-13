@@ -4,7 +4,8 @@ import { CircleCheck, CircleDashed, Inbox, Mail, MessageCircle } from "lucide-re
 import { Badge, Card, CardHeader, EmptyState, PageHeader } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { requireAdmin } from "@/lib/auth";
-import { CHANNEL_LABEL, KIND_LABEL, STATUS_LABEL, channelBlockers, type NotificationsOverview } from "@/lib/notifications";
+import { siteUrlIfSet } from "@/lib/env";
+import { CHANNEL_LABEL, KIND_LABEL, STATUS_LABEL, channelBlockers, siteUrlDefault, type NotificationsOverview } from "@/lib/notifications";
 import { notificationsOverview } from "@/lib/notifications-data";
 import { ChannelSwitch } from "./ChannelSwitch";
 import { SendLog } from "./SendLog";
@@ -37,6 +38,7 @@ function ChannelCard({ o, channel }: { o: NotificationsOverview; channel: "whats
         { done: Boolean(s.email.from_email), label: `Sender address${s.email.from_email ? ` ${s.email.from_email}` : ""}` },
         { done: s.email.has_key, label: `${s.email.provider === "brevo" ? "Brevo" : "Resend"} API key stored` },
         { done: o.templates.some((t) => t.channel === "email" && t.status === "active"), label: "Template active" },
+        { done: Boolean(s.site_url), label: "One-click unsubscribe link (CRM web address saved in Providers)" },
       ];
   return (
     <Card className="min-w-0">
@@ -139,7 +141,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
       {tab === "providers" && (
         <Card className="min-w-0">
           <CardHeader title="Providers and quiet hours" description="WhatsApp goes through Meta's Cloud API, email through Resend or Brevo. Keys are stored encrypted in Supabase Vault." />
-          <SettingsForm s={o.settings} version={o.version} />
+          <SettingsForm s={o.settings} version={o.version} siteUrl={siteUrlDefault(o.settings.site_url, siteUrlIfSet())} />
         </Card>
       )}
     </>

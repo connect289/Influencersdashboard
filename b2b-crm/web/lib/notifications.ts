@@ -83,6 +83,8 @@ export type NotificationsOverview = {
     quiet_end: string | null;
     support_contact: string | null;
     unsubscribe_url: string | null;
+    /** M34j: the CRM's public https address, where /u/<lead>/<token> is served. Missing before m34j is applied. */
+    site_url?: string | null;
     whatsapp: { provider?: string; phone_number_id?: string | null; api_version?: string | null; base_url?: string; has_token: boolean };
     email: { provider?: "resend" | "brevo"; from_email?: string | null; from_name?: string | null; reply_to?: string | null; base_url?: string; has_key: boolean };
   };
@@ -128,6 +130,16 @@ export function renderTemplate(body: string, vars: Record<string, string | null 
   });
 }
 
+/** M34j: the CRM's own public address, as b2b.notification_settings_save accepts it (https, no query or fragment). */
+const SITE_URL = /^https:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~\/-]*)?$/;
+
+/** What the "CRM web address" field starts with: the saved address, else this deployment's own when it is https. */
+export function siteUrlDefault(saved: string | null | undefined, deployed: string | null | undefined): string {
+  if (saved) return saved;
+  const d = (deployed ?? "").replace(/\/+$/, "");
+  return SITE_URL.test(d) ? d : "";
+}
+
 const time = z.string().trim().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM, e.g. 08:00");
 const optionalEmail = z.string().trim().toLowerCase().max(200).refine((v) => v === "" || /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(v), "Enter an email address");
 
@@ -137,6 +149,7 @@ export const SettingsSchema = z
     quiet_end: time,
     support_contact: z.string().trim().min(5, "Give a staffed phone number or email").max(120),
     unsubscribe_url: z.string().trim().max(300).refine((v) => v === "" || /^https:\/\//.test(v), "Use an https:// link, or leave it empty"),
+    site_url: z.string().trim().max(200).refine((v) => v === "" || SITE_URL.test(v), "Use this CRM's https:// address, e.g. https://b2b.eduwit.in"),
     wa_phone_number_id: z.string().trim().refine((v) => v === "" || /^\d{6,30}$/.test(v), "Digits only, as Meta shows it"),
     wa_api_version: z.string().trim().regex(/^v\d{1,3}\.\d$/, "e.g. v21.0"),
     wa_token: z.string().max(4000),
@@ -158,6 +171,7 @@ export function settingsPayload(v: SettingsInput) {
     quiet_end: v.quiet_end,
     support_contact: v.support_contact,
     unsubscribe_url: v.unsubscribe_url,
+    site_url: v.site_url.replace(/\/+$/, ""),
     whatsapp: { phone_number_id: v.wa_phone_number_id, api_version: v.wa_api_version, token: v.wa_token.trim() },
     email: { provider: v.email_provider, from_email: v.email_from, from_name: v.email_from_name, reply_to: v.email_reply_to, api_key: v.email_api_key.trim() },
   };
