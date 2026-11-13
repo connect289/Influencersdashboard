@@ -276,6 +276,11 @@ Checks: `supabase/tests/test_job_budget_2026_11.sql` (29); the same checks for a
 the migration in one transaction that is rolled back: `supabase/tests/b56.http.sql` (ends with
 `TESTRESULT total=29 failed=0`).
 
+**The SQL suites run in CI (13 Nov 2026).** `b2c-crm/supabase/local-test.sh` starts a throwaway local PostgreSQL, applies
+`tests/local_stubs.sql` and every migration twice, then runs every `tests/test_*.sql`; a failed check fails the run. It
+never connects to staging or production. The Spark CI workflow runs it on every push to `main` and every pull request
+that touches `b2c-crm/supabase` (it used to run for `b2c-crm/web` only, with no database checks).
+
 ## 12. Live
 
 `LIVE_MODE=on` in Vercel (Redeploy), then Workspace → Settings → live mode on. Un-pause journeys one by one.
