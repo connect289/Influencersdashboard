@@ -28,7 +28,10 @@ followed.
   for the Management API: 26 checks, ending in `TESTRESULT total=… failed=…` and rolling everything back.
 - Order: none needed. The app's new call (`p_expected_version`) is 0039's, already in production; with the old app
   and 0040 an engineer's refusal reads "Your role cannot do this"; with the new app and no 0040 mutes behave as before.
-- Not yet applied: staging rehearsal and production apply follow
+- Applied: staging rehearsal passed 13 Nov 23:24 UTC (set `b38c97c0…`), the 26 checks of `supabase/tests/0040.http.sql`
+  passed on staging in a rolled-back transaction, and 0040 was applied to production 13 Nov 23:25 UTC through
+  `scripts/db/api-apply.sh` (smoke passed; no dump, D-090). The app with these changes was deployed at 23:10 UTC, before
+  the database step; in between, mutes behaved as before. No mute was in force at the time.
 ## 13 Nov 2026 — A fixed search path on 47 older shared functions (D-140)
 
 - Found (audit of 13 Nov, M5; Supabase's security advisor): 87 functions of schema `public` had no fixed
