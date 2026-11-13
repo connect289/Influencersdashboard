@@ -8,6 +8,11 @@ export interface EmailMessage {
   idempotencyKey?: string;
   /** Small files sent with the message (e.g. the signed contract PDF). */
   attachments?: EmailAttachment[];
+  /**
+   * One-click unsubscribe address (RFC 8058) for emails a person can turn off: providers send it as List-Unsubscribe
+   * with List-Unsubscribe-Post. Left out for required notices and sign-in emails.
+   */
+  listUnsubscribeUrl?: string;
 }
 
 export interface EmailAttachment {

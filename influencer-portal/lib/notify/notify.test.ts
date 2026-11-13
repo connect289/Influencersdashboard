@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BrevoEmailProvider, MockEmailProvider, ResendEmailProvider } from "./email";
+import type { Transporter } from "nodemailer";
+import { BrevoEmailProvider, MockEmailProvider, ResendEmailProvider, SmtpEmailProvider } from "./email";
 import { escapeHtml, passwordLinkEmail, staffCodeEmail } from "./templates";
 import { MetaWhatsAppProvider } from "./whatsapp";
 import { ProviderError } from "./types";
@@ -55,6 +56,58 @@ describe("email providers", () => {
   it("a 4xx is not retryable", async () => {
     const err = await new ResendEmailProvider("x", "k", fakeFetch(422, {}, {})).send(msg).catch((e: unknown) => e);
     expect((err as ProviderError).retryable).toBe(false);
+  });
+});
+
+describe("one-click unsubscribe headers (RFC 8058)", () => {
+  const ONE_CLICK = "https://creators.eduwit.in/unsubscribe/v1.abc.def/one-click";
+  const BOTH = { "List-Unsubscribe": `<${ONE_CLICK}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" };
+  const optional = { ...msg, listUnsubscribeUrl: ONE_CLICK };
+  type Sent = { headers?: Record<string, string> };
+
+  function smtp(seen: Sent[]) {
+    const transport = {
+      sendMail: (m: Sent) => {
+        seen.push(m);
+        return Promise.resolve({ messageId: "<m1@test>" });
+      },
+    } as unknown as Transporter;
+    return new SmtpEmailProvider("Eduwit <c@eduwit.in>", { host: "smtp.test", port: 587, secure: false }, transport);
+  }
+
+  it("resend and brevo send both headers for an email a person can turn off", async () => {
+    const seen: { url?: string; init?: RequestInit } = {};
+    await new ResendEmailProvider("Eduwit <c@eduwit.in>", "re_key", fakeFetch(200, { id: "a" }, seen)).send(optional);
+    expect((JSON.parse(seen.init?.body as string) as Sent).headers).toEqual(BOTH);
+    await new BrevoEmailProvider("Eduwit <c@eduwit.in>", "key", fakeFetch(201, { messageId: "m" }, seen)).send(
+      optional,
+    );
+    expect((JSON.parse(seen.init?.body as string) as Sent).headers).toEqual(BOTH);
+  });
+
+  it("smtp sends both headers next to its reference header", async () => {
+    const seen: Sent[] = [];
+    await smtp(seen).send(optional);
+    expect(seen[0]?.headers).toEqual({ "X-Entity-Ref-ID": "k1", ...BOTH });
+  });
+
+  it("no provider sends them for a required notice or a sign-in email (no address given)", async () => {
+    const seen: { url?: string; init?: RequestInit } = {};
+    await new ResendEmailProvider("Eduwit <c@eduwit.in>", "re_key", fakeFetch(200, { id: "a" }, seen)).send(msg);
+    expect(JSON.parse(seen.init?.body as string) as Sent).not.toHaveProperty("headers");
+    await new BrevoEmailProvider("Eduwit <c@eduwit.in>", "key", fakeFetch(201, { messageId: "m" }, seen)).send(msg);
+    expect(JSON.parse(seen.init?.body as string) as Sent).not.toHaveProperty("headers");
+    const sent: Sent[] = [];
+    await smtp(sent).send(msg);
+    expect(sent[0]?.headers).toEqual({ "X-Entity-Ref-ID": "k1" });
+    await smtp(sent).send({ ...msg, idempotencyKey: undefined });
+    expect(sent[1]?.headers).toBeUndefined();
+  });
+
+  it("none is sent for a plain-HTTP address (local development)", async () => {
+    const sent: Sent[] = [];
+    await smtp(sent).send({ ...msg, listUnsubscribeUrl: "http://localhost:3200/unsubscribe/v1.abc.def/one-click" });
+    expect(sent[0]?.headers).toEqual({ "X-Entity-Ref-ID": "k1" });
   });
 });
 

@@ -449,14 +449,14 @@ isOneToOne: false
                   ]
                 },"communication_consents": {
                   Row: {
-                    "channel": string,"created_at": string,"detail": string | null,"granted": boolean,"id": number,"purpose": string,"user_id": string
+                    "channel": string,"created_at": string,"detail": string | null,"granted": boolean,"id": number,"purpose": string,"source": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "channel": string,"created_at"?: string,"detail"?: string | null,"granted": boolean,"id"?: never,"purpose": string,"user_id": string
+                    "channel": string,"created_at"?: string,"detail"?: string | null,"granted": boolean,"id"?: never,"purpose": string,"source"?: string,"user_id": string
                   }
                   Update: {
-                    "channel"?: string,"created_at"?: string,"detail"?: string | null,"granted"?: boolean,"id"?: never,"purpose"?: string,"user_id"?: string
+                    "channel"?: string,"created_at"?: string,"detail"?: string | null,"granted"?: boolean,"id"?: never,"purpose"?: string,"source"?: string,"user_id"?: string
                   }
                   Relationships: [
                     
@@ -4006,6 +4006,9 @@ isOneToOne: false
                            },
 "tiers_list":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"unsubscribe_email":
+{ Args: { "p_category": string,"p_user": string }; Returns: number
                            },
 "valid_gstin":
 { Args: { "p": string }; Returns: boolean

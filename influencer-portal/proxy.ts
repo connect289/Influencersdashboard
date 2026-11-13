@@ -21,7 +21,8 @@ const PUBLIC_EXACT = new Set([
   "/offline",
   "/link-inactive",
 ]);
-const PUBLIC_PREFIX = ["/auth/", "/password/", "/legal/", "/m/", "/api/health", "/api/public/", "/r/"];
+// "/unsubscribe/": the link in an email must work without signing in, also for the mail provider's one-click POST.
+const PUBLIC_PREFIX = ["/auth/", "/password/", "/legal/", "/m/", "/api/health", "/api/public/", "/r/", "/unsubscribe/"];
 const isPublic = (path: string) => PUBLIC_EXACT.has(path) || PUBLIC_PREFIX.some((p) => path.startsWith(p));
 
 type Cookie = { name: string; value: string; options?: Parameters<NextResponse["cookies"]["set"]>[2] };

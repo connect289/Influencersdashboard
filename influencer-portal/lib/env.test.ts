@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { envProblems, parseEnv } from "./env";
+import { envProblems, envWarnings, parseEnv } from "./env";
 
 const base = {
   NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54421",
@@ -72,5 +72,25 @@ describe("environment", () => {
       "NEXT_PUBLIC_SITE_URL",
     ]);
     expect(problems.join(" ")).not.toMatch(/short-secret|not-a-url-secret/);
+  });
+
+  it("runs without the unsubscribe secret and says what is missing, by name only", () => {
+    const env = parseEnv(base);
+    expect(env.UNSUBSCRIBE_SECRET).toBeUndefined();
+    expect(parseEnv({ ...base, UNSUBSCRIBE_SECRET: "" }).UNSUBSCRIBE_SECRET).toBeUndefined();
+    expect(envWarnings(env)).toEqual([expect.stringMatching(/^UNSUBSCRIBE_SECRET: not set/)]);
+    const secret = "u".repeat(32);
+    expect(envWarnings(parseEnv({ ...base, UNSUBSCRIBE_SECRET: secret }))).toEqual([]);
+    expect(envWarnings(env).join(" ")).not.toContain(secret);
+  });
+
+  it("treats an unsubscribe secret that is too short to sign with as not set, and keeps running", () => {
+    const source = { ...base, UNSUBSCRIBE_SECRET: "short-unsubscribe-secret" };
+    expect(envProblems(source)).toEqual([]);
+    const env = parseEnv(source);
+    expect(env.UNSUBSCRIBE_SECRET).toBeUndefined();
+    const warnings = envWarnings(env);
+    expect(warnings).toEqual([expect.stringMatching(/^UNSUBSCRIBE_SECRET: .*32 characters/)]);
+    expect(warnings.join(" ")).not.toContain("short-unsubscribe-secret");
   });
 });

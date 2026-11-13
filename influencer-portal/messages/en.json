@@ -296,7 +296,9 @@
       "whatsapp": "Connect WhatsApp for notifications",
       "whatsappHint": "Needs a portal notification number, a WABA and approved templates.",
       "live": "Turn on live sending",
-      "liveHint": "LIVE_MODE is off, so no notification leaves the system yet."
+      "liveHint": "LIVE_MODE is off, so no notification leaves the system yet.",
+      "unsubscribe": "Add the unsubscribe signing secret",
+      "unsubscribeHint": "UNSUBSCRIBE_SECRET is not set in the deployment, so emails are sent without an unsubscribe link."
     },
     "myTasks": "My tasks"
   },
@@ -606,7 +608,10 @@
       "title": "Sending",
       "email": "Email provider",
       "whatsapp": "WhatsApp provider",
-      "liveMode": "Live mode"
+      "liveMode": "Live mode",
+      "unsubscribe": "Unsubscribe links",
+      "unsubscribeOn": "on",
+      "unsubscribeMissing": "secret missing"
     },
     "deliveries": {
       "failed": "Failed sends (24 h)"
@@ -4792,7 +4797,12 @@
       "digest_staff": "Your digest",
       "fraud_flagged": "Fraud flag raised",
       "staff_negotiation_pending": "Negotiations waiting on you",
-      "staff_review_pending": "Work waiting for review"
+      "staff_review_pending": "Work waiting for review",
+      "tier_changed": "Your tier changed",
+      "privacy_export_ready": "Your data export is ready",
+      "privacy_request_update": "Update on your privacy request",
+      "staff_privacy_request": "New privacy request",
+      "system_job_dead": "A background job gave up"
     }
   },
   "communication": {
@@ -5197,11 +5207,12 @@
     },
     "consents": {
       "title": "Communication consents",
-      "hint": "Every change to your notification and digest choices, newest first.",
+      "hint": "Every change to your notification and digest choices, newest first, including emails you stopped from a link in an email.",
       "none": "No changes yet. You get the default notifications.",
       "digest": "Digest ({frequency})",
       "on": "On",
-      "off": "Off"
+      "off": "Off",
+      "viaLink": "by email link"
     },
     "requested": {
       "export": "Your data is ready to download.",
@@ -5234,6 +5245,42 @@
       "purgeOn": "retained records purged on {date}",
       "empty": "No privacy requests",
       "emptyHint": "Requests appear here when creators ask for their data or to delete their account."
+    }
+  },
+  "unsubscribe": {
+    "title": "Email preferences",
+    "required": "Required notices about contracts, payments, KYC and privacy requests still arrive by email.",
+    "confirm": {
+      "title": "Stop these emails?",
+      "body": "We'll stop sending you emails about:",
+      "button": "Stop these emails",
+      "back": "You can turn them back on at any time in your notification settings."
+    },
+    "done": {
+      "title": "You're all set",
+      "body": "If this link was valid, we've stopped the kind of email it came with. There's nothing more to do.",
+      "settings": "Sign in to see or change your notification settings"
+    },
+    "limited": {
+      "title": "Too many requests",
+      "body": "Wait a minute, then press the button again."
+    },
+    "failed": {
+      "title": "We couldn't save that",
+      "body": "Nothing was changed. Press the button again in a minute."
+    },
+    "categories": {
+      "account": "Your account and profile",
+      "campaigns": "Campaigns and applications",
+      "deals": "Deals",
+      "contracts": "Contract comments, reminders and change requests",
+      "content": "Briefs and deliverables",
+      "leads": "Leads",
+      "money": "Money",
+      "messages": "Messages",
+      "announcements": "Announcements",
+      "staff": "Work queues",
+      "digest": "Your digest"
     }
   }
 }

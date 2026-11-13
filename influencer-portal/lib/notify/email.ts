@@ -3,6 +3,16 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { env, type ServerEnv } from "@/lib/env";
 import { log } from "@/lib/log";
 import { ProviderError, type EmailMessage, type EmailProvider, type SendResult } from "./types";
+import { listUnsubscribeHeaders } from "./unsubscribe";
+
+/** Extra mail headers for a message, or undefined when it has none. */
+function mailHeaders(m: EmailMessage, entityRef: boolean): Record<string, string> | undefined {
+  const headers = {
+    ...(entityRef && m.idempotencyKey ? { "X-Entity-Ref-ID": m.idempotencyKey } : {}),
+    ...listUnsubscribeHeaders(m.listUnsubscribeUrl),
+  };
+  return Object.keys(headers).length ? headers : undefined;
+}
 
 /** Records messages in memory (tests) and logs that a message was sent, never its content. Refused in production. */
 export class MockEmailProvider implements EmailProvider {
@@ -21,16 +31,20 @@ export class SmtpEmailProvider implements EmailProvider {
   constructor(
     private readonly from: string,
     config: { host: string; port: number; secure: boolean; user?: string; password?: string },
+    /** Tests pass a transport that records what would be sent. */
+    transport?: Transporter,
   ) {
-    this.transport = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: config.user ? { user: config.user, pass: config.password ?? "" } : undefined,
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 20_000,
-    });
+    this.transport =
+      transport ??
+      nodemailer.createTransport({
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        auth: config.user ? { user: config.user, pass: config.password ?? "" } : undefined,
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
+      });
   }
   async send(m: EmailMessage): Promise<SendResult> {
     try {
@@ -40,7 +54,7 @@ export class SmtpEmailProvider implements EmailProvider {
         subject: m.subject,
         html: m.html,
         text: m.text,
-        headers: m.idempotencyKey ? { "X-Entity-Ref-ID": m.idempotencyKey } : undefined,
+        headers: mailHeaders(m, true),
         attachments: m.attachments?.map((a) => ({
           filename: a.filename,
           content: a.content,
@@ -89,6 +103,7 @@ export class ResendEmailProvider implements EmailProvider {
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
   async send(m: EmailMessage): Promise<SendResult> {
+    const headers = mailHeaders(m, false);
     const r = await postJson(
       "https://api.resend.com/emails",
       {
@@ -101,6 +116,7 @@ export class ResendEmailProvider implements EmailProvider {
         subject: m.subject,
         html: m.html,
         text: m.text,
+        ...(headers ? { headers } : {}),
         ...(m.attachments?.length
           ? {
               attachments: m.attachments.map((a) => ({
@@ -129,6 +145,7 @@ export class BrevoEmailProvider implements EmailProvider {
   async send(m: EmailMessage): Promise<SendResult> {
     const match = /^(.*)<([^>]+)>\s*$/.exec(this.from);
     const sender = match?.[2] ? { name: (match[1] ?? "").trim() || undefined, email: match[2] } : { email: this.from };
+    const headers = mailHeaders(m, false);
     const r = await postJson(
       "https://api.brevo.com/v3/smtp/email",
       { "api-key": this.apiKey },
@@ -138,6 +155,7 @@ export class BrevoEmailProvider implements EmailProvider {
         subject: m.subject,
         htmlContent: m.html,
         textContent: m.text,
+        ...(headers ? { headers } : {}),
         ...(m.attachments?.length
           ? {
               attachment: m.attachments.map((a) => ({

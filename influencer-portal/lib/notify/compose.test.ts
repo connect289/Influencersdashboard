@@ -58,4 +58,69 @@ describe("notification composition", () => {
     expect(composeWhatsApp(paid, tpl, "Riya", "12", SITE)).toBeNull();
     expect(composeWhatsApp(paid, tpl, "Riya", null, SITE)).toBeNull();
   });
+
+  // The footer (D-198): how to stop this kind of email, or that it is a required notice.
+  const invited: NotificationFacts = {
+    event: "campaign.invited",
+    title: "You're invited",
+    body: "Join the campaign.",
+    link: "/creator/campaigns",
+    data: { campaign: "Spring intake" },
+  };
+  const UNSUB = `${SITE}/unsubscribe/v1.abc.def`;
+  const SETTINGS = `${SITE}/creator/notifications/settings`;
+
+  it("offers the unsubscribe link and the settings in an email a person can turn off", () => {
+    const footer = { settingsUrl: SETTINGS, unsubscribeUrl: UNSUB, required: false };
+    for (const tpl of [null, { subject: "Invited", body: "Hi {{name}}.", wa_template_name: null }]) {
+      const m = composeEmail(invited, tpl, "Riya", SITE, footer);
+      expect(m.html).toContain(`<a href="${UNSUB}"`);
+      expect(m.html).toContain("Stop these emails</a>");
+      expect(m.html).toContain(`<a href="${SETTINGS}"`);
+      expect(m.html).not.toContain("required notice");
+      expect(m.text).toContain(`Stop these emails: ${UNSUB}`);
+      expect(m.text).toContain(`Notification settings: ${SETTINGS}`);
+      // The usual signature separator, so mail apps fold the footer away from the message.
+      expect(m.text).toContain("\n\n-- \n");
+    }
+  });
+
+  it("says a required notice is required and offers no unsubscribe link", () => {
+    const m = composeEmail(paid, null, "Riya", SITE, { settingsUrl: SETTINGS, unsubscribeUrl: null, required: true });
+    expect(m.html).toContain("This is a required notice");
+    expect(m.html).not.toContain("/unsubscribe/");
+    expect(m.html).not.toContain("Stop these emails");
+    expect(m.html).toContain(`<a href="${SETTINGS}"`);
+    expect(m.text).toContain("This is a required notice");
+    expect(m.text).not.toContain("/unsubscribe/");
+    // Even if a link were passed by mistake, a required notice never shows it.
+    const wrong = composeEmail(paid, null, "Riya", SITE, {
+      settingsUrl: SETTINGS,
+      unsubscribeUrl: UNSUB,
+      required: true,
+    });
+    expect(wrong.html + wrong.text).not.toContain("/unsubscribe/");
+  });
+
+  it("sends the email without the link when there is none (no signing secret)", () => {
+    const m = composeEmail(invited, null, "Riya", SITE, {
+      settingsUrl: SETTINGS,
+      unsubscribeUrl: null,
+      required: false,
+    });
+    expect(m.html).not.toContain("/unsubscribe/");
+    expect(m.html).not.toContain("required notice");
+    expect(m.html).toContain(`Choose what we send in your <a href="${SETTINGS}"`);
+    expect(m.text).toBe(`Join the campaign.\n\n${SITE}/creator/campaigns\n\n-- \nNotification settings: ${SETTINGS}`);
+  });
+
+  it("escapes the addresses it puts in the footer", () => {
+    const m = composeEmail(invited, null, "Riya", SITE, {
+      settingsUrl: `${SETTINGS}?a=1&b="2"`,
+      unsubscribeUrl: `${UNSUB}"><script>`,
+      required: false,
+    });
+    expect(m.html).not.toContain("<script>");
+    expect(m.html).toContain("?a=1&amp;b=&quot;2&quot;");
+  });
 });

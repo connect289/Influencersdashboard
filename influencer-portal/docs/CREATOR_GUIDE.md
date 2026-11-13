@@ -180,6 +180,7 @@ Payouts always go to your own bank account. You can change or remove an agency's
 The bell at the top shows what's new. Open it for your notifications (`/creator/notifications`): new campaigns and offers, contracts to sign, briefs, due work, leads that enrol, payments and messages. Tap one to go straight to it.
 
 - In notification settings (`/creator/notifications/settings`) choose email and WhatsApp for each kind. Notifications about contracts, payments and KYC can't be turned off, because they carry something you must do or a record of money.
+- Every email you can turn off has a **Stop these emails** link at the bottom, and most mail apps show their own **Unsubscribe** button for it. You don't need to sign in: the link opens a page that names the kind of email (for example campaigns, or your digest), and one button stops it. Only email for that kind stops; you still see those notifications in the portal, WhatsApp is unchanged, and you can switch the emails back on in notification settings at any time. Emails about contracts, payments, KYC and privacy requests have no such link: they say they are required notices.
 - The **digest** sums up new leads, what you earned, work due soon and unread messages. It comes on Monday mornings by default; choose every morning or off.
 - Announcements from Eduwit also appear on your home page (`/creator`).
 
@@ -204,7 +205,7 @@ You will see the leads you bring in, but students' phone numbers and email addre
 Account → Manage my data (`/creator/account/privacy`) is where you control your own data under India's DPDP Act.
 
 - **Download my data** prepares a JSON file with your profile, platforms, deals, contracts, content, links, lead counts, earnings, payouts, messages and notifications. It is ready at once and can be downloaded for 7 days; you can prepare one a day. It never contains students' contact details.
-- **Communication consents** lists every change you have made to your notification channels and digest, newest first. Change them in notification settings.
+- **Communication consents** lists every change you have made to your notification channels and digest, newest first, and marks the ones made from the link in an email. Change them in notification settings.
 - **Request deletion** asks our team to delete your account. Open deals must end and any money owed must be settled first. We then erase your profile, platforms, media kit, photo and message text and you can no longer sign in. Earnings, payouts, invoices, tax records and signed contracts are kept for as long as the law requires, then removed.
 
 ### Your account
@@ -267,6 +268,8 @@ With the view earnings permission, open a creator from Your creators (`/agency`)
 ### Notifications
 
 The bell at the top shows what's new for the creators you manage, within your permissions: invitations and offers, contracts to sign, briefs and due work, and messages. Open it for your notifications (`/agency/notifications`); choose email per kind in notification settings (`/agency/notifications/settings`) (contract notifications can't be turned off).
+
+Every email you can turn off has a **Stop these emails** link at the bottom (most mail apps also show an **Unsubscribe** button). It opens a page that names the kind of email and stops it with one button, without signing in. Switch it back on in notification settings. Contract emails are required notices and have no such link.
 
 ### Messages
 
