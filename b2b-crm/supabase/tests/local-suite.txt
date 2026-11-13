@@ -1,0 +1,16 @@
+# SQL test files supabase/local-test.sh runs by default (and CI runs on every change under b2b-crm/supabase/).
+# Each builds its own fixtures inside a rolled-back transaction. The other files in tests/ read staging's fixture rows
+# (partners 20 and 22, the staging catalogue) or check behaviour later migrations replaced, so they run on staging only.
+tests/test_m11_lead_edit_export.sql
+tests/test_m22_b2c_link.sql
+tests/test_m31_after_push.sql
+tests/test_m31_routing_rules.sql
+tests/test_m31_scoring.sql
+tests/test_m33a_access_api.sql
+tests/test_m33d_referrals.sql
+tests/test_m33g_legacy_stage_function.sql
+tests/test_m34_audit_fixes.sql
+tests/test_m34e_outbound_urls.sql
+tests/test_m34f_ai_worker_auth.sql
+tests/test_m34g_anonymise_guard.sql
+tests/test_m34i_hardening.sql

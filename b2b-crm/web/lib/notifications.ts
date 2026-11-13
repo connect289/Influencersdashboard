@@ -38,6 +38,15 @@ export const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neu
   skipped: "neutral",
 };
 
+/**
+ * M34i: notify_tick fails a message without sending it again when the provider gave no usable answer (no answer, a
+ * timeout, a 5xx or a cut connection) and the provider cannot de-duplicate (WhatsApp, Brevo): it may already have reached
+ * the student. Its error then starts with "may have been sent".
+ */
+export function mayHaveBeenSent(error: string | null | undefined): boolean {
+  return typeof error === "string" && error.startsWith("may have been sent");
+}
+
 export type Template = {
   id: number;
   kind: string;

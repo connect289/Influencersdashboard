@@ -36,7 +36,7 @@ export async function signInWithPassword(_: FormState, form: FormData): Promise<
 
   let locked: boolean;
   try {
-    locked = await isLocked(email);
+    locked = await isLocked(email, ctx.ip, "password");
   } catch (e) {
     // Fail closed, but say why: PGRST106 means the b2b schema is not exposed to the API yet.
     return { error: String(e).includes("PGRST106") ? SETUP : "Sign-in is unavailable right now. Try again in a minute." };
@@ -133,7 +133,7 @@ export async function startTotpEnrollment(): Promise<Enrollment> {
 
 const codeSchema = z.string().regex(/^\d{6}$/);
 
-/** Verifies a 6-digit code (set-up or sign-in). Failures count toward the 15-minute lockout. */
+/** Verifies a 6-digit code (set-up or sign-in). Only failed codes count toward this step's 15-minute lockout (M34i). */
 export async function verifyTotp(_: FormState, form: FormData): Promise<FormState> {
   const code = String(form.get("code") ?? "").replace(/\s/g, "");
   const next = safeNext(String(form.get("next") ?? ""));
@@ -142,7 +142,7 @@ export async function verifyTotp(_: FormState, form: FormData): Promise<FormStat
   const { supabase, me } = await allowlistedSession();
   const email = me.email ?? "";
   const ctx = await requestContext();
-  if (await isLocked(email)) {
+  if (await isLocked(email, ctx.ip, "totp")) {
     await supabase.auth.signOut({ scope: "local" });
     await recordSignIn({ email, user_id: me.user_id, method: "totp", outcome: "locked", ...ctx });
     redirect("/login?error=locked");
@@ -158,7 +158,7 @@ export async function verifyTotp(_: FormState, form: FormData): Promise<FormStat
   const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
   if (error) {
     await recordSignIn({ email, user_id: me.user_id, method: "totp", outcome: "failed_totp", ...ctx });
-    if (await isLocked(email)) {
+    if (await isLocked(email, ctx.ip, "totp")) {
       await supabase.auth.signOut({ scope: "local" });
       redirect("/login?error=locked");
     }

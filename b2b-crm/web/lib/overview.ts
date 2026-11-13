@@ -255,6 +255,7 @@ export const ALERT_LABEL: Record<string, string> = {
   "alert.push_failed": "Push failed after every retry",
   "alert.push_error": "Push error",
   "alert.push_collect_error": "A partner's push answer could not be read",
+  "alert.push_retry_duplicate": "A retried push was answered 'already exists': counted as created, check with the partner",
   "alert.partner_rejected": "Partner rejected a lead",
   "alert.partner_bad_signature": "Partner event with a bad signature",
   "alert.commission_dispute": "Commission dispute (late duplicate or activity after lost)",

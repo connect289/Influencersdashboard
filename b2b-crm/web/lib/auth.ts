@@ -1,6 +1,8 @@
 import "server-only";
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { isIdleExpired, SEEN_COOKIE } from "@/lib/security";
 import { createClient, type ServerSupabase } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 
@@ -33,10 +35,21 @@ export async function fetchMe(supabase: ServerSupabase): Promise<MeResult> {
 export const getMe = cache(async (): Promise<MeResult> => fetchMe(await createClient()));
 
 /**
- * Gate for every page and action inside the app. Signed out → /login; signed in but not on the allowlist → signed out
- * by /auth/refuse; allowlisted without a TOTP-verified session → /mfa.
+ * M34i: the 12-hour idle rule on the server too. proxy.ts signs an idle session out, but a request can skip the proxy (its
+ * matcher leaves out prefetch requests), so the gate reads the same last-seen cookie. A missing cookie is not idle.
+ */
+async function sessionIdle(): Promise<boolean> {
+  const seen = (await cookies()).get(SEEN_COOKIE)?.value;
+  return isIdleExpired(seen, Math.floor(Date.now() / 1000));
+}
+
+/**
+ * Gate for every page and action inside the app. Idle for 12 hours → /login (the proxy signs the session out there);
+ * signed out → /login; signed in but not on the allowlist → signed out by /auth/refuse; allowlisted without a
+ * TOTP-verified session → /mfa.
  */
 export async function requireAdmin(): Promise<MeResult> {
+  if (await sessionIdle()) redirect("/login?reason=idle");
   const result = await getMe();
   if ("setupError" in result) return result;
   const { me } = result;
@@ -48,6 +61,7 @@ export async function requireAdmin(): Promise<MeResult> {
 
 /** For server actions: throws instead of rendering, so a forged call can never proceed. */
 export async function assertAdmin(): Promise<Me> {
+  if (await sessionIdle()) throw new Error("not allowed");
   const result = await getMe();
   if ("setupError" in result || !result.me.is_admin) throw new Error("not allowed");
   return result.me;
@@ -70,8 +84,15 @@ export async function recordSignIn(entry: SignInEntry): Promise<void> {
   if (error) console.error("record_sign_in failed", error.code); // never block sign-in on the audit write
 }
 
-export async function isLocked(email: string): Promise<boolean> {
-  const { data, error } = await adminClient().rpc("sign_in_locked", { p_email: email });
+/**
+ * M34i: the lockout counts failures per email and client IP (b2b.sign_in_locked(email, ip, step), m34i), so a stranger's
+ * wrong passwords from elsewhere cannot lock the Admin out. Step "totp" (after a correct password) counts only failed
+ * codes for the email, from any IP.
+ */
+export type LockStep = "password" | "totp";
+
+export async function isLocked(email: string, ip: string | null, step: LockStep): Promise<boolean> {
+  const { data, error } = await adminClient().rpc("sign_in_locked", { p_email: email, p_ip: ip, p_step: step });
   if (error) throw new Error(`lockout check failed (${error.code ?? "unknown"})`); // fail closed
   return data === true;
 }
