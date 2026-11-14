@@ -3,6 +3,24 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 14 Nov 2026 — The apps show the catalogue published through Eduwit Scout; the old programme list is removed
+
+- Owner's instruction (14 Nov): "completely remove the old programs from all the apps, website and ai agents. Use the
+  new catalogue published via Scout." Detail and decisions are in the Scout repository (O-38, T-142 to T-147).
+- What changed in the shared database: Scout's bridge (`ce.legacy_bridge_run`, Scout migration `20261114000300`,
+  staging first) wrote the published catalogue into `public.catalog_programs` / `catalog_universities`, the list every
+  app reads: 1,141 programmes and 38 universities, source `ce`. 23 old university rows were renamed to the published
+  names first, so the website's university pages kept their ids. The 715 old programmes were switched off, then
+  deleted with the website's tagging rows and Spark's cached copies for them; BML Munjal University (no programme in
+  the published catalogue) was deleted with its website profile. A copy of everything removed is in Scout's
+  `docs/archive/`. Nothing else pointed at the old rows (0 enrolments, rates, saved programmes).
+- No object of schema `one` changed and no app code changed. After the switch: no new incident; Witty's search returns
+  only the new programmes; both CRMs' catalogue view shows 1,141; Spark's `/api/health` reports 1,141 programmes; the
+  website shows 990 and hides 151 whose specialisation it has no category for yet (a website follow-up, web18).
+- `CAT-04` (an active programme has no fee) stays open: two published programmes carry no fee.
+- Still the owner's: Scout → Setup → Platform → "Feed the apps from the published catalogue" → On, so that later
+  publishes reach the apps by themselves.
+
 ## 14 Nov 2026 — The apps report their server-error counts; a check per app alerts (0041, D-141)
 
 - Found (audit of 13 Nov, finding M11; fixes approved by the owner): a server error in any app went only to its host's
