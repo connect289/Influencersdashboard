@@ -3,6 +3,26 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 13 Nov 2026 — The other apps after the audit: what shipped (Spark, website, B2B, portal, Scout)
+
+One record of the audit fixes that went live outside Eduwit One on 13 Nov (each app's own docs have the detail).
+
+- Spark (M7, M8; migration `b56`): each job of the every-minute run has its own deadline and hands back work it could
+  not start; a message Meta refuses for good is failed at once with its reason. 29 checks on staging in a rolled-back
+  transaction, applied to staging and production, app deployed, health ok. Spark's SQL suites now run in CI.
+- Website (H5; `web17`, website D-096): deletion and copy-of-data requests are carried out from Admin → Privacy
+  requests; the CRMs are a checklist on the request. Staging holds no website tables, so the 85 checks ran on the local
+  replica of production, followed by a rolled-back dry run on production; applied; deployed. No request existed.
+- B2B CRM (M6; `m34j`): unsubscribe link and one-click headers in student emails. The five replaced functions were
+  compared with production first (identical to the repository); rolled-back dry run on production (staging's B2B copy
+  is behind, see the open item of 13 Nov); applied; deployed. The links start when "CRM web address" is saved under
+  Notifications → Providers.
+- Influencer portal (M6; D-198): unsubscribe link and one-click headers in notification emails. Rolled-back dry run on
+  production, applied and recorded as `20261113140000`, deployed, health ok. The links start when
+  `UNSUBSCRIBE_SECRET` is set in Vercel; `/api/health` lists it under `warnings` until then.
+- Scout (M9; T-139): the AI review keeps its job's lease during a model call. No database change.
+- Not applied: the Witty workflow change (C1, H1, H2, M1 to M4). The owner declined the save; the workflow is as it was.
+
 ## 13 Nov 2026 — Muting a P1 is the owner's; the chat's settings card names the version it replaces (0040, D-139)
 
 - Found (audit of 13 Nov, finding M13; fixes approved by the owner): an engineer could mute any check or a whole app
