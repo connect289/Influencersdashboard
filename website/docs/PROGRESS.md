@@ -39,6 +39,9 @@
 - UI redesign (10–11 Nov, owner): visual language "Horizon" (D-093): vibrant indigo palette, Sora display face, floating
   header, cinematic hero, site-wide backdrop. UI/UX only. Checks: 222 unit tests, production build, e2e smoke/content/seo
   on laptop (47; the "homepage with Witty off" test failed intermittently in combined runs and passes alone).
+- Catalogue replaced (14 Nov, D-098): the programme list now comes from Eduwit Scout (1,141 programmes, 38
+  universities); `20261114120000_web18_publish_all.sql` (applied to production 14 Nov after a rolled-back dry run there)
+  lists every programme, with those lacking a matching specialisation category under General and flagged for review.
 - Error counts (14 Nov, audit finding M11, D-097): the website reports how many server errors it throws to Eduwit One
   (`lib/error-report.ts`, `instrumentation.ts`); Eduwit One's check `WEB-ERR` alerts on a spike. No database change here.
 - Privacy requests (13 Nov, audit finding H5, D-096): deletion and copy-of-data requests are fulfilled in Admin →

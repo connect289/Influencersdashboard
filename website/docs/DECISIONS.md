@@ -795,3 +795,21 @@ Why this way: the number is what was missing, and Eduwit One already alerts; its
 owner's threshold. Limits: the count is a floor (an instance recycled within its minute loses what it held), and
 Eduwit One's migration 0041 must be applied for reports to be accepted (before that a report fails quietly).
 
+### D-098 · Every programme of the catalogue is shown; one without a matching category is listed under General (web18, 14 Nov 2026)
+
+- **Before:** on 14 Nov 2026 the shared programme list was replaced by the catalogue published through Eduwit Scout
+  (1,141 programmes, 38 universities). The auto-mapper recognised no specialisation for 149 of them (variant wordings
+  such as "Brand Management_MS", double specialisations such as "Business Analytics + Digital Marketing", new subjects)
+  and no programme for 2 (BMS, MMS), so 151 were hidden as "unmapped".
+- **Decision (the owner: "publish all program in the catalogue"):** `web_tax_propose` keeps every rule it had and gets
+  one last step: a programme whose specialisation matches nothing is listed under General. The card and the page show
+  the published wording (`spec_display`), the row is flagged for review and its note says why. BMS is listed with BBA
+  and MMS with MBA (two programme rules). The hidden rows were proposed again once by the migration.
+- **Result on production:** 1,141 of 1,141 visible, none unmapped; 150 listed under General by this rule; no row that
+  already had a specialisation changed (checked in a rolled-back run before applying).
+- **Limits and follow-up:** in the specialisation filter those 150 sit under General, not under their own subject, until
+  the mapper learns their wordings or new categories are added (Admin → Taxonomy; a draft of rules that strip variant
+  suffixes and split double specialisations exists and is the next step). A future course with no programme rule is
+  still hidden and raises the existing "unmapped" email.
+- **Rollback:** `supabase/rollbacks/20261114120000_web18_publish_all.rollback.sql`.
+
