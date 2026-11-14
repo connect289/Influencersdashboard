@@ -39,6 +39,9 @@
 - UI redesign (10–11 Nov, owner): visual language "Horizon" (D-093): vibrant indigo palette, Sora display face, floating
   header, cinematic hero, site-wide backdrop. UI/UX only. Checks: 222 unit tests, production build, e2e smoke/content/seo
   on laptop (47; the "homepage with Witty off" test failed intermittently in combined runs and passes alone).
+- Subjects (14 Nov, D-099): `20261114140000_web19_tax_rules.sql` (applied to production 14 Nov after a rolled-back dry
+  run there) removes variant markers, splits double specialisations and adds seven subjects, so every programme sits
+  under its own subject: exact 544, synonym 349, split 248, none by similarity or under the General fallback.
 - Catalogue replaced (14 Nov, D-098): the programme list now comes from Eduwit Scout (1,141 programmes, 38
   universities); `20261114120000_web18_publish_all.sql` (applied to production 14 Nov after a rolled-back dry run there)
   lists every programme, with those lacking a matching specialisation category under General and flagged for review.

@@ -813,3 +813,32 @@ Eduwit One's migration 0041 must be applied for reports to be accepted (before t
   still hidden and raises the existing "unmapped" email.
 - **Rollback:** `supabase/rollbacks/20261114120000_web18_publish_all.rollback.sql`.
 
+### D-099 · Each programme under its proper subject: markers removed, lists split, seven subjects added (web19, 14 Nov 2026)
+
+- **Before:** after web18 every programme was shown, but 150 sat under General and 270 were matched only by
+  similarity, because the published catalogue words specialisations in ways the mapper did not know.
+- **Decision (the owner: "put each under its proper subject"):** deterministic rules, no guessing.
+  - Markers around a specialisation are removed before matching and kept in the displayed text: "_MS", "_CAPM",
+    " - Online", " - WLP", " - ODL", "(Work-Linked)", "(WILP)", "(AEDP)", "(Capston)", "(ICA)", "(ACCA)", " - Microsoft",
+    "with Internship", the course repeated in front ("BBA General …") and the wrapper "Dual (…)". They are rows of
+    `web_tax_rules_decoration`, so a new marker is one row. Only "(Work-Linked)" sets a format and "with Internship" an
+    attribute, because the catalogue spells those out; abbreviations set nothing.
+  - Lists ("A + B", "A, B and C") are matched part by part and every subject is stored, so a double specialisation is
+    found under both. A part with no category leaves the row flagged for review with the part named.
+  - Seven subjects were added: Pharmaceutical Management, Aviation & Airport Management, Media & Entertainment
+    Management, Disaster Management, Product Management, Sustainability & ESG, Kannada. 74 aliases cover other wordings
+    of existing subjects (for example "Hospital & Healthcare Management", "Financial Management", "Information
+    Technology Management"). Judgement calls among them: Brand Management is listed under Marketing, Foreign Exchange
+    Management under International Finance, Family Business under Entrepreneurship, "Premium" under General, and
+    "Finance and Accounting" under both Finance and Accounting & Taxation.
+  - The new steps run only where the earlier rules found nothing; the similarity match and the General fallback stay
+    as last resorts.
+- **Result on production:** 1,141 of 1,141 visible; exact 544, synonym 349, split 248; none matched by similarity, none
+  under the General fallback, none flagged for review. 721 rows that had a firm match keep the same subjects. The rule
+  set was first run as a simulation over all 1,141 rows, then in a rolled-back transaction on production, where the
+  database's answer equalled the simulation's for every row.
+- **Limits:** a wording that appears in a later catalogue version and matches nothing still falls back to General and is
+  flagged; the fix is then an alias or a marker row, not code. The local SQL suite has no test file for web19 yet.
+- **Rollback:** `supabase/rollbacks/20261114140000_web19_tax_rules.rollback.sql` (function only; subjects and aliases
+  stay).
+
