@@ -60,7 +60,8 @@ select pg_temp.ok((select (one.ui_settings() -> 'thresholds' ->> 'version')::int
 select pg_temp.ok((one.ui_ack(1, 'req-1') ->> 'ok')::boolean, 'the engineer acknowledges');
 select pg_temp.ok(pg_temp.err('select one.ui_resolve(1, ''fixed'', '''')') = '22023', 'resolving needs a note');
 select pg_temp.ok((one.ui_resolve(1, 'fixed', 'base URL set in Spark', 'req-2') ->> 'ok')::boolean, 'and resolves with one');
-select pg_temp.ok((one.ui_mute('check', 'WEB-01', 60, 'deploy window', 'req-3') ->> 'ok')::boolean, 'and mutes a check');
+-- A check that is not a P1: muting a P1 is the owner's since 0040 (D-139; 99_owner_mutes.sql).
+select pg_temp.ok((one.ui_mute('check', 'WEB-05', 60, 'deploy window', 'req-3') ->> 'ok')::boolean, 'and mutes a check');
 reset role;
 select pg_temp.ok((select actor = 'eng@eduwit.in' and request_id = 'req-1' from one.audit where action = 'incident.acknowledge'), 'the audit row has the actor from the JWT and the request id');
 select pg_temp.ok((select resolution = 'fixed' and resolved_by = 'eng@eduwit.in' from one.incidents where id = 1), 'resolved by the engineer');

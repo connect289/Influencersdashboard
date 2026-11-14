@@ -3,6 +3,131 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 14 Nov 2026 — The apps report their server-error counts; a check per app alerts (0041, D-141)
+
+- Found (audit of 13 Nov, finding M11; fixes approved by the owner): a server error in any app went only to its host's
+  logs (one line per error, D-137), so nobody was told when an app started throwing. The owner declined a third-party
+  error tracker.
+- Changed, schema `one` only: migration `0041_app_errors.sql` adds the table `one.app_errors` (one row per app,
+  5-minute bucket, route template and error name: count, first and last seen, one masked sample), the writer
+  `one.app_error_report(text, jsonb)` for the service role only, the page's reader `one.ui_app_errors(text, integer)`
+  for signed-in people, and one more step in `one.retention()` (counts older than 30 days). It seeds
+  `thresholds.app_errors_15m` (20) while the thresholds row is still the seed's, and five checks as 0006 now carries
+  them: `B2B-ERR`, `B2C-ERR`, `INF-ERR`, `ONE-ERR` (P2, every 5 minutes, on) and `WEB-ERR` (off until the website
+  carries the reporter). The writer refuses unknown apps and oversized batches, masks and cuts every field, caps a
+  count at 10 000 and an app at 300 rows an hour (then only an overflow row grows). No existing check, severity,
+  threshold or setting default changes. The rollback removes all of it and restores 0029's `one.retention()` verbatim.
+- App: `lib/error-report.ts` counts the errors `instrumentation.ts` already logs and reports them through the service
+  client (`SupabaseOneDb.appErrorReport`), at most once a minute, in the background, only from a deployment. An app's
+  page shows "Server errors, last 24 h" (`components/embeds/app-errors-card.tsx`). The same reporter file is in the
+  B2B CRM, Spark (which also gets its first `instrumentation.ts`) and the influencer portal, each through its own
+  service client pointed at schema `one`. The website is on another branch and is still to do. RUNBOOK ("Server
+  errors the apps report", retention, the rollback table) updated; `docs/CHECKS.md`, 0006, 0007 and
+  `lib/ai/docs.generated.ts` regenerated.
+- Proof: the local migration test (apply, tests, full rollback, re-apply, tests) with the new `99_app_errors.sql`
+  (the service role reports, anon and signed-in people cannot; unknown app and bad batches refused; no email or phone
+  stored from any field; caps and the overflow row; counts add up in the bucket; the check fails above the limit and
+  resolves under it; retention; the page's reader by role; the rollback file removes everything and the migration
+  applies again, with and without the seeded threshold); new fingerprint (254 functions, 39 tables; it was 251 and
+  38); guards, the generators' `--check` and the root tests (one new: 0041 seeds the checks as 0006 carries them);
+  web typecheck, lint, format, unit tests (the reporter: buffering, one flush a minute, the cap, never throws,
+  disabled without the environment, no imports) and a build with an empty environment.
+  `supabase/tests/0041.http.sql` is the same proof as one plain-SQL statement for the Management API: 34 checks,
+  ending in `TESTRESULT total=… failed=…` and rolling everything back.
+- Order: the database first, then the apps, in any order. An app deployed before 0041 gets "function not found" for
+  its report, drops the batch, logs one `app.error_report_failed` line and tries again five minutes later; requests
+  are never affected. With 0041 and an old app the checks read no errors. Eduwit One's own page says "needs a
+  database migration" in the card until 0041 is applied.
+- Applied: staging rehearsal passed 14 Nov 04:40 UTC (set `ca650906…`), the 34 checks of `supabase/tests/0041.http.sql`
+  passed on staging in a rolled-back transaction, and 0041 was applied to production 14 Nov 04:46 UTC through
+  `scripts/db/api-apply.sh` (smoke passed; no dump, D-090). Eduwit One's app was deployed about 30 minutes earlier; its
+  reports were dropped until then, as designed. `WEB-ERR` stays off until the website's reporter (website D-097) is
+  deployed and the check is switched on under Settings → Checks.
+
+## 13 Nov 2026 — The other apps after the audit: what shipped (Spark, website, B2B, portal, Scout)
+
+One record of the audit fixes that went live outside Eduwit One on 13 Nov (each app's own docs have the detail).
+
+- Spark (M7, M8; migration `b56`): each job of the every-minute run has its own deadline and hands back work it could
+  not start; a message Meta refuses for good is failed at once with its reason. 29 checks on staging in a rolled-back
+  transaction, applied to staging and production, app deployed, health ok. Spark's SQL suites now run in CI.
+- Website (H5; `web17`, website D-096): deletion and copy-of-data requests are carried out from Admin → Privacy
+  requests; the CRMs are a checklist on the request. Staging holds no website tables, so the 85 checks ran on the local
+  replica of production, followed by a rolled-back dry run on production; applied; deployed. No request existed.
+- B2B CRM (M6; `m34j`): unsubscribe link and one-click headers in student emails. The five replaced functions were
+  compared with production first (identical to the repository); rolled-back dry run on production (staging's B2B copy
+  is behind, see the open item of 13 Nov); applied; deployed. The links start when "CRM web address" is saved under
+  Notifications → Providers.
+- Influencer portal (M6; D-198): unsubscribe link and one-click headers in notification emails. Rolled-back dry run on
+  production, applied and recorded as `20261113140000`, deployed, health ok. The links start when
+  `UNSUBSCRIBE_SECRET` is set in Vercel; `/api/health` lists it under `warnings` until then.
+- Scout (M9; T-139): the AI review keeps its job's lease during a model call. No database change.
+- Not applied: the Witty workflow change (C1, H1, H2, M1 to M4). The owner declined the save; the workflow is as it was.
+
+## 13 Nov 2026 — Muting a P1 is the owner's; the chat's settings card names the version it replaces (0040, D-139)
+
+- Found (audit of 13 Nov, finding M13; fixes approved by the owner): an engineer could mute any check or a whole app
+  for up to 7 days and again when it ended, a P1 included, while switching a P1 off, lowering it or loosening its
+  thresholds are the owner's; and the chat's `put_setting` card saved without the version check the Settings form got
+  in 0039.
+- Changed, schema `one` only: migration `0040_owner_mutes_p1.sql` redefines `one.ui_mute` (same signature and grant):
+  a P1 check, or an app that has a P1 check (switched on or off), is muted by the owner; an engineer gets 42501 "only
+  the owner can mute a top-priority alarm: …" and mutes everything else as before; `one.ui_unmute` is unchanged. No
+  table, column, check, setting or mute row changes; the rollback restores 0037's function verbatim.
+- App: the refusal is shown as worded (`lib/ui/api.ts`); both mute forms say who may mute a P1; the chat's `mute` tool
+  says so too. New chat read tool `setting` (one settings key, read as the signed-in person through `one.ui_settings`,
+  masked; a version only with a value read whole: `lib/ai/chat/setting.ts`); `put_setting` requires `expected_version`
+  and sends `p_expected_version`, so a stale card answers "Someone else changed this setting — reload and try again"
+  and saves nothing. RUNBOOK ("Who may change what", mutes, the command centre, the rollback table) and WALKTHROUGH
+  updated; `lib/ai/docs.generated.ts` regenerated.
+- Proof: the local migration test (apply, tests, full rollback, re-apply, tests) with the new `99_owner_mutes.sql`
+  (engineer refused on a P1 check, a switched-off P1 and an app with one; allowed on P2/P3 and an app without; owner
+  allowed; audit rows; the rollback file brings the old function back and the migration applies again) and
+  `80_ui_api.sql` updated (its engineer mutes a P3); new fingerprint (the functions hash only; 251 functions, 38
+  tables as before); guards and root tests; web typecheck, lint, format and unit tests (new: the setting tool, the
+  card's version, the refusal's wording). `supabase/tests/0040.http.sql` is the same proof as one plain-SQL statement
+  for the Management API: 26 checks, ending in `TESTRESULT total=… failed=…` and rolling everything back.
+- Order: none needed. The app's new call (`p_expected_version`) is 0039's, already in production; with the old app
+  and 0040 an engineer's refusal reads "Your role cannot do this"; with the new app and no 0040 mutes behave as before.
+- Applied: staging rehearsal passed 13 Nov 23:24 UTC (set `b38c97c0…`), the 26 checks of `supabase/tests/0040.http.sql`
+  passed on staging in a rolled-back transaction, and 0040 was applied to production 13 Nov 23:25 UTC through
+  `scripts/db/api-apply.sh` (smoke passed; no dump, D-090). The app with these changes was deployed at 23:10 UTC, before
+  the database step; in between, mutes behaved as before. No mute was in force at the time.
+## 13 Nov 2026 — A fixed search path on 47 older shared functions (D-140)
+
+- Found (audit of 13 Nov, M5; Supabase's security advisor): 87 functions of schema `public` had no fixed
+  `search_path`. None is `SECURITY DEFINER` and no client role can create objects in `public`, so the exposure was
+  small.
+- Changed: `alter function … set search_path = public, extensions` on the 47 plpgsql ones (Witty's `w2_*`, the two
+  `match_*` searches, `crm_require`, the `student_leads` trigger functions). Only the setting changes; no body,
+  signature, grant or trigger. The value is what every caller already resolved to.
+- Left as they are, on purpose: the five `catalog_*` functions (the legacy catalogue is frozen until it is switched
+  off) and the 35 SQL-language helpers (`crm_mask_*`, `crm_norm_phone`, `web_norm`, `w2_is_test` and the like): a SET
+  clause stops the planner folding them into the calling query, which would slow lists and search. The advisor keeps
+  listing those 40.
+- Checked: Witty's 59 opt-out checks with the change applied (staging, rolled back); eight read functions gave
+  byte-identical results before and after on staging and on production (rolled back); applied to staging, then to
+  production 13 Nov about 17:20 UTC; the hourly Witty conversation tests of 19:00 to 22:00 UTC passed.
+- Files: `docs/reviews/hardening-2026-11-13/shared/public_search_path.sql` and `.rollback.sql`.
+
+## 13 Nov 2026 — Witty honours STOP for CRM-owned chats and the shared opt-out in its follow-ups (D-138)
+
+- Found (audit of 13 Nov, fixes approved by the owner): a student who answered STOP to a CRM message sent from
+  Witty's number was not opted out, because Witty stays silent in a chat the CRM owns and returned before reading the
+  text; and Witty's follow-up looked only at its own opt-out flag, so a lead opted out in a CRM, or a number on
+  Spark's suppression list, could still get a follow-up.
+- Changed (database functions only; no table, column, grant on an existing object, cron job or n8n workflow):
+  `public.w2_try_claim` (+19 lines, CRM-owned branch only) marks the conversation opted out and opts the shared lead
+  out through `lead_intake` (`lead.opted_out`), still without replying; `public.w2_nurture_due` (+21 lines) skips a
+  conversation whose shared lead is opted out or whose number is on `b2c.suppressions`; new
+  `public.w2_is_stop_message(text)` (service role only), the same matcher as Spark's. Nothing was removed from either
+  function (checked line by line against production's definitions of the same day).
+- Checked: 59 SQL checks on staging in a rolled-back transaction, 0 failed; applied to staging; production dry run in
+  a rolled-back transaction; applied to production 13 Nov about 17:00 UTC. After: three functions present, none
+  callable by `anon`, 225 conversations still queued for follow-up, none wrongly opted out.
+- Files: `docs/reviews/hardening-2026-11-13/witty/w2_optout.sql`, `.rollback.sql`, `.test.sql`.
+- No dump before this change (owner-accepted, D-090); the rollback file restores the two functions as they were.
+
 ## 13 Nov 2026 — The audit's fixes: thresholds are the owner's, settings saves compare versions, the watchdog never answers 429 (0039, D-137)
 
 - Found (verified audit, fixes approved by the owner): engineers could loosen the thresholds sixteen P1 checks read,

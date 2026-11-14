@@ -176,3 +176,24 @@ select coalesce(r.status <> 'failed', true) as ok, jsonb_build_object('at', r.st
 -- open_after: 2
 -- title: Spark's /api/health is not ok
 -- description: GET <hosts.spark>/api/health not ok twice in a row: Spark's configuration, its database or file storage (each within 3 s), its timers or the app answering them is down. The body's levels name the part (Spark's b53 and lib/health.ts); a queue, connector or cache that needs a look leaves it ok and is B2C-02 to B2C-09's. Run by the app's health probe every 5 minutes, which also writes heartbeat spark (D-134).
+
+-- check: B2C-ERR
+-- app: b2c
+-- kind: sql
+-- severity: P2
+-- cadence_s: 300
+-- resolve_after: 2
+-- title: Spark is throwing server errors
+-- description: The server errors the app itself reported (one.app_error_report, migration 0041, D-141: counts per route template and error name, no personal data) in the 5-minute buckets that started in the last 15 minutes, the current one and the two before it, against app_errors_15m (20). Fires above the limit and resolves by itself after two readings at or under it. The value names the three busiest route and error pairs. An app that does not throw reports nothing, so no rows reads as no errors; the reporter runs only on a deployment (production build, a hosted Supabase address and its service key).
+with cfg as (select coalesce((select one.threshold('app_errors_15m')), 20)::numeric as max_15m),
+e as (
+  select x.route, x.error_name, sum(x.n) as n, max(x.last_seen) as last_seen
+    from one.app_errors x
+   where x.app = 'b2c' and x.bucket > now() - interval '15 minutes'
+   group by x.route, x.error_name),
+t as (select coalesce(sum(e.n), 0) as errors, count(*) as pairs, max(e.last_seen) as last_seen from e)
+select t.errors <= cfg.max_15m as ok,
+       jsonb_build_object('errors_15m', t.errors, 'limit', cfg.max_15m, 'pairs', t.pairs, 'last_seen', t.last_seen,
+                          'top', (select coalesce(jsonb_agg(jsonb_build_object('route', s.route, 'error', s.error_name, 'n', s.n) order by s.n desc, s.route, s.error_name), '[]')
+                                    from (select e.route, e.error_name, e.n from e order by e.n desc, e.route, e.error_name limit 3) s)) as value
+  from cfg, t

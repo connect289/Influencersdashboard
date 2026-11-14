@@ -271,3 +271,25 @@ test("0033 re-seeds PLAT-01 and B2C-01 (every 5 minutes, newest run by run numbe
     );
   }
 });
+
+test("0041 seeds the five server-error checks with the statements 0006 carries, the website's off until it reports (D-141)", () => {
+  const ids = ["B2B-ERR", "B2C-ERR", "INF-ERR", "ONE-ERR", "WEB-ERR"];
+  for (const id of ids) {
+    assert.equal(
+      seedStatement(migrationText("0041_app_errors.sql"), id),
+      seedStatement(migrationText("0006_seed_checks.sql"), id),
+      id,
+    );
+  }
+  const checks = loadChecks().filter((c) => ids.includes(c.id));
+  assert.deepEqual(checks.map((c) => [c.id, c.app, c.severity, c.disabled]), [
+    ["B2B-ERR", "b2b", "P2", null],
+    ["B2C-ERR", "b2c", "P2", null],
+    ["INF-ERR", "influencer", "P2", null],
+    ["ONE-ERR", "one", "P2", null],
+    ["WEB-ERR", "web", "P2", "blocked:web_error_reporter_not_ported"],
+  ]);
+  // One statement for all five: only the app's key differs.
+  const sql = (c: (typeof checks)[number]) => (c.sql ?? "").replace(`x.app = '${c.app}'`, "x.app = ?");
+  assert.equal(new Set(checks.map(sql)).size, 1);
+});

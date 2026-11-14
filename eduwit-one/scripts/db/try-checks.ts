@@ -35,6 +35,8 @@ const EMPTY: Record<string, string> = {
   test_runs:
     "select null::bigint as id, null::text as test_id, null::timestamptz as finished_at, null::timestamptz as purged_at, null::int as purge_attempts",
   checks: "select null::text as id, null::boolean as enabled",
+  app_errors:
+    "select null::text as app, null::timestamptz as bucket, null::text as route, null::text as error_name, null::bigint as n, null::timestamptz as last_seen",
 };
 const KEYWORDS = new Set([
   "where",

@@ -36,6 +36,9 @@ export function MuteForm({ apps }: { apps: Array<[string, string]> }) {
       <Field label="Reason">
         <Input name="reason" required minLength={3} />
       </Field>
+      <p className="text-xs text-fg-muted sm:col-span-2">
+        Muting a P1 check, or an app that has a P1 check, needs the owner. Anyone can end a mute.
+      </p>
       <div className="sm:col-span-2">
         <Button type="submit">Start</Button>
       </div>

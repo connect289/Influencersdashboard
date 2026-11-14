@@ -3,7 +3,8 @@ import { APPS, ASK_TOOLS } from "../schemas.ts";
 
 // The command centre's tools (D-094). Three kinds:
 //   read    the fixed read-only tools Ask already has (the database's one.ai_tool_data, plus runbook, operate and
-//           n8n_executions in the app); the model calls them freely.
+//           n8n_executions in the app), and setting, which the chat alone has: one settings key read as the signed-in
+//           person, with the version a put_setting card must name (D-139); the model calls them freely.
 //   act     one one.ui_* page function each, run as the signed-in person with their own role check and audit row.
 //           Only a fix's dry run, which records what the fix would do and changes nothing, runs at once ("auto");
 //           every other act is first an action card the person confirms in the chat ("confirm", D-107, D-120). The
@@ -39,6 +40,10 @@ const text = (max: number) => z.string().trim().min(1).max(max);
 const reason = z.string().trim().min(3).max(500).describe("Why, in one sentence; it is kept in the audit.");
 const hours = z.number().int().min(1).max(720).optional().describe("How far back, in hours (default 168)");
 const limit = (max: number) => z.number().int().min(1).max(max).optional();
+const settingKey = z.string().regex(/^[a-z_]{2,40}$/);
+
+/** The chat's own read tool: not one of Ask's, answered by the app as the signed-in person (lib/ai/chat/setting.ts). */
+export const SETTING_TOOL = "setting";
 
 const read = (name: string, description: string, input: z.ZodObject): ReadTool => ({
   kind: "read",
@@ -153,6 +158,11 @@ const READ: ReadTool[] = [
     "The runbook sections whose words match the query (RUNBOOK.md, RUNBOOK-database.md, WALKTHROUGH.md); with no query, the list of sections.",
     z.object({ query: z.string().max(200).optional() }),
   ),
+  read(
+    SETTING_TOOL,
+    "One settings key as the Settings page shows it to this person: its whole value, its version and whether only the owner may change it. Read it right before put_setting and pass that version as expected_version. When parts of the value are masked or left out, or it is too long, no version comes back: that key is changed on its Settings page, not from the chat.",
+    z.object({ key: settingKey }),
+  ),
 ];
 
 const act = (t: Omit<ActTool, "kind">): ActTool => ({ kind: "act", ...t });
@@ -194,7 +204,7 @@ const ACT: ActTool[] = [
   act({
     name: "mute",
     description:
-      "Silence a check or a whole app for some minutes (a maintenance window): incidents are recorded but not alerted.",
+      "Silence a check or a whole app for some minutes (a maintenance window): incidents are recorded but not alerted. Muting a P1 check, or an app that has a P1 check, needs the owner; an engineer is refused.",
     input: z.object({
       target_type: z.enum(["check", "app"]),
       target: z.string().trim().min(2).max(60),
@@ -375,17 +385,29 @@ const ACT: ActTool[] = [
   act({
     name: "put_setting",
     description:
-      "Replace one settings key with a whole new value (versioned; Settings shows every version and can restore one). Read the current value first (the setup or app_status tools, or ask the person). Thresholds and keys that touch alerts, fixes, access or money need the owner.",
+      "Replace one settings key with a whole new value (versioned; Settings shows every version and can restore one). First read the key with the setting tool in this turn, change only what was asked, keep every other field exactly as read, and pass the version that read returned as expected_version: the save is refused if someone changed the setting since, and nothing is saved. If the setting tool returned no version, do not propose this; the person changes that key on its Settings page. Thresholds and keys that touch alerts, fixes, access or money need the owner.",
     input: z.object({
-      key: z.string().regex(/^[a-z_]{2,40}$/),
+      key: settingKey,
       value: z.record(z.string(), z.unknown()),
+      expected_version: z
+        .number()
+        .int()
+        .min(1)
+        .describe(
+          "The version the setting tool returned for this key just now; a save over any other version is refused.",
+        ),
       reason,
     }),
     confirm: true,
     risk: "high",
     perm: "operate",
-    call: (a) => ({ fn: "ui_settings_put", args: { p_key: a.key, p_value: a.value, p_reason: a.reason } }),
-    summary: (a) => `Change setting ${String(a.key)}`,
+    // The version travels with the card (D-139): the database compares it under the row's lock (0039, D-137), so a
+    // card confirmed after someone else saved runs into "Someone else changed this setting" and saves nothing.
+    call: (a) => ({
+      fn: "ui_settings_put",
+      args: { p_key: a.key, p_value: a.value, p_reason: a.reason, p_expected_version: a.expected_version },
+    }),
+    summary: (a) => `Change setting ${String(a.key)} (over version ${String(a.expected_version)})`,
   }),
   // No act adds or changes a person (D-116): an address is contact data the model never holds, so people are managed on
   // Settings → Users.

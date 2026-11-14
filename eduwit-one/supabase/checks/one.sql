@@ -130,3 +130,24 @@ select count(*) = 0 as ok,
 -- tags: synthetic
 -- title: Synthetic incident (T-ALERT)
 -- description: Never fails on its own. T-ALERT opens an incident on it to prove that a delivery is sent and delivered, then acknowledges and resolves it. Its incidents are left out of the P2 digest and the brief, and carry "synthetic" in their evidence.
+
+-- check: ONE-ERR
+-- app: one
+-- kind: sql
+-- severity: P2
+-- cadence_s: 300
+-- resolve_after: 2
+-- title: Eduwit One's own app is throwing server errors
+-- description: The server errors the app itself reported (one.app_error_report, migration 0041, D-141: counts per route template and error name, no personal data) in the 5-minute buckets that started in the last 15 minutes, the current one and the two before it, against app_errors_15m (20). Fires above the limit and resolves by itself after two readings at or under it. The value names the three busiest route and error pairs. An app that does not throw reports nothing, so no rows reads as no errors; the reporter runs only on a deployment (production build, a hosted Supabase address and its service key).
+with cfg as (select coalesce((select one.threshold('app_errors_15m')), 20)::numeric as max_15m),
+e as (
+  select x.route, x.error_name, sum(x.n) as n, max(x.last_seen) as last_seen
+    from one.app_errors x
+   where x.app = 'one' and x.bucket > now() - interval '15 minutes'
+   group by x.route, x.error_name),
+t as (select coalesce(sum(e.n), 0) as errors, count(*) as pairs, max(e.last_seen) as last_seen from e)
+select t.errors <= cfg.max_15m as ok,
+       jsonb_build_object('errors_15m', t.errors, 'limit', cfg.max_15m, 'pairs', t.pairs, 'last_seen', t.last_seen,
+                          'top', (select coalesce(jsonb_agg(jsonb_build_object('route', s.route, 'error', s.error_name, 'n', s.n) order by s.n desc, s.route, s.error_name), '[]')
+                                    from (select e.route, e.error_name, e.n from e order by e.n desc, e.route, e.error_name limit 3) s)) as value
+  from cfg, t
