@@ -2,9 +2,23 @@
 
 import { z } from "zod";
 import { academicLead, preferencesLead, workLead } from "@/lib/forms/lead-fields";
-import { validateAcademic, validatePreferences, validateWork, type AcademicInput, type PreferencesInput, type WorkInput } from "@/lib/forms/validate";
+import {
+  validateAcademic,
+  validatePreferences,
+  validateWork,
+  type AcademicInput,
+  type PreferencesInput,
+  type WorkInput,
+} from "@/lib/forms/validate";
 import { rpc } from "@/lib/server/db";
-import { resendCode, startVerification, verifyCode, type StartInput, type StartOutcome, type VerifyOutcome } from "@/lib/server/gate";
+import {
+  resendCode,
+  startVerification,
+  verifyCode,
+  type StartInput,
+  type StartOutcome,
+  type VerifyOutcome,
+} from "@/lib/server/gate";
 import { errorFields, log } from "@/lib/server/log";
 import { LIMITS, rateLimit } from "@/lib/server/rate-limit";
 import { requestContext } from "@/lib/server/request";
@@ -13,11 +27,30 @@ import { getSettings } from "@/lib/server/settings";
 import { currentStudent } from "@/lib/server/student-session";
 
 /** Non-core application-form fields the admin may hide or make optional (spec 9.1A). */
-const CONFIGURABLE = new Set(["stream", "score", "yearOfPassing", "board", "role", "industry", "goal", "why", "intake", "budget", "emi", "city", "state", "bestTime", "questions"]);
+const CONFIGURABLE = new Set([
+  "stream",
+  "score",
+  "yearOfPassing",
+  "board",
+  "role",
+  "industry",
+  "goal",
+  "why",
+  "intake",
+  "budget",
+  "emi",
+  "city",
+  "state",
+  "bestTime",
+  "questions",
+]);
 
 export async function formConfigAction(): Promise<{ hidden: string[]; optional: string[] }> {
   const c = (await getSettings()).application_form;
-  return { hidden: c.hidden.filter((f) => CONFIGURABLE.has(f)), optional: c.optional.filter((f) => CONFIGURABLE.has(f)) };
+  return {
+    hidden: c.hidden.filter((f) => CONFIGURABLE.has(f)),
+    optional: c.optional.filter((f) => CONFIGURABLE.has(f)),
+  };
 }
 
 /**
@@ -49,7 +82,8 @@ const startSchema = z.object({
 
 export async function startFormAction(input: StartInput): Promise<StartOutcome> {
   const p = startSchema.safeParse(input);
-  if (!p.success) return { status: "error", reason: "invalid_input", message: "Please check your details and try again." };
+  if (!p.success)
+    return { status: "error", reason: "invalid_input", message: "Please check your details and try again." };
   return startVerification(p.data);
 }
 
@@ -87,7 +121,7 @@ const prefsSchema = z.object({
   universities: z.array(z.string().max(20)).max(10).default([]),
   city: str(80),
   state: str(80),
-  contactMode: z.enum(["call", "whatsapp", "email", ""]).default(""),
+  contactMode: z.enum(["call", "email", ""]).default(""),
   bestTime: str(60),
   questions: str(1000),
 });
@@ -102,22 +136,29 @@ async function universityNames(ids: string[]): Promise<{ ids: number[]; names: s
 type StepResult = { ok: true } | { ok: false; message: string };
 
 /** Steps 2–4 of the application form: stored on the application and enriching the same lead (spec 9.1A). */
-export async function saveStepAction(attemptId: string, step: number, data: Record<string, unknown>): Promise<StepResult> {
+export async function saveStepAction(
+  attemptId: string,
+  step: number,
+  data: Record<string, unknown>,
+): Promise<StepResult> {
   const student = await currentStudent();
   if (!student) return { ok: false, message: "Your session has ended. Please verify your email again." };
   const { ip, requestId } = await requestContext();
-  if (!(await rateLimit(LIMITS.formSubmitPerIp, ip)).ok) return { ok: false, message: "Too many attempts. Please wait a few minutes." };
+  if (!(await rateLimit(LIMITS.formSubmitPerIp, ip)).ok)
+    return { ok: false, message: "Too many attempts. Please wait a few minutes." };
   let stored: Record<string, unknown>;
   let lead: Record<string, unknown>;
   let extra: Record<string, unknown> = {};
   if (step === 2) {
     const a = academicSchema.safeParse(data);
-    if (!a.success || Object.keys(validateAcademic(a.data as AcademicInput)).length) return { ok: false, message: "Please check your academic details." };
+    if (!a.success || Object.keys(validateAcademic(a.data as AcademicInput)).length)
+      return { ok: false, message: "Please check your academic details." };
     stored = a.data;
     lead = academicLead(a.data as AcademicInput);
   } else if (step === 3) {
     const w = workSchema.safeParse(data);
-    if (!w.success || Object.keys(validateWork(w.data as WorkInput)).length) return { ok: false, message: "Please check your work details." };
+    if (!w.success || Object.keys(validateWork(w.data as WorkInput)).length)
+      return { ok: false, message: "Please check your work details." };
     stored = w.data;
     lead = workLead(w.data as WorkInput, w.data.goal ? w.data.goalLabel || w.data.goal : undefined);
   } else if (step === 4) {

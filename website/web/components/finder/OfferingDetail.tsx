@@ -157,7 +157,7 @@ export function OfferingDetail({
           </Button>
         </div>
         <p className="text-subtle flex items-center gap-1.5 text-xs">
-          <MessageCircle className="size-3.5" aria-hidden /> Prefer to talk? A counsellor can call or WhatsApp you.
+          <MessageCircle className="size-3.5" aria-hidden /> Prefer to talk? A counsellor can call you.
         </p>
       </section>
     </div>

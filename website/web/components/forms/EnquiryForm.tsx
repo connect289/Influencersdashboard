@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Loader2, MessageCircle } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { CodeInput } from "@/components/ui/CodeInput";
 import { Field } from "@/components/ui/Field";
 import { Input, Textarea } from "@/components/ui/Input";
 import { CONSENT } from "@/content/consent";
-import { whatsappLink } from "@/content/site";
 import { track } from "@/lib/client/analytics";
 import type { ApplicationClient } from "@/lib/forms/client";
 import { serverApplicationClient } from "@/lib/forms/server-client";
@@ -20,21 +19,29 @@ import { cleanName, normaliseEmail, normaliseIndianMobile, validateContact, type
  * interest, message, consent. Same transport and verification flow as the application form.
  */
 function newKey() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random()}`;
 }
 
 export function EnquiryForm({
-  whatsapp,
   programme = "",
   creatorHandle,
   client = serverApplicationClient,
 }: {
-  whatsapp: string;
   programme?: string;
   creatorHandle?: string;
   client?: ApplicationClient;
 }) {
-  const [v, setV] = useState({ name: "", phone: "", email: "", consent: false, marketing: false, programme, message: "" });
+  const [v, setV] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    consent: false,
+    marketing: false,
+    programme,
+    message: "",
+  });
   const [errors, setErrors] = useState<Errors<string>>({});
   const [phase, setPhase] = useState<"form" | "code" | "done">("form");
   const [busy, setBusy] = useState(false);
@@ -53,7 +60,13 @@ export function EnquiryForm({
     let live = true;
     studentProfileAction()
       .then((p) => {
-        if (live && p) setV((c) => ({ ...c, name: c.name || p.name || "", phone: c.phone || p.phone?.replace(/^\+91/, "") || "", email: c.email || p.email }));
+        if (live && p)
+          setV((c) => ({
+            ...c,
+            name: c.name || p.name || "",
+            phone: c.phone || p.phone?.replace(/^\+91/, "") || "",
+            email: c.email || p.email,
+          }));
       })
       .catch(() => undefined);
     return () => {
@@ -75,11 +88,19 @@ export function EnquiryForm({
     setBusy(true);
     try {
       track("form_view", { form: "enquiry" });
-      const r = await client.start({ kind: "contact", programmeLabel: v.programme || undefined, creatorHandle }, {
-        name: cleanName(v.name)!, phone: normaliseIndianMobile(v.phone)!, email: normaliseEmail(v.email)!,
-        consentVersion: CONSENT.form.version, marketing: v.marketing, turnstileToken: await turnstile.ready(), website: honeypot,
-        idempotencyKey: (idem.current ??= newKey()),
-      });
+      const r = await client.start(
+        { kind: "contact", programmeLabel: v.programme || undefined, creatorHandle },
+        {
+          name: cleanName(v.name)!,
+          phone: normaliseIndianMobile(v.phone)!,
+          email: normaliseEmail(v.email)!,
+          consentVersion: CONSENT.form.version,
+          marketing: v.marketing,
+          turnstileToken: await turnstile.ready(),
+          website: honeypot,
+          idempotencyKey: (idem.current ??= newKey()),
+        },
+      );
       if (r.status === "error") {
         turnstile.reset();
         return setErrors({ form: r.message });
@@ -129,10 +150,10 @@ export function EnquiryForm({
       <div className="grid gap-3" role="status">
         <CheckCircle2 className="text-success size-8" aria-hidden />
         <h3 className="font-display text-text text-xl font-semibold">Thanks, we&apos;ve got your enquiry</h3>
-        <p className="text-muted">Reference <span className="tabular text-text font-semibold">{reference}</span>. A counsellor will contact you soon. A confirmation is on its way to your email.</p>
-        <a href={whatsappLink(whatsapp, `Hi Eduwit, my enquiry reference is ${reference}.`)} target="_blank" rel="noopener noreferrer" className="bg-primary text-on-primary inline-flex h-11 items-center gap-2 justify-self-start rounded-full px-5 text-sm font-semibold">
-          <MessageCircle className="size-4" aria-hidden /> Message us on WhatsApp
-        </a>
+        <p className="text-muted">
+          Reference <span className="tabular text-text font-semibold">{reference}</span>. A counsellor will contact you
+          soon. A confirmation is on its way to your email.
+        </p>
       </div>
     );
   }
@@ -141,11 +162,30 @@ export function EnquiryForm({
     return (
       <div className="grid gap-3">
         <h3 className="text-text font-medium">Check your email</h3>
-        <p className="text-muted text-sm">We sent a 6-digit code to {masked}. It expires in 10 minutes. Can&apos;t see it? Check your spam or promotions folder.</p>
-        <CodeInput value={code} onValueChange={setCode} onComplete={(c) => void verify(c)} invalid={!!codeError} disabled={busy} label="6-digit code from your email" />
-        {codeError ? <p role="alert" className="text-danger text-sm">{codeError}</p> : null}
+        <p className="text-muted text-sm">
+          We sent a 6-digit code to {masked}. It expires in 10 minutes. Can&apos;t see it? Check your spam or promotions
+          folder.
+        </p>
+        <CodeInput
+          value={code}
+          onValueChange={setCode}
+          onComplete={(c) => void verify(c)}
+          invalid={!!codeError}
+          disabled={busy}
+          label="6-digit code from your email"
+        />
+        {codeError ? (
+          <p role="alert" className="text-danger text-sm">
+            {codeError}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" disabled={busy || code.length !== 6} onClick={() => void verify()} className="bg-primary text-on-primary inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold disabled:opacity-60">
+          <button
+            type="button"
+            disabled={busy || code.length !== 6}
+            onClick={() => void verify()}
+            className="bg-primary text-on-primary inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold disabled:opacity-60"
+          >
             {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null} Verify and send
           </button>
           <button
@@ -157,50 +197,134 @@ export function EnquiryForm({
               if (r.status === "code_sent") setResendIn(r.resendInSeconds);
               else if (r.status === "error") setCodeError(r.message);
             }}
-            className="text-accent text-sm font-medium disabled:text-subtle"
+            className="text-accent disabled:text-subtle text-sm font-medium"
           >
             {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
           </button>
-          <button type="button" onClick={() => setPhase("form")} className="text-muted text-sm hover:underline">Change email</button>
+          <button type="button" onClick={() => setPhase("form")} className="text-muted text-sm hover:underline">
+            Change email
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <form className="grid gap-4" onSubmit={(e) => { e.preventDefault(); void send(); }} noValidate>
+    <form
+      className="grid gap-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void send();
+      }}
+      noValidate
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Full name" error={errors.name}>
-          {(f) => <Input id={f.id} aria-describedby={f.describedBy} aria-invalid={f.invalid} autoComplete="name" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} />}
+          {(f) => (
+            <Input
+              id={f.id}
+              aria-describedby={f.describedBy}
+              aria-invalid={f.invalid}
+              autoComplete="name"
+              value={v.name}
+              onChange={(e) => setV({ ...v, name: e.target.value })}
+            />
+          )}
         </Field>
         <Field label="Mobile number" error={errors.phone}>
-          {(f) => <Input id={f.id} aria-describedby={f.describedBy} aria-invalid={f.invalid} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="10-digit mobile" value={v.phone} onChange={(e) => setV({ ...v, phone: e.target.value })} />}
+          {(f) => (
+            <Input
+              id={f.id}
+              aria-describedby={f.describedBy}
+              aria-invalid={f.invalid}
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel-national"
+              placeholder="10-digit mobile"
+              value={v.phone}
+              onChange={(e) => setV({ ...v, phone: e.target.value })}
+            />
+          )}
         </Field>
       </div>
       <Field label="Email" hint="We'll send a 6-digit code to verify it." error={errors.email}>
-        {(f) => <Input id={f.id} aria-describedby={f.describedBy} aria-invalid={f.invalid} type="email" inputMode="email" autoComplete="email" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} />}
+        {(f) => (
+          <Input
+            id={f.id}
+            aria-describedby={f.describedBy}
+            aria-invalid={f.invalid}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={v.email}
+            onChange={(e) => setV({ ...v, email: e.target.value })}
+          />
+        )}
       </Field>
       <Field label="Programme you're interested in" optional>
-        {(f) => <Input id={f.id} value={v.programme} placeholder="For example: Online MBA" onChange={(e) => setV({ ...v, programme: e.target.value })} />}
+        {(f) => (
+          <Input
+            id={f.id}
+            value={v.programme}
+            placeholder="For example: Online MBA"
+            onChange={(e) => setV({ ...v, programme: e.target.value })}
+          />
+        )}
       </Field>
       <Field label="Message" optional error={errors.message}>
-        {(f) => <Textarea id={f.id} aria-describedby={f.describedBy} aria-invalid={f.invalid} maxLength={1000} value={v.message} onChange={(e) => setV({ ...v, message: e.target.value })} />}
+        {(f) => (
+          <Textarea
+            id={f.id}
+            aria-describedby={f.describedBy}
+            aria-invalid={f.invalid}
+            maxLength={1000}
+            value={v.message}
+            onChange={(e) => setV({ ...v, message: e.target.value })}
+          />
+        )}
       </Field>
       <label className="text-muted flex items-start gap-3 text-sm">
-        <input type="checkbox" className="accent-[var(--primary)] mt-0.5 size-5 shrink-0" checked={v.consent} aria-invalid={!!errors.consent} onChange={(e) => setV({ ...v, consent: e.target.checked })} />
+        <input
+          type="checkbox"
+          className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]"
+          checked={v.consent}
+          aria-invalid={!!errors.consent}
+          onChange={(e) => setV({ ...v, consent: e.target.checked })}
+        />
         <span>
-          {CONSENT.form.text} See the <Link href="/legal/privacy-policy" className="text-accent underline underline-offset-4">Privacy Policy</Link>.
+          {CONSENT.form.text} See the{" "}
+          <Link href="/legal/privacy-policy" className="text-accent underline underline-offset-4">
+            Privacy Policy
+          </Link>
+          .
         </span>
       </label>
-      {errors.consent ? <p role="alert" className="text-danger -mt-2 text-xs font-medium">{errors.consent}</p> : null}
+      {errors.consent ? (
+        <p role="alert" className="text-danger -mt-2 text-xs font-medium">
+          {errors.consent}
+        </p>
+      ) : null}
       <label className="text-muted flex items-start gap-3 text-sm">
-        <input type="checkbox" className="accent-[var(--primary)] mt-0.5 size-5 shrink-0" checked={v.marketing} onChange={(e) => setV({ ...v, marketing: e.target.checked })} />
+        <input
+          type="checkbox"
+          className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]"
+          checked={v.marketing}
+          onChange={(e) => setV({ ...v, marketing: e.target.checked })}
+        />
         <span>{CONSENT.marketing} (optional)</span>
       </label>
       <Honeypot value={honeypot} onChange={setHoneypot} />
       {turnstile.widget}
-      {errors.form ? <p role="alert" className="text-danger text-sm">{errors.form}</p> : null}
-      <button type="submit" disabled={busy} className="bg-primary text-on-primary inline-flex h-12 items-center gap-2 justify-self-start rounded-full px-6 text-sm font-semibold disabled:opacity-60">
+      {errors.form ? (
+        <p role="alert" className="text-danger text-sm">
+          {errors.form}
+        </p>
+      ) : null}
+      <button
+        type="submit"
+        disabled={busy}
+        className="bg-primary text-on-primary inline-flex h-12 items-center gap-2 justify-self-start rounded-full px-6 text-sm font-semibold disabled:opacity-60"
+      >
         {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null} Verify email and send
       </button>
     </form>

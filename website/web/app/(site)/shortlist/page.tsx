@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Your shortlist", robots: { index: fa
 
 async function View() {
   const s = await getSettings();
-  return <ShortlistView advisorEnabled={s.web_advisor_enabled} whatsapp={s.counsellor_whatsapp} />;
+  return <ShortlistView advisorEnabled={s.web_advisor_enabled} />;
 }
 
 /** /shortlist — saved programmes on this device. */

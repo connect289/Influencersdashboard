@@ -99,13 +99,6 @@ async function Settings() {
           help='{"faq": true, "testimonials": false, …}'
         />
         <SettingForm
-          name="counsellor_whatsapp"
-          label="Counsellor WhatsApp number"
-          kind="text"
-          value={v.counsellor_whatsapp}
-          disabled={!editor}
-        />
-        <SettingForm
           name="counsellor_phone"
           label="Counsellor phone number"
           kind="text"

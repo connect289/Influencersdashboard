@@ -3,7 +3,7 @@ import { env } from "../env";
 import type { ModelProvider, ModelUsage } from "./model";
 
 /**
- * Gemini provider for web_advisor (D-083): the same model family as Witty on WhatsApp (gemini-3.6-flash), called over
+ * Gemini provider for web_advisor (D-083): the same model family as Witty's other channel (gemini-3.6-flash), called over
  * the Generative Language REST API (no SDK). Extractor: one JSON response. Counsellor: server-sent events, streamed to
  * the student as they arrive. Thought parts (thinking models) are never shown or stored.
  */
@@ -35,12 +35,20 @@ export function geminiUsage(u: GeminiUsage | undefined): ModelUsage {
   const cached = u?.cachedContentTokenCount ?? 0;
   const output = (u?.candidatesTokenCount ?? 0) + (u?.thoughtsTokenCount ?? 0);
   const cost = ((prompt - cached) * PRICE.input + cached * PRICE.input * 0.25 + output * PRICE.output) / 1e6;
-  return { prompt_tokens: prompt, cached_tokens: cached, output_tokens: output, cost_usd: Math.round(cost * 1e5) / 1e5 };
+  return {
+    prompt_tokens: prompt,
+    cached_tokens: cached,
+    output_tokens: output,
+    cost_usd: Math.round(cost * 1e5) / 1e5,
+  };
 }
 
 /** Visible text of one response chunk (thought parts excluded). */
 export function chunkText(c: GeminiChunk): string {
-  return (c.candidates?.[0]?.content?.parts ?? []).filter((p) => !p.thought).map((p) => p.text ?? "").join("");
+  return (c.candidates?.[0]?.content?.parts ?? [])
+    .filter((p) => !p.thought)
+    .map((p) => p.text ?? "")
+    .join("");
 }
 
 function body(system: string, input: unknown, gen: Record<string, unknown>) {
@@ -51,11 +59,21 @@ function body(system: string, input: unknown, gen: Record<string, unknown>) {
   });
 }
 
-async function call(model: string, method: "generateContent" | "streamGenerateContent", payload: string, signal: AbortSignal) {
+async function call(
+  model: string,
+  method: "generateContent" | "streamGenerateContent",
+  payload: string,
+  signal: AbortSignal,
+) {
   const key = env().GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY is not set (S-14)");
   const url = `${env().WEB_GEMINI_BASE_URL ?? BASE}/models/${encodeURIComponent(model)}:${method}${method === "streamGenerateContent" ? "?alt=sse" : ""}`;
-  const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: payload, signal });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": key },
+    body: payload,
+    signal,
+  });
   if (!res.ok) {
     // The error body names the problem (quota, model, safety); it never contains the key.
     const detail = (await res.text().catch(() => "")).slice(0, 300);
@@ -93,13 +111,23 @@ export const geminiProvider: ModelProvider = {
   name: "gemini",
   async extract({ model, system, input, signal }) {
     const m = geminiModel(model);
-    const res = await call(m, "generateContent", body(system, input, { temperature: 0, maxOutputTokens: 2048, responseMimeType: "application/json" }), signal);
+    const res = await call(
+      m,
+      "generateContent",
+      body(system, input, { temperature: 0, maxOutputTokens: 2048, responseMimeType: "application/json" }),
+      signal,
+    );
     const j = (await res.json()) as GeminiChunk;
     return { text: chunkText(j), usage: geminiUsage(j.usageMetadata), model: j.modelVersion ?? m };
   },
   async counsel({ model, system, input, signal, onText }) {
     const m = geminiModel(model);
-    const res = await call(m, "streamGenerateContent", body(system, input, { temperature: 0.4, maxOutputTokens: 2048 }), signal);
+    const res = await call(
+      m,
+      "streamGenerateContent",
+      body(system, input, { temperature: 0.4, maxOutputTokens: 2048 }),
+      signal,
+    );
     if (!res.body) throw new Error("gemini: empty stream");
     let text = "";
     let usage: GeminiUsage | undefined;

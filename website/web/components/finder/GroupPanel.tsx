@@ -22,7 +22,7 @@ const ApplicationForm = dynamic(() => import("@/components/forms/ApplicationForm
  * Programme-group panel (spec 6.6): the universities offering one programme + specialisation, the fee and duration
  * ranges, and the application form with a university picker. Deep link: `?group=<programme>:<specialisations>`.
  */
-export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?: { value: string; label: string }[] }) {
+export function GroupPanel({ goals = [] }: { goals?: { value: string; label: string }[] }) {
   const sp = useSearchParams();
   const key = sp.get("group");
   const [res, setRes] = useState<{ key: string; g: ProgrammeGroup | null } | null>(null);
@@ -36,7 +36,11 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
         setRes({ key, g: (j.items as ProgrammeGroup[])[0] ?? null });
         track("panel_open", { kind: "group" });
         const [programme, specs] = key.split(":");
-        track("programme_view", { programme, specialisation: specs, level: (j.items as ProgrammeGroup[])[0]?.level_id });
+        track("programme_view", {
+          programme,
+          specialisation: specs,
+          level: (j.items as ProgrammeGroup[])[0]?.level_id,
+        });
       })
       .catch(() => undefined);
     return () => ctrl.abort();
@@ -44,7 +48,12 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
 
   const g = res?.key === key ? res.g : null;
   const loading = !!key && res?.key !== key;
-  const dur = g?.duration_min && g.duration_max ? (g.duration_min === g.duration_max ? formatDuration(g.duration_min) : `${formatDuration(g.duration_min)} – ${formatDuration(g.duration_max)}`) : null;
+  const dur =
+    g?.duration_min && g.duration_max
+      ? g.duration_min === g.duration_max
+        ? formatDuration(g.duration_min)
+        : `${formatDuration(g.duration_min)} – ${formatDuration(g.duration_max)}`
+      : null;
   const items = g?.items ?? [];
 
   return (
@@ -52,10 +61,16 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
       open={!!key}
       onOpenChange={(v) => !v && setPanelParam("group", null)}
       title={g ? `${g.programme_name} · ${g.spec_name}` : loading ? "Loading…" : "Programme not found"}
-      description={g ? `${g.level_label} · ${g.universities} ${g.universities === 1 ? "university" : "universities"}` : undefined}
+      description={
+        g ? `${g.level_label} · ${g.universities} ${g.universities === 1 ? "university" : "universities"}` : undefined
+      }
       footer={
         g ? (
-          <button type="button" onClick={() => document.getElementById("apply-group")?.scrollIntoView({ behavior: "smooth" })} className="bg-primary text-on-primary inline-flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold">
+          <button
+            type="button"
+            onClick={() => document.getElementById("apply-group")?.scrollIntoView({ behavior: "smooth" })}
+            className="bg-primary text-on-primary inline-flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold"
+          >
             Apply now
           </button>
         ) : null
@@ -73,7 +88,9 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
             {g.fee_min && g.fee_max ? (
               <>
                 <p className="text-subtle text-xs">Total programme fee</p>
-                <p className="tabular font-display text-text text-2xl font-semibold">{formatInrRange(g.fee_min, g.fee_max)}</p>
+                <p className="tabular font-display text-text text-2xl font-semibold">
+                  {formatInrRange(g.fee_min, g.fee_max)}
+                </p>
                 <p className="text-amber-text mt-1 text-sm font-medium">Easy EMI available</p>
               </>
             ) : (
@@ -82,17 +99,25 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
             <div className="mt-2 flex flex-wrap gap-2 text-sm">
               {dur ? <Badge>{dur}</Badge> : null}
               {g.best_naac ? <Badge tone="verified">Up to NAAC {g.best_naac}</Badge> : null}
-              {g.modes.map((m) => <Badge key={m}>{modeDisplay(m)}</Badge>)}
+              {g.modes.map((m) => (
+                <Badge key={m}>{modeDisplay(m)}</Badge>
+              ))}
             </div>
             <p className="text-subtle mt-2 text-xs">{FEE_DISCLAIMER}</p>
           </div>
 
           <section aria-labelledby="g-unis">
-            <h3 id="g-unis" className="eyebrow mb-2">Universities offering it</h3>
+            <h3 id="g-unis" className="eyebrow mb-2">
+              Universities offering it
+            </h3>
             <ul className="grid gap-1">
               {items.map((o) => (
                 <li key={o.id}>
-                  <button type="button" onClick={() => setPanelParam("offering", String(o.id))} className="hover:bg-surface-hover flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] px-3 py-2 text-left">
+                  <button
+                    type="button"
+                    onClick={() => setPanelParam("offering", String(o.id))}
+                    className="hover:bg-surface-hover flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] px-3 py-2 text-left"
+                  >
                     <span className="min-w-0">
                       <span className="text-text block truncate text-sm font-medium">{o.university.name}</span>
                       <span className="text-subtle text-xs">
@@ -101,15 +126,23 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
                         {o.naac_grade ? ` · NAAC ${o.naac_grade}` : ""}
                       </span>
                     </span>
-                    <span className="tabular text-text shrink-0 text-sm">{o.fee.total ? formatInr(o.fee.total) : "On request"}</span>
+                    <span className="tabular text-text shrink-0 text-sm">
+                      {o.fee.total ? formatInr(o.fee.total) : "On request"}
+                    </span>
                   </button>
                 </li>
               ))}
             </ul>
           </section>
 
-          <section id="apply-group" aria-labelledby="apply-g-h" className="glass scroll-mt-4 rounded-[var(--radius-xl)] p-4">
-            <h3 id="apply-g-h" className="font-display text-text mb-4 text-lg font-semibold">Apply or get help choosing</h3>
+          <section
+            id="apply-group"
+            aria-labelledby="apply-g-h"
+            className="glass scroll-mt-4 rounded-[var(--radius-xl)] p-4"
+          >
+            <h3 id="apply-g-h" className="font-display text-text mb-4 text-lg font-semibold">
+              Apply or get help choosing
+            </h3>
             <ApplicationForm
               key={g.key}
               target={{
@@ -117,10 +150,15 @@ export function GroupPanel({ whatsapp, goals = [] }: { whatsapp: string; goals?:
                 groupKey: g.key,
                 label: `${g.programme_name} ${g.spec_name}`,
                 exploreHref: `/programmes?programme=${g.programme_id}`,
-                universities: items.map((o) => ({ offeringId: o.id, name: `${o.university.name}${o.mode === "ODL" ? " (Distance)" : o.mode === "Regular" ? " (On-campus)" : ""}`, feeTotal: o.fee.total, level: o.level_id, minQualification: o.min_qualification })),
+                universities: items.map((o) => ({
+                  offeringId: o.id,
+                  name: `${o.university.name}${o.mode === "ODL" ? " (Distance)" : o.mode === "Regular" ? " (On-campus)" : ""}`,
+                  feeTotal: o.fee.total,
+                  level: o.level_id,
+                  minQualification: o.min_qualification,
+                })),
               }}
               goals={goals}
-              whatsapp={whatsapp}
             />
           </section>
         </div>

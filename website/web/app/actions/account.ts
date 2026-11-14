@@ -15,12 +15,21 @@ import { clearStudentSession, currentStudent } from "@/lib/server/student-sessio
  */
 
 /** Name/phone/email of the signed-in student, for pre-filling forms. Null when signed out. */
-export async function studentProfileAction(): Promise<{ name: string | null; phone: string | null; email: string } | null> {
+export async function studentProfileAction(): Promise<{
+  name: string | null;
+  phone: string | null;
+  email: string;
+} | null> {
   const s = await currentStudent().catch(() => null);
   return s ? { name: s.name, phone: s.phone, email: s.email } : null;
 }
 
-export async function signInStartAction(input: { email: string; idempotencyKey: string; turnstileToken?: string; website?: string }): Promise<StartOutcome> {
+export async function signInStartAction(input: {
+  email: string;
+  idempotencyKey: string;
+  turnstileToken?: string;
+  website?: string;
+}): Promise<StartOutcome> {
   return startVerification({
     surface: "signin",
     email: String(input.email ?? "").slice(0, 254),
@@ -71,14 +80,19 @@ export async function saveComparisonAction(offeringIds: number[]): Promise<{ ok:
   if (!s) return { ok: false, message: "Sign in to save comparisons." };
   const p = z.array(z.number().int().positive()).min(2).max(4).safeParse(offeringIds);
   if (!p.success) return { ok: false, message: "Pick 2 to 4 programmes to save." };
-  if (!(await rateLimit(LIMITS.savePerStudent, `cmp:${s.studentId}`)).ok) return { ok: false, message: "That's a lot of saves. Please try again later." };
+  if (!(await rateLimit(LIMITS.savePerStudent, `cmp:${s.studentId}`)).ok)
+    return { ok: false, message: "That's a lot of saves. Please try again later." };
   await rpc("web_comparison_save", { p_student: s.studentId, p_ids: p.data });
   return { ok: true };
 }
 
 export type AccountActionState = { ok?: string; error?: string } | null;
 
-const PURPOSES = { marketing: ["marketing"], contact: ["sales", "partner_share"], ai_chat: ["ai_chat_storage"] } as const;
+const PURPOSES = {
+  marketing: ["marketing"],
+  contact: ["sales", "partner_share"],
+  ai_chat: ["ai_chat_storage"],
+} as const;
 
 export async function withdrawConsentAction(_prev: AccountActionState, form: FormData): Promise<AccountActionState> {
   const s = await currentStudent();
@@ -86,7 +100,7 @@ export async function withdrawConsentAction(_prev: AccountActionState, form: For
   const which = String(form.get("purpose") ?? "") as keyof typeof PURPOSES;
   if (!(which in PURPOSES)) return { error: "Choose what to withdraw." };
   if (!(await rateLimit(LIMITS.consentPerStudent, `consent:${s.studentId}`)).ok)
-    return { error: "You've made several changes today. Please try again tomorrow, or contact us on WhatsApp." };
+    return { error: "You've made several changes today. Please try again tomorrow, or contact us." };
   try {
     // Contact consent opts out only this account's own lead; for a number whose lead is someone else's, a counsellor
     // confirms first (web16, D-095). The answer is the same either way, so it never tells whose number it is.
@@ -112,7 +126,9 @@ export async function deletionRequestAction(_prev: AccountActionState, form: For
   if (kind !== "delete" && kind !== "opt_out" && kind !== "export") return { error: "Choose a request type." };
   try {
     await rpc("web_deletion_request", { p_student: s.studentId, p_kind: kind });
-    return { ok: "Request received. We'll confirm by email and complete it within 30 days, as our Privacy Policy describes." };
+    return {
+      ok: "Request received. We'll confirm by email and complete it within 30 days, as our Privacy Policy describes.",
+    };
   } catch (e) {
     log("error", "account.deletion_failed", errorFields(e));
     return { error: "We couldn't record that just now. Please try again." };

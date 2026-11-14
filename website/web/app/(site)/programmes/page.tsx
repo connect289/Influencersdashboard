@@ -34,7 +34,10 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const { index: filtersIndexable, canonical } = finderIndexability(params, views);
   // Offering / programme-group panel deep links are not standalone pages (spec 13.1): noindex, canonical to the view.
   const index = filtersIndexable && !sp.offering && !sp.group;
-  const title = heading === "Find your programme" ? "Find online, distance and on-campus programmes" : `${heading} — compare ${result.total_groups > 1 ? "programmes" : "universities"}`;
+  const title =
+    heading === "Find your programme"
+      ? "Find online, distance and on-campus programmes"
+      : `${heading} — compare ${result.total_groups > 1 ? "programmes" : "universities"}`;
   return {
     title,
     description:
@@ -48,7 +51,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
 async function Finder({ searchParams }: Props) {
   const [{ params, result, guided }, settings] = await Promise.all([load(searchParams), getSettings()]);
-  return <FinderView params={params} result={result} initialGuided={guided} advisorEnabled={settings.web_advisor_enabled} whatsapp={settings.counsellor_whatsapp} />;
+  return (
+    <FinderView params={params} result={result} initialGuided={guided} advisorEnabled={settings.web_advisor_enabled} />
+  );
 }
 
 function FinderSkeleton() {
@@ -61,10 +66,14 @@ function FinderSkeleton() {
       </div>
       <div className="grid gap-8 lg:grid-cols-[17.5rem_minmax(0,1fr)]">
         <div className="hidden gap-3 lg:grid">
-          {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-24" />)}
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
         </div>
         <div className="grid content-start gap-4">
-          {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-40 rounded-[var(--radius-xl)]" />)}
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-40 rounded-[var(--radius-xl)]" />
+          ))}
         </div>
       </div>
     </div>

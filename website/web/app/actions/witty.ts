@@ -30,7 +30,13 @@ export async function wittyBootstrapAction(fresh = false): Promise<WittyBootstra
   const degraded = await breakerOpen();
   const student = await currentStudent();
   if (!settings.web_advisor_enabled || !student) {
-    return { enabled: settings.web_advisor_enabled, degraded, signedIn: !!student, firstName: student?.name?.split(" ")[0] ?? null, messages: [] };
+    return {
+      enabled: settings.web_advisor_enabled,
+      degraded,
+      signedIn: !!student,
+      firstName: student?.name?.split(" ")[0] ?? null,
+      messages: [],
+    };
   }
   if (fresh && !(await rateLimit(LIMITS.savePerStudent, `fresh:${student.studentId}`)).ok) fresh = false;
   const s = await openSession(student, fresh);
@@ -48,12 +54,20 @@ export async function wittyBootstrapAction(fresh = false): Promise<WittyBootstra
 export async function wittyFeedbackAction(messageId: number, rating: 1 | -1): Promise<boolean> {
   const student = await currentStudent();
   if (!student || !Number.isInteger(messageId) || (rating !== 1 && rating !== -1)) return false;
-  return rpc<boolean>("web_advisor_feedback_add", { p_student: student.studentId, p_message: messageId, p_rating: rating, p_comment: null });
+  return rpc<boolean>("web_advisor_feedback_add", {
+    p_student: student.studentId,
+    p_message: messageId,
+    p_rating: rating,
+    p_comment: null,
+  });
 }
 
 const callbackSchema = z.object({ date: z.iso.date(), slot: z.enum(["morning", "afternoon", "evening"]) });
 
-export async function wittyCallbackAction(input: { date: string; slot: string }): Promise<{ ok: boolean; label?: string; message?: string }> {
+export async function wittyCallbackAction(input: {
+  date: string;
+  slot: string;
+}): Promise<{ ok: boolean; label?: string; message?: string }> {
   const student = await currentStudent();
   if (!student) return { ok: false, message: "Please verify your email first." };
   const p = callbackSchema.safeParse(input);
@@ -61,7 +75,10 @@ export async function wittyCallbackAction(input: { date: string; slot: string })
   // Each request updates the shared lead through lead_intake, so it is capped per student (and once per day and slot
   // in the database).
   if (!(await rateLimit(LIMITS.callbackPerStudent, String(student.studentId))).ok)
-    return { ok: false, message: "You've already asked for a callback. Our counsellor will call you; for anything urgent, use WhatsApp." };
+    return {
+      ok: false,
+      message: "You've already asked for a callback. Our counsellor will call you; for anything urgent, call us.",
+    };
   const s = await openSession(student);
   const r = await rpc<{ ok: boolean; label?: string; reason?: string }>("web_callback_request", {
     p_student: student.studentId,
@@ -74,7 +91,7 @@ export async function wittyCallbackAction(input: { date: string; slot: string })
     r.reason === "bad_date"
       ? "Pick a day in the next two weeks."
       : r.reason === "too_many"
-        ? "You've already asked for a callback. Our counsellor will call you; for anything urgent, use WhatsApp."
-        : "We couldn't book that. Please try WhatsApp.";
+        ? "You've already asked for a callback. Our counsellor will call you; for anything urgent, call us."
+        : "We couldn't book that. Please try again, or call us.";
   return { ok: false, message };
 }

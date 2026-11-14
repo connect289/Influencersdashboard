@@ -99,12 +99,12 @@ const MESSAGES: Record<string, string> = {
   turnstile: "We couldn't confirm you're not a robot. Please refresh the page and try again.",
   rate_limited: "Too many attempts. Please wait a few minutes and try again.",
   disposable_email: "Please use your personal or work email — temporary email addresses can't receive our updates.",
-  blocked: "We couldn't accept these details. Please contact us on WhatsApp instead.",
-  too_many_codes: "You've asked for several codes already. Please wait an hour or contact us on WhatsApp.",
+  blocked: "We couldn't accept these details. Please contact us instead.",
+  too_many_codes: "You've asked for several codes already. Please wait an hour or contact us.",
   too_soon: "Please wait a few seconds before asking for another code.",
-  site_busy: "We're getting a lot of requests right now. Please try again in a few minutes, or contact us on WhatsApp.",
+  site_busy: "We're getting a lot of requests right now. Please try again in a few minutes, or contact us.",
   send_failed: "We couldn't send the code just now. Please try again in a minute.",
-  unavailable: "Something went wrong on our side. Please try again, or contact us on WhatsApp.",
+  unavailable: "Something went wrong on our side. Please try again, or contact us.",
   expired: "That code has expired. Ask for a new one.",
   too_many_attempts: "Too many wrong codes. Ask for a new code.",
 };
@@ -138,7 +138,10 @@ export function codeHash(attemptKey: string, code: string): string {
   return createHmac("sha256", sessionSecret()).update(`web-code:${attemptKey}:${code}`).digest("base64url");
 }
 export function maskEmail(e: string): string {
-  return e.replace(/^(.)(.*)(@.*)$/, (_, a: string, b: string, c: string) => `${a}${"•".repeat(Math.min(6, Math.max(1, b.length)))}${c}`);
+  return e.replace(
+    /^(.)(.*)(@.*)$/,
+    (_, a: string, b: string, c: string) => `${a}${"•".repeat(Math.min(6, Math.max(1, b.length)))}${c}`,
+  );
 }
 const REF_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
 export function newReference(now = new Date()): string {
@@ -147,7 +150,8 @@ export function newReference(now = new Date()): string {
   return `EDW-${String(now.getFullYear()).slice(-2)}-${s}`;
 }
 
-const deviceType = (ua: string) => (/ipad|tablet/i.test(ua) ? "tablet" : /mobi|android|iphone/i.test(ua) ? "mobile" : "desktop");
+const deviceType = (ua: string) =>
+  /ipad|tablet/i.test(ua) ? "tablet" : /mobi|android|iphone/i.test(ua) ? "mobile" : "desktop";
 
 /** Attribution from the first/last-touch cookies, plus ad-consent state for the Conversions API (D-047). */
 async function attribution(ua: string): Promise<Record<string, unknown>> {
@@ -157,9 +161,18 @@ async function attribution(ua: string): Promise<Record<string, unknown>> {
   const ad = allowed(consent, "marketing");
   const fbp = ad ? jar.get("_fbp")?.value : undefined;
   const fbc = ad ? jar.get("_fbc")?.value : undefined;
-  const clicks = { ...((lead.click_ids as Record<string, string> | undefined) ?? {}), ...(fbp ? { fbp } : {}), ...(fbc ? { fbc } : {}) };
+  const clicks = {
+    ...((lead.click_ids as Record<string, string> | undefined) ?? {}),
+    ...(fbp ? { fbp } : {}),
+    ...(fbc ? { fbc } : {}),
+  };
   return JSON.parse(
-    JSON.stringify({ ...lead, click_ids: Object.keys(clicks).length ? clicks : undefined, device_type: deviceType(ua), ad_consent: ad }),
+    JSON.stringify({
+      ...lead,
+      click_ids: Object.keys(clicks).length ? clicks : undefined,
+      device_type: deviceType(ua),
+      ad_consent: ad,
+    }),
   ) as Record<string, unknown>;
 }
 
@@ -193,7 +206,8 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
   const name = surface === "signin" ? null : cleanName(input.name ?? "");
   if (!emailNorm || (surface !== "signin" && (!phone || !name))) return err("invalid_input");
   if (!/^[\w-]{8,80}$/.test(input.idempotencyKey ?? "")) return err("invalid_input");
-  const expectedConsent = surface === "gate" ? CONSENT.gate.version : surface === "signin" ? undefined : CONSENT.form.version;
+  const expectedConsent =
+    surface === "gate" ? CONSENT.gate.version : surface === "signin" ? undefined : CONSENT.form.version;
   if (expectedConsent && input.consentVersion !== expectedConsent) return err("consent");
 
   // Honeypot: look like success, do nothing (bots learn nothing).
@@ -218,7 +232,9 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
   const turnstile = await verifyTurnstile(input.turnstileToken, ip);
   if (!turnstile.ok) return err(turnstile.unreachable ? "unavailable" : "turnstile");
 
-  const context = Object.fromEntries(Object.entries(input.context ?? {}).filter(([, v]) => v !== undefined && v !== ""));
+  const context = Object.fromEntries(
+    Object.entries(input.context ?? {}).filter(([, v]) => v !== undefined && v !== ""),
+  );
   const junk = name && phone ? junkScore({ name, phone, email: emailNorm }) : { score: 0, reasons: [] };
   const payload = {
     idempotency_key: `${surface}:${input.idempotencyKey}`,
@@ -256,9 +272,12 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
     }
 
     const code = newCode();
-    const r = await rpc<{ ok: boolean; reason?: string; cap?: string; status?: string; attempt_id?: string }>("web_gate_start", {
-      p: { ...payload, code_hash: codeHash(payload.idempotency_key, code) },
-    });
+    const r = await rpc<{ ok: boolean; reason?: string; cap?: string; status?: string; attempt_id?: string }>(
+      "web_gate_start",
+      {
+        p: { ...payload, code_hash: codeHash(payload.idempotency_key, code) },
+      },
+    );
     if (!r.ok) {
       if (r.reason === "site_busy") codeCeilingReached(surface, requestId, r.cap);
       else log("info", "gate.refused", { surface, reason: r.reason, requestId });
@@ -266,7 +285,12 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
     }
     if (r.status === "already_verified") return { status: "verified", attemptId: r.attempt_id! };
     try {
-      await verifier.sendCode(emailNorm, code, surface === "signin" ? "signin" : "verify", `code:${r.attempt_id}:${code}`);
+      await verifier.sendCode(
+        emailNorm,
+        code,
+        surface === "signin" ? "signin" : "verify",
+        `code:${r.attempt_id}:${code}`,
+      );
     } catch (e) {
       log("error", "gate.send_failed", { surface, requestId, ...errorFields(e) });
       return err("send_failed");
@@ -283,7 +307,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** The attempt's idempotency key (what the code hash is bound to) and surface. */
 async function attemptInfo(attemptId: string): Promise<{ key: string; surface: Surface; email: string } | null> {
-  const r = await rpc<{ key: string; surface: Surface; email: string } | null>("web_gate_attempt_info", { p_attempt: attemptId });
+  const r = await rpc<{ key: string; surface: Surface; email: string } | null>("web_gate_attempt_info", {
+    p_attempt: attemptId,
+  });
   return r ?? null;
 }
 
@@ -295,15 +321,23 @@ export async function resendCode(attemptId: string): Promise<StartOutcome> {
     const info = await attemptInfo(attemptId);
     if (!info) return err("expired");
     const code = newCode();
-    const r = await rpc<{ ok: boolean; reason?: string; cap?: string; resend_in?: number; email?: string }>("web_gate_resend", {
-      p_attempt: attemptId,
-      p_code_hash: codeHash(info.key, code),
-    });
+    const r = await rpc<{ ok: boolean; reason?: string; cap?: string; resend_in?: number; email?: string }>(
+      "web_gate_resend",
+      {
+        p_attempt: attemptId,
+        p_code_hash: codeHash(info.key, code),
+      },
+    );
     if (!r.ok) {
       if (r.reason === "site_busy") codeCeilingReached(info.surface, requestId, r.cap);
       return r.reason === "too_soon" ? { ...err("too_soon") } : err(r.reason ?? "unavailable");
     }
-    await verifier.sendCode(info.email, code, info.surface === "signin" ? "signin" : "verify", `code:${attemptId}:${code}`);
+    await verifier.sendCode(
+      info.email,
+      code,
+      info.surface === "signin" ? "signin" : "verify",
+      `code:${attemptId}:${code}`,
+    );
     log("info", "gate.code_resent", { surface: info.surface, requestId });
     return { status: "code_sent", attemptId, resendIn: r.resend_in ?? 30, maskedEmail: maskEmail(info.email) };
   } catch (e) {
@@ -315,19 +349,30 @@ export async function resendCode(attemptId: string): Promise<StartOutcome> {
 export async function verifyCode(attemptId: string, code: string): Promise<VerifyOutcome> {
   if (!UUID.test(attemptId) || !/^\d{6}$/.test(code)) return { status: "wrong_code", attemptsLeft: 4 };
   const { ip, userAgent, requestId } = await requestContext();
-  if (!(await rateLimit(LIMITS.emailCodeVerifyPerIp, ip)).ok) return { status: "error", message: MESSAGES.rate_limited! };
+  if (!(await rateLimit(LIMITS.emailCodeVerifyPerIp, ip)).ok)
+    return { status: "error", message: MESSAGES.rate_limited! };
   try {
     const info = await attemptInfo(attemptId);
     if (!info) return { status: "expired", message: MESSAGES.expired! };
     // Per email too, so cycling resends from many IPs cannot multiply the guesses on one address.
-    if (!(await rateLimit(LIMITS.emailCodeVerifyPerEmail, canonicalEmail(info.email))).ok) return { status: "error", message: MESSAGES.rate_limited! };
-    const r = await rpc<{ ok: boolean; reason?: string; status?: string; attempts_left?: number; session_id?: string; lead_id?: number | null }>(
-      "web_gate_verify",
-      { p_attempt: attemptId, p_code_hash: codeHash(info.key, code), p_ua_hash: hashId(userAgent) },
-    );
+    if (!(await rateLimit(LIMITS.emailCodeVerifyPerEmail, canonicalEmail(info.email))).ok)
+      return { status: "error", message: MESSAGES.rate_limited! };
+    const r = await rpc<{
+      ok: boolean;
+      reason?: string;
+      status?: string;
+      attempts_left?: number;
+      session_id?: string;
+      lead_id?: number | null;
+    }>("web_gate_verify", {
+      p_attempt: attemptId,
+      p_code_hash: codeHash(info.key, code),
+      p_ua_hash: hashId(userAgent),
+    });
     if (!r.ok) {
       if (r.reason === "wrong_code") return { status: "wrong_code", attemptsLeft: r.attempts_left ?? 0 };
-      if (r.reason === "too_many_attempts") return { status: "too_many_attempts", message: MESSAGES.too_many_attempts! };
+      if (r.reason === "too_many_attempts")
+        return { status: "too_many_attempts", message: MESSAGES.too_many_attempts! };
       return { status: "expired", message: MESSAGES.expired! };
     }
     if (r.session_id) await setStudentSession(r.session_id);

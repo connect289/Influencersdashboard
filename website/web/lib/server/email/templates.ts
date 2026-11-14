@@ -48,7 +48,6 @@ export function submissionConfirmationEmail(o: {
   name?: string | null;
   reference: string;
   programme?: string | null;
-  whatsappHref: string;
 }): Rendered {
   const first = o.name?.split(" ")[0];
   const what = o.kind === "application" ? "application request" : "enquiry";
@@ -62,10 +61,12 @@ export function submissionConfirmationEmail(o: {
           "They contact you by your chosen method to confirm fees, intake and documents.",
           "They help you complete the university's application. Eduwit never asks you to pay on its website.",
         ]
-      : ["A counsellor reads your enquiry.", "They contact you by phone, WhatsApp or email with answers."];
+      : ["A counsellor reads your enquiry.", "They contact you by phone or email with answers."];
   const text = `${greet}\n\nThanks — we've received your ${what}${prog}. Your reference is ${o.reference}.\n\nWhat happens next:\n${steps
     .map((s, i) => `${i + 1}. ${s}`)
-    .join("\n")}\n\nQuestions? WhatsApp us: ${o.whatsappHref}\n\nFees are set by universities and may change; your counsellor confirms the current fee.\n\n${COMPANY.name}`;
+    .join(
+      "\n",
+    )}\n\nQuestions? Reply to this email or write to ${COMPANY.email}.\n\nFees are set by universities and may change; your counsellor confirms the current fee.\n\n${COMPANY.name}`;
   const html = layout(
     subject,
     `<p style="margin:0 0 12px">${esc(greet)}</p>
@@ -73,7 +74,7 @@ export function submissionConfirmationEmail(o: {
 <p style="margin:0 0 16px">Your reference is <strong style="font-family:Consolas,Menlo,monospace;color:#062f5b">${esc(o.reference)}</strong>.</p>
 <p style="margin:0 0 6px;font-weight:600">What happens next</p>
 <ol style="margin:0 0 16px;padding-left:20px">${steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
-<p style="margin:0 0 16px"><a href="${esc(o.whatsappHref)}" style="color:#062f5b;font-weight:600">Message a counsellor on WhatsApp</a></p>
+<p style="margin:0 0 16px">Questions? Write to <a href="mailto:${esc(COMPANY.email)}" style="color:#062f5b;font-weight:600">${esc(COMPANY.email)}</a>.</p>
 <p style="margin:0;color:#5b6b82;font-size:13px">Fees are set by universities and may change; your counsellor confirms the current fee.</p>`,
   );
   return { subject, text, html };
@@ -81,7 +82,12 @@ export function submissionConfirmationEmail(o: {
 
 /** Acknowledges a privacy request (deletion, opt-out, export) from the account page. */
 export function privacyRequestEmail(o: { name?: string | null; request: string }): Rendered {
-  const label = o.request === "delete" ? "delete your data" : o.request === "export" ? "send you a copy of your data" : "stop contacting you";
+  const label =
+    o.request === "delete"
+      ? "delete your data"
+      : o.request === "export"
+        ? "send you a copy of your data"
+        : "stop contacting you";
   const subject = "We've received your privacy request";
   const greet = o.name ? `Hi ${o.name.split(" ")[0]},` : "Hello,";
   const text = `${greet}\n\nWe've received your request to ${label}. We'll complete it within 30 days and confirm by email. If you didn't make this request, reply to this email.\n\n${COMPANY.name} · ${COMPANY.email}`;
@@ -117,7 +123,12 @@ export function privacyDoneEmail(): Rendered {
 }
 
 /** Staff alert: new catalogue rows the website cannot map yet (hidden from the finder until mapped; D-081). */
-export function catalogUnmappedEmail(o: { count: number; total: number; examples: { programme?: string | null; course?: string | null; university?: string | null }[]; adminUrl: string }): Rendered {
+export function catalogUnmappedEmail(o: {
+  count: number;
+  total: number;
+  examples: { programme?: string | null; course?: string | null; university?: string | null }[];
+  adminUrl: string;
+}): Rendered {
   const subject = `${o.count} new catalogue programme${o.count === 1 ? "" : "s"} need${o.count === 1 ? "s" : ""} a mapping on the website`;
   const lines = o.examples.map((e) => `${e.programme || e.course || "Programme"} — ${e.university || "university"}`);
   const text = `${o.count} programme(s) added to the shared catalogue are hidden on eduwit.in until they are mapped to a programme and specialisation (Witty and the CRMs already show them).\n\n${lines.map((l) => `- ${l}`).join("\n")}${o.total > o.count ? `\n\n${o.total} are waiting in total.` : ""}\n\nMap them: ${o.adminUrl}`;

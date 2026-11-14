@@ -19,7 +19,14 @@ export const metadata: Metadata = {
 async function Comparison({ searchParams }: Props) {
   const sp = await searchParams;
   const raw = Array.isArray(sp.ids) ? sp.ids.join(",") : (sp.ids ?? "");
-  const ids = [...new Set(raw.split(",").map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 4);
+  const ids = [
+    ...new Set(
+      raw
+        .split(",")
+        .map(Number)
+        .filter((n) => Number.isInteger(n) && n > 0),
+    ),
+  ].slice(0, 4);
   const [items, settings] = await Promise.all([compareOfferings(ids), getSettings()]);
   if (items.length < 2) {
     return (
@@ -27,7 +34,10 @@ async function Comparison({ searchParams }: Props) {
         <GitCompareArrows className="text-amber-text size-6" aria-hidden />
         <h2 className="font-display text-text text-xl font-semibold">Pick at least two programmes to compare</h2>
         <p className="text-muted">Use the compare button on any programme in the finder. You can compare up to four.</p>
-        <Link href="/programmes" className="bg-primary text-on-primary inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold">
+        <Link
+          href="/programmes"
+          className="bg-primary text-on-primary inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold"
+        >
           Browse programmes
         </Link>
       </div>
@@ -36,7 +46,7 @@ async function Comparison({ searchParams }: Props) {
   return (
     <>
       <SaveComparison ids={items.map((i) => i.id)} />
-      <CompareTable items={items} advisorEnabled={settings.web_advisor_enabled} whatsapp={settings.counsellor_whatsapp} />
+      <CompareTable items={items} advisorEnabled={settings.web_advisor_enabled} />
     </>
   );
 }

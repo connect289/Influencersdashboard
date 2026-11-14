@@ -33,7 +33,12 @@ async function baseMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const u = await universityDetails(slug);
   if (!u) return { title: "University not found", robots: { index: false } };
-  const facts = [u.facts.ugc_deb ? UGC_LABEL[u.facts.ugc_deb] : null, u.facts.naac_grade ? `NAAC ${u.facts.naac_grade}` : null].filter(Boolean).join(", ");
+  const facts = [
+    u.facts.ugc_deb ? UGC_LABEL[u.facts.ugc_deb] : null,
+    u.facts.naac_grade ? `NAAC ${u.facts.naac_grade}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
   return {
     // keep the title (with " · Eduwit") within ~65 characters for long university names
     title: u.name.length > 25 ? `${u.name}: programmes and fees` : `${u.name}: programmes and fees`,
@@ -61,7 +66,12 @@ async function University({ params }: Props) {
   const u = await universityDetails(slug);
   if (!u) notFound();
   const fp = parseFinderParams({ uni: slug });
-  const [result, settings, b, views] = await Promise.all([searchOfferings(fp, { page_size: 100, include_offerings: true }), getSettings(), browse(), curatedViews()]);
+  const [result, settings, b, views] = await Promise.all([
+    searchOfferings(fp, { page_size: 100, include_offerings: true }),
+    getSettings(),
+    browse(),
+    curatedViews(),
+  ]);
   const groups = result.items as ProgrammeGroup[];
   const base = siteUrl("/").replace(/\/$/, "");
   const offerings = groups.flatMap((g) => g.items ?? []) as OfferingCard[];
@@ -69,10 +79,23 @@ async function University({ params }: Props) {
   return (
     <>
       <JsonLd data={universityLd(u, base)} />
-      <JsonLd data={breadcrumbLd([{ name: "Universities", url: `${base}/universities` }, { name: u.name, url: `${base}/universities/${slug}` }])} />
-      <JsonLd data={itemListLd(`Programmes at ${u.name}`, offerings.slice(0, 50).map((o) => courseLd(o, base)))} />
+      <JsonLd
+        data={breadcrumbLd([
+          { name: "Universities", url: `${base}/universities` },
+          { name: u.name, url: `${base}/universities/${slug}` },
+        ])}
+      />
+      <JsonLd
+        data={itemListLd(
+          `Programmes at ${u.name}`,
+          offerings.slice(0, 50).map((o) => courseLd(o, base)),
+        )}
+      />
       <nav aria-label="Breadcrumb" className="text-subtle text-sm">
-        <Link href="/universities" className="hover:text-text">Universities</Link> <span aria-hidden>/</span> <span className="text-muted">{u.name}</span>
+        <Link href="/universities" className="hover:text-text">
+          Universities
+        </Link>{" "}
+        <span aria-hidden>/</span> <span className="text-muted">{u.name}</span>
       </nav>
       <header className="mt-4 grid gap-5 sm:grid-cols-[auto_1fr] sm:items-center">
         <UniversityMark name={u.name} short={u.short} logo={u.logo} size={72} />
@@ -83,15 +106,28 @@ async function University({ params }: Props) {
             {u.website_url ? (
               <>
                 {" · "}
-                <a href={u.website_url} target="_blank" rel="noopener noreferrer" className="text-accent inline-flex items-center gap-1 hover:underline">
+                <a
+                  href={u.website_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent inline-flex items-center gap-1 hover:underline"
+                >
                   Official website <ExternalLink className="size-3.5" aria-hidden />
                 </a>
               </>
             ) : null}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <a href="#apply" className="bg-primary text-on-primary inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold">Apply or enquire</a>
-            <Link href={`/programmes?uni=${slug}`} className="border-border bg-surface text-text inline-flex h-11 items-center rounded-full border px-5 text-sm font-medium">
+            <a
+              href="#apply"
+              className="bg-primary text-on-primary inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold"
+            >
+              Apply or enquire
+            </a>
+            <Link
+              href={`/programmes?uni=${slug}`}
+              className="border-border bg-surface text-text inline-flex h-11 items-center rounded-full border px-5 text-sm font-medium"
+            >
               Filter these programmes
             </Link>
           </div>
@@ -100,18 +136,31 @@ async function University({ params }: Props) {
 
       {f.ugc_deb || f.naac_grade || f.naac_accredited || f.nirf || f.aicte ? (
         <section aria-labelledby="facts-h" className="mt-10">
-          <h2 id="facts-h" className="eyebrow mb-3">Approvals and rankings</h2>
+          <h2 id="facts-h" className="eyebrow mb-3">
+            Approvals and rankings
+          </h2>
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {f.ugc_deb ? <Fact label={UGC_LABEL[f.ugc_deb]!} {...EXPLAINERS.ugc_deb} /> : null}
-            {f.naac_grade || f.naac_accredited ? <Fact label={f.naac_grade ? `NAAC ${f.naac_grade}` : "NAAC accredited"} {...EXPLAINERS.naac} /> : null}
+            {f.naac_grade || f.naac_accredited ? (
+              <Fact label={f.naac_grade ? `NAAC ${f.naac_grade}` : "NAAC accredited"} {...EXPLAINERS.naac} />
+            ) : null}
             {f.nirf ? (
-              <Fact label={`NIRF ${f.nirf.rank ? `rank ${f.nirf.rank}` : f.nirf.band}${f.nirf.category ? ` (${f.nirf.category})` : ""}${f.nirf.year ? `, ${f.nirf.year}` : ""}`} {...EXPLAINERS.nirf} />
+              <Fact
+                label={`NIRF ${f.nirf.rank ? `rank ${f.nirf.rank}` : f.nirf.band}${f.nirf.category ? ` (${f.nirf.category})` : ""}${f.nirf.year ? `, ${f.nirf.year}` : ""}`}
+                {...EXPLAINERS.nirf}
+              />
             ) : null}
             {f.aicte ? <Fact label="AICTE" {...EXPLAINERS.aicte} /> : null}
           </ul>
           {f.nirf_programmes?.length ? (
             <p className="text-muted mt-3 text-sm">
-              Discipline rankings (NIRF): {f.nirf_programmes.map((p) => `${p.discipline ?? "Programme"} ${p.rank ? `#${p.rank}` : p.band}${p.year ? ` (${p.year})` : ""}`).join(" · ")}
+              Discipline rankings (NIRF):{" "}
+              {f.nirf_programmes
+                .map(
+                  (p) =>
+                    `${p.discipline ?? "Programme"} ${p.rank ? `#${p.rank}` : p.band}${p.year ? ` (${p.year})` : ""}`,
+                )
+                .join(" · ")}
             </p>
           ) : null}
         </section>
@@ -119,8 +168,14 @@ async function University({ params }: Props) {
 
       {u.about ? (
         <section aria-labelledby="about-h" className="mt-10 max-w-3xl">
-          <h2 id="about-h" className="font-display text-text text-2xl font-semibold">About {u.name}</h2>
-          {u.about.split(/\n\s*\n/).map((p, i) => <p key={i} className="text-muted mt-3">{p}</p>)}
+          <h2 id="about-h" className="font-display text-text text-2xl font-semibold">
+            About {u.name}
+          </h2>
+          {u.about.split(/\n\s*\n/).map((p, i) => (
+            <p key={i} className="text-muted mt-3">
+              {p}
+            </p>
+          ))}
         </section>
       ) : null}
 
@@ -133,14 +188,18 @@ async function University({ params }: Props) {
           params={fp}
           slug={slug}
           name={u.name}
-          whatsapp={settings.counsellor_whatsapp}
           advisorEnabled={settings.web_advisor_enabled}
           goals={(b?.goals ?? []).map((g) => ({ value: g.id, label: g.label }))}
         />
       </section>
-      <RelatedLinks id="related-h" title="Compare across universities" links={viewsForProgrammes(views, u.programmes)} />
+      <RelatedLinks
+        id="related-h"
+        title="Compare across universities"
+        links={viewsForProgrammes(views, u.programmes)}
+      />
       <p className="text-subtle mt-8 flex items-center gap-1.5 text-xs">
-        <CalendarCheck className="size-3.5" aria-hidden /> Data last verified: {formatDate(u.verified_at)}. Fees are set by universities and may change; confirm with your counsellor.
+        <CalendarCheck className="size-3.5" aria-hidden /> Data last verified: {formatDate(u.verified_at)}. Fees are set
+        by universities and may change; confirm with your counsellor.
       </p>
     </>
   );

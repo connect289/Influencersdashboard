@@ -106,7 +106,6 @@ const SETTING_KEYS = new Set([
   "web_advisor_enabled",
   "announcement",
   "sections",
-  "counsellor_whatsapp",
   "counsellor_phone",
   "default_theme",
   "design_concept",
@@ -139,7 +138,7 @@ export async function saveSettingAction(_prev: AdminFormState, form: FormData): 
       return { error: "Not valid JSON." };
     }
   }
-  if (key === "counsellor_whatsapp" || key === "counsellor_phone") {
+  if (key === "counsellor_phone") {
     if (typeof value !== "string" || !/^\+91[6-9]\d{9}$/.test(value))
       return { error: "Use +91 followed by a 10-digit mobile number." };
   }

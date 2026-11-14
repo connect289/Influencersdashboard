@@ -10,7 +10,7 @@ import { PanelHost } from "./PanelHost";
 import { OfferingResult } from "./OfferingResult";
 
 /** Anonymous shortlist from this device (spec 6.5); synced to the account after sign-in (Phase 7). */
-export function ShortlistView({ advisorEnabled, whatsapp }: { advisorEnabled: boolean; whatsapp: string }) {
+export function ShortlistView({ advisorEnabled }: { advisorEnabled: boolean }) {
   const ids = useSaved("shortlist");
   const [fetched, setFetched] = useState<{ key: string; items: OfferingCard[] } | null>(null);
   const key = ids.join(",");
@@ -37,8 +37,13 @@ export function ShortlistView({ advisorEnabled, whatsapp }: { advisorEnabled: bo
       <div className="glass grid justify-items-start gap-3 rounded-[var(--radius-xl)] p-6">
         <Heart className="text-primary size-6" aria-hidden />
         <h2 className="font-display text-text text-xl font-semibold">Your shortlist is empty</h2>
-        <p className="text-muted">Tap the heart on any programme to keep it here. It stays on this device; sign in later to keep it everywhere.</p>
-        <Link href="/programmes" className="bg-primary text-on-primary inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold">
+        <p className="text-muted">
+          Tap the heart on any programme to keep it here. It stays on this device; sign in later to keep it everywhere.
+        </p>
+        <Link
+          href="/programmes"
+          className="bg-primary text-on-primary inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold"
+        >
           Find programmes
         </Link>
       </div>
@@ -52,7 +57,11 @@ export function ShortlistView({ advisorEnabled, whatsapp }: { advisorEnabled: bo
           {items.length} saved {items.length === 1 ? "programme" : "programmes"}
           {missing > 0 ? ` · ${missing} no longer listed` : ""}
         </p>
-        <button type="button" onClick={() => saved.clear("shortlist")} className="text-accent text-sm font-medium hover:underline">
+        <button
+          type="button"
+          onClick={() => saved.clear("shortlist")}
+          className="text-accent text-sm font-medium hover:underline"
+        >
           Clear shortlist
         </button>
       </div>
@@ -62,7 +71,7 @@ export function ShortlistView({ advisorEnabled, whatsapp }: { advisorEnabled: bo
         ))}
       </ul>
       <Suspense>
-        <PanelHost advisorEnabled={advisorEnabled} whatsapp={whatsapp} goals={[]} />
+        <PanelHost advisorEnabled={advisorEnabled} goals={[]} />
       </Suspense>
     </div>
   );

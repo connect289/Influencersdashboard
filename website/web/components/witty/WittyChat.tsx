@@ -20,7 +20,7 @@ import {
   type WittyBootstrap,
 } from "@/app/actions/witty";
 import { OfferingResult } from "@/components/finder/OfferingResult";
-import { WITTY, whatsappLink } from "@/content/site";
+import { WITTY } from "@/content/site";
 import { track } from "@/lib/client/analytics";
 import { setOfferingParam } from "@/lib/client/use-finder";
 import { presence } from "@/lib/client/witty-presence";
@@ -76,15 +76,7 @@ function nextDays(n: number) {
   return out;
 }
 
-export function WittyChat({
-  whatsapp,
-  initialQuestion,
-  className,
-}: {
-  whatsapp: string;
-  initialQuestion?: string;
-  className?: string;
-}) {
+export function WittyChat({ initialQuestion, className }: { initialQuestion?: string; className?: string }) {
   const [boot, setBoot] = useState<WittyBootstrap | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
@@ -298,14 +290,6 @@ export function WittyChat({
           >
             Get free counselling
           </Link>
-          <a
-            href={whatsappLink(whatsapp, "Hi Eduwit, I'd like help choosing a programme.")}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-accent inline-flex h-12 items-center gap-2 font-semibold"
-          >
-            <MessageCircle className="size-4" aria-hidden /> WhatsApp a counsellor
-          </a>
         </div>
       </div>
     );
@@ -330,17 +314,12 @@ export function WittyChat({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-1">
-          <a
-            href={whatsappLink(
-              whatsapp,
-              "Hi Eduwit, I was chatting with Witty and would like to talk to a counsellor.",
-            )}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/contact#enquiry"
             className="hover:bg-surface-hover text-muted inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-medium"
           >
             <MessageCircle className="size-4" aria-hidden /> Talk to a counsellor
-          </a>
+          </Link>
           {boot.signedIn ? (
             <>
               <button
@@ -502,14 +481,9 @@ export function WittyChat({
                       Retry
                     </button>
                   ) : null}
-                  <a
-                    href={whatsappLink(whatsapp, "Hi Eduwit, I'd like help choosing a programme.")}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent font-medium underline underline-offset-4"
-                  >
-                    WhatsApp a counsellor
-                  </a>
+                  <Link href="/contact#enquiry" className="text-accent font-medium underline underline-offset-4">
+                    Talk to a counsellor
+                  </Link>
                 </div>
               ) : null}
               {m.id && !m.streaming ? <Feedback id={m.id} initial={m.rating ?? null} /> : null}
@@ -534,15 +508,7 @@ export function WittyChat({
               <button
                 type="button"
                 onClick={() => {
-                  if (/talk to a counsellor|counsellor se baat/i.test(c))
-                    window.open(
-                      whatsappLink(
-                        whatsapp,
-                        "Hi Eduwit, I was chatting with Witty and would like to talk to a counsellor.",
-                      ),
-                      "_blank",
-                      "noopener",
-                    );
+                  if (/talk to a counsellor|counsellor se baat/i.test(c)) router.push("/contact#enquiry");
                   else if (/compare/i.test(c))
                     router.push(`/compare?ids=${(lastCards ?? []).map((o) => o.id).join(",")}`);
                   else void send(c);

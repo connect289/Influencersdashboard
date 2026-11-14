@@ -18,7 +18,10 @@ export const maxDuration = 60;
 const body = z.object({ message: z.string().trim().min(1).max(1000), message_id: z.string().regex(/^[\w-]{8,64}$/) });
 
 const json = (status: number, data: Record<string, unknown>) =>
-  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json", "cache-control": "no-store" },
+  });
 
 export async function POST(req: Request) {
   const settings = await getSettings();
@@ -58,7 +61,12 @@ export async function POST(req: Request) {
         const reply = session.messages.slice(i + 1).find((m) => m.direction === "out");
         if (reply) {
           emit({ type: "token", text: reply.content });
-          emit({ type: "done", messageId: reply.id, chips: (reply.meta?.chips as string[]) ?? [], mode: reply.answer_mode ?? "ACK" });
+          emit({
+            type: "done",
+            messageId: reply.id,
+            chips: (reply.meta?.chips as string[]) ?? [],
+            mode: reply.answer_mode ?? "ACK",
+          });
           controller.close();
           return;
         }
@@ -73,7 +81,7 @@ export async function POST(req: Request) {
         emit({
           type: "error",
           fallback: true,
-          message: "Sorry, I couldn't answer just now. Please try again, or talk to a counsellor on WhatsApp.",
+          message: "Sorry, I couldn't answer just now. Please try again, or talk to a counsellor.",
         });
       } finally {
         clearTimeout(timer);
@@ -82,6 +90,10 @@ export async function POST(req: Request) {
     },
   });
   return new Response(stream, {
-    headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store, no-transform", "x-accel-buffering": "no" },
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-store, no-transform",
+      "x-accel-buffering": "no",
+    },
   });
 }

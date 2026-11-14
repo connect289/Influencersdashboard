@@ -878,3 +878,8 @@ area, `https://www.eduwit.in/**` must be added there by the owner.
 ### D-102 · The WhatsApp chat widget is removed (owner request, 14 Nov 2026; supersedes D-091)
 - **Decision:** the AiSensy widget is gone from the website: its loader component, the `whatsapp_widget_id` setting (schema, admin field, save rule; web21 deletes the row), its tests, and the two hosts it needed in the CSP (`d3mkw6s8thqya7.cloudfront.net`, `*.aisensy.com`).
 - **Unchanged:** the "WhatsApp a counsellor" links (setting `counsellor_whatsapp`) are ordinary links to WhatsApp, not the widget, and stay.
+
+### D-103 · No WhatsApp route on the website (owner request, 14 Nov 2026)
+- **Decision:** every WhatsApp link, button and mention is removed: the site's routes to a person are Witty, the enquiry form (`/contact#enquiry`), phone and email. "Talk to a counsellor" and the Witty-off fallback now open the enquiry form; the contact page's WhatsApp card, the post-submission WhatsApp buttons, the confirmation email's WhatsApp link (now the company email) and the application form's "WhatsApp" contact preference are gone, as is the setting `counsellor_whatsapp` (web22) and the `whatsappLink` helper. Link tracking counts phone and email.
+- **Why:** the owner: the site already has an AI assistant (Witty).
+- **Left for the owner (legal text, versioned):** the consent wording still says a counsellor "may call, WhatsApp or email me" and the optional box says "programme updates on WhatsApp and email" (`content/consent.ts`, `web_consent_texts`). Changing them needs new consent versions, and removes the consent to message students on WhatsApp at all.

@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import { HomeHero } from "@/components/home/HomeHero";
-import { FinalCta, GuidedTeaser, HomeFaq, HowItWorks, PopularProgrammes, ResourcesTeaser, Stories, UniversityStrip, WhyEduwit } from "@/components/home/HomeSections";
+import {
+  FinalCta,
+  GuidedTeaser,
+  HomeFaq,
+  HowItWorks,
+  PopularProgrammes,
+  ResourcesTeaser,
+  Stories,
+  UniversityStrip,
+  WhyEduwit,
+} from "@/components/home/HomeSections";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { parseFinderParams } from "@/lib/search/params";
 import type { ProgrammeGroup } from "@/lib/search/types";
@@ -13,7 +23,8 @@ import { withOverrides } from "@/lib/server/page-meta";
 
 const META: Metadata = {
   title: { absolute: "Eduwit — Choose your education wisely" },
-  description: "Compare online, distance and on-campus programmes from Eduwit's partner universities: full fees, duration, approvals and eligibility, with free counselling.",
+  description:
+    "Compare online, distance and on-campus programmes from Eduwit's partner universities: full fees, duration, approvals and eligibility, with free counselling.",
   alternates: { canonical: "/" },
 };
 
@@ -46,7 +57,7 @@ export default async function Home() {
       {on("guided") ? <GuidedTeaser /> : null}
       {on("resources") ? <ResourcesTeaser resources={content.resources} /> : null}
       {on("faq") ? <HomeFaq faqs={content.faqs} /> : null}
-      <FinalCta advisorEnabled={settings.web_advisor_enabled} whatsapp={settings.counsellor_whatsapp} />
+      <FinalCta advisorEnabled={settings.web_advisor_enabled} />
     </main>
   );
 }

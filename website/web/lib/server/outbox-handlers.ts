@@ -1,13 +1,16 @@
 import "server-only";
-import { whatsappLink } from "@/content/site";
 import { sendCapi } from "./capi";
 import { email } from "./email";
-import { catalogUnmappedEmail, privacyDoneEmail, privacyRequestEmail, submissionConfirmationEmail } from "./email/templates";
+import {
+  catalogUnmappedEmail,
+  privacyDoneEmail,
+  privacyRequestEmail,
+  submissionConfirmationEmail,
+} from "./email/templates";
 import { rpc } from "./db";
 import { siteUrl } from "./env";
 import { errorFields, log } from "./log";
 import { onceOnly, registerOutboxHandler } from "./outbox";
-import { getSettings } from "./settings";
 
 /**
  * Side-effect handlers for the transactional outbox (spec 3A): confirmation emails and Conversions API events. Each is
@@ -17,10 +20,19 @@ import { getSettings } from "./settings";
 type Attribution = { ad_consent?: boolean; click_ids?: Record<string, string>; landing_url?: string };
 
 registerOutboxHandler("email_confirmation", async (job) => {
-  const p = job.payload as { kind: string; reference?: string; email: string; name?: string; request?: string; context?: { programme_label?: string } };
+  const p = job.payload as {
+    kind: string;
+    reference?: string;
+    email: string;
+    name?: string;
+    request?: string;
+    context?: { programme_label?: string };
+  };
   if (p.kind === "privacy_request") {
     await onceOnly(job, "email", () =>
-      email().send(p.email, privacyRequestEmail({ name: p.name, request: p.request ?? "delete" }), { idempotencyKey: job.dedupe_key }),
+      email().send(p.email, privacyRequestEmail({ name: p.name, request: p.request ?? "delete" }), {
+        idempotencyKey: job.dedupe_key,
+      }),
     );
     return;
   }
@@ -36,7 +48,6 @@ registerOutboxHandler("email_confirmation", async (job) => {
     }
     return;
   }
-  const settings = await getSettings();
   await onceOnly(job, "email", () =>
     email().send(
       p.email,
@@ -45,7 +56,6 @@ registerOutboxHandler("email_confirmation", async (job) => {
         name: p.name,
         reference: p.reference ?? "",
         programme: p.context?.programme_label,
-        whatsappHref: whatsappLink(settings.counsellor_whatsapp, `Hi Eduwit, my reference is ${p.reference}.`),
       }),
       { idempotencyKey: job.dedupe_key },
     ),
@@ -72,8 +82,18 @@ async function capiJob(name: "Lead" | "SubmitApplication", payload: Record<strin
 
 // New catalogue rows the website cannot map yet: one email per batch to every active super admin (D-081).
 registerOutboxHandler("catalog_alert", async (job) => {
-  const p = job.payload as { to?: string[]; count: number; total_unmapped: number; examples?: { programme?: string; course?: string; university?: string }[] };
-  const msg = catalogUnmappedEmail({ count: p.count, total: p.total_unmapped, examples: p.examples ?? [], adminUrl: siteUrl("/admin/taxonomy") });
+  const p = job.payload as {
+    to?: string[];
+    count: number;
+    total_unmapped: number;
+    examples?: { programme?: string; course?: string; university?: string }[];
+  };
+  const msg = catalogUnmappedEmail({
+    count: p.count,
+    total: p.total_unmapped,
+    examples: p.examples ?? [],
+    adminUrl: siteUrl("/admin/taxonomy"),
+  });
   // One step per recipient (by position, so no address is written to the job), so a retry mails only those not yet mailed.
   for (const [i, to] of (p.to ?? []).entries())
     await onceOnly(job, `email:${i}`, () => email().send(to, msg, { idempotencyKey: `${job.dedupe_key}:${to}` }));

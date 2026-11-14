@@ -60,6 +60,8 @@
   `e2e/privacy.spec.ts`.
 - WhatsApp widget removed (14 Nov, owner): D-102, web21; code, setting, tests and CSP hosts gone. Counsellor WhatsApp
   links stay.
+- No WhatsApp on the site (14 Nov, owner): D-103, web22. Links, buttons, wording, the email link, the contact preference
+  and the `counsellor_whatsapp` setting removed. Consent wording still names WhatsApp (owner decision pending).
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).

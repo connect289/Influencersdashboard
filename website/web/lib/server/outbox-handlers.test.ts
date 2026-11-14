@@ -7,7 +7,7 @@ vi.mock("./db", () => ({ rpc, rpcRead: rpc, dbConfigured: () => true }));
 const send = vi.fn(async (..._a: unknown[]) => ({ id: "m1" }));
 vi.mock("./email", () => ({ email: () => ({ send }) }));
 vi.mock("./capi", () => ({ sendCapi: vi.fn() }));
-vi.mock("./settings", () => ({ getSettings: vi.fn(async () => ({ counsellor_whatsapp: "+919999999999" })) }));
+vi.mock("./settings", () => ({ getSettings: vi.fn(async () => ({})) }));
 vi.mock("./env", () => ({ siteUrl: (p = "") => `https://example.test${p}`, env: () => ({}), isDeployed: () => false }));
 
 await import("./outbox-handlers");

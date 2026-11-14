@@ -323,7 +323,7 @@ export function HomeFaq({ faqs }: { faqs: HomeContent["faqs"] }) {
   );
 }
 
-export function FinalCta({ advisorEnabled, whatsapp }: { advisorEnabled: boolean; whatsapp: string }) {
+export function FinalCta({ advisorEnabled }: { advisorEnabled: boolean }) {
   return (
     <section className="container-site pb-24" data-reveal>
       <div className="grain glass-strong hairline-lumen relative isolate grid gap-6 overflow-hidden rounded-[var(--radius-2xl)] p-8 text-center sm:p-14">
@@ -343,7 +343,7 @@ export function FinalCta({ advisorEnabled, whatsapp }: { advisorEnabled: boolean
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           {advisorEnabled ? (
-            <AskWitty enabled whatsapp={whatsapp} variant="primary" />
+            <AskWitty enabled variant="primary" />
           ) : (
             <Link
               href="/contact#enquiry"

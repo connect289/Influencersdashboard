@@ -28,7 +28,11 @@ async function baseMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const v = await curatedView(slug);
   if (!v) return { title: "Not found", robots: { index: false } };
-  return { title: v.title, description: v.seo_description ?? undefined, alternates: { canonical: `/programmes/${slug}` } };
+  return {
+    title: v.title,
+    description: v.seo_description ?? undefined,
+    alternates: { canonical: `/programmes/${slug}` },
+  };
 }
 
 async function View({ params }: Props) {
@@ -36,37 +40,58 @@ async function View({ params }: Props) {
   const v = await curatedView(slug);
   if (!v) notFound();
   const filters = parseFinderParams(
-    Object.fromEntries(Object.entries(v.filters).map(([k, val]) => [k, Array.isArray(val) ? val.join(",") : String(val)])),
+    Object.fromEntries(
+      Object.entries(v.filters).map(([k, val]) => [k, Array.isArray(val) ? val.join(",") : String(val)]),
+    ),
   );
-  const [result, settings, views] = await Promise.all([searchOfferings(filters, { page_size: 12, include_offerings: false }), getSettings(), curatedViews()]);
+  const [result, settings, views] = await Promise.all([
+    searchOfferings(filters, { page_size: 12, include_offerings: false }),
+    getSettings(),
+    curatedViews(),
+  ]);
   const base = siteUrl("/").replace(/\/$/, "");
   const groups = result.items as ProgrammeGroup[];
   const firstOfferings = await searchOfferings({ ...filters, view: "flat" }, { page_size: 10 });
   return (
     <>
-      <JsonLd data={breadcrumbLd([{ name: "Programmes", url: `${base}/programmes` }, { name: v.h1 ?? v.title, url: `${base}/programmes/${slug}` }])} />
-      <JsonLd data={itemListLd(v.title, (firstOfferings.items as OfferingCard[]).map((o) => courseLd(o, base)))} />
+      <JsonLd
+        data={breadcrumbLd([
+          { name: "Programmes", url: `${base}/programmes` },
+          { name: v.h1 ?? v.title, url: `${base}/programmes/${slug}` },
+        ])}
+      />
+      <JsonLd
+        data={itemListLd(
+          v.title,
+          (firstOfferings.items as OfferingCard[]).map((o) => courseLd(o, base)),
+        )}
+      />
       {v.faqs.length ? <JsonLd data={faqLd(v.faqs)} /> : null}
       <FinderView
         params={filters}
         result={result}
         heading={v.h1 ?? v.title}
         advisorEnabled={settings.web_advisor_enabled}
-        whatsapp={settings.counsellor_whatsapp}
         intro={
           v.intro ? (
             <div className="text-muted grid max-w-3xl gap-3">
               {v.intro.split(/\n\s*\n/).map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
-              <p className="text-subtle text-sm">{groups.length ? `${result.total} options from ${result.facets.university.filter((u) => u.count > 0).length} universities, updated from the catalogue.` : ""}</p>
+              <p className="text-subtle text-sm">
+                {groups.length
+                  ? `${result.total} options from ${result.facets.university.filter((u) => u.count > 0).length} universities, updated from the catalogue.`
+                  : ""}
+              </p>
             </div>
           ) : null
         }
       />
       {v.faqs.length ? (
         <section aria-labelledby="faq-h" className="mt-12 grid max-w-3xl gap-4">
-          <h2 id="faq-h" className="font-display text-text text-2xl font-semibold">Frequently asked questions</h2>
+          <h2 id="faq-h" className="font-display text-text text-2xl font-semibold">
+            Frequently asked questions
+          </h2>
           <Disclosure items={v.faqs.map((f, i) => ({ id: String(i), title: f.q, content: <p>{f.a}</p> }))} />
         </section>
       ) : null}

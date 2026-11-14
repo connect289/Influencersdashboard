@@ -14,14 +14,20 @@ type Attempt = { id: string; lead_id: number | null; verified_at: string | null;
 type Lead = Record<string, unknown> & { id: number };
 
 async function attemptFor(email: string): Promise<Attempt[]> {
-  return dbSelect<Attempt>("web_gate_attempts", `email_norm=eq.${encodeURIComponent(email)}&select=id,lead_id,verified_at,surface,junk_score&order=submitted_at.desc`);
+  return dbSelect<Attempt>(
+    "web_gate_attempts",
+    `email_norm=eq.${encodeURIComponent(email)}&select=id,lead_id,verified_at,surface,junk_score&order=submitted_at.desc`,
+  );
 }
 async function lead(id: number): Promise<Lead> {
   const [l] = await dbSelect<Lead>("student_leads", `id=eq.${id}&select=*`);
   return l!;
 }
 
-async function enquiry(page: Page, o: { name: string; phone: string; email: string; path?: string; programme?: string }) {
+async function enquiry(
+  page: Page,
+  o: { name: string; phone: string; email: string; path?: string; programme?: string },
+) {
   await page.goto("about:blank");
   await page.goto(o.path ?? "/contact#enquiry");
   await dismissConsent(page);
@@ -41,7 +47,9 @@ async function enquiry(page: Page, o: { name: string; phone: string; email: stri
 test.describe("leads, verification and accounts", () => {
   test.beforeEach(async ({ page }) => freshIp(page));
 
-  test("application form: lead only after the email code; steps enrich the same lead; submit marks an application request", async ({ page }) => {
+  test("application form: lead only after the email code; steps enrich the same lead; submit marks an application request", async ({
+    page,
+  }) => {
     const email = uniqueEmail("asha");
     const phone = uniquePhone();
     await page.goto("/programmes?programme=mba&view=flat");
@@ -76,7 +84,13 @@ test.describe("leads, verification and accounts", () => {
     const [verified] = await attemptFor(email);
     expect(verified?.lead_id).toBeTruthy();
     const created = await lead(verified!.lead_id!);
-    expect(created).toMatchObject({ student_name: "Asha Rao", email_id: email, lead_source: "website_form", channel: "web_form", is_test: true });
+    expect(created).toMatchObject({
+      student_name: "Asha Rao",
+      email_id: email,
+      lead_source: "website_form",
+      channel: "web_form",
+      is_test: true,
+    });
     expect(created.interested_course).toBeTruthy();
     expect(created.interested_university).toBeTruthy();
     expect(created.consent_text_version).toBe("web-form-2026-10-v1");
@@ -90,7 +104,7 @@ test.describe("leads, verification and accounts", () => {
 
     await dialog.getByText("Yes", { exact: true }).first().click();
     await dialog.getByRole("button", { name: "Save and continue" }).click();
-    await dialog.getByText("WhatsApp", { exact: true }).click();
+    await dialog.getByText("Email", { exact: true }).click();
     await dialog.getByRole("button", { name: "Save and continue" }).click();
     await expect(dialog.getByText("Step 5 of 5: Review")).toBeVisible();
     await expect(dialog).toContainText("Asha Rao");
@@ -102,12 +116,19 @@ test.describe("leads, verification and accounts", () => {
     const done = await lead(verified!.lead_id!);
     expect(done.intent_type).toBe("wants_to_apply");
     expect(done.work_experience_years).toBe("Working");
-    expect(String(done.preferred_counseling_time)).toContain("WhatsApp");
-    const [app] = await dbSelect<{ status: string; lead_id: number }>("web_applications", `reference=eq.${ref}&select=status,lead_id`);
+    expect(String(done.preferred_counseling_time)).toContain("Email");
+    const [app] = await dbSelect<{ status: string; lead_id: number }>(
+      "web_applications",
+      `reference=eq.${ref}&select=status,lead_id`,
+    );
     expect(app).toMatchObject({ status: "submitted", lead_id: verified!.lead_id });
     // Exactly one lead write for the verification, and the confirmation email is queued.
-    expect(await dbSelect("web_lead_submissions", `idempotency_key=eq.web:verify:${verified!.id}&select=idempotency_key`)).toHaveLength(1);
-    expect(await dbSelect("web_outbox", `kind=eq.email_confirmation&payload->>reference=eq.${ref}&select=id`)).toHaveLength(1);
+    expect(
+      await dbSelect("web_lead_submissions", `idempotency_key=eq.web:verify:${verified!.id}&select=idempotency_key`),
+    ).toHaveLength(1);
+    expect(
+      await dbSelect("web_outbox", `kind=eq.email_confirmation&payload->>reference=eq.${ref}&select=id`),
+    ).toHaveLength(1);
   });
 
   test("enquiry form, then a duplicate phone with a new email does not create a second lead", async ({ page }) => {
@@ -160,7 +181,12 @@ test.describe("leads, verification and accounts", () => {
     await expect(page.getByText("Recommended by Demo Creator")).toBeVisible();
     await expect(page.getByRole("main").getByRole("link", { name: /Online MBA/ })).toBeVisible();
     const email = uniqueEmail("creator");
-    const { sent, box } = await enquiry(page, { name: "Kiran Shah", phone: uniquePhone(), email, path: "/c/demo-creator?code=ANJALI10" });
+    const { sent, box } = await enquiry(page, {
+      name: "Kiran Shah",
+      phone: uniquePhone(),
+      email,
+      path: "/c/demo-creator?code=ANJALI10",
+    });
     await typeCode(page, box, await latestCode(email, sent));
     await expect(page.getByText("Thanks, we've got your enquiry")).toBeVisible();
     const [a] = await attemptFor(email);
@@ -171,7 +197,9 @@ test.describe("leads, verification and accounts", () => {
     await expect(page.getByText(/Recommended by/)).toHaveCount(0);
   });
 
-  test("account: sign in with an email code, see the application, signed-in forms skip the code, sign out", async ({ page }) => {
+  test("account: sign in with an email code, see the application, signed-in forms skip the code, sign out", async ({
+    page,
+  }) => {
     const email = uniqueEmail("neha");
     const phone = uniquePhone();
     // Create the identity through an enquiry.

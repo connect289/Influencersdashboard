@@ -11,10 +11,23 @@ import { ConsentControls, PrivacyRequests, ShortlistSync } from "./AccountClient
 export const metadata: Metadata = { title: "Your account", robots: { index: false, follow: false } };
 
 interface Account {
-  profile: { email: string; name: string | null; phone: string | null; email_verified_at: string | null; created_at: string };
+  profile: {
+    email: string;
+    name: string | null;
+    phone: string | null;
+    email_verified_at: string | null;
+    created_at: string;
+  };
   shortlist: number[];
   comparisons: { id: number; ids: number[]; created_at: string }[];
-  applications: { reference: string; kind: string; status: string; programme: string | null; created_at: string; submitted_at: string | null }[];
+  applications: {
+    reference: string;
+    kind: string;
+    status: string;
+    programme: string | null;
+    created_at: string;
+    submitted_at: string | null;
+  }[];
   consents: { version: string; purposes: string[]; granted_at: string; withdrawn_at: string | null; body: string }[];
   requests: { kind: string; status: string; requested_at: string }[];
 }
@@ -28,9 +41,25 @@ interface Chat {
   messages: { direction: "in" | "out"; content: string; created_at: string }[];
 }
 
-const date = (s: string) => new Date(s).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
-const STATUS: Record<string, string> = { started: "Started", step_2: "In progress", step_3: "In progress", step_4: "In progress", submitted: "Submitted" };
-const REQUEST: Record<string, string> = { delete: "Delete my data", opt_out: "Opt out of contact", export: "Copy of my data" };
+const date = (s: string) =>
+  new Date(s).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
+const STATUS: Record<string, string> = {
+  started: "Started",
+  step_2: "In progress",
+  step_3: "In progress",
+  step_4: "In progress",
+  submitted: "Submitted",
+};
+const REQUEST: Record<string, string> = {
+  delete: "Delete my data",
+  opt_out: "Opt out of contact",
+  export: "Copy of my data",
+};
 const maskPhone = (p: string) => `${p.slice(0, 3)} ••••• ${p.slice(-5)}`;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -67,7 +96,7 @@ async function AccountBody() {
           <dt className="text-muted">Member since</dt>
           <dd className="text-text">{date(a.profile.created_at)}</dd>
         </dl>
-        <p className="text-subtle text-xs">To change your name or number, tell your counsellor or WhatsApp us.</p>
+        <p className="text-subtle text-xs">To change your name or number, tell your counsellor or contact us.</p>
       </Section>
 
       <Section title="Applications and enquiries">
@@ -77,7 +106,11 @@ async function AccountBody() {
               <li key={x.reference} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                 <span>
                   <span className="tabular text-text font-semibold">{x.reference}</span>
-                  <span className="text-muted"> · {x.kind === "application" ? "Application request" : "Enquiry"}{x.programme ? ` · ${x.programme}` : ""}</span>
+                  <span className="text-muted">
+                    {" "}
+                    · {x.kind === "application" ? "Application request" : "Enquiry"}
+                    {x.programme ? ` · ${x.programme}` : ""}
+                  </span>
                 </span>
                 <span className="text-muted">
                   {STATUS[x.status] ?? x.status} · {date(x.submitted_at ?? x.created_at)}
@@ -87,7 +120,11 @@ async function AccountBody() {
           </ul>
         ) : (
           <p className="text-muted text-sm">
-            None yet. Every programme in the <Link href="/programmes" className="text-accent underline underline-offset-4">finder</Link> has an application form.
+            None yet. Every programme in the{" "}
+            <Link href="/programmes" className="text-accent underline underline-offset-4">
+              finder
+            </Link>{" "}
+            has an application form.
           </p>
         )}
       </Section>
@@ -158,7 +195,9 @@ async function AccountBody() {
                     · {c.withdrawn_at ? `withdrawn ${date(c.withdrawn_at)}` : `given ${date(c.granted_at)}`}
                   </span>
                 </span>
-                <span className="text-muted">“{c.body}” <span className="text-subtle">({c.version})</span></span>
+                <span className="text-muted">
+                  “{c.body}” <span className="text-subtle">({c.version})</span>
+                </span>
               </li>
             ))}
           </ul>
@@ -171,7 +210,10 @@ async function AccountBody() {
       <Section title="Your data">
         <p className="text-muted text-sm">
           Ask for a copy of your data, opt out of all contact, or ask us to delete your data. See{" "}
-          <Link href="/legal/data-privacy-opt-out" className="text-accent underline underline-offset-4">Data privacy &amp; opt-out</Link>.
+          <Link href="/legal/data-privacy-opt-out" className="text-accent underline underline-offset-4">
+            Data privacy &amp; opt-out
+          </Link>
+          .
         </p>
         {a.requests.length ? (
           <ul className="text-muted grid gap-1 text-sm">

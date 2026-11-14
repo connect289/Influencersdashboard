@@ -8,7 +8,11 @@ const OfferingPanel = dynamic(() => import("./OfferingPanel").then((m) => m.Offe
 const GroupPanel = dynamic(() => import("./GroupPanel").then((m) => m.GroupPanel), { ssr: false });
 
 /** Loads panel code only once a panel is opened (deep link or click). */
-export function PanelHost(props: { qual?: string; advisorEnabled: boolean; whatsapp: string; goals: { value: string; label: string }[] }) {
+export function PanelHost(props: {
+  qual?: string;
+  advisorEnabled: boolean;
+  goals: { value: string; label: string }[];
+}) {
   const sp = useSearchParams();
   const [used, setUsed] = useState({ offering: false, group: false });
   if ((!used.offering && sp.get("offering")) || (!used.group && sp.get("group"))) {
@@ -17,8 +21,7 @@ export function PanelHost(props: { qual?: string; advisorEnabled: boolean; whats
   return (
     <>
       {used.offering ? <OfferingPanel {...props} /> : null}
-      {used.group ? <GroupPanel whatsapp={props.whatsapp} goals={props.goals} /> : null}
+      {used.group ? <GroupPanel goals={props.goals} /> : null}
     </>
   );
 }
-

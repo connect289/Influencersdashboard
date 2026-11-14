@@ -53,7 +53,3 @@ export const WITTY = {
     "MBA for working professionals",
   ],
 } as const;
-
-export function whatsappLink(numberE164: string, text: string): string {
-  return `https://wa.me/${numberE164.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
-}

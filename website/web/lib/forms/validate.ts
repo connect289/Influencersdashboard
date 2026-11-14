@@ -73,7 +73,8 @@ export function validateAcademic(a: AcademicInput, nowYear = new Date().getFullY
   if (a.score) {
     const v = Number(a.score);
     const max = a.scoreType === "cgpa" ? 10 : 100;
-    if (!Number.isFinite(v) || v <= 0 || v > max) e.score = a.scoreType === "cgpa" ? "Enter a CGPA between 0 and 10." : "Enter a percentage between 0 and 100.";
+    if (!Number.isFinite(v) || v <= 0 || v > max)
+      e.score = a.scoreType === "cgpa" ? "Enter a CGPA between 0 and 10." : "Enter a percentage between 0 and 100.";
   }
   if (!a.currentlyStudying && a.yearOfPassing) {
     const y = Number(a.yearOfPassing);
@@ -108,13 +109,14 @@ export interface PreferencesInput {
   universities: string[];
   city: string;
   state: string;
-  contactMode: "call" | "whatsapp" | "email" | "";
+  contactMode: "call" | "email" | "";
   bestTime: string;
   questions: string;
 }
 export function validatePreferences(p: PreferencesInput, needsUniversity: boolean): Errors<keyof PreferencesInput> {
   const e: Errors<keyof PreferencesInput> = {};
-  if (needsUniversity && p.universities.length === 0) e.universities = "Pick at least one university, or “Help me choose”.";
+  if (needsUniversity && p.universities.length === 0)
+    e.universities = "Pick at least one university, or “Help me choose”.";
   if (!p.contactMode) e.contactMode = "How should a counsellor contact you?";
   if (p.questions.length > 1000) e.questions = "Please keep this under 1,000 characters.";
   return e;

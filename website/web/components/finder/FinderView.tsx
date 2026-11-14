@@ -41,7 +41,6 @@ export function FinderView({
   params,
   result,
   advisorEnabled,
-  whatsapp,
   basePath = "/programmes",
   intro,
   heading,
@@ -50,7 +49,6 @@ export function FinderView({
   params: FinderParams;
   result: SearchResult;
   advisorEnabled: boolean;
-  whatsapp: string;
   basePath?: string;
   intro?: React.ReactNode;
   /** Fixed H1 (curated views); otherwise derived from the filters. */
@@ -94,11 +92,11 @@ export function FinderView({
               <span className="sm:hidden">Guide me</span>
               <span className="hidden sm:inline">Not sure? Answer 3 questions</span>
             </button>
-            <AskWitty enabled={advisorEnabled} whatsapp={whatsapp} question={params.q}>
+            <AskWitty enabled={advisorEnabled} question={params.q}>
               {advisorEnabled ? undefined : (
                 <>
                   <span className="sm:hidden">Ask a counsellor</span>
-                  <span className="hidden sm:inline">Ask a counsellor on WhatsApp</span>
+                  <span className="hidden sm:inline">Talk to a counsellor</span>
                 </>
               )}
             </AskWitty>
@@ -251,7 +249,6 @@ export function FinderView({
                   onRelax={(n) => go(n)}
                   onOpen={open}
                   advisorEnabled={advisorEnabled}
-                  whatsapp={whatsapp}
                 />
               ) : grouped ? (
                 (result.items as ProgrammeGroup[]).map((g) => (
@@ -287,7 +284,11 @@ export function FinderView({
 
       <CompareTray />
       <Suspense>
-        <PanelHost qual={params.qual} advisorEnabled={advisorEnabled} whatsapp={whatsapp} goals={result.facets.goal.map((g) => ({ value: g.value, label: g.label }))} />
+        <PanelHost
+          qual={params.qual}
+          advisorEnabled={advisorEnabled}
+          goals={result.facets.goal.map((g) => ({ value: g.value, label: g.label }))}
+        />
       </Suspense>
       {sheet ? (
         <MobileFilters

@@ -12,7 +12,6 @@ export const settingsSchema = z.object({
   finder_include_regular_mode: z.boolean().default(false),
   lead_writer: z.enum(["lead_intake", "intake_api"]).default("lead_intake"),
   transcript_target: z.string().default("web_advisor_messages"),
-  counsellor_whatsapp: z.string().default("+919643977407"),
   counsellor_phone: z.string().default("+919650683269"),
   announcement: z
     .object({ text: z.string(), href: z.string().optional(), tone: z.enum(["info", "amber"]).default("info") })

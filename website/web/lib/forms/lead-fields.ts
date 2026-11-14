@@ -32,7 +32,13 @@ export function workLead(w: Partial<WorkInput>, goalLabel?: string): Record<stri
   const years = w.working === "yes" && w.years !== "" && w.years !== undefined ? Number(w.years) : null;
   return clean({
     work_experience_raw:
-      w.working === "no" ? "Not working" : w.working === "yes" ? (years !== null ? `Working, ${years} years` : "Working") : undefined,
+      w.working === "no"
+        ? "Not working"
+        : w.working === "yes"
+          ? years !== null
+            ? `Working, ${years} years`
+            : "Working"
+          : undefined,
     work_experience_years_num: years !== null && Number.isFinite(years) ? years : w.working === "no" ? 0 : undefined,
     current_job_role: w.working === "yes" ? w.role?.trim().slice(0, 120) : undefined,
     primary_motivation: goalLabel,
@@ -48,7 +54,7 @@ export const BUDGET_RANGES: { value: string; label: string; inr: number | null }
   { value: "not-sure", label: "Not sure yet", inr: null },
 ];
 
-const MODE_LABEL = { call: "Call", whatsapp: "WhatsApp", email: "Email" } as const;
+const MODE_LABEL = { call: "Call", email: "Email" } as const;
 
 export function preferencesLead(p: Partial<PreferencesInput>, universityNames: string[] = []): Record<string, unknown> {
   const budget = BUDGET_RANGES.find((b) => b.value === p.budget || b.label === p.budget);
