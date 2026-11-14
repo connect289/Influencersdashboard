@@ -20,9 +20,6 @@ const ANALYTICS_CONNECT = [
   "https://*.clarity.ms",
 ];
 const TURNSTILE = "https://challenges.cloudflare.com";
-/** AiSensy WhatsApp chat widget (D-091): its loader's host, and AiSensy's own hosts for the chat button's assets and API. */
-const WA_WIDGET = "https://d3mkw6s8thqya7.cloudfront.net";
-const AISENSY = "https://*.aisensy.com";
 
 export function buildCsp(o: CspOptions = {}): string {
   const script = o.nonce
@@ -32,18 +29,17 @@ export function buildCsp(o: CspOptions = {}): string {
         ...(o.hashes ?? []).map((h) => `'${h}'`),
         `'strict-dynamic'`,
         TURNSTILE,
-        WA_WIDGET,
         ...ANALYTICS_SCRIPT,
       ]
-    : [`'self'`, `'unsafe-inline'`, TURNSTILE, WA_WIDGET, ...ANALYTICS_SCRIPT];
+    : [`'self'`, `'unsafe-inline'`, TURNSTILE, ...ANALYTICS_SCRIPT];
   if (o.dev) script.push(`'unsafe-eval'`);
-  const connect = [`'self'`, ...ANALYTICS_CONNECT, TURNSTILE, WA_WIDGET, AISENSY];
+  const connect = [`'self'`, ...ANALYTICS_CONNECT, TURNSTILE];
   if (o.supabaseUrl) connect.push(new URL(o.supabaseUrl).origin);
   if (o.dev) connect.push("ws:", "http://127.0.0.1:54321");
   const d: Record<string, string[]> = {
     "default-src": [`'self'`],
     "script-src": script,
-    "style-src": [`'self'`, `'unsafe-inline'`, WA_WIDGET],
+    "style-src": [`'self'`, `'unsafe-inline'`],
     "img-src": [
       `'self'`,
       "data:",
@@ -52,12 +48,10 @@ export function buildCsp(o: CspOptions = {}): string {
       "https://*.google-analytics.com",
       "https://*.googletagmanager.com",
       "https://*.clarity.ms",
-      WA_WIDGET,
-      AISENSY,
     ],
-    "font-src": [`'self'`, WA_WIDGET],
+    "font-src": [`'self'`],
     "connect-src": connect,
-    "frame-src": [TURNSTILE, "https://www.youtube-nocookie.com", AISENSY],
+    "frame-src": [TURNSTILE, "https://www.youtube-nocookie.com"],
     "media-src": [`'self'`],
     "worker-src": [`'self'`, "blob:"],
     "object-src": [`'none'`],

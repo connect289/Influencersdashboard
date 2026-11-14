@@ -113,14 +113,6 @@ async function Settings() {
           disabled={!editor}
         />
         <SettingForm
-          name="whatsapp_widget_id"
-          label="WhatsApp chat widget (AiSensy)"
-          kind="text"
-          value={v.whatsapp_widget_id ?? ""}
-          disabled={!editor}
-          help="The widget-id from the AiSensy snippet, e.g. aabsod. Leave empty to hide the widget."
-        />
-        <SettingForm
           name="application_form"
           label="Application form fields"
           kind="json"

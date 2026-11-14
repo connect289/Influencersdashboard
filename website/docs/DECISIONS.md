@@ -873,3 +873,8 @@ the Preview value is unchanged). The value is read at build time, so it took eff
 changed: Supabase Auth's redirect allow-list has no entry for the website; if Google sign-in is used for the admin
 area, `https://www.eduwit.in/**` must be added there by the owner.
 
+
+
+### D-102 · The WhatsApp chat widget is removed (owner request, 14 Nov 2026; supersedes D-091)
+- **Decision:** the AiSensy widget is gone from the website: its loader component, the `whatsapp_widget_id` setting (schema, admin field, save rule; web21 deletes the row), its tests, and the two hosts it needed in the CSP (`d3mkw6s8thqya7.cloudfront.net`, `*.aisensy.com`).
+- **Unchanged:** the "WhatsApp a counsellor" links (setting `counsellor_whatsapp`) are ordinary links to WhatsApp, not the widget, and stay.

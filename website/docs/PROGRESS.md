@@ -58,6 +58,8 @@
   dry run there in a rolled-back transaction (staging holds no website tables; the checks ran on the local replica of
   production). No privacy request existed at the time. The deployment follows the migration. Checks: `97_web_privacy_requests` 85 checks (local and replica), 255 unit tests,
   `e2e/privacy.spec.ts`.
+- WhatsApp widget removed (14 Nov, owner): D-102, web21; code, setting, tests and CSP hosts gone. Counsellor WhatsApp
+  links stay.
 
 Resume rule: read this file top to bottom, then continue from the current step. Each phase has a plan, a step log and a
 self-review table (Done / Partial / Deferred-with-reason). Tags: `website-phase-N-done` (D-002).

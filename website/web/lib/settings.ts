@@ -1,7 +1,4 @@
 import { z } from "zod";
-import { WHATSAPP_WIDGET_ID } from "./widget-id";
-
-export { WHATSAPP_WIDGET_ID };
 
 /** Site settings and feature flags (mirror of web_settings defaults in web1_foundation). */
 export const settingsSchema = z.object({
@@ -17,8 +14,6 @@ export const settingsSchema = z.object({
   transcript_target: z.string().default("web_advisor_messages"),
   counsellor_whatsapp: z.string().default("+919643977407"),
   counsellor_phone: z.string().default("+919650683269"),
-  /** AiSensy WhatsApp chat widget id (widget-id in their snippet); null hides the widget (D-091). */
-  whatsapp_widget_id: z.string().regex(WHATSAPP_WIDGET_ID).nullable().default(null),
   announcement: z
     .object({ text: z.string(), href: z.string().optional(), tone: z.enum(["info", "amber"]).default("info") })
     .nullable()

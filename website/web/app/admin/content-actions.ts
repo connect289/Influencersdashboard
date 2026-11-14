@@ -7,7 +7,6 @@ import { entityConfig, parseEntityForm } from "@/lib/admin/entities";
 import { closeInput, fulfilInput, privacyError, systemInput } from "@/lib/admin/privacy";
 import { requireAdmin } from "@/lib/server/admin";
 import { rpc } from "@/lib/server/db";
-import { WHATSAPP_WIDGET_ID } from "@/lib/settings";
 import { errorFields, log } from "@/lib/server/log";
 
 /**
@@ -109,7 +108,6 @@ const SETTING_KEYS = new Set([
   "sections",
   "counsellor_whatsapp",
   "counsellor_phone",
-  "whatsapp_widget_id",
   "default_theme",
   "design_concept",
   "push_unverified_gate_leads",
@@ -144,14 +142,6 @@ export async function saveSettingAction(_prev: AdminFormState, form: FormData): 
   if (key === "counsellor_whatsapp" || key === "counsellor_phone") {
     if (typeof value !== "string" || !/^\+91[6-9]\d{9}$/.test(value))
       return { error: "Use +91 followed by a 10-digit mobile number." };
-  }
-  if (key === "whatsapp_widget_id") {
-    if (value === "") value = null;
-    else if (typeof value !== "string" || !WHATSAPP_WIDGET_ID.test(value))
-      return {
-        error:
-          "Use the widget-id from the AiSensy snippet (letters and numbers), or leave it empty to hide the widget.",
-      };
   }
   const ceiling = ceilingError(key, value);
   if (ceiling) return { error: ceiling };
