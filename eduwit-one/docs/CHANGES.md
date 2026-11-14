@@ -3,6 +3,42 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 14 Nov 2026 — The apps report their server-error counts; a check per app alerts (0041, D-141)
+
+- Found (audit of 13 Nov, finding M11; fixes approved by the owner): a server error in any app went only to its host's
+  logs (one line per error, D-137), so nobody was told when an app started throwing. The owner declined a third-party
+  error tracker.
+- Changed, schema `one` only: migration `0041_app_errors.sql` adds the table `one.app_errors` (one row per app,
+  5-minute bucket, route template and error name: count, first and last seen, one masked sample), the writer
+  `one.app_error_report(text, jsonb)` for the service role only, the page's reader `one.ui_app_errors(text, integer)`
+  for signed-in people, and one more step in `one.retention()` (counts older than 30 days). It seeds
+  `thresholds.app_errors_15m` (20) while the thresholds row is still the seed's, and five checks as 0006 now carries
+  them: `B2B-ERR`, `B2C-ERR`, `INF-ERR`, `ONE-ERR` (P2, every 5 minutes, on) and `WEB-ERR` (off until the website
+  carries the reporter). The writer refuses unknown apps and oversized batches, masks and cuts every field, caps a
+  count at 10 000 and an app at 300 rows an hour (then only an overflow row grows). No existing check, severity,
+  threshold or setting default changes. The rollback removes all of it and restores 0029's `one.retention()` verbatim.
+- App: `lib/error-report.ts` counts the errors `instrumentation.ts` already logs and reports them through the service
+  client (`SupabaseOneDb.appErrorReport`), at most once a minute, in the background, only from a deployment. An app's
+  page shows "Server errors, last 24 h" (`components/embeds/app-errors-card.tsx`). The same reporter file is in the
+  B2B CRM, Spark (which also gets its first `instrumentation.ts`) and the influencer portal, each through its own
+  service client pointed at schema `one`. The website is on another branch and is still to do. RUNBOOK ("Server
+  errors the apps report", retention, the rollback table) updated; `docs/CHECKS.md`, 0006, 0007 and
+  `lib/ai/docs.generated.ts` regenerated.
+- Proof: the local migration test (apply, tests, full rollback, re-apply, tests) with the new `99_app_errors.sql`
+  (the service role reports, anon and signed-in people cannot; unknown app and bad batches refused; no email or phone
+  stored from any field; caps and the overflow row; counts add up in the bucket; the check fails above the limit and
+  resolves under it; retention; the page's reader by role; the rollback file removes everything and the migration
+  applies again, with and without the seeded threshold); new fingerprint (254 functions, 39 tables; it was 251 and
+  38); guards, the generators' `--check` and the root tests (one new: 0041 seeds the checks as 0006 carries them);
+  web typecheck, lint, format, unit tests (the reporter: buffering, one flush a minute, the cap, never throws,
+  disabled without the environment, no imports) and a build with an empty environment.
+  `supabase/tests/0041.http.sql` is the same proof as one plain-SQL statement for the Management API: 34 checks,
+  ending in `TESTRESULT total=… failed=…` and rolling everything back.
+- Order: the database first, then the apps, in any order. An app deployed before 0041 gets "function not found" for
+  its report, drops the batch, logs one `app.error_report_failed` line and tries again five minutes later; requests
+  are never affected. With 0041 and an old app the checks read no errors. Eduwit One's own page says "needs a
+  database migration" in the card until 0041 is applied.
+- Not yet applied: staging rehearsal and production apply follow
 ## 13 Nov 2026 — The other apps after the audit: what shipped (Spark, website, B2B, portal, Scout)
 
 One record of the audit fixes that went live outside Eduwit One on 13 Nov (each app's own docs have the detail).

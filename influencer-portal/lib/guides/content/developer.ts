@@ -254,6 +254,7 @@ export const DEVELOPER: Guide = {
             "`docs/RUNBOOK.md`: go-live checklist, deployment, rollback, backups and incidents; `docs/SECURITY_REVIEW.md`: the security review and its fixes; `docs/TESTING.md`: how the suites map to spec 20.",
             "`docs/ADMIN_GUIDE.md` and `docs/CREATOR_GUIDE.md` are generated from these guides by `npm run gen:sql` (with `docs/METRICS.md`); a unit test fails when they are stale, so edit `lib/guides/content`, never the files.",
             "Unhandled server errors are logged as `request.error` (route, digest, request id) by `instrumentation.ts`.",
+            "The same errors are counted and the counts reported to Eduwit One (`lib/error-report.ts`, `one.app_error_report`; D-199): route pattern, error name, scrubbed message, digest and kind, at most once a minute, only from a deployment. Eduwit One's check `INF-ERR` alerts above its threshold.",
           ],
         },
       ],

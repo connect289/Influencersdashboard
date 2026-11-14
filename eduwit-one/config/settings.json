@@ -69,7 +69,8 @@
     "delivery_stuck_min": 5,
     "b2b_alert_window_min": 15,
     "fix_failed_acts_max": 2,
-    "ai_failed_tasks_max": 3
+    "ai_failed_tasks_max": 3,
+    "app_errors_15m": 20
   },
   "fixes": {
     "observation_days": 14,

@@ -281,6 +281,21 @@ the migration in one transaction that is rolled back: `supabase/tests/b56.http.s
 never connects to staging or production. The Spark CI workflow runs it on every push to `main` and every pull request
 that touches `b2c-crm/supabase` (it used to run for `b2c-crm/web` only, with no database checks).
 
+**Server errors are logged and counted (14 Nov 2026, audit finding M11; web only, no Spark migration).** Spark had no
+`instrumentation.ts`, so an error a page, route or server action threw left no line of Spark's own. `web/instrumentation.ts`
+now writes one JSON line per failed request (`event: "request_error"`: the error's name, digest and code, the method,
+the route pattern and the kind of render; never the message, the path, the query string, headers or cookies:
+`web/lib/request-error.ts`, the B2B CRM's module) and counts it. `web/lib/error-report.ts` (the same file as in the
+other Eduwit apps) sends the counts to Eduwit One with `one.app_error_report`, through the existing service-role
+client pointed at schema `one` (no new key or environment variable): the route pattern, the error's name, the digest
+and the kind, at most one call a minute per server instance, in the background with a 3-second limit. A failed call
+is dropped, logged once as `error_report_failed` and not retried for 5 minutes; a request is never delayed or failed
+by it. It runs only on a deployment (production build, hosted Supabase address, service key present), never locally,
+in tests or in CI. Eduwit One's check `B2C-ERR` (P2) fires above 20 errors in 15 minutes (the owner's threshold) and
+its Spark page shows the last 24 hours. It needs Eduwit One's migration `0041` in the same database; deployed before
+it, the calls fail quietly. Checks: `web/lib/error-report.test.ts`, `web/lib/request-error.test.ts`,
+`web/instrumentation.test.ts`.
+
 ## 12. Live
 
 `LIVE_MODE=on` in Vercel (Redeploy), then Workspace → Settings → live mode on. Un-pause journeys one by one.

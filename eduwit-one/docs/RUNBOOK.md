@@ -109,7 +109,7 @@ expire.
 
 ## Checks: what each one means
 
-`docs/CHECKS.md` lists all 96 checks, generated from their sources in `supabase/checks/*.sql`: each one's id, app,
+`docs/CHECKS.md` lists all 103 checks, generated from their sources in `supabase/checks/*.sql`: each one's id, app,
 severity, cadence, what makes it fail and, where one exists, its fix. The same text is on every incident page
 ("The check"), with the rule's SQL. Ids read `<APP>-<n>`: WITTY, B2B, B2C, WEB, INF (influencer portal), CAT
 (catalogue), CE (Eduwit Scout), INT (integrity across apps), PLAT (Supabase and pg_cron), ONE (Eduwit One
@@ -134,6 +134,36 @@ command centre and `b2b.health_check()`; Spark — its system health page and it
 catalogue's change log; Eduwit Scout — its dashboard's queue and health pages, the messages in `ce.health`, its
 GitHub Actions workers and its `ce-health` cron job (below); PLAT — Supabase's logs and `cron.job_run_details`; ONE —
 this runbook's Alerts section.
+
+## Server errors the apps report
+
+Each app counts the server errors it throws and reports the counts here (migration 0041, D-141); nothing else about
+an error leaves the app, and no outside service is involved.
+
+- **What is stored.** `one.app_errors`: per app, 5-minute bucket, route as its file names it (`/leads/[id]`) and
+  error name, a count, first and last seen and one sample (kind of render, a masked message of at most 200 characters,
+  the digest when it is not shaped like a phone number). The B2B CRM and Spark send no message, as their log lines
+  hold none. The full line of each error stays in the app's host logs (Vercel), found by route, time and digest.
+- **The checks.** `ONE-ERR`, `B2B-ERR`, `B2C-ERR`, `INF-ERR` (P2, every 5 minutes): the app reported more than
+  `app_errors_15m` errors in the buckets that started in the last 15 minutes. The incident's evidence names the three
+  busiest route and error pairs. Look at the app's page for the rest, then at the app's logs for those routes: a
+  deploy just before the first error is the usual cause. The incident resolves by itself after two readings at or
+  under the limit. `WEB-ERR` is off until the website carries the reporter; switch it on then (Settings → Checks).
+- **The limit.** Settings → `thresholds` → `app_errors_15m` (20), the owner's to change like every threshold (D-137).
+  If the key is not in the setting (a thresholds value a person had changed before 0041), the checks use 20; add the
+  key to change it. One limit for all apps; a check's cadence and switch are on Settings → Checks.
+- **The page.** Apps → an app → "Server errors, last 24 h": the total, the last 15 minutes against the limit, and
+  the five busiest pairs with their sample. "None reported" means the app sent nothing, which is what a healthy app
+  does. `(overflow)` counts errors whose route was not kept apart (more than 49 pairs waiting in one app instance,
+  or more than 300 rows of one app in an hour).
+- **What the number is.** A floor: an app instance holds its counts for up to a minute, sends them in the background
+  and drops a batch that fails (it then stays quiet for 5 minutes and logs `app.error_report_failed`, or
+  `error_report_failed` in the CRMs), so counts are lost when an instance is recycled first. An app that cannot
+  start reports nothing: its heartbeat and health checks cover that. Only deployments report (a production build with
+  a hosted Supabase address and the service key), never a laptop, a test or CI.
+- **Retention.** 30 days, pruned nightly by `one.retention()`; `app_errors_days` in the `retention` setting changes it.
+- **Who may do what.** Only the apps' service role writes (`one.app_error_report`); the owner and engineers read
+  (`one.ui_app_errors`); nobody edits a count.
 
 ## Eduwit Scout
 
@@ -300,8 +330,8 @@ watchdog's or yours:
 - **Histories are append-only** by trigger: the audit, settings versions, the sign-in log and check results refuse
   UPDATE and DELETE outside `one.retention()`. Retention (Settings, `retention`; 0032, D-112) keeps ok results 14
   days (`ok_results_days`), failures and errors 90 (`results_days`), copied app events 180 (`events_days`), the tick
-  and nightly reports 30 (`runs_days`), the app's own report audit rows 30 (`app_report_days`), codes 7 days, the
-  sign-in log a year. The organisation is on Supabase Pro since 1 Nov 2026 (8 GB disk, daily backups), and PLAT-10
+  and nightly reports 30 (`runs_days`), the app's own report audit rows 30 (`app_report_days`), the apps' server-error counts 30
+  (`app_errors_days`; 0041), codes 7 days, the sign-in log a year. The organisation is on Supabase Pro since 1 Nov 2026 (8 GB disk, daily backups), and PLAT-10
   measures the database against that disk (`db_size_limit_mb` 8192; warns at 80 %, pages at 90 %). On the Free plan
   (500 MB, then the whole database turns read-only) 0029 had kept 2, 14, 30, 7 and 7 days; those are the values to go
   back to if the plan ever is.
@@ -328,6 +358,7 @@ rollback except 0002's, 0006's and 0023's (Eduwit Scout's), which say so.
 
 | Migration                   | Its rollback                                                                                                                                                                                                                                                  | Before you run it                                                                                                                                                                           |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0041 app errors             | Drops `one.app_errors` with its counts, the writer and the page's reader, restores 0029's `one.retention` verbatim, takes back the seeded `app_errors_15m` when no person changed the thresholds since, removes the five `…-ERR` checks. Refuses while they have incidents| Nothing in the apps: a report to a missing function is dropped. `one.rollback_discards_history = on` if incidents exist                                                                     |
 | 0040 owner mutes a P1       | Restores 0037's `one.ui_mute` verbatim: an engineer may mute a P1 check, or an app that has one, again. Mutes made meanwhile stay and end at their time                                                                                                       | —                                                                                                                                                                                           |
 | 0031 audit hardening        | Restores 0020's `mask_text`, 0021's `ui_chat_action_propose` and 3-argument decide, 0011's `ui_user_put`, 0018's `ai_calls_add`; drops reservations and the reader narrowing (whole SELECT back per `reader_excluded_columns`). Roll the web back first       |
 | 0030 privilege ack          | Restores 0011's `one.ui_privilege_ack` verbatim: an engineer may acknowledge again                                                                                                                                                                            | —                                                                                                                                                                                           |

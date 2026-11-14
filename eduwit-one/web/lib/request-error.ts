@@ -7,9 +7,8 @@ import { log } from "./log.ts";
 // the AI's input is (phones, emails) and cut to 200 characters. No headers, cookies, body or stack. No external service
 // (the owner's decision: no Sentry for now); the platform's logs keep the line.
 //
-// Not recorded in the database: the app's service role holds no table privilege in schema one and reaches it only
-// through the functions in one.api_grants (D-055), none of which writes an event, so an "app.error" event would need a
-// new SECURITY DEFINER function, which this change does not add.
+// The line itself is not stored in the database. Since 0041 (D-141) the count of these errors is: instrumentation.ts
+// hands the same fields to lib/error-report.ts, which reports them through one.app_error_report.
 
 export const MESSAGE_MAX = 200;
 

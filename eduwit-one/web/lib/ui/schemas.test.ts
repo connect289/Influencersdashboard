@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fixStatesSchema, incidentFixesSchema } from "./schemas.ts";
+import { appErrorsSchema, fixStatesSchema, incidentFixesSchema } from "./schemas.ts";
 
 describe("fixStatesSchema (one.ui_fix_states, 0020)", () => {
   it("reads each fix's proof state and leaves runs without an incident out of awaiting_verdict", () => {
@@ -49,5 +49,35 @@ describe("incidentFixesSchema (one.ui_incident's fixes, 0020)", () => {
     expect(incidentFixesSchema.safeParse([{ id: "FIX-X", mode: "magic", title: "x", enabled: true }]).success).toBe(
       false,
     );
+  });
+});
+
+describe("appErrorsSchema (one.ui_app_errors, 0041)", () => {
+  it("reads an app's counts, with and without samples, and refuses an answer without them", () => {
+    const empty = { app: "witty", hours: 24, total: 0, pairs: 0, last_seen: null, last_15m: 0, limit_15m: 20, top: [] };
+    expect(appErrorsSchema.parse(empty).top).toEqual([]);
+    const some = appErrorsSchema.parse({
+      ...empty,
+      app: "b2b",
+      total: 7,
+      pairs: 2,
+      last_seen: "2026-11-13T10:00:00Z",
+      last_15m: 3,
+      top: [
+        {
+          route: "/leads/[id]",
+          error: "TypeError",
+          n: 5,
+          last_seen: "2026-11-13T10:00:00Z",
+          message: "lead [phone] has no owner",
+          digest: "1234567",
+          kind: "render",
+        },
+        { route: "(overflow)", error: "(overflow)", n: 2, last_seen: null, message: null, digest: null, kind: null },
+      ],
+    });
+    expect(some.top.map((t) => t.n)).toEqual([5, 2]);
+    expect(appErrorsSchema.safeParse({ ...empty, top: undefined }).success).toBe(false);
+    expect(appErrorsSchema.safeParse({ ...empty, total: "7" }).success).toBe(false);
   });
 });

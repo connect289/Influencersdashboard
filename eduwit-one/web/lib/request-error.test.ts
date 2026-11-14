@@ -65,3 +65,20 @@ describe("onRequestError", () => {
     expect(() => logRequestError(new Error("boom"), request, context)).not.toThrow();
   });
 });
+
+describe("onRequestError and the error counts (D-141)", () => {
+  it("logs the line and prepares no report outside a deployment (no production build, no database address)", async () => {
+    vi.useFakeTimers();
+    try {
+      const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      for (let i = 0; i < 3; i++) await onRequestError(new Error("boom"), request, context);
+      expect(spy).toHaveBeenCalledTimes(3);
+      expect(vi.getTimerCount()).toBe(0);
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

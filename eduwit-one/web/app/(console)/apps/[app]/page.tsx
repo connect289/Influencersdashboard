@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AppErrorsCard } from "@/components/embeds/app-errors-card.tsx";
 import { PanelCard } from "@/components/embeds/panel-card.tsx";
 import { IconExternal } from "@/components/icons.tsx";
 import { SeverityBadge, StatusBadge } from "@/components/ui/badge.tsx";
@@ -10,7 +11,16 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table.tsx";
 import { ago, ms } from "@/lib/format.ts";
 import { embeds } from "@/lib/embeds/index.ts";
 import { ui, UiError } from "@/lib/ui/api.ts";
-import { checksSchema, embedSchema, incidentRowSchema, pageOf, settingsSchema, type Embed } from "@/lib/ui/schemas.ts";
+import {
+  appErrorsSchema,
+  checksSchema,
+  embedSchema,
+  incidentRowSchema,
+  pageOf,
+  settingsSchema,
+  type AppErrors,
+  type Embed,
+} from "@/lib/ui/schemas.ts";
 
 export const metadata: Metadata = { title: "App" };
 
@@ -19,7 +29,7 @@ export default async function AppPage({ params }: { params: Promise<{ app: strin
   const app = embeds[key];
   if (!app) notFound();
   // Panels are read in parallel; one that fails shows its own error and the rest still render.
-  const [panels, settings, checks, incidents] = await Promise.all([
+  const [panels, settings, checks, incidents, errors] = await Promise.all([
     Promise.all(
       app.panels.map((p) =>
         ui("ui_embed", embedSchema, { p_panel: p.id }).catch((e: unknown): Embed => ({
@@ -35,7 +45,14 @@ export default async function AppPage({ params }: { params: Promise<{ app: strin
     ui("ui_settings", settingsSchema).catch(() => null),
     ui("ui_checks", checksSchema, { p_app: key }).catch(() => null),
     ui("ui_incidents", pageOf(incidentRowSchema), { p_status: "open", p_app: key, p_limit: 20 }).catch(() => null),
+    // The app's own error counts (0041, D-141); a failed read shows in its card.
+    ui("ui_app_errors", appErrorsSchema, { p_app: key, p_hours: 24 }).then(
+      (data): { data: AppErrors | null; failure: string | null } => ({ data, failure: null }),
+      (e: unknown) => ({ data: null, failure: e instanceof UiError ? e.message : null }),
+    ),
   ]);
+  // Shown for an app that has a server-error check (B2B-ERR, ONE-ERR, …) or that has reported anything.
+  const errorCheck = checks?.find((c) => c.id.endsWith("-ERR")) ?? null;
   const hosts = (settings?.hosts?.value ?? {}) as Record<string, string | undefined>;
   const links = app
     .links({
@@ -115,6 +132,9 @@ export default async function AppPage({ params }: { params: Promise<{ app: strin
           <PanelCard key={p.id} panel={p} embed={panels[n] ?? null} />
         ))}
       </div>
+      {errorCheck || (errors.data && errors.data.total > 0) ? (
+        <AppErrorsCard errors={errors.data} failure={errors.failure} check={errorCheck} />
+      ) : null}
       {checks && checks.length ? (
         <Card>
           <CardHeader title="Checks" description="This app's rules and their last result." />

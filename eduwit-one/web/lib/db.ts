@@ -4,6 +4,7 @@ import { z } from "zod";
 import { bootEnv } from "./env.ts";
 import { tickStateSchema, type Report, type TickState } from "./state.ts";
 import { fetchWithTimeout } from "./fetch-timeout.ts";
+import { type ErrorReportItem } from "./error-report.ts";
 
 // The app's only door to the database (spec §5): the service role, schema one, and the functions of migration 0008.
 // PostgREST must expose schema one for these calls (Setup item supabase_api_schema, D-047).
@@ -90,6 +91,15 @@ export class SupabaseOneDb implements OneDb {
     const { data, error } = await this.client.rpc(fn, args);
     if (error) throw new DbError(fn, error.code);
     return data;
+  }
+
+  /**
+   * This app's server-error counts (0041 one.app_error_report, D-141; lib/error-report.ts). Not part of OneDb: only
+   * instrumentation.ts calls it, with a signal that cuts the call after 3 seconds.
+   */
+  async appErrorReport(items: ErrorReportItem[], signal: AbortSignal): Promise<void> {
+    const { error } = await this.client.rpc("app_error_report", { p_app: "one", p_items: items }).abortSignal(signal);
+    if (error) throw new DbError("app_error_report", error.code);
   }
 
   async tickState(): Promise<TickState> {

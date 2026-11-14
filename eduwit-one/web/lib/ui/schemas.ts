@@ -579,3 +579,26 @@ export const analyticsSchema = z.looseObject({
     z.object({ id: num, name: z.string(), params: json, schedule: z.string().nullable(), created_by: z.string() }),
   ),
 });
+
+// one.ui_app_errors (0041, D-141): the server errors an app reported, summed over the window.
+export const appErrorsSchema = z.looseObject({
+  app: z.string(),
+  hours: num,
+  total: num,
+  pairs: num,
+  last_seen: isoN,
+  last_15m: num,
+  limit_15m: num,
+  top: z.array(
+    z.looseObject({
+      route: z.string(),
+      error: z.string(),
+      n: num,
+      last_seen: isoN,
+      message: z.string().nullable(),
+      digest: z.string().nullable(),
+      kind: z.string().nullable(),
+    }),
+  ),
+});
+export type AppErrors = z.infer<typeof appErrorsSchema>;

@@ -92,6 +92,18 @@ This folder is the B2B CRM only. The influencer dashboard lives elsewhere in thi
   - Checks: `tests/test_m34j_unsubscribe.sql` (75 rows) in `local-test.sh`; `tests/m34j.http.sql` for an HTTP SQL API
     (one request with the migration, never runs the sender, ends with `TESTRESULT …` and rolls back); unit tests for the
     link and one-click input checks, the confirm action, the public-path rule and the settings field.
+- **Server-error counts for Eduwit One (14 Nov 2026, audit finding M11; web only, no B2B migration).** A failed
+  request was only a line in Vercel's logs, so nobody was told when the CRM started throwing. `web/instrumentation.ts`
+  still writes that line and now also counts the failure; `web/lib/error-report.ts` (the same file as in the other
+  Eduwit apps) sends the counts to Eduwit One with `one.app_error_report`, through the existing service-role client
+  pointed at schema `one` (no new key or environment variable). It sends what the log line holds and nothing else: the
+  route pattern, the error's name, the digest and the kind of render; never a message, path, query, header or user.
+  One call a minute per server instance at most, in the background with a 3-second limit; a failed call is dropped,
+  logged once as `error_report_failed` and not retried for 5 minutes; a request is never delayed or failed by it. It
+  runs only on a deployment (production build, hosted Supabase address, service key present), never locally, in tests
+  or in CI. Eduwit One's check `B2B-ERR` (P2) fires above 20 errors in 15 minutes (the owner's threshold) and its B2B
+  page shows the last 24 hours. Needs Eduwit One's migration `0041` in the same database; deployed before it, the
+  calls fail quietly. Checks: `web/lib/error-report.test.ts`, `web/instrumentation.test.ts`.
 
 Rules that keep Witty (the live WhatsApp bot) safe:
 
