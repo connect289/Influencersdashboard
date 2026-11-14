@@ -842,3 +842,34 @@ Eduwit One's migration 0041 must be applied for reports to be accepted (before t
 - **Rollback:** `supabase/rollbacks/20261114140000_web19_tax_rules.rollback.sql` (function only; subjects and aliases
   stay).
 
+### D-100 · A new type of programme gets its own category; BMS and MMS stand alone (web20, 14 Nov 2026)
+
+- **Before:** web18 listed BMS with BBA and MMS with MBA, and a subject with no category went under General.
+- **Decision (the owner: "these are different types of programs … don't forcefully merge into a different category,
+  make new categories if need be, update the website with these with every new category"):**
+  - BMS (Bachelor of Management Studies) and MMS (Master of Management Studies) are programme types of their own.
+  - The mapper creates what is missing instead of folding it into something else. A catalogue course with no programme
+    type gets one (id from the course key, name as the catalogue writes it, level from the catalogue, group "Other
+    programmes" until an admin places it). A subject with no category gets one, named as the catalogue writes it, after
+    the markers of web19 are removed and lists are split. The row is flagged for review with a note.
+  - Safeguards: at most 40 categories per run (beyond that a row waits under General, flagged); a name must be 3 to 60
+    characters with letters; rows mapped by an admin are never touched.
+  - The similarity match now needs 0.75 instead of 0.6, so a one-letter slip still finds its subject but "Product
+    Management" is no longer read as "Project Management".
+- **The website:** filters, search and pages read the taxonomy tables, so a new category shows at the next minute poll
+  without a deployment. Checked live: `?programme=bms` and `?programme=mms` each list their programme, and BBA no longer
+  includes BMS.
+- **Cost of the rule:** a badly misspelt subject in the catalogue becomes a category of its own until someone merges it
+  (it is flagged). A new programme type's long name is the catalogue's short one until an admin writes it out.
+- **Checked:** rolled-back run on production: no existing row changed except BMS and MMS; a made-up course ("M.Des")
+  and a made-up subject got their own categories and were visible. Applied 14 Nov.
+- **Rollback:** `supabase/rollbacks/20261114160000_web20_new_categories.rollback.sql`.
+
+### D-101 · The site's public address is www.eduwit.in (14 Nov 2026)
+
+`NEXT_PUBLIC_SITE_URL` for Production was the project's `vercel.app` address, so the sitemap, `robots.txt`, canonical
+links and structured data pointed search engines at the wrong host. It is now `https://www.eduwit.in` (set in Vercel;
+the Preview value is unchanged). The value is read at build time, so it took effect with the next deployment. Not
+changed: Supabase Auth's redirect allow-list has no entry for the website; if Google sign-in is used for the admin
+area, `https://www.eduwit.in/**` must be added there by the owner.
+

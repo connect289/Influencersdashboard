@@ -39,6 +39,10 @@
 - UI redesign (10–11 Nov, owner): visual language "Horizon" (D-093): vibrant indigo palette, Sora display face, floating
   header, cinematic hero, site-wide backdrop. UI/UX only. Checks: 222 unit tests, production build, e2e smoke/content/seo
   on laptop (47; the "homepage with Witty off" test failed intermittently in combined runs and passes alone).
+- New categories (14 Nov, D-100, D-101): `20261114160000_web20_new_categories.sql` (applied to production 14 Nov after a
+  rolled-back dry run there): BMS and MMS are programme types of their own, and a course or subject the taxonomy does
+  not know gets its own category, flagged for review. The site's address for sitemap and canonical links is
+  `https://www.eduwit.in`.
 - Subjects (14 Nov, D-099): `20261114140000_web19_tax_rules.sql` (applied to production 14 Nov after a rolled-back dry
   run there) removes variant markers, splits double specialisations and adds seven subjects, so every programme sits
   under its own subject: exact 544, synonym 349, split 248, none by similarity or under the General fallback.
