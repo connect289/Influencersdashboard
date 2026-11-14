@@ -778,3 +778,20 @@ these at the end (spec Section 0).
   (through `lead_intake`, as withdrawing consent does), so nobody calls while the CRM steps are pending; whether the
   confirmation email should be sent automatically; whether older `privacy.done` / `privacy.rejected` audit rows, which
   still hold requester addresses, should be cleaned once.
+
+### D-097 · The website reports its server-error counts to Eduwit One (audit finding M11, 14 Nov 2026)
+
+Server errors went only to the host's logs, so nobody was told when the website started throwing; a third-party error
+tracker was declined. `instrumentation.ts` still writes its one PII-free log line per error and now also counts the
+error in `lib/error-report.ts` (the same file every Eduwit app carries; Eduwit One D-141): the route as its file names
+it, the error's name, Next's digest and the kind of render, never the address, a query string, a header, a cookie or a
+body. Counts are sent in the background, at most once a minute per server instance, through the existing service
+client to `one.app_error_report(app 'web', items)`; the database masks and cuts every field again. A failed report is
+dropped and nothing is sent for five minutes. Nothing is reported outside a deployment (a production build with a
+hosted Supabase address and the secret key), so tests, CI and local development are silent. No new environment
+variable, no new dependency, no database change on the website's side.
+
+Why this way: the number is what was missing, and Eduwit One already alerts; its check `WEB-ERR` (P2) fires above the
+owner's threshold. Limits: the count is a floor (an instance recycled within its minute loses what it held), and
+Eduwit One's migration 0041 must be applied for reports to be accepted (before that a report fails quietly).
+

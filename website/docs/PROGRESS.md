@@ -39,6 +39,8 @@
 - UI redesign (10–11 Nov, owner): visual language "Horizon" (D-093): vibrant indigo palette, Sora display face, floating
   header, cinematic hero, site-wide backdrop. UI/UX only. Checks: 222 unit tests, production build, e2e smoke/content/seo
   on laptop (47; the "homepage with Witty off" test failed intermittently in combined runs and passes alone).
+- Error counts (14 Nov, audit finding M11, D-097): the website reports how many server errors it throws to Eduwit One
+  (`lib/error-report.ts`, `instrumentation.ts`); Eduwit One's check `WEB-ERR` alerts on a spike. No database change here.
 - Privacy requests (13 Nov, audit finding H5, D-096): deletion and copy-of-data requests are fulfilled in Admin →
   Privacy requests instead of only marked done. `20261113170000_web17_privacy_requests.sql`: the copy as one JSON
   download, the website's own data erased on an explicit, confirmed, audited step, and a per-request checklist (website,
