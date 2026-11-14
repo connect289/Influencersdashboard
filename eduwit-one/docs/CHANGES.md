@@ -38,7 +38,12 @@ followed.
   its report, drops the batch, logs one `app.error_report_failed` line and tries again five minutes later; requests
   are never affected. With 0041 and an old app the checks read no errors. Eduwit One's own page says "needs a
   database migration" in the card until 0041 is applied.
-- Not yet applied: staging rehearsal and production apply follow
+- Applied: staging rehearsal passed 14 Nov 04:40 UTC (set `ca650906…`), the 34 checks of `supabase/tests/0041.http.sql`
+  passed on staging in a rolled-back transaction, and 0041 was applied to production 14 Nov 04:46 UTC through
+  `scripts/db/api-apply.sh` (smoke passed; no dump, D-090). Eduwit One's app was deployed about 30 minutes earlier; its
+  reports were dropped until then, as designed. `WEB-ERR` stays off until the website's reporter (website D-097) is
+  deployed and the check is switched on under Settings → Checks.
+
 ## 13 Nov 2026 — The other apps after the audit: what shipped (Spark, website, B2B, portal, Scout)
 
 One record of the audit fixes that went live outside Eduwit One on 13 Nov (each app's own docs have the detail).
