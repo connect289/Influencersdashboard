@@ -3,6 +3,19 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 18 Nov 2026 — Witty: the audit's workflow fix is published
+
+- Owner's instruction (18 Nov): "publish it now". The draft of the entry below was published at about 21:00 UTC; the
+  live version of "Eduwit Witty" is now `fc290595` (153 nodes). The way back is republishing `d1c2b419`.
+- Checked straight after, on the live workflow: one probe event claiming a reserved test phone for an old message id
+  was looked up in the chat service with the real credential, found, refused as a phone mismatch and logged (one row
+  in `w2_security_log`, kind `webhook_unverified`); nothing was stored and no reply was sent. The hourly
+  `T-WITTY-QUALIFY` run of 21:00 UTC passed. No failed execution since the publish.
+- Eduwit One's own "send a WhatsApp from the test number" test (`T-WITTY-TURN`) could not be used: it is off because
+  no test sender is set up (`setup:test_whatsapp_number`). So one thing is still to be seen with a real message: a
+  genuine WhatsApp message being accepted and answered end to end. The owner was asked to send one.
+- No object of schema `one` and no database object changed.
+
 ## 18 Nov 2026 — Witty: the audit's workflow fix is saved as a draft in n8n (not published)
 
 - Owner's instruction (18 Nov, step 4 of the setup document): save the prepared fix for the workflow "Eduwit Witty"
@@ -97,7 +110,7 @@ One record of the audit fixes that went live outside Eduwit One on 13 Nov (each 
   production, applied and recorded as `20261113140000`, deployed, health ok. The links start when
   `UNSUBSCRIBE_SECRET` is set in Vercel; `/api/health` lists it under `warnings` until then.
 - Scout (M9; T-139): the AI review keeps its job's lease during a model call. No database change.
-- Not applied on 13 Nov: the Witty workflow change (C1, H1, H2, M1 to M4). Saved as a draft on 18 Nov (entry above); not published.
+- Not applied on 13 Nov: the Witty workflow change (C1, H1, H2, M1 to M4). Saved as a draft and published on 18 Nov (entries above).
 
 ## 13 Nov 2026 — Muting a P1 is the owner's; the chat's settings card names the version it replaces (0040, D-139)
 
