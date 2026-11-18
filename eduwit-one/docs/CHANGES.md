@@ -3,6 +3,20 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 18 Nov 2026 — Witty's replies do not reach WhatsApp: the chat service's access to the number is refused
+
+- Found while checking the publish below: the owner sent Witty two WhatsApp messages (21:04 UTC) and got no answer.
+  The new workflow version accepted both, ran the turns and handed each reply to the chat service, which accepted
+  them and then marked them failed with Meta's answer "Application does not have permission for this action". The
+  number itself reads connected and green through Eduwit One's own access (20:59 UTC), and Spark's sender is fine.
+- So the fault is the access the chat service's WhatsApp inbox uses to send, not the workflow; the 12 Oct version
+  fails the same way. The workflow was put back to `d1c2b419` at 21:05 UTC as promised when no answer came, and
+  published again as `fc290595` at about 21:08 UTC once the cause was known.
+- Not known: since when replies fail (the last real conversation before this was on 8 Nov and its execution data is
+  no longer kept). Witty records a reply as sent when the chat service accepts it, so a later refusal by WhatsApp is
+  not seen by Witty or by any check today: a gap to close.
+- The owner's to fix (Meta Business settings and the chat service's inbox settings); no change made by this session.
+
 ## 18 Nov 2026 — Witty: the audit's workflow fix is published
 
 - Owner's instruction (18 Nov): "publish it now". The draft of the entry below was published at about 21:00 UTC; the
