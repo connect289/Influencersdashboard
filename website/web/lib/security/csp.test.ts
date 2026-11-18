@@ -26,4 +26,10 @@ describe("CSP", () => {
     expect(p).toContain("https://challenges.cloudflare.com");
     expect(p).toContain("https://www.googletagmanager.com");
   });
+  it("allows Clarity's script host and its Bing beacon image", () => {
+    for (const p of [buildCsp(), buildCsp({ nonce: "n" })]) {
+      expect(p.split("; ").find((d) => d.startsWith("script-src"))).toContain("https://scripts.clarity.ms");
+      expect(p.split("; ").find((d) => d.startsWith("img-src"))).toContain("https://c.bing.com");
+    }
+  });
 });

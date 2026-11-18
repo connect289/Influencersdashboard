@@ -11,7 +11,12 @@ export interface CspOptions {
   supabaseUrl?: string;
 }
 
-const ANALYTICS_SCRIPT = ["https://www.googletagmanager.com", "https://connect.facebook.net", "https://www.clarity.ms"];
+const ANALYTICS_SCRIPT = [
+  "https://www.googletagmanager.com",
+  "https://connect.facebook.net",
+  "https://www.clarity.ms",
+  "https://scripts.clarity.ms",
+];
 const ANALYTICS_CONNECT = [
   "https://www.google-analytics.com",
   "https://*.google-analytics.com",
@@ -48,6 +53,7 @@ export function buildCsp(o: CspOptions = {}): string {
       "https://*.google-analytics.com",
       "https://*.googletagmanager.com",
       "https://*.clarity.ms",
+      "https://c.bing.com",
     ],
     "font-src": [`'self'`],
     "connect-src": connect,

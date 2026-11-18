@@ -4,6 +4,13 @@ import { useEffect } from "react";
 import { allowed } from "@/lib/consent";
 import { getConsent, onConsentChange } from "@/lib/client/consent-store";
 
+type ClarityQueue = ((...args: unknown[]) => void) & { q?: unknown[] };
+declare global {
+  interface Window {
+    clarity?: ClarityQueue;
+  }
+}
+
 /**
  * Loads GA4, Meta Pixel and Microsoft Clarity only after the matching consent, and only when their ids are configured
  * (spec 13.3). Scripts are injected once; withdrawing consent stops further loading and is honoured on next page load.
@@ -47,6 +54,15 @@ export function AnalyticsLoader({ ga4, pixel, clarity }: { ga4?: string; pixel?:
         inject("ew-pixel", "https://connect.facebook.net/en_US/fbevents.js");
       }
       if (clarity && allowed(c, "analytics") && /^[a-z0-9]{6,20}$/i.test(clarity)) {
+        // Microsoft's snippet defines this queue before the tag loads; the tag reads window.clarity.q and crashed
+        // without it ("Cannot read properties of undefined (reading 'v')").
+        if (!window.clarity) {
+          const queue: ClarityQueue = function clarity() {
+            // eslint-disable-next-line prefer-rest-params
+            (queue.q = queue.q ?? []).push(arguments);
+          };
+          window.clarity = queue;
+        }
         inject("ew-clarity", `https://www.clarity.ms/tag/${clarity}`);
       }
     };
