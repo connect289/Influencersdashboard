@@ -3,6 +3,23 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 18 Nov 2026 — Witty: the audit's workflow fix is saved as a draft in n8n (not published)
+
+- Owner's instruction (18 Nov, step 4 of the setup document): save the prepared fix for the workflow "Eduwit Witty"
+  (`PKPs7tXg9bej8AgX`). It covers the audit items C1, H1, H2 and M1 to M4 that were listed as not applied on 13 Nov.
+- What was done: the 21 prepared operations were saved in one atomic call, then the credentials of the three new
+  nodes were set explicitly in a second call. The draft has 153 nodes (five new). The **published** version is still
+  `d1c2b419` (148 nodes), so what students talk to has not changed; no object of schema `one` and no database object
+  changed.
+- Tested on the draft with simulated data only (trigger, credentialed and HTTP nodes pinned; no message sent, no row
+  written; checked afterwards): a genuine message passes and is stored from the looked-up copy, a counsellor note
+  passes, and a failed look-up is refused and logged. Two further refusal cases (unknown message, phone mismatch) were
+  checked by running the saved node code outside n8n. No failed execution of the live workflow since the save.
+- Not proven before publishing, because a draft cannot receive real traffic: the new look-up against the real chat
+  service with its real credential, and the path taken when a reply cannot be sent. Plan for the publish, on the
+  owner's word only: publish, send one message from the test number, read the result; the way back is republishing
+  `d1c2b419`.
+
 ## 14 Nov 2026 — The apps show the catalogue published through Eduwit Scout; the old programme list is removed
 
 - Owner's instruction (14 Nov): "completely remove the old programs from all the apps, website and ai agents. Use the
@@ -80,7 +97,7 @@ One record of the audit fixes that went live outside Eduwit One on 13 Nov (each 
   production, applied and recorded as `20261113140000`, deployed, health ok. The links start when
   `UNSUBSCRIBE_SECRET` is set in Vercel; `/api/health` lists it under `warnings` until then.
 - Scout (M9; T-139): the AI review keeps its job's lease during a model call. No database change.
-- Not applied: the Witty workflow change (C1, H1, H2, M1 to M4). The owner declined the save; the workflow is as it was.
+- Not applied on 13 Nov: the Witty workflow change (C1, H1, H2, M1 to M4). Saved as a draft on 18 Nov (entry above); not published.
 
 ## 13 Nov 2026 — Muting a P1 is the owner's; the chat's settings card names the version it replaces (0040, D-139)
 
