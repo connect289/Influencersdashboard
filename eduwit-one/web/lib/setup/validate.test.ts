@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { settingsSchema } from "../state.ts";
-import { engineVerdict, validate } from "./validate.ts";
+import { engineVerdict, intakeKeyVerdict, validate } from "./validate.ts";
 
 // Every validator a Setup item names must exist: an item whose validator is missing can never be validated, and the
 // checks and tests waiting for it never switch on (phase 5 review B1).
@@ -94,5 +94,17 @@ describe("Setup validators", () => {
     );
     expect(engineVerdict({ tables: {} }).ok).toBe(false);
     expect(engineVerdict("nonsense").ok).toBe(false);
+  });
+});
+
+describe("B2B intake key check (test_b2b_intake_key)", () => {
+  it("counts 422 (B2B since 19 Nov 2026) and 400 (before) as a key B2B accepts", () => {
+    expect(intakeKeyVerdict(422)).toMatchObject({ ok: true });
+    expect(intakeKeyVerdict(400)).toMatchObject({ ok: true });
+  });
+  it("401 is a refused key; any other answer is no verdict on the key", () => {
+    expect(intakeKeyVerdict(401)).toEqual({ ok: false, detail: "B2B refuses the key, or it lacks the intake scope" });
+    for (const s of [200, 404, 429, 500, 502])
+      expect(intakeKeyVerdict(s)).toEqual({ ok: false, detail: `B2B answered ${s}` });
   });
 });

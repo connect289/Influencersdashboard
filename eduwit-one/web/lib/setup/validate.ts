@@ -102,6 +102,20 @@ async function uptimeMonitors(deps: ValidateDeps) {
   return monitorsSchema.parse(json);
 }
 
+/**
+ * The intake key check's answer (D-070): B2B checks the key before the body, so an empty body that gets past the key is
+ * refused for its content: 400 before 19 Nov 2026, 422 since (b2b.api_intake_lead). 401 is the only answer to a bad
+ * key or one without the intake scope; anything else (a 5xx, a 404 for a wrong host) is not a verdict on the key.
+ */
+export function intakeKeyVerdict(status: number): Verdict {
+  if (status === 400 || status === 422)
+    return { ok: true, detail: `B2B accepts the key (it refused an empty body with ${status} after checking the key)` };
+  return {
+    ok: false,
+    detail: status === 401 ? "B2B refuses the key, or it lacks the intake scope" : `B2B answered ${status}`,
+  };
+}
+
 export async function validate(kind: string, deps: ValidateDeps): Promise<Verdict> {
   const { settings, credentials } = deps;
   try {
@@ -207,13 +221,7 @@ export async function validate(kind: string, deps: ValidateDeps): Promise<Verdic
       case "b2b_intake": {
         // Writes nothing: B2B checks the key before the body (D-070).
         if (!credentials.b2bIntake) return missing("one_b2b_intake_key");
-        const status = await new RealB2bApi(settings.hosts.b2b_app, credentials.b2bIntake, null).checkKey();
-        return status === 400
-          ? { ok: true, detail: "B2B accepts the key (it refused an empty body after checking the key)" }
-          : {
-              ok: false,
-              detail: status === 401 ? "B2B refuses the key, or it lacks the intake scope" : `B2B answered ${status}`,
-            };
+        return intakeKeyVerdict(await new RealB2bApi(settings.hosts.b2b_app, credentials.b2bIntake, null).checkKey());
       }
       case "test_partner": {
         // Writes nothing: B2B checks the signature before it reads the event, then refuses it for lacking an event id.

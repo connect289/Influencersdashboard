@@ -3,6 +3,17 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 19 Nov 2026 — Setup: the B2B intake key check accepts B2B's new 422 answer
+
+- Found by the owner: Setup item `test_b2b_intake_key` showed "refused: B2B answered 422". B2B's intake function
+  (`b2b.api_intake_lead`, checked in production) still checks the key first and answers 401 only for a bad key or one
+  without the intake scope; an empty body that passes the key is now refused with 422 instead of 400.
+- `lib/setup/validate.ts` (`b2b_intake`): 400 or 422 now reads "B2B accepts the key"; 401 stays "refuses the key";
+  anything else is reported as it is. The decision is a small tested function (`intakeKeyVerdict`).
+- T-B2B-INTAKE (and T-B2B-PUSH, T-B2C-* that post through the same API) do not rely on 400: they post a complete test
+  lead and require B2B's success answer. Only the Setup check used the empty-body refusal.
+- After this deploys, press Validate on `test_b2b_intake_key` (Settings → Setup).
+
 ## 19 Nov 2026 — WEB-ERR can be switched on (0042, D-142)
 
 - Owner's request: clear WEB-ERR's `blocked:web_error_reporter_not_ported` once the website's reporter is confirmed.

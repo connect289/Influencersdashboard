@@ -96,8 +96,8 @@ export class RealB2bApi implements B2bApi {
   }
 
   /**
-   * Setup check of the intake key, writing nothing: B2B checks the key before the body, so an empty body answers 400
-   * with a good key and 401 with a bad one.
+   * Setup check of the intake key, writing nothing: B2B checks the key before the body, so an empty body answers 422
+   * (400 before 19 Nov 2026) with a good key and 401 with a bad one (lib/setup/validate.ts intakeKeyVerdict).
    */
   async checkKey(): Promise<number> {
     return this.refusal(
