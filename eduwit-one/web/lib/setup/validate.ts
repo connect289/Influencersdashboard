@@ -102,6 +102,22 @@ async function uptimeMonitors(deps: ValidateDeps) {
   return monitorsSchema.parse(json);
 }
 
+/**
+ * The intake-key check's answer (case "b2b_intake"). B2B checks the key before anything else, so 401 is the only "bad
+ * key" answer. With a good key the empty body is refused after the key check: 400 ("the body must be an object with a
+ * lead object"), or 422 once B2B has stored that empty body as a failed request under the check's fixed Idempotency-Key
+ * and replays it (B2B lets `{}` past its body check and stores "phone is missing or too short"; seen 19 Nov 2026).
+ */
+export function intakeKeyVerdict(status: number): Verdict {
+  if (status === 400 || status === 422) {
+    return { ok: true, detail: "B2B accepts the key (it checked the key, then refused the empty body)" };
+  }
+  return {
+    ok: false,
+    detail: status === 401 ? "B2B refuses the key, or it lacks the intake scope" : `B2B answered ${status}`,
+  };
+}
+
 export async function validate(kind: string, deps: ValidateDeps): Promise<Verdict> {
   const { settings, credentials } = deps;
   try {
@@ -205,15 +221,9 @@ export async function validate(kind: string, deps: ValidateDeps): Promise<Verdic
         };
       }
       case "b2b_intake": {
-        // Writes nothing: B2B checks the key before the body (D-070).
+        // Creates no lead: B2B checks the key before the body (D-070); see intakeKeyVerdict for the answers.
         if (!credentials.b2bIntake) return missing("one_b2b_intake_key");
-        const status = await new RealB2bApi(settings.hosts.b2b_app, credentials.b2bIntake, null).checkKey();
-        return status === 400
-          ? { ok: true, detail: "B2B accepts the key (it refused an empty body after checking the key)" }
-          : {
-              ok: false,
-              detail: status === 401 ? "B2B refuses the key, or it lacks the intake scope" : `B2B answered ${status}`,
-            };
+        return intakeKeyVerdict(await new RealB2bApi(settings.hosts.b2b_app, credentials.b2bIntake, null).checkKey());
       }
       case "test_partner": {
         // Writes nothing: B2B checks the signature before it reads the event, then refuses it for lacking an event id.

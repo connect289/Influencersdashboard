@@ -96,8 +96,9 @@ export class RealB2bApi implements B2bApi {
   }
 
   /**
-   * Setup check of the intake key, writing nothing: B2B checks the key before the body, so an empty body answers 400
-   * with a good key and 401 with a bad one.
+   * Setup check of the intake key, creating no lead: B2B checks the key before the body, so an empty body answers 401
+   * with a bad key and 400 or 422 with a good one (422 is B2B replaying the stored refusal of this same empty body under
+   * the fixed Idempotency-Key; that one intake_requests row is all B2B ever stores for it). Read by intakeKeyVerdict.
    */
   async checkKey(): Promise<number> {
     return this.refusal(
