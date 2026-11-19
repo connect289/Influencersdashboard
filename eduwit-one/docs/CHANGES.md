@@ -10,9 +10,9 @@ followed.
   The form, the website's server and the database each refuse an under-18 attempt without it.
 - Database (website objects only): web23 adds the age and the guardian consent version to `web_gate_attempts`, a
   `guardian` consent channel and text, and records the guardian consent as its own `web_consents` row. Applied to
-  production at about 07:50 UTC after a rolled-back run of the migration with its 9 checks (all passed). No object of
+  production at about 07:30 UTC after a rolled-back run of the migration with its 9 checks (all passed). No object of
   the CRMs, Witty or `lead_intake()` changed; the CRMs do not receive the age (no field for it).
-- Website code on `claude/inspiring-babbage-8asj1y` (191081b): typecheck, lint, 272 unit tests and the copy check pass.
+- Website code on `claude/inspiring-babbage-8asj1y` (191081b): typecheck, lint, 272 unit tests and the copy check pass. Live on www.eduwit.in at 07:32 UTC (the age field shows on /contact).
 
 ## 19 Nov 2026 — Website: the lawyer-approved privacy policy is published
 
