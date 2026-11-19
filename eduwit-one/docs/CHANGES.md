@@ -3,6 +3,16 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 19 Nov 2026 — B2B CRM: Eduwit's billing details entered at the owner's request
+
+- The owner supplied Eduwit's GSTIN, registered address, state code, SAC 998361 and GST 18% and asked for them to be
+  applied. In the B2B CRM they were written with the CRM's own `b2b.set_setting('money', …)` (version 3, with a reason,
+  recorded in `b2b.settings_versions`) after a rolled-back dry run showed only those keys changing.
+  `confirmed_by_ca` was left as it was.
+- Not written by this session, because the apps' own settings functions require a signed-in admin and were not
+  bypassed: Spark (Settings → money) and the influencer portal (organisation profile: only the address was
+  incomplete). The owner was told where to enter them.
+
 ## 19 Nov 2026 — Witty after the publish: no genuine message refused; the 12 Oct version is gone from n8n
 
 - Check of 07:00 UTC (read only): since the publish the only refusal is the probe of 21:00 UTC; the two real messages
