@@ -3,6 +3,16 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 19 Nov 2026 — WEB-ERR can be switched on (0042, D-142)
+
+- Owner's request: clear WEB-ERR's `blocked:web_error_reporter_not_ported` once the website's reporter is confirmed.
+- Confirmed in production (details in D-142): the website's live build carries the reporter and the key and address it
+  needs; its exact call, made as the service role in a rolled-back transaction, wrote its row (none kept); the B2B
+  CRM's reports prove the route through the Data API. Not yet seen: a report sent by the website itself (no server
+  error since 14 Nov).
+- 0042 changes only WEB-ERR's seed row: off reason `owner:ready_to_switch_on`; the check stays off until the owner
+  switches it on in Settings → Checks. Catalogue, 0006 and CHECKS.md regenerated to match; tests updated.
+
 ## 19 Nov 2026 — Website: age asked; under 18 needs a parent's or guardian's consent (web23, D-104)
 
 - Owner's instruction (19 Nov): "Ask age with a checkbox for parent consent under 18". The Witty gate, the enquiry

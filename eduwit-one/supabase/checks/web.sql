@@ -93,9 +93,9 @@ select spent_usd_today <= (select one.threshold('web_advisor_daily_usd')) and es
 -- severity: P2
 -- cadence_s: 300
 -- resolve_after: 2
--- disabled: blocked:web_error_reporter_not_ported
+-- disabled: owner:ready_to_switch_on
 -- title: The website is throwing server errors
--- description: The server errors the app itself reported (one.app_error_report, migration 0041, D-141: counts per route template and error name, no personal data) in the 5-minute buckets that started in the last 15 minutes, the current one and the two before it, against app_errors_15m (20). Fires above the limit and resolves by itself after two readings at or under it. The value names the three busiest route and error pairs. An app that does not throw reports nothing, so no rows reads as no errors; the reporter runs only on a deployment (production build, a hosted Supabase address and its service key). Off until the website carries the reporter (it lives in another repository branch): until then the website reports nothing, and a check that reads nothing must not read as passing.
+-- description: The server errors the app itself reported (one.app_error_report, migration 0041, D-141: counts per route template and error name, no personal data) in the 5-minute buckets that started in the last 15 minutes, the current one and the two before it, against app_errors_15m (20). Fires above the limit and resolves by itself after two readings at or under it. The value names the three busiest route and error pairs. An app that does not throw reports nothing, so no rows reads as no errors; the reporter runs only on a deployment (production build, a hosted Supabase address and its service key). The website carries the reporter since 14 Nov 2026 (website D-097, verified in production on 19 Nov 2026, D-142); the check stays off until the owner switches it on (Settings → Checks).
 with cfg as (select coalesce((select one.threshold('app_errors_15m')), 20)::numeric as max_15m),
 e as (
   select x.route, x.error_name, sum(x.n) as n, max(x.last_seen) as last_seen

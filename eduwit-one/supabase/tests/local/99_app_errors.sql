@@ -54,8 +54,8 @@ select pg_temp.ok((select count(*) = 5 and bool_and(severity = 'P2' and cadence_
                      from one.checks where id in ('B2B-ERR', 'B2C-ERR', 'INF-ERR', 'ONE-ERR', 'WEB-ERR')),
                   'five checks, one per app that reports: P2, every 5 minutes, resolving after two good readings');
 select pg_temp.ok((select bool_and(enabled) from one.checks where id in ('B2B-ERR', 'B2C-ERR', 'INF-ERR', 'ONE-ERR'))
-                  and (select not enabled and disabled_reason = 'blocked:web_error_reporter_not_ported' from one.checks where id = 'WEB-ERR'),
-                  'four are on; the website''s is off until the website carries the reporter');
+                  and (select not enabled and disabled_reason = 'owner:ready_to_switch_on' from one.checks where id = 'WEB-ERR'),
+                  'four are on; the website''s is off, and since 0042 (D-142) the owner may switch it on');
 select pg_temp.ok((select one.threshold('app_errors_15m')) = 20, 'the threshold is seeded at 20 errors in 15 minutes');
 select pg_temp.ok(one.setting_owner_only('thresholds'), 'and changing the thresholds stays the owner''s (0039)');
 select pg_temp.ok((select relrowsecurity from pg_class where oid = 'one.app_errors'::regclass)
