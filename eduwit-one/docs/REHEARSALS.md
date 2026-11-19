@@ -26,3 +26,4 @@ set's hash (`node scripts/db/guards.ts --hash`) has a row here. Rows are never e
 | 2026-11-13T12:14Z | staging | `d933ee64fe6d1329c1f3500c2ee9356da21321d616eabd37082d26f4b5667442` | REHEARSAL PASSED | scripts/db/api-rehearse.sh |
 | 2026-11-13T23:24Z | staging | `b38c97c03f9de97b0177b988f27c4c0a95f7d168d6b0536d1ab80c8bc99a5682` | REHEARSAL PASSED | scripts/db/api-rehearse.sh |
 | 2026-11-14T04:45Z | staging | `ca6509062d45b72cca6a4d43868c22e16f5437287ac77c8cf1e467c594472f4a` | REHEARSAL PASSED | scripts/db/api-rehearse.sh |
+| 2026-11-19T19:21Z | staging | `fea80c98c90fcedde9880ece794187b0de6adf484d1fc5bd9c766d10c253335d` | REHEARSAL WAIVED BY OWNER | owner's choice on 19 Nov 2026: staging (free plan, 746 MB of 500 MB) too overloaded to rehearse; 0042 changes one seed row only; local test passed, rolled-back run on production changed only WEB-ERR (D-142) |

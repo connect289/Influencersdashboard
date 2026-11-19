@@ -12,6 +12,17 @@ followed.
   error since 14 Nov).
 - 0042 changes only WEB-ERR's seed row: off reason `owner:ready_to_switch_on`; the check stays off until the owner
   switches it on in Settings → Checks. Catalogue, 0006 and CHECKS.md regenerated to match; tests updated.
+- Applied to production at 19:22 UTC (version 2 of the row, still off, still the seed's), without a staging
+  rehearsal on the owner's waiver: staging (free plan, 746 MB of a 500 MB limit) was too overloaded to finish one
+  (a 22 KB rollback file ran into its 5-minute limit; staging is left as it was, 0001–0041 with its one-* jobs paused).
+  Before the apply: the local test passed and a rolled-back run on production changed only WEB-ERR. The waiver is a
+  "REHEARSAL WAIVED BY OWNER" row in REHEARSALS.md for this set, honoured by `api-apply.sh` only together with
+  `ONE_APPLY_WITHOUT_REHEARSAL=owner-accepted`. The production jobs are back on.
+- The smoke test after the apply failed on another check, PLAT-09 ("database size, connections or the slowest query
+  more than doubled"), which has errored every hour since 18 Nov 19:01 UTC, and on and off since 26 Oct:
+  "invalid input syntax for type numeric: "[phone]"" (a long number masked as a phone before it is read as a number).
+  Not caused by 0042; a fix of its own is open.
+- `scripts/db/with-api.ts` retries a connection the project refused before any SQL ran (HTTP 544), up to 6 times.
 
 ## 19 Nov 2026 — Website: age asked; under 18 needs a parent's or guardian's consent (web23, D-104)
 

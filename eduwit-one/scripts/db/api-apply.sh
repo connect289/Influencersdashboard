@@ -11,7 +11,14 @@ here="$(cd "$(dirname "$0")/../.." && pwd)"
 [ "$#" -gt 0 ] || { echo "usage: scripts/db/api-apply.sh <migration file name>..."; exit 2; }
 node "$here/scripts/db/guards.ts"
 hash="$(node "$here/scripts/db/guards.ts" --hash)"
-grep -q "\`$hash\` | REHEARSAL PASSED" "$here/docs/REHEARSALS.md" || { echo "refused: this migration set ($hash) has no REHEARSAL PASSED row"; exit 1; }
+# A set without a REHEARSAL PASSED row goes ahead only on the owner's waiver for that exact set: a row
+# "REHEARSAL WAIVED BY OWNER" for its hash in docs/REHEARSALS.md (with the decision that records why) and
+# ONE_APPLY_WITHOUT_REHEARSAL=owner-accepted on the command line (first used for 0042 on 19 Nov 2026, D-142).
+if ! grep -q "\`$hash\` | REHEARSAL PASSED" "$here/docs/REHEARSALS.md"; then
+  grep -q "\`$hash\` | REHEARSAL WAIVED BY OWNER" "$here/docs/REHEARSALS.md" && [ "${ONE_APPLY_WITHOUT_REHEARSAL:-}" = owner-accepted ] \
+    || { echo "refused: this migration set ($hash) has no REHEARSAL PASSED row (nor an owner's waiver with ONE_APPLY_WITHOUT_REHEARSAL=owner-accepted)"; exit 1; }
+  echo "no rehearsal: the owner waived it for this set ($hash), docs/REHEARSALS.md"
+fi
 [ -n "${SUPABASE_ACCESS_TOKEN:-}" ] || { echo "SUPABASE_ACCESS_TOKEN is not set (docs/RUNBOOK-database.md §5)"; exit 2; }
 [ "${ONE_APPLY_WITHOUT_DUMP:-}" = owner-accepted ] || { echo "refused: this route takes no production dump. The owner accepted applying without one on 24 Oct 2026 (D-090); run with ONE_APPLY_WITHOUT_DUMP=owner-accepted to go ahead"; exit 1; }
 echo "no dump: applying without a production dump, as the owner accepted on 24 Oct 2026 (D-090)"
