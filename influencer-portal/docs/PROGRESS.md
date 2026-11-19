@@ -8,6 +8,9 @@
   secret `inf_app_base_url` are set. Open: the Vercel environment fails validation (`/api/health` names the variables
   in the logs), `inf` must be ticked under Data API → Exposed schemas, `inf_internal_key` in Vault, backups of
   `inf_pii_key` and `inf_lead_ref_key`. `LEAD_SYNC` stays off until approved separately (G-14).
+- **20 Nov 2026, test creators (D-200):** staff can mark a creator as a test creator from Creator 360 (for Eduwit One's
+  end-to-end test). Built and tested locally (pgTAP 30/30 files, unit 3,809); the migration
+  `20261120000100_inf_test_creator.sql` waits for the owner's approval before it is applied to the live project.
 - **Open item from Phase 3 closed:** the intermittent CRM import failure was the per-IP staff sign-in limit (30 per 5
   minutes) being reached by the growing suite; staff sessions are now reused within a run (D-98).
 - **Phases 1–3:** complete and tagged `phase-1-done` to `phase-3-done`.

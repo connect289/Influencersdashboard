@@ -1062,6 +1062,8 @@
     "stageMoved": "Moved to {stage}.",
     "blockedDone": "Creator blocked. Their sessions have ended.",
     "unblockedDone": "Creator unblocked.",
+    "testMarked": "Marked as a test creator.",
+    "testUnmarked": "No longer a test creator.",
     "empty": "No creators yet",
     "emptyHint": "Add a prospect or import a CSV to start your pipeline.",
     "noResults": "No creators match",
@@ -1070,6 +1072,9 @@
     "block": "Block",
     "unblock": "Unblock",
     "blockReason": "Reason",
+    "markTest": "Mark as test creator",
+    "unmarkTest": "Not a test creator",
+    "testBadge": "Test creator",
     "deleteDraft": "Delete prospect",
     "blockedBanner": "Blocked: {reason}",
     "accountLinked": "Signed up",
@@ -1090,6 +1095,16 @@
         "title": "Delete {name}?",
         "body": "Only untouched prospects can be deleted. This can't be undone.",
         "action": "Delete"
+      },
+      "markTest": {
+        "title": "Mark {name} as a test creator?",
+        "body": "Test creators are for trying the portal, for example Eduwit One's end-to-end test. They're left out of analytics, the leaderboard and creator counts. Use this only for yourself, a colleague or a test account, never for a real creator.",
+        "action": "Mark as test creator"
+      },
+      "unmarkTest": {
+        "title": "Make {name} a real creator again?",
+        "body": "They'll count in analytics, the leaderboard and creator counts again.",
+        "action": "Not a test creator"
       }
     },
     "stages": {
@@ -1333,7 +1348,8 @@
       "blocked": "Unblock the creator first.",
       "notDraft": "Only untouched prospects can be deleted.",
       "pastFollowUp": "The follow-up date is in the past.",
-      "reason": "Give a reason (at least 3 characters)."
+      "reason": "Give a reason (at least 3 characters).",
+      "testHasLedger": "Money has been recorded for this creator, so they can't be a test creator."
     }
   },
   "tasks": {

@@ -134,6 +134,7 @@ export default async function Creator360({
                 name={c.display_name}
                 stage={c.pipeline_stage}
                 isBlocked={c.is_blocked}
+                isTest={c.is_test}
                 canDelete={p.has("creator.delete_draft") && c.status === "prospect" && !hasAccount}
               />
             </>
@@ -170,7 +171,10 @@ export default async function Creator360({
       ],
       [
         t("creators.fields.status"),
-        <StatusBadge key="st" status={c.status} label={t(`creators.statuses.${c.status as CreatorStatus}`)} />,
+        <span key="st" className="flex flex-wrap items-center gap-1">
+          <StatusBadge status={c.status} label={t(`creators.statuses.${c.status as CreatorStatus}`)} />
+          {c.is_test ? <Badge family="attention">{t("creators.testBadge")}</Badge> : null}
+        </span>,
       ],
       [t("creators.fields.owner"), owner ?? "—"],
       [t("creators.fields.tier"), tier ?? "—"],

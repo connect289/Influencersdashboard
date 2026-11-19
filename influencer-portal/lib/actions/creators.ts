@@ -46,6 +46,7 @@ function dbFail(error: { code?: string; message: string }, t: T): ActionResult<n
   if (/not signed up/i.test(error.message)) return fail(t("creators.errors.notSignedUp"));
   if (/is blocked/i.test(error.message)) return fail(t("creators.errors.blocked"));
   if (/untouched prospects/i.test(error.message)) return fail(t("creators.errors.notDraft"));
+  if (/ledger entries/i.test(error.message)) return fail(t("creators.errors.testHasLedger"));
   if (/in the past/i.test(error.message)) return fail(t("creators.errors.pastFollowUp"));
   if (error.code === "22023" || error.code === "23514" || error.code === "22P02") return fail(t("errors.invalidInput"));
   log.warn("creators.db_error", { code: error.code, error: error.message });
@@ -134,6 +135,22 @@ export async function setCreatorBlocked(creatorId: string, blocked: boolean, rea
   if (error) return dbFail(error, t);
   refresh(creatorId);
   return { ok: true, message: blocked ? t("creators.blockedDone") : t("creators.unblockedDone") };
+}
+
+/** Marks a creator as a test creator (left out of reports, the leaderboard and creator counts), or back. */
+export async function setCreatorTest(creatorId: string, isTest: boolean, reason: string): Promise<ActionResult> {
+  const t = await getTranslations();
+  if (!uuid.safeParse(creatorId).success || reason.trim().length < 3) return fail(t("creators.errors.reason"));
+  const supabase = await session();
+  if (!supabase) return fail(t("errors.sessionEnded"));
+  const { error } = await supabase.rpc("creator_set_test", {
+    p_creator: creatorId,
+    p_test: isTest,
+    p_reason: reason.trim(),
+  });
+  if (error) return dbFail(error, t);
+  refresh(creatorId);
+  return { ok: true, message: isTest ? t("creators.testMarked") : t("creators.testUnmarked") };
 }
 
 export async function deleteDraftCreator(creatorId: string): Promise<ActionResult> {

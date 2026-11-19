@@ -13,27 +13,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select } from "@/components/ui/input";
 import { useAction } from "@/components/ui/use-action";
-import { deleteDraftCreator, setCreatorBlocked, setCreatorStage } from "@/lib/actions/creators";
+import { deleteDraftCreator, setCreatorBlocked, setCreatorStage, setCreatorTest } from "@/lib/actions/creators";
 import { PIPELINE_STAGES, type PipelineStage } from "@/lib/creators/crm";
 
-/** Stage picker plus block / unblock / delete-draft for the Creator 360 header. */
+/** Stage picker plus block / unblock, test creator on / off and delete-draft for the Creator 360 header. */
 export function CreatorActions({
   creatorId,
   name,
   stage,
   isBlocked,
+  isTest,
   canDelete,
 }: {
   creatorId: string;
   name: string;
   stage: string;
   isBlocked: boolean;
+  isTest: boolean;
   canDelete: boolean;
 }) {
   const t = useTranslations();
   const router = useRouter();
   const { pending, run } = useAction();
-  const [confirm, setConfirm] = useState<"block" | "unblock" | "delete" | null>(null);
+  const [confirm, setConfirm] = useState<"block" | "unblock" | "markTest" | "unmarkTest" | "delete" | null>(null);
+  const needsReason = confirm === "block" || confirm === "markTest" || confirm === "unmarkTest";
   return (
     <div className="flex items-center gap-2">
       <label className="sr-only" htmlFor="stage-select">
@@ -64,6 +67,11 @@ export function CreatorActions({
           ) : (
             <DropdownMenuItem onSelect={() => setConfirm("block")}>{t("creators.block")}</DropdownMenuItem>
           )}
+          {isTest ? (
+            <DropdownMenuItem onSelect={() => setConfirm("unmarkTest")}>{t("creators.unmarkTest")}</DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onSelect={() => setConfirm("markTest")}>{t("creators.markTest")}</DropdownMenuItem>
+          )}
           {canDelete ? (
             <DropdownMenuItem onSelect={() => setConfirm("delete")}>{t("creators.deleteDraft")}</DropdownMenuItem>
           ) : null}
@@ -75,9 +83,9 @@ export function CreatorActions({
           trigger={<span className="hidden" />}
           title={t(`creators.confirm.${confirm}.title`, { name })}
           description={t(`creators.confirm.${confirm}.body`)}
-          reasonLabel={confirm === "block" ? t("creators.blockReason") : undefined}
+          reasonLabel={needsReason ? t("creators.blockReason") : undefined}
           actionLabel={t(`creators.confirm.${confirm}.action`)}
-          danger={confirm !== "unblock"}
+          danger={confirm === "block" || confirm === "delete"}
           pending={pending}
           defaultOpen
           onClose={() => setConfirm(null)}
@@ -86,7 +94,9 @@ export function CreatorActions({
               () =>
                 confirm === "delete"
                   ? deleteDraftCreator(creatorId)
-                  : setCreatorBlocked(creatorId, confirm === "block", reason),
+                  : confirm === "markTest" || confirm === "unmarkTest"
+                    ? setCreatorTest(creatorId, confirm === "markTest", reason)
+                    : setCreatorBlocked(creatorId, confirm === "block", reason),
               () => {
                 close();
                 if (confirm === "delete") router.push("/admin/creators");

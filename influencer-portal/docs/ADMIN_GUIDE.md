@@ -262,6 +262,7 @@ Open a creator to see the overview, profile, KYC (masked), outreach timeline, ta
 - **Start a deal** from the Deals tab.
 - Download the **media kit** (PDF) to share with partners.
 - Check the **Scorecard** and **Compliance** tabs before a renewal (see Scorecards).
+- **Mark as test creator** (the **⋯** menu, with a reason) for yourself, a colleague or a test account, for example the creator Eduwit One uses for its end-to-end test of the portal. Test creators carry a **Test creator** badge and are left out of analytics, the leaderboard and creator counts. A creator with any money recorded can't be marked; choose **Not a test creator** to undo it. Both changes are in the audit log.
 
 ### Scorecards, compliance and recommendations
 
