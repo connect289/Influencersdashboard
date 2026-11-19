@@ -3,6 +3,19 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 19 Nov 2026 — Setup item test_b2b_intake_key: 422 also means "B2B accepts the key"
+
+- Found: the item showed "refused: B2B answered 422". B2B's intake API checks the key first (401 is its only "bad key"
+  answer), then lets an empty body past its body check (`jsonb_typeof(p_body -> 'lead') <> 'object'` is null for `{}`),
+  stores it under the check's fixed Idempotency-Key `eduwit-one-setup-check` as a failed request ("phone is missing or
+  too short", production `b2b.intake_requests` id 4, 19 Nov 19:03 UTC) and replays that refusal as 422 on every later
+  check. No lead is created. The validator accepted only 400.
+- Changed, app only: `lib/setup/validate.ts` case `b2b_intake` now reads the answer through `intakeKeyVerdict`
+  (400 or 422 accepted, 401 "refuses the key", anything else "B2B answered N"); `RealB2bApi.checkKey`'s comment says
+  so. T-B2B-INTAKE does not depend on the 400: its post step requires B2B's 2xx answer with `is_test`.
+- Not changed: B2B's empty-body check (a B2B CRM fix, reported separately).
+- Proof: `npm run check` in `web/` (typecheck, lint, format, 376 unit tests) with a new unit test of the verdict.
+
 ## 14 Nov 2026 — The apps report their server-error counts; a check per app alerts (0041, D-141)
 
 - Found (audit of 13 Nov, finding M11; fixes approved by the owner): a server error in any app went only to its host's
