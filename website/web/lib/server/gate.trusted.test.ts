@@ -50,6 +50,7 @@ const input = (phone: string, email = "asha@example.com") => ({
   phone,
   email,
   consentVersion: CONSENT.form.version,
+  age: 25,
   idempotencyKey: `key-${phone.replace(/\D/g, "")}-${email.length}`,
 });
 
@@ -71,5 +72,32 @@ describe("signed-in path and per-inbox limits (D-095)", () => {
     await gate.startVerification(input("9123456780", "Asha.R+Fees@GoogleMail.com"));
     expect(limited).toContain("code_email:ashar@gmail.com");
     expect(sent).toEqual(["asha.r+fees@googlemail.com"]);
+  });
+});
+
+describe("age and parent/guardian consent (privacy policy, 19 Nov 2026)", () => {
+  it("refuses a missing age and an under-18 without the guardian consent, before anything is stored", async () => {
+    rpc.mockClear();
+    const noAge = await gate.startVerification({ ...input("9123456781"), age: undefined });
+    expect(noAge).toMatchObject({ status: "error", reason: "age" });
+    const minor = await gate.startVerification({ ...input("9123456782"), age: 16 });
+    expect(minor).toMatchObject({ status: "error", reason: "guardian" });
+    const wrongVersion = await gate.startVerification({ ...input("9123456783"), age: 16, guardianConsentVersion: "old" });
+    expect(wrongVersion).toMatchObject({ status: "error", reason: "guardian" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+  it("sends the age, and the guardian consent version only for a minor", async () => {
+    rpc.mockClear();
+    await gate.startVerification({ ...input("9123456784"), age: 16, guardianConsentVersion: CONSENT.guardian.version });
+    expect(rpc).toHaveBeenCalledWith(
+      "web_gate_start",
+      expect.objectContaining({ p: expect.objectContaining({ age: 16, guardian_consent_version: CONSENT.guardian.version }) }),
+    );
+    rpc.mockClear();
+    await gate.startVerification({ ...input("9123456785"), age: 30, guardianConsentVersion: CONSENT.guardian.version });
+    expect(rpc).toHaveBeenCalledWith(
+      "web_gate_start",
+      expect.objectContaining({ p: expect.objectContaining({ age: 30, guardian_consent_version: null }) }),
+    );
   });
 });

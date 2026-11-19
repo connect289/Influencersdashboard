@@ -43,18 +43,40 @@ export function cleanName(input: string): string | null {
 
 export type Errors<K extends string> = Partial<Record<K, string>>;
 
+/** Ages the forms accept; under ADULT_AGE a parent's or guardian's consent is required (privacy policy, 19 Nov 2026). */
+export const MIN_AGE = 10;
+export const MAX_AGE = 99;
+export const ADULT_AGE = 18;
+
+/** A whole-number age in range, or null. */
+export function parseAge(input: string | number): number | null {
+  const t = String(input).trim();
+  if (!/^\d{1,2}$/.test(t)) return null;
+  const n = Number(t);
+  return n >= MIN_AGE && n <= MAX_AGE ? n : null;
+}
+
+export const isMinor = (age: number | null): boolean => age !== null && age < ADULT_AGE;
+
 export interface ContactInput {
   name: string;
   phone: string;
   email: string;
+  /** typed age, kept as text while editing */
+  age: string;
   consent: boolean;
+  /** the parent/guardian checkbox; only asked (and only required) when the age is under 18 */
+  guardian: boolean;
 }
 export function validateContact(c: ContactInput): Errors<keyof ContactInput> {
   const e: Errors<keyof ContactInput> = {};
   if (!cleanName(c.name)) e.name = "Enter your full name (letters only).";
   if (!normaliseIndianMobile(c.phone)) e.phone = "Enter a valid 10-digit Indian mobile number.";
   if (!normaliseEmail(c.email)) e.email = "Enter a valid email address.";
+  const age = parseAge(c.age);
+  if (age === null) e.age = `Enter your age in years (${MIN_AGE} to ${MAX_AGE}).`;
   if (!c.consent) e.consent = "Please agree so a counsellor can help you.";
+  if (isMinor(age) && !c.guardian) e.guardian = "As you are under 18, a parent or guardian must agree first.";
   return e;
 }
 

@@ -14,11 +14,14 @@ import type { ApplicationClient, FormContext } from "@/lib/forms/client";
 import { serverApplicationClient } from "@/lib/forms/server-client";
 import { studentProfileAction } from "@/app/actions/account";
 import { formConfigAction } from "@/app/actions/forms";
+import { AgeField, GuardianConsent } from "./AgeFields";
 import { Honeypot, useTurnstile } from "./Guard";
 import {
+  cleanName,
+  isMinor,
   normaliseEmail,
   normaliseIndianMobile,
-  cleanName,
+  parseAge,
   validateAcademic,
   validateContact,
   validatePreferences,
@@ -114,7 +117,9 @@ export function ApplicationForm({
     name: "",
     phone: "",
     email: "",
+    age: "",
     consent: false,
+    guardian: false,
     marketing: false,
   });
   const [academic, setAcademic] = useState<AcademicInput>({
@@ -243,6 +248,9 @@ export function ApplicationForm({
           phone: normaliseIndianMobile(contact.phone)!,
           email: normaliseEmail(contact.email)!,
           consentVersion: CONSENT.form.version,
+          age: parseAge(contact.age)!,
+          guardianConsentVersion:
+            isMinor(parseAge(contact.age)) && contact.guardian ? CONSENT.guardian.version : undefined,
           marketing: contact.marketing,
           turnstileToken: await turnstile.ready(),
           website: honeypot,
@@ -502,6 +510,12 @@ export function ApplicationForm({
               />
             )}
           </Field>
+          <AgeField
+            className="max-w-40"
+            value={contact.age}
+            error={errors.age}
+            onChange={(age) => setContact({ ...contact, age })}
+          />
           <label className="text-muted flex items-start gap-3 text-sm">
             <input
               type="checkbox"
@@ -527,6 +541,12 @@ export function ApplicationForm({
               {errors.consent}
             </p>
           ) : null}
+          <GuardianConsent
+            age={contact.age}
+            checked={contact.guardian}
+            error={errors.guardian}
+            onChange={(guardian) => setContact({ ...contact, guardian })}
+          />
           <Honeypot value={honeypot} onChange={setHoneypot} />
           <label className="text-muted flex items-start gap-3 text-sm">
             <input

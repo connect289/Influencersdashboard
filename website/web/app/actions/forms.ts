@@ -74,6 +74,8 @@ const startSchema = z.object({
   phone: z.string().max(20).optional(),
   email: z.string().max(254),
   consentVersion: z.string().max(60).optional(),
+  age: z.number().int().min(0).max(150).optional(),
+  guardianConsentVersion: z.string().max(60).optional(),
   marketing: z.boolean().optional(),
   turnstileToken: z.string().max(4096).optional(),
   website: z.string().max(200).optional(),

@@ -45,6 +45,7 @@ test.describe("Witty on the website", () => {
     await expect(page.getByRole("heading", { name: "Before we chat" })).toBeVisible();
     await page.getByLabel("Full name", { exact: true }).fill("Kavya Menon");
     await page.getByLabel("Mobile number", { exact: true }).fill(phone);
+    await page.getByLabel("Your age").fill("24");
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByRole("checkbox", { name: /Witty, Eduwit's AI admissions assistant, is stored/ }).check();
     const sent = new Date();
@@ -116,6 +117,7 @@ test.describe("Witty on the website", () => {
     await ask(page, "BCA options");
     await page.getByLabel("Full name", { exact: true }).fill("Kavya Menon");
     await page.getByLabel("Mobile number", { exact: true }).fill(phone);
+    await page.getByLabel("Your age").fill("24");
     await page.getByLabel("Email", { exact: true }).fill(other);
     await page.getByRole("checkbox", { name: /Witty, Eduwit's AI admissions assistant, is stored/ }).check();
     const sent2 = new Date();

@@ -34,6 +34,7 @@ describe("site-wide code ceiling (web14)", () => {
       phone: "9876543211",
       email: "asha@example.com",
       consentVersion: CONSENT.form.version,
+      age: 25,
       idempotencyKey: "abcdefgh12",
     };
     const first = await startVerification(input);

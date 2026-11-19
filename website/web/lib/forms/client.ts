@@ -17,6 +17,10 @@ export interface ContactPayload {
   phone: string; // E.164
   email: string;
   consentVersion: string;
+  /** age in years (validated) */
+  age: number;
+  /** the parent/guardian consent version, sent only when the student is under 18 and ticked the box */
+  guardianConsentVersion?: string;
   marketing: boolean;
   turnstileToken?: string;
   /** honeypot (hidden field) */

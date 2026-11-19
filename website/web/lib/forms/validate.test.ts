@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalEmail, cleanName, normaliseEmail, normaliseIndianMobile, validateAcademic, validateContact, validatePreferences } from "./validate";
+import { canonicalEmail, cleanName, isMinor, normaliseEmail, normaliseIndianMobile, parseAge, validateAcademic, validateContact, validatePreferences } from "./validate";
 
 describe("form validation", () => {
   it("normalises Indian mobiles", () => {
@@ -19,7 +19,28 @@ describe("form validation", () => {
     expect(cleanName("राहुल शर्मा")).toBe("राहुल शर्मा");
   });
   it("contact step requires consent", () => {
-    expect(validateContact({ name: "Asha Rao", phone: "9123456789", email: "a@b.in", consent: false })).toEqual({ consent: expect.any(String) });
+    expect(validateContact({ name: "Asha Rao", phone: "9123456789", email: "a@b.in", age: "24", consent: false, guardian: false })).toEqual({ consent: expect.any(String) });
+  });
+  it("age is required and in range", () => {
+    expect(parseAge("17")).toBe(17);
+    expect(parseAge(" 24 ")).toBe(24);
+    expect(parseAge("9")).toBeNull();
+    expect(parseAge("100")).toBeNull();
+    expect(parseAge("17.5")).toBeNull();
+    expect(parseAge("")).toBeNull();
+    const c = { name: "Asha Rao", phone: "9123456789", email: "a@b.in", consent: true, guardian: false };
+    expect(validateContact({ ...c, age: "" }).age).toBeDefined();
+    expect(validateContact({ ...c, age: "abc" }).age).toBeDefined();
+    expect(validateContact({ ...c, age: "18" })).toEqual({});
+  });
+  it("under 18 needs the parent or guardian checkbox; 18 and over does not", () => {
+    expect(isMinor(17)).toBe(true);
+    expect(isMinor(18)).toBe(false);
+    expect(isMinor(null)).toBe(false);
+    const c = { name: "Asha Rao", phone: "9123456789", email: "a@b.in", consent: true };
+    expect(validateContact({ ...c, age: "16", guardian: false })).toEqual({ guardian: expect.any(String) });
+    expect(validateContact({ ...c, age: "16", guardian: true })).toEqual({});
+    expect(validateContact({ ...c, age: "19", guardian: false })).toEqual({});
   });
   it("academic score range depends on the scale", () => {
     const base = { qualification: "graduation", stream: "", currentlyStudying: false, yearOfPassing: "", board: "" };

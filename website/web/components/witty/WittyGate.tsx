@@ -4,13 +4,22 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { resendCodeAction, startFormAction, verifyCodeAction } from "@/app/actions/forms";
+import { AgeField, GuardianConsent } from "@/components/forms/AgeFields";
 import { Honeypot, useTurnstile } from "@/components/forms/Guard";
 import { CodeInput } from "@/components/ui/CodeInput";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { CONSENT } from "@/content/consent";
 import { track } from "@/lib/client/analytics";
-import { cleanName, normaliseEmail, normaliseIndianMobile, validateContact, type Errors } from "@/lib/forms/validate";
+import {
+  cleanName,
+  isMinor,
+  normaliseEmail,
+  normaliseIndianMobile,
+  parseAge,
+  validateContact,
+  type Errors,
+} from "@/lib/forms/validate";
 
 /**
  * The access gate before the first message (spec 7.2): name, phone (+91, validated, not OTP-verified), email and consent
@@ -18,7 +27,7 @@ import { cleanName, normaliseEmail, normaliseIndianMobile, validateContact, type
  * email is verified.
  */
 export function WittyGate({ onVerified, onCancel }: { onVerified: () => void; onCancel?: () => void }) {
-  const [v, setV] = useState({ name: "", phone: "", email: "", consent: false, marketing: false });
+  const [v, setV] = useState({ name: "", phone: "", email: "", age: "", consent: false, guardian: false, marketing: false });
   const [errors, setErrors] = useState<Errors<string>>({});
   const [phase, setPhase] = useState<"form" | "code">("form");
   const [busy, setBusy] = useState(false);
@@ -57,6 +66,8 @@ export function WittyGate({ onVerified, onCancel }: { onVerified: () => void; on
         phone: normaliseIndianMobile(v.phone)!,
         email: normaliseEmail(v.email)!,
         consentVersion: CONSENT.gate.version,
+        age: parseAge(v.age)!,
+        guardianConsentVersion: isMinor(parseAge(v.age)) && v.guardian ? CONSENT.guardian.version : undefined,
         marketing: v.marketing,
         turnstileToken: await turnstile.ready(),
         website: honeypot,
@@ -145,9 +156,12 @@ export function WittyGate({ onVerified, onCancel }: { onVerified: () => void; on
           {(f) => <Input id={f.id} aria-describedby={f.describedBy} aria-invalid={f.invalid} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="10-digit mobile" value={v.phone} onChange={(e) => setV({ ...v, phone: e.target.value })} />}
         </Field>
       </div>
-      <Field label="Email" error={errors.email}>
-        {(f) => <Input id={f.id} aria-describedby={f.describedBy} aria-invalid={f.invalid} type="email" inputMode="email" autoComplete="email" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} />}
-      </Field>
+      <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
+        <Field label="Email" error={errors.email}>
+          {(f) => <Input id={f.id} aria-describedby={f.describedBy} aria-invalid={f.invalid} type="email" inputMode="email" autoComplete="email" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} />}
+        </Field>
+        <AgeField value={v.age} error={errors.age} onChange={(age) => setV({ ...v, age })} />
+      </div>
       <label className="text-muted flex items-start gap-3 text-xs leading-relaxed">
         <input type="checkbox" className="accent-[var(--primary)] mt-0.5 size-5 shrink-0" checked={v.consent} aria-invalid={!!errors.consent} onChange={(e) => setV({ ...v, consent: e.target.checked })} />
         <span>
@@ -155,6 +169,7 @@ export function WittyGate({ onVerified, onCancel }: { onVerified: () => void; on
         </span>
       </label>
       {errors.consent ? <p role="alert" className="text-danger -mt-1 text-xs font-medium">{errors.consent}</p> : null}
+      <GuardianConsent small age={v.age} checked={v.guardian} error={errors.guardian} onChange={(guardian) => setV({ ...v, guardian })} />
       <label className="text-muted flex items-start gap-3 text-xs">
         <input type="checkbox" className="accent-[var(--primary)] mt-0.5 size-5 shrink-0" checked={v.marketing} onChange={(e) => setV({ ...v, marketing: e.target.checked })} />
         <span>{CONSENT.marketing} (optional)</span>

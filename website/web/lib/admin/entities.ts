@@ -252,9 +252,9 @@ export const ENTITIES: EntityConfig[] = [
     canDelete: false,
     fields: [
       { name: "version", label: "Version", type: "text", required: true, key: true, help: "e.g. web-form-2026-11-v2" },
-      { name: "channel", label: "Channel", type: "select", options: ["gate", "form", "marketing"], required: true },
+      { name: "channel", label: "Channel", type: "select", options: ["gate", "form", "marketing", "guardian"], required: true },
       { name: "body", label: "Text", type: "textarea", required: true },
-      { name: "purposes", label: "Purposes", type: "tags", help: "sales, partner_share, ai_chat_storage, marketing" },
+      { name: "purposes", label: "Purposes", type: "tags", help: "sales, partner_share, ai_chat_storage, marketing, guardian_consent" },
       { name: "active", label: "Active", type: "bool" },
       { name: "legal_reviewed_at", label: "Legal review date", type: "datetime" },
     ],

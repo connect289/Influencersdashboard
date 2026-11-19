@@ -74,6 +74,7 @@ test.describe("accessibility audit: dialogs and forms", () => {
     const email = uniqueEmail("a11y");
     await dialog.getByLabel("Full name", { exact: true }).fill("Asha Rao");
     await dialog.getByLabel("Mobile number", { exact: true }).fill(uniquePhone());
+    await dialog.getByLabel("Your age").fill("24");
     await dialog.getByLabel("Email", { exact: true }).fill(email);
     await dialog.getByRole("checkbox", { name: /I agree that Eduwit/ }).check();
     const sent = new Date();
@@ -154,6 +155,7 @@ test.describe("accessibility audit: Witty", () => {
     const email = uniqueEmail("a11yw");
     await page.getByLabel("Full name", { exact: true }).fill("Kavya Menon");
     await page.getByLabel("Mobile number", { exact: true }).fill(uniquePhone());
+    await page.getByLabel("Your age").fill("24");
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByRole("checkbox", { name: /Witty, Eduwit's AI admissions assistant, is stored/ }).check();
     const sent = new Date();

@@ -34,6 +34,7 @@ async function enquiry(
   const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Verify email and send" }) });
   await form.getByLabel("Full name", { exact: true }).fill(o.name);
   await form.getByLabel("Mobile number", { exact: true }).fill(o.phone);
+  await form.getByLabel("Your age").fill("24");
   await form.getByLabel("Email", { exact: true }).fill(o.email);
   if (o.programme) await form.getByLabel(/Programme you're interested in/).fill(o.programme);
   await form.getByRole("checkbox", { name: /I agree that Eduwit/ }).check();
@@ -62,6 +63,7 @@ test.describe("leads, verification and accounts", () => {
     await expect(dialog.getByText("Enter your full name (letters only).")).toBeVisible();
     await dialog.getByLabel("Full name", { exact: true }).fill("Asha Rao");
     await dialog.getByLabel("Mobile number", { exact: true }).fill(phone);
+    await dialog.getByLabel("Your age").fill("24");
     await dialog.getByLabel("Email", { exact: true }).fill(email);
     await dialog.getByRole("checkbox", { name: /I agree that Eduwit/ }).check();
     const sent = new Date();
@@ -167,6 +169,7 @@ test.describe("leads, verification and accounts", () => {
     const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Verify email and send" }) });
     await form.getByLabel("Full name", { exact: true }).fill("Bot Person");
     await form.getByLabel("Mobile number", { exact: true }).fill(uniquePhone());
+    await form.getByLabel("Your age").fill("24");
     await form.getByLabel("Email", { exact: true }).fill(bot);
     await form.getByRole("checkbox", { name: /I agree that Eduwit/ }).check();
     await form.locator('input[name="website"]').fill("http://spam.example", { force: true });
@@ -226,6 +229,7 @@ test.describe("leads, verification and accounts", () => {
     await page.goto("/contact#enquiry");
     const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Verify email and send" }) });
     await expect(form.getByLabel("Email", { exact: true })).toHaveValue(email);
+    await form.getByLabel("Your age").fill("24");
     await form.getByRole("checkbox", { name: /I agree that Eduwit/ }).check();
     await form.getByRole("button", { name: "Verify email and send" }).click();
     await expect(page.getByText("Thanks, we've got your enquiry")).toBeVisible();

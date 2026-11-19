@@ -5,7 +5,7 @@ import { CONSENT } from "@/content/consent";
 import { allowed, CONSENT_COOKIE, parseConsent } from "@/lib/consent";
 import { attributionToLead, decodeTouch } from "@/lib/attribution";
 import { junkScore } from "@/lib/forms/junk";
-import { canonicalEmail, cleanName, normaliseEmail, normaliseIndianMobile } from "@/lib/forms/validate";
+import { canonicalEmail, cleanName, isMinor, normaliseEmail, normaliseIndianMobile, parseAge } from "@/lib/forms/validate";
 import { rpc } from "./db";
 import { email } from "./email";
 import { verificationCodeEmail } from "./email/templates";
@@ -40,6 +40,10 @@ export interface StartInput {
   phone?: string;
   email: string;
   consentVersion?: string;
+  /** age in years; required on every surface except sign-in */
+  age?: number;
+  /** the parent/guardian consent text version; required when the age is under 18 */
+  guardianConsentVersion?: string;
   marketing?: boolean;
   turnstileToken?: string;
   /** honeypot field: real people never fill it */
@@ -96,6 +100,8 @@ export function setEmailVerifier(v: EmailVerifier) {
 const MESSAGES: Record<string, string> = {
   invalid_input: "Please check your details and try again.",
   consent: "Please agree to the consent text so a counsellor can help you.",
+  age: "Please enter your age.",
+  guardian: "As you are under 18, a parent or guardian must agree before you send your details.",
   turnstile: "We couldn't confirm you're not a robot. Please refresh the page and try again.",
   rate_limited: "Too many attempts. Please wait a few minutes and try again.",
   disposable_email: "Please use your personal or work email — temporary email addresses can't receive our updates.",
@@ -209,6 +215,11 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
   const expectedConsent =
     surface === "gate" ? CONSENT.gate.version : surface === "signin" ? undefined : CONSENT.form.version;
   if (expectedConsent && input.consentVersion !== expectedConsent) return err("consent");
+  // Age on every surface but sign-in; under 18 needs the parent/guardian consent (the database checks it again).
+  const age = surface === "signin" ? null : parseAge(input.age ?? "");
+  if (surface !== "signin" && age === null) return err("age");
+  const minor = isMinor(age);
+  if (minor && input.guardianConsentVersion !== CONSENT.guardian.version) return err("guardian");
 
   // Honeypot: look like success, do nothing (bots learn nothing).
   if (input.website) {
@@ -244,6 +255,8 @@ export async function startVerification(input: StartInput): Promise<StartOutcome
     email: emailNorm,
     phone,
     consent_version: expectedConsent ?? null,
+    age,
+    guardian_consent_version: minor ? CONSENT.guardian.version : null,
     marketing: !!input.marketing,
     attribution: await attribution(userAgent),
     junk_score: junk.score,

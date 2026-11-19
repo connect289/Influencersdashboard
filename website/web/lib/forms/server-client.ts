@@ -26,6 +26,8 @@ export const serverApplicationClient: ApplicationClient = {
         phone: c.phone,
         email: c.email,
         consentVersion: c.consentVersion,
+        age: c.age,
+        guardianConsentVersion: c.guardianConsentVersion,
         marketing: c.marketing,
         turnstileToken: c.turnstileToken,
         website: c.website,

@@ -11,5 +11,10 @@ export const CONSENT = {
     version: "web-gate-2026-10-v1",
     text: "I agree that Eduwit Learning Services may use my name, phone number and email to help me choose a programme and with my admission, and may share them with our partner universities and our admission partners (edtech companies). My chat with Witty, Eduwit's AI admissions assistant, is stored to answer me and to improve the service. I can withdraw consent or ask for my data to be deleted at any time.",
   },
+  /** Shown only when the age entered is under 18 (privacy policy: "a parent or guardian must give consent"). */
+  guardian: {
+    version: "web-guardian-2026-11-v1",
+    text: "I am under 18. My parent or guardian has read the text above and the Privacy Policy and agrees that Eduwit may use my details as described.",
+  },
   marketing: "Send me programme updates on WhatsApp and email.",
 } as const;

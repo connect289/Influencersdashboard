@@ -11,8 +11,17 @@ import { track } from "@/lib/client/analytics";
 import type { ApplicationClient } from "@/lib/forms/client";
 import { serverApplicationClient } from "@/lib/forms/server-client";
 import { studentProfileAction } from "@/app/actions/account";
+import { AgeField, GuardianConsent } from "./AgeFields";
 import { Honeypot, useTurnstile } from "./Guard";
-import { cleanName, normaliseEmail, normaliseIndianMobile, validateContact, type Errors } from "@/lib/forms/validate";
+import {
+  cleanName,
+  isMinor,
+  normaliseEmail,
+  normaliseIndianMobile,
+  parseAge,
+  validateContact,
+  type Errors,
+} from "@/lib/forms/validate";
 
 /**
  * Short enquiry form (spec 9.1): name, phone (validated, not OTP-verified), email (verified by code), programme of
@@ -37,7 +46,9 @@ export function EnquiryForm({
     name: "",
     phone: "",
     email: "",
+    age: "",
     consent: false,
+    guardian: false,
     marketing: false,
     programme,
     message: "",
@@ -95,6 +106,8 @@ export function EnquiryForm({
           phone: normaliseIndianMobile(v.phone)!,
           email: normaliseEmail(v.email)!,
           consentVersion: CONSENT.form.version,
+          age: parseAge(v.age)!,
+          guardianConsentVersion: isMinor(parseAge(v.age)) && v.guardian ? CONSENT.guardian.version : undefined,
           marketing: v.marketing,
           turnstileToken: await turnstile.ready(),
           website: honeypot,
@@ -247,20 +260,23 @@ export function EnquiryForm({
           )}
         </Field>
       </div>
-      <Field label="Email" hint="We'll send a 6-digit code to verify it." error={errors.email}>
-        {(f) => (
-          <Input
-            id={f.id}
-            aria-describedby={f.describedBy}
-            aria-invalid={f.invalid}
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            value={v.email}
-            onChange={(e) => setV({ ...v, email: e.target.value })}
-          />
-        )}
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
+        <Field label="Email" hint="We'll send a 6-digit code to verify it." error={errors.email}>
+          {(f) => (
+            <Input
+              id={f.id}
+              aria-describedby={f.describedBy}
+              aria-invalid={f.invalid}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={v.email}
+              onChange={(e) => setV({ ...v, email: e.target.value })}
+            />
+          )}
+        </Field>
+        <AgeField value={v.age} error={errors.age} onChange={(age) => setV({ ...v, age })} />
+      </div>
       <Field label="Programme you're interested in" optional>
         {(f) => (
           <Input
@@ -304,6 +320,7 @@ export function EnquiryForm({
           {errors.consent}
         </p>
       ) : null}
+      <GuardianConsent age={v.age} checked={v.guardian} error={errors.guardian} onChange={(guardian) => setV({ ...v, guardian })} />
       <label className="text-muted flex items-start gap-3 text-sm">
         <input
           type="checkbox"
