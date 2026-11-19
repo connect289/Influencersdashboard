@@ -3,6 +3,17 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 19 Nov 2026 — Website: age asked; under 18 needs a parent's or guardian's consent (web23, D-104)
+
+- Owner's instruction (19 Nov): "Ask age with a checkbox for parent consent under 18". The Witty gate, the enquiry
+  form and the application form ask the age; under 18 a second checkbox (`web-guardian-2026-11-v1`) must be ticked.
+  The form, the website's server and the database each refuse an under-18 attempt without it.
+- Database (website objects only): web23 adds the age and the guardian consent version to `web_gate_attempts`, a
+  `guardian` consent channel and text, and records the guardian consent as its own `web_consents` row. Applied to
+  production at about 07:50 UTC after a rolled-back run of the migration with its 9 checks (all passed). No object of
+  the CRMs, Witty or `lead_intake()` changed; the CRMs do not receive the age (no field for it).
+- Website code on `claude/inspiring-babbage-8asj1y` (191081b): typecheck, lint, 272 unit tests and the copy check pass.
+
 ## 19 Nov 2026 — Website: the lawyer-approved privacy policy is published
 
 - Owner's instruction (19 Nov): publish the approved privacy policy with these figures: records kept 5 years after
