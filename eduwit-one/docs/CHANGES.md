@@ -3,6 +3,19 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 19 Nov 2026 — Website: the lawyer-approved privacy policy is published
+
+- Owner's instruction (19 Nov): publish the approved privacy policy with these figures: records kept 5 years after
+  the admission help ends, requests and complaints answered within 30 days, Grievance Officer Vikas Kumar Jha,
+  connect@eduwit.in, the registered address in Indirapuram.
+- The text is the reviewed draft's proposed wording with those figures filled in and every note removed; its table
+  became a list, because legal pages store only headings, paragraphs and lists. Saved at 07:20 UTC through the
+  website's own admin function `web_admin_save('legal_pages', …)` after a rolled-back dry run; the audit log row
+  (id 14, "owner via Claude Code") keeps the previous text, so it can be restored from there. Status `migrated`, so
+  search engines may index it. The site's five-minute page cache shows it to visitors once it refreshes.
+- Still open from the draft, for the owner: the forms do not yet ask for age or a parent's consent, although the
+  policy says under-18s need one.
+
 ## 19 Nov 2026 — B2B CRM: Eduwit's billing details entered at the owner's request
 
 - The owner supplied Eduwit's GSTIN, registered address, state code, SAC 998361 and GST 18% and asked for them to be
