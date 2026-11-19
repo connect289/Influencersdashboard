@@ -3,6 +3,16 @@
 Append-only, newest first. One entry per deploy or per phase step; production database changes name the dump they
 followed.
 
+## 19 Nov 2026 — Witty after the publish: no genuine message refused; the 12 Oct version is gone from n8n
+
+- Check of 07:00 UTC (read only): since the publish the only refusal is the probe of 21:00 UTC; the two real messages
+  (the owner's, 21:04 UTC) were accepted and answered by Witty; 11 hourly `T-WITTY-QUALIFY` runs passed; no failed
+  execution. No real message has arrived since, so delivery to WhatsApp (entry below) is not yet re-checked.
+- n8n's history now holds only `fc290595`: `d1c2b419` was pruned by the workflow history retention, so it can no longer
+  be republished from n8n. A copy of its nodes and connections (read on 18 Nov, without credentials, which n8n never
+  returns) is kept outside the repository, because it carries webhook paths and prompts and this repository is
+  public. Going back would mean importing that copy and binding its credentials again by hand.
+
 ## 18 Nov 2026 — Witty's replies do not reach WhatsApp: the chat service's access to the number is refused
 
 - Found while checking the publish below: the owner sent Witty two WhatsApp messages (21:04 UTC) and got no answer.
