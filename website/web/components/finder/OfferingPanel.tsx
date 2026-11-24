@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, BadgeCheck, CalendarCheck, Info, Loader2 } from "lucide-react";
+import { ArrowRight, BadgeCheck, CalendarCheck, FileDown, Info, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Panel } from "@/components/ui/Panel";
 import { EXPLAINERS } from "@/content/explainers";
 import { FEE_DISCLAIMER } from "@/content/site";
 import { track } from "@/lib/client/analytics";
 import { setOfferingParam } from "@/lib/client/use-finder";
+import { brochureHref } from "@/lib/finder/brochure";
 import { MIN_QUALIFICATION_LABEL } from "@/lib/finder/eligibility";
 import { formatDate, formatDuration, formatInr } from "@/lib/format";
 import { ATTRIBUTE_LABEL, FORMAT_LABEL, UGC_LABEL, modeDisplay } from "@/lib/search/labels";
@@ -91,6 +92,7 @@ export function OfferingPanel({
   const d = current?.data ?? null;
   const state = !id ? "idle" : !current ? "loading" : current.status === "ok" ? "idle" : current.status;
   const f = d?.university_facts;
+  const brochure = brochureHref(d?.brochure_url);
   const attrs = d
     ? (Object.entries(d.attributes ?? {})
         .map(([k, v]) => (k === "medium" ? `${v} medium` : ATTRIBUTE_LABEL[k]))
@@ -339,6 +341,22 @@ export function OfferingPanel({
                 ))}
               </ul>
             </section>
+          ) : null}
+
+          {brochure ? (
+            <a
+              href={brochure}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => track("brochure_download", { offering_id: d.id, university_id: d.university.id })}
+              className="border-border-strong text-text hover:bg-surface-hover bg-surface inline-flex h-12 items-center justify-center gap-2 rounded-full border px-6 font-semibold transition-colors"
+            >
+              <FileDown className="text-amber-text size-5" aria-hidden /> Download brochure
+              <span className="sr-only">
+                {" "}
+                for {d.programme_name} at {d.university.name} (opens in a new tab)
+              </span>
+            </a>
           ) : null}
 
           <section id="apply" aria-labelledby="apply-h" className="glass scroll-mt-4 rounded-[var(--radius-xl)] p-4">

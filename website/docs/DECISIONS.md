@@ -893,3 +893,7 @@ area, `https://www.eduwit.in/**` must be added there by the owner.
 ### D-105 · SEO pass: seven more programme landing pages; the site is still uncrawlable until APP_ENV is production (19 Nov 2026)
 - **Done:** landing pages for BBA, MA, B.Com, BA, M.Com, PGDM and M.Sc (web24; saved in production through `web_admin_save`), the largest programmes after MBA, BCA and MCA. Their text states no fee, duration or approval; the catalogue supplies those on the page.
 - **Found, owner's to change:** www.eduwit.in serves `robots.txt` with `Disallow: /` because Vercel still has `APP_ENV=preview`. Nothing ranks until it is `production`, which also needs real Turnstile keys (production refuses a missing or test secret, so forms and Witty's gate would fail closed) and, to measure, Search Console (S-20).
+
+### D-106 · "Download brochure" on the programme panel (owner request, 24 Nov 2026)
+- **Decision:** a programme's panel shows a "Download brochure" button when the catalogue row has an https `brochure_url` (`lib/finder/brochure.ts`); it opens in a new tab with `rel="noopener noreferrer"` and counts as `brochure_download`. The owner confirmed the brochures in the catalogue published from Scout (the Hero Vired / Degree Partner catalogue, most hosted in Scout's storage `clfjuwoibezhrkpawuij`) are to be shown: 1,008 of 1,141 active programmes on 24 Nov.
+- **Not changed:** no brochure text is copied onto the site; programmes without a link show no button.

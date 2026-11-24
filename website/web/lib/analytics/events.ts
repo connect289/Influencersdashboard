@@ -20,6 +20,7 @@ export const EVENTS = {
   advisor_restart: [],
   lead_created: ["surface", "event_id"],
   counsellor_click: ["surface", "channel"],
+  brochure_download: ["offering_id", "university_id"],
   callback_booked: ["surface"],
   form_view: ["form", "offering_id"],
   form_step_complete: ["form", "step"],
@@ -63,7 +64,11 @@ export const FUNNEL_STEPS: Partial<
  * Server-side re-check of a funnel beacon's context: only the allow-listed parameters of the event(s) that map to this
  * funnel step survive (the browser is not trusted to have sanitised them), scrubbed and length-limited.
  */
-export function funnelContext(funnel: string, step: string, context: EventParams = {}): Record<string, string | number | boolean> {
+export function funnelContext(
+  funnel: string,
+  step: string,
+  context: EventParams = {},
+): Record<string, string | number | boolean> {
   const names = (Object.keys(FUNNEL_STEPS) as EventName[]).filter((n) => {
     const f = FUNNEL_STEPS[n]!;
     return f.funnel === funnel && (n === "form_step_complete" ? /^step_\w{1,20}$/.test(step) : f.step === step);
